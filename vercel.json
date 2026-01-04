@@ -1,24 +1,15 @@
 {
-    "buildCommand": null,
-    "outputDirectory": "public",
-    "devCommand": null,
-    "installCommand": "npm install --legacy-peer-deps",
-    "framework": null,
-    "rewrites": [
+    "version": 2,
+    "builds": [
         {
-            "source": "/api/:path*",
-            "destination": "/api/:path*"
+            "src": "web/package.json",
+            "use": "@vercel/next"
         }
     ],
-    "headers": [
+    "routes": [
         {
-            "source": "/assets/js/(.*)",
-            "headers": [
-                {
-                    "key": "Cache-Control",
-                    "value": "no-cache, no-store, must-revalidate"
-                }
-            ]
+            "src": "/(.*)",
+            "dest": "/web/$1"
         }
     ]
 }
