@@ -1,0 +1,160 @@
+/* 
+   ═══════════════════════════════════════════════════════════════════════════
+   OSOOL LUXURY DESIGN SYSTEM v3.0 (REMASTERED)
+   ground-up remake: Liquid Glass, 3D Depth, Psychological Trust Colors
+   ═══════════════════════════════════════════════════════════════════════════ 
+*/
+
+:root {
+    /* 
+       1. PSYCHOLOGICAL COLOR PALETTE 
+       Soft, confident colors that inspire trust and evoke luxury.
+    */
+    /* Primary Trust - Deep, Stable Navy */
+    --color-trust-deep: #0f172a;
+    /* Purity & Depth */
+    --color-trust-mid: #334155;
+    /* Stability */
+    --color-trust-soft: #64748b;
+    /* Approachability */
+
+    /* Trust-Building Colors (Psychology-Based) */
+    --trust-blue: #4A90D9;        /* Security & Reliability */
+    --growth-green: #34A853;       /* Prosperity & Growth */
+    --luxury-gold: #D4AF37;        /* Premium & Exclusive */
+    --calm-cream: #F5F0E6;         /* Warmth & Comfort */
+    --confident-navy: #1A365D;     /* Authority & Stability */
+    
+    /* Egyptian-Inspired Accents */
+    --nile-teal: #2D8B9A;
+    --desert-sand: #C4A35A;
+    --papyrus-cream: #F5F1E3;
+
+    /* Luxury Gold - The Premium Accent (Softened for elegance) */
+    --color-gold-rich: #d4af37;
+    /* Classic Gold */
+    --color-gold-sheer: rgba(212, 175, 55, 0.15);
+    --color-gold-text: #b8860b;
+
+    /* Liquid Glass Accents */
+    --color-glass-surface: rgba(255, 255, 255, 0.65);
+    --color-glass-border: rgba(255, 255, 255, 0.4);
+    --color-glass-highlight: rgba(255, 255, 255, 0.9);
+    
+    /* Enhanced Glass Variables */
+    --glass-primary: rgba(255, 255, 255, 0.15);
+    --glass-secondary: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.25);
+    --glass-shadow: rgba(0, 0, 0, 0.15);
+
+    /* Backgrounds - Ambient & Airy */
+    --bg-main: #f8fafc;
+    --bg-mesh-1: #e2e8f0;
+    --bg-mesh-2: #cbd5e1;
+
+    /* Semantic */
+    --color-success: #10b981;
+    --color-error: #ef4444;
+    --color-ai-pulse: #8b5cf6;
+    /* A mythical purple for AI sentience */
+
+    /* 
+       2. TYPOGRAPHY
+       Pairing a high-contrast serif with a geometric sans.
+    */
+    --font-heading: 'Playfair Display', serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* 
+       3. LIQUID GLASS & BLUR 
+    */
+    --blur-glass: blur(20px);
+    --blur-depth: blur(40px);
+    --blur-heavy: 20px;
+    --blur-medium: 12px;
+    --blur-light: 6px;
+    --glass-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 2px 4px -1px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+    /* 
+       4. 3D TRANSFORMS & DEPTH 
+    */
+    --perspective-scene: 1200px;
+    --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-liquid: cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+/* Dark Mode Overrides (Automatic or toggled) */
+[data-theme="dark"] {
+    --bg-main: #020617;
+    --color-trust-deep: #f1f5f9;
+    /* Text inversion */
+    --color-glass-surface: rgba(15, 23, 42, 0.6);
+    --color-glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* 
+   5. UTILITY CLASSES 
+*/
+
+/* Glass Panel */
+.glass-panel {
+    background: var(--color-glass-surface);
+    backdrop-filter: var(--blur-glass);
+    -webkit-backdrop-filter: var(--blur-glass);
+    border: 1px solid var(--color-glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 24px;
+}
+
+/* 3D Card Containment */
+.scene-3d {
+    perspective: var(--perspective-scene);
+}
+
+.card-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.4s var(--ease-elastic), box-shadow 0.4s ease;
+}
+
+.card-3d:hover {
+    transform: translateY(-10px) rotateX(2deg) rotateY(-2deg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+}
+
+/* Text Gradients */
+.text-gradient-gold {
+    background: linear-gradient(135deg, var(--color-gold-text) 0%, #fcd34d 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.text-gradient-ai {
+    background: linear-gradient(135deg, var(--color-trust-deep) 0%, var(--color-ai-pulse) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Liquid Blob Animation Helpers */
+.blob {
+    position: absolute;
+    filter: blur(80px);
+    z-index: -1;
+    opacity: 0.6;
+    animation: blob-float 10s infinite alternate;
+}
+
+@keyframes blob-float {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    100% {
+        transform: translate(20px, -20px) scale(1.1);
+    }
+}

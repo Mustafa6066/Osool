@@ -1,0 +1,666 @@
+/*
+   ═══════════════════════════════════════════════════════════════════════════
+   ELITE PROPERTY ADVISOR - BLOCKCHAIN UI STYLES
+   Wallet connection, NFT cards, token displays, staking UI
+   ═══════════════════════════════════════════════════════════════════════════
+*/
+
+/* ═══════════════════════════════════════════════════════════════
+   WALLET CONNECTION BUTTON
+   ═══════════════════════════════════════════════════════════════ */
+
+.btn-connect-wallet {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #8247e5, #6366f1);
+    border: none;
+    border-radius: 99px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(130, 71, 229, 0.3);
+}
+
+.btn-connect-wallet:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(130, 71, 229, 0.4);
+}
+
+.btn-connect-wallet.connected {
+    background: linear-gradient(135deg, var(--growth-green, #34A853), #10b981);
+}
+
+.btn-connect-wallet .wallet-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.btn-connect-wallet .wallet-address {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.85rem;
+}
+
+/* Wallet dropdown */
+.wallet-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 16px;
+    min-width: 280px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.wallet-dropdown.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.wallet-dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin-bottom: 12px;
+}
+
+.wallet-dropdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.wallet-dropdown-item .label {
+    color: var(--color-trust-soft);
+    font-size: 0.85rem;
+}
+
+.wallet-dropdown-item .value {
+    font-weight: 600;
+    color: var(--color-trust-deep);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOKEN BALANCE DISPLAY
+   ═══════════════════════════════════════════════════════════════ */
+
+.token-balance {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(212, 175, 55, 0.05));
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 99px;
+}
+
+.token-balance .token-icon {
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, var(--luxury-gold, #D4AF37), #fcd34d);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: white;
+    font-weight: bold;
+}
+
+.token-balance .token-amount {
+    font-weight: 700;
+    color: var(--luxury-gold, #D4AF37);
+    font-family: var(--font-mono, monospace);
+}
+
+.token-balance .token-label {
+    color: var(--color-trust-soft);
+    font-size: 0.8rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NFT MEMBERSHIP CARD
+   ═══════════════════════════════════════════════════════════════ */
+
+.nft-membership-card {
+    position: relative;
+    width: 320px;
+    height: 200px;
+    border-radius: 20px;
+    padding: 24px;
+    overflow: hidden;
+    transform-style: preserve-3d;
+    transition: transform 0.5s ease;
+    cursor: pointer;
+}
+
+.nft-membership-card:hover {
+    transform: rotateY(5deg) rotateX(3deg);
+}
+
+.nft-membership-card.explorer {
+    background: linear-gradient(135deg, #cd7f32, #b87333);
+}
+
+.nft-membership-card.premium {
+    background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+}
+
+.nft-membership-card.platinum {
+    background: linear-gradient(135deg, #d4af37, #fcd34d);
+}
+
+.nft-membership-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+    pointer-events: none;
+}
+
+.nft-membership-card .card-tier {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.nft-membership-card .card-logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: white;
+    margin-bottom: 40px;
+}
+
+.nft-membership-card .card-member {
+    position: absolute;
+    bottom: 60px;
+    left: 24px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.nft-membership-card .card-address {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.9rem;
+    color: white;
+    letter-spacing: 1px;
+}
+
+.nft-membership-card .card-expiry {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    text-align: right;
+}
+
+.nft-membership-card .card-expiry-label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.nft-membership-card .card-expiry-date {
+    font-size: 0.85rem;
+    color: white;
+    font-weight: 600;
+}
+
+/* Holographic effect for Platinum */
+.nft-membership-card.platinum::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.3),
+            transparent);
+    animation: holographicShine 3s infinite;
+}
+
+@keyframes holographicShine {
+    0% {
+        transform: translateX(-50%);
+    }
+
+    100% {
+        transform: translateX(50%);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUBSCRIPTION TIER CARDS
+   ═══════════════════════════════════════════════════════════════ */
+
+.tier-selection {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    padding: 24px;
+}
+
+.tier-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 32px;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tier-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.tier-card.recommended {
+    border-color: var(--luxury-gold, #D4AF37);
+}
+
+.tier-card.recommended::before {
+    content: 'الأكثر شيوعاً';
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--luxury-gold, #D4AF37);
+    color: white;
+    padding: 4px 16px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.tier-card .tier-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.tier-card.explorer .tier-icon {
+    background: linear-gradient(135deg, #cd7f32, #b87333);
+}
+
+.tier-card.premium .tier-icon {
+    background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+}
+
+.tier-card.platinum .tier-icon {
+    background: linear-gradient(135deg, #d4af37, #fcd34d);
+}
+
+.tier-card .tier-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--color-trust-deep);
+}
+
+.tier-card .tier-price {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--luxury-gold, #D4AF37);
+    margin-bottom: 8px;
+}
+
+.tier-card .tier-price span {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--color-trust-soft);
+}
+
+.tier-card .tier-features {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0;
+    text-align: right;
+}
+
+.tier-card .tier-features li {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-trust-mid);
+    font-size: 0.9rem;
+}
+
+.tier-card .tier-features li i {
+    color: var(--growth-green, #34A853);
+}
+
+.tier-card .btn-subscribe {
+    width: 100%;
+    padding: 14px 24px;
+    border-radius: 99px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tier-card.explorer .btn-subscribe {
+    background: linear-gradient(135deg, #cd7f32, #b87333);
+    color: white;
+}
+
+.tier-card.premium .btn-subscribe {
+    background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+    color: var(--color-trust-deep);
+}
+
+.tier-card.platinum .btn-subscribe {
+    background: linear-gradient(135deg, #d4af37, #fcd34d);
+    color: var(--color-trust-deep);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STAKING PANEL
+   ═══════════════════════════════════════════════════════════════ */
+
+.staking-panel {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.staking-panel .staking-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.staking-panel .staking-title i {
+    color: var(--luxury-gold, #D4AF37);
+}
+
+.staking-tiers {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.staking-tier {
+    padding: 16px;
+    border-radius: 16px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.03);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.staking-tier:hover {
+    border-color: var(--luxury-gold, #D4AF37);
+}
+
+.staking-tier.active {
+    border-color: var(--growth-green, #34A853);
+    background: rgba(52, 168, 83, 0.05);
+}
+
+.staking-tier .tier-tokens {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--luxury-gold, #D4AF37);
+    margin-bottom: 4px;
+}
+
+.staking-tier .tier-discount {
+    font-size: 0.85rem;
+    color: var(--growth-green, #34A853);
+    font-weight: 600;
+}
+
+.staking-tier .tier-benefit {
+    font-size: 0.75rem;
+    color: var(--color-trust-soft);
+    margin-top: 4px;
+}
+
+.staking-input-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.staking-input-group input {
+    flex: 1;
+    padding: 14px 20px;
+    border-radius: 99px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.staking-input-group input:focus {
+    border-color: var(--luxury-gold, #D4AF37);
+}
+
+.staking-input-group .btn-stake {
+    padding: 14px 32px;
+    border-radius: 99px;
+    background: linear-gradient(135deg, var(--luxury-gold, #D4AF37), #fcd34d);
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.staking-input-group .btn-stake:hover {
+    transform: scale(1.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCKCHAIN STATUS INDICATOR
+   ═══════════════════════════════════════════════════════════════ */
+
+.blockchain-status {
+    position: fixed;
+    bottom: 100px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 99px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 0.8rem;
+    z-index: 100;
+    transition: all 0.3s ease;
+}
+
+.blockchain-status .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fbbf24;
+    animation: pulse 2s infinite;
+}
+
+.blockchain-status.connected .status-dot {
+    background: var(--growth-green, #34A853);
+}
+
+.blockchain-status.error .status-dot {
+    background: #ef4444;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ESCROW DEAL CARD
+   ═══════════════════════════════════════════════════════════════ */
+
+.escrow-deal-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    margin-bottom: 16px;
+}
+
+.escrow-deal-card .deal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.escrow-deal-card .deal-id {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.85rem;
+    color: var(--color-trust-soft);
+}
+
+.escrow-deal-card .deal-status {
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.escrow-deal-card .deal-status.created {
+    background: rgba(251, 191, 36, 0.1);
+    color: #f59e0b;
+}
+
+.escrow-deal-card .deal-status.funded {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.escrow-deal-card .deal-status.approved {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.escrow-deal-card .deal-status.completed {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.escrow-deal-card .deal-status.disputed {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.escrow-deal-card .deal-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--luxury-gold, #D4AF37);
+    margin-bottom: 16px;
+}
+
+.escrow-deal-card .deal-parties {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.escrow-deal-card .deal-party-label {
+    font-size: 0.75rem;
+    color: var(--color-trust-soft);
+    margin-bottom: 4px;
+}
+
+.escrow-deal-card .deal-party-address {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.85rem;
+    color: var(--color-trust-deep);
+}
+
+.escrow-deal-card .deal-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.escrow-deal-card .btn-approve {
+    flex: 1;
+    padding: 12px 24px;
+    border-radius: 99px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--growth-green, #34A853), #10b981);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.escrow-deal-card .btn-approve:hover {
+    transform: scale(1.02);
+}
+
+.escrow-deal-card .btn-dispute {
+    padding: 12px 24px;
+    border-radius: 99px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: transparent;
+    color: #ef4444;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.escrow-deal-card .btn-dispute:hover {
+    background: rgba(239, 68, 68, 0.05);
+}

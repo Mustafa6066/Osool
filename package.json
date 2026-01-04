@@ -1,0 +1,44 @@
+{
+  "name": "elite-property-advisor",
+  "version": "1.0.0",
+  "description": "AI-Powered Luxury Real Estate Platform with Blockchain Integration",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:amoy": "hardhat run scripts/deploy.js --network amoy",
+    "deploy:mumbai": "hardhat run scripts/deploy.js --network mumbai",
+    "deploy:polygon": "hardhat run scripts/deploy.js --network polygon",
+    "node": "hardhat node",
+    "verify": "hardhat verify"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@openzeppelin/contracts": "^4.9.3",
+    "ethers": "^5.8.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
+    "@nomicfoundation/hardhat-ethers": "^4.0.3",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^3.0.8",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "dotenv": "^16.3.1",
+    "hardhat": "^2.19.1",
+    "hardhat-gas-reporter": "^1.0.10",
+    "solidity-coverage": "^0.8.17"
+  },
+  "keywords": [
+    "blockchain",
+    "real-estate",
+    "proptech",
+    "smart-contracts",
+    "ai",
+    "web3"
+  ],
+  "author": "Elite Property Team",
+  "license": "MIT"
+}

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أصول - Osool | الذكاء العقاري المصري</title>
+
+    <!-- Premium Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/blockchain.css">
+</head>
+
+<body>
+
+    <!-- Ambient Blobs (Background) -->
+    <div class="blob"
+        style="top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(212,175,55,0.2) 0%, transparent 70%);">
+    </div>
+    <div class="blob"
+        style="bottom: -10%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(15,23,42,0.1) 0%, transparent 70%); animation-delay: -5s;">
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="container-fluid" style="padding-top: 80px; padding-bottom: 120px;">
+
+        <!-- 
+           HERO SECTION: THE AI CONSOLE 
+           A 3D tilted glass panel that acts as the central hub.
+        -->
+        <section class="hero-console scene-3d"
+            style="min-height: 80vh; display: flex; align-items: center; justify-content: center; position: relative;">
+            <!-- Three.js Canvas Container -->
+            <div id="hero-canvas-container"
+                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;">
+            </div>
+
+            <div class="card-3d glass-panel"
+                style="width: 100%; max-width: 1100px; padding: 60px; position: relative; overflow: hidden; z-index: 1;">
+
+                <!-- Inner Light Shimmer -->
+                <div class="shimmer-effect"
+                    style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none;">
+                </div>
+
+                <div style="position: relative; z-index: 1; text-align: center;">
+                    <!-- Badge -->
+                    <div
+                        style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(15,23,42,0.05); border-radius: 99px; border: 1px solid rgba(15,23,42,0.1); margin-bottom: 24px;">
+                        <span
+                            style="display: block; width: 8px; height: 8px; background: var(--color-success); border-radius: 50%; box-shadow: 0 0 10px var(--color-success);"></span>
+                        <span
+                            style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--color-trust-mid);">ELITE
+                            ADVISOR ONLINE</span>
+                        <!-- Connect Wallet Button -->
+                        <button id="connectWalletBtn" class="btn-connect-wallet" onclick="connectWallet()"
+                            style="margin-right: 16px;">
+                            <i class="fab fa-ethereum wallet-icon"></i>
+                            <span id="walletBtnText">ربط المحفظة</span>
+                        </button>
+                    </div>
+
+                    <h1 class="hero-title">
+                        مستقبلك العقاري <br>
+                        <span class="text-gradient-gold">بذكاء اصطناعي</span> مصري
+                    </h1>
+
+                    <p
+                        style="font-size: 1.25rem; color: var(--color-trust-soft); max-width: 600px; margin: 0 auto 48px;">
+                        أول منصة عقارية في مصر تستخدم الذكاء الاصطناعي التوليدي لمساعدتك في اتخاذ قرارات استثمارية
+                        دقيقة.
+                    </p>
+
+                    <!-- Interaction Row -->
+                    <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                        <button class="btn btn-gold-glow" onclick="openChat()">
+                            <i class="fas fa-sparkles" style="margin-left: 8px;"></i>
+                            مستشار النخبة (AI)
+                        </button>
+                        <button class="btn btn-primary-glass">
+                            استكشف الفرص
+                        </button>
+                    </div>
+
+                    <!-- Mood-Based AI Search -->
+                    <div class="mood-selector"
+                        style="margin-top: 40px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 0.9rem; color: var(--color-trust-soft);"><i class="fas fa-home"></i>
+                                سكن عائلي</span>
+                            <span style="font-weight: 600; color: var(--color-ai-pulse);" id="moodLabel">متوازن</span>
+                            <span style="font-size: 0.9rem; color: var(--color-trust-soft);"><i
+                                    class="fas fa-chart-line"></i> استثمار</span>
+                        </div>
+                        <input type="range" class="mood-slider" id="moodSlider" min="0" max="100" value="50"
+                            oninput="updateMood(this.value)">
+                        <p
+                            style="font-size: 0.8rem; color: var(--color-trust-soft); text-align: center; margin-top: 8px;">
+                            حرك المؤشر لتخصيص نتائج البحث بالذكاء الاصطناعي
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Floating Stats Cards (Decorative) -->
+                <div class="card-3d glass-panel"
+                    style="position: absolute; top: 15%; right: 5%; width: 220px; padding: 20px; transform: rotate(5deg) scale(0.9);">
+                    <div style="font-size: 0.8rem; color: var(--color-trust-soft);">متوسط العائد (التجمع)</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-success);">+15.4%</div>
+                    <div
+                        style="height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 8px; overflow: hidden;">
+                        <div style="width: 70%; height: 100%; background: var(--color-success);"></div>
+                    </div>
+                </div>
+
+                <div class="card-3d glass-panel"
+                    style="position: absolute; bottom: 15%; left: 5%; width: 200px; padding: 20px; transform: rotate(-5deg) scale(0.9);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 50%;"></div>
+                        <div>
+                            <div style="font-size: 0.8rem; font-weight: 700;">عميل سعيد</div>
+                            <div style="font-size: 0.7rem; color: var(--color-trust-soft);">منذ 5 دقائق</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 
+           FEATURED PROPERTIES: HOLOGRAPHIC GRID 
+        -->
+        <section class="container scene-3d">
+            <div style="display: flex; justify-content: space-between; align-items: end; margin-bottom: 40px;">
+                <div>
+                    <h2 style="font-size: 2.5rem; margin-bottom: 8px;">فرص استثنائية</h2>
+                    <p style="color: var(--color-trust-soft);">تم اختيارها بواسطة خوارزميات الذكاء الاصطناعي</p>
+                </div>
+                <button class="btn btn-primary-glass" style="font-size: 0.9rem;">عرض الكل</button>
+            </div>
+
+            <div id="propertyGrid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 32px;">
+                <!-- Card Template (Will be populated by JS, but putting one static for structure) -->
+                <div class="card-3d glass-panel" style="padding: 16px; cursor: pointer;">
+                    <div
+                        style="height: 240px; background: #ccc; border-radius: 16px; margin-bottom: 16px; position: relative; overflow: hidden;">
+                        <img src="https://images.unsplash.com/photo-1600596542815-e32870110274?auto=format&fit=crop&w=800&q=80"
+                            style="width: 100%; height: 100%; object-fit: cover;" alt="Villa">
+                        <div
+                            style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 99px; font-size: 0.8rem; backdrop-filter: blur(4px);">
+                            موصى به
+                        </div>
+                    </div>
+                    <h3 style="font-size: 1.25rem; margin-bottom: 4px;">فيلا سوديك إيست</h3>
+                    <div style="color: var(--color-gold-text); font-weight: 600; font-family: var(--font-mono);">EGP
+                        8,500,000</div>
+                    <div
+                        style="margin-top: 12px; display: flex; gap: 12px; font-size: 0.85rem; color: var(--color-trust-soft);">
+                        <span><i class="fas fa-bed"></i> 4</span>
+                        <span><i class="fas fa-bath"></i> 3</span>
+                        <span><i class="fas fa-ruler-combined"></i> 320m²</span>
+                    </div>
+                </div>
+
+                <div class="card-3d glass-panel" style="padding: 16px; cursor: pointer;">
+                    <div
+                        style="height: 240px; background: #ccc; border-radius: 16px; margin-bottom: 16px; position: relative; overflow: hidden;">
+                        <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80"
+                            style="width: 100%; height: 100%; object-fit: cover;" alt="Apartment">
+                    </div>
+                    <h3 style="font-size: 1.25rem; margin-bottom: 4px;">شقة بالم هيلز</h3>
+                    <div style="color: var(--color-gold-text); font-weight: 600; font-family: var(--font-mono);">EGP
+                        4,200,000</div>
+                    <div
+                        style="margin-top: 12px; display: flex; gap: 12px; font-size: 0.85rem; color: var(--color-trust-soft);">
+                        <span><i class="fas fa-bed"></i> 2</span>
+                        <span><i class="fas fa-bath"></i> 2</span>
+                        <span><i class="fas fa-ruler-combined"></i> 145m²</span>
+                    </div>
+                </div>
+                <div class="card-3d glass-panel" style="padding: 16px; cursor: pointer;">
+                    <div
+                        style="height: 240px; background: #ccc; border-radius: 16px; margin-bottom: 16px; position: relative; overflow: hidden;">
+                        <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80"
+                            style="width: 100%; height: 100%; object-fit: cover;" alt="Apartment">
+                    </div>
+                    <h3 style="font-size: 1.25rem; margin-bottom: 4px;">دوبلكس الشيخ زايد</h3>
+                    <div style="color: var(--color-gold-text); font-weight: 600; font-family: var(--font-mono);">EGP
+                        6,100,000</div>
+                    <div
+                        style="margin-top: 12px; display: flex; gap: 12px; font-size: 0.85rem; color: var(--color-trust-soft);">
+                        <span><i class="fas fa-bed"></i> 3</span>
+                        <span><i class="fas fa-bath"></i> 3</span>
+                        <span><i class="fas fa-ruler-combined"></i> 210m²</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 
+           MARKET ANALYTICS SECTION 
+           Live data visualization with luxurious presentation.
+        -->
+        <section class="container scene-3d" style="margin-top: 80px; margin-bottom: 80px;">
+            <div class="glass-panel" style="padding: 40px; border-radius: 24px; position: relative; overflow: hidden;">
+                <!-- Background shimmers -->
+                <div class="blob"
+                    style="width: 300px; height: 300px; background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%); top: -50px; right: -50px;">
+                </div>
+
+                <h2 style="font-size: 2rem; margin-bottom: 8px;">نظرة على السوق <span
+                        style="font-size: 1rem; vertical-align: middle; background: rgba(16,185,129,0.1); color: var(--color-success); padding: 4px 12px; border-radius: 99px;">تحديث
+                        مباشر</span></h2>
+                <p style="color: var(--color-trust-soft); margin-bottom: 32px;">تحليلات مدعومة بالذكاء الاصطناعي لأسعار
+                    العقارات في المناطق الأكثر طلباً.</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                    <!-- Chart Container -->
+                    <div
+                        style="background: rgba(255,255,255,0.5); border-radius: 16px; padding: 24px; min-height: 300px;">
+                        <canvas id="roiChart"></canvas>
+                    </div>
+
+                    <!-- Stats / Text -->
+                    <div style="display: flex; flex-direction: column; justify-content: center;">
+                        <div class="stat-card glass-panel"
+                            style="padding: 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+                            <div>
+                                <div style="font-size: 0.9rem; color: var(--color-trust-soft);">متوسط النمو السنوي</div>
+                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-trust-deep);">+22.5%
+                                </div>
+                            </div>
+                            <i class="fas fa-chart-line" style="font-size: 24px; color: var(--color-gold-text);"></i>
+                        </div>
+
+                        <div class="stat-card glass-panel"
+                            style="padding: 20px; display: flex; align-items: center; justify-content: space-between;">
+                            <div>
+                                <div style="font-size: 0.9rem; color: var(--color-trust-soft);">أفضل منطقة للاستثمار
+                                </div>
+                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-trust-deep);">
+                                    العاصمة الإدارية</div>
+                            </div>
+                            <i class="fas fa-city" style="font-size: 24px; color: var(--color-trust-mid);"></i>
+                        </div>
+
+                        <button class="btn btn-gold-glow" style="margin-top: 24px; width: fit-content;">
+                            تحميل التقرير الكامل
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 
+           SUBSCRIPTION PRICING SECTION 
+           Tiered plans for different user needs.
+        -->
+        <section id="pricing" class="container scene-3d" style="margin-top: 80px; margin-bottom: 80px;">
+            <div style="text-align: center; margin-bottom: 48px;">
+                <h2 style="font-size: 2.5rem; margin-bottom: 8px;">اختر خطتك</h2>
+                <p style="color: var(--color-trust-soft); max-width: 500px; margin: 0 auto;">استثمر في مستقبلك العقاري
+                    مع خدمات الذكاء الاصطناعي</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+                <!-- Explorer Plan -->
+                <div class="card-3d glass-panel" style="padding: 32px; text-align: center; position: relative;">
+                    <div
+                        style="font-size: 1.2rem; font-weight: 600; color: var(--color-trust-mid); margin-bottom: 8px;">
+                        Explorer</div>
+                    <div
+                        style="font-size: 2.5rem; font-weight: 700; color: var(--color-trust-deep); margin-bottom: 24px;">
+                        EGP 299<span style="font-size: 1rem; font-weight: 400;">/شهر</span>
+                    </div>
+                    <ul
+                        style="list-style: none; padding: 0; margin-bottom: 32px; text-align: right; font-size: 0.9rem; color: var(--color-trust-soft);">
+                        <li style="margin-bottom: 12px;"><i class="fas fa-check"
+                                style="color: var(--color-success); margin-left: 8px;"></i> 10 استشارات AI شهرياً</li>
+                        <li style="margin-bottom: 12px;"><i class="fas fa-check"
+                                style="color: var(--color-success); margin-left: 8px;"></i> تحليلات السوق الأساسية</li>
+                        <li style="margin-bottom: 12px;"><i class="fas fa-check"
+                                style="color: var(--color-success); margin-left: 8px;"></i> بحث ذكي بالتفضيلات</li>
+                        <li style="margin-bottom: 12px; opacity: 0.5;"><i class="fas fa-times"
+                                style="color: var(--color-trust-soft); margin-left: 8px;"></i> تقارير استثمارية</li>
+                    </ul>
+                    <button class="btn btn-primary-glass" style="width: 100%;">ابدأ الآن</button>
+                </div>
+
+                <!-- Professional Plan (Featured) -->
+                <div class="card-3d glass-panel"
+                    style="padding: 32px; text-align: center; position: relative; border: 2px solid var(--color-gold-rich); transform: scale(1.05);">
+                    <div
+                        style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #d4af37, #f5d77a); color: #1a1a1a; padding: 4px 16px; border-radius: 99px; font-size: 0.75rem; font-weight: 700;">
+                        الأكثر طلباً</div>
+                    <div
+                        style="font-size: 1.2rem; font-weight: 600; color: var(--color-gold-text); margin-bottom: 8px;">
+                        Professional</div>
+                    <div
+                        style="font-size: 2.5rem; font-weight: 700; color: var(--color-trust-deep); margin-bottom: 24px;">
+                        EGP 999<span style="font-size: 1rem; font-weight: 400;">/شهر</span>
+                    </div>
+                    <ul
+                        style="list-style: none; padding: 0; margin-bottom: 32px; text-align: right; font-size: 0.9rem; color: var(--color-trust-soft);">
+                        <li style="margin-bottom: 12px;"><i class="fas fa-check"
+                                style="color: var(--color-success); margin-left: 8px;"></i> استشارات AI غير محدودة</li>
+                        <li style="margin-bottom: 12px;"><i class="fas fa-check"
+                                style="color: var(--color-success); margin-left: 8px;"></i> تحليلات استثمارية متقدمة
+                        </li>
+                        <li style="margin-bottom: 12px;"><i class="fas fa-check"
+                                style="color: var(--color-success); margin-left: 8px;"></i> Virtual Staging (5 عقارات)
+                        </li>
+                        <li style="margin-bottom: 12px;"><i class="fas fa-check"
+                                style="color: var(--color-success); margin-left: 8px;"></i> دعم أولوية</li>
+                    </ul>
+                    <button class="btn btn-gold-glow" style="width: 100%;">ابدأ الآن</button>
+                </div>
+
+                <!-- Elite Plan -->
+                <div class="card-3d glass-panel"
+                    style="padding: 32px; text-align: center; position: relative; background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.9)); color: white;">
+                    <div style="font-size: 1.2rem; font-weight: 600; color: rgba(255,255,255,0.7); margin-bottom: 8px;">
+                        Elite</div>
+                    <div style="font-size: 2.5rem; font-weight: 700; color: white; margin-bottom: 24px;">
+                        EGP 2,999<span style="font-size: 1rem; font-weight: 400;">/شهر</span>
+                    </div>
+                    <ul
+                        style="list-style: none; padding: 0; margin-bottom: 32px; text-align: right; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
+                        <li style="margin-bottom: 12px;"><i class="fas fa-crown"
+                                style="color: #d4af37; margin-left: 8px;"></i> AI Concierge شخصي</li>
+                        <li style="margin-bottom: 12px;"><i class="fas fa-crown"
+                                style="color: #d4af37; margin-left: 8px;"></i> استراتيجيات استثمار مخصصة</li>
+                        <li style="margin-bottom: 12px;"><i class="fas fa-crown"
+                                style="color: #d4af37; margin-left: 8px;"></i> التحقق عبر Blockchain</li>
+                        <li style="margin-bottom: 12px;"><i class="fas fa-crown"
+                                style="color: #d4af37; margin-left: 8px;"></i> صفقات Off-Market حصرية</li>
+                    </ul>
+                    <button class="btn"
+                        style="width: 100%; background: linear-gradient(135deg, #d4af37, #f5d77a); color: #1a1a1a; font-weight: 700;">تواصل
+                        معنا</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 
+           ROI CALCULATOR SECTION 
+           Interactive investment projections.
+        -->
+        <section id="roi-calculator" class="container scene-3d" style="margin-top: 80px; margin-bottom: 80px;">
+            <div class="glass-panel" style="padding: 40px; border-radius: 24px;">
+                <h2 style="font-size: 2rem; margin-bottom: 8px;">حاسبة العائد الاستثماري <span
+                        style="font-size: 0.8rem; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; padding: 4px 12px; border-radius: 99px; vertical-align: middle;">AI-Powered</span>
+                </h2>
+                <p style="color: var(--color-trust-soft); margin-bottom: 32px;">احسب العائد المتوقع على استثمارك العقاري
+                </p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                    <!-- Inputs -->
+                    <div>
+                        <div style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">سعر
+                                العقار (EGP)</label>
+                            <input id="roiPurchasePrice" type="number" value="5000000" oninput="calculateROI()"
+                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem; font-family: var(--font-mono);">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">الإيجار
+                                الشهري المتوقع (EGP)</label>
+                            <input id="roiMonthlyRent" type="number" value="25000" oninput="calculateROI()"
+                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem; font-family: var(--font-mono);">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">نسبة
+                                الزيادة السنوية (%)</label>
+                            <input id="roiAppreciation" type="number" value="15" oninput="calculateROI()"
+                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem; font-family: var(--font-mono);">
+                        </div>
+                    </div>
+
+                    <!-- Result -->
+                    <div id="roiResult"
+                        style="background: rgba(255,255,255,0.5); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                        <div style="font-size: 0.9rem; color: var(--color-trust-soft);">أدخل البيانات لحساب العائد</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 
+       FLOATING DOCK NAVIGATION 
+       State-of-the-art interactive navigation.
+    -->
+    <nav class="nav-dock glass-panel">
+        <a href="#" class="nav-item" data-label="الرئيسية"><i class="fas fa-home"></i></a>
+        <a href="#properties" class="nav-item" data-label="عقارات"><i class="fas fa-building"></i></a>
+        <a href="#map" class="nav-item" data-label="الخريطة"><i class="fas fa-map-marked-alt"></i></a>
+        <div style="width: 1px; height: 24px; background: rgba(0,0,0,0.1); margin: auto 8px;"></div>
+        <a href="#settings" class="nav-item" data-label="الإعدادات"><i class="fas fa-cog"></i></a>
+        <a href="#profile" class="nav-item" data-label="حسابي"><i class="fas fa-user-circle"></i></a>
+    </nav>
+
+    <!-- 
+       AI ORB v2.0 (State-of-the-Art Animated AI Avatar) 
+       Multi-ring design with professional iconography.
+    -->
+    <div class="ai-orb-container" id="aiOrbContainer" onclick="openChat()" title="تحدث مع مستشار النخبة 🤖">
+        <!-- Outer Pulse Ring -->
+        <div class="orb-ring orb-ring-outer"></div>
+        <!-- Inner Pulse Ring -->
+        <div class="orb-ring orb-ring-inner"></div>
+        <!-- Core Orb -->
+        <div class="ai-orb" id="aiOrb">
+            <!-- Professional AI Neural Network Icon -->
+            <svg class="ai-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Central Brain/Chip -->
+                <rect x="7" y="7" width="10" height="10" rx="2" fill="white" opacity="0.9" />
+                <rect x="9" y="9" width="6" height="6" rx="1" fill="url(#aiGradient)" />
+
+                <!-- Neural Connection Lines -->
+                <line x1="12" y1="3" x2="12" y2="7" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+                <line x1="12" y1="17" x2="12" y2="21" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+                <line x1="3" y1="12" x2="7" y2="12" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+                <line x1="17" y1="12" x2="21" y2="12" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+
+                <!-- Corner Neural Nodes -->
+                <circle cx="4" cy="4" r="1.5" fill="white" opacity="0.8" />
+                <circle cx="20" cy="4" r="1.5" fill="white" opacity="0.8" />
+                <circle cx="4" cy="20" r="1.5" fill="white" opacity="0.8" />
+                <circle cx="20" cy="20" r="1.5" fill="white" opacity="0.8" />
+
+                <!-- Diagonal Connections -->
+                <line x1="5.5" y1="5.5" x2="7" y2="7" stroke="white" stroke-width="1" opacity="0.6" />
+                <line x1="18.5" y1="5.5" x2="17" y2="7" stroke="white" stroke-width="1" opacity="0.6" />
+                <line x1="5.5" y1="18.5" x2="7" y2="17" stroke="white" stroke-width="1" opacity="0.6" />
+                <line x1="18.5" y1="18.5" x2="17" y2="17" stroke="white" stroke-width="1" opacity="0.6" />
+
+                <!-- Top/Bottom Nodes -->
+                <circle cx="12" cy="3" r="1.5" fill="#fbbf24" />
+                <circle cx="12" cy="21" r="1.5" fill="#fbbf24" />
+                <circle cx="3" cy="12" r="1.5" fill="#fbbf24" />
+                <circle cx="21" cy="12" r="1.5" fill="#fbbf24" />
+
+                <defs>
+                    <linearGradient id="aiGradient" x1="9" y1="9" x2="15" y2="15">
+                        <stop offset="0%" stop-color="#fbbf24" />
+                        <stop offset="100%" stop-color="#f59e0b" />
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
+        <!-- Status Indicator -->
+        <div class="orb-status">
+            <span class="status-dot"></span>
+            <span class="status-text">متاح</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Chart.js for Market Data -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/app.js"></script>
+
+    <!-- Three.js Integration -->
+    <script type="module">
+        import { initHeroScene } from './assets/js/hero-scene.js';
+        document.addEventListener('DOMContentLoaded', () => {
+            // Delay slightly to ensure DOM is ready and not blocking
+            setTimeout(initHeroScene, 100);
+        });
+    </script>
+
+    <!-- Blockchain / Web3 Integration -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="assets/js/blockchain.js"></script>
+    <script>
+        // Wallet Connection Handler
+        async function connectWallet() {
+            const btn = document.getElementById('connectWalletBtn');
+            const btnText = document.getElementById('walletBtnText');
+
+            try {
+                btn.disabled = true;
+                btnText.textContent = 'جاري الاتصال...';
+
+                const result = await window.blockchainService.connectWallet();
+
+                // Update button to show connected state
+                btn.classList.add('connected');
+                btnText.textContent = result.address.slice(0, 6) + '...' + result.address.slice(-4);
+
+                // Show success notification
+                showBlockchainNotification('تم الاتصال بالمحفظة بنجاح!', 'success');
+
+                // Get subscription details
+                const details = await window.blockchainService.getSubscriptionDetails();
+                console.log('Subscription:', details);
+
+            } catch (error) {
+                console.error('Wallet connection failed:', error);
+                btnText.textContent = 'ربط المحفظة';
+                showBlockchainNotification(error.message || 'فشل الاتصال', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function showBlockchainNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                bottom: 120px;
+                left: 20px;
+                padding: 12px 24px;
+                background: ${type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)'};
+                color: white;
+                border-radius: 12px;
+                font-size: 0.9rem;
+                font-weight: 600;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Listen for wallet state changes
+        window.addEventListener('walletStateChanged', (e) => {
+            const btn = document.getElementById('connectWalletBtn');
+            const btnText = document.getElementById('walletBtnText');
+
+            if (e.detail.isConnected) {
+                btn.classList.add('connected');
+                btnText.textContent = e.detail.address.slice(0, 6) + '...' + e.detail.address.slice(-4);
+            } else {
+                btn.classList.remove('connected');
+                btnText.textContent = 'ربط المحفظة';
+            }
+        });
+    </script>
+</body>
+
+</html>

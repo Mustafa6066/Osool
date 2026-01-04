@@ -1,0 +1,142 @@
+[debug] [2025-12-26T19:19:27.645Z] ----------------------------------------------------------------------
+[debug] [2025-12-26T19:19:27.649Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\mmoha\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\firebase.js deploy --debug
+[debug] [2025-12-26T19:19:27.650Z] CLI Version:   15.1.0
+[debug] [2025-12-26T19:19:27.650Z] Platform:      win32
+[debug] [2025-12-26T19:19:27.650Z] Node Version:  v24.11.1
+[debug] [2025-12-26T19:19:27.651Z] Time:          Fri Dec 26 2025 21:19:27 GMT+0200 (Eastern European Standard Time)
+[debug] [2025-12-26T19:19:27.651Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-26T19:19:31.413Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-26T19:19:31.420Z] > authorizing via signed-in user (chandlerjr6066@gmail.com)
+[debug] [2025-12-26T19:19:31.421Z] [iam] checking project osool-6ff25 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-12-26T19:19:31.429Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:31.433Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:31.441Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions [none]
+[debug] [2025-12-26T19:19:31.442Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:31.444Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-26T19:19:32.463Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions 200
+[debug] [2025-12-26T19:19:32.464Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-26T19:19:32.466Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:32.467Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:32.468Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/osool-6ff25/serviceAccounts/osool-6ff25@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-12-26T19:19:32.469Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/osool-6ff25/serviceAccounts/osool-6ff25@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-12-26T19:19:33.278Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/osool-6ff25/serviceAccounts/osool-6ff25@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2025-12-26T19:19:33.280Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/osool-6ff25/serviceAccounts/osool-6ff25@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-12-26T19:19:33.283Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:33.284Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:33.286Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/osool-6ff25 [none]
+[debug] [2025-12-26T19:19:33.681Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/osool-6ff25 200
+[debug] [2025-12-26T19:19:33.682Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/osool-6ff25 {"projectId":"osool-6ff25","projectNumber":"995130987286","displayName":"Osool","name":"projects/osool-6ff25","resources":{"hostingSite":"osool-6ff25"},"state":"ACTIVE","etag":"1_80823b30-4185-451a-a8c9-aa23d8d869c8"}
+[info] 
+[info] === Deploying to 'osool-6ff25'...
+[info] 
+[info] i  deploying functions, hosting 
+[debug] [2025-12-26T19:19:33.697Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:33.698Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:33.699Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25 [none]
+[debug] [2025-12-26T19:19:33.920Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25 200
+[debug] [2025-12-26T19:19:33.921Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25 {"projectNumber":"995130987286","projectId":"osool-6ff25","lifecycleState":"ACTIVE","name":"Osool","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-12-26T18:41:46.032279Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[debug] [2025-12-26T19:19:33.928Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:33.929Z] Checked if tokens are valid: true, expires at: 1766780252127
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2025-12-26T19:19:33.931Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:33.932Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:33.933Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com [none]
+[debug] [2025-12-26T19:19:33.934Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:33.938Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com [none]
+[debug] [2025-12-26T19:19:33.939Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:34.952Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com 200
+[debug] [2025-12-26T19:19:34.953Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com [omitted]
+[warn] !  functions: missing required API cloudbuild.googleapis.com. Enabling now... 
+[debug] [2025-12-26T19:19:34.957Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:34.957Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:34.958Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com:enable [none]
+[debug] [2025-12-26T19:19:34.959Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com:enable x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:34.965Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com 200
+[debug] [2025-12-26T19:19:34.966Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com [omitted]
+[warn] !  artifactregistry: missing required API artifactregistry.googleapis.com. Enabling now... 
+[debug] [2025-12-26T19:19:34.969Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:34.969Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:34.970Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com:enable [none]
+[debug] [2025-12-26T19:19:34.970Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com:enable x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:35.348Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com:enable 400
+[debug] [2025-12-26T19:19:35.349Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com:enable [omitted]
+[error] 
+[error] Error: Your project osool-6ff25 must be on the Blaze (pay-as-you-go) plan to complete this command. Required API artifactregistry.googleapis.com can't be enabled until the upgrade is complete. To upgrade, visit the following URL:
+
+https://console.firebase.google.com/project/osool-6ff25/usage/details
+[debug] [2025-12-26T19:19:50.838Z] ----------------------------------------------------------------------
+[debug] [2025-12-26T19:19:50.847Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\mmoha\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\firebase.js deploy --debug
+[debug] [2025-12-26T19:19:50.848Z] CLI Version:   15.1.0
+[debug] [2025-12-26T19:19:50.848Z] Platform:      win32
+[debug] [2025-12-26T19:19:50.848Z] Node Version:  v24.11.1
+[debug] [2025-12-26T19:19:50.849Z] Time:          Fri Dec 26 2025 21:19:50 GMT+0200 (Eastern European Standard Time)
+[debug] [2025-12-26T19:19:50.849Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-26T19:19:54.868Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-26T19:19:54.870Z] > authorizing via signed-in user (chandlerjr6066@gmail.com)
+[debug] [2025-12-26T19:19:54.871Z] [iam] checking project osool-6ff25 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-12-26T19:19:54.874Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:54.875Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:54.879Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions [none]
+[debug] [2025-12-26T19:19:54.879Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:54.880Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-26T19:19:55.799Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions 200
+[debug] [2025-12-26T19:19:55.799Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-26T19:19:55.800Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:55.801Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:55.801Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/osool-6ff25/serviceAccounts/osool-6ff25@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-12-26T19:19:55.801Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/osool-6ff25/serviceAccounts/osool-6ff25@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-12-26T19:19:56.735Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/osool-6ff25/serviceAccounts/osool-6ff25@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2025-12-26T19:19:56.735Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/osool-6ff25/serviceAccounts/osool-6ff25@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-12-26T19:19:56.737Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:56.738Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:56.739Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/osool-6ff25 [none]
+[debug] [2025-12-26T19:19:57.308Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/osool-6ff25 200
+[debug] [2025-12-26T19:19:57.309Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/osool-6ff25 {"projectId":"osool-6ff25","projectNumber":"995130987286","displayName":"Osool","name":"projects/osool-6ff25","resources":{"hostingSite":"osool-6ff25"},"state":"ACTIVE","etag":"1_80823b30-4185-451a-a8c9-aa23d8d869c8"}
+[info] 
+[info] === Deploying to 'osool-6ff25'...
+[info] 
+[info] i  deploying functions, hosting 
+[debug] [2025-12-26T19:19:57.323Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:57.323Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:57.324Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25 [none]
+[debug] [2025-12-26T19:19:57.585Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25 200
+[debug] [2025-12-26T19:19:57.586Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/osool-6ff25 {"projectNumber":"995130987286","projectId":"osool-6ff25","lifecycleState":"ACTIVE","name":"Osool","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-12-26T18:41:46.032279Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[debug] [2025-12-26T19:19:57.594Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:57.594Z] Checked if tokens are valid: true, expires at: 1766780252127
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2025-12-26T19:19:57.596Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:57.596Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:57.597Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com [none]
+[debug] [2025-12-26T19:19:57.597Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:57.601Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com [none]
+[debug] [2025-12-26T19:19:57.602Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:58.680Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com 200
+[debug] [2025-12-26T19:19:58.681Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com [omitted]
+[warn] !  functions: missing required API cloudbuild.googleapis.com. Enabling now... 
+[debug] [2025-12-26T19:19:58.683Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:58.683Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:58.684Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com:enable [none]
+[debug] [2025-12-26T19:19:58.684Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com:enable x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:58.709Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com 200
+[debug] [2025-12-26T19:19:58.710Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com [omitted]
+[warn] !  artifactregistry: missing required API artifactregistry.googleapis.com. Enabling now... 
+[debug] [2025-12-26T19:19:58.712Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:58.712Z] Checked if tokens are valid: true, expires at: 1766780252127
+[debug] [2025-12-26T19:19:58.713Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com:enable [none]
+[debug] [2025-12-26T19:19:58.713Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com:enable x-goog-quota-user=projects/osool-6ff25
+[debug] [2025-12-26T19:19:59.107Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com:enable 400
+[debug] [2025-12-26T19:19:59.108Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/cloudbuild.googleapis.com:enable [omitted]
+[error] 
+[error] Error: Your project osool-6ff25 must be on the Blaze (pay-as-you-go) plan to complete this command. Required API cloudbuild.googleapis.com can't be enabled until the upgrade is complete. To upgrade, visit the following URL:
+
+https://console.firebase.google.com/project/osool-6ff25/usage/details
+[debug] [2025-12-26T19:19:59.553Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com:enable 400
+[debug] [2025-12-26T19:19:59.553Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/osool-6ff25/services/artifactregistry.googleapis.com:enable [omitted]
