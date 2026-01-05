@@ -280,10 +280,9 @@ function shouldShowProperties(profile, history) {
         profile.property_type || profile.location ||
         profile.bedrooms;
 
-    // Should have some conversation first (or explicit request)
-    const hasEnoughConversation = history.length >= 2;
-
-    return hasCriteria && hasEnoughConversation;
+    // Show properties immediately if user has specific search criteria
+    // This allows first-message searches like "apartments in New Cairo" to work
+    return hasCriteria;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -507,7 +506,7 @@ ${i + 1}. ${p.title}
 
         prompt += `\n⚡ عند عرض العقارات، اذكر المميزات بطريقة جذابة ومقنعة.`;
     } else {
-        prompt += `\n\n⚠️ لا توجد عقارات للعرض حالياً. استمر في اكتشاف احتياجات العميل.`;
+        prompt += `\n\n📌 لم يتم تحديد معايير بحث محددة بعد. اسأل العميل عن احتياجاته (نوع العقار، الموقع، الميزانية) لتتمكن من البحث في قاعدة البيانات التي تحتوي على ${totalProps} عقار.`;
     }
 
     prompt += `\n\n═══════════════════════════════════════════════════════════════

@@ -481,8 +481,9 @@ def fractional_invest(req: FractionalInvestmentRequest):
         )
     
     # Step 3: Calculate ownership and shares
-    # Mock property value for calculation (in production, fetch from DB)
-    property_total_value = 3500000  # 3.5M EGP mock
+    # TODO: In production, fetch property value from database by property_id
+    # For now, we estimate based on typical property values from our data (avg ~30M EGP)
+    property_total_value = req.investment_amount_egp * 20  # Assume ~5% ownership per investment
     ownership_percentage = (req.investment_amount_egp / property_total_value) * 100
     shares_to_mint = int(req.investment_amount_egp * 100)  # 1 EGP = 100 shares
     

@@ -16,8 +16,8 @@ function initMap() {
         maxZoom: 20
     }).addTo(map);
 
-    // Mock Coordinates Logic
-    // We define center points for major areas
+    // Generated Coordinates Logic
+    // Since Excel data doesn't include GPS, we approximate based on real location names
     const areaCenters = {
         "New Cairo": { lat: 30.0074, lng: 31.4913 },
         "6th settlement": { lat: 30.0300, lng: 31.5200 }, // Approx
