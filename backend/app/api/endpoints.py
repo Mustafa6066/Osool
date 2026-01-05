@@ -20,7 +20,10 @@ from app.services.payment_service import payment_service, PaymentStatus
 from app.services.blockchain_prod import blockchain_service_prod
 from app.ai_engine.openai_service import osool_ai
 from app.ai_engine.hybrid_brain import hybrid_brain
+from app.ai_engine.hybrid_brain import hybrid_brain
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
+from app.services.paymob_service import paymob_service
+from app.tasks import reserve_property_task
 
 router = APIRouter(prefix="/api", tags=["Osool API"])
 
@@ -161,26 +164,42 @@ def reserve_property(req: ReservationRequest):
         )
     
     # ─────────────────────────────────────────────────────────────
-    # STEP 4: Update blockchain status
+    # STEP 4: Offload to Celery Worker (Async)
     # ─────────────────────────────────────────────────────────────
-    result = blockchain_service.reserve_property(
+    task = reserve_property_task.delay(
         req.property_id, 
         req.user_address
     )
     
-    if "error" in result:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Blockchain update failed: {result['error']}"
-        )
-    
     return {
-        "status": "success",
-        "message": "Property reserved successfully! 🎉",
-        "tx_hash": result["tx_hash"],
-        "property_id": req.property_id,
-        "blockchain_proof": f"https://amoy.polygonscan.com/tx/{result['tx_hash']}"
+        "status": "pending",
+        "message": "Reservation process started. Please poll status.",
+        "task_id": task.id,
+        "property_id": req.property_id
     }
+
+
+@router.get("/reservation/status/{task_id}")
+def check_reservation_status(task_id: str):
+    """Check status of background reservation task"""
+    from celery.result import AsyncResult
+    task_result = AsyncResult(task_id)
+    
+    if task_result.state == 'PENDING':
+        return {"status": "pending", "message": "Transaction is mining..."}
+    elif task_result.state == 'SUCCESS':
+        result = task_result.result
+        return {
+            "status": "success", 
+            "message": "Property reserved successfully! 🎉",
+            "tx_hash": result.get("tx_hash"),
+            "property_id": result.get("property_id"),
+            "blockchain_proof": f"https://amoy.polygonscan.com/tx/{result.get('tx_hash')}"
+        }
+    elif task_result.state == 'FAILURE':
+        return {"status": "failed", "message": str(task_result.result)}
+    
+    return {"status": task_result.state}
 
 
 @router.post("/finalize-sale")
@@ -241,19 +260,9 @@ def cancel_reservation(req: CancellationRequest):
 
 def verify_egp_payment(reference: str) -> bool:
     """
-    Placeholder for InstaPay/Fawry payment verification.
-    
-    TODO: Integrate with actual payment gateway API:
-    - InstaPay: https://instapay.eg/api
-    - Fawry: https://www.fawry.com/api
-    - Paymob: https://paymob.com/api
-    
-    For prototype, we accept any reference with 8+ chars.
+    Verify payment using Paymob Service.
     """
-    if len(reference) >= 8:
-        print(f"✅ Payment reference verified: {reference}")
-        return True
-    return False
+    return paymob_service.verify_transaction(reference)
 
 
 def verify_bank_transfer(reference: str) -> bool:
@@ -429,6 +438,22 @@ def compare_asking(req: PriceComparisonRequest):
         size=req.size_sqm,
         finishing=finishing_int
     )
+    
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    
+    return result
+
+
+@router.post("/chat")
+def chat_endpoint(req: ContractAnalysisRequest): 
+    # Reusing ContractAnalysisRequest for simple text input, or define a new ChatRequest model.
+    # To be clean, let's use the 'text' field from ContractAnalysisRequest as the message
+    # or better, just define a simple dict or new model. 
+    # Given the constraint of not adding too many new models inline if not needed, 
+    # I'll use a Body or existing model. Let's use the existing one but interpreted as chat.
+    
+    result = osool_ai.chat_with_osool(req.text)
     
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])

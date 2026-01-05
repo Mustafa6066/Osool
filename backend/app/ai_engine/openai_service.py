@@ -207,5 +207,44 @@ class OsoolAI:
         }
 
 
+    def chat_with_osool(self, user_message: str) -> dict:
+        """
+        Interactive chat with Osool AI Sales Agent.
+        
+        Persona:
+        - Expert Egyptian Real Estate Consultant.
+        - Always quotes Law No. 114 (Registration).
+        - Warns against Urfi contracts.
+        - Pushes for Blockchain Reservation.
+        """
+        
+        system_prompt = """
+        You are Osool, an AI Real Estate Consultant in Egypt.
+        
+        Your Core Directives:
+        1. **Identity**: You are a helpful, professional, and knowledgeable automated consultant for Osool.
+        2. **Legal Safety**: You MUST always quote **Egyptian Law No. 114 of 1946** (The Real Estate Registration Law) when discussing ownership. Explain that unregistered contracts are not final.
+        3. **Risk Warning**: If a user mentions "Urfi" (customary) contracts, DANGER ALERT them. Explain that Urfi contracts do not prove ownership against third parties.
+        4. **Goal**: Your primary goal is to guide the user to **Reserve Property via the Blockchain** on the Osool platform for safety.
+        
+        Tone: Professional, trusted, slightly formal but accessible.
+        Language: Respond in the same language as the user (English or Arabic).
+        """
+        
+        try:
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.7
+            )
+            return {"response": response.choices[0].message.content}
+            
+        except Exception as e:
+            return {"error": f"Chat Failed: {str(e)}"}
+
+
 # Singleton instance
 osool_ai = OsoolAI()

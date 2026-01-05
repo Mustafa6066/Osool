@@ -57,6 +57,7 @@ contract ElitePropertyEscrow is ReentrancyGuard, Ownable {
     mapping(uint256 => PropertyDeal) public deals;
     mapping(address => uint256[]) public userDeals;
     mapping(uint256 => bool) public propertyInEscrow;
+    mapping(address => bool) public isKYC;
     
     address payable public platformWallet;
     
@@ -86,6 +87,16 @@ contract ElitePropertyEscrow is ReentrancyGuard, Ownable {
     
     constructor(address payable _platformWallet) {
         platformWallet = _platformWallet;
+        isKYC[msg.sender] = true; // Admin is verified
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // MODIFIERS
+    // ═══════════════════════════════════════════════════════════════
+
+    modifier onlyRegisteredUser() {
+        require(isKYC[msg.sender], "User not KYC verified");
+        _;
     }
     
     // ═══════════════════════════════════════════════════════════════
@@ -103,8 +114,9 @@ contract ElitePropertyEscrow is ReentrancyGuard, Ownable {
         address payable _seller,
         uint256 _propertyId,
         uint256 _price,
+        uint256 _price,
         string calldata _propertyIPFS
-    ) external returns (uint256) {
+    ) external onlyRegisteredUser returns (uint256) {
         require(_seller != address(0), "Invalid seller address");
         require(_seller != msg.sender, "Buyer cannot be seller");
         require(_price > 0, "Price must be greater than 0");
@@ -142,7 +154,7 @@ contract ElitePropertyEscrow is ReentrancyGuard, Ownable {
      * @dev Buyer deposits funds into escrow
      * @param _dealId Deal identifier
      */
-    function depositFunds(uint256 _dealId) external payable nonReentrant {
+    function depositFunds(uint256 _dealId) external payable nonReentrant onlyRegisteredUser {
         PropertyDeal storage deal = deals[_dealId];
         
         require(deal.dealId != 0, "Deal does not exist");
@@ -276,11 +288,13 @@ contract ElitePropertyEscrow is ReentrancyGuard, Ownable {
         uint256 sellerAmount = deal.depositAmount - fee;
         
         // Transfer to seller
-        deal.seller.transfer(sellerAmount);
+        (bool sentSeller, ) = deal.seller.call{value: sellerAmount}("");
+        require(sentSeller, "Failed to send Ether to seller");
         
         // Transfer fee to platform
         if (fee > 0) {
-            platformWallet.transfer(fee);
+            (bool sentFee, ) = platformWallet.call{value: fee}("");
+            require(sentFee, "Failed to send Fee");
         }
         
         deal.status = DealStatus.Completed;
