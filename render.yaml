@@ -1,0 +1,27 @@
+# Render.com Deployment Configuration
+# https://render.com/docs/yaml-spec
+
+services:
+  - type: web
+    name: osool-backend
+    runtime: python
+    region: frankfurt  # Closest to Egypt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    rootDir: backend
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.10"
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: PRIVATE_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: POLYGON_RPC_URL
+        value: "https://rpc-amoy.polygon.technology"
+      - key: CHAIN_ID
+        value: "80002"
+      - key: OSOOL_REGISTRY_ADDRESS
+        sync: false  # Set after contract deployment
+    healthCheckPath: /health
+    autoDeploy: true  # Auto-deploy on GitHub push
