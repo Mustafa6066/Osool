@@ -1,41 +1,78 @@
-import EliteAdvisorChat from "@/components/EliteAdvisorChat";
+"use client";
+
+import { useState } from "react";
+import PriceValuation from "@/components/PriceValuation";
+import LegalCheck from "@/components/LegalCheck";
 
 export default function Home() {
-  return (
-    <main className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-gold/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-teal/10 rounded-full blur-[100px]" />
-      </div>
+    const [activeTab, setActiveTab] = useState<"valuation" | "legal">("valuation");
 
-      <div className="max-w-7xl w-full grid md:grid-cols-2 gap-12 items-center relative z-10">
-        {/* Left Side: Hero Text */}
-        <div className="text-right space-y-8 md:order-2">
-          <h1 className="text-5xl md:text-7xl font-bold leading-tight">
-            <span className="text-white block">مستقبل العقارات</span>
-            <span className="text-gold-gradient block mt-2">بين يديك</span>
-          </h1>
-          <p className="text-white/70 text-lg md:text-xl leading-relaxed max-w-xl ml-auto">
-            أصول تقدم لك تجربة استثمار عقاري فاخرة مدعومة بالذكاء الاصطناعي.
-            احصل على استشارات دقيقة، وتحليلات استثمارية، وعقارات موثوقة عبر الـ Blockchain.
-          </p>
+    return (
+        <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+            {/* Header */}
+            <header className="border-b border-gray-700/50 backdrop-blur-lg">
+                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center text-white font-bold text-xl">
+                            O
+                        </div>
+                        <span className="text-2xl font-bold text-white">Osool</span>
+                        <span className="text-sm text-gray-400 hidden sm:block">| Real Estate Intelligence</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <span className="text-green-400 text-sm">Backend: Online</span>
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    </div>
+                </div>
+            </header>
 
-          <div className="flex gap-4 justify-end">
-            <button className="px-8 py-3 rounded-full bg-transparent border border-gold text-gold hover:bg-gold/10 transition-colors">
-              اكتشف المزيد
-            </button>
-            <button className="px-8 py-3 rounded-full bg-gold text-navy font-bold hover:shadow-lg hover:shadow-gold/20 transition-all">
-              ابدأ الآن
-            </button>
-          </div>
-        </div>
+            {/* Hero */}
+            <section className="max-w-6xl mx-auto px-4 py-16 text-center">
+                <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
+                    AI-Powered Real Estate
+                </h1>
+                <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+                    Smart valuations, legal contract analysis, and blockchain-verified transactions
+                    for the Egyptian market.
+                </p>
+            </section>
 
-        {/* Right Side: AI Chat Demo */}
-        <div className="md:order-1 flex justify-center">
-          <EliteAdvisorChat />
-        </div>
-      </div>
-    </main>
-  );
+            {/* Tab Navigation */}
+            <div className="max-w-2xl mx-auto px-4">
+                <div className="flex bg-gray-800/50 rounded-xl p-1 mb-8">
+                    <button
+                        onClick={() => setActiveTab("valuation")}
+                        className={`flex-1 py-3 rounded-lg font-medium transition-all ${activeTab === "valuation"
+                                ? "bg-gradient-to-r from-green-600 to-green-700 text-white"
+                                : "text-gray-400 hover:text-white"
+                            }`}
+                    >
+                        Price Valuation
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("legal")}
+                        className={`flex-1 py-3 rounded-lg font-medium transition-all ${activeTab === "legal"
+                                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                                : "text-gray-400 hover:text-white"
+                            }`}
+                    >
+                        Legal Check
+                    </button>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="max-w-2xl mx-auto px-4 pb-16">
+                {activeTab === "valuation" ? <PriceValuation /> : <LegalCheck />}
+            </div>
+
+            {/* Footer */}
+            <footer className="border-t border-gray-700/50 py-8">
+                <div className="max-w-6xl mx-auto px-4 text-center text-gray-500 text-sm">
+                    <p>Powered by XGBoost + GPT-4o Hybrid AI</p>
+                    <p className="mt-2">CBE Law 194 Compliant | Polygon Blockchain</p>
+                </div>
+            </footer>
+        </main>
+    );
 }

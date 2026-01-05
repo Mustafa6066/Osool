@@ -5,33 +5,31 @@
 import fs from 'fs';
 import path from 'path';
 
-// Load property data from data.js (main data source)
+// Load property data from data/properties.json (PRIMARY source)
 let propertyData;
 try {
-    // Primary source: public/assets/js/data.js
-    const dataPath = path.join(process.cwd(), 'public', 'assets', 'js', 'data.js');
+    // Primary source: data/properties.json (authoritative data)
+    const dataPath = path.join(process.cwd(), 'data', 'properties.json');
     if (fs.existsSync(dataPath)) {
-        const fileContent = fs.readFileSync(dataPath, 'utf8');
-        // Extract JSON from "window.egyptianData = {...}" format
-        const jsonMatch = fileContent.match(/window\.egyptianData\s*=\s*(\{[\s\S]*\});?\s*$/);
-        if (jsonMatch) {
-            propertyData = JSON.parse(jsonMatch[1]);
-            console.log(`✅ Loaded ${propertyData.properties?.length || 0} properties from data.js`);
-        } else {
-            throw new Error('Could not parse data.js format');
-        }
+        propertyData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+        console.log(`✅ Loaded ${propertyData.properties?.length || 0} properties from data/properties.json`);
     } else {
-        console.warn(`Warning: Property file not found at ${dataPath}`);
-        propertyData = { properties: [], metadata: {} };
+        throw new Error(`Property file not found at ${dataPath}`);
     }
 } catch (e) {
-    console.error('Failed to load properties from data.js:', e.message);
-    // Fallback to properties.json if data.js fails
+    console.error('Failed to load properties from data/properties.json:', e.message);
+    // Fallback to public/assets/js/data.js if JSON fails
     try {
-        const fallbackPath = path.join(process.cwd(), 'data', 'properties.json');
+        const fallbackPath = path.join(process.cwd(), 'public', 'assets', 'js', 'data.js');
         if (fs.existsSync(fallbackPath)) {
-            propertyData = JSON.parse(fs.readFileSync(fallbackPath, 'utf8'));
-            console.log(`⚠️ Using fallback properties.json (${propertyData.properties?.length || 0} properties)`);
+            const fileContent = fs.readFileSync(fallbackPath, 'utf8');
+            const jsonMatch = fileContent.match(/window\.egyptianData\s*=\s*(\{[\s\S]*\});?\s*$/);
+            if (jsonMatch) {
+                propertyData = JSON.parse(jsonMatch[1]);
+                console.log(`⚠️ Using fallback data.js (${propertyData.properties?.length || 0} properties)`);
+            } else {
+                throw new Error('Could not parse data.js format');
+            }
         } else {
             propertyData = { properties: [], metadata: {} };
         }

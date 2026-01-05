@@ -1,75 +1,49 @@
-@import "tailwindcss";
-
-@theme {
-  /* Luxury Color Palette */
-  --color-navy: #0A1628;
-  --color-navy-light: #1a2744;
-
-  --color-gold: #C9A962;
-  --color-gold-light: #E8D5A0;
-
-  --color-teal: #2DD4BF;
-
-  --color-glass-white: rgba(255, 255, 255, 0.08);
-  --color-glass-border: rgba(255, 255, 255, 0.18);
-
-  --color-soft-blue: #E8F4FD;
-  --color-soft-cream: #FDF8F3;
-  --color-soft-sage: #E8F0E8;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  /* CSS Variables for raw usage if needed */
-  --primary-navy: #0A1628;
-  --secondary-gold: #C9A962;
-  --accent-teal: #2DD4BF;
+    --background: #ffffff;
+    --foreground: #171717;
+}
 
-  /* Glass Effect Variables */
-  --glass-blur: 20px;
-  --glass-saturation: 180%;
-  --glass-opacity: 0.15;
-
-  --background: #0A1628;
-  --foreground: #FDF8F3;
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background: #0a0a0a;
+        --foreground: #ededed;
+    }
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  background-image:
-    radial-gradient(circle at 15% 50%, rgba(201, 169, 98, 0.08), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(45, 212, 191, 0.05), transparent 25%);
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Utilities */
-@layer components {
-  .glass-card {
-    @apply border border-glass-border rounded-3xl shadow-lg transition-all duration-300;
-    background: linear-gradient(135deg,
-        rgba(255, 255, 255, 0.1) 0%,
-        rgba(255, 255, 255, 0.05) 100%);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-  }
+/* Custom Osool Styles */
+.glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
 
-  .glass-card:hover {
-    @apply -translate-y-2 shadow-2xl;
-    box-shadow:
-      0 20px 60px rgba(0, 0, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  }
+.gradient-text {
+    background: linear-gradient(135deg, #10b981, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
 
-  .property-card-3d {
-    perspective: 1000px;
-    transform-style: preserve-3d;
-  }
+.btn-primary {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
 
-  .property-card-3d:hover {
-    transform: rotateX(2deg) rotateY(-2deg);
-  }
-
-  .text-gold-gradient {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, #C9A962 0%, #E8D5A0 50%, #C9A962 100%);
-  }
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
 }

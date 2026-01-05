@@ -141,6 +141,15 @@ function initPropertyGrid() {
                 <span><i class="fas fa-bath"></i> ${prop.bathrooms}</span>
                 <span><i class="fas fa-ruler-combined"></i> ${prop.area}m²</span>
             </div>
+            
+            <!-- Reserve Button (Blockchain) -->
+            <button onclick="event.stopPropagation(); openReservationModal(${prop.id || index + 1}, '${prop.title.replace(/'/g, "\\'")}', ${prop.price})" 
+                    style="width: 100%; margin-top: 16px; padding: 12px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;"
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.4)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                <i class="fas fa-link"></i>
+                احجز الآن (Blockchain)
+            </button>
         `;
 
         card.addEventListener('mousemove', handleHover);
@@ -908,3 +917,231 @@ window.addEventListener('scroll', () => {
         }
     }
 });
+
+/* 
+   ═══════════════════════════════════════════════════════════════════════════
+   13. AI HYBRID VALUATION (XGBoost + GPT-4o)
+   Calls the backend API for smart property valuation
+   ═══════════════════════════════════════════════════════════════════════════
+*/
+const AI_BACKEND_URL = 'http://localhost:8000';
+
+window.getAIValuation = async function () {
+    const location = document.getElementById('aiLocation').value;
+    const size = parseInt(document.getElementById('aiSize').value) || 150;
+    const finishing = parseInt(document.getElementById('aiFinishing').value);
+    const floor = parseInt(document.getElementById('aiFloor').value) || 5;
+    const isCompound = document.getElementById('aiCompound').checked ? 1 : 0;
+
+    const resultEl = document.getElementById('aiValuationResult');
+
+    // Show loading state
+    resultEl.innerHTML = `
+        <div style="text-align: center;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: var(--color-gold-text); margin-bottom: 16px;"></i>
+            <div style="font-size: 0.9rem; color: var(--color-trust-soft);">جاري تحليل السوق...</div>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`${AI_BACKEND_URL}/api/ai/hybrid-valuation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                location: location,
+                size: size,
+                finishing: finishing,
+                floor: floor,
+                is_compound: isCompound
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            resultEl.innerHTML = `
+                <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ef4444; margin-bottom: 16px;"></i>
+                <div style="color: #ef4444;">${data.error}</div>
+            `;
+            return;
+        }
+
+        // Format the result
+        const price = data.predicted_price || 0;
+        const pricePerSqm = data.price_per_sqm || Math.round(price / size);
+        const marketStatus = data.market_status || 'Stable';
+        const reasoning = data.reasoning_bullets || [];
+
+        // Market status color
+        const statusColors = {
+            'Hot': { bg: '#fef2f2', text: '#dc2626', label: 'ساخن 🔥' },
+            'Stable': { bg: '#eff6ff', text: '#2563eb', label: 'مستقر 📊' },
+            'Cool': { bg: '#ecfdf5', text: '#059669', label: 'هادئ ❄️' }
+        };
+        const status = statusColors[marketStatus] || statusColors['Stable'];
+
+        resultEl.innerHTML = `
+            <div style="text-align: center;">
+                <div style="font-size: 0.9rem; color: var(--color-trust-soft); margin-bottom: 8px;">السعر العادل</div>
+                <div style="font-size: 2.5rem; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;">
+                    ${price.toLocaleString('en-EG')}
+                </div>
+                <div style="font-size: 1rem; color: var(--color-trust-mid);">جنيه مصري</div>
+                <div style="font-size: 0.85rem; color: var(--color-trust-soft); margin-top: 4px;">
+                    ${pricePerSqm.toLocaleString()} جنيه/م²
+                </div>
+                
+                <div style="margin-top: 16px; display: inline-block; padding: 6px 16px; border-radius: 99px; background: ${status.bg}; color: ${status.text}; font-weight: 600;">
+                    السوق: ${status.label}
+                </div>
+            </div>
+            
+            ${reasoning.length > 0 ? `
+            <div style="margin-top: 20px; padding: 16px; background: rgba(255,255,255,0.6); border-radius: 12px; text-align: right;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: var(--color-trust-mid);">
+                    <i class="fas fa-lightbulb" style="color: var(--color-gold-text);"></i>
+                    لماذا هذا السعر:
+                </div>
+                <ul style="margin: 0; padding-right: 16px; font-size: 0.85rem; color: var(--color-trust-soft);">
+                    ${reasoning.map(r => `<li style="margin-bottom: 4px;">${r}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            <div style="margin-top: 12px; font-size: 0.75rem; color: var(--color-trust-soft); text-align: center;">
+                المصدر: ${data.source || 'XGBoost + GPT-4o Hybrid AI'}
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('AI Valuation Error:', error);
+        resultEl.innerHTML = `
+            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ef4444; margin-bottom: 16px;"></i>
+            <div style="color: #ef4444;">حدث خطأ في الاتصال بالسيرفر</div>
+            <div style="font-size: 0.8rem; color: var(--color-trust-soft); margin-top: 8px;">تأكد من تشغيل السيرفر على localhost:8000</div>
+        `;
+    }
+};
+
+/* 
+   ═══════════════════════════════════════════════════════════════════════════
+   14. AI LEGAL CONTRACT ANALYSIS (Egyptian Law AI)
+   Scans contracts for risks using GPT-4o with Egyptian legal context
+   ═══════════════════════════════════════════════════════════════════════════
+*/
+window.analyzeContract = async function () {
+    const contractText = document.getElementById('contractText').value.trim();
+    const resultEl = document.getElementById('legalCheckResult');
+
+    if (contractText.length < 50) {
+        resultEl.innerHTML = `
+            <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #f59e0b; margin-bottom: 16px;"></i>
+            <div style="color: #f59e0b;">الرجاء إدخال نص العقد (50 حرف على الأقل)</div>
+        `;
+        return;
+    }
+
+    // Show loading state
+    resultEl.innerHTML = `
+        <div style="text-align: center;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #8b5cf6; margin-bottom: 16px;"></i>
+            <div style="font-size: 0.9rem; color: var(--color-trust-soft);">جاري تحليل العقد قانونياً...</div>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`${AI_BACKEND_URL}/api/ai/audit-contract`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: contractText })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            resultEl.innerHTML = `
+                <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ef4444; margin-bottom: 16px;"></i>
+                <div style="color: #ef4444;">${data.error}</div>
+            `;
+            return;
+        }
+
+        // Format the result
+        const riskScore = data.risk_score || 0;
+        const verdict = data.verdict || 'Unknown';
+        const redFlags = data.red_flags || [];
+        const missingClauses = data.missing_clauses || [];
+        const summary = data.legal_summary_arabic || '';
+
+        // Risk level colors
+        let riskColor, riskBg, riskLabel;
+        if (riskScore < 30) {
+            riskColor = '#10b981'; riskBg = '#ecfdf5'; riskLabel = 'آمن ✅';
+        } else if (riskScore < 60) {
+            riskColor = '#f59e0b'; riskBg = '#fffbeb'; riskLabel = 'حذر ⚠️';
+        } else {
+            riskColor = '#ef4444'; riskBg = '#fef2f2'; riskLabel = 'خطر 🚫';
+        }
+
+        // Verdict styling
+        const verdictStyles = {
+            'Safe to Sign': { bg: '#10b981', text: 'آمن للتوقيع ✅' },
+            'Proceed with Caution': { bg: '#f59e0b', text: 'تابع بحذر ⚠️' },
+            'DO NOT SIGN': { bg: '#ef4444', text: 'لا توقع! 🚫' }
+        };
+        const verdictStyle = verdictStyles[verdict] || { bg: '#64748b', text: verdict };
+
+        resultEl.innerHTML = `
+            <div style="text-align: center;">
+                <!-- Risk Score -->
+                <div style="display: inline-block; padding: 8px 20px; border-radius: 99px; background: ${riskBg}; color: ${riskColor}; font-weight: 700; font-size: 1.2rem; margin-bottom: 12px;">
+                    المخاطر: ${riskScore}/100
+                </div>
+                
+                <!-- Verdict -->
+                <div style="padding: 12px; border-radius: 12px; background: ${verdictStyle.bg}; color: white; font-weight: 700; font-size: 1.1rem; margin-bottom: 16px;">
+                    ${verdictStyle.text}
+                </div>
+            </div>
+            
+            ${redFlags.length > 0 ? `
+            <div style="padding: 12px; background: #fef2f2; border-radius: 8px; margin-bottom: 12px; text-align: right;">
+                <div style="font-weight: 600; color: #dc2626; margin-bottom: 8px;">
+                    <i class="fas fa-flag"></i> علامات خطر:
+                </div>
+                <ul style="margin: 0; padding-right: 16px; font-size: 0.85rem; color: #b91c1c;">
+                    ${redFlags.map(f => `<li style="margin-bottom: 4px;">${f}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            ${missingClauses.length > 0 ? `
+            <div style="padding: 12px; background: #fffbeb; border-radius: 8px; margin-bottom: 12px; text-align: right;">
+                <div style="font-weight: 600; color: #d97706; margin-bottom: 8px;">
+                    <i class="fas fa-clipboard-list"></i> بنود ناقصة:
+                </div>
+                <ul style="margin: 0; padding-right: 16px; font-size: 0.85rem; color: #b45309;">
+                    ${missingClauses.map(c => `<li style="margin-bottom: 4px;">${c}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            ${summary ? `
+            <div style="padding: 12px; background: rgba(255,255,255,0.6); border-radius: 8px; text-align: right;">
+                <div style="font-weight: 600; color: var(--color-trust-mid); margin-bottom: 8px;">
+                    <i class="fas fa-file-alt"></i> الملخص:
+                </div>
+                <div style="font-size: 0.85rem; color: var(--color-trust-soft); line-height: 1.6;">${summary}</div>
+            </div>
+            ` : ''}
+        `;
+
+    } catch (error) {
+        console.error('Legal Analysis Error:', error);
+        resultEl.innerHTML = `
+            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ef4444; margin-bottom: 16px;"></i>
+            <div style="color: #ef4444;">حدث خطأ في الاتصال بالسيرفر</div>
+            <div style="font-size: 0.8rem; color: var(--color-trust-soft); margin-top: 8px;">تأكد من تشغيل السيرفر على localhost:8000</div>
+        `;
+    }
+};

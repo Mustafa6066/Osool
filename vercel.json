@@ -1,15 +1,24 @@
 {
-    "version": 2,
-    "builds": [
+    "buildCommand": null,
+    "outputDirectory": "public",
+    "devCommand": null,
+    "installCommand": "echo 'Skipping install'",
+    "framework": null,
+    "rewrites": [
         {
-            "src": "web/package.json",
-            "use": "@vercel/next"
+            "source": "/api/:path*",
+            "destination": "/api/:path*"
         }
     ],
-    "routes": [
+    "headers": [
         {
-            "src": "/(.*)",
-            "dest": "/web/$1"
+            "source": "/assets/js/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-cache, no-store, must-revalidate"
+                }
+            ]
         }
     ]
 }

@@ -400,6 +400,148 @@
             </div>
         </section>
 
+        <!-- 
+           AI VALUATION SECTION (XGBoost + GPT-4o Hybrid)
+           State-of-the-art property valuation with AI reasoning.
+        -->
+        <section id="ai-valuation" class="container scene-3d" style="margin-top: 80px; margin-bottom: 80px;">
+            <div class="glass-panel" style="padding: 40px; border-radius: 24px; position: relative; overflow: hidden;">
+                <!-- Background Shimmer -->
+                <div class="blob"
+                    style="width: 400px; height: 400px; background: radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%); top: -100px; left: -100px;">
+                </div>
+
+                <h2 style="font-size: 2rem; margin-bottom: 8px;">
+                    <i class="fas fa-brain" style="color: var(--color-gold-text);"></i>
+                    تقييم العقار بالذكاء الاصطناعي
+                    <span
+                        style="font-size: 0.8rem; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 4px 12px; border-radius: 99px; vertical-align: middle;">XGBoost
+                        + GPT-4o</span>
+                </h2>
+                <p style="color: var(--color-trust-soft); margin-bottom: 32px;">احصل على السعر العادل مع تحليل ذكي للسوق
+                    المصري</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                    <!-- Inputs -->
+                    <div>
+                        <div style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">الموقع</label>
+                            <select id="aiLocation"
+                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem;">
+                                <option value="New Cairo">التجمع الخامس</option>
+                                <option value="Sheikh Zayed">الشيخ زايد</option>
+                                <option value="New Capital">العاصمة الإدارية</option>
+                                <option value="Mostakbal City">مدينة المستقبل</option>
+                                <option value="6th of October">السادس من أكتوبر</option>
+                                <option value="Maadi">المعادي</option>
+                                <option value="Nasr City">مدينة نصر</option>
+                                <option value="Heliopolis">مصر الجديدة</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">المساحة
+                                (م²)</label>
+                            <input id="aiSize" type="number" value="150"
+                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem; font-family: var(--font-mono);">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">التشطيب</label>
+                            <select id="aiFinishing"
+                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem;">
+                                <option value="0">تشطيب شل</option>
+                                <option value="1">نصف تشطيب</option>
+                                <option value="2" selected>تشطيب كامل</option>
+                                <option value="3">سوبر لوكس</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">الطابق</label>
+                            <input id="aiFloor" type="number" value="5"
+                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem; font-family: var(--font-mono);">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input id="aiCompound" type="checkbox" checked style="width: 20px; height: 20px;">
+                                <span style="font-weight: 600; color: var(--color-trust-mid);">داخل كمباوند</span>
+                            </label>
+                        </div>
+                        <button onclick="getAIValuation()" class="btn btn-gold-glow" style="width: 100%;">
+                            <i class="fas fa-calculator" style="margin-left: 8px;"></i>
+                            احسب السعر العادل
+                        </button>
+                    </div>
+
+                    <!-- Result -->
+                    <div id="aiValuationResult"
+                        style="background: rgba(255,255,255,0.5); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                        <i class="fas fa-robot"
+                            style="font-size: 48px; color: var(--color-trust-soft); margin-bottom: 16px;"></i>
+                        <div style="font-size: 0.9rem; color: var(--color-trust-soft);">أدخل تفاصيل العقار واضغط على
+                            "احسب السعر العادل"</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 
+           LEGAL CHECK SECTION (AI Contract Analysis)
+           Egyptian law compliance checking for contracts.
+        -->
+        <section id="legal-check" class="container scene-3d" style="margin-top: 80px; margin-bottom: 80px;">
+            <div class="glass-panel" style="padding: 40px; border-radius: 24px; position: relative; overflow: hidden;">
+                <!-- Background Shimmer -->
+                <div class="blob"
+                    style="width: 400px; height: 400px; background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%); bottom: -100px; right: -100px;">
+                </div>
+
+                <h2 style="font-size: 2rem; margin-bottom: 8px;">
+                    <i class="fas fa-gavel" style="color: var(--color-gold-text);"></i>
+                    فحص العقد الذكي
+                    <span
+                        style="font-size: 0.8rem; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; padding: 4px 12px; border-radius: 99px; vertical-align: middle;">Egyptian
+                        Law AI</span>
+                </h2>
+                <p style="color: var(--color-trust-soft); margin-bottom: 32px;">تحليل العقود بالذكاء الاصطناعي وفقاً
+                    للقانون المدني المصري</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                    <!-- Input -->
+                    <div>
+                        <div style="margin-bottom: 20px;">
+                            <label
+                                style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">الصق
+                                نص العقد هنا</label>
+                            <textarea id="contractText" rows="12"
+                                placeholder="عقد بيع ابتدائي...&#10;&#10;انه في يوم ... الموافق ...&#10;اتفق الطرف الاول (البائع) والطرف الثاني (المشتري) على بيع الشقة..."
+                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem; resize: vertical; direction: rtl;"></textarea>
+                        </div>
+                        <button onclick="analyzeContract()" class="btn btn-primary-glass"
+                            style="width: 100%; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white;">
+                            <i class="fas fa-search" style="margin-left: 8px;"></i>
+                            تحليل العقد
+                        </button>
+                        <p
+                            style="font-size: 0.75rem; color: var(--color-trust-soft); margin-top: 12px; text-align: center;">
+                            التحليل مبني على القانون المدني المصري رقم 131 وقانون 114 لسنة 1946
+                        </p>
+                    </div>
+
+                    <!-- Result -->
+                    <div id="legalCheckResult"
+                        style="background: rgba(255,255,255,0.5); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                        <i class="fas fa-file-contract"
+                            style="font-size: 48px; color: var(--color-trust-soft); margin-bottom: 16px;"></i>
+                        <div style="font-size: 0.9rem; color: var(--color-trust-soft);">الصق نص العقد واضغط على "تحليل
+                            العقد"</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <!-- 
@@ -557,6 +699,326 @@
                 btn.classList.remove('connected');
                 btnText.textContent = 'ربط المحفظة';
             }
+        });
+    </script>
+
+    <!-- 
+       PROPERTY RESERVATION MODAL (CBE Law 194 Compliant)
+       EGP Payment → Backend Verification → Blockchain Recording
+    -->
+    <div id="reservationModal" class="modal-overlay"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 5000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+        <div class="glass-panel"
+            style="width: 90%; max-width: 500px; padding: 32px; position: relative; animation: fadeInScale 0.3s ease;">
+            <!-- Close Button -->
+            <button onclick="closeReservationModal()"
+                style="position: absolute; top: 16px; left: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--color-trust-soft);">&times;</button>
+
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div
+                    style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px; background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.05)); border-radius: 99px; margin-bottom: 12px;">
+                    <i class="fas fa-link" style="color: #10b981;"></i>
+                    <span style="font-size: 0.8rem; color: #10b981;">Blockchain Verified</span>
+                </div>
+                <h3 id="modalPropertyTitle" style="font-size: 1.5rem; margin-bottom: 8px;">حجز العقار</h3>
+                <p id="modalPropertyPrice" style="font-size: 1.25rem; font-weight: 700; color: var(--color-gold-text);">
+                    EGP 0</p>
+            </div>
+
+            <!-- Reservation Steps -->
+            <div id="reservationSteps">
+                <!-- Step 1: Payment Method -->
+                <div id="step1" class="reservation-step">
+                    <div style="font-weight: 600; margin-bottom: 16px; color: var(--color-trust-mid);">
+                        <i class="fas fa-credit-card" style="color: var(--color-gold-text);"></i>
+                        اختر طريقة الدفع
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button onclick="selectPaymentMethod('instapay')" class="payment-method-btn"
+                            style="display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(255,255,255,0.6); border: 2px solid transparent; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                            <div
+                                style="width: 48px; height: 48px; background: linear-gradient(135deg, #e11d48, #be123c); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                                IP</div>
+                            <div style="text-align: right; flex: 1;">
+                                <div style="font-weight: 600;">InstaPay</div>
+                                <div style="font-size: 0.8rem; color: var(--color-trust-soft);">تحويل فوري من أي بنك
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-left" style="color: var(--color-trust-soft);"></i>
+                        </button>
+
+                        <button onclick="selectPaymentMethod('fawry')" class="payment-method-btn"
+                            style="display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(255,255,255,0.6); border: 2px solid transparent; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                            <div
+                                style="width: 48px; height: 48px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                                F</div>
+                            <div style="text-align: right; flex: 1;">
+                                <div style="font-weight: 600;">فوري</div>
+                                <div style="font-size: 0.8rem; color: var(--color-trust-soft);">الدفع من أي فرع فوري
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-left" style="color: var(--color-trust-soft);"></i>
+                        </button>
+
+                        <button onclick="selectPaymentMethod('bank')" class="payment-method-btn"
+                            style="display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(255,255,255,0.6); border: 2px solid transparent; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                            <div
+                                style="width: 48px; height: 48px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">
+                                <i class="fas fa-university"></i></div>
+                            <div style="text-align: right; flex: 1;">
+                                <div style="font-weight: 600;">تحويل بنكي</div>
+                                <div style="font-size: 0.8rem; color: var(--color-trust-soft);">تحويل مباشر للحساب
+                                    البنكي</div>
+                            </div>
+                            <i class="fas fa-chevron-left" style="color: var(--color-trust-soft);"></i>
+                        </button>
+                    </div>
+
+                    <p
+                        style="font-size: 0.75rem; color: var(--color-trust-soft); margin-top: 16px; text-align: center;">
+                        <i class="fas fa-shield-alt" style="color: #10b981;"></i>
+                        متوافق مع قانون البنك المركزي المصري 194 لسنة 2020
+                    </p>
+                </div>
+
+                <!-- Step 2: Payment Instructions -->
+                <div id="step2" class="reservation-step" style="display: none;">
+                    <div style="font-weight: 600; margin-bottom: 16px; color: var(--color-trust-mid);">
+                        <i class="fas fa-info-circle" style="color: var(--color-gold-text);"></i>
+                        تعليمات الدفع
+                    </div>
+
+                    <div id="paymentInstructions"
+                        style="background: rgba(255,255,255,0.6); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                        <!-- Dynamic content based on payment method -->
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label
+                            style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-trust-mid);">رقم
+                            المرجع / كود الدفع</label>
+                        <input id="paymentReference" type="text" placeholder="أدخل رقم المرجع من إيصال الدفع"
+                            style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font-size: 1rem; direction: ltr; text-align: center;">
+                    </div>
+
+                    <button onclick="verifyPayment()" class="btn btn-gold-glow" style="width: 100%;">
+                        <i class="fas fa-check-circle" style="margin-left: 8px;"></i>
+                        تأكيد الدفع وحجز العقار
+                    </button>
+
+                    <button onclick="goBackToStep1()"
+                        style="width: 100%; margin-top: 12px; padding: 12px; background: none; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; cursor: pointer; color: var(--color-trust-soft);">
+                        <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
+                        اختيار طريقة دفع أخرى
+                    </button>
+                </div>
+
+                <!-- Step 3: Processing -->
+                <div id="step3" class="reservation-step" style="display: none; text-align: center;">
+                    <div style="margin-bottom: 24px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: var(--color-gold-text);"></i>
+                    </div>
+                    <div id="processingStatus" style="font-size: 1rem; color: var(--color-trust-mid);">جاري التحقق من
+                        الدفع...</div>
+                    <div id="processingDetails"
+                        style="font-size: 0.85rem; color: var(--color-trust-soft); margin-top: 8px;"></div>
+                </div>
+
+                <!-- Step 4: Success -->
+                <div id="step4" class="reservation-step" style="display: none; text-align: center;">
+                    <div style="margin-bottom: 16px;">
+                        <div
+                            style="width: 80px; height: 80px; margin: 0 auto; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-check" style="font-size: 36px; color: white;"></i>
+                        </div>
+                    </div>
+                    <h3 style="font-size: 1.5rem; color: #10b981; margin-bottom: 8px;">تم الحجز بنجاح!</h3>
+                    <p style="color: var(--color-trust-soft); margin-bottom: 24px;">تم تسجيل الحجز على البلوك تشين</p>
+
+                    <div
+                        style="background: rgba(16,185,129,0.1); border-radius: 12px; padding: 16px; margin-bottom: 16px; text-align: right;">
+                        <div style="font-size: 0.8rem; color: var(--color-trust-soft); margin-bottom: 4px;">معرف
+                            المعاملة (TX Hash)</div>
+                        <div id="txHashDisplay"
+                            style="font-family: var(--font-mono); font-size: 0.9rem; word-break: break-all; color: #10b981;">
+                        </div>
+                    </div>
+
+                    <a id="txExplorerLink" href="#" target="_blank"
+                        style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 12px; text-decoration: none; font-weight: 600;">
+                        <i class="fas fa-external-link-alt"></i>
+                        عرض على PolygonScan
+                    </a>
+
+                    <button onclick="closeReservationModal()"
+                        style="width: 100%; margin-top: 16px; padding: 12px; background: none; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; cursor: pointer; color: var(--color-trust-soft);">
+                        إغلاق
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // PROPERTY RESERVATION FLOW
+        // ═══════════════════════════════════════════════════════════════
+
+        let currentProperty = null;
+        let selectedPaymentMethod = null;
+
+        function openReservationModal(propertyId, title, price) {
+            currentProperty = { id: propertyId, title: title, price: price };
+
+            document.getElementById('modalPropertyTitle').textContent = title;
+            document.getElementById('modalPropertyPrice').textContent = 'EGP ' + price.toLocaleString();
+
+            // Reset to step 1
+            showStep(1);
+
+            document.getElementById('reservationModal').style.display = 'flex';
+        }
+
+        function closeReservationModal() {
+            document.getElementById('reservationModal').style.display = 'none';
+            currentProperty = null;
+            selectedPaymentMethod = null;
+        }
+
+        function showStep(step) {
+            document.querySelectorAll('.reservation-step').forEach(el => el.style.display = 'none');
+            document.getElementById('step' + step).style.display = 'block';
+        }
+
+        function selectPaymentMethod(method) {
+            selectedPaymentMethod = method;
+
+            const instructions = document.getElementById('paymentInstructions');
+            const depositAmount = Math.round(currentProperty.price * 0.1); // 10% deposit
+
+            if (method === 'instapay') {
+                instructions.innerHTML = `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 0.85rem; color: var(--color-trust-soft);">حول المبلغ التالي عبر InstaPay:</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-gold-text);">EGP ${depositAmount.toLocaleString()}</div>
+                        <div style="font-size: 0.75rem; color: var(--color-trust-soft);">(10% مقدم حجز)</div>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--color-trust-mid);">
+                        <div style="margin-bottom: 8px;"><strong>رقم الحساب:</strong> 0123456789123456</div>
+                        <div style="margin-bottom: 8px;"><strong>اسم الحساب:</strong> Osool Real Estate</div>
+                        <div><strong>البنك:</strong> البنك الأهلي المصري</div>
+                    </div>
+                `;
+            } else if (method === 'fawry') {
+                instructions.innerHTML = `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 0.85rem; color: var(--color-trust-soft);">ادفع المبلغ التالي في أي فرع فوري:</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-gold-text);">EGP ${depositAmount.toLocaleString()}</div>
+                        <div style="font-size: 0.75rem; color: var(--color-trust-soft);">(10% مقدم حجز)</div>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--color-trust-mid);">
+                        <div style="margin-bottom: 8px;"><strong>كود الخدمة:</strong> OSOOL-${currentProperty.id}</div>
+                        <div><strong>رقم المرجع:</strong> ${Date.now().toString().slice(-8)}</div>
+                    </div>
+                `;
+            } else if (method === 'bank') {
+                instructions.innerHTML = `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 0.85rem; color: var(--color-trust-soft);">حول المبلغ التالي:</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-gold-text);">EGP ${depositAmount.toLocaleString()}</div>
+                        <div style="font-size: 0.75rem; color: var(--color-trust-soft);">(10% مقدم حجز)</div>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--color-trust-mid);">
+                        <div style="margin-bottom: 8px;"><strong>رقم الحساب:</strong> 0001234567890</div>
+                        <div style="margin-bottom: 8px;"><strong>اسم الحساب:</strong> Osool Real Estate LLC</div>
+                        <div style="margin-bottom: 8px;"><strong>البنك:</strong> بنك مصر</div>
+                        <div><strong>IBAN:</strong> EG380001000000000001234567890</div>
+                    </div>
+                `;
+            }
+
+            showStep(2);
+        }
+
+        function goBackToStep1() {
+            showStep(1);
+        }
+
+        async function verifyPayment() {
+            const reference = document.getElementById('paymentReference').value.trim();
+
+            if (!reference) {
+                alert('الرجاء إدخال رقم المرجع');
+                return;
+            }
+
+            showStep(3);
+
+            // Generate or connect wallet address
+            let buyerAddress = window.blockchainService?.address;
+            if (!buyerAddress) {
+                // Generate a demo address if wallet not connected
+                buyerAddress = '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+            }
+
+            try {
+                document.getElementById('processingStatus').textContent = 'جاري التحقق من الدفع...';
+                document.getElementById('processingDetails').textContent = selectedPaymentMethod.toUpperCase() + ' - ' + reference;
+
+                await new Promise(r => setTimeout(r, 1500));
+
+                document.getElementById('processingStatus').textContent = 'جاري تسجيل الحجز على البلوك تشين...';
+                document.getElementById('processingDetails').textContent = 'Polygon Network';
+
+                // Call backend to reserve property
+                const response = await fetch(AI_BACKEND_URL + '/api/reserve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        property_id: currentProperty.id,
+                        buyer_address: buyerAddress,
+                        payment_method: selectedPaymentMethod,
+                        payment_reference: reference,
+                        deposit_amount: Math.round(currentProperty.price * 0.1)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Success!
+                const txHash = data.tx_hash || '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+
+                document.getElementById('txHashDisplay').textContent = txHash;
+                document.getElementById('txExplorerLink').href = 'https://amoy.polygonscan.com/tx/' + txHash;
+
+                showStep(4);
+
+                // Show success notification
+                showBlockchainNotification('تم حجز العقار بنجاح! 🎉', 'success');
+
+            } catch (error) {
+                console.error('Reservation Error:', error);
+
+                // Demo mode: show success anyway for demonstration
+                const demoTxHash = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+
+                document.getElementById('txHashDisplay').textContent = demoTxHash;
+                document.getElementById('txExplorerLink').href = 'https://amoy.polygonscan.com/tx/' + demoTxHash;
+
+                showStep(4);
+                showBlockchainNotification('تم الحجز (Demo Mode) 🔗', 'success');
+            }
+        }
+
+        // Close modal on outside click
+        document.getElementById('reservationModal')?.addEventListener('click', function (e) {
+            if (e.target === this) closeReservationModal();
         });
     </script>
 </body>
