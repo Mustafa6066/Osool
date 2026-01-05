@@ -57,6 +57,7 @@ contract ElitePropertyEscrow is ReentrancyGuard, Ownable {
     mapping(uint256 => PropertyDeal) public deals;
     mapping(address => uint256[]) public userDeals;
     mapping(uint256 => bool) public propertyInEscrow;
+    mapping(address => bytes32) public nationalIdHashes; // Hash of National ID for uniqueness
     mapping(address => bool) public isKYC;
     
     address payable public platformWallet;
@@ -98,6 +99,24 @@ contract ElitePropertyEscrow is ReentrancyGuard, Ownable {
         require(isKYC[msg.sender], "User not KYC verified");
         _;
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // KYC FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * @dev Register a user with their National ID (Hashed for privacy)
+     * @param _user Wallet address
+     * @param _nationalIdHash Keccak256 hash of National ID
+     */
+    function registerUser(address _user, bytes32 _nationalIdHash) external onlyOwner {
+        require(_user != address(0), "Invalid address");
+        require(nationalIdHashes[_user] == bytes32(0), "User already registered");
+        // Ensure National ID logic could be extended here (e.g. check duplicate ID hashes)
+        
+        isKYC[_user] = true;
+        nationalIdHashes[_user] = _nationalIdHash;
+    }
     
     // ═══════════════════════════════════════════════════════════════
     // CORE FUNCTIONS
@@ -113,7 +132,6 @@ contract ElitePropertyEscrow is ReentrancyGuard, Ownable {
     function createDeal(
         address payable _seller,
         uint256 _propertyId,
-        uint256 _price,
         uint256 _price,
         string calldata _propertyIPFS
     ) external onlyRegisteredUser returns (uint256) {

@@ -10,6 +10,7 @@ This is the "Killer Feature" that differentiates Osool from competitors.
 
 import os
 import json
+import re
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -27,24 +28,51 @@ class OsoolAI:
         # GPT-4o handles Arabic legal nuances better than 3.5
         self.model = "gpt-4o"
     
+    
     def analyze_contract_with_egyptian_context(self, contract_text: str) -> dict:
         """
         The 'Killer Feature': Scans legal text for Egyptian Real Estate risks.
         Based on Civil Code No. 131 of 1948 and Law No. 114 of 1946.
-        
-        CRITICAL CHECKS:
-        1. Tawkil (Power of Attorney) - Required for ownership transfer
-        2. Taslsol Malekeya (Ownership Sequence) - History of previous owners
-        3. Delivery Date with Penalties - Protection against delays
-        4. Maintenance Deposit - Fixed vs. variable amounts
-        5. Refund Policy - Reasonable vs. abusive cancellation terms
-        
-        Returns structured JSON with risk score and analysis.
         """
         
-        system_prompt = """
+        # -----------------------------------------------------------
+        # HARDCODED REGEX SAFETY CHECKS (The "Guardian")
+        # -----------------------------------------------------------
+        risk_score = 0
+        red_flags = []
+        is_safe = True
+        
+        # Check 1: Tawkil (Power of Attorney)
+        # Must specifically mention "توكيل" (Tawkil)
+        if not re.search(r'توكيل', contract_text, re.IGNORECASE):
+            risk_score += 40
+            red_flags.append("CRITICAL: No mention of 'Power of Attorney' (Tawkil/توكيل). You cannot sell the unit without this!")
+            is_safe = False
+            
+        # Check 2: Share in Land (Hissa fel Ard)
+        # Must mention "حصة في الأرض" or "hissa"
+        if not re.search(r'حصة.*الأرض', contract_text, re.IGNORECASE) and not re.search(r'share.*land', contract_text, re.IGNORECASE):
+            risk_score += 30
+            red_flags.append("HIGH RISK: No 'Share in Land' (Hissa fel Ard/حصة في الأرض) specified. You might own the air, not the land!")
+            is_safe = False
+
+        # If strict checks failed, inject them into the prompt to force AI awareness
+        regex_warnings = ""
+        if not is_safe:
+            regex_warnings = f"""
+            WARNING - PRE-ANALYSIS FOUND MISSING TERMS:
+            {json.dumps(red_flags, ensure_ascii=False)}
+            
+            YOU MUST MENTION THESE AS CRITICAL FLAWS IN YOUR ANALYSIS.
+            SET RISK SCORE TO AT LEAST {risk_score}.
+            """
+        
+        system_prompt = f"""
         You are a Senior Egyptian Real Estate Lawyer (Consultant).
         Your job is to protect the BUYER.
+        
+        {regex_warnings}
+        
         Analyze the provided Real Estate Contract (in Arabic or English) based on Egyptian Civil Code and Law 114 of 1946.
 
         Step 1: Extract the following key clauses.
@@ -59,19 +87,19 @@ class OsoolAI:
         5. "Refund Policy" (Estirdad): If the buyer cancels, is the penalty reasonable (e.g., 5-10%) or abusive (e.g., 100% of paid amount)?
 
         JSON OUTPUT FORMAT:
-        {
+        {{
             "risk_score": INTEGER (0 to 100, where 100 is a scam),
             "contract_type": "Primary (Ibtida'i)" OR "Final (Neha'i)" OR "Accession (Ilhaq)",
             "red_flags": [
-                "Detailed explanation of risk 1 (e.g., No penalty clause for late delivery)",
-                "Detailed explanation of risk 2 (e.g., Seller refuses Tawkil)"
+                "Detailed explanation of risk 1",
+                "Detailed explanation of risk 2"
             ],
             "missing_essential_clauses": [
                 "List of clauses that should be there but are missing"
             ],
             "ai_verdict": "Safe to Sign" OR "Proceed with Caution" OR "DO NOT SIGN",
             "legal_summary_arabic": "A short summary in Arabic for the user."
-        }
+        }}
         """
         
         user_prompt = f"""
@@ -92,10 +120,36 @@ class OsoolAI:
                 response_format={"type": "json_object"},
                 temperature=0.1  # Low temperature = strict analysis
             )
-            return json.loads(response.choices[0].message.content)
-        
+            ai_result = json.loads(response.choices[0].message.content)
+            
         except Exception as e:
-            return {"error": f"AI Analysis Failed: {str(e)}"}
+            # Fallback if API fails
+            print(f"AI Analysis Failed: {e}")
+            ai_result = {
+                "risk_score": 0,
+                "ai_verdict": "Unknown (AI Offline)",
+                "red_flags": [],
+                "missing_essential_clauses": []
+            }
+
+        # Merge hardcoded warnings if AI missed them (Safety Net)
+        # This now runs EVEN IF api call failed (using the fallback dict)
+        if not is_safe:
+            # Ensure risk score is high enough
+            if ai_result.get("risk_score", 0) < risk_score:
+                ai_result["risk_score"] = risk_score
+            
+            # Append hardcoded red flags
+            existing_flags = ai_result.get("red_flags", [])
+            for flag in red_flags:
+                if not any(flag[:20] in f for f in existing_flags):
+                    existing_flags.insert(0, flag)
+            ai_result["red_flags"] = existing_flags
+            
+            if ai_result["ai_verdict"] in ["Safe to Sign", "Unknown (AI Offline)"]:
+                ai_result["ai_verdict"] = "DO NOT SIGN"
+        
+        return ai_result
     
     def get_smart_valuation(self, location: str, size_sqm: int, finishing: str, 
                             bedrooms: int = 3, property_type: str = "Apartment") -> dict:

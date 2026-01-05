@@ -3,9 +3,10 @@
 import { useState } from "react";
 import PriceValuation from "@/components/PriceValuation";
 import LegalCheck from "@/components/LegalCheck";
+import ChatInterface from "@/components/ChatInterface";
 
 export default function Home() {
-    const [activeTab, setActiveTab] = useState<"valuation" | "legal">("valuation");
+    const [activeTab, setActiveTab] = useState<"valuation" | "legal" | "chat">("chat");
 
     return (
         <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
@@ -43,8 +44,8 @@ export default function Home() {
                     <button
                         onClick={() => setActiveTab("valuation")}
                         className={`flex-1 py-3 rounded-lg font-medium transition-all ${activeTab === "valuation"
-                                ? "bg-gradient-to-r from-green-600 to-green-700 text-white"
-                                : "text-gray-400 hover:text-white"
+                            ? "bg-gradient-to-r from-green-600 to-green-700 text-white"
+                            : "text-gray-400 hover:text-white"
                             }`}
                     >
                         Price Valuation
@@ -52,18 +53,29 @@ export default function Home() {
                     <button
                         onClick={() => setActiveTab("legal")}
                         className={`flex-1 py-3 rounded-lg font-medium transition-all ${activeTab === "legal"
-                                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                                : "text-gray-400 hover:text-white"
+                            ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                            : "text-gray-400 hover:text-white"
                             }`}
                     >
                         Legal Check
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("chat")}
+                        className={`flex-1 py-3 rounded-lg font-medium transition-all ${activeTab === "chat"
+                            ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white"
+                            : "text-gray-400 hover:text-white"
+                            }`}
+                    >
+                        AI Consultant
                     </button>
                 </div>
             </div>
 
             {/* Content */}
             <div className="max-w-2xl mx-auto px-4 pb-16">
-                {activeTab === "valuation" ? <PriceValuation /> : <LegalCheck />}
+                {activeTab === "valuation" && <PriceValuation />}
+                {activeTab === "legal" && <LegalCheck />}
+                {activeTab === "chat" && <ChatInterface />}
             </div>
 
             {/* Footer */}

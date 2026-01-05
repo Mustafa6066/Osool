@@ -20,8 +20,8 @@ from app.services.payment_service import payment_service, PaymentStatus
 from app.services.blockchain_prod import blockchain_service_prod
 from app.ai_engine.openai_service import osool_ai
 from app.ai_engine.hybrid_brain import hybrid_brain
-from app.ai_engine.hybrid_brain import hybrid_brain
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
+from app.ai_engine.sales_agent import sales_agent
 from app.services.paymob_service import paymob_service
 from app.tasks import reserve_property_task
 
@@ -453,12 +453,10 @@ def chat_endpoint(req: ContractAnalysisRequest):
     # Given the constraint of not adding too many new models inline if not needed, 
     # I'll use a Body or existing model. Let's use the existing one but interpreted as chat.
     
-    result = osool_ai.chat_with_osool(req.text)
+    # Use the new LangChain Sales Agent
+    response_text = sales_agent.chat(req.text)
     
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
-    
-    return result
+    return {"response": response_text}
 
 
 # ═══════════════════════════════════════════════════════════════

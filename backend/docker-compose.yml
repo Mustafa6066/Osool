@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # -------------------------------------------------------------------------
+  # POSTGRESQL (with pgvector)
+  # -------------------------------------------------------------------------
+  db:
+    image: ankane/pgvector:latest
+    container_name: osool_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-osool}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-osool_password}
+      POSTGRES_DB: ${POSTGRES_DB:-osool_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # -------------------------------------------------------------------------
+  # REDIS (for Celery & Caching)
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:alpine
+    container_name: osool_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # -------------------------------------------------------------------------
+  # BACKEND API
+  # -------------------------------------------------------------------------
+  api:
+    build: .
+    container_name: osool_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-osool}:${POSTGRES_PASSWORD:-osool_password}@db:5432/${POSTGRES_DB:-osool_db}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PAYMOB_API_KEY=${PAYMOB_API_KEY}
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
