@@ -241,4 +241,65 @@ describe("OsoolRegistry", function () {
             expect(await registry.verifyDocument(1, "WrongHash")).to.be.false;
         });
     });
+
+    describe("AI Verification Functions", function () {
+        const docHash = "QmTestHash123456789";
+        const priceEGP = 5000000;
+        const aiHash = "sha256:abc123def456ghi789";
+
+        beforeEach(async function () {
+            await registry.connect(seller).listProperty(docHash, priceEGP);
+        });
+
+        it("Should allow owner to set AI verified hash", async function () {
+            await registry.connect(owner).setAIVerifiedHash(1, aiHash);
+
+            const storedHash = await registry.getAIVerifiedHash(1);
+            expect(storedHash).to.equal(aiHash);
+        });
+
+        it("Should return true for isAIVerified after hash is set", async function () {
+            expect(await registry.isAIVerified(1)).to.be.false;
+
+            await registry.connect(owner).setAIVerifiedHash(1, aiHash);
+            expect(await registry.isAIVerified(1)).to.be.true;
+        });
+
+        it("Should emit AIHashSet event", async function () {
+            const tx = await registry.connect(owner).setAIVerifiedHash(1, aiHash);
+            const receipt = await tx.wait();
+
+            const event = receipt.events.find(e => e.event === 'AIHashSet');
+            expect(event).to.not.be.undefined;
+            expect(event.args.id.toString()).to.equal("1");
+            expect(event.args.aiHash).to.equal(aiHash);
+        });
+
+        it("Should reject non-owner from setting AI hash", async function () {
+            try {
+                await registry.connect(seller).setAIVerifiedHash(1, aiHash);
+                expect.fail("Should have reverted");
+            } catch (error) {
+                expect(error.message).to.include("caller is not the owner");
+            }
+        });
+
+        it("Should reject setting AI hash for non-existent property", async function () {
+            try {
+                await registry.connect(owner).setAIVerifiedHash(999, aiHash);
+                expect.fail("Should have reverted");
+            } catch (error) {
+                expect(error.message).to.include("Property does not exist");
+            }
+        });
+
+        it("Should reject empty AI hash", async function () {
+            try {
+                await registry.connect(owner).setAIVerifiedHash(1, "");
+                expect.fail("Should have reverted");
+            } catch (error) {
+                expect(error.message).to.include("AI hash cannot be empty");
+            }
+        });
+    });
 });

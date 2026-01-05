@@ -208,4 +208,45 @@ contract OsoolRegistry is Ownable {
     function verifyDocument(uint256 _id, string memory _hash) external view returns (bool) {
         return keccak256(bytes(properties[_id].legalDocumentHash)) == keccak256(bytes(_hash));
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // AI VERIFICATION (AI-Blockchain Synergy)
+    // ═══════════════════════════════════════════════════════════════
+
+    // Stores the hash of AI-verified legal analysis for each property
+    mapping(uint256 => string) public aiVerifiedHashes;
+
+    event AIHashSet(uint256 indexed id, string aiHash);
+
+    /**
+     * @dev Store the hash of AI-vetted legal document analysis
+     * @notice This creates an immutable record of AI verification on-chain
+     * @param _id Property ID
+     * @param _aiHash SHA256 hash of the AI analysis result
+     */
+    function setAIVerifiedHash(uint256 _id, string memory _aiHash) external onlyOwner {
+        require(properties[_id].id != 0, "Property does not exist");
+        require(bytes(_aiHash).length > 0, "AI hash cannot be empty");
+        
+        aiVerifiedHashes[_id] = _aiHash;
+        emit AIHashSet(_id, _aiHash);
+    }
+
+    /**
+     * @dev Get the AI verification hash for a property
+     * @param _id Property ID
+     * @return The stored AI verification hash
+     */
+    function getAIVerifiedHash(uint256 _id) external view returns (string memory) {
+        return aiVerifiedHashes[_id];
+    }
+
+    /**
+     * @dev Check if a property has been AI-verified
+     * @param _id Property ID
+     * @return True if AI hash has been set
+     */
+    function isAIVerified(uint256 _id) external view returns (bool) {
+        return bytes(aiVerifiedHashes[_id]).length > 0;
+    }
 }

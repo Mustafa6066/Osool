@@ -16,8 +16,11 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from app.services.blockchain import blockchain_service
+from app.services.payment_service import payment_service, PaymentStatus
+from app.services.blockchain_prod import blockchain_service_prod
 from app.ai_engine.openai_service import osool_ai
 from app.ai_engine.hybrid_brain import hybrid_brain
+from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 
 router = APIRouter(prefix="/api", tags=["Osool API"])
 
@@ -69,6 +72,14 @@ class HybridValuationRequest(BaseModel):
     finishing: int = Field(2, description="0=Core&Shell, 1=Semi, 2=Finished, 3=Ultra Lux")
     floor: int = Field(3, description="Floor number")
     is_compound: int = Field(1, description="1 if in gated compound, 0 otherwise")
+
+
+class FractionalInvestmentRequest(BaseModel):
+    """Request model for fractional property investment."""
+    property_id: int = Field(..., description="Property ID to invest in")
+    investor_address: str = Field(..., description="Investor's wallet address")
+    investment_amount_egp: float = Field(..., description="Investment amount in EGP")
+    payment_reference: str = Field(..., description="EGP payment reference (InstaPay/Fawry)")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -423,3 +434,127 @@ def compare_asking(req: PriceComparisonRequest):
         raise HTTPException(status_code=500, detail=result["error"])
     
     return result
+
+
+# ═══════════════════════════════════════════════════════════════
+# FRACTIONAL INVESTMENT ENDPOINTS (Production)
+# ═══════════════════════════════════════════════════════════════
+
+@router.post("/fractional/invest")
+def fractional_invest(req: FractionalInvestmentRequest):
+    """
+    🏢 Fractional Property Investment (Production)
+    
+    Allows investors to purchase fractional ownership shares in properties.
+    
+    Flow:
+    1. Verify EGP payment via payment service
+    2. Calculate ownership percentage
+    3. Mint fractional shares on blockchain
+    4. Return investment confirmation with TX hash
+    
+    Returns:
+    - ownership_percentage: Percentage of property owned
+    - shares_minted: Number of blockchain tokens minted
+    - tx_hash: Blockchain transaction proof
+    - expected_exit_date: Anticipated exit/sale date
+    - expected_return: Expected ROI percentage
+    """
+    
+    # Step 1: Validate wallet address
+    if not req.investor_address.startswith("0x") or len(req.investor_address) != 42:
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid wallet address format"
+        )
+    
+    # Step 2: Verify EGP payment using PaymentService
+    payment_result = payment_service.verify_egp_deposit(
+        reference=req.payment_reference,
+        expected_amount=req.investment_amount_egp
+    )
+    
+    if payment_result["status"] != PaymentStatus.VERIFIED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment verification failed: {payment_result['message']}"
+        )
+    
+    # Step 3: Calculate ownership and shares
+    # Mock property value for calculation (in production, fetch from DB)
+    property_total_value = 3500000  # 3.5M EGP mock
+    ownership_percentage = (req.investment_amount_egp / property_total_value) * 100
+    shares_to_mint = int(req.investment_amount_egp * 100)  # 1 EGP = 100 shares
+    
+    # Step 4: Mint fractional shares on blockchain
+    blockchain_result = blockchain_service_prod.mint_fractional_shares(
+        property_id=req.property_id,
+        investor_address=req.investor_address,
+        amount=shares_to_mint
+    )
+    
+    if "error" in blockchain_result:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Blockchain minting failed: {blockchain_result['error']}"
+        )
+    
+    return {
+        "status": "success",
+        "message": "🎉 Investment confirmed! You now own fractional shares of this property.",
+        "property_id": req.property_id,
+        "ownership_percentage": round(ownership_percentage, 2),
+        "shares_minted": shares_to_mint,
+        "tx_hash": blockchain_result.get("tx_hash", ""),
+        "blockchain_proof": f"https://polygonscan.com/tx/{blockchain_result.get('tx_hash', '')}",
+        "expected_exit_date": "Mar 2029",
+        "expected_return": 25,
+        "payment_verified": True,
+        "payment_tx_id": payment_result["tx_id"]
+    }
+
+
+@router.post("/ai/prod/valuation")
+def production_valuation(req: HybridValuationRequest):
+    """
+    🧠 Production Hybrid AI Valuation (MLOps XGBoost + GPT-4o)
+    
+    Uses the production hybrid brain with:
+    - MLOps endpoint integration
+    - Result caching
+    - Enhanced prompts
+    """
+    result = hybrid_brain_prod.get_valuation(
+        location=req.location,
+        size=req.size,
+        finishing=req.finishing,
+        floor=req.floor,
+        is_compound=req.is_compound
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    
+    return result
+
+
+@router.post("/ai/prod/audit-contract")
+def production_audit(req: ContractAnalysisRequest):
+    """
+    ⚖️ Production Legal Contract Audit
+    
+    Uses the production hybrid brain for enhanced legal analysis.
+    """
+    if len(req.text) < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="Contract text too short. Please provide more content."
+        )
+    
+    result = hybrid_brain_prod.audit_contract(req.text)
+    
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    
+    return result
+
