@@ -144,5 +144,93 @@ class PaymobService:
         
         return hmac.compare_digest(calculated_hmac.lower(), hmac_signature.lower())
 
+    def get_payment_key(self, amount_cents: int, order_id: str, billing_data: dict) -> str:
+        """Step 3: Request Payment Key"""
+        token = self._get_auth_token()
+        if not token: return None
+
+        try:
+            response = httpx.post(
+                f"{self.base_url}/acceptance/payment_keys",
+                json={
+                    "auth_token": token,
+                    "amount_cents": str(amount_cents),
+                    "expiration": 3600,
+                    "order_id": order_id,
+                    "billing_data": billing_data,
+                    "currency": "EGP",
+                    "integration_id": self.integration_id,
+                    "lock_order_when_paid": "false" # Optional
+                },
+                timeout=10.0
+            )
+            response.raise_for_status()
+            return response.json().get("token")
+        except Exception as e:
+            print(f"[!] Paymob Request Key Failed: {e}")
+            return None
+
+    def initiate_payment(self, amount_egp: float, user_email: str, user_phone: str, first_name: str, last_name: str) -> dict:
+        """
+        Full Flow: Auth -> Register Order -> Get Payment Key
+        Returns the payment token and iframe URL.
+        """
+        # 1. Auth (Implicit in helpers)
+        token = self._get_auth_token()
+        if not token:
+            return {"error": "Payment Gateway Authentication Failed"}
+            
+        amount_cents = int(amount_egp * 100)
+        
+        # 2. Register Order
+        try:
+            order_res = httpx.post(
+                f"{self.base_url}/ecommerce/orders",
+                json={
+                    "auth_token": token,
+                    "delivery_needed": "false",
+                    "amount_cents": str(amount_cents),
+                    "currency": "EGP",
+                    "items": [] # Can list property details here
+                },
+                timeout=10.0
+            )
+            order_res.raise_for_status()
+            order_id = order_res.json().get("id")
+        except Exception as e:
+            print(f"[!] Paymob Order Reg Failed: {e}")
+            return {"error": "Failed to create payment order"}
+
+        # 3. Get Payment Key
+        # Paymob requires billing data, even if dummy for digital goods
+        billing_data = {
+            "apartment": "NA", 
+            "email": user_email, 
+            "floor": "NA", 
+            "first_name": first_name, 
+            "street": "Digital Transaction", 
+            "building": "NA", 
+            "phone_number": user_phone, 
+            "shipping_method": "PKG", 
+            "postal_code": "00000", 
+            "city": "Cairo", 
+            "country": "EG", 
+            "last_name": last_name, 
+            "state": "Cairo"
+        }
+        
+        payment_key = self.get_payment_key(amount_cents, str(order_id), billing_data)
+        
+        if not payment_key:
+            return {"error": "Failed to generate payment key"}
+            
+        iframe_id = os.getenv("PAYMOB_IFRAME_ID", "1234") # Default or Env
+        
+        return {
+            "payment_key": payment_key,
+            "order_id": order_id,
+            "iframe_url": f"https://accept.paymob.com/api/acceptance/iframes/{iframe_id}?payment_token={payment_key}"
+        }
+
 # Singleton
 paymob_service = PaymobService()

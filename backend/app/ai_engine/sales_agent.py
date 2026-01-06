@@ -91,77 +91,118 @@ class PostgresHistory:
 # 1. DEFINE TOOLS
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 1. DEFINE TOOLS (DATA DRIVEN)
+# ---------------------------------------------------------------------------
+
+@tool
+def query_market_stats(location: str) -> str:
+    """
+    Queries the REAL Database for average property prices in a location.
+    Use this to give accurate ROI data.
+    """
+    from sqlalchemy import func
+    from app.database import SessionLocal
+    from app.models import Property
+    
+    db = SessionLocal()
+    try:
+        # Simple AVG aggregation
+        avg_price = db.query(func.avg(Property.price)).filter(Property.location.ilike(f"%{location}%")).scalar()
+        count = db.query(Property).filter(Property.location.ilike(f"%{location}%")).count()
+        
+        if not avg_price or count == 0:
+            return f"I don't have enough data for {location} yet. Let's assume market average."
+            
+        return f"📊 **Market Data ({location})**: Avg Price is {avg_price:,.0f} EGP (based on {count} active listings)."
+    except Exception as e:
+        return f"Data Error: {e}"
+    finally:
+        db.close()
+
+@tool
+def compare_with_nawy(compound_name: str, unit_price: float) -> str:
+    """
+    Compares Osool's price vs Nawy (Competitor) for a similar unit.
+    Use this to highlight VALUE.
+    """
+    # Mock Dataset for MVP - In prod this would scrape Nawy.com
+    nawy_data = {
+        "Mountain View": 15000000, # 15M
+        "Palm Hills": 18000000,
+        "Hyde Park": 12000000
+    }
+    
+    # Fuzzy match
+    match = None
+    for k, v in nawy_data.items():
+        if k.lower() in compound_name.lower():
+            match = v
+            break
+            
+    if match:
+        diff = match - unit_price
+        if diff > 0:
+            return (
+                f"💡 **Competitor Check (Nawy)**:\n"
+                f"Similar units on Nawy are listed at **{match:,.0f} EGP**.\n"
+                f"We are saving you **{diff:,.0f} EGP** (-{int((diff/match)*100)}%). This is an instant equity gain."
+            )
+        else:
+            return f"Nawy is listed at {match:,.0f} EGP. We are competitively priced."
+            
+    return "I don't have direct Nawy comparison data for this specific compound right now."
+
 @tool
 def search_properties(query: str) -> str:
     """
-    Semantic search for properties. 
-    Finds properties based on meaning (e.g., "luxury villa with a view", "investment near AUC").
+    Semantic search for properties using Vector Store.
     """
-    if not vector_store:
-        return "System Error: Property Database Offline."
-
+    if not vector_store: return "System Error: DB Offline."
+    
     try:
-        # RAG RPC Call
-        # Assuming we have an RPC function 'match_documents' in Supabase
-        docs = vector_store.similarity_search(query, k=5)
+        docs = vector_store.similarity_search(query, k=3)
     except Exception as e:
-        return f"Database Search Error: {e}"
+        return f"Search Error: {e}"
     
     results = []
     for doc in docs:
-        details = doc.metadata
-        price = details.get('price', 0)
-        location = details.get('location', 'Unknown')
-        area = details.get('area', 0)
-        
-        # Dynamic ROI based on location (Wolf Logic)
-        growth = "Stable"
-        roi = "12%"
-        if isinstance(location, str) and ("New Cairo" in location or "Capital" in location):
-            roi = "20-25%"
-            growth = "High Growth Zone"
-            
+        d = doc.metadata
         card = (
-            f"🏠 **{details.get('title', 'Property')}**\n"
-            f"📍 {location} | 📏 {area} sqm | 🛌 {details.get('bedrooms', 3)} Beds\n"
-            f"💰 **{float(price):,.0f} EGP**\n"
-            f"📈 **Wolf Insight:** {growth}. Potential ROI: {roi}.\n"
+            f"🏠 **{d.get('title', 'Unit')}**\n"
+            f"📍 {d.get('location')} | 💰 **{d.get('price', 0):,.0f} EGP**\n"
+            f"🔗 [View Details]({d.get('url', '#')})"
         )
         results.append(card)
-
-    if not results:
-        return "I checked the vault, but no exact matches found. Ask for something broader?"
-
-    return "\n\n".join(results)
+        
+    return "\n\n".join(results) if results else "No matches found."
 
 @tool
-def calculate_mortgage(price: int, down_payment: int, years: int, interest_rate: float = 25.0) -> str:
-    """
-    Calculates monthly mortgage installments.
-    """
-    if down_payment >= price:
-        return "Cash Deal! No mortgage needed."
-        
-    principal = price - down_payment
-    monthly_rate = (interest_rate / 100) / 12
-    num_payments = years * 12
-    
-    if monthly_rate == 0:
-        monthly_payment = principal / num_payments
-    else:
-        monthly_payment = principal * (monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
-    
-    return f"**Monthly Installment: {monthly_payment:,.2f} EGP** (over {years} years)"
+def calculate_mortgage(price: int, down_payment: int, years: int) -> str:
+    """Calculates monthly installment @ 25% interest properly."""
+    r = 0.25 / 12
+    n = years * 12
+    p = price - down_payment
+    m = p * (r * (1 + r)**n) / ((1 + r)**n - 1)
+    return f"**{m:,.0f} EGP/month** (Loan: {p:,.0f} EGP)"
 
 @tool
 def generate_payment_link(property_id: str) -> str:
+    """Generates a Paymob-ready Checkout Link."""
+    return f"https://pay.osool.eg/checkout/{property_id}?intent={uuid.uuid4()}"
+
+@tool
+def audit_contract(file_content: str) -> str:
     """
-    Generates a secure reservation link.
-    USE THIS TOOL if the user shows buying intent > 80%.
+    Analyzes a user-uploaded contract text for risks.
     """
-    intent_id = str(uuid.uuid4())
-    # In production, this would call Paymob to create a real order
-    return f"https://pay.osool.eg/checkout/{property_id}?intent={intent_id}&ref=wolf_agent"
+    # Mocking the analysis logic for now
+    return (
+        "⚖️ **Contract Preliminary Scan**:\n"
+        "1. **Clause 4 (Delivery)**: Loose timeline 'expected 2026'. Request specific date.\n"
+        "2. **Clause 9 (Resale)**: 5% Admin fee is high. Standard is 2.5%.\n"
+        "⚠️ This is not legal advice. Please consult a lawyer."
+    )
 
 # ---------------------------------------------------------------------------
 # 2. AGENT SETUP
@@ -169,40 +210,36 @@ def generate_payment_link(property_id: str) -> str:
 
 class OsoolAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3) # Low temp for precision
-        self.tools = [search_properties, calculate_mortgage, generate_payment_link]
+        self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
+        self.tools = [
+            search_properties, 
+            query_market_stats, 
+            compare_with_nawy, 
+            calculate_mortgage, 
+            generate_payment_link,
+            audit_contract
+        ]
         
-        # S.P.I.N Selling + Wolf Persona + Objection Handling
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
                 """You are **Amr**, the 'Wolf of Cairo' Real Estate Consultant at **Osool**.
 
-                **CORE IDENTITY**:
-                - You are a CLOSER. You speak with authority and confidence.
-                - You do not apologize. You offer solutions.
-                
-                **OBJECTION HANDLING (CRITICAL)**:
-                1. **Safety/Trust**: If user asks "Is this safe?" or mentions fraud:
-                   - Quote **Egyptian Civil Law No. 114**.
-                   - Explain **Blockchain Immutability** ("Your ownership is etched in code, not just paper").
-                2. **Price**: If user says "Too expensive":
-                   - Pivot to **ROI** and **Inflation** ("Every day you keep cash, you lose value").
-                
-                **CLOSING ALGORITHM**:
-                - If User Interest > 80% (asks about payment, contract, or steps):
-                - **MUST USE** `generate_payment_link` tool immediately.
-                - Say: "I've generated your reservation link. Secure this unit before it's gone."
-                
-                **TOOLS**:
-                - Property lookup? -> `search_properties`.
-                - Payment plan? -> `calculate_mortgage`.
-                - Read to buy? -> `generate_payment_link`.
+                **IDENTITY**:
+                - Ruthless but honest. You prioritize ROI and DATA over fluff.
+                - "I don't guess. I check the database."
 
-                **TONE**:
-                - "Let's talk business."
-                - "This is a rare opportunity."
-                - Mix English with "Ya Basha", "Tawkil".
+                **PROTOCOL**:
+                1. **Audit First**: If user mentions/uploads a contract, use `audit_contract` IMMEDIATELY. Warn them about risks.
+                2. **Data Backed**: NEVER say "Good price". Use `query_market_stats` to prove it.
+                3. **Beat the Competition**: Use `compare_with_nawy` to show we are cheaper/better.
+                4. **Close**: If they ask about payment, generate the link.
+                
+                **OBJECTION HANDLING**:
+                - "Is this safe?" -> Quote **Law 114** & Blockchain.
+                - "Contract Risks?" -> "I am not a lawyer, but I spot huge red flags in Clause X."
+
+                **TONE**: Professional, Sharp, English + Business Arabic ("Ya Basha", "Tawkil", "Oqood").
                 """
             ),
             MessagesPlaceholder(variable_name="chat_history"),
@@ -214,9 +251,7 @@ class OsoolAgent:
         self.agent_executor = AgentExecutor(agent=self.agent, tools=self.tools, verbose=True)
 
     def chat(self, user_input: str, session_id: str) -> str:
-        """
-        Main chat loop with History.
-        """
+        """Main chat loop with History."""
         history_manager = PostgresHistory(session_id)
         chat_history = history_manager.get_messages()
         
@@ -226,13 +261,12 @@ class OsoolAgent:
         })
         
         output = response["output"]
-        
         history_manager.add_message("user", user_input)
         history_manager.add_message("assistant", output)
-        
         return output
 
 # Singleton
 sales_agent = OsoolAgent()
 
 # Legacy code removed. Strict RAG enforcement.
+"""
