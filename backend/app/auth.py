@@ -1,43 +1,35 @@
 """
 Osool Authentication Module
 ---------------------------
-Handles JWT generation, hashing, and dependency injection.
+Handles JWT generation, password hashing, and Web3 Wallet Verification (SIWE).
 """
 
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from eth_account import Account
+from eth_account.messages import encode_defunct
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 
 from app.database import get_db
 from app.models import User
 
-load_dotenv()
-
-# ═══════════════════════════════════════════════════════════════
-# CONFIGURATION
-# ═══════════════════════════════════════════════════════════════
-
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "osool_secret_unsafe_change_me")
+# Configuration
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecretkey")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 day
+ACCESS_TOKEN_EXPIRE_MINUTES = 43200 # 30 Days
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
-# ═══════════════════════════════════════════════════════════════
-# UTILS
-# ═══════════════════════════════════════════════════════════════
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(password: str) -> str:
+def get_password_hash(password):
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -52,8 +44,55 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 # ═══════════════════════════════════════════════════════════════
-# DEPENDENCIES
+# WEB3 AUTHENTICATION (SIWE)
 # ═══════════════════════════════════════════════════════════════
+
+def verify_wallet_signature(address: str, message: str, signature: str) -> bool:
+    """
+    Verifies that a message was signed by the owner of the address.
+    Uses EIP-191 standard (eth_account).
+    """
+    try:
+        # Encode message as "defunct" (Ethereum standard prefix)
+        encoded_msg = encode_defunct(text=message)
+        
+        # Recover address from signature
+        recovered_address = Account.recover_message(encoded_msg, signature=signature)
+        
+        # Case-insensitive comparison
+        return recovered_address.lower() == address.lower()
+    except Exception as e:
+        print(f"Signature Verification Failed: {e}")
+        return False
+
+def get_or_create_user_by_wallet(db: Session, wallet_address: str, email: Optional[str] = None):
+    """
+    Finds a user by wallet. If not found, creates one.
+    If email is provided, links it.
+    """
+    user = db.query(User).filter(User.wallet_address == wallet_address).first()
+    
+    if not user:
+        # Check if email exists (Linking scenario)
+        if email:
+            user = db.query(User).filter(User.email == email).first()
+            if user:
+                user.wallet_address = wallet_address
+                db.commit()
+                return user
+
+        # Create new anonymous wallet user
+        user = User(
+            wallet_address=wallet_address,
+            email=email, # Might be None
+            full_name="Wallet User",
+            is_verified=True # Wallet ownership proves identity effectively
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+    return user
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -61,21 +100,28 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        
+        # Token can contain 'sub' (email) or 'wallet' (address)
+        username: str = payload.get("sub")
+        wallet: str = payload.get("wallet")
+        
+        if username is None and wallet is None:
             raise credentials_exception
+            
+        token_data = {"sub": username, "wallet": wallet}
     except JWTError:
         raise credentials_exception
         
-    user = db.query(User).filter(User.email == email).first()
+    # Find user by either metric
+    if token_data["sub"]:
+        user = db.query(User).filter(User.email == token_data["sub"]).first()
+    elif token_data["wallet"]:
+        user = db.query(User).filter(User.wallet_address == token_data["wallet"]).first()
+    else:
+        user = None
+        
     if user is None:
         raise credentials_exception
-        
     return user
-
-async def get_current_active_user(current_user: User = Depends(get_current_user)):
-    # Add 'is_active' check if field exists, else just return user
-    return current_user

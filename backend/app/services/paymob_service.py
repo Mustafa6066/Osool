@@ -94,23 +94,55 @@ class PaymobService:
     def verify_hmac(self, data: dict, hmac_signature: str) -> bool:
         """
         Verify Paymob HMAC signature securely.
+        
+        Logic:
+        1. Extract specific keys in alphabetical order.
+        2. Concatenate values.
+        3. Calculate HMAC-SHA512 with Secret Key.
+        4. Compare with received signature.
         """
         import hmac
         import hashlib
         
         secret = os.getenv("PAYMOB_HMAC_SECRET")
         if not secret:
-            print("[!] Paymob HMAC Secret missing. Skipping verification (UNSAFE in Prod).")
-            return True # Fail open for dev, should be False in prod
+            print("[!] Paymob HMAC Secret missing. Verification Failed.")
+            return False
+
+        # Paymob Keys sorted alphabetically
+        keys = [
+            "amount_cents", "created_at", "currency", "error_occured", "has_parent_transaction",
+            "id", "integration_id", "is_3d_secure", "is_auth", "is_capture", "is_refunded",
+            "is_standalone_payment", "is_voided", "order.id", "owner", "pending", 
+            "source_data.pan", "source_data.sub_type", "source_data.type", "success"
+        ]
+        
+        # Extract and Concatenate
+        concatenated_string = ""
+        obj = data.get('obj', {})
+        
+        for key in keys:
+            # Handle nested keys like "order.id"
+            if "." in key:
+                parent, child = key.split(".")
+                val = obj.get(parent, {}).get(child, "")
+            else:
+                val = obj.get(key, "")
             
-        # Paymob HMAC Logic: Concatenate specific fields, hash with secret
-        # Fields order: amount_cents, created_at, currency, error_occured, has_parent_transaction, id, integration_id, is_3d_secure, is_auth, is_capture, is_refunded, is_standalone_payment, is_voided, order.id, owner, pending, source_data.pan, source_data.sub_type, source_data.type, success
+            # Convert booleans to "true"/"false" strings to match Paymob spec
+            if isinstance(val, bool):
+                val = "true" if val else "false"
+            
+            concatenated_string += str(val)
+            
+        # Calculate Hash
+        calculated_hmac = hmac.new(
+            secret.encode('utf-8'),
+            concatenated_string.encode('utf-8'),
+            hashlib.sha512
+        ).hexdigest()
         
-        # Simplified for now as exact fields change. 
-        # Ideally we construct the string from `data`.
-        
-        # Mock verification for this step as we don't have real Paymob callback structure handy to map exact keys
-        return True
+        return hmac.compare_digest(calculated_hmac.lower(), hmac_signature.lower())
 
 # Singleton
 paymob_service = PaymobService()

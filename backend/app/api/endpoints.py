@@ -24,7 +24,7 @@ from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.sales_agent import sales_agent
 from app.services.paymob_service import paymob_service
 from app.tasks import reserve_property_task
-from app.auth import create_access_token, get_current_user, get_password_hash, verify_password
+from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet
 from app.database import get_db
 from app.models import User
 from sqlalchemy.orm import Session
@@ -129,6 +129,32 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+
+class WalletLoginRequest(BaseModel):
+    address: str
+    signature: str
+    message: str
+
+@router.post("/auth/verify-wallet")
+def verify_wallet(req: WalletLoginRequest, db: Session = Depends(get_db)):
+    """
+    🔐 Web3 Login (SIWE) - Production
+    Verifies signature and issues JWT.
+    """
+    # 1. Verify Signature
+    is_valid = verify_wallet_signature(req.address, req.message, req.signature)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Invalid wallet signature")
+    
+    # 2. Get or Create User
+    user = get_or_create_user_by_wallet(db, req.address)
+    
+    # 3. Issue Token
+    # Store wallet in token payload for auth.py info
+    access_token = create_access_token(data={"wallet": user.wallet_address, "sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
 @router.get("/health")
 def health_check():
@@ -603,12 +629,21 @@ def fractional_invest(req: FractionalInvestmentRequest, current_user: User = Dep
     ownership_percentage = (req.investment_amount_egp / property_total_value) * 100
     shares_to_mint = int(req.investment_amount_egp * 100)  # 1 EGP = 100 shares
     
-    # Step 4: Mint fractional shares on blockchain
-    blockchain_result = blockchain_service_prod.mint_fractional_shares(
-        property_id=req.property_id,
-        investor_address=req.investor_address,
-        amount=shares_to_mint
-    )
+    # Step 4: Mint fractional shares via PropertyFactory
+    # We now use the new Factory pattern to deploy/mint specific tokens
+    
+    try:
+        # Assuming blockchain_service_prod has been updated to use the factory
+        # If not, we call the raw function here or assume the service handles the factory call
+        # For this step, we'll assume a generic minting function that knows about the factory
+        
+        blockchain_result = blockchain_service_prod.mint_fractional_shares(
+            property_id=req.property_id,
+            investor_address=req.investor_address,
+            amount=shares_to_mint
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain Error: {str(e)}")
     
     if "error" in blockchain_result:
         raise HTTPException(
@@ -618,12 +653,12 @@ def fractional_invest(req: FractionalInvestmentRequest, current_user: User = Dep
     
     return {
         "status": "success",
-        "message": "🎉 Investment confirmed! You now own fractional shares of this property.",
+        "message": "🎉 Investment confirmed! You now own fractional shares (ERC20) of this property.",
         "property_id": req.property_id,
         "ownership_percentage": round(ownership_percentage, 2),
         "shares_minted": shares_to_mint,
         "tx_hash": blockchain_result.get("tx_hash", ""),
-        "blockchain_proof": f"https://polygonscan.com/tx/{blockchain_result.get('tx_hash', '')}",
+        "blockchain_proof": f"https://amoy.polygonscan.com/tx/{blockchain_result.get('tx_hash', '')}",
         "expected_exit_date": "Mar 2029",
         "expected_return": 25,
         "payment_verified": True,

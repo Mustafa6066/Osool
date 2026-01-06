@@ -41,15 +41,14 @@ else:
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
     
     # Connect to Vector Store
-    # Note: 'properties' table has 'embedding' column.
-    # SupabaseVectorStore usually expects a function or specific setup.
-    # For now, we assume the standard LangChain setup or a compatible query_name.
-    # We will use a custom implementation wrapper if standard fails, but standard is preferred.
+    # Using 'rpc' method for Supabase is cleaner for hybrid search.
+    # We will define a custom retriever logic or use SupabaseVectorStore with specific query.
+    
     vector_store = SupabaseVectorStore(
         client=supabase,
         embedding=embeddings,
-        table_name="properties",
-        query_name="match_documents" # User needs to create this function in Supabase
+        table_name="documents", # Standard langchain table
+        query_name="match_documents"
     )
 
 class PostgresHistory:
@@ -62,9 +61,6 @@ class PostgresHistory:
     def add_message(self, role: str, content: str):
         if not supabase: return
         try:
-            # Ensure session exists (basic check, can be optimized)
-            # In real app, create session once at start.
-            
             supabase.table("chat_messages").insert({
                 "session_id": self.session_id,
                 "role": role,
@@ -99,15 +95,14 @@ class PostgresHistory:
 def search_properties(query: str) -> str:
     """
     Semantic search for properties. 
-    Finds properties based on meaning (e.g., "luxury villa with a view", "investment near AUC") 
-    rather than just keywords.
+    Finds properties based on meaning (e.g., "luxury villa with a view", "investment near AUC").
     """
     if not vector_store:
         return "System Error: Property Database Offline."
 
-    # 1. Semantic Search (The "Vibe")
-    # k=5 top results
     try:
+        # RAG RPC Call
+        # Assuming we have an RPC function 'match_documents' in Supabase
         docs = vector_store.similarity_search(query, k=5)
     except Exception as e:
         return f"Database Search Error: {e}"
@@ -115,31 +110,22 @@ def search_properties(query: str) -> str:
     results = []
     for doc in docs:
         details = doc.metadata
-        # details typically contains: compound_name, price, location, etc.
-        # Adjusted for our schema keys
-        
         price = details.get('price', 0)
         location = details.get('location', 'Unknown')
         area = details.get('area', 0)
         
-        # 2. Add "Wolf" Sales Context (ROI Calculation Logic)
-        # Dynamic ROI based on location (Mock logic for 'Intelligence')
-        if "New Cairo" in location:
-            roi = "15-18%"
-            growth = "High Demand"
-        elif "Capital" in location:
+        # Dynamic ROI based on location (Wolf Logic)
+        growth = "Stable"
+        roi = "12%"
+        if isinstance(location, str) and ("New Cairo" in location or "Capital" in location):
             roi = "20-25%"
-            growth = "Explosive Growth"
-        else:
-            roi = "12%"
-            growth = "Stable"
+            growth = "High Growth Zone"
             
         card = (
-            f"🏠 **{details.get('type', 'Property')} in {details.get('compound_name')}**\n"
-            f"📍 {location} | 📏 {area} sqm | 🛌 {details.get('beds')} Beds\n"
+            f"🏠 **{details.get('title', 'Property')}**\n"
+            f"📍 {location} | 📏 {area} sqm | 🛌 {details.get('bedrooms', 3)} Beds\n"
             f"💰 **{float(price):,.0f} EGP**\n"
-            f"📈 **Wolf Insight:** {growth} zone! Expected ROI: {roi} annually.\n"
-            f"🔗 [View Details]({details.get('url')})"
+            f"📈 **Wolf Insight:** {growth}. Potential ROI: {roi}.\n"
         )
         results.append(card)
 
@@ -165,32 +151,16 @@ def calculate_mortgage(price: int, down_payment: int, years: int, interest_rate:
     else:
         monthly_payment = principal * (monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
     
-    return (
-        f"💰 **Payment Plan Breakdown**:\n"
-        f"- Asset Value: {price:,.0f} EGP\n"
-        f"- Skin in the Game (DP): {down_payment:,.0f} EGP\n"
-        f"- Financed Amount: {principal:,.0f} EGP\n"
-        f"- Term: {years} Years @ {interest_rate}%\n"
-        f"----------------------------------------\n"
-        f"**Your Check: {monthly_payment:,.2f} EGP / Month**"
-    )
-
-@tool
-def check_availability(property_id: str) -> str:
-    """
-    Checks real-time availability on the Blockchain Ledger.
-    """
-    # In production, query 'transactions' or 'properties' table for status.
-    # Mocking 'Wolf' urgency.
-    return f"⚠️ **URGENT:** Property {property_id} has 2 pending inquiries. 1 Unit left at this price."
+    return f"**Monthly Installment: {monthly_payment:,.2f} EGP** (over {years} years)"
 
 @tool
 def generate_payment_link(property_id: str) -> str:
     """
     Generates a secure reservation link.
+    USE THIS TOOL if the user shows buying intent > 80%.
     """
-    # Generates a persistent intention link
     intent_id = str(uuid.uuid4())
+    # In production, this would call Paymob to create a real order
     return f"https://pay.osool.eg/checkout/{property_id}?intent={intent_id}&ref=wolf_agent"
 
 # ---------------------------------------------------------------------------
@@ -199,40 +169,40 @@ def generate_payment_link(property_id: str) -> str:
 
 class OsoolAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(model="gpt-4o", temperature=0.5)
-        self.tools = [search_properties, calculate_mortgage, check_availability, generate_payment_link]
+        self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3) # Low temp for precision
+        self.tools = [search_properties, calculate_mortgage, generate_payment_link]
         
-        # System Prompt - SPIN Selling + Wolf Persona
+        # S.P.I.N Selling + Wolf Persona + Objection Handling
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
                 """You are **Amr**, the 'Wolf of Cairo' Real Estate Consultant at **Osool**.
 
                 **CORE IDENTITY**:
-                - You are NOT a support bot. You are a **closer**.
-                - You speak with authority, confidence, and a touch of aggressive charm.
-                - You manage millions in assets. You don't have time for hesitation.
-
-                **METHODOLOGY: SPIN SELLING**:
-                1. **S**ituation: Understand their current status ("First time buyer? Investor?").
-                2. **P**roblem: Find the pain ("Worried about EGP inflation? Scared of fraud?").
-                3. **I**mplication: Amplify the pain ("If you keep cash, you lose 20% value yearly.").
-                4. **N**eed-Payoff: Present the solution ("This villa locks in your value and generates 20% ROI.").
-
-                **RULES OF ENGAGEMENT**:
-                - **ALWAYS Quote Data**: Never just say "good price". Say "X EGP per sqm, which is 10% below market average."
-                - **Leverage Tools**: 
-                    - Customer asks for property? -> `search_properties`.
-                    - Customer asks about money? -> `calculate_mortgage`.
-                    - Customer likes it? -> `check_availability` (Create urgency!).
-                    - Customer says YES? -> `generate_payment_link`.
-                - **Workflow**: Interest -> Availability -> ROI -> Payment.
-                - **Blockchain Assurance**: Mention "Smart Contract Verification" to kill trust issues.
+                - You are a CLOSER. You speak with authority and confidence.
+                - You do not apologize. You offer solutions.
+                
+                **OBJECTION HANDLING (CRITICAL)**:
+                1. **Safety/Trust**: If user asks "Is this safe?" or mentions fraud:
+                   - Quote **Egyptian Civil Law No. 114**.
+                   - Explain **Blockchain Immutability** ("Your ownership is etched in code, not just paper").
+                2. **Price**: If user says "Too expensive":
+                   - Pivot to **ROI** and **Inflation** ("Every day you keep cash, you lose value").
+                
+                **CLOSING ALGORITHM**:
+                - If User Interest > 80% (asks about payment, contract, or steps):
+                - **MUST USE** `generate_payment_link` tool immediately.
+                - Say: "I've generated your reservation link. Secure this unit before it's gone."
+                
+                **TOOLS**:
+                - Property lookup? -> `search_properties`.
+                - Payment plan? -> `calculate_mortgage`.
+                - Read to buy? -> `generate_payment_link`.
 
                 **TONE**:
-                - "Listen to me, this is the deal of the year."
-                - "Do you want to get rich or do you want to watch?"
-                - Mix English with Business Arabic (High-end Cairo slang: "Ya Basha", "Deal", "Cashflow").
+                - "Let's talk business."
+                - "This is a rare opportunity."
+                - Mix English with "Ya Basha", "Tawkil".
                 """
             ),
             MessagesPlaceholder(variable_name="chat_history"),
@@ -257,7 +227,6 @@ class OsoolAgent:
         
         output = response["output"]
         
-        # Save interaction
         history_manager.add_message("user", user_input)
         history_manager.add_message("assistant", output)
         
@@ -265,9 +234,5 @@ class OsoolAgent:
 
 # Singleton
 sales_agent = OsoolAgent()
-
-if __name__ == "__main__":
-    # Test
-    print(sales_agent.chat("I have 10 Million EGP. I want something that makes money.", session_id="test_user_1"))
 
 # Legacy code removed. Strict RAG enforcement.
