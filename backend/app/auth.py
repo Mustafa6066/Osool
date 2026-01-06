@@ -125,3 +125,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if user is None:
         raise credentials_exception
     return user
+
+def bind_wallet_to_user(db: Session, user_id: int, wallet_address: str) -> bool:
+    """
+    Binds a wallet address to an existing user (for KYC).
+    Returns True if successful, False if wallet already bound to another user.
+    """
+    # Check if wallet already bound to another user
+    existing = db.query(User).filter(User.wallet_address == wallet_address).first()
+    if existing and existing.id != user_id:
+        return False  # Wallet belongs to someone else
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.wallet_address = wallet_address
+        db.commit()
+        return True
+    return False
+

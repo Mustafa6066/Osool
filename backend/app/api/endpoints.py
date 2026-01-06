@@ -100,6 +100,12 @@ class PaymentInitiateRequest(BaseModel):
     phone_number: str
     email: str
 
+class ChatRequest(BaseModel):
+    """Request model for AI chat."""
+    message: str = Field(..., description="User message to the AI agent")
+    session_id: str = Field(default="default", description="Chat session ID for history")
+
+
 
 # ═══════════════════════════════════════════════════════════════
 # ENDPOINTS
@@ -495,6 +501,44 @@ def compare_price(req: PriceComparisonRequest):
         raise HTTPException(status_code=500, detail=result["error"])
     
     return result
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI CHAT ENDPOINT (RAG)
+# ═══════════════════════════════════════════════════════════════
+
+@router.post("/chat")
+@limiter.limit("20/minute")
+def chat_with_agent(req: ChatRequest, request: Request):
+    """
+    💬 Main AI Chat Endpoint
+    
+    Sends user message to the Wolf AI Agent.
+    Returns:
+    - response: AI text response
+    - properties: JSON array of property objects found during search
+    
+    Frontend can render property cards from the `properties` array.
+    """
+    from app.ai_engine.sales_agent import sales_agent, get_last_search_results
+    
+    try:
+        # Get AI response
+        response_text = sales_agent.chat(req.message, req.session_id)
+        
+        # Get any properties that were searched
+        search_results = get_last_search_results()
+        
+        return {
+            "response": response_text,
+            "properties": search_results,
+            "session_id": req.session_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
+
+
+
 
 
 # ═══════════════════════════════════════════════════════════════
