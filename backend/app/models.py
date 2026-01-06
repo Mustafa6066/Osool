@@ -18,6 +18,7 @@ class User(Base):
     national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True) # KYC
     wallet_address: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
+    password_hash: Mapped[str] = mapped_column(String, nullable=True) # For Auth
     full_name: Mapped[str] = mapped_column(String, nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())

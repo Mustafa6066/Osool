@@ -175,16 +175,21 @@ class BlockchainService:
             return {"error": "Blockchain service not configured"}
         
         try:
+        try:
             # Build transaction
             nonce = self.web3.eth.get_transaction_count(ADMIN_ADDRESS)
+            
+            # Gas Station Logic: Dynamic Gas Price + 20% buffer for fast confirmation
+            current_gas_price = self.web3.eth.gas_price
+            fast_gas_price = int(current_gas_price * 1.2)
             
             tx = self.contract.functions.markReserved(
                 property_id, 
                 Web3.to_checksum_address(buyer_address)
             ).build_transaction({
                 'chainId': CHAIN_ID,
-                'gas': 200000,
-                'gasPrice': self.web3.to_wei('30', 'gwei'),
+                'gas': 300000, # Safety limit
+                'gasPrice': fast_gas_price,
                 'nonce': nonce,
             })
             
