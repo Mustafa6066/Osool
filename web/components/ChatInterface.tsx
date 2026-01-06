@@ -37,7 +37,7 @@ export default function ChatInterface() {
 
         try {
             // Direct call to Backend API
-            const response = await fetch("http://localhost:8000/api/chat", {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -100,8 +100,8 @@ export default function ChatInterface() {
 
                         <div
                             className={`max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed ${msg.role === "user"
-                                    ? "bg-purple-600 text-white rounded-tr-none shadow-lg shadow-purple-900/20"
-                                    : "bg-[#1e293b] text-gray-100 rounded-tl-none border border-white/5 shadow-lg"
+                                ? "bg-purple-600 text-white rounded-tr-none shadow-lg shadow-purple-900/20"
+                                : "bg-[#1e293b] text-gray-100 rounded-tl-none border border-white/5 shadow-lg"
                                 }`}
                         >
                             <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') }} />

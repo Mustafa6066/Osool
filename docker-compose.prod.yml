@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # -------------------------------------------------------------------------
+  # BACKEND API
+  # -------------------------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: osool_prod_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - ALCHEMY_RPC_URL=${ALCHEMY_RPC_URL}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - FRONTEND_DOMAIN=${FRONTEND_DOMAIN}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    depends_on:
+      - redis
+
+  # -------------------------------------------------------------------------
+  # CELERY WORKER
+  # -------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: osool_prod_worker
+    restart: always
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/0
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ALCHEMY_RPC_URL=${ALCHEMY_RPC_URL}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+    depends_on:
+      - redis
+      - api
+
+  # -------------------------------------------------------------------------
+  # REDIS (Message Broker)
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:alpine
+    container_name: osool_prod_redis
+    restart: always
+    ports:
+      - "6379:6379"
+  # -------------------------------------------------------------------------
+  # FRONTEND (Next.js)
+  # -------------------------------------------------------------------------
+  # Assuming frontend has its own Dockerfile in /web
+  # If not, we can serve it, but typically Vercel is used. 
+  # Including generic service definition for completeness if self-hosting.
+  # web:
+  #   build: ./web
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=https://api.osool.com

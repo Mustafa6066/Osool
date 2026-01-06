@@ -28,10 +28,13 @@ from app.auth import create_access_token, get_current_user, get_password_hash, v
 from app.database import get_db
 from app.models import User
 from sqlalchemy.orm import Session
-from fastapi import Depends, status
+from fastapi import Depends, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter(prefix="/api", tags=["Osool API"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -370,7 +373,8 @@ def verify_bank_transfer(reference: str) -> bool:
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/ai/analyze-contract")
-def analyze_contract(req: ContractAnalysisRequest):
+@limiter.limit("10/minute")
+def analyze_contract(req: ContractAnalysisRequest, request: Request):
     """
     🕵️ AI Legal Check - The "Killer Feature"
     
@@ -534,7 +538,8 @@ def compare_asking(req: PriceComparisonRequest):
 
 
 @router.post("/chat")
-def chat_endpoint(req: ContractAnalysisRequest): 
+@limiter.limit("20/minute")
+def chat_endpoint(req: ContractAnalysisRequest, request: Request): 
     # Reusing ContractAnalysisRequest for simple text input, or define a new ChatRequest model.
     # To be clean, let's use the 'text' field from ContractAnalysisRequest as the message
     # or better, just define a simple dict or new model. 
