@@ -69,3 +69,21 @@ class Transaction(Base):
 
     user = relationship("User", back_populates="transactions")
     property = relationship("Property")
+
+class PaymentApproval(Base):
+    """
+    Manual Bank Transfer Approvals.
+    Admins must verify these before blockchain transfer.
+    """
+    __tablename__ = "payment_approvals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"))
+    
+    reference_number: Mapped[str] = mapped_column(String, unique=True, index=True) # Bank Ref
+    amount: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String, default="pending") # pending, approved, rejected
+    
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    reviewed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)

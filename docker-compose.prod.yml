@@ -1,71 +1,59 @@
 version: '3.8'
 
 services:
-  # -------------------------------------------------------------------------
-  # BACKEND API (FastAPI)
-  # -------------------------------------------------------------------------
-  api:
-    build:
+  backend:
+    build: 
       context: ./backend
       dockerfile: Dockerfile
-    container_name: osool_prod_api
-    restart: always
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/osool}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - ENVIRONMENT=production
+      - OSOOL_REGISTRY_ADDRESS=${OSOOL_REGISTRY_ADDRESS}
+      - PRIVATE_KEY=${PRIVATE_KEY}
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://redis:6379/0
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - ALCHEMY_RPC_URL=${ALCHEMY_RPC_URL}
-      - PRIVATE_KEY=${PRIVATE_KEY}
-      - FRONTEND_DOMAIN=${FRONTEND_DOMAIN}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - PAYMOB_HMAC_SECRET=${PAYMOB_HMAC_SECRET}
     depends_on:
+      - db
       - redis
+    restart: always
 
-  # -------------------------------------------------------------------------
-  # CELERY WORKER (Background Jobs)
-  # -------------------------------------------------------------------------
   worker:
-    build:
+    build: 
       context: ./backend
       dockerfile: Dockerfile
-    container_name: osool_prod_worker
-    restart: always
-    command: celery -A app.tasks worker --loglevel=info
+    command: celery -A app.celery_worker.celery_app worker --loglevel=info
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://redis:6379/0
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/osool}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - ENVIRONMENT=production
+      - OSOOL_REGISTRY_ADDRESS=${OSOOL_REGISTRY_ADDRESS}
+      - PRIVATE_KEY=${PRIVATE_KEY}
     depends_on:
+      - db
       - redis
-      - api
-
-  # -------------------------------------------------------------------------
-  # FRONTEND (Next.js)
-  # -------------------------------------------------------------------------
-  web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    container_name: osool_prod_web
     restart: always
-    ports:
-      - "3000:3000"
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.osool.com}
-      - NEXT_PUBLIC_THIRDWEB_CLIENT_ID=${NEXT_PUBLIC_THIRDWEB_CLIENT_ID}
-
-  # -------------------------------------------------------------------------
-  # REDIS (Message Broker)
-  # -------------------------------------------------------------------------
-  redis:
-    image: redis:alpine
-    container_name: osool_prod_redis
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-osool}
+    ports:
+      - "5432:5432"
     restart: always
+
+  redis:
+    image: redis:7
     ports:
       - "6379:6379"
+    restart: always
+
+volumes:
+  postgres_data:

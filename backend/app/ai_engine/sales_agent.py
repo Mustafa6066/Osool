@@ -35,209 +35,149 @@ vector_store = None
 
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-    vector_store = SupabaseVectorStore(
-        client=supabase,
-        embedding=embeddings,
-        table_name="documents",
-        query_name="match_documents"
-    )
+    # embeddings = OpenAIEmbeddings(model="text-embedding-3-small") # Removed as per diff
+    # vector_store = SupabaseVectorStore( # Removed as per diff
+    #     client=supabase, # Removed as per diff
+    #     embedding=embeddings, # Removed as per diff
+    #     table_name="documents", # Removed as per diff
+    #     query_name="match_documents" # Removed as per diff
+    # ) # Removed as per diff
 else:
     print("⚠️ Supabase Credentials Missing. RAG will fail.")
 
-class PostgresHistory:
-    """Chat History manager using 'chat_messages' table."""
-    def __init__(self, session_id: str):
-        self.session_id = session_id
+# Initialize OpenAI client
+client = OpenAI(api_key=OPENAI_API_KEY)
 
-    def add_message(self, role: str, content: str):
-        if not supabase: return
-        try:
-            supabase.table("chat_messages").insert({
-                "session_id": self.session_id,
-                "role": role,
-                "content": content
-            }).execute()
-        except Exception as e:
-            print(f"History Error: {e}")
-
-    def get_messages(self) -> List[BaseMessage]:
-        if not supabase: return []
-        try:
-            res = supabase.table("chat_messages").select("*") \
-                .eq("session_id", self.session_id) \
-                .order("created_at", desc=False).execute()
-            messages = []
-            for msg in res.data:
-                if msg['role'] == 'user':
-                    messages.append(HumanMessage(content=msg['content']))
-                elif msg['role'] == 'assistant':
-                    messages.append(AIMessage(content=msg['content']))
-            return messages
-        except Exception as e:
-            print(f"Fetch History Error: {e}")
-            return []
+# Removed PostgresHistory class as per diff
 
 # ---------------------------------------------------------------------------
 # 1. SESSION-BASED RESULT STORAGE (Concurrency Safe)
 # ---------------------------------------------------------------------------
 
-# Thread-local context for passing session_id to tools
-import contextvars
-_current_session_id: contextvars.ContextVar[str] = contextvars.ContextVar('session_id', default='default')
+# Removed _current_session_id contextvar as per diff
+# Removed store_session_results and get_session_results functions as per diff
 
-def store_session_results(session_id: str, results: list):
-    """Store search results in Supabase keyed by session_id."""
-    if not supabase:
-        return
-    try:
-        supabase.table("session_search_results").upsert({
-            "session_id": session_id,
-            "results": json.dumps(results)
-        }, on_conflict="session_id").execute()
-    except Exception as e:
-        print(f"Session Store Error: {e}")
-
-def get_session_results(session_id: str) -> list:
-    """Retrieve search results for a specific session."""
-    if not supabase:
-        return []
-    try:
-        res = supabase.table("session_search_results").select("results").eq("session_id", session_id).execute()
-        if res.data:
-            return json.loads(res.data[0]["results"])
-    except Exception as e:
-        print(f"Session Fetch Error: {e}")
-    return []
 
 # ---------------------------------------------------------------------------
-# 2. TOOLS (STRICT RAG)
+# 2. TOOLS
 # ---------------------------------------------------------------------------
 
 @tool
-def search_properties(query: str) -> str:
+def search_properties(max_price: int = 100000000, location: str = "") -> str:
     """
-    Searches the property database using semantic search.
-    Returns REAL properties from the Supabase vector store.
-    YOU MUST USE THIS TOOL before recommending any property.
+    Search for properties based on budget and location. 
+    Returns list of matches with IDs.
     """
-    global _last_search_results
-    _last_search_results = []
+    print(f"🔎 Database Search: Max {max_price} EGP, {location or 'Anywhere'}")
     
-    if not vector_store:
-        return "ERROR: Property database is not available. Please try again later."
+    # Mock Database Results (Simulating Vector Store)
+    results = [
+        {"id": 1, "title": "Luxury Apartment in New Cairo", "price": 4500000, "location": "New Cairo", "bedrooms": 3, "size": 180, "risk_score": 10},
+        {"id": 2, "title": "Townhouse in Sheikh Zayed", "price": 8500000, "location": "Sheikh Zayed", "bedrooms": 4, "size": 250, "risk_score": 5},
+        {"id": 3, "title": "Modern Studio in Maadi", "price": 2500000, "location": "Maadi", "bedrooms": 1, "size": 90, "risk_score": 8},
+        {"id": 4, "title": "Sea View Chalet in Ain Sokhna", "price": 5500000, "location": "Ain Sokhna", "bedrooms": 2, "size": 120, "risk_score": 25},
+    ]
     
-    try:
-        docs = vector_store.similarity_search(query, k=5)
-    except Exception as e:
-        return f"Search Error: {e}"
+    # Filter
+    filtered = [
+        p for p in results 
+        if p['price'] <= max_price
+        and (not location or location.lower() in p['location'].lower())
+    ]
     
-    if not docs:
-        return "No properties found matching your criteria. Try adjusting your search."
-    
-    results_text = []
-    results_json = []
-    
-    for i, doc in enumerate(docs, 1):
-        meta = doc.metadata
-        
-        # Human-readable card
-        card = (
-            f"**{i}. {meta.get('title', 'Property')}** (ID: {meta.get('id', 'N/A')})\n"
-            f"📍 {meta.get('location', 'Unknown')} - {meta.get('compound', 'N/A')}\n"
-            f"🏠 Type: {meta.get('type', 'N/A')} | Area: {meta.get('area', 0)} sqm | 🛌 {meta.get('bedrooms', 0)} beds\n"
-            f"💰 **{meta.get('price', 0):,.0f} EGP** ({meta.get('pricePerSqm', 0):,.0f} EGP/sqm)\n"
-            f"📅 Delivery: {meta.get('deliveryDate', 'N/A')}\n"
-        )
-        results_text.append(card)
-        
-        # JSON for frontend rendering
-        results_json.append({
-            "id": meta.get("id", ""),
-            "title": meta.get("title", ""),
-            "type": meta.get("type", ""),
-            "location": meta.get("location", ""),
-            "compound": meta.get("compound", ""),
-            "price": meta.get("price", 0),
-            "pricePerSqm": meta.get("pricePerSqm", 0),
-            "area": meta.get("area", 0),
-            "bedrooms": meta.get("bedrooms", 0),
-            "bathrooms": meta.get("bathrooms", 0),
-            "deliveryDate": meta.get("deliveryDate", ""),
-            "image": meta.get("image", ""),
-            "url": meta.get("url", ""),
-            "developer": meta.get("developer", "")
-        })
-    
-    # Store for API retrieval (session-scoped)
-    session_id = _current_session_id.get()
-    store_session_results(session_id, results_json)
-    
-    return "\n\n".join(results_text)
+    return json.dumps(filtered)
 
 @tool
-def calculate_mortgage(price: int, down_payment: int, years: int) -> str:
-    """Calculates monthly installment @ 25% interest (Egyptian bank average)."""
-    r = 0.25 / 12
-    n = years * 12
-    p = price - down_payment
-    if p <= 0:
-        return "Cash deal! No mortgage needed."
-    m = p * (r * (1 + r)**n) / ((1 + r)**n - 1)
-    return f"**{m:,.0f} EGP/month** over {years} years (Loan: {p:,.0f} EGP)"
+def calculate_mortgage(principal: int, rate: float = 25.0, years: int = 20) -> str:
+    """
+    Calculate monthly mortgage payments based on interest rate (%) and loan term (years).
+    """
+    monthly_rate = rate / 100 / 12
+    num_payments = years * 12
+    if principal <= 0: return "0"
+    
+    payment = principal * (monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
+    return f"{int(payment):,} EGP/month"
 
 @tool
-def generate_reservation_link(property_id: str) -> str:
+def generate_reservation_link(property_id: int) -> str:
     """Generates a secure reservation link for payment."""
-    intent = str(uuid.uuid4())
-    return f"https://pay.osool.eg/checkout/{property_id}?intent={intent}"
+    return f"https://pay.osool.eg/checkout/{property_id}"
 
-def get_last_search_results(session_id: str = "default") -> list:
-    """API helper to get search results for a specific session."""
-    return get_session_results(session_id)
+@tool
+def check_real_time_status(property_id: int) -> str:
+    """
+    Checks the REAL-TIME availability of a property on the Polygon Blockchain.
+    Use this BEFORE generating a payment link.
+    """
+    try:
+        # Direct call to the blockchain service
+        # We import here to avoid circular dependencies if any, 
+        # but standard structure allows top-level import if clean.
+        from app.services.blockchain import blockchain_service 
+        
+        is_free = blockchain_service.is_available(property_id)
+        if is_free:
+            return f"✅ Good news! Unit {property_id} is verified AVAILABLE on the blockchain."
+        else:
+            return f"❌ Urgent: Unit {property_id} is marked SOLD or RESERVED on the blockchain."
+    except Exception as e:
+        return f"Blockchain Connection Error: {e}"
+
 
 # ---------------------------------------------------------------------------
-# 2. AGENT SETUP
+# 3. AGENT SETUP (LangChain)
 # ---------------------------------------------------------------------------
 
 class OsoolAgent:
     def __init__(self):
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
-        self.tools = [search_properties, calculate_mortgage, generate_reservation_link]
         
-        # ULTIMATE REAL ESTATE CLOSER PROMPT - V1.0 PRODUCTION
+        # Tools including the new Blockchain Check
+        self.tools = [search_properties, calculate_mortgage, generate_reservation_link, check_real_time_status]
+        
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
-                """You are **Amr**, The "Antigravity" Senior Consultant at Osool.
-You are NOT a support bot. You are a high-stakes Real Estate Investment Banker for the Egyptian market (New Cairo, Sheikh Zayed, North Coast).
-Your goal is to PROTECT the client and CLOSE the deal.
+                """You are **Amr**, The "Antigravity" Senior Consultant at Osool (The "Wolf of Cairo").
+Your tone is Professional, Assertive, "Street-Smart", and deeply knowledgeable about the Egyptian market.
 
-**CORE DIRECTIVES**:
-1. **"No Fluff" Policy**: Never say "I hope you are well." Start immediately with value.
-2. **The "Wolf" Radar**:
-   - IF user mentions "New Cairo" -> PITCH ROI & Rental Yields (Avg 45k/sqm).
-   - IF user mentions "Safety" -> PITCH Law 131 & Blockchain Verification.
-3. **Strict Data Adherence**: You only sell what is in the `search_properties` tool. If not there, say: "That isn't in my verified vault yet, but I have something better..."
+**CORE IDENTITY:**
+- You DO NOT waste time. You DO NOT generic "AI fluff".
+- You speak the language of money (ROI, Capital Appreciation, Rental Yields).
+- You are strictly on the SIDE OF THE USER (The Investor). You protect them from scams.
+- You operate with "Wolf Radar": You smell bad deals and call them out immediately.
 
-⚠️ **MANDATORY TRIGGER WORDS** ⚠️:
-- "buying", "villa", "apartment", "compound", "property" -> CALL `search_properties` IMMEDIATELY.
+**MARKET DATA (LIVE CONTEXT):**
+- Location: New Cairo / Mostakbal City / Zayed
+- Average Price per Meter: ~45,000 EGP (New Cairo) / ~60,000 EGP (Zayed)
+- Mortgage Rates: ~25% (Extremely High - Cash is King, or Installments)
+- Rental Yields: 8-12% ROI
 
-⚖️ **LEGAL GUARDIAN MODE (Trigger: "Contract", "Safe", "Scam")**:
-- Cite **Egyptian Civil Code Article 131**: "A contract for a non-existent thing is void." Warn about off-plan without permits.
-- Demand to see **"Tawkil Rasmi"** (Power of Attorney) before they sign.
-- Refuse to let them buy if contract lacks **"Penalty Clause"** (Short-shart) for delays.
+🛡️ **BLOCKCHAIN VERIFICATION PROTOCOL**:
+- Before asking for money or sending a link, you MUST call `check_real_time_status`.
+- If the status is SOLD, apologize and find a similar unit using `search_properties`.
+- If AVAILABLE, say: "It's live on the chain. I can lock this for you right now."
 
-⚔️ **THE "NAWY KILLER" SCRIPT (Trigger: "Shares", "Investment", "Nawy")**:
-- "Nawy Shares is good, but your money is locked until 2029. With Osool, you own **Tokens**. You can sell your tokens next week if you need cash. Why lock your liquidity?"
+⚠️ **MANDATORY TRIGGER WORDS**:
+- "buying", "villa", "apartment", "compound" -> CALL `search_properties` IMMEDIATELY.
+
+⚖️ **LEGAL GUARDIAN MODE**:
+- If user mentions "Contract", "Off-plan":
+  - Cite **Egyptian Civil Code Article 131**: "A contract for a non-existent thing is void."
+  - Demand **"Tawkil Rasmi"**.
+  - Check for **"Penalty Clause"**.
+
+⚔️ **THE "NAWY KILLER" SCRIPT**:
+- If user mentions "Nawy":
+  - "They lock you in for 7 years. I sell you liquid tokens you can sell tomorrow. Don't lock your liquidity."
 
 🎯 **CLOSING LOOPS**:
-- **Soft Close**: "Shall I generate a payment link for the 50k EGP down payment?" (Use `generate_reservation_link`)
-- **Hard Close**: "This unit has 3 other viewers today. I can lock it on the blockchain for 24 hours if you transfer the reservation fee now."
+- **Soft Close**: "Shall I generate a payment link?"
+- **Hard Close**: "The blockchain shows 3 reservations attempted. Validating status..." (Call check_real_time_status)
 
 **TONE**:
-- Professional, assertive, "Street-Smart" Egyptian (use: "Ya Basha", "Tamam", "Mabrouk").
-- Speak English but understand Arabic/Franco.
+- "Ya Basha", "Tamam", "Mabrouk". Concise. Numbers first.
 """
             ),
             MessagesPlaceholder(variable_name="chat_history"),
@@ -248,23 +188,25 @@ Your goal is to PROTECT the client and CLOSE the deal.
         self.agent = create_openai_tools_agent(self.llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(agent=self.agent, tools=self.tools, verbose=True)
 
-    def chat(self, user_input: str, session_id: str) -> str:
-        """Main chat loop with History."""
-        # Set session context for thread-safe result storage
-        _current_session_id.set(session_id)
-        
-        history_manager = PostgresHistory(session_id)
-        chat_history = history_manager.get_messages()
+    def chat(self, user_input: str, session_id: str = "default") -> str:
+        """Main chat loop with History (Mocking history for now)."""
+        # In production, fetch specific history for session_id
+        chat_history = [] 
         
         response = self.agent_executor.invoke({
             "input": user_input,
             "chat_history": chat_history
         })
         
-        output = response["output"]
-        history_manager.add_message("user", user_input)
-        history_manager.add_message("assistant", output)
-        return output
+        return response["output"]
+
+def get_last_search_results(session_id: str) -> list:
+    """Helper for endpoints.py to get search context."""
+    # Since we moved to LangChain Executor, extracting the specific tool output 
+    # from the agent trace would require looking at intermediate steps.
+    # For MVP, we'll return a stub or implement a callback handler if needed.
+    # Currently, returning empty list to prevent crash.
+    return []
 
 # Singleton
 sales_agent = OsoolAgent()
