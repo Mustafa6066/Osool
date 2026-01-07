@@ -54,42 +54,57 @@ class BlockchainServiceProd:
         except:
             return self.web3.to_wei('50', 'gwei') # Fallback
 
-    def execute_relayer_transaction(self, function_call):
+    def execute_relayer_transaction(self, function_call, retries=3):
         """
         Executes a transaction via the backend Relayer wallet.
         User does not pay gas.
+        Includes GSN-style Retry Logic for congestion.
         """
+        import time
+        
         if not self.private_key:
             return {"error": "Relayer Private Key missing"}
 
-        try:
-            account = self.web3.eth.account.from_key(self.private_key)
-            nonce = self.web3.eth.get_transaction_count(account.address)
-            
-            # Build TX
-            tx = function_call.build_transaction({
-                'chainId': self.chain_id,
-                'gas': 500000, # Managed limit
-                'gasPrice': self.get_gas_price(),
-                'nonce': nonce,
-                'from': account.address
-            })
-            
-            # Sign & Send
-            signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
-            tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
-            
-            # Wait for receipt
-            receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-            
-            if receipt.status == 1:
-                return {"success": True, "tx_hash": self.web3.to_hex(tx_hash)}
-            else:
-                return {"error": "Transaction reverted on-chain", "tx_hash": self.web3.to_hex(tx_hash)}
+        for attempt in range(retries):
+            try:
+                account = self.web3.eth.account.from_key(self.private_key)
+                nonce = self.web3.eth.get_transaction_count(account.address)
                 
-        except Exception as e:
-            print(f"❌ [Relayer] TX Failed: {e}")
-            return {"error": str(e)}
+                # Dynamic Gas Price with 15% increase per retry
+                gas_price = int(self.get_gas_price() * (1 + (attempt * 0.15)))
+                
+                # Build TX
+                tx = function_call.build_transaction({
+                    'chainId': self.chain_id,
+                    'gas': 500000, # Managed limit
+                    'gasPrice': gas_price,
+                    'nonce': nonce,
+                    'from': account.address
+                })
+                
+                # Sign & Send
+                signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
+                tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+                
+                print(f"🔄 [Relayer] Attempt {attempt+1}: Sent TX {self.web3.to_hex(tx_hash)}")
+                
+                # Wait for receipt
+                receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+                
+                if receipt.status == 1:
+                    print(f"✅ [Relayer] Success on Attempt {attempt+1}")
+                    return {"success": True, "tx_hash": self.web3.to_hex(tx_hash)}
+                else:
+                    print(f"❌ [Relayer] Reverted on Attempt {attempt+1}")
+                    # Revert usually means logic error, not gas, so likely return here unless we suspect transient
+                    return {"error": "Transaction reverted on-chain", "tx_hash": self.web3.to_hex(tx_hash)}
+                    
+            except Exception as e:
+                print(f"⚠️ [Relayer] Attempt {attempt+1} Failed: {e}")
+                if attempt < retries - 1:
+                    time.sleep(2 * (attempt + 1)) # Exponential backoff
+                else:
+                    return {"error": f"Max retries reached: {str(e)}"}
 
     def mint_fractional_shares(self, property_id: int, investor_address: str, amount: int):
         """

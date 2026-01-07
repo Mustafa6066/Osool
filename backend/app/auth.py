@@ -40,6 +40,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.utcnow() + timedelta(minutes=15)
     
     to_encode.update({"exp": expire})
+    # Ensure role is in payload if passed in data, otherwise it's handled by caller
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -86,6 +87,7 @@ def get_or_create_user_by_wallet(db: Session, wallet_address: str, email: Option
             wallet_address=wallet_address,
             email=email, # Might be None
             full_name="Wallet User",
+            role="investor",
             is_verified=True # Wallet ownership proves identity effectively
         )
         db.add(user)
@@ -106,6 +108,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         # Token can contain 'sub' (email) or 'wallet' (address)
         username: str = payload.get("sub")
         wallet: str = payload.get("wallet")
+        # role: str = payload.get("role") # Optionally validate role here
         
         if username is None and wallet is None:
             raise credentials_exception

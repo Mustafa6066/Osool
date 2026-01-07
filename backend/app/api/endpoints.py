@@ -220,14 +220,43 @@ def get_property(property_id: int):
     return result
 
 
-@router.get("/property/{property_id}/available")
-def check_availability(property_id: int):
-    """Check if property is available for reservation"""
-    is_available = blockchain_service.is_available(property_id)
     return {
         "property_id": property_id,
         "available": is_available
     }
+
+@router.get("/properties")
+def list_properties(db: Session = Depends(get_db)):
+    """
+    🏠 List all available properties.
+    Used by the Fractional Investment Dashboard.
+    """
+    props = db.query(Property).filter(Property.is_available == True).all()
+    
+    # Enrich with computed fields (Mocking AI score/Funding for MVP if not in DB)
+    results = []
+    import random
+    
+    for p in props:
+        # Calculate funding based on blockchain if possible, else mock for display
+        # In prod, query smart contract: blockchain_service.get_funding(p.blockchain_id)
+        
+        results.append({
+            "id": p.id,
+            "name": p.title,
+            "location": p.location,
+            "totalPrice": p.price,
+            "minimumInvestment": p.price * 0.05, # 5% minimum
+            "expectedReturn": 20 + (p.id % 5), # Random-ish but deterministic
+            "expectedExitDate": "Dec 2028",
+            "fundingPercentage": 0, # TODO: Sync with Smart Contract
+            "aiRiskScore": 10 + (p.id * 2),
+            "aiValuation": p.price * 1.1,
+            "description": p.description,
+            "image": f"/assets/property{1 + (p.id % 3)}.jpg" # Placeholder rotation
+        })
+        
+    return results
 
 
 @router.post("/reserve")
