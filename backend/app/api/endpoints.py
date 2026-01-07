@@ -428,53 +428,41 @@ def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: User = De
     return result
 
 @router.post("/webhook/paymob")
-async def paymob_webhook(data: dict, request: Request):
+async def paymob_webhook(data: dict, hmac: str):
     """
     🔐 Secure Webhook Listener for Paymob.
     Verifies HMAC signature then triggers Blockchain actions on payment success.
     """
-    import os
+    # 1. Verify source is actually Paymob
+    if not paymob_service.verify_hmac(data, hmac):
+         raise HTTPException(status_code=403, detail="Nice try, hacker. HMAC verification failed.")
     
-    # 1. Get HMAC signature from query params
-    hmac_signature = request.query_params.get("hmac")
-    
-    # 2. Verify HMAC (CRITICAL FOR PRODUCTION SECURITY)
-    if hmac_signature:
-        if not paymob_service.verify_hmac(data, hmac_signature):
-            print("❌ Webhook: HMAC verification FAILED - rejecting request")
-            raise HTTPException(status_code=403, detail="Invalid HMAC signature")
-        print("✅ Webhook: HMAC verified successfully")
-    else:
-        # In production, ALWAYS require HMAC
-        if os.getenv("ENVIRONMENT", "development") == "production":
-            print("❌ Webhook: Missing HMAC signature in production")
-            raise HTTPException(status_code=403, detail="Missing HMAC signature")
-        else:
-            print("⚠️ Webhook: No HMAC provided (dev mode - proceeding with caution)")
+    # 2. Extract Data
+    try:
+        obj = data.get('obj', {})
+        order_id = obj.get('order', {}).get('id')
+        amount_cents = obj.get('amount_cents')
+        success = obj.get('success', False)
         
-    # 3. Check Payment Success
-    tx_data = data.get('obj', {})
-    is_success = tx_data.get('success', False)
-    
-    if not is_success:
-        print(f"❌ Webhook: Payment failed or pending (ID: {tx_data.get('id')})")
-        return {"status": "received_failed"}
-        
-    print(f"✅ Webhook: Payment SUCCESS (ID: {tx_data.get('id')}). Triggering Blockchain...")
+        if not success:
+            return {"status": "ignored", "reason": "transaction_failed"}
+            
+        print(f"✅ Webhook: Payment SUCCESS (Order: {order_id}). Triggering Blockchain...")
 
-    # 4. Trigger Blockchain Action
-    # TODO: Lookup PropertyID and InvestorAddress from order metadata
-    order_id = tx_data.get('order', {}).get('id')
-    amount_cents = tx_data.get('amount_cents', 0)
+        # 3. Trigger Blockchain (The "Trust" Bridge)
+        # TODO: In production, lookup PropertyID & User Address from the DB using order_id
+        # For now, we mock the lookup to demonstrate the secure flow
+        property_id = 1 
+        user_address = "0x71CB05EE1b1F506fF321Da3f01f2796c77176F9a" 
+        
+        # Only mint/reserve tokens AFTER money is in the bank
+        blockchain_service.reserve_property(property_id, user_address)
+        
+    except Exception as e:
+        print(f"Webhook Error: {e}")
+        raise HTTPException(status_code=500, detail="Processing error")
     
-    # For future: Query DB to get property_id and investor_address by order_id
-    # Then call: blockchain_service_prod.mint_fractional_shares(property_id, investor_address, shares)
-    
-    return {
-        "status": "processed_success",
-        "order_id": order_id,
-        "amount_egp": amount_cents / 100
-    }
+    return {"status": "success"}
 
 
 
