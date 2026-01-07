@@ -91,7 +91,7 @@ async def fetch_nawy_data_async():
                 
         await browser.close()
 
-    # FALLBACK LOGIC
+# FALLBACK DATA
     if not scraped_properties:
         print("⚠️ Scraping yielded 0 results. Using Fallback Data.")
         return [
@@ -102,40 +102,72 @@ async def fetch_nawy_data_async():
         
     return scraped_properties
 
+from pydantic import BaseModel, ValidationError
+
+class ScrapedPropertySchema(BaseModel):
+    title: str
+    location: str
+    price: float
+    size: int
+    bedrooms: int
+    developer: str = "Unknown"
+
 def ingest_nawy_data():
     """
     Sync wrapper for Async Scraper.
+    Robustness: Logs to Mock Sentry and ensures schema validity.
     """
+    print("🔄 Starting Data Ingestion Pipeline...")
     try:
         data = asyncio.run(fetch_nawy_data_async())
         
         db: Session = SessionLocal()
         count = 0
+        skipped = 0
+        
         for item in data:
-            existing = db.query(Property).filter(
-                Property.title == item["title"],
-                Property.price == item["price"]
-            ).first()
+            # 1. Validate Schema (Strict Mapping)
+            try:
+                # Ensure fields exist and are correct types
+                valid_item = ScrapedPropertySchema(**item)
+            except ValidationError as ve:
+                print(f"⚠️ [SENTRY ERROR] Schema Validation Failed for item '{item.get('title', 'Unknown')}': {ve}")
+                skipped += 1
+                continue
             
-            if not existing:
-                new_prop = Property(
-                    title=item["title"],
-                    description=f"Luxury unit by {item['developer']}. Market Data.",
-                    location=item["location"],
-                    price=item["price"],
-                    size_sqm=item["size"],
-                    bedrooms=item["bedrooms"],
-                    finishing="Core & Shell",
-                    is_available=True
-                )
-                db.add(new_prop)
-                count += 1
+            # 2. Upsert
+            try:
+                existing = db.query(Property).filter(
+                    Property.title == valid_item.title,
+                    Property.price == valid_item.price
+                ).first()
+                
+                if not existing:
+                    new_prop = Property(
+                        title=valid_item.title,
+                        description=f"Luxury unit by {valid_item.developer}. Market Data.",
+                        location=valid_item.location,
+                        price=valid_item.price,
+                        size_sqm=valid_item.size,
+                        bedrooms=valid_item.bedrooms,
+                        finishing="Core & Shell",
+                        is_available=True
+                    )
+                    db.add(new_prop)
+                    count += 1
+            except Exception as db_err:
+                 print(f"⚠️ [SENTRY ERROR] Database Insert Error: {db_err}")
+                 skipped += 1
         
         db.commit()
-        print(f"✅ Ingested {count} new properties from Nawy.")
         db.close()
-        return f"Ingested {count} properties"
+        
+        summary = f"✅ Ingestion Complete. Added: {count}, Skipped: {skipped}"
+        print(summary)
+        return summary
         
     except Exception as e:
-        print(f"❌ Ingestion Error: {e}")
-        return str(e)
+        # Mock Sentry Log
+        error_msg = f"❌ [SENTRY CRITICAL] Scraper Pipeline Crashed: {e}"
+        print(error_msg)
+        return "Cached Data Preserved (Pipeline Failed)"

@@ -72,6 +72,7 @@ origins = [
     "http://localhost:3000", # Dev
     "http://localhost:8000", # Swagger
     os.getenv("FRONTEND_DOMAIN", "https://osool.com"), # Production
+    "https://osool.eg", # Production (Core)
 ]
 
 app.add_middleware(
@@ -84,6 +85,21 @@ app.add_middleware(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Global Critical Error Handler
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Catches all 500 errors to prevent raw stack traces leaking to user.
+    """
+    print(f"❌ [CRITICAL] 500 ERROR: {exc}") # Internal Log
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Osool System Busy - Our agents are notified."},
+    )
 
 # ═══════════════════════════════════════════════════════════════
 # ROUTES

@@ -174,8 +174,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
-    access_token = create_access_token(data={"sub": user.email, "role": user.role})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token(data={"sub": user.email, "wallet": user.wallet_address, "role": user.role})
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
 
 
@@ -209,6 +209,39 @@ def verify_wallet(req: WalletLoginRequest, db: Session = Depends(get_db)):
         "token_type": "bearer", 
         "user_id": user.id,
         "is_new_user": is_new_user
+    }
+
+@router.post("/auth/link-wallet")
+def link_wallet(req: WalletLoginRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    🔗 Link a Web3 Wallet to an existing Email Account.
+    Protected endpoint: Requires valid Email JWT.
+    """
+    # 1. Verify Signature
+    is_valid = verify_wallet_signature(req.address, req.message, req.signature)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Invalid wallet signature")
+
+    # 2. Check if wallet uses a different account
+    if current_user.wallet_address == req.address:
+        return {"status": "already_linked"}
+
+    success = bind_wallet_to_user(db, current_user.id, req.address)
+    if not success:
+        raise HTTPException(status_code=400, detail="Wallet already linked to another user.")
+    
+    # 3. Issue Enriched Token
+    db.refresh(current_user)
+    access_token = create_access_token(data={
+        "sub": current_user.email, 
+        "wallet": current_user.wallet_address,
+        "role": current_user.role
+    })
+    
+    return {
+        "status": "linked",
+        "access_token": access_token,
+        "user_id": current_user.id
     }
 
 class ProfileUpdateRequest(BaseModel):
