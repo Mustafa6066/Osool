@@ -3,9 +3,29 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
+// Elite Fractional Token (ERC1155) - Represents shares in properties
+contract EliteFractionalToken is ERC1155, Ownable {
+    using SafeMath for uint256;
+
+    string public name = "Elite Fractional Property";
+    string public symbol = "EFP";
+
+    constructor() ERC1155("https://api.osool.eg/metadata/{id}.json") {}
+
+    function mint(address account, uint256 id, uint256 amount, bytes memory data) external onlyOwner {
+        _mint(account, id, amount, data);
+    }
+
+    function setURI(string memory newuri) external onlyOwner {
+        _setURI(newuri);
+    }
+}
+
 
 // Elite Property Token (EPT) - Platform's native token
 contract ElitePropertyToken is ERC20, Ownable {
@@ -85,6 +105,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
     
     ElitePropertyToken public eptToken;
     EliteMembershipNFT public membershipNFT;
+    EliteFractionalToken public fractionalToken;
     
     // Property Escrow Structure
     struct PropertyEscrow {
@@ -126,18 +147,41 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
     uint256[3] public subscriptionPrices = [100 * 10**18, 300 * 10**18, 1000 * 10**18];
     
     // Events
+    // Events
     event EscrowCreated(uint256 escrowId, address seller, address buyer, uint256 price);
     event EscrowFunded(uint256 escrowId, uint256 amount);
     event EscrowCompleted(uint256 escrowId);
     event SubscriptionPurchased(address user, uint256 tier, uint256 duration);
     event ReferralRewarded(address referrer, address referee, uint256 reward);
     event PropertyTokenized(uint256 propertyId, string metadataURI);
+    event FractionalShareMinted(uint256 propertyId, address investor, uint256 amount);
     
-    constructor(address _eptToken, address _membershipNFT) {
+    constructor(address _eptToken, address _membershipNFT, address _fractionalToken) {
         eptToken = ElitePropertyToken(_eptToken);
         membershipNFT = EliteMembershipNFT(_membershipNFT);
+        fractionalToken = EliteFractionalToken(_fractionalToken);
     }
     
+    // ==================== PAUSABLE ====================
+
+    bool public paused = false;
+
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
+        _;
+    }
+
+    function emergencyPause() external onlyOwner {
+        paused = !paused;
+    }
+    
+    // ==================== FRACTIONAL INVESTING ====================
+
+    function mintFractionalShares(address to, uint256 amount, uint256 propertyId) external onlyOwner whenNotPaused {
+        fractionalToken.mint(to, propertyId, amount, "");
+        emit FractionalShareMinted(propertyId, to, amount);
+    }
+
     // ==================== ESCROW FUNCTIONS ====================
     
     function createEscrow(
@@ -145,7 +189,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
         address payable _buyer,
         uint256 _price,
         string memory _propertyDetailsIPFS
-    ) external returns (uint256) {
+    ) external whenNotPaused returns (uint256) {
         uint256 escrowId = escrowCounter++;
         
         escrows[escrowId] = PropertyEscrow({
@@ -165,7 +209,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
         return escrowId;
     }
     
-    function fundEscrow(uint256 _escrowId) external payable nonReentrant {
+    function fundEscrow(uint256 _escrowId) external payable nonReentrant whenNotPaused {
         PropertyEscrow storage escrow = escrows[_escrowId];
         require(msg.sender == escrow.buyer, "Only buyer can fund");
         require(escrow.status == EscrowStatus.CREATED, "Invalid status");
@@ -177,7 +221,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
         emit EscrowFunded(_escrowId, msg.value);
     }
     
-    function completeEscrow(uint256 _escrowId) external payable nonReentrant {
+    function completeEscrow(uint256 _escrowId) external payable nonReentrant whenNotPaused {
         PropertyEscrow storage escrow = escrows[_escrowId];
         require(escrow.status == EscrowStatus.FUNDED, "Not funded");
         require(block.timestamp <= escrow.deadline, "Deadline passed");
@@ -214,7 +258,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
     
     // ==================== SUBSCRIPTION FUNCTIONS ====================
     
-    function purchaseSubscription(uint256 _tier, address _referrer) external {
+    function purchaseSubscription(uint256 _tier, address _referrer) external whenNotPaused {
         require(_tier < 3, "Invalid tier");
         require(eptToken.balanceOf(msg.sender) >= subscriptionPrices[_tier], "Insufficient EPT");
         
@@ -250,7 +294,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
         emit SubscriptionPurchased(msg.sender, _tier, 30 days);
     }
     
-    function stakeTokensForBenefits(uint256 _amount) external {
+    function stakeTokensForBenefits(uint256 _amount) external whenNotPaused {
         require(eptToken.balanceOf(msg.sender) >= _amount, "Insufficient balance");
         eptToken.transferFrom(msg.sender, address(this), _amount);
         
@@ -301,6 +345,6 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
     }
     
     function emergencyPause() external onlyOwner {
-        // Implementation for emergency pause
+        paused = !paused;
     }
 }
