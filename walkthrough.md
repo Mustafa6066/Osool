@@ -38,6 +38,17 @@ We have successfully transformed Osool from an MVP into a production-grade platf
   - Added `deploy_prod.py` with automatic PolygonScan verification.
   - Created `config/blockchain.py` for seamless Mainnet toggling.
 
+### 6. Unicorn Transformation (The "Fortress" Upgrade)
+- **Security**: 
+  - Implemented `create_custodial_wallet` in `auth.py` to auto-bridge Email users to Web3.
+  - Hardened endpoints with stricter `verify_api_key` and OTP stubs.
+- **AI Persona ("The Wolf")**:
+  - Rewrote System Prompt to be "Protective" and "Skeptical".
+  - Added `audit_uploaded_contract` regex for "8% Maintenance Scam" and "Missing Tawkil".
+- **Resilience**:
+  - **Blockchain**: Added "Stuck TX" Retry Loop (Gas Bump) in `blockchain_prod.py`.
+  - **Scraper**: Refactored `nawy_scraper.py` into a 3-layer pipeline (Redis -> Requests -> Browserless).
+
 ## ⏭️ Next Steps
 - **Deploy**: Execute `python backend/blockchain/deploy_prod.py`.
 - **Launch**: Point DNS `osool.eg` to the backend load balancer.
