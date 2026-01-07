@@ -155,6 +155,7 @@ def verify_wallet(req: WalletLoginRequest, db: Session = Depends(get_db)):
     """
     🔐 Web3 Login (SIWE) - Production
     Verifies signature and issues JWT.
+    Returns is_new_user flag for profile completion flow.
     """
     # 1. Verify Signature
     is_valid = verify_wallet_signature(req.address, req.message, req.signature)
@@ -164,10 +165,39 @@ def verify_wallet(req: WalletLoginRequest, db: Session = Depends(get_db)):
     # 2. Get or Create User
     user = get_or_create_user_by_wallet(db, req.address)
     
-    # 3. Issue Token
-    # Store wallet in token payload for auth.py info
+    # 3. Check if profile is complete
+    is_new_user = user.full_name == "Wallet User" or not user.phone_number
+    
+    # 4. Issue Token
     access_token = create_access_token(data={"wallet": user.wallet_address, "sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "user_id": user.id,
+        "is_new_user": is_new_user
+    }
+
+class ProfileUpdateRequest(BaseModel):
+    """Request model for profile completion."""
+    full_name: str = Field(..., description="User's full name")
+    phone_number: str = Field(..., description="User's phone number")
+
+@router.post("/auth/update-profile")
+def update_profile(req: ProfileUpdateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    📝 Complete User Profile
+    Called after wallet connection for new users to add name and phone.
+    """
+    current_user.full_name = req.full_name
+    current_user.phone_number = req.phone_number
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Profile updated successfully",
+        "user_id": current_user.id,
+        "full_name": current_user.full_name
+    }
 
 @router.get("/health")
 def health_check():
@@ -371,43 +401,51 @@ def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: User = De
 @router.post("/webhook/paymob")
 async def paymob_webhook(data: dict, request: Request):
     """
-    Secure Webhook Listener for Paymob.
-    Triggers Blockchain Reservation ONLY after payment success.
+    🔐 Secure Webhook Listener for Paymob.
+    Verifies HMAC signature then triggers Blockchain actions on payment success.
     """
-    # 1. Capture HMAC from headers
-    hmac_signature = request.query_params.get("hmac")
-    if not hmac_signature:
-        # Sometimes Paymob sends it in query params
-        # The request body is the 'data'
-        pass
-
-    # Note: In FastAPI, getting query params from the URL for a POST needs Request
+    import os
+    
+    # 1. Get HMAC signature from query params
     hmac_signature = request.query_params.get("hmac")
     
-    # 2. Verify HMAC
-    # For robust verification, we need the exact query params or body 
-    # paymob_service.verify_hmac(data, hmac_signature)
-    # Skipping tight check here to focus on logic flow, assume service handles it if valid data passed
+    # 2. Verify HMAC (CRITICAL FOR PRODUCTION SECURITY)
+    if hmac_signature:
+        if not paymob_service.verify_hmac(data, hmac_signature):
+            print("❌ Webhook: HMAC verification FAILED - rejecting request")
+            raise HTTPException(status_code=403, detail="Invalid HMAC signature")
+        print("✅ Webhook: HMAC verified successfully")
+    else:
+        # In production, ALWAYS require HMAC
+        if os.getenv("ENVIRONMENT", "development") == "production":
+            print("❌ Webhook: Missing HMAC signature in production")
+            raise HTTPException(status_code=403, detail="Missing HMAC signature")
+        else:
+            print("⚠️ Webhook: No HMAC provided (dev mode - proceeding with caution)")
         
-    # 3. Check Success
+    # 3. Check Payment Success
     tx_data = data.get('obj', {})
     is_success = tx_data.get('success', False)
     
     if not is_success:
-        print("❌ Webhook: Payment failed or pending.")
+        print(f"❌ Webhook: Payment failed or pending (ID: {tx_data.get('id')})")
         return {"status": "received_failed"}
         
-    print(f"✅ Webhook: Payment SUCCESS ({tx_data.get('id')}). Triggering Blockchain...")
+    print(f"✅ Webhook: Payment SUCCESS (ID: {tx_data.get('id')}). Triggering Blockchain...")
 
     # 4. Trigger Blockchain Action
-    # Ideally we map OrderID -> PropertyID via a DB lookup
-    # For MVP, we'll reserve a fixed property or extract metadata if we passed it
+    # TODO: Lookup PropertyID and InvestorAddress from order metadata
+    order_id = tx_data.get('order', {}).get('id')
+    amount_cents = tx_data.get('amount_cents', 0)
     
-    # Example:
-    # property_id = 99 # Hardcoded for demo/test
-    # blockchain_service.reserve_property(property_id, "0xAdminOrUser...")
+    # For future: Query DB to get property_id and investor_address by order_id
+    # Then call: blockchain_service_prod.mint_fractional_shares(property_id, investor_address, shares)
     
-    return {"status": "processed_success"}
+    return {
+        "status": "processed_success",
+        "order_id": order_id,
+        "amount_egp": amount_cents / 100
+    }
 
 
 
@@ -526,8 +564,8 @@ def chat_with_agent(req: ChatRequest, request: Request):
         # Get AI response
         response_text = sales_agent.chat(req.message, req.session_id)
         
-        # Get any properties that were searched
-        search_results = get_last_search_results()
+        # Get properties searched in THIS session (concurrency safe)
+        search_results = get_last_search_results(req.session_id)
         
         return {
             "response": response_text,
@@ -628,21 +666,6 @@ def compare_asking(req: PriceComparisonRequest):
         raise HTTPException(status_code=500, detail=result["error"])
     
     return result
-
-
-@router.post("/chat")
-@limiter.limit("20/minute")
-def chat_endpoint(req: ContractAnalysisRequest, request: Request): 
-    # Reusing ContractAnalysisRequest for simple text input, or define a new ChatRequest model.
-    # To be clean, let's use the 'text' field from ContractAnalysisRequest as the message
-    # or better, just define a simple dict or new model. 
-    # Given the constraint of not adding too many new models inline if not needed, 
-    # I'll use a Body or existing model. Let's use the existing one but interpreted as chat.
-    
-    # Use the new LangChain Sales Agent
-    response_text = sales_agent.chat(req.text)
-    
-    return {"response": response_text}
 
 
 # ═══════════════════════════════════════════════════════════════

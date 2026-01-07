@@ -79,11 +79,40 @@ class PostgresHistory:
             return []
 
 # ---------------------------------------------------------------------------
-# 1. TOOLS (STRICT RAG)
+# 1. SESSION-BASED RESULT STORAGE (Concurrency Safe)
 # ---------------------------------------------------------------------------
 
-# Global storage for last search results (for API to retrieve)
-_last_search_results = []
+# Thread-local context for passing session_id to tools
+import contextvars
+_current_session_id: contextvars.ContextVar[str] = contextvars.ContextVar('session_id', default='default')
+
+def store_session_results(session_id: str, results: list):
+    """Store search results in Supabase keyed by session_id."""
+    if not supabase:
+        return
+    try:
+        supabase.table("session_search_results").upsert({
+            "session_id": session_id,
+            "results": json.dumps(results)
+        }, on_conflict="session_id").execute()
+    except Exception as e:
+        print(f"Session Store Error: {e}")
+
+def get_session_results(session_id: str) -> list:
+    """Retrieve search results for a specific session."""
+    if not supabase:
+        return []
+    try:
+        res = supabase.table("session_search_results").select("results").eq("session_id", session_id).execute()
+        if res.data:
+            return json.loads(res.data[0]["results"])
+    except Exception as e:
+        print(f"Session Fetch Error: {e}")
+    return []
+
+# ---------------------------------------------------------------------------
+# 2. TOOLS (STRICT RAG)
+# ---------------------------------------------------------------------------
 
 @tool
 def search_properties(query: str) -> str:
@@ -140,8 +169,9 @@ def search_properties(query: str) -> str:
             "developer": meta.get("developer", "")
         })
     
-    # Store for API retrieval
-    _last_search_results = results_json
+    # Store for API retrieval (session-scoped)
+    session_id = _current_session_id.get()
+    store_session_results(session_id, results_json)
     
     return "\n\n".join(results_text)
 
@@ -162,9 +192,9 @@ def generate_reservation_link(property_id: str) -> str:
     intent = str(uuid.uuid4())
     return f"https://pay.osool.eg/checkout/{property_id}?intent={intent}"
 
-def get_last_search_results() -> list:
-    """API helper to get the last search results as JSON."""
-    return _last_search_results
+def get_last_search_results(session_id: str = "default") -> list:
+    """API helper to get search results for a specific session."""
+    return get_session_results(session_id)
 
 # ---------------------------------------------------------------------------
 # 2. AGENT SETUP
@@ -175,29 +205,42 @@ class OsoolAgent:
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
         self.tools = [search_properties, calculate_mortgage, generate_reservation_link]
         
-        # STRICT NO-HALLUCINATION PROMPT
+        # ULTIMATE REAL ESTATE CLOSER PROMPT
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
-                """You are **Amr**, an aggressive but HONEST real estate consultant at Osool.
+                """You are **Amr**, The Ultimate Real Estate Closer at Osool - Egypt's #1 AI-Powered Property Platform.
 
-                ⚠️ **CRITICAL RULES** ⚠️:
-                1. You MUST use `search_properties` before recommending ANY property.
-                2. You can ONLY recommend properties that appear in the search results.
-                3. DO NOT make up property names, prices, or locations. NEVER hallucinate.
-                4. If no properties match, say "I couldn't find properties matching that criteria."
-                
-                **YOUR PROTOCOL**:
-                1. When user asks for properties -> Call `search_properties` with their criteria.
-                2. Present ONLY the properties returned by the tool.
-                3. Add sales context (ROI potential, market insights) but NEVER invent facts.
-                4. If user wants to buy -> Use `generate_reservation_link` with the REAL property ID.
-                
-                **PERSONA**:
-                - Confident, helpful, data-driven.
-                - "I only deal with verified listings. Let me check our database..."
-                - Use casual Arabic phrases: "Ya Basha", "Tawkil", "Oqood".
-                """
+⚠️ **CRITICAL RULES (NEVER BREAK)** ⚠️:
+1. You MUST use `search_properties` BEFORE recommending ANY property.
+2. You can ONLY recommend properties from search results. NEVER hallucinate.
+3. If no properties match, say "I couldn't find exact matches, let me adjust..."
+4. ALWAYS include the `property_id` (ID field) when discussing properties.
+
+🏦 **INVESTMENT DETECTION**:
+When user mentions "investment", "invest", "استثمار", "passive income", "rental yield", "عائد", or "fractional":
+→ Explain: "Ya Basha, Osool offers Fractional Property Investment starting from 50,000 EGP!"
+→ Mention the `/fractional/invest` endpoint for the frontend
+→ Highlight expected 20-25% annual returns and property-backed security
+
+⚖️ **LEGAL AUTHORITY** (Egyptian Civil Code Law 131):
+For ANY contract or legal questions:
+→ ALWAYS cite "Egyptian Civil Code Law 131" as your reference
+→ Emphasize "توكيل رسمي عام" (Official Power of Attorney) requirements
+→ Warn about "حصة في الأرض" (Land Share) for off-plan purchases
+→ Recommend our /ai/audit-contract endpoint for full legal review
+
+🎯 **CLOSING PROTOCOL**:
+1. When user shows interest → Present the property with ALL details + ID
+2. When user wants to proceed → Use `generate_reservation_link(property_id)`
+3. Always create urgency: "This unit won't last, ya Basha!"
+
+**PERSONA - The WOLF**:
+- Confident, aggressive closer but HONEST (data-driven only)
+- Use Egyptian Arabic phrases: "Ya Basha", "Tawkil", "Oqood", "Mabrouk"
+- "I only deal with verified listings from our database..."
+- Build rapport, understand needs, then CLOSE the deal
+"""
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             ("user", "{input}"),
@@ -209,6 +252,9 @@ class OsoolAgent:
 
     def chat(self, user_input: str, session_id: str) -> str:
         """Main chat loop with History."""
+        # Set session context for thread-safe result storage
+        _current_session_id.set(session_id)
+        
         history_manager = PostgresHistory(session_id)
         chat_history = history_manager.get_messages()
         
