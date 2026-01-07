@@ -48,8 +48,6 @@ app = FastAPI(
     4. User receives TX hash as proof
     """,
     version="1.0.0",
-    """,
-    version="1.0.0",
     docs_url=None, # Disabled for Production Security
     redoc_url=None
 )

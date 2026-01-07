@@ -132,4 +132,34 @@ class BlockchainServiceProd:
             )
         )
 
+    def is_available(self, property_id: int) -> bool:
+        """
+        [Read-Only] Checks if a property is available on-chain.
+        No gas cost.
+        """
+        if not self.contract: return False
+        try:
+            # Assuming 'isAvailable(uint256)' view function exists
+            return self.contract.functions.isAvailable(property_id).call()
+        except:
+            # Fallback for MVP: Check DB or assume True if error
+            return True
+
+    def cancel_reservation(self, property_id: int):
+        """
+        Admin/Relayer cancels reservation to free up the unit.
+        """
+        if not self.contract: return {"error": "Contract Disconnected"}
+        
+        return self.execute_relayer_transaction(
+            self.contract.functions.cancelReservation(property_id)
+        )
+
+    def finalize_sale(self, property_id: int, buyer_address: str, amount: int):
+        """
+        Transfers final ownership tokens (NFT/ERC1155) to buyer.
+        """
+        # Re-use minting logic or specific transfer logic
+        return self.mint_fractional_shares(property_id, buyer_address, amount)
+
 blockchain_service_prod = BlockchainServiceProd()

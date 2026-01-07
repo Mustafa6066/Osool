@@ -40,7 +40,7 @@ export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showProfileModal, setShowProfileModal] = useState(false);
-    const [profileData, setProfileData] = useState({ fullName: "", phoneNumber: "" });
+    const [profileData, setProfileData] = useState({ fullName: "", phoneNumber: "", nationalId: "" });
     const account = useActiveAccount();
     const wallet = useActiveWallet();
 
@@ -112,6 +112,7 @@ export default function Login() {
                 body: JSON.stringify({
                     full_name: profileData.fullName,
                     phone_number: profileData.phoneNumber,
+                    national_id: profileData.nationalId,
                 }),
             });
 
@@ -253,12 +254,29 @@ export default function Login() {
                                 />
                             </div>
 
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    الرقم القومي (National ID)
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    maxLength={14}
+                                    minLength={14}
+                                    value={profileData.nationalId}
+                                    onChange={(e) => setProfileData({ ...profileData, nationalId: e.target.value })}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    placeholder="14 digits"
+                                    dir="ltr"
+                                />
+                            </div>
+
                             <button
                                 type="submit"
                                 disabled={isLoading}
                                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors disabled:opacity-50"
                             >
-                                {isLoading ? "جاري الحفظ..." : "متابعة ➜"}
+                                {isLoading ? "جاري الحفظ..." : "إتمام التسجيل ➜"}
                             </button>
                         </form>
 

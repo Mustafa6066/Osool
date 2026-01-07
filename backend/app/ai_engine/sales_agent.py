@@ -88,16 +88,19 @@ def search_properties(max_price: int = 100000000, location: str = "") -> str:
     return json.dumps(filtered)
 
 @tool
-def calculate_mortgage(principal: int, rate: float = 25.0, years: int = 20) -> str:
+def calculate_mortgage(principal: int, years: int = 20) -> str:
     """
-    Calculate monthly mortgage payments based on interest rate (%) and loan term (years).
+    Calculate monthly mortgage payments based on LIVE CBE interest rates.
     """
+    from app.services.interest_rate import interest_rate_service
+    rate = interest_rate_service.get_current_mortgage_rate()
+    
     monthly_rate = rate / 100 / 12
     num_payments = years * 12
     if principal <= 0: return "0"
     
     payment = principal * (monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
-    return f"{int(payment):,} EGP/month"
+    return f"{int(payment):,} EGP/month (Rate: {rate}%)"
 
 @tool
 def generate_reservation_link(property_id: int) -> str:

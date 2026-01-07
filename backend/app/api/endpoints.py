@@ -286,47 +286,38 @@ def reserve_property(req: ReservationRequest, current_user: User = Depends(get_c
             detail="Property is not available for reservation"
         )
     
-    # 3. Verify Payment
-    # In production, this checks the PaymentApproval table for a MATCHING approved record
-    # verify_bank_transfer now checks DB or strict logic
-    
-    # For MVP Reservation (Instant), we might check Paymob? 
-    # Current flow assumes manual bank transfer for full Reservation?
-    # Let's use the verify function
-    
-    # We create a pending transaction record
-    # task = reserve_property_task.delay(...) # Handled in tasks.py usually
-    pass # Using existing logic elsewhere or assuming this endpoint is partial stub
+def reserve_property(req: ReservationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    🏡 Reserve Property (Pre-Payment Check)
+    """
+    # 1. STRICT KYC CHECK
+    if not current_user.phone_number:
+        raise HTTPException(
+            status_code=403, 
+            detail="Phone number verification required. Please complete your profile."
+        )
+    if not current_user.national_id:
+        raise HTTPException(
+            status_code=403, 
+            detail="National ID required for legal contract binding."
+        )
 
+    # ... [Rest of logic would go here, simplified for MVP to just return success/link]
 
-@router.get("/reservation/status/{task_id}")
-def check_reservation_status(task_id: str):
-    """Check status of background reservation task"""
-    from celery.result import AsyncResult
-    task_result = AsyncResult(task_id)
-    
-    if task_result.state == 'PENDING':
-        return {"status": "pending", "message": "Transaction is mining..."}
-    elif task_result.state == 'SUCCESS':
-        result = task_result.result
-        return {
-            "status": "success", 
-            "message": "Property reserved successfully! 🎉",
-            "tx_hash": result.get("tx_hash"),
-            "property_id": result.get("property_id"),
-            "blockchain_proof": f"https://amoy.polygonscan.com/tx/{result.get('tx_hash')}"
-        }
-    elif task_result.state == 'FAILURE':
-        return {"status": "failed", "message": str(task_result.result)}
-    
-    return {"status": task_result.state}
+    return {
+        "status": "ready_for_payment",
+        "message": "KYC Verified. Proceed to payment.",
+        "link": f"https://pay.osool.eg/checkout/{req.property_id}" 
+    }
 
+class CancellationRequest(BaseModel):
+    property_id: int
+    reason: str
 
 @router.post("/finalize-sale")
 def finalize_sale(req: SaleFinalizationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    Finalize property sale after full bank transfer.
-    Transfers on-chain ownership to the buyer.
+    ✅ Finalize Sale (Mint NFT/Tokens)
     """
     
     # Verify bank transfer via DB (Strict)
@@ -345,7 +336,16 @@ def finalize_sale(req: SaleFinalizationRequest, current_user: User = Depends(get
     if approval.property_id != req.property_id:
          raise HTTPException(status_code=400, detail="Payment reference does not match property ID.")
     
-    result = blockchain_service.finalize_sale(req.property_id)
+    # Verify manual bank transfer if applicable
+    if req.payment_method == "bank_transfer":
+        if not verify_bank_transfer(req.reference_number, db):
+             raise HTTPException(status_code=400, detail="Bank transfer not found or not approved yet.")
+    
+    result = blockchain_service.finalize_sale(
+        property_id=req.property_id, 
+        buyer_address=current_user.wallet_address,
+        amount=req.amount
+    )
     
     if "error" in result:
         raise HTTPException(
@@ -414,7 +414,11 @@ def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: User = De
     Creates a Transaction Record + Paymob Order.
     """
     
-    # 1. Initiate Paymob
+    # 1. STRICT KYC CHECK
+    if not current_user.phone_number:
+         raise HTTPException(status_code=403, detail="Verified phone number required for payments.")
+         
+    # 2. Initiate Paymob
     result = paymob_service.initiate_payment(
         amount_egp=req.amount_egp,
         user_email=req.email,
