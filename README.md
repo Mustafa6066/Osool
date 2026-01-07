@@ -108,6 +108,7 @@ cd backend
 # Create virtual environment
 python -m venv venv
 venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
 
 # Install dependencies
 pip install -r requirements.txt
@@ -116,16 +117,50 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-### 3. API Endpoints
+### 3. Data Ingestion (CRITICAL - AI Brain)
+
+The AI Sales Agent cannot function without property data in the vector store.
+
+```bash
+cd backend
+
+# 1. Ensure .env has these variables:
+#    SUPABASE_URL=your_supabase_url
+#    SUPABASE_KEY=your_supabase_key
+#    OPENAI_API_KEY=your_openai_key
+
+# 2. Run data ingestion (parses property data into Supabase)
+python ingest_data.py
+
+# 3. Verify the vector store is working
+python verify_vector_store.py
+```
+
+### 4. Verify Health
+
+```bash
+# Check API is running
+curl http://localhost:8000/api/health
+# Expected: {"status": "healthy", ...}
+
+# Test AI Chat (after data ingestion)
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Show me villas in New Cairo", "session_id": "test123"}'
+```
+
+### 5. API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/health` | GET | Health check |
+| `/api/chat` | POST | AI Sales Agent chat |
 | `/api/reserve` | POST | Reserve property (after EGP payment) |
 | `/api/finalize-sale` | POST | Complete sale (after bank transfer) |
 | `/api/ai/analyze-contract` | POST | AI legal contract analysis |
 | `/api/ai/valuation` | POST | AI property valuation |
 | `/api/ai/compare-price` | POST | Compare asking price vs. market |
+| `/api/fractional/invest` | POST | Fractional property investment |
 
 ---
 
