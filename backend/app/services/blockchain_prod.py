@@ -100,7 +100,12 @@ class BlockchainServiceProd:
                     return {"error": "Transaction reverted on-chain", "tx_hash": self.web3.to_hex(tx_hash)}
                     
             except Exception as e:
-                print(f"⚠️ [Relayer] Attempt {attempt+1} Failed: {e}")
+                # Check for Timeout (Stuck TX)
+                if "TimeExhausted" in str(e) or "timeout" in str(e).lower():
+                     print(f"⚠️ [Relayer] TX Stuck (Nonce {nonce}). Retrying with Higher Gas...")
+                else:
+                     print(f"⚠️ [Relayer] Attempt {attempt+1} Failed: {e}")
+                
                 if attempt < retries - 1:
                     time.sleep(2 * (attempt + 1)) # Exponential backoff
                 else:

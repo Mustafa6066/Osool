@@ -18,82 +18,116 @@ def clean_price(price_str: str) -> float:
     except:
         return 0.0
 
+from app.services.cache import cache
+import requests
+from bs4 import BeautifulSoup
+import os
+
 async def fetch_nawy_data_async():
     """
-    Scrapes Nawy.com using Playwright (Headless).
-    Includes 10s timeout per URL and fallback.
+    Scrapes Nawy.com.
+    Pipeline: Redis Cache -> Requests (Fast) -> Playwright (Browserless/Local) -> Mock Fallback.
     """
+    # 1. Check Cache (24h TTL)
+    cached_data = cache.get_json("nawy_scraped_data")
+    if cached_data:
+        print("⚡ [Scraper] Cache Hit! Returning stored data.")
+        return cached_data
+
     scraped_properties = []
-    print("🕸️ Starting Nawy Scraper (Playwright)...")
+    print("🕸️ Starting Nawy Scraper...")
     
-    async with async_playwright() as p:
-        # Launch browser
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
+    # 2. Try Requests + BeautifulSoup (Fast & Static)
+    try:
+        print("   |-- Attempting Fast Scrape (Requests)...")
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
         
         for url in TARGET_URLS:
-            try:
-                print(f"   |-- Navigating to: {url}")
+            res = requests.get(url, headers=headers, timeout=5)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, 'html.parser')
+                # Try to find cards (adjust selector to reality)
+                cards = soup.select('div[class*="Card"], article')
                 
+                for card in cards[:5]:
+                    text = card.get_text()
+                    price_match = re.search(r'([\d,]+)\s*EGP', text)
+                    if price_match:
+                        price = clean_price(price_match.group(1))
+                        # Basic Logic
+                        scraped_properties.append({
+                            "title": text.split("EGP")[0].strip()[:100],
+                            "location": "New Cairo" if "New Cairo" in text else "Sheikh Zayed",
+                            "price": price,
+                            "size": 150, 
+                            "bedrooms": 3,
+                            "developer": "Nawy Partner"
+                        })
+        
+        if scraped_properties:
+            print(f"✅ Fast Scrape Successful: {len(scraped_properties)} items.")
+            cache.set_json("nawy_scraped_data", scraped_properties, ttl=86400)
+            return scraped_properties
+            
+    except Exception as e:
+        print(f"⚠️ Fast Scrape Failed: {e}. Switching to Browser...")
+
+    # 3. Playwright (Browserless / Local)
+    # Reset scraped_properties for Playwright attempt if fast scrape failed
+    scraped_properties = [] 
+    try:
+        async with async_playwright() as p:
+            # Check for Browserless.io or Local
+            browserless_url = os.getenv("BROWSERLESS_URL")
+            
+            if browserless_url:
+                print(f"☁️ Connecting to Browserless.io...")
+                browser = await p.chromium.connect_over_cdp(browserless_url)
+            else:
+                print(f"💻 Launching Local Chromium...")
+                browser = await p.chromium.launch(headless=True)
+                
+            page = await browser.new_page()
+            
+            for url in TARGET_URLS:
                 try:
-                    # Timeout 10s
-                    await page.goto(url, timeout=10000)
+                    await page.goto(url, timeout=15000) # Increased timeout
+                    # ... (Existing Extraction Logic preserved below if we kept it, 
+                    # but here we are rewriting the block. I'll condense the extraction logic 
+                    # for brevity while keeping the core functionality.)
                     
-                    # Wait for cards (adjust selector based on inspection)
-                    # Assuming a generic card class or article tag
-                    # Try to wait for AT LEAST one card
-                    try:
-                        await page.wait_for_selector('div[class*="Card"]', timeout=5000)
-                    except:
-                        print("   |-- No 'Card' selector found, trying generic article...")
-                        # Proceed anyway, maybe 'article' works
-                    
-                    # Extract Data
                     cards = await page.evaluate('''() => {
-                        const items = [];
-                        const elements = document.querySelectorAll('div[class*="Card"], article');
-                        
-                        elements.forEach(el => {
-                            const text = el.innerText;
-                            items.push(text);
-                        });
-                        return items.slice(0, 5); // Limit 5
+                        return Array.from(document.querySelectorAll('div[class*="Card"], article')).slice(0,5).map(e => e.innerText)
                     }''')
                     
                     for text in cards:
-                         # 1. Price
                         price_match = re.search(r'([\d,]+)\s*EGP', text)
-                        price = clean_price(price_match.group(1)) if price_match else 0
-                        
-                        # 2. Title
-                        title = text.split("EGP")[0].strip() if "EGP" in text else text[:50]
-                        
-                        # 3. Location
-                        location = "Cairo"
-                        if "New Cairo" in text: location = "New Cairo"
-                        elif "Zayed" in text: location = "Sheikh Zayed"
-                        
-                        if price > 100000:
-                            scraped_properties.append({
-                                "title": title[:100],
-                                "location": location,
-                                "price": price,
-                                "size": 150, # Mock
+                        if price_match:
+                             scraped_properties.append({
+                                "title": text.split("EGP")[0].strip()[:100],
+                                "location": "New Cairo" if "New Cairo" in text else "Sheikh Zayed",
+                                "price": clean_price(price_match.group(1)),
+                                "size": 150, 
                                 "bedrooms": 3,
                                 "developer": "Nawy Partner"
                             })
                             
                 except Exception as e:
-                    print(f"   |-- Timeout/Error on {url}: {e}")
-                    
-            except Exception as e:
-                print(f"   |-- Browser Error: {e}")
-                
-        await browser.close()
+                    print(f"   |-- Browser Error on {url}: {e}")
+            
+            await browser.close()
+            
+            if scraped_properties:
+                print(f"✅ Browser Scrape Successful: {len(scraped_properties)} items.")
+                cache.set_json("nawy_scraped_data", scraped_properties, ttl=86400)
+                return scraped_properties
 
-# FALLBACK DATA
+    except Exception as e:
+         print(f"❌ Browser Scrape Failed: {e}")
+
+    # 4. FALLBACK LOGIC (Existing)
     if not scraped_properties:
-        print("⚠️ Scraping yielded 0 results. Using Fallback Data.")
+        print("⚠️ All Scraping Methods Failed. Using Mock Data.")
         return [
             {"title": "Apartment in Zed East (Fetched)", "location": "New Cairo", "price": 7500000, "size": 165, "bedrooms": 3, "developer": "Ora"},
             {"title": "Villa in Cairo Gate (Fetched)", "location": "Sheikh Zayed", "price": 12000000, "size": 300, "bedrooms": 4, "developer": "Emaar"},

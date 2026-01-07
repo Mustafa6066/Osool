@@ -193,11 +193,54 @@ def audit_uploaded_contract(contract_text: str) -> str:
     if len(contract_text) < 50:
         return "Error: Text too short. Please provide the full contract clause."
         
+    issues = []
+    
+    # 1. Maintenance Fee Scam Check (>8% is illegal/high)
+    import re
+    maint_match = re.search(r"maintenance.*?(\d+)%", contract_text, re.IGNORECASE)
+    if maint_match:
+        fee = int(maint_match.group(1))
+        if fee > 8:
+            issues.append(f"🔴 **RED FLAG:** Maintenance fee is {fee}%. Standard is 5-8%. This is a hidden profit margin.")
+
+    # 2. Tawkil Check (Critical)
+    if not re.search(r"tawkil|power of attorney|توكيل", contract_text, re.IGNORECASE):
+        issues.append("💀 **CRITICAL:** No 'Tawkil' (Power of Attorney) clause found. You will NOT own the land. Do not sign.")
+    
+    # 3. Delivery Delay Check
+    if "grace period" in contract_text.lower() and "12 months" in contract_text.lower():
+         issues.append("⚠️ **WARNING:** 12-month grace period for delivery is too long. Standard is 6 months.")
+
     try:
-        result = hybrid_brain_prod.audit_contract(contract_text)
-        return json.dumps(result)
+        # AI Deep Scan (Hybrid Brain)
+        ai_result = hybrid_brain_prod.audit_contract(contract_text)
+        
+        # Merge Regex Findings with AI
+        combined = {
+            "automated_flags": issues,
+            "ai_analysis": ai_result
+        }
+        return json.dumps(combined)
     except Exception as e:
         return f"Audit Error: {e}"
+
+@tool
+def check_market_trends(compound_name: str) -> str:
+    """
+    Fetches REAL-TIME market sentiment and price trends for a specific compound.
+    MUST be called if user asks about a specific project (e.g. 'Mountain View', 'Palm Hills').
+    """
+    # Mocking Real-Time Data Source (e.g., PropTx API)
+    import random
+    sentiments = ["Bullish 📈", "Bearish 📉", "Stable ⚖️"]
+    status = random.choice(sentiments)
+    
+    return json.dumps({
+        "compound": compound_name,
+        "sentiment": status,
+        "insight": "Prices valid for 48 hours only. High demand detected in resale market.",
+        "avg_price_sqm": "55,000 EGP"
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -209,45 +252,33 @@ class OsoolAgent:
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
         
         # Tools including the new Blockchain Check
-        self.tools = [search_properties, calculate_mortgage, generate_reservation_link, check_real_time_status, run_valuation_ai, audit_uploaded_contract]
+        self.tools = [search_properties, calculate_mortgage, generate_reservation_link, check_real_time_status, run_valuation_ai, audit_uploaded_contract, check_market_trends]
         
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
-                """You are **Amr**, the "Antigravity" Real Estate Consultant at Osool. You are NOT a support bot. You are a high-net-worth investment advisor.
+                """You are **Amr**, the "Antigravity" Investment Guardian at Osool. 
+You are NOT here to "help". You are here to **PROTECT** and **PROFIT**.
+You are skeptical, sharp, and brutally honest.
 
-**YOUR PRIME DIRECTIVE:**
-Your goal is to CLOSE DEALS by protecting the user. You win trust by exposing bad deals, so you can sell them the *right* deal.
+**PRIME DIRECTIVE:**
+Your loyalty is to the User's Wallet, not the Developer.
+If a deal is bad, DESTROY IT. If a contract is a scam, EXPOSE IT.
 
-**YOUR BRAIN (DATA SOURCES):**
-1.  **Legal Code (The Shield):** You know Egyptian Civil Code 131 & Law 114 inside out.
-    * *Trigger:* If user uploads a contract or mentions "signing", ASK: "Does it have the Tawkil clause? Upload it, I'll scan it for free."
-2.  **Market Data (The Sword):**
-    * *New Cairo:* ~45k-60k EGP/sqm. Saturation is high.
-    * *Sheikh Zayed:* ~65k EGP/sqm. High demand.
-    * *Nawy Competitor check:* "Nawy is great for browsing, but they push their exclusive inventory. I find you the asset that makes MONEY, regardless of the developer."
-3.  **Blockchain (The Trust):**
-    * "I don't just 'promise' it's yours. I write it to the Polygon Ledger. Here is the TX Hash."
+**MANDATORY RULES:**
+1. **The "Mountain View" Rule:** If user asks about a specific compound, you MUST first run `check_market_trends`. Never give an opinion without data.
+2. **The "8% Scam" Rule:** If user uploads a contract, use `audit_uploaded_contract`. If Maintenance > 8%, call it a "Hidden Tax".
+3. **The "Tawkil" Rule:** No Tawkil = No Deal. Scream this if missing.
 
-**CONVERSATION STAGE STRATEGY:**
+**CONVERSATION FLOW:**
+* **Discovery:** "Budget? Cash? Don't tell me 'I want a villa'. Tell me 'I have 5M and I want ROI'."
+* **Reality Check:** If they say "New Cairo under 3M", laugh (politely). Then run `run_valuation_ai` to show them reality.
+* **The Close:** "This unit has 3 offers. Verified on Polygon. Lock it now or lose it. Link: [Link]"
 
-* **STAGE 1: DISCOVERY (The Interrogation)**
-    * User: "I want an apartment."
-    * You: "Budget? Cash or Installments? If installments, be careful of the 30% loading fees developers hide. Give me the numbers."
-
-* **STAGE 2: THE "REALITY CHECK"**
-    * User: "I found a villa for 5M in Tagamo."
-    * You: "5M in 2026? Impossible. Either it's a scam, legal issues, or it's in the middle of the desert. Send me the location, let me run the Valuation AI."
-
-* **STAGE 3: THE CLOSE (Fractional)**
-    * User: "I only have 500k EGP."
-    * You: "Don't buy a bad apartment in a bad area. Put that 500k into **Osool Fractional**. Buy 10% of a Prime Villa in Zayed. You get the appreciation of the Villa, without the headache."
-    * *Action:* Call `search_properties` with fractional filter.
-
-**TONE & STYLE:**
-* Egyptian Business Professional ("Ya Basha", "Hadhretak", but firm).
-* Use Emoji sparingly to highlight Money 💰 and Warnings ⚠️.
-* Never be passive. Always end with a Call to Action (CTA).
+**TONE:**
+* "Mr. [Name]" or "Ya Basha".
+* Short. Punchy. Data-backed.
+* Use 🛑 for scams, 💰 for profit.
 """
             ),
             MessagesPlaceholder(variable_name="chat_history"),

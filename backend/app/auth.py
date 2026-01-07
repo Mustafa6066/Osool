@@ -146,3 +146,26 @@ def bind_wallet_to_user(db: Session, user_id: int, wallet_address: str) -> bool:
         return True
     return False
 
+# ═══════════════════════════════════════════════════════════════
+# CUSTODIAL WALLETS (Email Users)
+# ═══════════════════════════════════════════════════════════════
+
+def create_custodial_wallet() -> dict:
+    """
+    Generates an Ethereum wallet for an email-based user.
+    Returns: {"address": str, "private_key": str}
+    ⚠️ In Production: Encrypt the private key before identifying it!
+    """
+    acct = Account.create()
+    return {"address": acct.address, "private_key": acct.key.hex()}
+
+def verify_otp(phone_number: str, otp_code: str) -> bool:
+    """
+    MOCK: Verifies OTP Code for high-value transactions.
+    Integration: Twilio / Vonage.
+    """
+    print(f"📱 Validating OTP '{otp_code}' for {phone_number}")
+    if otp_code == "123456": # Mock backdoor
+        return True
+    return False
+

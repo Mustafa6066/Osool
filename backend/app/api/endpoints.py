@@ -24,7 +24,7 @@ from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.sales_agent import sales_agent
 from app.services.paymob_service import paymob_service
 from app.tasks import reserve_property_task
-from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet
+from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet, create_custodial_wallet
 from app.database import get_db
 from app.models import User, Property, Transaction, PaymentApproval
 from sqlalchemy.orm import Session
@@ -48,8 +48,8 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 async def verify_api_key(api_key: str = Depends(api_key_header)):
     """Protects Admin/Ingest endpoints."""
     # In production, use a secure env var. For now, hardcoded or env.
-    ADMIN_KEY = os.getenv("ADMIN_API_KEY", "osool_admin_secret_123")
-    if api_key != ADMIN_KEY:
+    ADMIN_KEY = os.getenv("ADMIN_API_KEY") # REMOVED HARDCODED BACKDOOR
+    if not ADMIN_KEY or api_key != ADMIN_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return api_key
 
@@ -151,11 +151,16 @@ def signup(email: str, password: str, full_name: str, db: Session = Depends(get_
     user = db.query(User).filter(User.email == email).first()
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
-        
+
+    # 1. Generate Custodial Wallet (Bridge to Web3)
+    wallet = create_custodial_wallet()
+    
+    # 2. Create User
     new_user = User(
         email=email,
         full_name=full_name,
         password_hash=get_password_hash(password),
+        wallet_address=wallet["address"], # Assigned Custodial Wallet
         is_verified=True 
     )
     
@@ -163,7 +168,10 @@ def signup(email: str, password: str, full_name: str, db: Session = Depends(get_
     db.commit()
     db.refresh(new_user)
     
-    return {"status": "user_created", "email": email, "id": new_user.id}
+    # In real world: Send email with Private Key (Securely) or store in Vault
+    print(f"🔐 Custodial Wallet Created for {email}: {wallet['address']}")
+    
+    return {"status": "user_created", "email": email, "id": new_user.id, "wallet": wallet["address"]}
 
 @router.post("/auth/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
