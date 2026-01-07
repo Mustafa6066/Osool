@@ -138,6 +138,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
     mapping(address => uint256) public referralRewards;
     mapping(address => address) public referredBy;
     mapping(address => uint256[]) public userPropertyHistory;
+    mapping(address => bool) public kycVerified; // KYC Status
     
     uint256 public escrowCounter;
     uint256 public totalValueLocked;
@@ -155,6 +156,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
     event ReferralRewarded(address referrer, address referee, uint256 reward);
     event PropertyTokenized(uint256 propertyId, string metadataURI);
     event FractionalShareMinted(uint256 propertyId, address investor, uint256 amount);
+    event UserKYCVerified(address indexed user, bool status);
     
     constructor(address _eptToken, address _membershipNFT, address _fractionalToken) {
         eptToken = ElitePropertyToken(_eptToken);
@@ -173,6 +175,11 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
 
     function emergencyPause() external onlyOwner {
         paused = !paused;
+    }
+
+    modifier onlyKYC() {
+        require(kycVerified[msg.sender], "KYC Verification Required");
+        _;
     }
     
     // ==================== FRACTIONAL INVESTING ====================
@@ -209,7 +216,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
         return escrowId;
     }
     
-    function fundEscrow(uint256 _escrowId) external payable nonReentrant whenNotPaused {
+    function fundEscrow(uint256 _escrowId) external payable nonReentrant whenNotPaused onlyKYC {
         PropertyEscrow storage escrow = escrows[_escrowId];
         require(msg.sender == escrow.buyer, "Only buyer can fund");
         require(escrow.status == EscrowStatus.CREATED, "Invalid status");
@@ -258,7 +265,7 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
     
     // ==================== SUBSCRIPTION FUNCTIONS ====================
     
-    function purchaseSubscription(uint256 _tier, address _referrer) external whenNotPaused {
+    function purchaseSubscription(uint256 _tier, address _referrer) external whenNotPaused onlyKYC {
         require(_tier < 3, "Invalid tier");
         require(eptToken.balanceOf(msg.sender) >= subscriptionPrices[_tier], "Insufficient EPT");
         
@@ -344,7 +351,8 @@ contract ElitePropertyPlatform is Ownable, ReentrancyGuard {
         payable(owner()).transfer(balance);
     }
     
-    function emergencyPause() external onlyOwner {
-        paused = !paused;
+    function setKYCStatus(address _user, bool _status) external onlyOwner {
+        kycVerified[_user] = _status;
+        emit UserKYCVerified(_user, _status);
     }
 }

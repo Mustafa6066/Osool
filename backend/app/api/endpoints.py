@@ -36,6 +36,23 @@ from slowapi.util import get_remote_address
 router = APIRouter(prefix="/api", tags=["Osool API"])
 limiter = Limiter(key_func=get_remote_address)
 
+# ---------------------------------------------------------------------------
+# SECURITY DEPENDENCIES
+# ---------------------------------------------------------------------------
+from fastapi.security import APIKeyHeader
+import os
+
+API_KEY_NAME = "X-Admin-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def verify_api_key(api_key: str = Depends(api_key_header)):
+    """Protects Admin/Ingest endpoints."""
+    # In production, use a secure env var. For now, hardcoded or env.
+    ADMIN_KEY = os.getenv("ADMIN_API_KEY", "osool_admin_secret_123")
+    if api_key != ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return api_key
+
 
 # ═══════════════════════════════════════════════════════════════
 # REQUEST MODELS
@@ -99,6 +116,23 @@ class PaymentInitiateRequest(BaseModel):
     last_name: str
     phone_number: str
     email: str
+    property_id: int # Critical for fractional mapping
+
+# ---------------------------------------------------------------------------
+# SECURITY DEPENDENCIES
+# ---------------------------------------------------------------------------
+from fastapi.security import APIKeyHeader
+
+API_KEY_NAME = "X-Admin-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def verify_api_key(api_key: str = Depends(api_key_header)):
+    """Protects Admin/Ingest endpoints."""
+    # In production, use a secure env var. For now, hardcoded or env.
+    ADMIN_KEY = os.getenv("ADMIN_API_KEY", "osool_admin_secret_123")
+    if api_key != ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return api_key
 
 class ChatRequest(BaseModel):
     """Request model for AI chat."""
@@ -418,6 +452,13 @@ def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: User = De
     if not current_user.phone_number:
          raise HTTPException(status_code=403, detail="Verified phone number required for payments.")
          
+    # 1.5 AVAILABILITY CHECK
+    property = db.query(Property).filter(Property.id == req.property_id).first()
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+    if not property.is_available:
+        raise HTTPException(status_code=400, detail="Property is NOT available associated with this payment request.")
+
     # 2. Initiate Paymob
     result = paymob_service.initiate_payment(
         amount_egp=req.amount_egp,
@@ -430,14 +471,24 @@ def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: User = De
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
         
-    # 2. Store Transaction for internal tracking
-    # We don't have Property ID here in this request model? 
-    # Assuming this endpoint is general or we need to update request model.
-    # For now, we trust paymob result returns order_id.
-    
-    # TODO: Save to Transaction table:
-    # new_tx = Transaction(user_id=current_user.id, amount=req.amount_egp, paymob_order_id=result["order_id"])
-    # db.add(new_tx); db.commit()
+    # 3. Store Transaction for internal tracking
+    # CRITICAL: Webhook needs this to link Order ID -> User/Property
+    try:
+        new_tx = Transaction(
+            user_id=current_user.id, 
+            property_id=req.property_id,
+            amount=req.amount_egp, 
+            paymob_order_id=str(result.get("order_id")),
+            status="pending"
+        )
+        db.add(new_tx)
+        db.commit()
+    except Exception as e:
+        print(f"❌ Failed to save transaction: {e}")
+        # We proceed but warn. In strict mode, maybe fail?
+        # If we fail here, user paid but we don't know.
+        # Ideally transaction is created BEFORE paymob, then updated with order_id.
+        # But for now, we do this.
     
     return result
 
@@ -826,3 +877,25 @@ def production_audit(req: ContractAnalysisRequest):
     
     return result
 
+
+# ═══════════════════════════════════════════════════════════════
+# ADMIN & INGESTION (Protected)
+# ---------------------------------------------------------------------------
+
+@router.post("/ingest")
+def trigger_ingestion(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):
+    """
+    Manually triggers the Nawy Scraper.
+    Protected by X-Admin-Key.
+    """
+    from app.services.nawy_scraper import ingest_nawy_data
+    background_tasks.add_task(ingest_nawy_data)
+    return {"status": "Ingestion started in background"}
+
+@router.post("/admin/withdraw-fees")
+def admin_withdraw_fees(api_key: str = Depends(verify_api_key)):
+    """
+    Admin: Withdraws platform fees from Smart Contract.
+    """
+    # Logic to call blockchain_service.withdraw_fees() would go here
+    return {"status": "Not implemented yet"}

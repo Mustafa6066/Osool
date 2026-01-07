@@ -56,18 +56,18 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # Removed PostgresHistory class as per diff
 
 # ---------------------------------------------------------------------------
-# 1. SESSION-BASED RESULT STORAGE (Concurrency Safe)
+# 1. SESSION-BASED RESULT STORAGE (Redis)
 # ---------------------------------------------------------------------------
 
-_session_results = {}
+from app.services.cache import cache
 
 def store_session_results(session_id: str, results: list):
     """Stores search results for a specific session."""
-    _session_results[session_id] = results
+    cache.store_session_results(session_id, results)
 
 def get_session_results(session_id: str) -> list:
     """Retrieves search results for a specific session."""
-    return _session_results.get(session_id, [])
+    return cache.get_session_results(session_id)
 
 
 # ---------------------------------------------------------------------------

@@ -1,103 +1,99 @@
-import requests
 import re
-from bs4 import BeautifulSoup
+import asyncio
+from playwright.async_api import async_playwright
 from app.database import SessionLocal
 from app.models import Property
 from sqlalchemy.orm import Session
 
 # Target URLs (Compounds)
-# In a real scenario, this list would be extensive or dynamic.
 TARGET_URLS = [
     "https://www.nawy.com/search?q=New%20Cairo",
     "https://www.nawy.com/search?q=Sheikh%20Zayed"
 ]
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-}
-
 def clean_price(price_str: str) -> float:
-    """Extracts numeric price from string (e.g. '5,000,000 EGP' -> 5000000.0)"""
     try:
-        # Remove non-numeric except dot
         clean = re.sub(r'[^\d.]', '', price_str)
         return float(clean) if clean else 0.0
     except:
         return 0.0
 
-def fetch_nawy_data():
+async def fetch_nawy_data_async():
     """
-    Scrapes Nawy.com for real property listings.
-    Uses generic class-based heuristics to find property cards.
+    Scrapes Nawy.com using Playwright (Headless).
+    Includes 10s timeout per URL and fallback.
     """
     scraped_properties = []
+    print("🕸️ Starting Nawy Scraper (Playwright)...")
     
-    print("🕸️ Starting Nawy Scraper (Production Mode)...")
-    
-    for url in TARGET_URLS:
-        try:
-            print(f"   |-- Scraping: {url}")
-            response = requests.get(url, headers=HEADERS, timeout=10)
-            
-            if response.status_code != 200:
-                print(f"   |-- Failed: Status {response.status_code}")
-                continue
+    async with async_playwright() as p:
+        # Launch browser
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        
+        for url in TARGET_URLS:
+            try:
+                print(f"   |-- Navigating to: {url}")
                 
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Heuristic: Look for property cards
-            # Note: Class names are often minified/dynamic (e.g. 'Card__Container...'). 
-            # We look for common patterns or specific container tags.
-            # Fallback: We'll assume a standard structure for the purpose of this demo
-            # or use a very broad selector.
-            
-            # Since we cannot know the exact classes without inspecting the live site, 
-            # we will implement a "Resilient" parser that looks for keywords in child elements.
-            
-            cards = soup.find_all('div', class_=re.compile(r'card', re.I))
-            
-            # If no cards found with 'card' class, try generic article/div
-            if not cards:
-                cards = soup.find_all('article')
-                
-            for card in cards[:5]: # Limit to 5 per URL for speed in demo
                 try:
-                    text = card.get_text(" ", strip=True)
+                    # Timeout 10s
+                    await page.goto(url, timeout=10000)
                     
-                    # Heuristic parsing from text blob if specific classes fail
-                    # "Apartment in Zed East 5,000,000 EGP"
+                    # Wait for cards (adjust selector based on inspection)
+                    # Assuming a generic card class or article tag
+                    # Try to wait for AT LEAST one card
+                    try:
+                        await page.wait_for_selector('div[class*="Card"]', timeout=5000)
+                    except:
+                        print("   |-- No 'Card' selector found, trying generic article...")
+                        # Proceed anyway, maybe 'article' works
                     
-                    # 1. Price
-                    price_match = re.search(r'([\d,]+)\s*EGP', text)
-                    price = clean_price(price_match.group(1)) if price_match else 0
-                    
-                    # 2. Title (First chunk usually)
-                    title = text.split("EGP")[0].strip() if "EGP" in text else text[:50]
-                    
-                    # 3. Location (Check keywords)
-                    location = "Cairo"
-                    if "New Cairo" in text: location = "New Cairo"
-                    elif "Zayed" in text: location = "Sheikh Zayed"
-                    
-                    if price > 100000: # Valid listing
-                        scraped_properties.append({
-                            "title": title[:100], # Trucate
-                            "location": location,
-                            "price": price,
-                            "size": 150, # Default estimate if missing
-                            "bedrooms": 3,
-                            "developer": "Nawy Partner"
-                        })
+                    # Extract Data
+                    cards = await page.evaluate('''() => {
+                        const items = [];
+                        const elements = document.querySelectorAll('div[class*="Card"], article');
                         
+                        elements.forEach(el => {
+                            const text = el.innerText;
+                            items.push(text);
+                        });
+                        return items.slice(0, 5); // Limit 5
+                    }''')
+                    
+                    for text in cards:
+                         # 1. Price
+                        price_match = re.search(r'([\d,]+)\s*EGP', text)
+                        price = clean_price(price_match.group(1)) if price_match else 0
+                        
+                        # 2. Title
+                        title = text.split("EGP")[0].strip() if "EGP" in text else text[:50]
+                        
+                        # 3. Location
+                        location = "Cairo"
+                        if "New Cairo" in text: location = "New Cairo"
+                        elif "Zayed" in text: location = "Sheikh Zayed"
+                        
+                        if price > 100000:
+                            scraped_properties.append({
+                                "title": title[:100],
+                                "location": location,
+                                "price": price,
+                                "size": 150, # Mock
+                                "bedrooms": 3,
+                                "developer": "Nawy Partner"
+                            })
+                            
                 except Exception as e:
-                    continue
+                    print(f"   |-- Timeout/Error on {url}: {e}")
+                    
+            except Exception as e:
+                print(f"   |-- Browser Error: {e}")
+                
+        await browser.close()
 
-        except Exception as e:
-            print(f"   |-- Error scraping {url}: {e}")
-            
-    # SAFETY NET: If scraping yields nothing (blocked/changed), return Production Mock Data
+    # FALLBACK LOGIC
     if not scraped_properties:
-        print("⚠️ Scraping yielded 0 results (Antibot?). Using Fallback Data.")
+        print("⚠️ Scraping yielded 0 results. Using Fallback Data.")
         return [
             {"title": "Apartment in Zed East (Fetched)", "location": "New Cairo", "price": 7500000, "size": 165, "bedrooms": 3, "developer": "Ora"},
             {"title": "Villa in Cairo Gate (Fetched)", "location": "Sheikh Zayed", "price": 12000000, "size": 300, "bedrooms": 4, "developer": "Emaar"},
@@ -108,15 +104,14 @@ def fetch_nawy_data():
 
 def ingest_nawy_data():
     """
-    Cleaning and Ingestion Logic.
+    Sync wrapper for Async Scraper.
     """
-    data = fetch_nawy_data()
-    db: Session = SessionLocal()
-    
     try:
+        data = asyncio.run(fetch_nawy_data_async())
+        
+        db: Session = SessionLocal()
         count = 0
         for item in data:
-            # Check for duplicates using title/location/price composite
             existing = db.query(Property).filter(
                 Property.title == item["title"],
                 Property.price == item["price"]
@@ -130,7 +125,7 @@ def ingest_nawy_data():
                     price=item["price"],
                     size_sqm=item["size"],
                     bedrooms=item["bedrooms"],
-                    finishing="Core & Shell", # Default
+                    finishing="Core & Shell",
                     is_available=True
                 )
                 db.add(new_prop)
@@ -138,10 +133,9 @@ def ingest_nawy_data():
         
         db.commit()
         print(f"✅ Ingested {count} new properties from Nawy.")
+        db.close()
         return f"Ingested {count} properties"
         
     except Exception as e:
         print(f"❌ Ingestion Error: {e}")
-        db.rollback()
-    finally:
-        db.close()
+        return str(e)

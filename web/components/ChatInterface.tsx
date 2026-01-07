@@ -2,10 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Send, User, Bot, Sparkles } from "lucide-react";
+import PropertyCard from "./PropertyCard";
 
 type Message = {
     role: "user" | "assistant";
     content: string;
+    properties?: any[];
 };
 
 export default function ChatInterface() {
@@ -17,7 +19,22 @@ export default function ChatInterface() {
     ]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [sessionId, setSessionId] = useState<string>("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        // Generate Session ID on mount
+        if (typeof window !== "undefined") {
+            const existing = sessionStorage.getItem("osool_chat_session");
+            if (existing) {
+                setSessionId(existing);
+            } else {
+                const newId = crypto.randomUUID();
+                sessionStorage.setItem("osool_chat_session", newId);
+                setSessionId(newId);
+            }
+        }
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -36,19 +53,29 @@ export default function ChatInterface() {
         setIsLoading(true);
 
         try {
+            const token = localStorage.getItem("osool_jwt");
+
             // Direct call to Backend API
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    ...(token ? { "Authorization": `Bearer ${token}` } : {})
                 },
-                body: JSON.stringify({ text: userMessage }),
+                body: JSON.stringify({
+                    message: userMessage,  // CHANGED: 'text' -> 'message' to match backend model
+                    session_id: sessionId  // Added Session ID
+                }),
             });
 
             const data = await response.json();
 
             if (data.response) {
-                setMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
+                setMessages((prev) => [...prev, {
+                    role: "assistant",
+                    content: data.response,
+                    properties: data.properties // Store properties
+                }]);
             } else if (data.error) {
                 setMessages((prev) => [...prev, { role: "assistant", content: "⚠️ System Error: " + data.error }]);
             }
@@ -79,7 +106,7 @@ export default function ChatInterface() {
                     <h3 className="text-white font-bold text-lg flex items-center gap-2">
                         Amr <span className="text-xs font-normal text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">Online</span>
                     </h3>
-                    <p className="text-gray-400 text-xs">Senior Consultant @ Osool</p>
+                    <p className="text-gray-400 text-xs">Senior Consultant @ Osool {sessionId.slice(0, 4)}</p>
                 </div>
             </div>
 
@@ -98,13 +125,24 @@ export default function ChatInterface() {
                             {msg.role === "user" ? <User size={16} /> : <Sparkles size={16} />}
                         </div>
 
-                        <div
-                            className={`max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed ${msg.role === "user"
-                                ? "bg-purple-600 text-white rounded-tr-none shadow-lg shadow-purple-900/20"
-                                : "bg-[#1e293b] text-gray-100 rounded-tl-none border border-white/5 shadow-lg"
-                                }`}
-                        >
-                            <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') }} />
+                        <div className="flex flex-col max-w-[80%]">
+                            <div
+                                className={`rounded-2xl p-4 text-sm leading-relaxed ${msg.role === "user"
+                                    ? "bg-purple-600 text-white rounded-tr-none shadow-lg shadow-purple-900/20"
+                                    : "bg-[#1e293b] text-gray-100 rounded-tl-none border border-white/5 shadow-lg"
+                                    }`}
+                            >
+                                <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') }} />
+                            </div>
+
+                            {/* Property Cards */}
+                            {msg.properties && msg.properties.length > 0 && (
+                                <div className="mt-2 space-y-2">
+                                    {msg.properties.map((prop: any, pIdx: number) => (
+                                        <PropertyCard key={pIdx} property={prop} />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
