@@ -2,9 +2,13 @@
 Osool Authentication Module
 ---------------------------
 Handles JWT generation, password hashing, and Web3 Wallet Verification (SIWE).
+Phase 2: Enhanced with Google OAuth, Email Verification, Password Reset.
+Phase 4: Security hardening - no hardcoded fallbacks.
 """
 
 import os
+import httpx
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -18,10 +22,15 @@ from fastapi.security import OAuth2PasswordBearer
 from app.database import get_db
 from app.models import User
 
-# Configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecretkey")
+logger = logging.getLogger(__name__)
+
+# Configuration - Phase 4: No fallback secrets (will raise error if not set)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("JWT_SECRET_KEY environment variable must be set")
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 43200 # 30 Days
+ACCESS_TOKEN_EXPIRE_MINUTES = 43200  # 30 Days
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -159,13 +168,92 @@ def create_custodial_wallet() -> dict:
     acct = Account.create()
     return {"address": acct.address, "private_key": acct.key.hex()}
 
-def verify_otp(phone_number: str, otp_code: str) -> bool:
+# ═══════════════════════════════════════════════════════════════
+# GOOGLE OAUTH (Phase 2)
+# ═══════════════════════════════════════════════════════════════
+
+async def verify_google_token(id_token: str) -> dict:
     """
-    MOCK: Verifies OTP Code for high-value transactions.
-    Integration: Twilio / Vonage.
+    Verify Google ID token and extract user info.
+
+    Args:
+        id_token: Google ID token from OAuth flow
+
+    Returns:
+        Dictionary with user info: {email, name, picture}
+
+    Raises:
+        HTTPException if token is invalid
     """
-    print(f"📱 Validating OTP '{otp_code}' for {phone_number}")
-    if otp_code == "123456": # Mock backdoor
-        return True
-    return False
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
+            )
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid Google token"
+                )
+
+            user_info = response.json()
+
+            # Verify token is for our app (if GOOGLE_CLIENT_ID is set)
+            expected_client_id = os.getenv('GOOGLE_CLIENT_ID')
+            if expected_client_id and user_info.get('aud') != expected_client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Token not issued for this application"
+                )
+
+            return {
+                'email': user_info.get('email'),
+                'name': user_info.get('name', 'Google User'),
+                'picture': user_info.get('picture'),
+                'email_verified': user_info.get('email_verified', False)
+            }
+
+    except httpx.RequestError as e:
+        logger.error(f"Google token verification failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not verify Google token"
+        )
+
+
+def get_or_create_user_by_email(db: Session, email: str, full_name: str) -> User:
+    """
+    Get existing user by email or create new one.
+    Used for Google OAuth and email signup.
+
+    Args:
+        db: Database session
+        email: User email address
+        full_name: User's full name
+
+    Returns:
+        User object
+    """
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        # Create custodial wallet for email users
+        wallet = create_custodial_wallet()
+
+        user = User(
+            email=email,
+            full_name=full_name,
+            wallet_address=wallet['address'],
+            email_verified=True,  # Google/OAuth users are pre-verified
+            is_verified=True,
+            role='investor'
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        logger.info(f"✅ Created new user via email: {email}")
+
+    return user
 

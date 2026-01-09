@@ -13,9 +13,31 @@ Features:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import os
 
 # Load environment variables
 load_dotenv()
+
+# Phase 5: Sentry Integration for Error Tracking
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            FastApiIntegration(),
+            SqlalchemyIntegration(),
+        ],
+        traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
+        environment=os.getenv("ENVIRONMENT", "development"),
+        release=f"osool-backend@{os.getenv('APP_VERSION', '1.0.0')}",
+    )
+    print("✅ Sentry error tracking enabled")
+else:
+    print("⚠️ Sentry DSN not configured - error tracking disabled")
 
 # Import routers
 from app.api.endpoints import router as api_router
@@ -93,9 +115,16 @@ from fastapi.responses import JSONResponse
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """
-    Catches all 500 errors to prevent raw stack traces leaking to user.
+    Phase 5: Catches all 500 errors to prevent raw stack traces leaking to user.
+    Logs to Sentry for monitoring.
     """
-    print(f"❌ [CRITICAL] 500 ERROR: {exc}") # Internal Log
+    print(f"❌ [CRITICAL] 500 ERROR: {exc}")  # Internal Log
+
+    # Phase 5: Send to Sentry if configured
+    if SENTRY_DSN:
+        import sentry_sdk
+        sentry_sdk.capture_exception(exc)
+
     return JSONResponse(
         status_code=500,
         content={"error": "Osool System Busy - Our agents are notified."},

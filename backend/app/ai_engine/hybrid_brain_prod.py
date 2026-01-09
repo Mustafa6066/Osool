@@ -128,29 +128,46 @@ class OsoolHybridBrainProd:
         """
 
         try:
-            response = self.openai_client.chat.completions.create(
-                model=GPT_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.3
-            )
-            result = json.loads(response.choices[0].message.content)
-            
+            from app.services.circuit_breaker import openai_breaker
+            from app.services.cost_monitor import cost_monitor
+
+            # Phase 4: Wrap OpenAI call with circuit breaker
+            def _gpt_valuation():
+                response = self.openai_client.chat.completions.create(
+                    model=GPT_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.3
+                )
+
+                # Phase 4: Track cost
+                usage = response.usage
+                cost_monitor.log_usage(
+                    model="gpt-4o",
+                    input_tokens=usage.prompt_tokens,
+                    output_tokens=usage.completion_tokens,
+                    context="valuation"
+                )
+
+                return json.loads(response.choices[0].message.content)
+
+            result = openai_breaker.call(_gpt_valuation)
+
             # Ensure the XGBoost price is the final source of truth if available
             if predicted_price > 0:
                 result["predicted_price"] = predicted_price
                 result["source"] = "XGBoost (MLOps) + GPT-4o Hybrid"
             else:
                 result["source"] = "GPT-4o Estimation (MLOps Offline)"
-            
+
             # Cache the result
             self._cache[cache_key] = result
-            
+
             return result
-            
+
         except Exception as e:
             return {
                 "predicted_price": predicted_price,
@@ -190,17 +207,34 @@ class OsoolHybridBrainProd:
         """
 
         try:
-            response = self.openai_client.chat.completions.create(
-                model=GPT_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Analyze this contract:\n\n{contract_text[:15000]}"}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.1
-            )
-            return json.loads(response.choices[0].message.content)
-            
+            from app.services.circuit_breaker import openai_breaker
+            from app.services.cost_monitor import cost_monitor
+
+            # Phase 4: Wrap OpenAI call with circuit breaker
+            def _gpt_audit():
+                response = self.openai_client.chat.completions.create(
+                    model=GPT_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Analyze this contract:\n\n{contract_text[:15000]}"}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.1
+                )
+
+                # Phase 4: Track cost
+                usage = response.usage
+                cost_monitor.log_usage(
+                    model="gpt-4o",
+                    input_tokens=usage.prompt_tokens,
+                    output_tokens=usage.completion_tokens,
+                    context="contract_audit"
+                )
+
+                return json.loads(response.choices[0].message.content)
+
+            return openai_breaker.call(_gpt_audit)
+
         except Exception as e:
             return {
                 "error": f"Legal analysis failed: {str(e)}",

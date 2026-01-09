@@ -12,6 +12,7 @@ Payment Flow:
 """
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -127,9 +128,16 @@ API_KEY_NAME = "X-Admin-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 async def verify_api_key(api_key: str = Depends(api_key_header)):
-    """Protects Admin/Ingest endpoints."""
-    # In production, use a secure env var. For now, hardcoded or env.
-    ADMIN_KEY = os.getenv("ADMIN_API_KEY", "osool_admin_secret_123")
+    """
+    Phase 4: Protects Admin/Ingest endpoints with secure API key validation.
+    CRITICAL: No hardcoded fallback - fails fast if not configured.
+    """
+    ADMIN_KEY = os.getenv("ADMIN_API_KEY")
+    if not ADMIN_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="ADMIN_API_KEY environment variable not configured. Server misconfiguration."
+        )
     if api_key != ADMIN_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return api_key
@@ -283,13 +291,101 @@ def update_profile(req: ProfileUpdateRequest, current_user: User = Depends(get_c
     }
 
 @router.get("/health")
-def health_check():
-    """Check API and blockchain connection health"""
-    return {
+async def health_check(db: AsyncSession = Depends(get_db)):
+    """
+    Phase 5: Comprehensive health check for all services.
+
+    Checks:
+    - Database connectivity
+    - Redis cache
+    - Blockchain connection
+    - OpenAI API
+
+    Returns:
+    - status: "healthy" | "degraded" | "unhealthy"
+    - Individual service statuses
+    """
+    import time
+    start_time = time.time()
+
+    health_status = {
         "status": "healthy",
-        "blockchain_connected": blockchain_service.is_connected(),
-        "service": "Osool Registry API"
+        "timestamp": time.time(),
+        "service": "Osool Registry API",
+        "checks": {}
     }
+
+    # 1. Database Check
+    try:
+        from sqlalchemy import text
+        await db.execute(text("SELECT 1"))
+        health_status["checks"]["database"] = {"status": "healthy", "message": "Connected"}
+    except Exception as e:
+        health_status["checks"]["database"] = {"status": "unhealthy", "error": str(e)}
+        health_status["status"] = "unhealthy"
+
+    # 2. Redis Cache Check
+    try:
+        from app.services.cache import cache
+        cache.redis.ping()
+        health_status["checks"]["redis"] = {"status": "healthy", "message": "Connected"}
+    except Exception as e:
+        health_status["checks"]["redis"] = {"status": "degraded", "error": str(e)}
+        if health_status["status"] == "healthy":
+            health_status["status"] = "degraded"
+
+    # 3. Blockchain Check
+    try:
+        is_connected = blockchain_service.is_connected()
+        health_status["checks"]["blockchain"] = {
+            "status": "healthy" if is_connected else "degraded",
+            "connected": is_connected
+        }
+        if not is_connected and health_status["status"] == "healthy":
+            health_status["status"] = "degraded"
+    except Exception as e:
+        health_status["checks"]["blockchain"] = {"status": "degraded", "error": str(e)}
+        if health_status["status"] == "healthy":
+            health_status["status"] = "degraded"
+
+    # 4. OpenAI API Check (lightweight test)
+    try:
+        from app.services.circuit_breaker import openai_breaker
+        # Check circuit breaker state
+        breaker_status = openai_breaker.state.value
+        health_status["checks"]["openai"] = {
+            "status": "healthy" if breaker_status == "closed" else "degraded",
+            "circuit_breaker": breaker_status
+        }
+        if breaker_status == "open":
+            health_status["status"] = "degraded"
+    except Exception as e:
+        health_status["checks"]["openai"] = {"status": "degraded", "error": str(e)}
+        if health_status["status"] == "healthy":
+            health_status["status"] = "degraded"
+
+    # Response time
+    health_status["response_time_ms"] = round((time.time() - start_time) * 1000, 2)
+
+    # Set HTTP status code based on health
+    status_code = 200 if health_status["status"] == "healthy" else 503
+
+    return JSONResponse(content=health_status, status_code=status_code)
+
+
+@router.get("/metrics")
+def prometheus_metrics():
+    """
+    Phase 5: Prometheus metrics endpoint for monitoring.
+
+    Exposes metrics in Prometheus format for:
+    - API requests and latency
+    - OpenAI usage and costs
+    - Circuit breaker states
+    - Business metrics (searches, reservations)
+    """
+    from app.services.metrics import metrics_endpoint
+    return metrics_endpoint()
 
 
 @router.get("/property/{property_id}")
@@ -685,32 +781,74 @@ def compare_price(req: PriceComparisonRequest):
 
 @router.post("/chat")
 @limiter.limit("20/minute")
-def chat_with_agent(req: ChatRequest, request: Request):
+async def chat_with_agent(req: ChatRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
-    💬 Main AI Chat Endpoint
-    
-    Sends user message to the Wolf AI Agent.
+    💬 Main AI Chat Endpoint (Phase 3: With Chat History Persistence)
+
+    Sends user message to the Wolf AI Agent with conversation memory.
+    Saves chat history to database for cross-session continuity.
+
     Returns:
     - response: AI text response
     - properties: JSON array of property objects found during search
-    
+
     Frontend can render property cards from the `properties` array.
     """
     from app.ai_engine.sales_agent import sales_agent, get_last_search_results
-    
+    from app.models import ChatMessage
+    from sqlalchemy import select
+    import json
+
     try:
-        # Get AI response
-        response_text = sales_agent.chat(req.message, req.session_id)
-        
-        # Get properties searched in THIS session (concurrency safe)
+        # Phase 3: Load last 20 messages from database for this session
+        chat_history = []
+        result = await db.execute(
+            select(ChatMessage)
+            .filter(ChatMessage.session_id == req.session_id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(20)
+        )
+        messages = result.scalars().all()
+
+        # Convert to LangChain message format (reverse chronological order)
+        for msg in reversed(messages):
+            if msg.role == "user":
+                from langchain_core.messages import HumanMessage
+                chat_history.append(HumanMessage(content=msg.content))
+            elif msg.role == "assistant":
+                from langchain_core.messages import AIMessage
+                chat_history.append(AIMessage(content=msg.content))
+
+        # Save user message to database
+        user_message = ChatMessage(
+            session_id=req.session_id,
+            role="user",
+            content=req.message
+        )
+        db.add(user_message)
+        await db.commit()
+
+        # Get AI response (with history)
+        response_text = sales_agent.chat(req.message, req.session_id, chat_history)
+
+        # Save AI response to database
         search_results = get_last_search_results(req.session_id)
-        
+        ai_message = ChatMessage(
+            session_id=req.session_id,
+            role="assistant",
+            content=response_text,
+            properties_json=json.dumps(search_results) if search_results else None
+        )
+        db.add(ai_message)
+        await db.commit()
+
         return {
             "response": response_text,
             "properties": search_results,
             "session_id": req.session_id
         }
     except Exception as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
 

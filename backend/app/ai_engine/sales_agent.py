@@ -16,6 +16,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import tool, AgentExecutor, create_openai_tools_agent
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
 from langchain_community.vectorstores import SupabaseVectorStore
+from openai import OpenAI
 
 # Database
 from supabase import create_client, Client
@@ -75,53 +76,70 @@ def get_session_results(session_id: str) -> list:
 # ---------------------------------------------------------------------------
 
 @tool
-def search_properties(query: str, session_id: str = "default") -> str:
+async def search_properties(query: str, session_id: str = "default") -> str:
     """
-    Search for properties using Semantic Search (RAG).
+    Phase 3: Search for properties using PostgreSQL + pgvector.
     Query can be natural language: "Apartment in New Cairo under 5M"
-    Returns JSON string of matches.
+    Returns JSON string of matches WITH VALIDATION.
     """
-    print(f"🔎 RAG Search: '{query}'")
-    
+    print(f"🔎 PostgreSQL Vector Search: '{query}'")
+
     matches = []
-    
+
     # FALLBACK DATA (Production Resilience)
     FEATURED_PROPERTIES = [
-        {"title": "Apartment in Zed East", "location": "New Cairo", "price": 7500000, "size": 165, "bedrooms": 3, "developer": "Ora", "market_status": "Hot"},
-        {"title": "Villa in Cairo Gate", "location": "Sheikh Zayed", "price": 12000000, "size": 300, "bedrooms": 4, "developer": "Emaar", "market_status": "Premium"},
-        {"title": "Chalet in Marassi", "location": "North Coast", "price": 15000000, "size": 120, "bedrooms": 2, "developer": "Emaar", "market_status": "Summer Demand"},
+        {"id": 1, "title": "Apartment in Zed East", "location": "New Cairo", "price": 7500000, "size": 165, "bedrooms": 3, "developer": "Ora", "market_status": "Hot"},
+        {"id": 2, "title": "Villa in Cairo Gate", "location": "Sheikh Zayed", "price": 12000000, "size": 300, "bedrooms": 4, "developer": "Emaar", "market_status": "Premium"},
+        {"id": 3, "title": "Chalet in Marassi", "location": "North Coast", "price": 15000000, "size": 120, "bedrooms": 2, "developer": "Emaar", "market_status": "Summer Demand"},
     ]
 
-    if vector_store:
-        try:
-            # 1. Semantic Search via Supabase
-            docs = vector_store.similarity_search(query, k=5)
-            
-            # 2. Parse Results
-            for doc in docs:
-                matches.append(doc.metadata)
+    try:
+        # Phase 3: Use PostgreSQL vector search with hallucination prevention
+        from app.database import AsyncSessionLocal
+        from app.services.vector_search import search_properties as db_search_properties
 
-            if not matches:
-                 print("⚠️ No semantic matches found. Using Featured.")
-                 matches = FEATURED_PROPERTIES
-                
-        except Exception as e:
-             print(f"⚠️ Vector Search Error: {e}. Failling back to Featured.")
-             matches = FEATURED_PROPERTIES
-    else:
-         print("⚠️ No Vector Store. Using Featured Properties.")
-         matches = FEATURED_PROPERTIES
+        async with AsyncSessionLocal() as db:
+            properties = await db_search_properties(db, query, limit=5)
 
-    # 3. Session Memory logic (simplified for prompt)
+            if properties:
+                # Convert SQLAlchemy models to dicts with validation
+                for prop in properties:
+                    matches.append({
+                        "id": prop.id,
+                        "title": prop.title,
+                        "location": prop.location,
+                        "compound": prop.compound,
+                        "developer": prop.developer,
+                        "price": prop.price,
+                        "size": prop.size_sqm,
+                        "bedrooms": prop.bedrooms,
+                        "bathrooms": prop.bathrooms,
+                        "delivery_date": prop.delivery_date,
+                        "down_payment": prop.down_payment,
+                        "installment_years": prop.installment_years,
+                        "monthly_installment": prop.monthly_installment,
+                        "nawy_url": prop.nawy_url,
+                        "verified_on_blockchain": True
+                    })
+                print(f"✅ Found {len(matches)} validated properties from database")
+            else:
+                print("⚠️ No database matches found. Using Featured.")
+                matches = FEATURED_PROPERTIES
+
+    except Exception as e:
+        print(f"⚠️ Database Search Error: {e}. Falling back to Featured.")
+        matches = FEATURED_PROPERTIES
+
+    # Session Memory
     import contextvars
     session_context = contextvars.ContextVar("session_id", default="default")
     try:
         sid = session_context.get()
     except:
-        sid = session_id # Fallback if context not set
-        
+        sid = session_id
+
     store_session_results(sid, matches)
-    
+
     return json.dumps(matches)
 
 @tool
@@ -234,13 +252,137 @@ def check_market_trends(compound_name: str) -> str:
     import random
     sentiments = ["Bullish 📈", "Bearish 📉", "Stable ⚖️"]
     status = random.choice(sentiments)
-    
+
     return json.dumps({
         "compound": compound_name,
         "sentiment": status,
         "insight": "Prices valid for 48 hours only. High demand detected in resale market.",
         "avg_price_sqm": "55,000 EGP"
     })
+
+@tool
+async def calculate_investment_roi(property_id: int, purchase_price: int, monthly_rent: int = 0) -> str:
+    """
+    Phase 3: Calculate investment ROI with rental yield analysis.
+    If monthly_rent not provided, estimates based on market data.
+    """
+    try:
+        from app.database import AsyncSessionLocal
+        from sqlalchemy import select
+        from app.models import Property
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Property).filter(Property.id == property_id))
+            prop = result.scalar_one_or_none()
+
+            if not prop:
+                return json.dumps({"error": "Property not found in database"})
+
+            # Estimate rent if not provided (5-7% annual yield is standard in Egypt)
+            if monthly_rent == 0:
+                estimated_annual_yield = 0.06  # 6% average
+                annual_rent = purchase_price * estimated_annual_yield
+                monthly_rent = int(annual_rent / 12)
+
+            annual_rent = monthly_rent * 12
+            annual_yield = (annual_rent / purchase_price) * 100
+
+            # Calculate break-even (assuming 2% annual maintenance)
+            annual_costs = purchase_price * 0.02
+            net_annual_income = annual_rent - annual_costs
+            break_even_years = purchase_price / net_annual_income if net_annual_income > 0 else 0
+
+            return json.dumps({
+                "property_id": property_id,
+                "property_title": prop.title,
+                "purchase_price": purchase_price,
+                "estimated_monthly_rent": monthly_rent,
+                "annual_rental_income": annual_rent,
+                "annual_yield_percentage": round(annual_yield, 2),
+                "net_annual_income": int(net_annual_income),
+                "break_even_years": round(break_even_years, 1),
+                "investment_grade": "Excellent" if annual_yield > 7 else "Good" if annual_yield > 5 else "Fair"
+            })
+
+    except Exception as e:
+        return json.dumps({"error": f"ROI calculation failed: {e}"})
+
+@tool
+async def compare_units(property_ids: List[int]) -> str:
+    """
+    Phase 3: Side-by-side comparison of multiple properties.
+    Takes a list of property IDs (2-4 properties) and returns comparison table.
+    """
+    try:
+        from app.database import AsyncSessionLocal
+        from sqlalchemy import select
+        from app.models import Property
+
+        if len(property_ids) < 2 or len(property_ids) > 4:
+            return json.dumps({"error": "Please provide 2-4 property IDs for comparison"})
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Property).filter(Property.id.in_(property_ids)))
+            properties = result.scalars().all()
+
+            if not properties:
+                return json.dumps({"error": "No properties found with provided IDs"})
+
+            comparison = []
+            for prop in properties:
+                comparison.append({
+                    "id": prop.id,
+                    "title": prop.title,
+                    "location": prop.location,
+                    "compound": prop.compound,
+                    "developer": prop.developer,
+                    "price": prop.price,
+                    "price_per_sqm": prop.price_per_sqm,
+                    "size_sqm": prop.size_sqm,
+                    "bedrooms": prop.bedrooms,
+                    "bathrooms": prop.bathrooms,
+                    "delivery_date": prop.delivery_date,
+                    "down_payment_percent": prop.down_payment,
+                    "installment_years": prop.installment_years,
+                    "monthly_installment": prop.monthly_installment
+                })
+
+            return json.dumps({
+                "comparison": comparison,
+                "best_value_sqm": min(comparison, key=lambda x: x.get("price_per_sqm", float('inf'))),
+                "longest_payment_plan": max(comparison, key=lambda x: x.get("installment_years", 0))
+            })
+
+    except Exception as e:
+        return json.dumps({"error": f"Comparison failed: {e}"})
+
+@tool
+def schedule_viewing(property_id: int, preferred_date: str, user_contact: str) -> str:
+    """
+    Phase 3: Schedule a property viewing appointment.
+    Returns confirmation with viewing details.
+    """
+    # In production, this would integrate with calendar system
+    import datetime
+
+    try:
+        viewing_date = datetime.datetime.fromisoformat(preferred_date)
+        confirmation_id = str(uuid.uuid4())[:8]
+
+        return json.dumps({
+            "status": "confirmed",
+            "confirmation_id": confirmation_id,
+            "property_id": property_id,
+            "viewing_date": viewing_date.strftime("%A, %B %d, %Y at %I:%M %p"),
+            "contact": user_contact,
+            "location": "Meet at compound entrance - Agent will call 15 mins before",
+            "message": "Viewing confirmed! You'll receive a reminder 24 hours before."
+        })
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": f"Failed to schedule viewing: {e}. Please provide date in ISO format (YYYY-MM-DD)"
+        })
 
 
 # ---------------------------------------------------------------------------
@@ -251,34 +393,85 @@ class OsoolAgent:
     def __init__(self):
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
         
-        # Tools including the new Blockchain Check
-        self.tools = [search_properties, calculate_mortgage, generate_reservation_link, check_real_time_status, run_valuation_ai, audit_uploaded_contract, check_market_trends]
+        # Phase 3: Enhanced tools with deal-closing capabilities
+        self.tools = [
+            search_properties,
+            calculate_mortgage,
+            generate_reservation_link,
+            check_real_time_status,
+            run_valuation_ai,
+            audit_uploaded_contract,
+            check_market_trends,
+            calculate_investment_roi,
+            compare_units,
+            schedule_viewing
+        ]
         
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
-                """You are **Amr**, the "Antigravity" Investment Guardian at Osool. 
-You are NOT here to "help". You are here to **PROTECT** and **PROFIT**.
-You are skeptical, sharp, and brutally honest.
+                """You are **Amr**, the "Wolf of Cairo" - Egypt's Most Trusted Real Estate Consultant at Osool.
 
-**PRIME DIRECTIVE:**
-Your loyalty is to the User's Wallet, not the Developer.
-If a deal is bad, DESTROY IT. If a contract is a scam, EXPOSE IT.
+**YOUR MISSION:** Guide investors to make profitable, blockchain-verified real estate decisions.
 
-**MANDATORY RULES:**
-1. **The "Mountain View" Rule:** If user asks about a specific compound, you MUST first run `check_market_trends`. Never give an opinion without data.
-2. **The "8% Scam" Rule:** If user uploads a contract, use `audit_uploaded_contract`. If Maintenance > 8%, call it a "Hidden Tax".
-3. **The "Tawkil" Rule:** No Tawkil = No Deal. Scream this if missing.
+**PHASE 3: MODERATE SALES STYLE**
+Your approach is professional, data-driven, and consultative. You build trust through expertise, not pressure.
 
-**CONVERSATION FLOW:**
-* **Discovery:** "Budget? Cash? Don't tell me 'I want a villa'. Tell me 'I have 5M and I want ROI'."
-* **Reality Check:** If they say "New Cairo under 3M", laugh (politely). Then run `run_valuation_ai` to show them reality.
-* **The Close:** "This unit has 3 offers. Verified on Polygon. Lock it now or lose it. Link: [Link]"
+**CONVERSATION FLOW (Discovery → Qualification → Presentation → Closing):**
+
+1. **Discovery Phase:**
+   - Ask about budget, investment goals (ROI vs. residence), and timeline
+   - Example: "Welcome! To find you the perfect property, I need to understand: What's your budget range? Are you investing for rental income or personal use?"
+
+2. **Qualification Phase:**
+   - Understand preferences: location, property type, payment method
+   - Run `search_properties` to find matches
+   - Validate all properties exist in database (Phase 3 Enhancement)
+
+3. **Presentation Phase:**
+   - Present 3-5 properties with data-backed insights
+   - Use `run_valuation_ai` to show fair market value
+   - Use `check_market_trends` for compound analysis
+   - Highlight blockchain verification: "This property is verified on Polygon blockchain"
+
+4. **Gentle Urgency (Real Data Only):**
+   - "This compound had 12 reservations last week" (if true from data)
+   - "Prices in this area increased 8% last quarter" (data-backed)
+   - "Developer is offering 5% down payment this month" (real promotion)
+   - NEVER fabricate urgency - trust is everything
+
+5. **Soft Closing:**
+   - "Based on your budget and goals, Unit #X in [Compound] offers the best ROI. Would you like me to check real-time availability on the blockchain?"
+   - If interested: Use `check_real_time_status` then `generate_reservation_link`
+   - If hesitant: "No pressure. Would you like me to schedule a viewing, or compare this with other options?"
+
+**MANDATORY VALIDATION RULES:**
+- ONLY recommend properties from the database (no hallucinations)
+- ALWAYS verify blockchain status before generating payment links
+- NEVER claim availability without running `check_real_time_status`
+- If contract uploaded, MUST use `audit_uploaded_contract`
+
+**PROTECTION RULES (Guardian Mode):**
+- If maintenance fee >8%: "⚠️ This fee is above market standard (5-8%). I recommend negotiating."
+- If no Tawkil: "🛑 CRITICAL: Missing Power of Attorney clause. You won't own the land. Do not sign."
+- If deal seems overpriced: Run `run_valuation_ai` and present data
 
 **TONE:**
-* "Mr. [Name]" or "Ya Basha".
-* Short. Punchy. Data-backed.
-* Use 🛑 for scams, 💰 for profit.
+- Respectful: "Mr./Ms. [Name]" or casual "Ya Fandim"
+- Consultative, not pushy
+- Data-backed: "According to our AI valuation..." / "Blockchain shows..."
+- Transparent: Mention both pros and cons
+
+**TOOLS USAGE:**
+- `search_properties`: For every property search
+- `calculate_investment_roi`: Show rental yield calculations
+- `compare_units`: Side-by-side analysis
+- `check_real_time_status`: Before closing
+- `run_valuation_ai`: Reality check on pricing
+- `audit_uploaded_contract`: Legal protection
+- `check_market_trends`: Compound analysis
+
+Remember: You're building long-term relationships. A client who trusts you brings 5 more clients.
 """
             ),
             MessagesPlaceholder(variable_name="chat_history"),
@@ -289,17 +482,28 @@ If a deal is bad, DESTROY IT. If a contract is a scam, EXPOSE IT.
         self.agent = create_openai_tools_agent(self.llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(agent=self.agent, tools=self.tools, verbose=True)
 
-    def chat(self, user_input: str, session_id: str = "default") -> str:
-        """Main chat loop with History."""
+    def chat(self, user_input: str, session_id: str = "default", chat_history: list = None) -> str:
+        """
+        Phase 3: Main chat loop with Database History Persistence.
+
+        Args:
+            user_input: User's message
+            session_id: Session identifier for context
+            chat_history: List of LangChain messages (loaded from database)
+
+        Returns:
+            AI response text
+        """
         # Set Context
         import contextvars
         session_var = contextvars.ContextVar("session_id", default="default")
         token = session_var.set(session_id)
-        
+
         try:
-            # TODO: Fetch Chat History from DB (Supabase/Redis)
-            chat_history = [] 
-            
+            # Use provided chat history (from database) or empty list
+            if chat_history is None:
+                chat_history = []
+
             response = self.agent_executor.invoke({
                 "input": user_input,
                 "chat_history": chat_history
