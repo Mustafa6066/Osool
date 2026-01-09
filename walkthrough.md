@@ -54,6 +54,7 @@ We have successfully transformed Osool from an MVP into a production-grade platf
 - **Observability**: Sentry for error tracking + Prometheus for business metrics.
 - **Advanced Auth**: Refresh Tokens, Google OAuth, and "Link Email to Wallet" flows.
 - **AI Memory**: Persistent Database Chat History + "Investment ROI" Calculation Tool.
+- **Secure Payments**: Reservation links are now JWT-signed short-lived tokens, preventing URL tampering.
 
 ## ⏭️ Next Steps
 - **Deploy**: Execute `python backend/blockchain/deploy_prod.py`.
