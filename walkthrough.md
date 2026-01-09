@@ -49,6 +49,12 @@ We have successfully transformed Osool from an MVP into a production-grade platf
   - **Blockchain**: Added "Stuck TX" Retry Loop (Gas Bump) in `blockchain_prod.py`.
   - **Scraper**: Refactored `nawy_scraper.py` into a 3-layer pipeline (Redis -> Requests -> Browserless).
 
+### 7. Ecosystem Expansion (The "Empire" Upgrade)
+- **Liquidity Marketplace**: Full AMM Logic (Liquidity Providers, Swap Execution, Fee Accrual).
+- **Observability**: Sentry for error tracking + Prometheus for business metrics.
+- **Advanced Auth**: Refresh Tokens, Google OAuth, and "Link Email to Wallet" flows.
+- **AI Memory**: Persistent Database Chat History + "Investment ROI" Calculation Tool.
+
 ## ⏭️ Next Steps
 - **Deploy**: Execute `python backend/blockchain/deploy_prod.py`.
 - **Launch**: Point DNS `osool.eg` to the backend load balancer.
