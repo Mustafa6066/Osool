@@ -1,0 +1,38 @@
+Osool Database Migrations
+=========================
+
+This directory contains Alembic migrations for the Osool platform.
+
+## Creating a New Migration
+
+After modifying models in `app/models.py`, generate a new migration:
+
+```bash
+cd backend
+alembic revision --autogenerate -m "Description of changes"
+```
+
+## Applying Migrations
+
+To upgrade to the latest version:
+
+```bash
+alembic upgrade head
+```
+
+To downgrade one version:
+
+```bash
+alembic downgrade -1
+```
+
+## Viewing Migration History
+
+```bash
+alembic history
+alembic current
+```
+
+## Production Deployment
+
+Migrations are automatically applied on container startup via the entrypoint script.

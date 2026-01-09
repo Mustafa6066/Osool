@@ -1,0 +1,123 @@
+# Alertmanager Configuration for Osool Platform
+# Phase 4.1: Alert Routing and Notifications
+# ---------------------------------------------
+
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# Templates for notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree for alert notifications
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+
+  # Child routes
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 5m
+
+    # API health issues
+    - match:
+        category: api
+      receiver: 'api-alerts'
+      group_wait: 30s
+
+    # Database issues
+    - match:
+        category: database
+      receiver: 'database-alerts'
+      group_wait: 30s
+
+    # Cost alerts
+    - match:
+        category: costs
+      receiver: 'cost-alerts'
+      group_wait: 1h
+
+    # Business metrics
+    - match:
+        category: business
+      receiver: 'business-alerts'
+      group_wait: 5m
+
+# Receivers (notification channels)
+receivers:
+  - name: 'default'
+    slack_configs:
+      - channel: '#osool-alerts'
+        title: 'Osool Platform Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: 'critical-alerts'
+    slack_configs:
+      - channel: '#osool-critical'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+    # Add PagerDuty for critical alerts
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+
+  - name: 'api-alerts'
+    slack_configs:
+      - channel: '#osool-api'
+        title: 'API Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: 'database-alerts'
+    slack_configs:
+      - channel: '#osool-database'
+        title: 'Database Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: 'cost-alerts'
+    email_configs:
+      - to: 'finance@osool.com'
+        from: 'alerts@osool.com'
+        smarthost: 'smtp.gmail.com:587'
+        auth_username: '${SMTP_USERNAME}'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: 'Osool Cost Alert: {{ .GroupLabels.alertname }}'
+
+  - name: 'business-alerts'
+    slack_configs:
+      - channel: '#osool-business'
+        title: 'Business Metric Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+# Inhibition rules (suppress alerts based on other active alerts)
+inhibit_rules:
+  # Suppress high latency alerts if API is down
+  - source_match:
+      alertname: 'APIDown'
+    target_match:
+      alertname: 'HighAPILatency'
+    equal: ['instance']
+
+  # Suppress database query alerts if database is down
+  - source_match:
+      alertname: 'DatabaseDown'
+    target_match:
+      alertname: 'SlowDatabaseQueries'
+    equal: ['instance']
+
+  # Suppress all alerts if system is down
+  - source_match:
+      severity: 'critical'
+      category: 'availability'
+    target_match_re:
+      severity: 'warning'
+    equal: ['instance']

@@ -41,6 +41,8 @@ else:
 
 # Import routers
 from app.api.endpoints import router as api_router
+from app.api.liquidity_endpoints import router as liquidity_router
+from app.services.metrics import metrics_endpoint
 
 # ═══════════════════════════════════════════════════════════════
 # APPLICATION SETUP
@@ -105,6 +107,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ═══════════════════════════════════════════════════════════════
+# SECURITY HEADERS MIDDLEWARE (Phase 6)
+# ═══════════════════════════════════════════════════════════════
+
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+
+        # HSTS: Force HTTPS for 1 year
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+        # XSS Protection
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # CSP: Content Security Policy (adjust as needed for your frontend)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self' https://api.openai.com wss://; "
+        )
+
+        # Referrer Policy
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Permissions Policy (formerly Feature Policy)
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -135,6 +175,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ═══════════════════════════════════════════════════════════════
 
 app.include_router(api_router)
+app.include_router(liquidity_router)  # Phase 6: Liquidity Marketplace
 
 
 @app.get("/")
@@ -158,6 +199,19 @@ def root():
 def health():
     """Health check endpoint"""
     return {"status": "healthy", "service": "osool-backend"}
+
+
+@app.get("/metrics")
+def metrics():
+    """
+    Prometheus metrics endpoint - Phase 4.1: Monitoring
+
+    Returns metrics in Prometheus format for scraping.
+    Includes: API requests, OpenAI usage, database performance, business metrics.
+
+    Access: Internal only (should be restricted in production via firewall/API key)
+    """
+    return metrics_endpoint()
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -78,23 +78,18 @@ def get_session_results(session_id: str) -> list:
 @tool
 async def search_properties(query: str, session_id: str = "default") -> str:
     """
-    Phase 3: Search for properties using PostgreSQL + pgvector.
+    Phase 6: Search for properties using PostgreSQL + pgvector.
     Query can be natural language: "Apartment in New Cairo under 5M"
-    Returns JSON string of matches WITH VALIDATION.
+    Returns JSON string of matches WITH STRICT VALIDATION.
+
+    CRITICAL: Only returns properties that exist in database. NO HALLUCINATIONS.
     """
     print(f"🔎 PostgreSQL Vector Search: '{query}'")
 
     matches = []
 
-    # FALLBACK DATA (Production Resilience)
-    FEATURED_PROPERTIES = [
-        {"id": 1, "title": "Apartment in Zed East", "location": "New Cairo", "price": 7500000, "size": 165, "bedrooms": 3, "developer": "Ora", "market_status": "Hot"},
-        {"id": 2, "title": "Villa in Cairo Gate", "location": "Sheikh Zayed", "price": 12000000, "size": 300, "bedrooms": 4, "developer": "Emaar", "market_status": "Premium"},
-        {"id": 3, "title": "Chalet in Marassi", "location": "North Coast", "price": 15000000, "size": 120, "bedrooms": 2, "developer": "Emaar", "market_status": "Summer Demand"},
-    ]
-
     try:
-        # Phase 3: Use PostgreSQL vector search with hallucination prevention
+        # Phase 6: Strict database-only search
         from app.database import AsyncSessionLocal
         from app.services.vector_search import search_properties as db_search_properties
 
@@ -104,6 +99,11 @@ async def search_properties(query: str, session_id: str = "default") -> str:
             if properties:
                 # Convert SQLAlchemy models to dicts with validation
                 for prop in properties:
+                    # Phase 6: Strict validation - ensure all required fields exist
+                    if not prop.id or not prop.title or not prop.price:
+                        print(f"⚠️ Skipping invalid property (missing required fields): {prop.id}")
+                        continue
+
                     matches.append({
                         "id": prop.id,
                         "title": prop.title,
@@ -119,16 +119,25 @@ async def search_properties(query: str, session_id: str = "default") -> str:
                         "installment_years": prop.installment_years,
                         "monthly_installment": prop.monthly_installment,
                         "nawy_url": prop.nawy_url,
-                        "verified_on_blockchain": True
+                        "verified_on_blockchain": True,
+                        "_source": "database"  # Phase 6: Track data source
                     })
                 print(f"✅ Found {len(matches)} validated properties from database")
             else:
-                print("⚠️ No database matches found. Using Featured.")
-                matches = FEATURED_PROPERTIES
+                print("⚠️ No database matches found. Returning empty results.")
+                # Phase 6: NO FALLBACK - return empty if no matches
+                matches = []
 
     except Exception as e:
-        print(f"⚠️ Database Search Error: {e}. Falling back to Featured.")
-        matches = FEATURED_PROPERTIES
+        print(f"❌ Database Search Error: {e}")
+        # Phase 6: Log to monitoring system
+        try:
+            import sentry_sdk
+            sentry_sdk.capture_exception(e)
+        except:
+            pass
+        # Return empty on error - no fake data
+        matches = []
 
     # Session Memory
     import contextvars
@@ -140,7 +149,15 @@ async def search_properties(query: str, session_id: str = "default") -> str:
 
     store_session_results(sid, matches)
 
-    return json.dumps(matches)
+    # Phase 6: Return with metadata
+    result = {
+        "properties": matches,
+        "count": len(matches),
+        "query": query,
+        "source": "osool_database"
+    }
+
+    return json.dumps(result)
 
 @tool
 def calculate_mortgage(principal: int, years: int = 20) -> str:

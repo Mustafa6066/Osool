@@ -2,58 +2,166 @@ version: '3.8'
 
 services:
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     volumes:
       - ./backend:/app
+      - ./logs:/app/logs
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/osool}
+      - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - ENVIRONMENT=production
       - OSOOL_REGISTRY_ADDRESS=${OSOOL_REGISTRY_ADDRESS}
       - PRIVATE_KEY=${PRIVATE_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - POLYGON_RPC_URL=${POLYGON_RPC_URL}
+      - CHAIN_ID=${CHAIN_ID:-137}
+      - PAYMOB_API_KEY=${PAYMOB_API_KEY}
+      - PAYMOB_INTEGRATION_ID=${PAYMOB_INTEGRATION_ID}
+      - PAYMOB_WEBHOOK_SECRET=${PAYMOB_WEBHOOK_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - FRONTEND_DOMAIN=${FRONTEND_DOMAIN:-https://osool.com}
+    secrets:
+      - db_password
+      - blockchain_private_key
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   worker:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     command: celery -A app.celery_worker.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/osool}
+      - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - ENVIRONMENT=production
       - OSOOL_REGISTRY_ADDRESS=${OSOOL_REGISTRY_ADDRESS}
       - PRIVATE_KEY=${PRIVATE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    secrets:
+      - db_password
+      - blockchain_private_key
     depends_on:
       - db
       - redis
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
 
   db:
     image: postgres:15
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-osool}
+      - POSTGRES_USER=${POSTGRES_USER:-osool_admin}
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - POSTGRES_DB=${POSTGRES_DB:-osool_production}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    secrets:
+      - db_password
     ports:
       - "5432:5432"
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-osool_admin} -d ${POSTGRES_DB:-osool_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
     ports:
       - "6379:6379"
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Backup service for automated database backups
+  backup:
+    image: postgres:15
+    volumes:
+      - ./backups:/backups
+      - postgres_data:/var/lib/postgresql/data:ro
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-osool_admin}
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - POSTGRES_DB=${POSTGRES_DB:-osool_production}
+    secrets:
+      - db_password
+    command: >
+      sh -c '
+        while true; do
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+          pg_dump -U ${POSTGRES_USER:-osool_admin} -h db -d ${POSTGRES_DB:-osool_production} > /backups/osool_backup_$${TIMESTAMP}.sql
+          gzip /backups/osool_backup_$${TIMESTAMP}.sql
+          find /backups -name "osool_backup_*.sql.gz" -mtime +7 -delete
+          echo "Backup completed: osool_backup_$${TIMESTAMP}.sql.gz"
+          sleep 86400
+        done
+      '
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  blockchain_private_key:
+    file: ./secrets/blockchain_private_key.txt
 
 volumes:
   postgres_data:
+  redis_data:

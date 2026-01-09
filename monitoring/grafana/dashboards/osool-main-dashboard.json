@@ -1,0 +1,400 @@
+{
+  "dashboard": {
+    "title": "Osool Platform - Main Dashboard",
+    "tags": ["osool", "production", "overview"],
+    "timezone": "browser",
+    "editable": true,
+    "hideControls": false,
+    "graphTooltip": 1,
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Overview",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "API Request Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+        "targets": [
+          {
+            "expr": "rate(osool_api_requests_total[5m])",
+            "legendFormat": "{{method}} {{endpoint}} - {{status}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "reqps",
+            "label": "Requests/sec"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "API Response Time (p95)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(osool_api_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{method}} {{endpoint}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Response Time"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [2],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "name": "High API Latency",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 4,
+        "title": "Error Rate",
+        "type": "singlestat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 9 },
+        "targets": [
+          {
+            "expr": "rate(osool_api_requests_total{status=~\"5..\"}[5m]) / rate(osool_api_requests_total[5m]) * 100",
+            "refId": "A"
+          }
+        ],
+        "format": "percent",
+        "thresholds": "1,5",
+        "colors": ["#299c46", "#e0b400", "#d44a3a"],
+        "valueName": "current"
+      },
+      {
+        "id": 5,
+        "title": "Active Chat Sessions",
+        "type": "singlestat",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 9 },
+        "targets": [
+          {
+            "expr": "increase(osool_chat_sessions_total[1h])",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "valueName": "current"
+      },
+      {
+        "id": 6,
+        "title": "Property Searches",
+        "type": "singlestat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 9 },
+        "targets": [
+          {
+            "expr": "increase(osool_property_searches_total[1h])",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "valueName": "current"
+      },
+      {
+        "id": 7,
+        "title": "Reservations (24h)",
+        "type": "singlestat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 9 },
+        "targets": [
+          {
+            "expr": "increase(osool_reservations_total{status=\"completed\"}[24h])",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "valueName": "current"
+      },
+      {
+        "id": 8,
+        "title": "AI & OpenAI Metrics",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 }
+      },
+      {
+        "id": 9,
+        "title": "OpenAI Request Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 14 },
+        "targets": [
+          {
+            "expr": "rate(osool_openai_requests_total[5m])",
+            "legendFormat": "{{model}} - {{context}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "reqps",
+            "label": "Requests/sec"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "OpenAI Token Usage",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 14 },
+        "targets": [
+          {
+            "expr": "rate(osool_openai_tokens_used_total[5m])",
+            "legendFormat": "{{model}} - {{token_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Tokens/sec"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "OpenAI Cost (24h)",
+        "type": "singlestat",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 14 },
+        "targets": [
+          {
+            "expr": "increase(osool_openai_cost_usd_total[24h])",
+            "refId": "A"
+          }
+        ],
+        "format": "currencyUSD",
+        "prefix": "Cost:",
+        "thresholds": "50,100",
+        "colors": ["#299c46", "#e0b400", "#d44a3a"],
+        "valueName": "current"
+      },
+      {
+        "id": 12,
+        "title": "Database & Cache",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }
+      },
+      {
+        "id": 13,
+        "title": "Database Connections",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
+        "targets": [
+          {
+            "expr": "osool_database_connections",
+            "legendFormat": "Active Connections",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Connections",
+            "max": 50
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Database Query Time (p95)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(osool_database_query_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{query_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Query Time"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Redis Memory Usage",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 },
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes / redis_memory_max_bytes * 100",
+            "refId": "A"
+          }
+        ],
+        "thresholds": "70,90",
+        "format": "percent"
+      },
+      {
+        "id": 16,
+        "title": "Liquidity Marketplace (Phase 6)",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 }
+      },
+      {
+        "id": 17,
+        "title": "Trading Volume (24h)",
+        "type": "singlestat",
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 32 },
+        "targets": [
+          {
+            "expr": "sum(increase(liquidity_trade_volume_egp[24h]))",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "prefix": "EGP",
+        "valueName": "current"
+      },
+      {
+        "id": 18,
+        "title": "Active Liquidity Pools",
+        "type": "singlestat",
+        "gridPos": { "h": 6, "w": 6, "x": 6, "y": 32 },
+        "targets": [
+          {
+            "expr": "count(liquidity_pool_egp_reserve > 0)",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "valueName": "current"
+      },
+      {
+        "id": 19,
+        "title": "Total Liquidity (EGP)",
+        "type": "singlestat",
+        "gridPos": { "h": 6, "w": 6, "x": 12, "y": 32 },
+        "targets": [
+          {
+            "expr": "sum(liquidity_pool_egp_reserve)",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "prefix": "EGP",
+        "valueName": "current"
+      },
+      {
+        "id": 20,
+        "title": "Average Slippage",
+        "type": "gauge",
+        "gridPos": { "h": 6, "w": 6, "x": 18, "y": 32 },
+        "targets": [
+          {
+            "expr": "avg(liquidity_trade_slippage_percent)",
+            "refId": "A"
+          }
+        ],
+        "format": "percent",
+        "thresholds": "3,5"
+      },
+      {
+        "id": 21,
+        "title": "System Resources",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 }
+      },
+      {
+        "id": 22,
+        "title": "CPU Usage",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 39 },
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "{{instance}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "CPU %",
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 23,
+        "title": "Memory Usage",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 39 },
+        "targets": [
+          {
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+            "legendFormat": "{{instance}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "Memory %",
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 24,
+        "title": "Disk Space",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 39 },
+        "targets": [
+          {
+            "expr": "(node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100",
+            "legendFormat": "{{mountpoint}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "Free %",
+            "max": 100
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+    },
+    "version": 1
+  }
+}
