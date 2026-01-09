@@ -176,8 +176,41 @@ def calculate_mortgage(principal: int, years: int = 20) -> str:
 
 @tool
 def generate_reservation_link(property_id: int) -> str:
-    """Generates a secure reservation link for payment."""
-    return f"https://pay.osool.eg/checkout/{property_id}"
+    """
+    Phase 6: Generates a JWT-signed secure payment token for reservation.
+    Returns a frontend-compatible action object for checkout redirect.
+
+    CRITICAL: Only call this AFTER `check_real_time_status` confirms availability.
+    """
+    import jwt
+    from datetime import datetime, timedelta
+
+    try:
+        # Generate JWT token with 1-hour expiration
+        SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
+        payload = {
+            "property_id": property_id,
+            "exp": datetime.utcnow() + timedelta(hours=1),
+            "iat": datetime.utcnow(),
+            "type": "reservation"
+        }
+        token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+        # Return frontend action format (Phase 6: Task 2 Enhancement)
+        action = {
+            "action": "REDIRECT",
+            "url": f"/checkout?token={token}",
+            "token": token,
+            "property_id": property_id,
+            "expires_in": "1 hour"
+        }
+
+        return json.dumps(action)
+    except Exception as e:
+        return json.dumps({
+            "action": "ERROR",
+            "message": f"Failed to generate reservation link: {str(e)}"
+        })
 
 @tool
 def check_real_time_status(property_id: int) -> str:
