@@ -1,0 +1,859 @@
+{
+  "dashboard": {
+    "title": "Osool Production Monitoring Dashboard",
+    "description": "Real-time monitoring for Osool Platform - AMM, AI, Authentication & Payments",
+    "tags": ["osool", "production", "amm", "ai", "real-estate"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Active Users (Last 24 Hours)",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "count(count_over_time(user_login_total[24h]))",
+            "refId": "A",
+            "legendFormat": "Active Users"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "green"}
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Total Value Locked (TVL) in Liquidity Pools",
+        "type": "stat",
+        "gridPos": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "sum(liquidity_pool_tvl_egp)",
+            "refId": "A",
+            "legendFormat": "Total TVL (EGP)"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1000000, "color": "yellow"},
+                {"value": 10000000, "color": "green"}
+              ]
+            },
+            "unit": "currencyEGP",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "AI Hallucination Rate (Target: 0%)",
+        "type": "gauge",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "(sum(rate(ai_property_search_invalid_total[5m])) / sum(rate(ai_property_search_total[5m]))) * 100",
+            "refId": "A",
+            "legendFormat": "Hallucination Rate (%)"
+          }
+        ],
+        "options": {
+          "orientation": "auto",
+          "textMode": "auto",
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.1, "color": "yellow"},
+                {"value": 1, "color": "red"}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 5,
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Payment Success Rate",
+        "type": "gauge",
+        "gridPos": {
+          "x": 18,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "(sum(rate(payment_success_total[5m])) / sum(rate(payment_attempts_total[5m]))) * 100",
+            "refId": "A",
+            "legendFormat": "Success Rate (%)"
+          }
+        ],
+        "options": {
+          "orientation": "auto",
+          "textMode": "auto",
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 80, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "decimals": 1
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "API Response Times (p50, p95, p99)",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 4,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint))",
+            "refId": "A",
+            "legendFormat": "p50 - {{endpoint}}"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint))",
+            "refId": "B",
+            "legendFormat": "p95 - {{endpoint}}"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint))",
+            "refId": "C",
+            "legendFormat": "p99 - {{endpoint}}"
+          }
+        ],
+        "xaxis": {
+          "mode": "time",
+          "show": true
+        },
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Response Time",
+            "logBase": 1,
+            "show": true
+          },
+          {
+            "format": "short",
+            "logBase": 1,
+            "show": true
+          }
+        ],
+        "legend": {
+          "show": true,
+          "alignAsTable": true,
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": false,
+          "rightSide": false,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 2,
+        "pointradius": 2,
+        "points": false,
+        "fill": 1,
+        "stack": false,
+        "percentage": false,
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        }
+      },
+      {
+        "id": 6,
+        "title": "Blockchain Transaction Status",
+        "type": "piechart",
+        "gridPos": {
+          "x": 12,
+          "y": 4,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "sum(blockchain_tx_success_total)",
+            "refId": "A",
+            "legendFormat": "Successful"
+          },
+          {
+            "expr": "sum(blockchain_tx_failed_total)",
+            "refId": "B",
+            "legendFormat": "Failed"
+          },
+          {
+            "expr": "sum(blockchain_tx_pending_total)",
+            "refId": "C",
+            "legendFormat": "Pending"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true,
+            "values": ["value", "percent"]
+          },
+          "pieType": "pie",
+          "tooltip": {
+            "mode": "single"
+          },
+          "displayLabels": ["percent"]
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              }
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Successful"},
+              "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Failed"},
+              "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Pending"},
+              "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]
+            }
+          ]
+        }
+      },
+      {
+        "id": 7,
+        "title": "Liquidity Pool Trading Volume (24h)",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(liquidity_swap_volume_egp[24h])) by (property_id)",
+            "refId": "A",
+            "legendFormat": "Property {{property_id}}"
+          }
+        ],
+        "xaxis": {
+          "mode": "time",
+          "show": true
+        },
+        "yaxes": [
+          {
+            "format": "currencyEGP",
+            "label": "Volume (EGP)",
+            "logBase": 1,
+            "show": true
+          },
+          {
+            "format": "short",
+            "logBase": 1,
+            "show": true
+          }
+        ],
+        "legend": {
+          "show": true,
+          "alignAsTable": true,
+          "avg": false,
+          "current": true,
+          "max": true,
+          "min": false,
+          "rightSide": true,
+          "total": true,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 2,
+        "bars": false,
+        "fill": 2,
+        "stack": true,
+        "percentage": false,
+        "tooltip": {
+          "shared": true,
+          "sort": 2,
+          "value_type": "individual"
+        }
+      },
+      {
+        "id": 8,
+        "title": "Database Connection Pool",
+        "type": "graph",
+        "gridPos": {
+          "x": 12,
+          "y": 10,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "db_pool_connections_active",
+            "refId": "A",
+            "legendFormat": "Active Connections"
+          },
+          {
+            "expr": "db_pool_connections_idle",
+            "refId": "B",
+            "legendFormat": "Idle Connections"
+          },
+          {
+            "expr": "db_pool_connections_max",
+            "refId": "C",
+            "legendFormat": "Max Connections"
+          }
+        ],
+        "xaxis": {
+          "mode": "time",
+          "show": true
+        },
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Connections",
+            "logBase": 1,
+            "show": true
+          },
+          {
+            "format": "short",
+            "logBase": 1,
+            "show": true
+          }
+        ],
+        "legend": {
+          "show": true,
+          "alignAsTable": true,
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": false,
+          "rightSide": false,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 2,
+        "fill": 1,
+        "stack": false,
+        "alert": {
+          "name": "Database Connection Pool Alert",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [40],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Database connection pool is running high (>40 active connections)",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 9,
+        "title": "Error Rate by Endpoint",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (endpoint)",
+            "refId": "A",
+            "legendFormat": "5xx - {{endpoint}}"
+          },
+          {
+            "expr": "sum(rate(http_requests_total{status=~\"4..\"}[5m])) by (endpoint)",
+            "refId": "B",
+            "legendFormat": "4xx - {{endpoint}}"
+          }
+        ],
+        "xaxis": {
+          "mode": "time",
+          "show": true
+        },
+        "yaxes": [
+          {
+            "format": "reqps",
+            "label": "Errors/sec",
+            "logBase": 1,
+            "show": true
+          },
+          {
+            "format": "short",
+            "logBase": 1,
+            "show": true
+          }
+        ],
+        "legend": {
+          "show": true,
+          "alignAsTable": true,
+          "avg": false,
+          "current": true,
+          "max": true,
+          "min": false,
+          "rightSide": true,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 2,
+        "bars": false,
+        "fill": 1,
+        "stack": false,
+        "percentage": false,
+        "tooltip": {
+          "shared": true,
+          "sort": 2,
+          "value_type": "individual"
+        },
+        "alert": {
+          "name": "High Error Rate Alert",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [10],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Error rate exceeded 10 errors/sec on {{endpoint}}",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 10,
+        "title": "AI Agent Conversation Stages",
+        "type": "barchart",
+        "gridPos": {
+          "x": 12,
+          "y": 16,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "sum(ai_conversation_stage_total) by (stage)",
+            "refId": "A",
+            "legendFormat": "{{stage}}"
+          }
+        ],
+        "options": {
+          "orientation": "auto",
+          "xTickLabelRotation": 0,
+          "xTickLabelSpacing": 100,
+          "barWidth": 0.97,
+          "groupWidth": 0.7,
+          "showValue": "auto",
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true,
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "Conversations",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "System Resource Usage",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 22,
+          "w": 8,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "refId": "A",
+            "legendFormat": "CPU Usage (%)"
+          },
+          {
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+            "refId": "B",
+            "legendFormat": "Memory Usage (%)"
+          }
+        ],
+        "xaxis": {
+          "mode": "time",
+          "show": true
+        },
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "Usage",
+            "logBase": 1,
+            "max": 100,
+            "min": 0,
+            "show": true
+          },
+          {
+            "format": "short",
+            "logBase": 1,
+            "show": true
+          }
+        ],
+        "legend": {
+          "show": true,
+          "alignAsTable": true,
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": false,
+          "rightSide": false,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 2,
+        "fill": 2,
+        "stack": false,
+        "alert": {
+          "name": "High Resource Usage Alert",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [85],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "or"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "System resource usage exceeded 85%",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 12,
+        "title": "Property Token Minting Activity",
+        "type": "stat",
+        "gridPos": {
+          "x": 8,
+          "y": 22,
+          "w": 8,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "sum(increase(property_token_minted_total[24h]))",
+            "refId": "A",
+            "legendFormat": "Tokens Minted (24h)"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "auto",
+          "textMode": "value_and_name",
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 5, "color": "yellow"},
+                {"value": 20, "color": "green"}
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "Sentry Error Tracking",
+        "type": "table",
+        "gridPos": {
+          "x": 16,
+          "y": 22,
+          "w": 8,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "topk(10, sum(increase(sentry_errors_total[1h])) by (error_type, endpoint))",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sortBy": [
+            {
+              "displayName": "Value",
+              "desc": true
+            }
+          ]
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "displayMode": "auto",
+              "inspect": false
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Value"},
+              "properties": [
+                {"id": "displayName", "value": "Error Count"},
+                {"id": "custom.displayMode", "value": "color-background"}
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": false,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Deployments",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "text": "Prometheus",
+            "value": "Prometheus"
+          }
+        },
+        {
+          "name": "environment",
+          "type": "custom",
+          "query": "production,staging,development",
+          "current": {
+            "text": "production",
+            "value": "production"
+          },
+          "multi": false,
+          "includeAll": false
+        }
+      ]
+    }
+  },
+  "overwrite": true
+}

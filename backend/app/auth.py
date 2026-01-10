@@ -164,9 +164,28 @@ def create_custodial_wallet() -> dict:
     """
     Generates an Ethereum wallet for an email-based user.
     Returns: {"address": str, "private_key": str}
-    ⚠️ In Production: Encrypt the private key before identifying it!
+
+    ⚠️ CRITICAL SECURITY WARNING ⚠️
+    ================================================================
+    This function returns UNENCRYPTED private keys!
+
+    BEFORE PRODUCTION DEPLOYMENT, you MUST:
+    1. Encrypt private keys using AES-256-GCM before storing in database
+    2. Store encryption keys in a Hardware Security Module (HSM) or AWS KMS
+    3. NEVER log or expose private keys in API responses
+    4. Consider using a dedicated key management service (e.g., AWS KMS, Azure Key Vault)
+
+    Current Implementation: DEVELOPMENT ONLY - NOT PRODUCTION SAFE
+    ================================================================
+
+    Recommended Pattern:
+        from cryptography.fernet import Fernet
+        encryption_key = os.getenv("WALLET_ENCRYPTION_KEY")
+        fernet = Fernet(encryption_key)
+        encrypted_pk = fernet.encrypt(acct.key.hex().encode())
     """
     acct = Account.create()
+    # TODO: Implement encryption before production deployment
     return {"address": acct.address, "private_key": acct.key.hex()}
 
 # ═══════════════════════════════════════════════════════════════

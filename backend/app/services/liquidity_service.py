@@ -42,6 +42,8 @@ class LiquidityService:
         if not self.rpc_url or not self.private_key:
             logger.warning("⚠️ Blockchain credentials not configured")
             self.w3 = None
+            self.amm_contract = None
+            self.oegp_contract = None
             return
 
         try:
@@ -52,15 +54,70 @@ class LiquidityService:
             self.amm_address = os.getenv("OSOOL_AMM_ADDRESS")
             self.oegp_address = os.getenv("OSOOL_OEGP_ADDRESS")
 
-            # Note: In production, load actual ABI from compiled contracts
-            # For now, we'll use simplified ABIs
-            self.amm_contract = None  # Will be initialized with actual ABI
+            # Load contract ABIs from compiled artifacts
+            self.amm_contract = None
             self.oegp_contract = None
+            self._load_contract_abis()
 
-            logger.info(f"✅ Liquidity Service initialized (Chain: {self.chain_id})")
+            if self.amm_contract and self.oegp_contract:
+                logger.info(f"✅ Liquidity Service initialized (Chain: {self.chain_id}, AMM: {self.amm_address})")
+            else:
+                logger.warning(f"⚠️ Contract ABIs not loaded. Run 'npx hardhat compile' first.")
         except Exception as e:
             logger.error(f"❌ Failed to initialize Web3: {e}")
             self.w3 = None
+            self.amm_contract = None
+            self.oegp_contract = None
+
+    def _load_contract_abis(self):
+        """
+        Load contract ABIs from Hardhat compilation artifacts.
+
+        This function reads the compiled contract JSON files from:
+        - contracts/artifacts/contracts/OsoolLiquidityAMM.sol/OsoolLiquidityAMM.json
+        - contracts/artifacts/contracts/OsoolEGPStablecoin.sol/OsoolEGPStablecoin.json
+
+        Prerequisites:
+        1. Run 'npx hardhat compile' to generate artifacts
+        2. Set OSOOL_AMM_ADDRESS and OSOOL_OEGP_ADDRESS in .env
+        """
+        import json
+        from pathlib import Path
+
+        try:
+            # Get project root (assuming this file is in backend/app/services/)
+            project_root = Path(__file__).parent.parent.parent.parent
+            artifacts_dir = project_root / "contracts" / "artifacts" / "contracts"
+
+            # Load AMM contract ABI
+            amm_artifact_path = artifacts_dir / "OsoolLiquidityAMM.sol" / "OsoolLiquidityAMM.json"
+            if amm_artifact_path.exists() and self.amm_address:
+                with open(amm_artifact_path, 'r') as f:
+                    amm_artifact = json.load(f)
+                    self.amm_contract = self.w3.eth.contract(
+                        address=self.w3.to_checksum_address(self.amm_address),
+                        abi=amm_artifact['abi']
+                    )
+                    logger.info(f"✅ AMM contract loaded: {self.amm_address}")
+            else:
+                logger.warning(f"⚠️ AMM artifact not found at {amm_artifact_path}")
+
+            # Load OEGP stablecoin contract ABI
+            oegp_artifact_path = artifacts_dir / "OsoolEGPStablecoin.sol" / "OsoolEGPStablecoin.json"
+            if oegp_artifact_path.exists() and self.oegp_address:
+                with open(oegp_artifact_path, 'r') as f:
+                    oegp_artifact = json.load(f)
+                    self.oegp_contract = self.w3.eth.contract(
+                        address=self.w3.to_checksum_address(self.oegp_address),
+                        abi=oegp_artifact['abi']
+                    )
+                    logger.info(f"✅ OEGP contract loaded: {self.oegp_address}")
+            else:
+                logger.warning(f"⚠️ OEGP artifact not found at {oegp_artifact_path}")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to load contract ABIs: {e}")
+            logger.info("💡 Solution: Run 'npx hardhat compile' in project root")
 
     # ═══════════════════════════════════════════════════════════════
     # POOL MANAGEMENT
@@ -350,20 +407,85 @@ class LiquidityService:
                     "error": f"Slippage exceeded. Expected {min_amount_out}, would get {quote['amount_out']}"
                 }
 
-            # Execute blockchain transaction
+            # ═══════════════════════════════════════════════════════════════
+            # TWO-PHASE COMMIT: Blockchain FIRST, then Database
+            # ═══════════════════════════════════════════════════════════════
+            # This ensures database and blockchain stay synchronized.
+            # If blockchain fails, we don't update the database.
+            # ═══════════════════════════════════════════════════════════════
+
             tx_hash = None
+            tx_confirmed = False
+
             if self.w3 and self.amm_contract:
+                # Get user's wallet address (you'll need to fetch this from User model)
+                # For now, using admin account as relayer
+                user_address = self.account.address
+
                 try:
+                    # PHASE 1: Verify user has sufficient balance on-chain
                     if trade_type.upper() == "SELL":
-                        # Call swapTokensForEGP on smart contract
-                        # tx_hash = await self._execute_token_to_egp_swap(...)
-                        pass  # Placeholder for actual blockchain call
+                        # User is selling property tokens for OEGP
+                        balance_ok, balance_msg = await self._verify_user_balance(
+                            user_address,
+                            "PROPERTY_TOKEN",
+                            amount_in,
+                            property_id
+                        )
+                        if not balance_ok:
+                            return {"success": False, "error": f"Insufficient balance: {balance_msg}"}
+
+                        # Execute swap on blockchain
+                        tx_hash = await self._execute_token_to_egp_swap(
+                            property_id,
+                            amount_in,
+                            min_amount_out,
+                            user_address
+                        )
                     else:
-                        # Call swapEGPForTokens on smart contract
-                        # tx_hash = await self._execute_egp_to_token_swap(...)
-                        pass  # Placeholder for actual blockchain call
+                        # User is buying property tokens with OEGP
+                        balance_ok, balance_msg = await self._verify_user_balance(
+                            user_address,
+                            "OEGP",
+                            amount_in
+                        )
+                        if not balance_ok:
+                            return {"success": False, "error": f"Insufficient balance: {balance_msg}"}
+
+                        # Execute swap on blockchain
+                        tx_hash = await self._execute_egp_to_token_swap(
+                            property_id,
+                            amount_in,
+                            min_amount_out,
+                            user_address
+                        )
+
+                    if not tx_hash:
+                        return {"success": False, "error": "Blockchain transaction failed"}
+
+                    # PHASE 2: Wait for transaction confirmation
+                    logger.info(f"⏳ Waiting for confirmation: {tx_hash}")
+                    tx_confirmed, receipt = await self._monitor_transaction(tx_hash, timeout=180)
+
+                    if not tx_confirmed:
+                        return {
+                            "success": False,
+                            "error": "Transaction failed or timed out",
+                            "tx_hash": tx_hash
+                        }
+
+                    logger.info(f"✅ Transaction confirmed in block {receipt['blockNumber']}")
+
                 except ContractLogicError as e:
-                    return {"success": False, "error": f"Smart contract error: {e}"}
+                    return {"success": False, "error": f"Smart contract error: {str(e)}"}
+                except Exception as e:
+                    logger.error(f"❌ Blockchain execution failed: {e}")
+                    return {"success": False, "error": f"Blockchain error: {str(e)}"}
+            else:
+                # Blockchain not configured - simulation mode for development
+                logger.warning("⚠️ Blockchain not configured. Running in SIMULATION mode.")
+                tx_hash = "simulated_tx_" + str(datetime.utcnow().timestamp())
+                tx_confirmed = True  # Simulate success for development
 
             # Record trade in database
             trade = Trade(
@@ -732,6 +854,267 @@ class LiquidityService:
         except Exception as e:
             logger.error(f"❌ Failed to get recent trades: {e}")
             return []
+
+    # ═══════════════════════════════════════════════════════════════
+    # BLOCKCHAIN INTEGRATION (Phase 2: Production Readiness)
+    # ═══════════════════════════════════════════════════════════════
+
+    async def _verify_user_balance(
+        self,
+        user_address: str,
+        token_type: str,
+        amount: float,
+        property_id: Optional[int] = None
+    ) -> Tuple[bool, str]:
+        """
+        Verify user has sufficient balance on-chain before executing swap.
+
+        This is a CRITICAL security function from the walkthrough requirements:
+        "verify user token balance on-chain before allowing a swap"
+
+        Args:
+            user_address: User's wallet address
+            token_type: "OEGP" or "PROPERTY_TOKEN"
+            amount: Amount to verify (in human-readable units)
+            property_id: Required if token_type is "PROPERTY_TOKEN"
+
+        Returns:
+            Tuple of (success: bool, message: str)
+
+        Raises:
+            None - Returns error message instead
+        """
+        if not self.w3 or not self.oegp_contract or not self.amm_contract:
+            return False, "Blockchain not initialized. Run 'npx hardhat compile' first."
+
+        try:
+            checksum_address = self.w3.to_checksum_address(user_address)
+
+            if token_type.upper() == "OEGP":
+                # Check OEGP stablecoin balance
+                balance_wei = self.oegp_contract.functions.balanceOf(checksum_address).call()
+                balance = self.w3.from_wei(balance_wei, 'ether')
+
+                if balance >= amount:
+                    logger.info(f"✅ User {user_address[:10]}... has {balance} OEGP (needs {amount})")
+                    return True, f"Sufficient balance: {balance} OEGP"
+                else:
+                    logger.warning(f"⚠️ Insufficient OEGP: User has {balance}, needs {amount}")
+                    return False, f"Insufficient OEGP balance. Have: {balance}, Need: {amount}"
+
+            elif token_type.upper() == "PROPERTY_TOKEN":
+                if not property_id:
+                    return False, "Property ID required for property token balance check"
+
+                # Check property token balance (ERC1155)
+                # Note: Property tokens use ERC1155, so we need to call balanceOf with tokenId
+                balance = self.amm_contract.functions.balanceOf(checksum_address, property_id).call()
+
+                if balance >= amount:
+                    logger.info(f"✅ User {user_address[:10]}... has {balance} tokens for property {property_id}")
+                    return True, f"Sufficient balance: {balance} tokens"
+                else:
+                    logger.warning(f"⚠️ Insufficient tokens: User has {balance}, needs {amount}")
+                    return False, f"Insufficient property token balance. Have: {balance}, Need: {amount}"
+
+            else:
+                return False, f"Invalid token type: {token_type}. Must be 'OEGP' or 'PROPERTY_TOKEN'"
+
+        except Exception as e:
+            logger.error(f"❌ Balance verification failed: {e}")
+            return False, f"Balance check error: {str(e)}"
+
+    async def _execute_token_to_egp_swap(
+        self,
+        property_id: int,
+        token_amount: float,
+        min_egp_out: float,
+        user_address: str
+    ) -> Optional[str]:
+        """
+        Execute swapTokensForEGP transaction on blockchain.
+
+        Calls the smart contract function:
+        swapTokensForEGP(uint256 propertyId, uint256 tokenAmount, uint256 minEGPOut)
+
+        Args:
+            property_id: Property token ID
+            token_amount: Amount of property tokens to swap
+            min_egp_out: Minimum OEGP to receive (slippage protection)
+            user_address: User's wallet address
+
+        Returns:
+            Transaction hash (str) if successful, None if failed
+
+        Raises:
+            ContractLogicError: If smart contract reverts
+        """
+        if not self.w3 or not self.amm_contract:
+            raise ValueError("Blockchain not initialized")
+
+        try:
+            # Convert amounts to wei (assuming 18 decimals)
+            token_amount_wei = self.w3.to_wei(token_amount, 'ether')
+            min_egp_out_wei = self.w3.to_wei(min_egp_out, 'ether')
+
+            # Build transaction
+            tx = self.amm_contract.functions.swapTokensForEGP(
+                property_id,
+                token_amount_wei,
+                min_egp_out_wei
+            ).build_transaction({
+                'from': self.account.address,
+                'nonce': self.w3.eth.get_transaction_count(self.account.address),
+                'gas': 300000,  # Estimated gas limit
+                'gasPrice': self.w3.eth.gas_price,
+                'chainId': self.chain_id
+            })
+
+            # Sign transaction
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+
+            # Send transaction
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            tx_hash_hex = self.w3.to_hex(tx_hash)
+
+            logger.info(f"✅ Swap transaction sent: {tx_hash_hex}")
+            return tx_hash_hex
+
+        except ContractLogicError as e:
+            logger.error(f"❌ Smart contract reverted: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Swap execution failed: {e}")
+            return None
+
+    async def _execute_egp_to_token_swap(
+        self,
+        property_id: int,
+        egp_amount: float,
+        min_tokens_out: float,
+        user_address: str
+    ) -> Optional[str]:
+        """
+        Execute swapEGPForTokens transaction on blockchain.
+
+        Calls the smart contract function:
+        swapEGPForTokens(uint256 propertyId, uint256 egpAmount, uint256 minTokensOut)
+
+        Args:
+            property_id: Property token ID
+            egp_amount: Amount of OEGP to swap
+            min_tokens_out: Minimum property tokens to receive (slippage protection)
+            user_address: User's wallet address
+
+        Returns:
+            Transaction hash (str) if successful, None if failed
+
+        Raises:
+            ContractLogicError: If smart contract reverts
+        """
+        if not self.w3 or not self.amm_contract:
+            raise ValueError("Blockchain not initialized")
+
+        try:
+            # Convert amounts to wei
+            egp_amount_wei = self.w3.to_wei(egp_amount, 'ether')
+            min_tokens_out_wei = self.w3.to_wei(min_tokens_out, 'ether')
+
+            # Build transaction
+            tx = self.amm_contract.functions.swapEGPForTokens(
+                property_id,
+                egp_amount_wei,
+                min_tokens_out_wei
+            ).build_transaction({
+                'from': self.account.address,
+                'nonce': self.w3.eth.get_transaction_count(self.account.address),
+                'gas': 300000,
+                'gasPrice': self.w3.eth.gas_price,
+                'chainId': self.chain_id
+            })
+
+            # Sign transaction
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+
+            # Send transaction
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            tx_hash_hex = self.w3.to_hex(tx_hash)
+
+            logger.info(f"✅ Swap transaction sent: {tx_hash_hex}")
+            return tx_hash_hex
+
+        except ContractLogicError as e:
+            logger.error(f"❌ Smart contract reverted: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Swap execution failed: {e}")
+            return None
+
+    async def _monitor_transaction(
+        self,
+        tx_hash: str,
+        timeout: int = 120
+    ) -> Tuple[bool, Optional[dict]]:
+        """
+        Monitor blockchain transaction until confirmed or timeout.
+
+        Polls for transaction receipt every 2 seconds.
+        Handles stuck transactions (low gas) and network issues.
+
+        Args:
+            tx_hash: Transaction hash to monitor
+            timeout: Maximum wait time in seconds (default: 120s = 2 minutes)
+
+        Returns:
+            Tuple of (success: bool, receipt: dict or None)
+
+        Example:
+            success, receipt = await self._monitor_transaction(tx_hash, timeout=180)
+            if success:
+                print(f"Confirmed in block {receipt['blockNumber']}")
+            else:
+                print("Transaction failed or timed out")
+        """
+        if not self.w3:
+            return False, None
+
+        import asyncio
+        from datetime import datetime, timedelta
+
+        try:
+            start_time = datetime.utcnow()
+            end_time = start_time + timedelta(seconds=timeout)
+
+            logger.info(f"⏳ Monitoring transaction: {tx_hash}")
+
+            while datetime.utcnow() < end_time:
+                try:
+                    receipt = self.w3.eth.get_transaction_receipt(tx_hash)
+
+                    if receipt:
+                        # Transaction confirmed
+                        if receipt['status'] == 1:
+                            elapsed = (datetime.utcnow() - start_time).total_seconds()
+                            logger.info(f"✅ Transaction confirmed in {elapsed:.1f}s (Block: {receipt['blockNumber']})")
+                            return True, receipt
+                        else:
+                            logger.error(f"❌ Transaction reverted: {tx_hash}")
+                            return False, receipt
+
+                except Exception:
+                    # Receipt not yet available, continue polling
+                    pass
+
+                # Wait 2 seconds before next poll
+                await asyncio.sleep(2)
+
+            # Timeout reached
+            logger.warning(f"⚠️ Transaction monitoring timed out after {timeout}s: {tx_hash}")
+            return False, None
+
+        except Exception as e:
+            logger.error(f"❌ Transaction monitoring error: {e}")
+            return False, None
 
 
 # Singleton instance

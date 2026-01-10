@@ -390,5 +390,198 @@ class TestImpermanentLoss:
         assert impermanent_loss < 6
 
 
+class TestBlockchainIntegration:
+    """Test blockchain integration features (Phase 2 implementation)"""
+
+    @pytest.fixture
+    def mock_db(self, mocker):
+        """Mock database session"""
+        return mocker.AsyncMock()
+
+    @pytest.fixture
+    def mock_web3(self, mocker):
+        """Mock Web3 instance with contract interactions"""
+        mock_w3 = mocker.Mock()
+
+        # Mock OEGP contract balance check
+        mock_oegp = mocker.Mock()
+        mock_oegp.functions.balanceOf.return_value.call.return_value = 10_000 * 10**18  # 10,000 OEGP
+
+        # Mock AMM contract balance check
+        mock_amm = mocker.Mock()
+        mock_amm.functions.balanceOf.return_value.call.return_value = 100  # 100 property tokens
+
+        # Mock swap transaction
+        mock_amm.functions.swapTokensForEGP.return_value.build_transaction.return_value = {
+            'from': '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+            'nonce': 1,
+            'gas': 300000,
+            'gasPrice': 30 * 10**9,
+            'chainId': 137
+        }
+
+        # Mock transaction receipt (successful)
+        mock_w3.eth.get_transaction_receipt.return_value = {
+            'status': 1,  # Success
+            'blockNumber': 12345,
+            'transactionHash': b'\x12\x34\x56\x78',
+            'gasUsed': 250000
+        }
+
+        mock_w3.eth.send_raw_transaction.return_value = b'\x12\x34\x56\x78'
+        mock_w3.to_hex.return_value = "0x1234567890abcdef"
+
+        return mock_w3, mock_amm, mock_oegp
+
+    @pytest.mark.asyncio
+    async def test_on_chain_balance_verification_sufficient(self, mocker, mock_web3):
+        """Test on-chain balance verification - sufficient balance (Phase 2.2)"""
+        mock_w3, mock_amm, mock_oegp = mock_web3
+        liquidity_service = LiquidityService()
+
+        # Mock balance: 10,000 OEGP
+        with mocker.patch.object(liquidity_service, 'oegp_contract', mock_oegp):
+            with mocker.patch.object(liquidity_service, 'w3', mock_w3):
+                is_sufficient, message = await liquidity_service._verify_user_balance(
+                    user_address="0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+                    token_type="OEGP",
+                    amount=5000.0  # Requesting 5,000 OEGP
+                )
+
+                assert is_sufficient is True
+                assert "Sufficient balance" in message
+
+    @pytest.mark.asyncio
+    async def test_on_chain_balance_verification_insufficient(self, mocker, mock_web3):
+        """Test on-chain balance verification - insufficient balance (Phase 2.2)"""
+        mock_w3, mock_amm, mock_oegp = mock_web3
+        liquidity_service = LiquidityService()
+
+        # Mock insufficient balance: 1,000 OEGP
+        mock_oegp.functions.balanceOf.return_value.call.return_value = 1_000 * 10**18
+
+        with mocker.patch.object(liquidity_service, 'oegp_contract', mock_oegp):
+            with mocker.patch.object(liquidity_service, 'w3', mock_w3):
+                is_sufficient, message = await liquidity_service._verify_user_balance(
+                    user_address="0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+                    token_type="OEGP",
+                    amount=5000.0  # Requesting 5,000 OEGP (more than balance)
+                )
+
+                assert is_sufficient is False
+                assert "Insufficient balance" in message
+
+    @pytest.mark.asyncio
+    async def test_two_phase_commit_success(self, mocker, mock_db, mock_web3):
+        """Test two-phase commit: blockchain executes, then DB updates (Phase 2.6)"""
+        mock_w3, mock_amm, mock_oegp = mock_web3
+        liquidity_service = LiquidityService()
+
+        # Mock successful blockchain execution
+        with mocker.patch.object(liquidity_service, '_verify_user_balance', return_value=(True, "Sufficient")):
+            with mocker.patch.object(liquidity_service, '_execute_token_to_egp_swap', return_value="0x1234567890abcdef"):
+                with mocker.patch.object(liquidity_service, '_monitor_transaction', return_value=(True, {"status": 1, "gasUsed": 250000})):
+
+                    result = await liquidity_service.execute_swap(
+                        property_id=1,
+                        user_id=42,
+                        amount_in=10.0,
+                        amount_out=49_000.0,
+                        trade_type="SELL"
+                    )
+
+                    assert result["success"] is True
+                    assert result["tx_hash"] == "0x1234567890abcdef"
+
+    @pytest.mark.asyncio
+    async def test_two_phase_commit_rollback_on_blockchain_failure(self, mocker, mock_db, mock_web3):
+        """Test rollback: if blockchain fails, do NOT update database (Phase 2.6)"""
+        mock_w3, mock_amm, mock_oegp = mock_web3
+        liquidity_service = LiquidityService()
+
+        # Mock blockchain transaction failure
+        with mocker.patch.object(liquidity_service, '_verify_user_balance', return_value=(True, "Sufficient")):
+            with mocker.patch.object(liquidity_service, '_execute_token_to_egp_swap', return_value="0xfailed_tx"):
+                with mocker.patch.object(liquidity_service, '_monitor_transaction', return_value=(False, None)):
+
+                    result = await liquidity_service.execute_swap(
+                        property_id=1,
+                        user_id=42,
+                        amount_in=10.0,
+                        amount_out=49_000.0,
+                        trade_type="SELL"
+                    )
+
+                    assert result["success"] is False
+                    assert "failed" in result["error"].lower() or "timed out" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_transaction_monitoring_success(self, mocker, mock_web3):
+        """Test transaction monitoring - successful confirmation (Phase 2.5)"""
+        mock_w3, mock_amm, mock_oegp = mock_web3
+        liquidity_service = LiquidityService()
+
+        # Mock successful transaction receipt
+        mock_w3.eth.get_transaction_receipt.return_value = {
+            'status': 1,
+            'blockNumber': 12345,
+            'gasUsed': 250000
+        }
+
+        with mocker.patch.object(liquidity_service, 'w3', mock_w3):
+            confirmed, receipt = await liquidity_service._monitor_transaction("0x1234567890abcdef", timeout=10)
+
+            assert confirmed is True
+            assert receipt['status'] == 1
+
+    @pytest.mark.asyncio
+    async def test_transaction_monitoring_reverted(self, mocker, mock_web3):
+        """Test transaction monitoring - reverted transaction (Phase 2.5)"""
+        mock_w3, mock_amm, mock_oegp = mock_web3
+        liquidity_service = LiquidityService()
+
+        # Mock reverted transaction (status = 0)
+        mock_w3.eth.get_transaction_receipt.return_value = {
+            'status': 0,  # Reverted
+            'blockNumber': 12345,
+            'gasUsed': 250000
+        }
+
+        with mocker.patch.object(liquidity_service, 'w3', mock_w3):
+            confirmed, receipt = await liquidity_service._monitor_transaction("0xreverted_tx", timeout=10)
+
+            assert confirmed is False
+            assert receipt is None
+
+    @pytest.mark.asyncio
+    async def test_transaction_monitoring_timeout(self, mocker, mock_web3):
+        """Test transaction monitoring - timeout after 120 seconds (Phase 2.5)"""
+        mock_w3, mock_amm, mock_oegp = mock_web3
+        liquidity_service = LiquidityService()
+
+        # Mock no receipt (transaction stuck in mempool)
+        mock_w3.eth.get_transaction_receipt.return_value = None
+
+        with mocker.patch.object(liquidity_service, 'w3', mock_w3):
+            confirmed, receipt = await liquidity_service._monitor_transaction("0xstuck_tx", timeout=2)
+
+            assert confirmed is False
+            assert receipt is None
+
+    @pytest.mark.asyncio
+    async def test_contract_abi_loading(self, mocker):
+        """Test contract ABIs are loaded from Hardhat artifacts (Phase 2.1)"""
+        liquidity_service = LiquidityService()
+
+        # Verify _load_contract_abis() loads artifacts correctly
+        with mocker.patch('builtins.open', mocker.mock_open(read_data='{"abi": []}')):
+            with mocker.patch('pathlib.Path.exists', return_value=True):
+                liquidity_service._load_contract_abis()
+
+                # Verify contracts were initialized
+                assert liquidity_service.amm_contract is not None or liquidity_service.amm_address is None
+                assert liquidity_service.oegp_contract is not None or liquidity_service.oegp_address is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

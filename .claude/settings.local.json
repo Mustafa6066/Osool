@@ -9,7 +9,12 @@
       "Bash(grep:*)",
       "Bash(find:*)",
       "Bash(chmod:*)",
-      "Bash(alembic revision:*)"
+      "Bash(alembic revision:*)",
+      "Bash(git log:*)",
+      "Bash(test:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npx hardhat:*)"
     ]
   }
 }
