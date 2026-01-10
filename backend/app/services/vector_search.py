@@ -55,46 +55,104 @@ async def get_embedding(text: str) -> Optional[List[float]]:
         logger.error(f"Embedding generation failed: {e}")
         return None
 
-async def search_properties(db: AsyncSession, query_text: str, limit: int = 5) -> List[Property]:
+async def search_properties(
+    db: AsyncSession,
+    query_text: str,
+    limit: int = 5,
+    similarity_threshold: float = 0.7
+) -> List[dict]:
     """
-    Search for properties using semantic similarity with fallback to text search.
+    Search for properties using semantic similarity with STRICT threshold enforcement.
 
-    Phase 1 Enhancement:
-    - Primary: pgvector cosine distance search
-    - Fallback: Full-text search on title, location, compound, description
+    Phase 7 Production Enhancement:
+    - Primary: pgvector cosine similarity search with 0.7 minimum threshold
+    - ANTI-HALLUCINATION: Returns empty if no results meet threshold
+    - Fallback: Disabled in production to prevent false recommendations
 
     Args:
         db: Database session
         query_text: User search query
         limit: Maximum number of results
+        similarity_threshold: Minimum similarity score (0-1), default 0.7
 
     Returns:
-        List of matching Property objects
+        List of property dicts with similarity scores and _source metadata
     """
     try:
         # Try vector search first
         embedding = await get_embedding(query_text)
 
         if embedding:
-            logger.info("Using pgvector semantic search")
-            # Cosine distance search using pgvector
-            # <=> is cosine distance operator (lower is better, 0 = identical)
-            stmt = select(Property).filter(
-                Property.is_available == True  # Only available properties
-            ).order_by(
-                Property.embedding.cosine_distance(embedding)
-            ).limit(limit)
+            logger.info(f"Using pgvector semantic search (threshold: {similarity_threshold})")
+
+            # Calculate cosine similarity (1 - cosine_distance)
+            # Similarity ranges from 0 (completely different) to 1 (identical)
+            similarity_expr = 1 - Property.embedding.cosine_distance(embedding)
+
+            # CRITICAL: Filter by threshold AND order by similarity
+            stmt = (
+                select(Property, similarity_expr.label('similarity'))
+                .filter(
+                    Property.is_available == True,
+                    similarity_expr >= similarity_threshold  # STRICT THRESHOLD
+                )
+                .order_by(similarity_expr.desc())
+                .limit(limit)
+            )
 
             result = await db.execute(stmt)
-            properties = result.scalars().all()
+            rows = result.all()
 
-            if properties:
-                return list(properties)
-            else:
-                logger.warning("Vector search returned no results, falling back to text search")
+            if not rows:
+                logger.warning(
+                    f"No properties found above similarity threshold {similarity_threshold} "
+                    f"for query: '{query_text}'"
+                )
+                return []  # Return empty instead of hallucinating
 
-        # Fallback to full-text search if vector search fails or returns nothing
-        logger.info("Using full-text search fallback")
+            # Convert to dicts with similarity scores
+            properties = []
+            for row in rows:
+                prop = row.Property
+                prop_dict = {
+                    "id": prop.id,
+                    "title": prop.title,
+                    "description": prop.description,
+                    "type": prop.type,
+                    "location": prop.location,
+                    "compound": prop.compound,
+                    "developer": prop.developer,
+                    "price": prop.price,
+                    "price_per_sqm": prop.price_per_sqm,
+                    "size_sqm": prop.size_sqm,
+                    "bedrooms": prop.bedrooms,
+                    "bathrooms": prop.bathrooms,
+                    "finishing": prop.finishing,
+                    "delivery_date": prop.delivery_date,
+                    "down_payment": prop.down_payment,
+                    "installment_years": prop.installment_years,
+                    "monthly_installment": prop.monthly_installment,
+                    "image_url": prop.image_url,
+                    "nawy_url": prop.nawy_url,
+                    "sale_type": prop.sale_type,
+                    "is_available": prop.is_available,
+                    "_source": "database",
+                    "_similarity_score": float(row.similarity)
+                }
+                properties.append(prop_dict)
+
+            logger.info(
+                f"Found {len(properties)} properties with similarity >= {similarity_threshold}"
+            )
+            return properties
+
+        # If embedding generation fails, check environment
+        if os.getenv("ENVIRONMENT") == "production":
+            logger.error("Embedding generation failed in production - returning no results")
+            return []  # NO fallback in production
+
+        # In development only: Allow keyword fallback
+        logger.warning("Using full-text search fallback (development mode only)")
         search_term = f"%{query_text}%"
 
         stmt = select(Property).filter(
@@ -113,8 +171,37 @@ async def search_properties(db: AsyncSession, query_text: str, limit: int = 5) -
 
         if not properties:
             logger.warning(f"No properties found for query: '{query_text}'")
+            return []
 
-        return list(properties)
+        # Convert to dicts without similarity scores
+        return [
+            {
+                "id": p.id,
+                "title": p.title,
+                "description": p.description,
+                "type": p.type,
+                "location": p.location,
+                "compound": p.compound,
+                "developer": p.developer,
+                "price": p.price,
+                "price_per_sqm": p.price_per_sqm,
+                "size_sqm": p.size_sqm,
+                "bedrooms": p.bedrooms,
+                "bathrooms": p.bathrooms,
+                "finishing": p.finishing,
+                "delivery_date": p.delivery_date,
+                "down_payment": p.down_payment,
+                "installment_years": p.installment_years,
+                "monthly_installment": p.monthly_installment,
+                "image_url": p.image_url,
+                "nawy_url": p.nawy_url,
+                "sale_type": p.sale_type,
+                "is_available": p.is_available,
+                "_source": "database_fallback",
+                "_similarity_score": None
+            }
+            for p in properties
+        ]
 
     except Exception as e:
         logger.error(f"Property search failed: {e}")

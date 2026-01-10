@@ -15,19 +15,29 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True) # KYC
+
+    # KYC Fields - Required for Egyptian FRA compliance
+    # Note: nullable=True for backward compatibility with existing users
+    # New signups enforce these at application level
+    national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
+    phone_number: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
+
+    # Authentication Fields
     wallet_address: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
-    password_hash: Mapped[str] = mapped_column(String, nullable=True) # For Auth
+    password_hash: Mapped[str] = mapped_column(String, nullable=True)
     full_name: Mapped[str] = mapped_column(String, nullable=True)
-    phone_number: Mapped[str] = mapped_column(String, nullable=True)  # For profile completion
     role: Mapped[str] = mapped_column(String, default="investor") # investor, admin
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Phase 2: Email and Phone Verification
+    # Verification Status
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)  # Master verification flag
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     verification_token: Mapped[str] = mapped_column(String, nullable=True)
+
+    # KYC Status Tracking (Phase 7)
+    kyc_status: Mapped[str] = mapped_column(String, default="pending")  # pending, verified, rejected
+    kyc_verified_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

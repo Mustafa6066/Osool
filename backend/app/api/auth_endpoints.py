@@ -67,11 +67,183 @@ class PasswordResetConfirm(BaseModel):
     new_password: str
 
 
+class SignupRequest(BaseModel):
+    """KYC-Compliant Signup for Egyptian FRA Compliance"""
+    full_name: str
+    email: EmailStr
+    password: str
+    phone_number: str  # E.164 format: +201234567890
+    national_id: str   # Egyptian NID: 14 digits
+
+
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str
     user_id: int
     is_new_user: bool
+
+
+# ═══════════════════════════════════════════════════════════════
+# KYC-COMPLIANT SIGNUP & LOGIN (FRA Egyptian Compliance)
+# ═══════════════════════════════════════════════════════════════
+
+@router.post("/signup")
+async def signup_with_kyc(req: SignupRequest, db: Session = Depends(get_db)):
+    """
+    FRA-Compliant Signup requiring National ID + Phone Verification.
+
+    Flow:
+    1. Validate inputs (phone format, NID length)
+    2. Check for duplicate email/phone/NID
+    3. Create user with unverified status
+    4. Send OTP to phone immediately
+    5. User must verify OTP before login is allowed
+
+    Required Fields:
+    - full_name: User's full name
+    - email: Email address
+    - password: Minimum 8 characters
+    - phone_number: Egyptian phone (+20...)
+    - national_id: 14-digit Egyptian National ID
+    """
+    # Validation 1: Egyptian phone number format
+    if not req.phone_number.startswith('+20'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Egyptian phone numbers only. Use E.164 format: +201234567890"
+        )
+
+    # Validation 2: National ID length (14 digits)
+    if len(req.national_id) != 14 or not req.national_id.isdigit():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="National ID must be exactly 14 digits"
+        )
+
+    # Validation 3: Password strength
+    if len(req.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long"
+        )
+
+    # Check for duplicates
+    existing_user = db.query(User).filter(
+        (User.email == req.email) |
+        (User.phone_number == req.phone_number) |
+        (User.national_id == req.national_id)
+    ).first()
+
+    if existing_user:
+        # Don't leak which field is duplicate for security
+        if existing_user.email == req.email:
+            detail = "Email already registered"
+        elif existing_user.phone_number == req.phone_number:
+            detail = "Phone number already registered"
+        else:
+            detail = "National ID already registered"
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail
+        )
+
+    # Create custodial wallet
+    wallet = create_custodial_wallet()
+
+    # Create user with unverified status
+    new_user = User(
+        full_name=req.full_name,
+        email=req.email,
+        password_hash=get_password_hash(req.password),
+        phone_number=req.phone_number,
+        national_id=req.national_id,
+        wallet_address=wallet["address"],
+        is_verified=False,       # Cannot login until phone verified
+        phone_verified=False,    # Must verify OTP
+        email_verified=False,
+        kyc_status="pending",    # KYC pending
+        role="investor"
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    logger.info(f"✅ Created new user: {req.email} (NID: {req.national_id[:4]}****)")
+
+    # Send OTP immediately
+    try:
+        otp_code = sms_service.send_otp(req.phone_number)
+
+        # Return response
+        response = {
+            "status": "otp_sent",
+            "user_id": new_user.id,
+            "message": "Signup successful. Please verify your phone number with the OTP sent to complete registration."
+        }
+
+        # In development mode, include OTP for testing
+        if os.getenv('ENVIRONMENT') == 'development':
+            response["dev_otp"] = otp_code
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Failed to send OTP during signup: {e}")
+        # Rollback user creation if OTP fails
+        db.delete(new_user)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification code. Please try again."
+        )
+
+
+@router.post("/login")
+async def login_with_verification(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    Login endpoint with phone verification gate.
+
+    Returns 403 if user hasn't verified their phone number.
+    """
+    # Find user by email
+    user = db.query(User).filter(User.email == form_data.username).first()
+
+    if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+
+    # CRITICAL: Verification gate - phone must be verified
+    if not user.phone_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "phone_not_verified",
+                "message": "Please verify your phone number before logging in",
+                "user_id": user.id
+            }
+        )
+
+    # Generate JWT
+    access_token = create_access_token(data={
+        "sub": user.email,
+        "wallet": user.wallet_address,
+        "role": user.role
+    })
+
+    logger.info(f"✅ Login successful: {user.email}")
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": user.id
+    }
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -178,9 +350,13 @@ async def send_otp(
 @router.post("/otp/verify", response_model=AuthResponse)
 async def verify_otp_login(req: OTPVerifyRequest, db: Session = Depends(get_db)):
     """
-    Verify OTP and login/signup user.
+    Verify OTP and complete phone verification.
 
-    Creates new user if phone number doesn't exist.
+    This endpoint:
+    1. Verifies the OTP code
+    2. Marks phone_verified = True
+    3. Sets is_verified = True (enables login)
+    4. Returns JWT token for immediate login
     """
     # Verify OTP
     if not sms_service.verify_otp(req.phone_number, req.otp_code):
@@ -189,32 +365,24 @@ async def verify_otp_login(req: OTPVerifyRequest, db: Session = Depends(get_db))
             detail="Invalid or expired OTP code"
         )
 
-    # Get or create user by phone
+    # Find user by phone
     user = db.query(User).filter(User.phone_number == req.phone_number).first()
 
-    is_new = False
     if not user:
-        # Create new user
-        wallet = create_custodial_wallet()
-        user = User(
-            phone_number=req.phone_number,
-            full_name="Phone User",
-            wallet_address=wallet['address'],
-            phone_verified=True,
-            is_verified=True,
-            role='investor'
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this phone number. Please sign up first."
         )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        is_new = True
-        logger.info(f"✅ Created new user via phone: {req.phone_number}")
-    else:
-        # Mark phone as verified
-        user.phone_verified = True
-        db.commit()
 
-    # Generate JWT
+    # Mark phone as verified and enable login
+    user.phone_verified = True
+    user.is_verified = True  # Enable login
+    db.commit()
+    db.refresh(user)
+
+    logger.info(f"✅ Phone verified for user: {user.email} ({user.phone_number})")
+
+    # Generate JWT for immediate login
     access_token = create_access_token(data={
         "sub": user.email or user.phone_number,
         "wallet": user.wallet_address,
@@ -225,7 +393,8 @@ async def verify_otp_login(req: OTPVerifyRequest, db: Session = Depends(get_db))
         "access_token": access_token,
         "token_type": "bearer",
         "user_id": user.id,
-        "is_new_user": is_new
+        "is_new_user": False,  # User already signed up, just verifying
+        "message": "Phone verified successfully. You can now login."
     }
 
 

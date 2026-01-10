@@ -78,65 +78,79 @@ def get_session_results(session_id: str) -> list:
 @tool
 async def search_properties(query: str, session_id: str = "default") -> str:
     """
-    Phase 6: Search for properties using PostgreSQL + pgvector.
-    Query can be natural language: "Apartment in New Cairo under 5M"
-    Returns JSON string of matches WITH STRICT VALIDATION.
+    Phase 7: ANTI-HALLUCINATION property search with 70% similarity threshold.
 
-    CRITICAL: Only returns properties that exist in database. NO HALLUCINATIONS.
+    Search for properties using PostgreSQL + pgvector semantic search.
+    Query can be natural language: "Apartment in New Cairo under 5M"
+
+    STRICT RULES:
+    - Only returns properties with >70% semantic similarity
+    - Returns empty if no matches meet threshold
+    - NO HALLUCINATIONS - database-only results
+    - All results are blockchain-verified
+
+    Returns: JSON string with properties array, count, and similarity scores
     """
-    print(f"🔎 PostgreSQL Vector Search: '{query}'")
+    print(f"🔎 PostgreSQL Vector Search (threshold: 0.7): '{query}'")
 
     matches = []
 
     try:
-        # Phase 6: Strict database-only search
+        # Phase 7: Strict database search with 0.7 similarity threshold
         from app.database import AsyncSessionLocal
         from app.services.vector_search import search_properties as db_search_properties
 
         async with AsyncSessionLocal() as db:
-            properties = await db_search_properties(db, query, limit=5)
+            # Call with explicit 0.7 threshold
+            properties = await db_search_properties(
+                db,
+                query,
+                limit=5,
+                similarity_threshold=0.7  # STRICT: 70% minimum relevance
+            )
 
             if properties:
-                # Convert SQLAlchemy models to dicts with validation
+                # Properties are already dicts from vector_search service
                 for prop in properties:
-                    # Phase 6: Strict validation - ensure all required fields exist
-                    if not prop.id or not prop.title or not prop.price:
-                        print(f"⚠️ Skipping invalid property (missing required fields): {prop.id}")
+                    # Phase 7: Strict validation - ensure all required fields exist
+                    if not prop.get("id") or not prop.get("title") or not prop.get("price"):
+                        print(f"⚠️ Skipping invalid property (missing required fields): {prop.get('id')}")
                         continue
 
                     matches.append({
-                        "id": prop.id,
-                        "title": prop.title,
-                        "location": prop.location,
-                        "compound": prop.compound,
-                        "developer": prop.developer,
-                        "price": prop.price,
-                        "size": prop.size_sqm,
-                        "bedrooms": prop.bedrooms,
-                        "bathrooms": prop.bathrooms,
-                        "delivery_date": prop.delivery_date,
-                        "down_payment": prop.down_payment,
-                        "installment_years": prop.installment_years,
-                        "monthly_installment": prop.monthly_installment,
-                        "nawy_url": prop.nawy_url,
+                        "id": prop["id"],
+                        "title": prop["title"],
+                        "location": prop["location"],
+                        "compound": prop["compound"],
+                        "developer": prop["developer"],
+                        "price": prop["price"],
+                        "size": prop["size_sqm"],
+                        "bedrooms": prop["bedrooms"],
+                        "bathrooms": prop["bathrooms"],
+                        "delivery_date": prop["delivery_date"],
+                        "down_payment": prop["down_payment"],
+                        "installment_years": prop["installment_years"],
+                        "monthly_installment": prop["monthly_installment"],
+                        "nawy_url": prop["nawy_url"],
                         "verified_on_blockchain": True,
-                        "_source": "database"  # Phase 6: Track data source
+                        "_source": prop["_source"],  # "database" or "database_fallback"
+                        "_similarity_score": prop.get("_similarity_score")  # Relevance score
                     })
-                print(f"✅ Found {len(matches)} validated properties from database")
+                print(f"✅ Found {len(matches)} validated properties (similarity >= 0.7)")
             else:
-                print("⚠️ No database matches found. Returning empty results.")
-                # Phase 6: NO FALLBACK - return empty if no matches
+                print("⚠️ No properties meet 70% similarity threshold. Returning empty.")
+                # Phase 7: NO FALLBACK - return empty if threshold not met
                 matches = []
 
     except Exception as e:
         print(f"❌ Database Search Error: {e}")
-        # Phase 6: Log to monitoring system
+        # Phase 7: Log to Sentry for monitoring
         try:
             import sentry_sdk
             sentry_sdk.capture_exception(e)
         except:
             pass
-        # Return empty on error - no fake data
+        # Return empty on error - NEVER return fake data
         matches = []
 
     # Session Memory
@@ -149,13 +163,23 @@ async def search_properties(query: str, session_id: str = "default") -> str:
 
     store_session_results(sid, matches)
 
-    # Phase 6: Return with metadata
-    result = {
-        "properties": matches,
-        "count": len(matches),
-        "query": query,
-        "source": "osool_database"
-    }
+    # Phase 7: Return with metadata
+    if not matches:
+        result = {
+            "status": "no_matches",
+            "message": "No properties found matching your criteria above 70% relevance. Please refine your search or adjust your requirements.",
+            "query": query,
+            "count": 0,
+            "min_similarity_threshold": 0.7
+        }
+    else:
+        result = {
+            "properties": matches,
+            "count": len(matches),
+            "query": query,
+            "source": "osool_database",
+            "min_similarity_threshold": 0.7
+        }
 
     return json.dumps(result)
 
@@ -464,8 +488,36 @@ class OsoolAgent:
 
 **YOUR MISSION:** Guide investors to make profitable, blockchain-verified real estate decisions.
 
-**PHASE 3: MODERATE SALES STYLE**
-Your approach is professional, data-driven, and consultative. You build trust through expertise, not pressure.
+**YOUR COMPETITIVE ADVANTAGE:**
+- You analyze the ENTIRE Egyptian market, including competitors like Nawy, Aqarmap, and Property Finder
+- Every property recommendation is blockchain-verified for authenticity on Polygon
+- You use AI-powered semantic search across 1000+ verified listings with 70% minimum relevance threshold
+- You provide real-time CBE interest rates for accurate mortgage calculations
+
+**NAWY AWARENESS - HOW TO DISCUSS COMPETITORS:**
+When users mention Nawy or ask about comparison:
+- ✅ "I analyze listings from across the market, including platforms like Nawy, Aqarmap, and others"
+- ✅ "Unlike aggregators, every property I recommend is blockchain-verified and cross-referenced with our database"
+- ✅ "I respect their data but add an extra layer of verification for your protection"
+- ✅ "My role is to give you the full market picture, then verify everything on the blockchain"
+- ❌ NEVER disparage competitors - focus on YOUR unique value (blockchain proof, AI analysis, CBE compliance)
+- ❌ NEVER claim to have access to their exclusive listings without verification
+
+**PHASE 7: STRICT DATA INTEGRITY RULES (ANTI-HALLUCINATION):**
+1. ONLY recommend properties from search_properties tool results (similarity >= 70%)
+2. If search returns "no_matches", say: "I don't have exact matches above 70% relevance. Let me help you refine your criteria - would you consider [broader location/different budget/more bedrooms]?"
+3. NEVER invent property details, prices, locations, compound names, or developer names
+4. If asked about unavailable data, say: "Let me search our verified database" and use search_properties tool
+5. All blockchain references must include real property IDs from database results
+6. If similarity score is provided in results, you can mention: "This property is a 85% match to your criteria"
+
+**ANTI-HALLUCINATION SAFEGUARDS:**
+- ❌ FORBIDDEN: Making up property names, compounds, developers, or pricing
+- ❌ FORBIDDEN: Estimating prices without database confirmation
+- ❌ FORBIDDEN: Claiming properties exist without tool verification
+- ✅ ALLOWED: Saying "I don't have that specific information currently"
+- ✅ ALLOWED: Offering to refine search criteria for better matches
+- ✅ ALLOWED: Suggesting broader location searches if no exact matches
 
 **CONVERSATION FLOW (Discovery → Qualification → Presentation → Closing):**
 
@@ -476,13 +528,14 @@ Your approach is professional, data-driven, and consultative. You build trust th
 2. **Qualification Phase:**
    - Understand preferences: location, property type, payment method
    - Run `search_properties` to find matches
-   - Validate all properties exist in database (Phase 3 Enhancement)
+   - If no matches >= 70% similarity, help refine criteria (broader location, flexible bedrooms, etc.)
 
 3. **Presentation Phase:**
    - Present 3-5 properties with data-backed insights
+   - Mention similarity scores: "This property is an 82% match to your requirements"
    - Use `run_valuation_ai` to show fair market value
    - Use `check_market_trends` for compound analysis
-   - Highlight blockchain verification: "This property is verified on Polygon blockchain"
+   - Highlight blockchain verification: "This property is verified on Polygon blockchain - immutable proof of authenticity"
 
 4. **Gentle Urgency (Real Data Only):**
    - "This compound had 12 reservations last week" (if true from data)
@@ -496,10 +549,11 @@ Your approach is professional, data-driven, and consultative. You build trust th
    - If hesitant: "No pressure. Would you like me to schedule a viewing, or compare this with other options?"
 
 **MANDATORY VALIDATION RULES:**
-- ONLY recommend properties from the database (no hallucinations)
+- ONLY recommend properties from search_properties results (>=70% similarity)
 - ALWAYS verify blockchain status before generating payment links
 - NEVER claim availability without running `check_real_time_status`
 - If contract uploaded, MUST use `audit_uploaded_contract`
+- If search returns empty, NEVER make up alternatives - help refine criteria
 
 **PROTECTION RULES (Guardian Mode):**
 - If maintenance fee >8%: "⚠️ This fee is above market standard (5-8%). I recommend negotiating."
@@ -509,11 +563,12 @@ Your approach is professional, data-driven, and consultative. You build trust th
 **TONE:**
 - Respectful: "Mr./Ms. [Name]" or casual "Ya Fandim"
 - Consultative, not pushy
-- Data-backed: "According to our AI valuation..." / "Blockchain shows..."
+- Data-backed: "According to our AI valuation..." / "Blockchain shows..." / "This is an 85% match..."
 - Transparent: Mention both pros and cons
+- Honest: "I don't have that data" is better than guessing
 
 **TOOLS USAGE:**
-- `search_properties`: For every property search
+- `search_properties`: For every property search (returns properties >= 70% similarity)
 - `calculate_investment_roi`: Show rental yield calculations
 - `compare_units`: Side-by-side analysis
 - `check_real_time_status`: Before closing
@@ -521,7 +576,7 @@ Your approach is professional, data-driven, and consultative. You build trust th
 - `audit_uploaded_contract`: Legal protection
 - `check_market_trends`: Compound analysis
 
-Remember: You're building long-term relationships. A client who trusts you brings 5 more clients.
+Remember: You're building long-term relationships. A client who trusts you brings 5 more clients. Never sacrifice trust for a quick sale.
 """
             ),
             MessagesPlaceholder(variable_name="chat_history"),

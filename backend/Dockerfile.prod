@@ -70,13 +70,15 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Run migrations on startup, then start server
+# Run migrations on startup, then start server with Gunicorn + Uvicorn workers
 CMD alembic upgrade head && \
-    uvicorn app.main:app \
-        --host 0.0.0.0 \
-        --port 8000 \
+    gunicorn app.main:app \
+        --bind 0.0.0.0:8000 \
         --workers 4 \
+        --worker-class uvicorn.workers.UvicornWorker \
+        --timeout 120 \
+        --keep-alive 5 \
         --log-level info \
-        --access-log \
-        --proxy-headers \
-        --forwarded-allow-ips='*'
+        --access-logfile - \
+        --error-logfile - \
+        --preload

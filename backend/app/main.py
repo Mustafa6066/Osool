@@ -41,6 +41,7 @@ else:
 
 # Import routers
 from app.api.endpoints import router as api_router
+from app.api.auth_endpoints import router as auth_router  # Phase 7: KYC-compliant auth
 from app.api.liquidity_endpoints import router as liquidity_router
 from app.services.metrics import metrics_endpoint
 
@@ -175,6 +176,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ═══════════════════════════════════════════════════════════════
 
 app.include_router(api_router)
+app.include_router(auth_router)  # Phase 7: KYC-compliant authentication (CRITICAL FIX)
 app.include_router(liquidity_router)  # Phase 6: Liquidity Marketplace
 
 
