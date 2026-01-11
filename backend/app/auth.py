@@ -188,6 +188,74 @@ def create_custodial_wallet() -> dict:
     # TODO: Implement encryption before production deployment
     return {"address": acct.address, "private_key": acct.key.hex()}
 
+def encrypt_private_key(private_key: str) -> str:
+    """
+    Encrypt wallet private key before database storage using Fernet (AES-128-CBC).
+
+    Args:
+        private_key: Unencrypted private key (hex string)
+
+    Returns:
+        Encrypted private key as base64 string
+
+    Raises:
+        ValueError: If WALLET_ENCRYPTION_KEY is not set in environment
+
+    Security Notes:
+        - Uses Fernet symmetric encryption (AES-128 in CBC mode)
+        - Encryption key MUST be stored securely (AWS KMS, Azure Key Vault, etc.)
+        - Never commit encryption keys to version control
+        - Rotate encryption keys periodically in production
+    """
+    from cryptography.fernet import Fernet
+
+    encryption_key = os.getenv("WALLET_ENCRYPTION_KEY")
+    if not encryption_key:
+        raise ValueError(
+            "WALLET_ENCRYPTION_KEY environment variable must be set for production. "
+            "Generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+        )
+
+    try:
+        fernet = Fernet(encryption_key.encode())
+        encrypted = fernet.encrypt(private_key.encode())
+        return encrypted.decode()
+    except Exception as e:
+        logger.error(f"Wallet encryption failed: {e}")
+        raise ValueError(f"Failed to encrypt private key: {str(e)}")
+
+def decrypt_private_key(encrypted_key: str) -> str:
+    """
+    Decrypt wallet private key for transaction signing.
+
+    Args:
+        encrypted_key: Encrypted private key (base64 string from database)
+
+    Returns:
+        Decrypted private key as hex string
+
+    Raises:
+        ValueError: If WALLET_ENCRYPTION_KEY is not set or decryption fails
+
+    Security Notes:
+        - Only decrypt in-memory when needed for transaction signing
+        - Never log or return decrypted keys in API responses
+        - Clear decrypted key from memory immediately after use
+    """
+    from cryptography.fernet import Fernet
+
+    encryption_key = os.getenv("WALLET_ENCRYPTION_KEY")
+    if not encryption_key:
+        raise ValueError("WALLET_ENCRYPTION_KEY environment variable must be set")
+
+    try:
+        fernet = Fernet(encryption_key.encode())
+        decrypted = fernet.decrypt(encrypted_key.encode())
+        return decrypted.decode()
+    except Exception as e:
+        logger.error(f"Wallet decryption failed: {e}")
+        raise ValueError(f"Failed to decrypt private key: {str(e)}")
+
 # ═══════════════════════════════════════════════════════════════
 # GOOGLE OAUTH (Phase 2)
 # ═══════════════════════════════════════════════════════════════

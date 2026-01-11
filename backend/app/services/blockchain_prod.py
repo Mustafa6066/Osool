@@ -167,4 +167,83 @@ class BlockchainServiceProd:
         # Re-use minting logic or specific transfer logic
         return self.mint_fractional_shares(property_id, buyer_address, amount)
 
+    def reserve_property(self, property_id: int, buyer_address: str):
+        """
+        Marks property as RESERVED on-chain (OsoolRegistry.markReserved).
+        Called after deposit payment is confirmed via Paymob.
+
+        Args:
+            property_id: Property ID on blockchain
+            buyer_address: Ethereum address of the buyer
+
+        Returns:
+            dict with success/error and tx_hash
+        """
+        if not self.contract:
+            return {"error": "Contract not initialized"}
+
+        print(f"🔒 Reserving Property {property_id} for {buyer_address}")
+
+        # Build function call: markReserved(uint256 _id, address _buyer)
+        function_call = self.contract.functions.markReserved(
+            property_id,
+            self.web3.to_checksum_address(buyer_address)
+        )
+
+        return self.execute_relayer_transaction(function_call)
+
+    def mark_sold(self, property_id: int):
+        """
+        Marks property as SOLD on-chain (OsoolRegistry.markSold).
+        Called after admin approves full bank transfer payment.
+
+        Args:
+            property_id: Property ID on blockchain
+
+        Returns:
+            dict with success/error and tx_hash
+
+        Note:
+            Contract requires property to be in RESERVED status first.
+            Ownership is transferred to reservedBy address automatically.
+        """
+        if not self.contract:
+            return {"error": "Contract not initialized"}
+
+        print(f"✅ Finalizing Sale for Property {property_id}")
+
+        # Build function call: markSold(uint256 _id)
+        function_call = self.contract.functions.markSold(property_id)
+
+        return self.execute_relayer_transaction(function_call)
+
+    def set_ai_verified_hash(self, property_id: int, ai_analysis_hash: str):
+        """
+        Stores AI legal analysis verification hash on-chain (OsoolRegistry.setAIVerifiedHash).
+        Called after AI contract auditing completes successfully.
+
+        Args:
+            property_id: Property ID on blockchain
+            ai_analysis_hash: IPFS hash or SHA256 hash of AI analysis report
+
+        Returns:
+            dict with success/error and tx_hash
+
+        Security Note:
+            The hash serves as proof of AI verification without storing full analysis on-chain.
+            Full report should be stored on IPFS or S3 with hash for integrity verification.
+        """
+        if not self.contract:
+            return {"error": "Contract not initialized"}
+
+        print(f"🤖 Setting AI Verification Hash for Property {property_id}: {ai_analysis_hash}")
+
+        # Build function call: setAIVerifiedHash(uint256 _id, string memory _aiHash)
+        function_call = self.contract.functions.setAIVerifiedHash(
+            property_id,
+            ai_analysis_hash
+        )
+
+        return self.execute_relayer_transaction(function_call)
+
 blockchain_service_prod = BlockchainServiceProd()

@@ -67,8 +67,61 @@ def store_session_results(session_id: str, results: list):
     cache.store_session_results(session_id, results)
 
 def get_session_results(session_id: str) -> list:
-    """Retrieves search results for a specific session."""
+    """
+    Retrieves search results for a specific session (Redis only).
+    DEPRECATED: Use get_last_search_results() for persistent cross-device sync.
+    """
     return cache.get_session_results(session_id)
+
+async def get_last_search_results(session_id: str, db = None) -> list:
+    """
+    Hybrid retrieval: Redis primary, Database fallback for chat persistence.
+    Ensures cross-device sync and no data loss after cache expiration.
+
+    Args:
+        session_id: Unique session identifier
+        db: AsyncSession from SQLAlchemy (optional, required for DB fallback)
+
+    Returns:
+        List of property dictionaries from last search, or empty list if none found
+
+    Priority Flow:
+        1. Try Redis cache (fast, 1-hour TTL)
+        2. Fall back to database chat_messages.properties_json (persistent)
+        3. Restore DB results to Redis for future requests
+    """
+    # Try Redis first (fast)
+    redis_results = cache.get_session_results(session_id)
+    if redis_results:
+        return redis_results
+
+    # Fallback to database (persistent)
+    if not db:
+        return []
+
+    try:
+        from sqlalchemy import select
+        from app.models import ChatMessage
+
+        result = await db.execute(
+            select(ChatMessage)
+            .filter(ChatMessage.session_id == session_id)
+            .filter(ChatMessage.properties_json.isnot(None))
+            .order_by(ChatMessage.created_at.desc())
+            .limit(1)
+        )
+        last_message = result.scalar_one_or_none()
+
+        if last_message and last_message.properties_json:
+            # Restore to Redis cache for future requests
+            properties = json.loads(last_message.properties_json)
+            cache.store_session_results(session_id, properties)
+            return properties
+
+    except Exception as e:
+        print(f"❌ [Hybrid Retrieval] Database fallback failed: {e}")
+
+    return []
 
 
 # ---------------------------------------------------------------------------

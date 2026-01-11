@@ -45,11 +45,14 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Get database URL from environment variable (production-ready)
-database_url = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://osool:osool_password@localhost:5432/osool_db"
-)
+# Get database URL from environment variable (production-ready, fail-fast for security)
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise ValueError(
+        "DATABASE_URL environment variable must be set. "
+        "No fallback provided for security. "
+        "Example: postgresql+asyncpg://user:password@localhost:5432/dbname"
+    )
 
 # Convert asyncpg to psycopg2 for Alembic
 if database_url.startswith("postgresql+asyncpg"):

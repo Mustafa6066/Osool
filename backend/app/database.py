@@ -11,8 +11,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Database URL from env
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://osool:osool_password@localhost:5432/osool_db")
+# Database URL from env (fail-fast for security)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable must be set. "
+        "No fallback provided for security. "
+        "Example: postgresql+asyncpg://user:password@localhost:5432/dbname"
+    )
 
 # Async Engine
 engine = create_async_engine(

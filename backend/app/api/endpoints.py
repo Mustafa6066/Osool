@@ -499,24 +499,37 @@ def finalize_sale(req: SaleFinalizationRequest, current_user: User = Depends(get
     if req.payment_method == "bank_transfer":
         if not verify_bank_transfer(req.reference_number, db):
              raise HTTPException(status_code=400, detail="Bank transfer not found or not approved yet.")
-    
-    result = blockchain_service.finalize_sale(
-        property_id=req.property_id, 
-        buyer_address=current_user.wallet_address,
-        amount=req.amount
-    )
-    
-    if "error" in result:
+
+    # ENHANCEMENT: Call markSold() on-chain to transfer ownership
+    # This replaces the fractional minting approach with proper ownership transfer
+    property = db.query(Property).filter(Property.id == req.property_id).first()
+
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    blockchain_id = property.blockchain_id or property.id
+
+    # Call blockchain to mark property as SOLD (transfers ownership on-chain)
+    result = blockchain_service_prod.mark_sold(property_id=blockchain_id)
+
+    if "error" in result or not result.get("success"):
         raise HTTPException(
             status_code=500,
-            detail=f"Sale finalization failed: {result['error']}"
+            detail=f"Sale finalization failed on blockchain: {result.get('error', 'Unknown error')}"
         )
-    
+
+    # Update database to reflect blockchain state
+    tx_hash = result.get("tx_hash")
+    property.is_available = False
+
+    # Record transaction completion in database
+    db.commit()
+
     return {
         "status": "success",
-        "message": "Property sale finalized! Ownership transferred on-chain.",
-        "tx_hash": result["tx_hash"],
-        "blockchain_proof": f"https://amoy.polygonscan.com/tx/{result['tx_hash']}"
+        "message": "Property sale finalized! Ownership transferred on-chain via markSold().",
+        "tx_hash": tx_hash,
+        "blockchain_proof": f"https://amoy.polygonscan.com/tx/{tx_hash}"
     }
 
 
@@ -783,29 +796,90 @@ async def paymob_webhook(data: dict, hmac: str, db: Session = Depends(get_db)):
         transaction.status = "paid"
         db.commit()
 
-        # 4. Trigger Blockchain Action (Mint Fractional Shares)
-        # Assuming we have property_id and user logic in place.
-        # Since 'Transaction' stores property_id and user_id...
-        
+        # 4. Determine Transaction Type & Trigger Appropriate Blockchain Action
         if transaction.property_id:
              user = transaction.user
              wallet_address = user.wallet_address
-             
+
              if not wallet_address:
-                  print("⚠️ User has no wallet address. Cannot mint.")
+                  print("⚠️ User has no wallet address. Cannot process blockchain action.")
                   return {"status": "user_no_wallet"}
-                  
-             # Calculate shares (1 EGP = 100 Shares - simplistic)
-             # Or use the fractional service logic
-             shares = int(transaction.amount * 100)
-             
-             blockchain_service_prod.mint_fractional_shares(
-                 property_id=transaction.property_id,
-                 investor_address=wallet_address,
-                 amount=shares
-             )
-             transaction.status = "blockchain_confirmed"
-             db.commit()
+
+             # Fetch property to determine transaction type
+             property = db.query(Property).filter(Property.id == transaction.property_id).first()
+
+             if not property:
+                  print(f"⚠️ Property {transaction.property_id} not found.")
+                  return {"status": "property_not_found"}
+
+             # HEURISTIC: If payment >= 10% of property price, it's a RESERVATION deposit
+             # Otherwise, it's a FRACTIONAL investment
+             is_reservation_deposit = (transaction.amount >= property.price * 0.10)
+
+             if is_reservation_deposit:
+                  # This is a RESERVATION deposit - call markReserved()
+                  print(f"🔒 Detected RESERVATION deposit ({transaction.amount} EGP >= 10% of {property.price} EGP)")
+
+                  try:
+                      # Call blockchain to mark property as reserved
+                      blockchain_id = property.blockchain_id or property.id
+                      result = blockchain_service_prod.reserve_property(
+                          property_id=blockchain_id,
+                          buyer_address=wallet_address
+                      )
+
+                      if result.get("success"):
+                          tx_hash = result.get("tx_hash")
+                          transaction.blockchain_tx_hash = tx_hash
+                          transaction.status = "blockchain_confirmed"
+
+                          # Update property status in DB (for consistency)
+                          property.is_available = False  # Mark as no longer available
+
+                          db.commit()
+                          print(f"✅ Property {property.id} reserved on-chain: {tx_hash}")
+                      else:
+                          # Blockchain call failed - queue for retry
+                          print(f"❌ Blockchain reservation failed: {result.get('error')}")
+                          transaction.status = "blockchain_pending"
+                          db.commit()
+
+                          # TODO: Queue for Celery retry (implemented in tasks.py)
+                          # from app.tasks import reserve_property_task
+                          # reserve_property_task.apply_async(
+                          #     args=[blockchain_id, wallet_address],
+                          #     countdown=60
+                          # )
+
+                          return {"status": "payment_confirmed_blockchain_pending", "error": result.get('error')}
+
+                  except Exception as e:
+                      print(f"❌ Exception during blockchain reservation: {e}")
+                      transaction.status = "blockchain_pending"
+                      db.commit()
+                      return {"status": "payment_confirmed_blockchain_error", "error": str(e)}
+
+             else:
+                  # This is a FRACTIONAL investment - mint fractional shares
+                  print(f"💎 Detected FRACTIONAL investment ({transaction.amount} EGP)")
+                  shares = int(transaction.amount * 100)  # 1 EGP = 100 Shares
+
+                  blockchain_id = property.blockchain_id or property.id
+                  result = blockchain_service_prod.mint_fractional_shares(
+                      property_id=blockchain_id,
+                      investor_address=wallet_address,
+                      amount=shares
+                  )
+
+                  if result.get("success"):
+                      transaction.blockchain_tx_hash = result.get("tx_hash")
+                      transaction.status = "blockchain_confirmed"
+                      db.commit()
+                      print(f"✅ Minted {shares} fractional shares")
+                  else:
+                      transaction.status = "blockchain_pending"
+                      db.commit()
+                      print(f"❌ Minting failed: {result.get('error')}")
         
     except Exception as e:
         print(f"Webhook Error: {e}")
@@ -951,8 +1025,8 @@ async def chat_with_agent(req: ChatRequest, request: Request, db: AsyncSession =
         # Get AI response (with history)
         response_text = sales_agent.chat(req.message, req.session_id, chat_history)
 
-        # Save AI response to database
-        search_results = get_last_search_results(req.session_id)
+        # Save AI response to database (with hybrid retrieval - Redis + DB fallback)
+        search_results = await get_last_search_results(req.session_id, db)
         ai_message = ChatMessage(
             session_id=req.session_id,
             role="assistant",

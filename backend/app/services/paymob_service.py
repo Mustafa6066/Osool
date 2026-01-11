@@ -223,9 +223,16 @@ class PaymobService:
         
         if not payment_key:
             return {"error": "Failed to generate payment key"}
-            
-        iframe_id = os.getenv("PAYMOB_IFRAME_ID", "1234") # Default or Env
-        
+
+        # Get iframe ID from environment (fail-fast for production security)
+        iframe_id = os.getenv("PAYMOB_IFRAME_ID")
+        if not iframe_id:
+            raise ValueError(
+                "PAYMOB_IFRAME_ID environment variable must be set. "
+                "No fallback provided for security. "
+                "Obtain your iframe ID from Paymob dashboard."
+            )
+
         return {
             "payment_key": payment_key,
             "order_id": order_id,

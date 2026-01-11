@@ -43,8 +43,8 @@ class RedisClient:
     def store_session_results(self, session_id: str, results: list):
         """Specific helper for Agent Search Results."""
         key = f"search:{session_id}"
-        video = {"results": results}
-        self.set_json(key, video, ttl=3600)
+        results_dict = {"results": results}
+        self.set_json(key, results_dict, ttl=3600)
 
     def get_session_results(self, session_id: str) -> list:
         """Specific helper for Agent Search Results."""
