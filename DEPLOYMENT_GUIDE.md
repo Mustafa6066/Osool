@@ -1,633 +1,302 @@
-# Osool Platform - Deployment Guide
-**Phase 4.3: Production Deployment**
+# Osool Blockchain Deployment Guide
 
----
+This guide covers the deployment of Osool smart contracts to both testnet (Polygon Amoy) and mainnet (Polygon PoS) networks.
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
 2. [Environment Setup](#environment-setup)
-3. [Docker Deployment](#docker-deployment)
-4. [Database Migrations](#database-migrations)
-5. [Smart Contract Deployment](#smart-contract-deployment)
-6. [Monitoring Setup](#monitoring-setup)
-7. [CI/CD Pipeline](#cicd-pipeline)
-8. [Rollback Procedures](#rollback-procedures)
-9. [Troubleshooting](#troubleshooting)
+3. [Local Testing](#local-testing)
+4. [Testnet Deployment (Amoy)](#testnet-deployment-amoy)
+5. [Contract Verification](#contract-verification)
+6. [Mainnet Deployment](#mainnet-deployment)
+7. [Backend Configuration](#backend-configuration)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Prerequisites
 
-### Required Software
+### Required Tools
 
-- **Docker**: v24.0+
-- **Docker Compose**: v2.20+
-- **Node.js**: v20+ (for smart contracts)
-- **Hardhat**: For smart contract deployment
-- **Git**: For version control
+```bash
+# Node.js and npm (v18+ recommended)
+node --version
+npm --version
+
+# Hardhat (installed via project dependencies)
+npm install
+
+# Polygon Amoy Testnet MATIC
+# Get free testnet tokens from: https://faucet.polygon.technology/
+```
 
 ### Required Accounts
 
-- **OpenAI API Key**: For AI features
-- **Polygon RPC**: Alchemy or Infura (Polygon mainnet/Amoy testnet)
-- **Paymob Account**: For EGP payments
-- **Sentry DSN**: Error tracking (optional but recommended)
+1. **Wallet Setup**
+   - Create a new MetaMask wallet for deployment (NEVER use your personal wallet)
+   - Export the private key (keep it secure!)
+   - Save the address as `ADMIN_WALLET_ADDRESS`
 
-### Server Requirements
-
-| Environment | CPU | RAM | Disk | Bandwidth |
-|-------------|-----|-----|------|-----------|
-| Development | 2 cores | 4GB | 50GB | 100Mbps |
-| Staging | 4 cores | 8GB | 100GB | 500Mbps |
-| Production | 8 cores | 16GB | 250GB | 1Gbps |
+2. **API Keys**
+   - Alchemy API key: https://www.alchemy.com/
+   - PolygonScan API key: https://polygonscan.com/apis
 
 ---
 
 ## Environment Setup
 
-### 1. Clone Repository
+### 1. Configure Environment Variables
+
+Copy `.env.example` to `.env`:
 
 ```bash
-git clone https://github.com/your-org/osool.git
-cd osool
+cp .env.example .env
 ```
 
-### 2. Create Environment Files
-
-**Backend Environment** (`.env`):
+### 2. Fill in Required Variables
 
 ```bash
-# Database
-POSTGRES_USER=osool
-POSTGRES_PASSWORD=your_secure_password_here
-POSTGRES_DB=osool
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+# Deployment Wallet
+PRIVATE_KEY=your_deployment_wallet_private_key
+ADMIN_WALLET_ADDRESS=0xYourAdminAddress
 
-# Redis
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+# RPC URLs
+POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
+AMOY_RPC_URL=https://rpc-amoy.polygon.technology
 
-# API Keys
-OPENAI_API_KEY=sk-...
-PAYMOB_API_KEY=your_paymob_api_key
-PAYMOB_SECRET_KEY=your_paymob_secret
+# Block Explorer API Keys
+POLYGONSCAN_API_KEY=your_polygonscan_api_key
 
-# Blockchain
-BLOCKCHAIN_PRIVATE_KEY=your_private_key_here
-POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_KEY
-AMM_CONTRACT_ADDRESS=0x...
-STABLECOIN_CONTRACT_ADDRESS=0x...
-
-# Authentication
-JWT_SECRET_KEY=your_jwt_secret_here_min_32_chars
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-
-# Monitoring
-SENTRY_DSN=https://...@sentry.io/...
-ENVIRONMENT=production
-
-# Email (Optional)
-SMTP_USERNAME=alerts@osool.com
-SMTP_PASSWORD=your_smtp_password
-
-# Grafana
-GRAFANA_ADMIN_PASSWORD=your_secure_grafana_password
+# OpenAI (for data ingestion)
+OPENAI_API_KEY=your_openai_api_key
 ```
 
-**Frontend Environment** (web/.env.production):
+### 3. Fund Your Deployment Wallet
 
-```bash
-NEXT_PUBLIC_API_BASE_URL=https://api.osool.com
-NEXT_PUBLIC_CHAIN_ID=137  # Polygon Mainnet
-```
+**For Testnet (Amoy):**
+- Visit: https://faucet.polygon.technology/
+- Select "Polygon Amoy" network
+- Enter your `ADMIN_WALLET_ADDRESS`
+- Request tokens (you'll receive ~0.5 MATIC)
 
-### 3. Create Secrets (Docker Secrets)
-
-```bash
-# Create secrets directory
-mkdir -p secrets
-
-# Database password
-echo "your_secure_db_password" > secrets/db_password.txt
-
-# Blockchain private key
-echo "your_private_key" > secrets/blockchain_private_key.txt
-
-# Secure permissions
-chmod 600 secrets/*.txt
-```
+**For Mainnet:**
+- Purchase MATIC from an exchange (Binance, Coinbase, etc.)
+- Transfer to your `ADMIN_WALLET_ADDRESS`
+- Recommended: 10-20 MATIC for deployment + initial operations
 
 ---
 
-## Docker Deployment
+## Local Testing
 
-### Development Environment
-
-```bash
-docker-compose up -d
-```
-
-Access:
-- **Backend API**: http://localhost:8000
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-
-### Production Deployment
+### 1. Start Local Hardhat Node
 
 ```bash
-# Build images
-docker-compose -f docker-compose.prod.yml build
-
-# Start services
-docker-compose -f docker-compose.prod.yml up -d
-
-# View logs
-docker-compose -f docker-compose.prod.yml logs -f
+cd blockchain
+npx hardhat node
 ```
 
-### Verify Deployment
+This starts a local Ethereum node at `http://127.0.0.1:8545/` with pre-funded test accounts.
+
+### 2. Deploy to Local Network
+
+In a new terminal:
 
 ```bash
-# Health check
-curl http://localhost:8000/health
-
-# Expected response:
-# {"status":"healthy","service":"osool-backend"}
-
-# Check running containers
-docker ps
-
-# Expected containers:
-# - osool-backend
-# - osool-frontend
-# - osool-postgres
-# - osool-redis
+npx hardhat run scripts/deploy-registry.js --network localhost
 ```
 
----
-
-## Database Migrations
-
-### Initial Setup
+### 3. Test Contract Interactions
 
 ```bash
-# Run migrations
-docker-compose exec backend alembic upgrade head
-
-# Verify migration
-docker-compose exec backend alembic current
-```
-
-### Create New Migration
-
-```bash
-# Generate migration from model changes
-docker-compose exec backend alembic revision --autogenerate -m "description"
-
-# Review generated migration file
-cat backend/alembic/versions/xxx_description.py
-
-# Apply migration
-docker-compose exec backend alembic upgrade head
-```
-
-### Rollback Migration
-
-```bash
-# Rollback one migration
-docker-compose exec backend alembic downgrade -1
-
-# Rollback to specific revision
-docker-compose exec backend alembic downgrade <revision_id>
-
-# Rollback all
-docker-compose exec backend alembic downgrade base
-```
-
----
-
-## Smart Contract Deployment
-
-### 1. Install Hardhat
-
-```bash
-cd contracts
-npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
-```
-
-### 2. Configure Hardhat
-
-**hardhat.config.js**:
-
-```javascript
-require("@nomicfoundation/hardhat-toolbox");
-
-module.exports = {
-  solidity: {
-    version: "0.8.19",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200
-      }
-    }
-  },
-  networks: {
-    polygonAmoy: {
-      url: process.env.POLYGON_RPC_URL,
-      accounts: [process.env.BLOCKCHAIN_PRIVATE_KEY],
-      chainId: 80002
-    },
-    polygon: {
-      url: process.env.POLYGON_RPC_URL,
-      accounts: [process.env.BLOCKCHAIN_PRIVATE_KEY],
-      chainId: 137
-    }
-  },
-  etherscan: {
-    apiKey: process.env.POLYGONSCAN_API_KEY
-  }
-};
-```
-
-### 3. Deploy to Testnet (Polygon Amoy)
-
-```bash
-# Compile contracts
-npx hardhat compile
-
-# Run tests
 npx hardhat test
-
-# Deploy EGP Stablecoin
-npx hardhat run scripts/deploy_stablecoin.js --network polygonAmoy
-
-# Deploy AMM
-npx hardhat run scripts/deploy_amm.js --network polygonAmoy
-
-# Verify contracts
-npx hardhat verify --network polygonAmoy <CONTRACT_ADDRESS>
 ```
 
-### 4. Deploy to Mainnet (Polygon)
-
-**⚠️ IMPORTANT**: Only deploy after:
-- All tests pass (100+ test cases)
-- Security audit completed
-- Testnet deployment verified
-- Team approval
-
-```bash
-# Deploy to Polygon Mainnet
-npx hardhat run scripts/deploy_stablecoin.js --network polygon
-npx hardhat run scripts/deploy_amm.js --network polygon
-
-# Verify on Polygonscan
-npx hardhat verify --network polygon <CONTRACT_ADDRESS> <CONSTRUCTOR_ARGS>
+Expected output:
 ```
-
-### 5. Update Backend Config
-
-```bash
-# Update .env with deployed contract addresses
-AMM_CONTRACT_ADDRESS=0xYourAMMAddress
-STABLECOIN_CONTRACT_ADDRESS=0xYourStablecoinAddress
-
-# Restart backend
-docker-compose restart backend
+  OsoolRegistry Tests
+    ✓ Should deploy with correct owner
+    ✓ Should register a property
+    ✓ Should reserve a property
+    ✓ Should mark property as sold
+    ✓ Should prevent double reservation
 ```
 
 ---
 
-## Monitoring Setup
+## Testnet Deployment (Amoy)
 
-### 1. Start Monitoring Stack
-
-```bash
-cd monitoring
-docker-compose -f docker-compose.monitoring.yml up -d
-```
-
-### 2. Access Dashboards
-
-- **Grafana**: http://localhost:3001
-  - Username: `admin`
-  - Password: `${GRAFANA_ADMIN_PASSWORD}`
-
-- **Prometheus**: http://localhost:9090
-
-- **Alertmanager**: http://localhost:9093
-
-### 3. Import Grafana Dashboard
-
-1. Login to Grafana
-2. Go to **Configuration** → **Data Sources**
-3. Add **Prometheus** data source: `http://prometheus:9090`
-4. Go to **Dashboards** → **Import**
-5. Upload `monitoring/grafana/dashboards/osool-main-dashboard.json`
-
-### 4. Configure Alerts
-
-1. Update `monitoring/prometheus/alertmanager.yml` with your webhook URLs
-2. Restart Alertmanager: `docker-compose restart alertmanager`
-
----
-
-## CI/CD Pipeline
-
-### GitHub Actions Setup
-
-1. **Add Repository Secrets**:
-   - Go to GitHub → Settings → Secrets
-   - Add the following secrets:
-
-```
-OPENAI_API_KEY
-STAGING_HOST
-STAGING_USER
-STAGING_SSH_KEY
-PRODUCTION_HOST
-PRODUCTION_USER
-PRODUCTION_SSH_KEY
-SLACK_WEBHOOK
-```
-
-2. **Enable GitHub Packages**:
-   - Settings → Actions → General
-   - Allow Actions to create Pull Requests
-   - Allow Actions to push to GitHub Container Registry
-
-3. **Workflow Triggers**:
-   - **Push to `develop`** → Deploy to Staging
-   - **Push to `master/main`** → Deploy to Production
-   - **Pull Request** → Run tests only
-
-### Manual Deployment
+### 1. Compile Contracts
 
 ```bash
-# SSH to server
-ssh user@osool.com
+cd blockchain
+npx hardhat compile
+```
 
-# Navigate to project
-cd /opt/osool
+Expected output:
+```
+Compiling 5 files with 0.8.20
+Compilation finished successfully
+```
 
-# Pull latest code
-git pull origin master
+### 2. Deploy OsoolRegistry
 
-# Rebuild and restart
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+```bash
+npx hardhat run scripts/deploy-registry.js --network amoy
+```
 
-# Run migrations
-docker-compose exec backend alembic upgrade head
+**Sample Output:**
+```
+Deploying OsoolRegistry to Polygon Amoy...
+Admin address: 0xYourAdminAddress
+Deploying contract...
+OsoolRegistry deployed to: 0x1234...abcd
+Transaction hash: 0x5678...efgh
 
-# Verify health
-curl http://localhost:8000/health
+✓ Deployment successful!
+
+Save this address to your .env file:
+OSOOL_REGISTRY_ADDRESS=0x1234...abcd
+```
+
+### 3. Deploy OsoolLiquidityAMM (Optional)
+
+```bash
+npx hardhat run scripts/deploy-amm.js --network amoy
+```
+
+### 4. Update Environment Variables
+
+Update your `backend/.env` file:
+
+```bash
+# Testnet Configuration
+OSOOL_REGISTRY_ADDRESS=0x1234...abcd
+OSOOL_AMM_ADDRESS=0xAMM...address
+POLYGON_RPC_URL=https://rpc-amoy.polygon.technology
+CHAIN_ID=80002
+
+# Disable simulation mode to use real blockchain
+BLOCKCHAIN_SIMULATION_MODE=false
+```
+
+### 5. Verify Deployment
+
+Visit PolygonScan Amoy Explorer:
+```
+https://amoy.polygonscan.com/address/0x1234...abcd
 ```
 
 ---
 
-## Rollback Procedures
-
-### Application Rollback
+## Contract Verification
 
 ```bash
-# 1. SSH to server
-ssh user@osool.com
-
-# 2. Stop current deployment
-cd /opt/osool
-docker-compose -f docker-compose.prod.yml down
-
-# 3. Checkout previous version
-git log --oneline  # Find previous commit
-git checkout <previous_commit_hash>
-
-# 4. Rebuild and restart
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
-
-# 5. Rollback database (if needed)
-docker-compose exec backend alembic downgrade -1
-
-# 6. Verify health
-curl http://localhost:8000/health
+npx hardhat verify --network amoy 0x1234...abcd
 ```
 
-### Database Rollback
+---
+
+## Mainnet Deployment
+
+### ⚠️ CRITICAL SECURITY CHECKLIST
+
+- [ ] **Audit Completed**: Professional smart contract audit
+- [ ] **Testnet Validated**: Run on Amoy for 2+ weeks
+- [ ] **Multisig Wallet**: Use Gnosis Safe for ownership
+- [ ] **Emergency Pause**: Test pause functionality
+- [ ] **Backup Keys**: Hardware wallet + encrypted backup
+
+### 1. Deploy to Mainnet
 
 ```bash
-# View migration history
-docker-compose exec backend alembic history
-
-# Rollback to specific revision
-docker-compose exec backend alembic downgrade <revision_id>
-
-# Verify current version
-docker-compose exec backend alembic current
+npx hardhat run scripts/deploy-registry.js --network polygon
 ```
 
-### Smart Contract Rollback
+### 2. Transfer Ownership to Multisig
 
-**⚠️ WARNING**: Smart contracts are immutable. You CANNOT rollback a deployed contract.
+**CRITICAL: Do this immediately!**
 
-**Options**:
-1. **Pause Contract**: Use emergency pause function
-   ```javascript
-   await contract.pause();
-   ```
+### 3. Verify on PolygonScan
 
-2. **Deploy New Version**: Deploy a new contract and migrate liquidity
-   ```bash
-   npx hardhat run scripts/deploy_amm_v2.js --network polygon
-   ```
+```bash
+npx hardhat verify --network polygon 0xYourRegistryAddress
+```
 
-3. **Update Backend Config**: Point backend to new contract address
+---
+
+## Backend Configuration
+
+After deployment, update `backend/.env`:
+
+```bash
+OSOOL_REGISTRY_ADDRESS=0xYourDeployedAddress
+BLOCKCHAIN_SIMULATION_MODE=false
+POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_KEY
+CHAIN_ID=137
+```
+
+Test backend integration:
+
+```bash
+curl http://localhost:8000/api/health
+```
 
 ---
 
 ## Troubleshooting
 
-### Backend Not Starting
+### "Insufficient funds for gas"
+Get testnet MATIC from: https://faucet.polygon.technology/
 
-**Symptoms**: Backend container exits immediately
-
-**Diagnosis**:
+### "Contract verification failed"
 ```bash
-docker-compose logs backend
+npx hardhat flatten contracts/OsoolRegistry.sol > OsoolRegistry-flat.sol
 ```
 
-**Common Causes**:
-1. **Database not ready**: Wait for PostgreSQL to start
-   ```bash
-   docker-compose up postgres
-   # Wait for "database system is ready to accept connections"
-   docker-compose up backend
-   ```
-
-2. **Missing environment variables**:
-   ```bash
-   docker-compose config  # Verify env vars are loaded
-   ```
-
-3. **Port conflict**:
-   ```bash
-   lsof -i :8000  # Check what's using port 8000
-   kill -9 <PID>  # Kill conflicting process
-   ```
-
-### Database Migration Failed
-
-**Symptoms**: `alembic upgrade head` fails
-
-**Diagnosis**:
+### "Backend shows simulation mode"
 ```bash
-docker-compose exec backend alembic current
-docker-compose exec backend alembic history
+# Restart backend
+pkill -f uvicorn
+python -m uvicorn app.main:app --reload
 ```
-
-**Solutions**:
-1. **Rollback and retry**:
-   ```bash
-   docker-compose exec backend alembic downgrade -1
-   docker-compose exec backend alembic upgrade head
-   ```
-
-2. **Fix migration file**: Edit `backend/alembic/versions/xxx.py`
-
-3. **Stamp current version** (if database is already correct):
-   ```bash
-   docker-compose exec backend alembic stamp head
-   ```
-
-### High Memory Usage
-
-**Symptoms**: Server running out of memory
-
-**Diagnosis**:
-```bash
-docker stats  # Check memory usage per container
-```
-
-**Solutions**:
-1. **Reduce Uvicorn workers**:
-   ```bash
-   # Edit docker-compose.prod.yml
-   environment:
-     - WORKERS=2  # Reduce from 4
-   ```
-
-2. **Add memory limits**:
-   ```yaml
-   services:
-     backend:
-       deploy:
-         resources:
-           limits:
-             memory: 2G
-   ```
-
-3. **Check for memory leaks**:
-   ```bash
-   docker-compose exec backend python -m memory_profiler app/main.py
-   ```
-
-### OpenAI API Rate Limit
-
-**Symptoms**: `RateLimitError` in logs
-
-**Solutions**:
-1. **Implement request queue** (already done via circuit breaker)
-2. **Increase OpenAI tier** (pay for higher limits)
-3. **Add caching** for common queries
-
-### Blockchain Transaction Failed
-
-**Symptoms**: Transaction reverts or never confirms
-
-**Diagnosis**:
-```bash
-# Check transaction on Polygonscan
-https://polygonscan.com/tx/<TX_HASH>
-```
-
-**Common Causes**:
-1. **Insufficient gas**: Increase gas limit
-2. **Slippage exceeded**: Increase slippage tolerance
-3. **Contract paused**: Check contract state
-4. **Insufficient balance**: Fund wallet with MATIC
 
 ---
 
-## Security Checklist
+## Development Mode (Simulation)
 
-### Before Production Launch
+For local development without contracts:
 
-- [ ] Change all default passwords
-- [ ] Rotate all API keys
-- [ ] Enable HTTPS (SSL certificate)
-- [ ] Configure firewall (allow only necessary ports)
-- [ ] Set up fail2ban (brute force protection)
-- [ ] Enable database backups (automated)
-- [ ] Configure monitoring alerts
-- [ ] Restrict SSH access (key-based only)
-- [ ] Set up VPN for admin access
-- [ ] Review and minimize IAM permissions
-- [ ] Enable CloudFlare DDoS protection
-- [ ] Configure rate limiting
-- [ ] Set up security headers (HSTS, CSP, etc.)
-- [ ] Run security audit (OWASP ZAP, Burp Suite)
-- [ ] Smart contract audit (external auditor)
-- [ ] Penetration testing
-- [ ] GDPR compliance review
-- [ ] Privacy policy published
-- [ ] Terms of service published
+```bash
+BLOCKCHAIN_SIMULATION_MODE=true
+```
+
+**Logs:**
+```
+[!] BLOCKCHAIN SIMULATION MODE ENABLED
+[SIM] Property 123 reserved (TX: 0xSIM...00000123)
+```
 
 ---
 
-## Maintenance Schedule
+## Resources
 
-### Daily
-- Monitor dashboard for anomalies
-- Check error logs (Sentry)
-- Verify backup completion
-
-### Weekly
-- Review OpenAI costs
-- Update dependencies (security patches)
-- Review alert thresholds
-- Test rollback procedures
-
-### Monthly
-- Database vacuum and analyze
-- Review and optimize slow queries
-- Update Prometheus retention policy
-- Security audit
-- Load testing
-- Disaster recovery drill
-
-### Quarterly
-- Update Docker images
-- Update Prometheus/Grafana
-- Review on-call rotation
-- Team training on incident response
+- Polygon Docs: https://docs.polygon.technology/
+- Hardhat Docs: https://hardhat.org/docs
+- Amoy Faucet: https://faucet.polygon.technology/
+- PolygonScan: https://polygonscan.com/
 
 ---
 
-## Support & Contacts
+## Security Best Practices
 
-- **Documentation**: https://docs.osool.com
-- **Status Page**: https://status.osool.com
-- **Support Email**: support@osool.com
-- **Emergency**: +20-XXX-XXXX (on-call engineer)
+1. Never commit private keys
+2. Use hardware wallets for mainnet
+3. Always use multisig for ownership
+4. Get professional audits
+5. Monitor contracts 24/7
+6. Test everything on testnet first
 
 ---
 
-**Last Updated**: 2026-01-09
-**Version**: 1.0.0
-**Status**: ✅ Production Ready
+**CBE Compliance:** All fiat payments through InstaPay/Fawry only.

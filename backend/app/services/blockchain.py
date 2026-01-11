@@ -109,20 +109,41 @@ class BlockchainService:
     """
     Service for interacting with OsoolRegistry smart contract.
     All write operations require admin authorization.
+
+    Modes:
+    1. PRODUCTION: Real blockchain transactions (requires OSOOL_REGISTRY_ADDRESS)
+    2. SIMULATION: Mock mode for development/testing
     """
-    
+
     def __init__(self):
+        """
+        Initialize blockchain service with automatic simulation fallback.
+
+        Simulation mode can be enabled by setting BLOCKCHAIN_SIMULATION_MODE=true
+        in the environment. This is useful for development and testing without
+        deployed contracts.
+        """
+        # Phase 3: Simulation mode check
+        self.simulation_mode = os.getenv("BLOCKCHAIN_SIMULATION_MODE", "false").lower() == "true"
+
+        if self.simulation_mode:
+            print("[!] BLOCKCHAIN SIMULATION MODE ENABLED - No real transactions will be sent")
+            self.web3 = None
+            self.contract = None
+            return
+
+        # Production mode
         self.web3 = Web3(Web3.HTTPProvider(RPC_URL))
         self.contract = None
-        
+
         if CONTRACT_ADDRESS and self.web3.is_connected():
             self.contract = self.web3.eth.contract(
-                address=Web3.to_checksum_address(CONTRACT_ADDRESS), 
+                address=Web3.to_checksum_address(CONTRACT_ADDRESS),
                 abi=CONTRACT_ABI
             )
             print(f"[+] Connected to OsoolRegistry at {CONTRACT_ADDRESS}")
         else:
-            print("[!] Contract not initialized - set OSOOL_REGISTRY_ADDRESS")
+            print("[!] Contract not initialized - set OSOOL_REGISTRY_ADDRESS or enable BLOCKCHAIN_SIMULATION_MODE")
     
     def is_connected(self) -> bool:
         """Check if connected to blockchain"""
@@ -130,9 +151,24 @@ class BlockchainService:
     
     def get_property(self, property_id: int) -> dict:
         """Get property details from blockchain"""
+        # Phase 3: Simulation mode - return mock property data
+        if self.simulation_mode:
+            return {
+                "id": property_id,
+                "documentHash": f"QmSIM{'0' * 40}{property_id:08x}",
+                "priceEGP": 1000000,
+                "status": "AVAILABLE",
+                "owner": "0x0000000000000000000000000000000000000000",
+                "reservedBy": "0x0000000000000000000000000000000000000000",
+                "listedAt": 1700000000,
+                "reservedAt": 0,
+                "soldAt": 0,
+                "simulation": True
+            }
+
         if not self.contract:
             return {"error": "Contract not initialized"}
-        
+
         try:
             prop = self.contract.functions.getProperty(property_id).call()
             return {
@@ -151,9 +187,13 @@ class BlockchainService:
     
     def is_available(self, property_id: int) -> bool:
         """Check if property is available for reservation"""
+        # Phase 3: Simulation mode - always available
+        if self.simulation_mode:
+            return True
+
         if not self.contract:
             return False
-        
+
         try:
             return self.contract.functions.isAvailable(property_id).call()
         except Exception:
@@ -163,18 +203,29 @@ class BlockchainService:
         """
         Reserve a property on the blockchain.
         Called ONLY after EGP payment is verified via InstaPay/Fawry.
-        
+
         Args:
             property_id: The on-chain property ID
             buyer_address: The buyer's wallet address (for identity linking)
-        
+
         Returns:
             dict with tx_hash on success, error on failure
         """
+        # Phase 3: Simulation mode - return mock success
+        if self.simulation_mode:
+            mock_tx_hash = f"0xSIM{'0' * 56}{property_id:08x}"
+            print(f"[SIM] Property {property_id} reserved (buyer: {buyer_address[:8]}..., TX: {mock_tx_hash})")
+            return {
+                "success": True,
+                "tx_hash": mock_tx_hash,
+                "property_id": property_id,
+                "buyer": buyer_address,
+                "simulation": True
+            }
+
         if not self.contract or not PRIVATE_KEY:
             return {"error": "Blockchain service not configured"}
-        
-        try:
+
         try:
             # Build transaction
             nonce = self.web3.eth.get_transaction_count(ADMIN_ADDRESS)
@@ -217,9 +268,20 @@ class BlockchainService:
         Finalize property sale after full bank transfer.
         Transfers on-chain ownership to the reserver.
         """
+        # Phase 3: Simulation mode - return mock success
+        if self.simulation_mode:
+            mock_tx_hash = f"0xSIM{'0' * 56}{property_id:08x}SOLD"
+            print(f"[SIM] Property {property_id} finalized (TX: {mock_tx_hash})")
+            return {
+                "success": True,
+                "tx_hash": mock_tx_hash,
+                "property_id": property_id,
+                "simulation": True
+            }
+
         if not self.contract or not PRIVATE_KEY:
             return {"error": "Blockchain service not configured"}
-        
+
         try:
             nonce = self.web3.eth.get_transaction_count(ADMIN_ADDRESS)
             
@@ -247,9 +309,20 @@ class BlockchainService:
     
     def cancel_reservation(self, property_id: int) -> dict:
         """Cancel a reservation (for disputes or timeout)"""
+        # Phase 3: Simulation mode - return mock success
+        if self.simulation_mode:
+            mock_tx_hash = f"0xSIM{'0' * 56}{property_id:08x}CANC"
+            print(f"[SIM] Reservation cancelled for property {property_id} (TX: {mock_tx_hash})")
+            return {
+                "success": True,
+                "tx_hash": mock_tx_hash,
+                "property_id": property_id,
+                "simulation": True
+            }
+
         if not self.contract or not PRIVATE_KEY:
             return {"error": "Blockchain service not configured"}
-        
+
         try:
             nonce = self.web3.eth.get_transaction_count(ADMIN_ADDRESS)
             

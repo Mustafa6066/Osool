@@ -222,11 +222,47 @@ def metrics():
 
 @app.on_event("startup")
 async def startup_event():
+    """
+    Startup validation with security checks.
+    Fails fast if critical environment variables are missing.
+
+    Phase 1: Security Hardening - Validates wallet encryption in production
+    """
+    import os
+
     print("[*] Osool Backend Starting...")
+
+    # Phase 1: Security Validation
+    environment = os.getenv("ENVIRONMENT", "development")
+
+    if environment == "production":
+        required_vars = [
+            "WALLET_ENCRYPTION_KEY",
+            "JWT_SECRET_KEY",
+            "DATABASE_URL",
+            "ADMIN_API_KEY"
+        ]
+
+        missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+        if missing_vars:
+            error_msg = f"CRITICAL: Missing required environment variables: {', '.join(missing_vars)}"
+            print(f"[!] {error_msg}")
+            raise RuntimeError(error_msg)
+
+        # Validate encryption key format
+        encryption_key = os.getenv("WALLET_ENCRYPTION_KEY")
+        try:
+            from cryptography.fernet import Fernet
+            Fernet(encryption_key.encode())
+            print("    |-- Wallet Encryption: VALIDATED")
+        except Exception as e:
+            raise RuntimeError(f"Invalid WALLET_ENCRYPTION_KEY: {e}")
+
     print("    |-- AI Intelligence Layer: READY")
     print("    |-- Blockchain Service: READY")
     print("    +-- Payment Verification: READY")
-    print("[+] Osool Backend is ONLINE")
+    print(f"[+] Osool Backend is ONLINE (Environment: {environment})")
 
 
 if __name__ == "__main__":

@@ -149,6 +149,7 @@ async def signup_with_kyc(req: SignupRequest, db: Session = Depends(get_db)):
         )
 
     # Create custodial wallet
+    # Phase 1 Security: Returns encrypted private key
     wallet = create_custodial_wallet()
 
     # Create user with unverified status
@@ -159,6 +160,7 @@ async def signup_with_kyc(req: SignupRequest, db: Session = Depends(get_db)):
         phone_number=req.phone_number,
         national_id=req.national_id,
         wallet_address=wallet["address"],
+        encrypted_private_key=wallet["encrypted_private_key"], # Phase 1: Store encrypted key
         is_verified=False,       # Cannot login until phone verified
         phone_verified=False,    # Must verify OTP
         email_verified=False,

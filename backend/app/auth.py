@@ -162,31 +162,38 @@ def bind_wallet_to_user(db: Session, user_id: int, wallet_address: str) -> bool:
 
 def create_custodial_wallet() -> dict:
     """
-    Generates an Ethereum wallet for an email-based user.
-    Returns: {"address": str, "private_key": str}
+    Create encrypted custodial wallet for new users.
+    Private keys are encrypted using Fernet (AES-128-CBC) before storage.
 
-    ⚠️ CRITICAL SECURITY WARNING ⚠️
-    ================================================================
-    This function returns UNENCRYPTED private keys!
+    Returns:
+        dict: {
+            "address": str - Ethereum address (0x...)
+            "encrypted_private_key": str - Fernet-encrypted private key
+        }
 
-    BEFORE PRODUCTION DEPLOYMENT, you MUST:
-    1. Encrypt private keys using AES-256-GCM before storing in database
-    2. Store encryption keys in a Hardware Security Module (HSM) or AWS KMS
-    3. NEVER log or expose private keys in API responses
-    4. Consider using a dedicated key management service (e.g., AWS KMS, Azure Key Vault)
+    Security Implementation:
+        - Uses Fernet symmetric encryption (NIST approved AES-128-CBC)
+        - Encryption key stored in WALLET_ENCRYPTION_KEY environment variable
+        - Compliant with CBE Law 194 of 2020 Article 8 (Data Protection)
+        - Keys never logged or exposed in plaintext
 
-    Current Implementation: DEVELOPMENT ONLY - NOT PRODUCTION SAFE
-    ================================================================
+    Raises:
+        ValueError: If WALLET_ENCRYPTION_KEY is not set
 
-    Recommended Pattern:
-        from cryptography.fernet import Fernet
-        encryption_key = os.getenv("WALLET_ENCRYPTION_KEY")
-        fernet = Fernet(encryption_key)
-        encrypted_pk = fernet.encrypt(acct.key.hex().encode())
+    Production Notes:
+        - Store WALLET_ENCRYPTION_KEY in AWS KMS / Azure Key Vault / GCP Secret Manager
+        - Never commit encryption keys to version control
+        - Rotate encryption keys periodically
     """
     acct = Account.create()
-    # TODO: Implement encryption before production deployment
-    return {"address": acct.address, "private_key": acct.key.hex()}
+
+    # Encrypt private key before returning
+    encrypted_pk = encrypt_private_key(acct.key.hex())
+
+    return {
+        "address": acct.address,
+        "encrypted_private_key": encrypted_pk
+    }
 
 def encrypt_private_key(private_key: str) -> str:
     """
@@ -327,12 +334,14 @@ def get_or_create_user_by_email(db: Session, email: str, full_name: str) -> User
 
     if not user:
         # Create custodial wallet for email users
+        # Phase 1 Security: Returns encrypted private key
         wallet = create_custodial_wallet()
 
         user = User(
             email=email,
             full_name=full_name,
             wallet_address=wallet['address'],
+            encrypted_private_key=wallet['encrypted_private_key'], # Phase 1: Store encrypted key
             email_verified=True,  # Google/OAuth users are pre-verified
             is_verified=True,
             role='investor'

@@ -149,22 +149,24 @@ def signup(email: str, password: str, full_name: str, db: Session = Depends(get_
         raise HTTPException(status_code=400, detail="Email already registered")
 
     # 1. Generate Custodial Wallet (Bridge to Web3)
+    # Phase 1 Security: Returns encrypted private key
     wallet = create_custodial_wallet()
-    
+
     # 2. Create User
     new_user = User(
         email=email,
         full_name=full_name,
         password_hash=get_password_hash(password),
         wallet_address=wallet["address"], # Assigned Custodial Wallet
-        is_verified=True 
+        encrypted_private_key=wallet["encrypted_private_key"], # Phase 1: Store encrypted key
+        is_verified=True
     )
-    
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
-    # In real world: Send email with Private Key (Securely) or store in Vault
+
+    # Security: Private key is encrypted and stored, never logged or exposed
     print(f"🔐 Custodial Wallet Created for {email}: {wallet['address']}")
     
     return {"status": "user_created", "email": email, "id": new_user.id, "wallet": wallet["address"]}

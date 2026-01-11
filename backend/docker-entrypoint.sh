@@ -52,32 +52,96 @@ else
 fi
 
 # ==========================================
-# 4. Create Initial Data (if needed)
+# 4. Data Ingestion (if database is empty)
 # ==========================================
-echo -e "${YELLOW}[4/5] Checking initial data...${NC}"
+echo -e "${YELLOW}[4/6] Checking property data ingestion...${NC}"
 
-python -c "
+PROPERTY_COUNT=$(python -c "
 from app.database import SessionLocal
-from app.models import User
+from app.models import Property
 db = SessionLocal()
-user_count = db.query(User).count()
+count = db.query(Property).count()
 db.close()
-print(f'Users in database: {user_count}')
-"
+print(count)
+" 2>/dev/null || echo "0")
+
+echo "Properties in database: ${PROPERTY_COUNT}"
+
+if [ "$PROPERTY_COUNT" -eq "0" ]; then
+    echo -e "${YELLOW}Database is empty - running data ingestion...${NC}"
+
+    PROPERTIES_JSON="../data/properties.json"
+    if [ -f "$PROPERTIES_JSON" ]; then
+        echo "Found properties.json - ingesting data..."
+        python ingest_data_postgres.py
+
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Data ingestion completed${NC}"
+        else
+            echo -e "${RED}✗ Data ingestion failed - continuing anyway${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ properties.json not found${NC}"
+    fi
+else
+    echo -e "${GREEN}✓ Database already contains ${PROPERTY_COUNT} properties${NC}"
+fi
 
 # ==========================================
-# 5. Start Application
+# 5. Environment Validation (Production Only)
 # ==========================================
-echo -e "${YELLOW}[5/5] Starting Uvicorn server...${NC}"
+if [ "${ENVIRONMENT}" = "production" ]; then
+    echo -e "${YELLOW}[5/6] Validating production environment...${NC}"
+
+    REQUIRED_VARS=(
+        "WALLET_ENCRYPTION_KEY"
+        "JWT_SECRET_KEY"
+        "DATABASE_URL"
+        "OPENAI_API_KEY"
+    )
+
+    MISSING_VARS=()
+    for VAR in "${REQUIRED_VARS[@]}"; do
+        if [ -z "${!VAR}" ]; then
+            MISSING_VARS+=("$VAR")
+        fi
+    done
+
+    if [ ${#MISSING_VARS[@]} -ne 0 ]; then
+        echo -e "${RED}✗ CRITICAL: Missing required environment variables:${NC}"
+        printf '%s\n' "${MISSING_VARS[@]}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ All required environment variables present${NC}"
+else
+    echo -e "${YELLOW}[5/6] Running in ${ENVIRONMENT} mode - skipping strict validation${NC}"
+fi
+
+# ==========================================
+# 6. Start Application
+# ==========================================
+echo -e "${YELLOW}[6/6] Starting application server...${NC}"
 echo -e "${GREEN}[+] Osool Backend is ONLINE${NC}"
 
-# Start Uvicorn with production settings
-exec uvicorn app.main:app \
-  --host 0.0.0.0 \
-  --port ${PORT:-8000} \
-  --workers ${WORKERS:-4} \
-  --log-level ${LOG_LEVEL:-info} \
-  --access-log \
-  --proxy-headers \
-  --forwarded-allow-ips='*' \
-  --timeout-keep-alive 75
+# Production: Use Gunicorn with Uvicorn workers
+if [ "${ENVIRONMENT}" = "production" ]; then
+    echo "Starting Gunicorn with Uvicorn workers..."
+    exec gunicorn app.main:app \
+        --bind 0.0.0.0:${PORT:-8000} \
+        --workers ${WORKERS:-4} \
+        --worker-class uvicorn.workers.UvicornWorker \
+        --timeout ${TIMEOUT:-120} \
+        --keep-alive 75 \
+        --access-logfile - \
+        --error-logfile - \
+        --log-level ${LOG_LEVEL:-info}
+else
+    # Development: Use Uvicorn directly with auto-reload
+    echo "Starting Uvicorn (development mode)..."
+    exec uvicorn app.main:app \
+        --host 0.0.0.0 \
+        --port ${PORT:-8000} \
+        --reload \
+        --log-level ${LOG_LEVEL:-info}
+fi

@@ -29,6 +29,11 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, default="investor") # investor, admin
 
+    # Phase 1: Encrypted wallet private key storage (custodial wallets only)
+    # Stores Fernet-encrypted private keys for email-based users
+    # NULL for wallet-only users (non-custodial accounts)
+    encrypted_private_key: Mapped[str] = mapped_column(Text, nullable=True)
+
     # Verification Status
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)  # Master verification flag
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)

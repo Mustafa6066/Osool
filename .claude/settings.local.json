@@ -14,7 +14,8 @@
       "Bash(test:*)",
       "Bash(npm install)",
       "Bash(npm install:*)",
-      "Bash(npx hardhat:*)"
+      "Bash(npx hardhat:*)",
+      "Bash(python:*)"
     ]
   }
 }

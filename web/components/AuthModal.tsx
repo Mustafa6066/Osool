@@ -6,6 +6,7 @@ import { inAppWallet, createWallet } from "thirdweb/wallets";
 import { client } from "@/lib/client";
 import { chain } from "@/lib/contract";
 import { X, Mail, Wallet, User as UserIcon, Lock } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -29,6 +30,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
 
     const account = useActiveAccount();
     const wallet = useActiveWallet();
+
+    // Phase 2: Auth context integration
+    const { login: contextLogin } = useAuth();
 
     // -------------------------------------------------------------
     // WALLET AUTH LOGIC
@@ -60,8 +64,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                 // We don't save token yet, we wait for user decision
             } else {
                 // Existing user, proceed
-                localStorage.setItem("osool_jwt", data.access_token);
-                localStorage.setItem("osool_user_id", data.user_id);
+                // Phase 2: Standardized token naming (matches backend)
+                localStorage.setItem("access_token", data.access_token);
+                if (data.refresh_token) {
+                    localStorage.setItem("refresh_token", data.refresh_token);
+                }
+                localStorage.setItem("user_id", data.user_id);
+                // Phase 2: Update auth context
+                contextLogin(data.access_token, data.refresh_token);
                 onSuccess();
                 onClose();
             }
@@ -146,8 +156,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
             finalUserId = linkData.user_id;
         }
 
-        localStorage.setItem("osool_jwt", finalToken);
-        localStorage.setItem("osool_user_id", finalUserId);
+        // Phase 2: Standardized token naming (matches backend)
+        localStorage.setItem("access_token", finalToken);
+        localStorage.setItem("user_id", finalUserId);
+        // Phase 2: Update auth context
+        contextLogin(finalToken);
         onSuccess();
         onClose();
     };
@@ -165,8 +178,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                 body: JSON.stringify(walletAuthData),
             });
             const data = await res.json();
-            localStorage.setItem("osool_jwt", data.access_token);
-            localStorage.setItem("osool_user_id", data.user_id);
+            // Phase 2: Standardized token naming (matches backend)
+            localStorage.setItem("access_token", data.access_token);
+            if (data.refresh_token) {
+                localStorage.setItem("refresh_token", data.refresh_token);
+            }
+            localStorage.setItem("user_id", data.user_id);
+            // Phase 2: Update auth context
+            contextLogin(data.access_token, data.refresh_token);
             onSuccess();
             onClose();
         } catch (err) {

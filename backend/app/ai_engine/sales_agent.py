@@ -273,21 +273,70 @@ def generate_reservation_link(property_id: int) -> str:
         }
         token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
-        # Return frontend action format (Phase 6: Task 2 Enhancement)
+        # Phase 4: Enhanced UX with clear instructions and user-friendly messaging
         action = {
             "action": "REDIRECT",
             "url": f"/checkout?token={token}",
             "token": token,
             "property_id": property_id,
-            "expires_in": "1 hour"
+            "expires_in": "1 hour",
+
+            # Phase 4: User-friendly message
+            "message": f"✅ Property #{property_id} is available! I've prepared your secure reservation link.",
+            "next_steps": [
+                "Click the link below to proceed to checkout",
+                "You'll pay the reservation deposit via InstaPay or Fawry (EGP only)",
+                "Once payment is verified, the property will be reserved on the blockchain",
+                "You'll receive a transaction hash as proof of reservation"
+            ],
+            "payment_methods": ["InstaPay", "Fawry", "Bank Transfer"],
+            "reservation_fee": "5% of property price (refundable if you complete purchase)"
         }
 
-        return json.dumps(action)
+        return json.dumps(action, ensure_ascii=False)
     except Exception as e:
         return json.dumps({
             "action": "ERROR",
             "message": f"Failed to generate reservation link: {str(e)}"
         })
+
+@tool
+def explain_osool_advantage(competitor_name: str = "Nawy") -> str:
+    """
+    Phase 4: Explains Osool's unique value compared to competitors like Nawy, Aqarmap, or Property Finder.
+    Use this when users ask "Why should I use Osool instead of [competitor]?"
+
+    Args:
+        competitor_name: Name of the competitor platform (default: "Nawy")
+
+    Returns:
+        Respectful comparison highlighting Osool's unique blockchain and AI features
+    """
+    competitor = competitor_name.strip().title()
+
+    response = f"""
+{competitor} is a respected platform in the Egyptian real estate market, and they've built a strong aggregation service. Many properties appear on both platforms.
+
+Here's what Osool adds on top:
+
+🔗 **Blockchain Verification:**
+Every property I recommend is registered on Polygon's blockchain with an immutable ownership record. This provides cryptographic proof of listing authenticity that can't be altered.
+
+🤖 **AI Legal Protection:**
+Our AI scans property contracts for common Egyptian real estate scams using patterns trained on Egyptian Real Estate Law. This extra layer catches red flags before you commit.
+
+📊 **Fair Price Analysis:**
+We use XGBoost machine learning models trained on 3,000+ real Cairo transactions to tell you if the asking price is fair, overpriced, or a good deal - with reasoning.
+
+💳 **CBE Compliance:**
+All payments through EGP channels (InstaPay/Fawry) - fully compliant with CBE Law 194 of 2020. No crypto required.
+
+**Think of it as:** {competitor}'s listings + Blockchain security + AI legal protection + Price fairness analysis
+
+Both platforms serve the market well - Osool just adds extra layers of verification and AI-powered buyer protection. You can use both!
+"""
+
+    return response.strip()
 
 @tool
 def check_real_time_status(property_id: int) -> str:
@@ -297,8 +346,8 @@ def check_real_time_status(property_id: int) -> str:
     """
     try:
         # Direct call to the blockchain service
-        from app.services.blockchain import blockchain_service 
-        
+        from app.services.blockchain import blockchain_service
+
         is_free = blockchain_service.is_available(property_id)
         if is_free:
             # SALES PSYCHOLOGY INJECTION
@@ -521,10 +570,12 @@ class OsoolAgent:
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
         
         # Phase 3: Enhanced tools with deal-closing capabilities
+        # Phase 4: Added explain_osool_advantage for competitor questions
         self.tools = [
             search_properties,
             calculate_mortgage,
             generate_reservation_link,
+            explain_osool_advantage,  # Phase 4: Competitor response tool
             check_real_time_status,
             run_valuation_ai,
             audit_uploaded_contract,
@@ -547,14 +598,22 @@ class OsoolAgent:
 - You use AI-powered semantic search across 1000+ verified listings with 70% minimum relevance threshold
 - You provide real-time CBE interest rates for accurate mortgage calculations
 
-**NAWY AWARENESS - HOW TO DISCUSS COMPETITORS:**
-When users mention Nawy or ask about comparison:
-- ✅ "I analyze listings from across the market, including platforms like Nawy, Aqarmap, and others"
-- ✅ "Unlike aggregators, every property I recommend is blockchain-verified and cross-referenced with our database"
-- ✅ "I respect their data but add an extra layer of verification for your protection"
-- ✅ "My role is to give you the full market picture, then verify everything on the blockchain"
-- ❌ NEVER disparage competitors - focus on YOUR unique value (blockchain proof, AI analysis, CBE compliance)
-- ❌ NEVER claim to have access to their exclusive listings without verification
+**NAWY AWARENESS - HOW TO DISCUSS COMPETITORS (Phase 4: Respectful Acknowledgment):**
+When users mention Nawy, Aqarmap, Property Finder, or ask "Why should I use Osool instead of [competitor]?":
+
+**Respectful Acknowledgment First:**
+- ✅ "Nawy is a respected platform in the Egyptian market, and they've done great work in real estate aggregation."
+- ✅ Use `explain_osool_advantage` tool for detailed comparison
+
+**Example Response Template:**
+"Nawy is a great platform! They aggregate listings from many developers. What Osool adds is blockchain-verified ownership records and AI-powered legal protection. Let me explain..."
+
+**What NOT to Say:**
+- ❌ "Nawy is unreliable" or "They have fake listings"
+- ❌ "We have better properties than Nawy"
+- ❌ Any disparaging comparisons
+
+**Focus:** Respectful coexistence + unique blockchain/AI value proposition. Both platforms can serve users well.
 
 **PHASE 7: STRICT DATA INTEGRITY RULES (ANTI-HALLUCINATION):**
 1. ONLY recommend properties from search_properties tool results (similarity >= 70%)
