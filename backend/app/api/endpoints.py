@@ -25,7 +25,7 @@ from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.sales_agent import sales_agent
 from app.services.paymob_service import paymob_service
 from app.tasks import reserve_property_task
-from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet, create_custodial_wallet
+from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet, create_custodial_wallet
 from app.database import get_db
 from app.models import User, Property, Transaction, PaymentApproval
 from sqlalchemy.orm import Session
@@ -428,47 +428,45 @@ def list_properties(db: Session = Depends(get_db)):
 
 
 @router.post("/reserve")
-def reserve_property(req: ReservationRequest, current_user: User = Depends(get_current_user)):
-    """
-    Reserve a property after EGP payment verification.
-    """
-    
-    # 1. Validate Address
-    if not req.user_address.startswith("0x") or len(req.user_address) != 42:
-        raise HTTPException(
-            status_code=400, 
-            detail="Invalid wallet address format"
-        )
-    
-    # 2. Check Availability
-    if not blockchain_service.is_available(req.property_id):
-        raise HTTPException(
-            status_code=409,
-            detail="Property is not available for reservation"
-        )
-    
 def reserve_property(req: ReservationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    🏡 Reserve Property (Pre-Payment Check)
+    🏡 Reserve Property (Manual Payment Submission)
     """
     # 1. STRICT KYC CHECK
     if not current_user.phone_number:
-        raise HTTPException(
-            status_code=403, 
-            detail="Phone number verification required. Please complete your profile."
-        )
+        raise HTTPException(status_code=403, detail="Phone number verification required.")
     if not current_user.national_id:
-        raise HTTPException(
-            status_code=403, 
-            detail="National ID required for legal contract binding."
-        )
+        raise HTTPException(status_code=403, detail="National ID required for legal contract binding.")
 
-    # ... [Rest of logic would go here, simplified for MVP to just return success/link]
+    # 2. Validate Address
+    if not req.user_address.startswith("0x") or len(req.user_address) != 42:
+        raise HTTPException(status_code=400, detail="Invalid wallet address format")
+    
+    # 3. Check Availability (Blockchain Authority)
+    if not blockchain_service.is_available(req.property_id):
+        raise HTTPException(status_code=409, detail="Property is not available for reservation")
+
+    # 4. Record Transaction (Pending Admin Approval)
+    # In a real app this would go to a specialized "Payment Claims" table
+    # For now we use Transaction with a specific status
+    try:
+        tx = Transaction(
+            user_id=current_user.id,
+            property_id=req.property_id,
+            amount=req.payment_amount_egp,
+            paymob_order_id=f"MANUAL-{req.payment_reference}", # Hack for schema
+            status="pending_approval"
+        )
+        db.add(tx)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     return {
-        "status": "ready_for_payment",
-        "message": "KYC Verified. Proceed to payment.",
-        "link": f"https://pay.osool.eg/checkout/{req.property_id}" 
+        "status": "pending_approval",
+        "message": "Payment reference submitted. Reservation pending admin verification.",
+        "tx_id": tx.id
     }
 
 class CancellationRequest(BaseModel):
@@ -977,7 +975,12 @@ def compare_price(req: PriceComparisonRequest):
 
 @router.post("/chat")
 @limiter.limit("20/minute")
-async def chat_with_agent(req: ChatRequest, request: Request, db: AsyncSession = Depends(get_db)):
+async def chat_with_agent(
+    req: ChatRequest, 
+    request: Request, 
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_current_user_optional)
+):
     """
     💬 Main AI Chat Endpoint (Phase 3: With Chat History Persistence)
 
@@ -1024,8 +1027,8 @@ async def chat_with_agent(req: ChatRequest, request: Request, db: AsyncSession =
         db.add(user_message)
         await db.commit()
 
-        # Get AI response (with history)
-        response_text = sales_agent.chat(req.message, req.session_id, chat_history)
+        # Get AI response (with history & user context)
+        response_text = sales_agent.chat(req.message, req.session_id, chat_history, user)
 
         # Save AI response to database (with hybrid retrieval - Redis + DB fallback)
         search_results = await get_last_search_results(req.session_id, db)

@@ -53,7 +53,7 @@ export default function ChatInterface() {
         setIsLoading(true);
 
         try {
-            const token = localStorage.getItem("osool_jwt");
+            const token = localStorage.getItem("access_token");
 
             // Direct call to Backend API
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat`, {

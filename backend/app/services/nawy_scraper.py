@@ -1,5 +1,6 @@
 import re
 import asyncio
+from datetime import datetime
 from playwright.async_api import async_playwright
 from app.database import SessionLocal
 from app.models import Property
@@ -67,6 +68,7 @@ async def fetch_nawy_data_async():
         if scraped_properties:
             print(f"✅ Fast Scrape Successful: {len(scraped_properties)} items.")
             cache.set_json("nawy_scraped_data", scraped_properties, ttl=86400)
+            cache.set("nawy_last_update", str(datetime.now().isoformat()), ttl=86400)
             return scraped_properties
             
     except Exception as e:

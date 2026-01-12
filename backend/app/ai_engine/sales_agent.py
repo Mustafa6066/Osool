@@ -763,19 +763,44 @@ Remember: You're building long-term relationships. A client who trusts you bring
         self.agent = create_openai_tools_agent(self.llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(agent=self.agent, tools=self.tools, verbose=True)
 
-    def _build_dynamic_system_prompt(self, conversation_history: List[BaseMessage]) -> str:
+    def _build_dynamic_system_prompt(self, conversation_history: List[BaseMessage], user: Optional[dict] = None) -> str:
         """
         Build personalized system prompt based on customer segment and lead score.
-
-        Args:
-            conversation_history: List of chat messages
-
-        Returns:
-            Enhanced system prompt with segment-specific instructions
         """
-        base_prompt = """You are **Amr**, the "Wolf of Cairo" - Egypt's Most Trusted Real Estate Consultant at Osool.
+        
+        # User Gating status
+        user_context = "GUEST (Unverified)"
+        if user:
+            user_context = f"VERIFIED USER: {user.full_name} ({user.email or user.wallet_address})"
 
-**YOUR MISSION:** Guide investors to make profitable, blockchain-verified real estate decisions."""
+        base_prompt = f"""You are **Amr**, the "Wolf of Cairo" - Egypt's Most Trusted Real Estate Consultant at Osool.
+
+**CURRENT USER STATUS: {user_context}**
+
+**YOUR MISSION:** Guide investors to make profitable, blockchain-verified real estate decisions.
+
+**GATING RULES (CRITICAL):**
+1. IF USER IS GUEST:
+   - You CANNOT show specific prices or exact unit locations.
+   - You CAN show "Ranges" (e.g., "Starting from 5M EGP").
+   - If asked for details, say: "To see the exact price and verified documents for this exclusive unit, please sign in securely."
+2. IF USER IS VERIFIED:
+   - You have FULL ACCESS. Show all prices, locations, and documents.
+
+**NAWY AWARENESS - HOW TO DISCUSS COMPETITORS:**
+When users mention Nawy, Aqarmap, or Property Finder:
+- ✅ "Nawy is a respected platform. Osool adds blockchain verification and AI legal checks."
+- ✅ Use `explain_osool_advantage` tool.
+- ❌ Do NOT disparage them.
+
+**PHASE 7: STRICT DATA INTEGRITY (NO HALLUCINATIONS):**
+1. ONLY recommend properties from `search_properties` results (similarity >= 70%).
+2. If no matches: "I don't have exact matches. Let's refine your criteria."
+3. NEVER invent property details.
+4. If asked about unavailable data: "Let me search our verified database."
+
+**TONE:** confident, protective, data-driven ("Wolf" persona).
+"""
 
         # Add customer segment personality if classified
         if self.customer_segment != CustomerSegment.UNKNOWN:
@@ -904,7 +929,7 @@ Remember: You're building long-term relationships. A client who trusts you bring
 
         return base_prompt
 
-    def chat(self, user_input: str, session_id: str = "default", chat_history: list = None) -> str:
+    def chat(self, user_input: str, session_id: str = "default", chat_history: list = None, user: Optional[dict] = None) -> str:
         """
         Phase 3: Main chat loop with AI Personality Enhancement.
 
@@ -912,9 +937,7 @@ Remember: You're building long-term relationships. A client who trusts you bring
             user_input: User's message
             session_id: Session identifier for context
             chat_history: List of LangChain messages (loaded from database)
-
-        Returns:
-            AI response text
+            user: User object (or dict) if authenticated
         """
         # Set Context
         import contextvars
@@ -973,7 +996,7 @@ Remember: You're building long-term relationships. A client who trusts you bring
             print(f"📊 Lead Score: {self.lead_score['score']} ({self.lead_score['temperature']})")
 
             # Phase 3: Build dynamic system prompt
-            dynamic_prompt_text = self._build_dynamic_system_prompt(chat_history)
+            dynamic_prompt_text = self._build_dynamic_system_prompt(chat_history, user)
 
             # Create dynamic prompt template
             dynamic_prompt = ChatPromptTemplate.from_messages([

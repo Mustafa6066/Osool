@@ -35,6 +35,40 @@ REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 Days for refresh tokens
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
+
+async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)) -> Optional[User]:
+    """
+    OPTIONAL authentication.
+    Returns User object if token is valid, None if not provided or invalid.
+    Does NOT raise 401.
+    """
+    if not token:
+        return None
+        
+    try:
+        # Re-use logic from get_current_user but verify token manually since we can't call get_current_user directly 
+        # (it relies on strict oauth2_scheme which might conflict in dependency injection if we nest them awkwardly)
+        # Actually, we can just decode here.
+        
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        wallet: str = payload.get("wallet")
+        
+        if username is None and wallet is None:
+            return None
+            
+        if username:
+            user = db.query(User).filter(User.email == username).first()
+        elif wallet:
+            user = db.query(User).filter(User.wallet_address == wallet).first()
+        else:
+            return None
+            
+        return user
+    except JWTError:
+        return None
+
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
