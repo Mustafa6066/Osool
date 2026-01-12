@@ -7,6 +7,7 @@ when external APIs (OpenAI, Paymob, Blockchain RPC) become unavailable.
 
 import time
 import logging
+import asyncio
 from enum import Enum
 from functools import wraps
 from typing import Callable, Any
@@ -84,6 +85,40 @@ class CircuitBreaker:
             self.on_failure()
             raise e
 
+    async def call_async(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Execute async function through circuit breaker.
+
+        Args:
+            func: Async function to execute
+            *args: Positional arguments
+            **kwargs: Keyword arguments
+
+        Returns:
+            Function result
+
+        Raises:
+            Exception: If circuit is OPEN or function fails
+        """
+        # Check if circuit should transition from OPEN to HALF_OPEN
+        if self.state == CircuitState.OPEN:
+            if self.last_failure_time and (time.time() - self.last_failure_time) > self.timeout:
+                logger.info(f"🔄 Circuit breaker transitioning to HALF_OPEN (testing recovery)")
+                self.state = CircuitState.HALF_OPEN
+            else:
+                raise Exception(f"Circuit breaker is OPEN - service unavailable (retry in {self._time_until_retry()}s)")
+
+        # Attempt to execute async function
+        try:
+            self.last_attempt_time = time.time()
+            result = await func(*args, **kwargs)
+            self.on_success()
+            return result
+
+        except Exception as e:
+            self.on_failure()
+            raise e
+
     def on_success(self):
         """Handle successful execution - reset failure count"""
         if self.state == CircuitState.HALF_OPEN:
@@ -152,5 +187,7 @@ def circuit(failure_threshold: int = 5, timeout: int = 60):
 
 # Pre-configured circuit breakers for common external services
 openai_breaker = CircuitBreaker(failure_threshold=3, timeout=30)
+claude_breaker = CircuitBreaker(failure_threshold=3, timeout=30)
 paymob_breaker = CircuitBreaker(failure_threshold=5, timeout=60)
 blockchain_breaker = CircuitBreaker(failure_threshold=5, timeout=120)
+database_breaker = CircuitBreaker(failure_threshold=5, timeout=10)

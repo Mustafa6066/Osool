@@ -976,24 +976,26 @@ def compare_price(req: PriceComparisonRequest):
 @router.post("/chat")
 @limiter.limit("20/minute")
 async def chat_with_agent(
-    req: ChatRequest, 
-    request: Request, 
+    req: ChatRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
-    💬 Main AI Chat Endpoint (Phase 3: With Chat History Persistence)
+    💬 Main AI Chat Endpoint (Phase 1: Claude-Powered with Arabic Support)
 
-    Sends user message to the Wolf AI Agent with conversation memory.
+    Sends user message to AMR (Claude-powered) AI Agent with conversation memory.
+    Supports both Arabic and English conversations seamlessly.
     Saves chat history to database for cross-session continuity.
 
     Returns:
-    - response: AI text response
+    - response: AI text response (Arabic/English mix based on user language)
     - properties: JSON array of property objects found during search
+    - analytics: Conversation metrics (lead score, customer segment)
 
     Frontend can render property cards from the `properties` array.
     """
-    from app.ai_engine.sales_agent import sales_agent, get_last_search_results
+    from app.ai_engine.claude_sales_agent import claude_sales_agent, get_last_search_results
     from app.models import ChatMessage
     from sqlalchemy import select
     import json
@@ -1009,7 +1011,7 @@ async def chat_with_agent(
         )
         messages = result.scalars().all()
 
-        # Convert to LangChain message format (reverse chronological order)
+        # Convert to Claude-compatible message format
         for msg in reversed(messages):
             if msg.role == "user":
                 from langchain_core.messages import HumanMessage
@@ -1027,8 +1029,13 @@ async def chat_with_agent(
         db.add(user_message)
         await db.commit()
 
-        # Get AI response (with history & user context)
-        response_text = sales_agent.chat(req.message, req.session_id, chat_history, user)
+        # Get AI response from Claude agent (supports Arabic automatically)
+        response_text = await claude_sales_agent.chat(
+            user_input=req.message,
+            session_id=req.session_id,
+            chat_history=chat_history,
+            user=user.__dict__ if user else None
+        )
 
         # Save AI response to database (with hybrid retrieval - Redis + DB fallback)
         search_results = await get_last_search_results(req.session_id, db)
@@ -1041,13 +1048,62 @@ async def chat_with_agent(
         db.add(ai_message)
         await db.commit()
 
+        # Phase 1: Track analytics (for future dashboard integration)
+        analytics_data = {
+            "customer_segment": claude_sales_agent.customer_segment.value if claude_sales_agent.customer_segment else "unknown",
+            "lead_temperature": claude_sales_agent.lead_score.get("temperature") if claude_sales_agent.lead_score else "cold",
+            "lead_score": claude_sales_agent.lead_score.get("score", 0) if claude_sales_agent.lead_score else 0,
+            "properties_viewed": len(search_results) if search_results else 0,
+            "message_count": len(chat_history) + 2  # +2 for current exchange
+        }
+
+        # Week 3: Generate visualization data based on response content
+        from app.ai_engine.visualization_helpers import attach_visualizations_to_response
+
+        visualizations = {}
+        if search_results and len(search_results) > 0:
+            # Detect intent from response text
+            response_lower = response_text.lower()
+
+            # Show investment scorecard for valuation/analysis requests
+            show_scorecard = any(keyword in response_lower for keyword in [
+                "تحليل", "analysis", "investment", "استثمار", "roi", "return"
+            ])
+
+            # Show comparison for multiple properties
+            show_comparison = len(search_results) > 1 and any(keyword in response_lower for keyword in [
+                "قارن", "compare", "comparison", "مقارنة", "options", "choose"
+            ])
+
+            # Show payment timeline for payment/installment questions
+            show_payment = any(keyword in response_lower for keyword in [
+                "payment", "دفع", "أقساط", "installment", "monthly", "شهري"
+            ])
+
+            # Show market trends for trend/market questions
+            show_trends = any(keyword in response_lower for keyword in [
+                "trend", "market", "سوق", "نمو", "growth", "اتجاه"
+            ])
+
+            visualizations = attach_visualizations_to_response(
+                properties=search_results,
+                show_scorecard=show_scorecard,
+                show_comparison=show_comparison,
+                show_payment=show_payment,
+                show_trends=show_trends
+            )
+
         return {
             "response": response_text,
             "properties": search_results,
-            "session_id": req.session_id
+            "visualizations": visualizations,  # NEW: Visualization data
+            "session_id": req.session_id,
+            "analytics": analytics_data,
+            "cost": claude_sales_agent.get_cost_summary()  # For monitoring
         }
     except Exception as e:
         await db.rollback()
+        print(f"❌ Chat Error: {e}")
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
 

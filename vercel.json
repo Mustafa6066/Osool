@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://api.osool.com/api/:path*"
+      "destination": "/api/:path*"
     }
   ],
   "headers": [

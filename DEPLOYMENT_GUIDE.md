@@ -1,302 +1,117 @@
-# Osool Blockchain Deployment Guide
+# 🚀 Osool Deployment Guide (Phase 1)
 
-This guide covers the deployment of Osool smart contracts to both testnet (Polygon Amoy) and mainnet (Polygon PoS) networks.
+This guide covers the deployment of the **Osool Real Estate Platform** (Phase 1: AI Chatting & Selling) to production.
 
-## Table of Contents
-
-1. [Prerequisites](#prerequisites)
-2. [Environment Setup](#environment-setup)
-3. [Local Testing](#local-testing)
-4. [Testnet Deployment (Amoy)](#testnet-deployment-amoy)
-5. [Contract Verification](#contract-verification)
-6. [Mainnet Deployment](#mainnet-deployment)
-7. [Backend Configuration](#backend-configuration)
-8. [Troubleshooting](#troubleshooting)
+**Architecture:**
+- **Backend:** Railway (Python/FastAPI)
+- **Frontend:** Vercel (Next.js)
+- **Database:** Supabase or Railway Postgres
+- **AI:** OpenAI & Anthropic APIs
 
 ---
 
-## Prerequisites
+## 1. Preparation & GitHub
 
-### Required Tools
+Before deploying, ensuring your code is clean and pushed to GitHub.
 
-```bash
-# Node.js and npm (v18+ recommended)
-node --version
-npm --version
-
-# Hardhat (installed via project dependencies)
-npm install
-
-# Polygon Amoy Testnet MATIC
-# Get free testnet tokens from: https://faucet.polygon.technology/
-```
-
-### Required Accounts
-
-1. **Wallet Setup**
-   - Create a new MetaMask wallet for deployment (NEVER use your personal wallet)
-   - Export the private key (keep it secure!)
-   - Save the address as `ADMIN_WALLET_ADDRESS`
-
-2. **API Keys**
-   - Alchemy API key: https://www.alchemy.com/
-   - PolygonScan API key: https://polygonscan.com/apis
+1.  **Check `.gitignore`**: Ensure `.env`, `__pycache__`, `venv/`, and `.next/` are ignored.
+2.  **Commit & Push**:
+    ```bash
+    git add .
+    git commit -m "chore: Prepare for Phase 1 Deployment"
+    git push origin main
+    ```
 
 ---
 
-## Environment Setup
+## 2. Backend Deployment (Railway)
 
-### 1. Configure Environment Variables
+We use **Railway** for the Python Backend because it handles `Dockerfile` and Python dependencies automatically and natively supports FastAPI.
 
-Copy `.env.example` to `.env`:
+### Step 2.1: Create Project
+1.  Go to [Railway.app](https://railway.app/).
+2.  Click **"New Project"** -> **"Deploy from GitHub repo"**.
+3.  Select your repository (`Mustafa6066/Osool`).
+4.  Click **"Deploy Now"**. Railway will detect the `Dockerfile.prod` or `requirements.txt`.
 
-```bash
-cp .env.example .env
-```
+### Step 2.2: Configure Build
+1.  Go to **Settings** -> **Build**.
+2.  **Root Directory**: `/backend` (Important! Your python code is in the backend folder).
+3.  **Watch Paths**: `/backend/**`.
 
-### 2. Fill in Required Variables
+### Step 2.3: Environment Variables (Critical)
+Go to the **Variables** tab in Railway and add the following. **Copy these from your local `.env`.**
 
-```bash
-# Deployment Wallet
-PRIVATE_KEY=your_deployment_wallet_private_key
-ADMIN_WALLET_ADDRESS=0xYourAdminAddress
+| Variable | Value / Description |
+| :--- | :--- |
+| `ENVIRONMENT` | `production` |
+| `PORT` | `8000` |
+| `DATABASE_URL` | Connection string to your Postgres DB (Railway provides one if you add a Database service, or use Supabase) |
+| `OPENAI_API_KEY` | `sk-...` (Your OpenAI Key) |
+| `ANTHROPIC_API_KEY` | `sk-...` (Your Claude/AMR Key) |
+| `JWT_SECRET_KEY` | Generate a long random string (e.g. `openssl rand -hex 32`) |
+| `WALLET_ENCRYPTION_KEY` | Generate with Python Fernet (see `backend/.env.production.example`) |
+| `FRONTEND_DOMAIN` | `https://your-project.vercel.app` (You will get this in Section 3) |
+| `NEXT_PUBLIC_API_URL` | `https://your-backend.up.railway.app` (Railway provides this) |
 
-# RPC URLs
-POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
-AMOY_RPC_URL=https://rpc-amoy.polygon.technology
+> **Note:** If you don't have a database yet, right-click the empty space in Railway project view -> **Create** -> **Database** -> **PostgreSQL**. Railway will automatically verify the `DATABASE_URL` variable.
 
-# Block Explorer API Keys
-POLYGONSCAN_API_KEY=your_polygonscan_api_key
-
-# OpenAI (for data ingestion)
-OPENAI_API_KEY=your_openai_api_key
-```
-
-### 3. Fund Your Deployment Wallet
-
-**For Testnet (Amoy):**
-- Visit: https://faucet.polygon.technology/
-- Select "Polygon Amoy" network
-- Enter your `ADMIN_WALLET_ADDRESS`
-- Request tokens (you'll receive ~0.5 MATIC)
-
-**For Mainnet:**
-- Purchase MATIC from an exchange (Binance, Coinbase, etc.)
-- Transfer to your `ADMIN_WALLET_ADDRESS`
-- Recommended: 10-20 MATIC for deployment + initial operations
+### Step 2.4: Verify Backend
+1.  Once deployed, Railway gives you a public URL (e.g., `https://osool-backend-production.up.railway.app`).
+2.  Visit `https://<YOUR_URL>/health`. You should see `{"status": "healthy"}`.
+3.  Visit `https://<YOUR_URL>/docs` (might be disabled in prod) or test `/api/chat` via Postman.
 
 ---
 
-## Local Testing
+## 3. Frontend Deployment (Vercel)
 
-### 1. Start Local Hardhat Node
+We use **Vercel** for the Next.js Frontend.
 
-```bash
-cd blockchain
-npx hardhat node
-```
+### Step 3.1: Create Project
+1.  Go to [Vercel.com](https://vercel.com/).
+2.  Click **"Add New"** -> **"Project"**.
+3.  Import `Mustafa6066/Osool`.
 
-This starts a local Ethereum node at `http://127.0.0.1:8545/` with pre-funded test accounts.
+### Step 3.2: Configure Build
+1.  **Framework Preset**: Next.js.
+2.  **Root Directory**: Click "Edit" and select `web`. **(Crucial step!)**
 
-### 2. Deploy to Local Network
+### Step 3.3: Environment Variables
+Add the following in the **Environment Variables** section:
 
-In a new terminal:
+| Variable | Value / Description |
+| :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | `https://<YOUR_RAILWAY_BACKEND_URL>` (No trailing slash, e.g., `https://osool.up.railway.app`) |
+| `NEXT_PUBLIC_THIRDWEB_CLIENT_ID`| Your ThirdWeb Client ID |
 
-```bash
-npx hardhat run scripts/deploy-registry.js --network localhost
-```
-
-### 3. Test Contract Interactions
-
-```bash
-npx hardhat test
-```
-
-Expected output:
-```
-  OsoolRegistry Tests
-    ✓ Should deploy with correct owner
-    ✓ Should register a property
-    ✓ Should reserve a property
-    ✓ Should mark property as sold
-    ✓ Should prevent double reservation
-```
+### Step 3.4: Deploy
+1.  Click **"Deploy"**.
+2.  Wait for the build to complete.
+3.  Vercel will provide a domain (e.g., `osool-web.vercel.app`).
 
 ---
 
-## Testnet Deployment (Amoy)
+## 4. Final Connection Steps
 
-### 1. Compile Contracts
+1.  **Update Backend CORS**:
+    -   Go back to **Railway** Variables.
+    -   Update `FRONTEND_DOMAIN` to your new Vercel domain (e.g., `https://osool-web.vercel.app`).
+    -   Redeploy the Backend (Railway usually auto-redeploys on variable changes).
 
-```bash
-cd blockchain
-npx hardhat compile
-```
-
-Expected output:
-```
-Compiling 5 files with 0.8.20
-Compilation finished successfully
-```
-
-### 2. Deploy OsoolRegistry
-
-```bash
-npx hardhat run scripts/deploy-registry.js --network amoy
-```
-
-**Sample Output:**
-```
-Deploying OsoolRegistry to Polygon Amoy...
-Admin address: 0xYourAdminAddress
-Deploying contract...
-OsoolRegistry deployed to: 0x1234...abcd
-Transaction hash: 0x5678...efgh
-
-✓ Deployment successful!
-
-Save this address to your .env file:
-OSOOL_REGISTRY_ADDRESS=0x1234...abcd
-```
-
-### 3. Deploy OsoolLiquidityAMM (Optional)
-
-```bash
-npx hardhat run scripts/deploy-amm.js --network amoy
-```
-
-### 4. Update Environment Variables
-
-Update your `backend/.env` file:
-
-```bash
-# Testnet Configuration
-OSOOL_REGISTRY_ADDRESS=0x1234...abcd
-OSOOL_AMM_ADDRESS=0xAMM...address
-POLYGON_RPC_URL=https://rpc-amoy.polygon.technology
-CHAIN_ID=80002
-
-# Disable simulation mode to use real blockchain
-BLOCKCHAIN_SIMULATION_MODE=false
-```
-
-### 5. Verify Deployment
-
-Visit PolygonScan Amoy Explorer:
-```
-https://amoy.polygonscan.com/address/0x1234...abcd
-```
-
----
-
-## Contract Verification
-
-```bash
-npx hardhat verify --network amoy 0x1234...abcd
-```
-
----
-
-## Mainnet Deployment
-
-### ⚠️ CRITICAL SECURITY CHECKLIST
-
-- [ ] **Audit Completed**: Professional smart contract audit
-- [ ] **Testnet Validated**: Run on Amoy for 2+ weeks
-- [ ] **Multisig Wallet**: Use Gnosis Safe for ownership
-- [ ] **Emergency Pause**: Test pause functionality
-- [ ] **Backup Keys**: Hardware wallet + encrypted backup
-
-### 1. Deploy to Mainnet
-
-```bash
-npx hardhat run scripts/deploy-registry.js --network polygon
-```
-
-### 2. Transfer Ownership to Multisig
-
-**CRITICAL: Do this immediately!**
-
-### 3. Verify on PolygonScan
-
-```bash
-npx hardhat verify --network polygon 0xYourRegistryAddress
-```
-
----
-
-## Backend Configuration
-
-After deployment, update `backend/.env`:
-
-```bash
-OSOOL_REGISTRY_ADDRESS=0xYourDeployedAddress
-BLOCKCHAIN_SIMULATION_MODE=false
-POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_KEY
-CHAIN_ID=137
-```
-
-Test backend integration:
-
-```bash
-curl http://localhost:8000/api/health
-```
+2.  **Test the Full Flow**:
+    -   Open your Vercel URL.
+    -   Open the **Chat Interface**.
+    -   Type "Hello".
+    -   **Expected**: The frontend calls your Railway backend, which calls Claude, stores data in Postgres, and replies.
 
 ---
 
 ## Troubleshooting
 
-### "Insufficient funds for gas"
-Get testnet MATIC from: https://faucet.polygon.technology/
-
-### "Contract verification failed"
-```bash
-npx hardhat flatten contracts/OsoolRegistry.sol > OsoolRegistry-flat.sol
-```
-
-### "Backend shows simulation mode"
-```bash
-# Restart backend
-pkill -f uvicorn
-python -m uvicorn app.main:app --reload
-```
-
----
-
-## Development Mode (Simulation)
-
-For local development without contracts:
-
-```bash
-BLOCKCHAIN_SIMULATION_MODE=true
-```
-
-**Logs:**
-```
-[!] BLOCKCHAIN SIMULATION MODE ENABLED
-[SIM] Property 123 reserved (TX: 0xSIM...00000123)
-```
-
----
-
-## Resources
-
-- Polygon Docs: https://docs.polygon.technology/
-- Hardhat Docs: https://hardhat.org/docs
-- Amoy Faucet: https://faucet.polygon.technology/
-- PolygonScan: https://polygonscan.com/
-
----
-
-## Security Best Practices
-
-1. Never commit private keys
-2. Use hardware wallets for mainnet
-3. Always use multisig for ownership
-4. Get professional audits
-5. Monitor contracts 24/7
-6. Test everything on testnet first
-
----
-
-**CBE Compliance:** All fiat payments through InstaPay/Fawry only.
+-   **Frontend 404 on API calls?**
+    -   Check `NEXT_PUBLIC_API_URL` in Vercel. It must match your Railway URL exactly.
+    -   Check Browser Console -> Network Tab. See where the request is going.
+-   **Backend 500 Error?**
+    -   Check Railway **Logs**. It usually means a missing env variable (like `DATABASE_URL` or `OPENAI_API_KEY`).
+-   **CORS Error?**
+    -   Ensure `FRONTEND_DOMAIN` in Railway matches the Vercel URL exactly (no trailing slash).
