@@ -17,12 +17,19 @@ interface AuthModalProps {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
-    const [activeTab, setActiveTab] = useState<"wallet" | "login" | "signup">("wallet");
+    const [activeTab, setActiveTab] = useState<"wallet" | "login" | "signup" | "otp">("wallet");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [fullName, setFullName] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
+    const [nationalId, setNationalId] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Phone OTP State
+    const [otpCode, setOtpCode] = useState("");
+    const [otpSent, setOtpSent] = useState(false);
+    const [otpUserId, setOtpUserId] = useState<number | null>(null);
 
     // Linking State
     const [linkPrompt, setLinkPrompt] = useState(false);
@@ -93,14 +100,37 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
 
         try {
             if (activeTab === "signup") {
-                // SIGNUP
-                const params = new URLSearchParams({ email, password, full_name: fullName });
+                // SIGNUP - KYC Compliant
+                const params = new URLSearchParams({
+                    email,
+                    password,
+                    full_name: fullName,
+                    phone_number: phoneNumber,
+                    national_id: nationalId
+                });
                 const res = await fetch(`${API_URL}/api/auth/signup?${params.toString()}`, { method: "POST" });
                 if (!res.ok) {
                     const err = await res.json();
                     throw new Error(err.detail || "Signup failed");
                 }
-                await loginAndLink(); // Proceed to login (and link if needed)
+
+                const data = await res.json();
+
+                // Backend sends OTP immediately after signup
+                if (data.status === "otp_sent") {
+                    setOtpUserId(data.user_id);
+                    setOtpSent(true);
+                    setActiveTab("otp");
+
+                    // Show dev OTP if in development
+                    if (data.dev_otp) {
+                        setError(`Development Mode: Your OTP is ${data.dev_otp}`);
+                    } else {
+                        setError(`OTP sent to ${phoneNumber}. Please verify to complete signup.`);
+                    }
+                    setIsLoading(false);
+                    return; // Don't proceed to login yet
+                }
             } else {
                 // LOGIN
                 await loginAndLink();
@@ -195,6 +225,130 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         }
     };
 
+    // -------------------------------------------------------------
+    // PHONE OTP LOGIC
+    // -------------------------------------------------------------
+    const handleSendOTP = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+
+        // Validate Egyptian phone format
+        if (!phoneNumber.startsWith('+20') || phoneNumber.length !== 13) {
+            setError("Please enter a valid Egyptian phone number (+201234567890)");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const res = await fetch(`${API_URL}/api/auth/otp/send`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone_number: phoneNumber })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || "Failed to send OTP");
+            }
+
+            const data = await res.json();
+            setOtpSent(true);
+
+            // In development, show OTP code
+            if (data.dev_code) {
+                setError(`Development Mode: Your OTP is ${data.dev_code}`);
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (otpCode.length !== 6) {
+            setError("Please enter the 6-digit OTP code");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const res = await fetch(`${API_URL}/api/auth/otp/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    phone_number: phoneNumber,
+                    otp_code: otpCode
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || "Invalid OTP code");
+            }
+
+            const data = await res.json();
+
+            // Store tokens and login
+            localStorage.setItem("access_token", data.access_token);
+            if (data.refresh_token) {
+                localStorage.setItem("refresh_token", data.refresh_token);
+            }
+            localStorage.setItem("user_id", data.user_id);
+            contextLogin(data.access_token, data.refresh_token);
+
+            onSuccess();
+            onClose();
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // -------------------------------------------------------------
+    // GOOGLE OAUTH LOGIC
+    // -------------------------------------------------------------
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const res = await fetch(`${API_URL}/api/auth/google`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id_token: credentialResponse.credential })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || "Google authentication failed");
+            }
+
+            const data = await res.json();
+
+            // Store tokens and login
+            localStorage.setItem("access_token", data.access_token);
+            if (data.refresh_token) {
+                localStorage.setItem("refresh_token", data.refresh_token);
+            }
+            localStorage.setItem("user_id", data.user_id);
+            contextLogin(data.access_token, data.refresh_token);
+
+            onSuccess();
+            onClose();
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     if (!isOpen) return null;
 
@@ -239,17 +393,17 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                         {/* Tabs */}
                         <div className="flex p-2 gap-2 bg-gray-50 border-b border-gray-100">
                             <button
-                                onClick={() => setActiveTab("wallet")}
+                                onClick={() => { setActiveTab("wallet"); setOtpSent(false); }}
                                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === "wallet"
                                     ? "bg-white text-green-700 shadow-sm ring-1 ring-black/5"
                                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                                     }`}
                             >
                                 <Wallet size={18} />
-                                Web3 Wallet
+                                Wallet
                             </button>
                             <button
-                                onClick={() => setActiveTab("login")}
+                                onClick={() => { setActiveTab("login"); setOtpSent(false); }}
                                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === "login" || activeTab === "signup"
                                     ? "bg-white text-green-700 shadow-sm ring-1 ring-black/5"
                                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
@@ -257,6 +411,16 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                             >
                                 <Mail size={18} />
                                 Email
+                            </button>
+                            <button
+                                onClick={() => { setActiveTab("otp"); setOtpSent(false); }}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === "otp"
+                                    ? "bg-white text-green-700 shadow-sm ring-1 ring-black/5"
+                                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                                    }`}
+                            >
+                                <Lock size={18} />
+                                Phone
                             </button>
                         </div>
 
@@ -308,6 +472,30 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                                         </div>
                                     )}
 
+                                    {/* Google OAuth Button - Only show for login */}
+                                    {activeTab === "login" && (
+                                        <>
+                                            <div className="space-y-3">
+                                                {/* Google Sign-In Button Placeholder */}
+                                                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                                                    <p className="text-sm text-gray-600">
+                                                        <strong>Google OAuth Integration:</strong> Install <code className="bg-gray-200 px-2 py-1 rounded text-xs">@react-oauth/google</code> and wrap app with GoogleOAuthProvider
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        Backend ready at <code>/api/auth/google</code>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Divider */}
+                                            <div className="flex items-center my-4">
+                                                <div className="flex-1 border-t border-gray-300"></div>
+                                                <span className="px-4 text-gray-500 text-sm">or continue with email</span>
+                                                <div className="flex-1 border-t border-gray-300"></div>
+                                            </div>
+                                        </>
+                                    )}
+
                                     {/* Toggle Sign In / Sign Up */}
                                     <div className="flex justify-center mb-4">
                                         <span className="text-sm text-gray-500 mr-2">
@@ -323,20 +511,55 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                                     </div>
 
                                     {activeTab === "signup" && (
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                                            <div className="relative">
-                                                <UserIcon className="absolute left-3 top-3 text-gray-400" size={18} />
-                                                <input
-                                                    type="text"
-                                                    required={activeTab === "signup"}
-                                                    value={fullName}
-                                                    onChange={(e) => setFullName(e.target.value)}
-                                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                                                    placeholder="John Doe"
-                                                />
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                                <div className="relative">
+                                                    <UserIcon className="absolute left-3 top-3 text-gray-400" size={18} />
+                                                    <input
+                                                        type="text"
+                                                        required={activeTab === "signup"}
+                                                        value={fullName}
+                                                        onChange={(e) => setFullName(e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                                                        placeholder="John Doe"
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                                <div className="relative">
+                                                    <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
+                                                    <input
+                                                        type="tel"
+                                                        required={activeTab === "signup"}
+                                                        pattern="\+20[0-9]{10}"
+                                                        value={phoneNumber}
+                                                        onChange={(e) => setPhoneNumber(e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                                                        placeholder="+201234567890"
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-1">Egyptian phone number in E.164 format</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">National ID</label>
+                                                <div className="relative">
+                                                    <UserIcon className="absolute left-3 top-3 text-gray-400" size={18} />
+                                                    <input
+                                                        type="text"
+                                                        required={activeTab === "signup"}
+                                                        pattern="[0-9]{14}"
+                                                        value={nationalId}
+                                                        onChange={(e) => setNationalId(e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                                                        placeholder="14-digit Egyptian ID"
+                                                        maxLength={14}
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-1">Required for KYC compliance (CBE Law 194)</p>
+                                            </div>
+                                        </>
                                     )}
 
                                     <div>
@@ -377,6 +600,95 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                                         {isLoading ? "Processing..." : (activeTab === "signup" ? "Sign Up" : (walletAuthData ? "Link Account" : "Sign In"))}
                                     </button>
                                 </form>
+                            )}
+
+                            {/* Phone OTP Tab */}
+                            {activeTab === "otp" && (
+                                <div className="space-y-4">
+                                    <div className="text-center mb-4">
+                                        <div className="p-4 bg-blue-50 rounded-full mb-3 inline-block">
+                                            <Lock className="w-8 h-8 text-blue-600" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold text-gray-900">
+                                            {otpSent ? "Verify OTP Code" : "Phone Authentication"}
+                                        </h3>
+                                        <p className="text-gray-500 text-sm mt-1">
+                                            {otpSent ? "Enter the 6-digit code sent to your phone" : "Sign in with your Egyptian phone number"}
+                                        </p>
+                                    </div>
+
+                                    {!otpSent ? (
+                                        // Step 1: Phone Number Input
+                                        <form onSubmit={handleSendOTP} className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                                <div className="relative">
+                                                    <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
+                                                    <input
+                                                        type="tel"
+                                                        required
+                                                        pattern="\+20[0-9]{10}"
+                                                        value={phoneNumber}
+                                                        onChange={(e) => setPhoneNumber(e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                                                        placeholder="+201234567890"
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-1">Egyptian phone numbers only (E.164 format)</p>
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                disabled={isLoading}
+                                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                {isLoading ? "Sending..." : "Send OTP Code"}
+                                            </button>
+
+                                            <p className="text-center text-xs text-gray-500">
+                                                Rate limited to 3 attempts per hour
+                                            </p>
+                                        </form>
+                                    ) : (
+                                        // Step 2: OTP Verification
+                                        <form onSubmit={handleVerifyOTP} className="space-y-4">
+                                            <div className="p-3 bg-green-50 text-green-700 text-sm rounded-lg mb-2">
+                                                SMS sent to {phoneNumber}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">OTP Code</label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    pattern="[0-9]{6}"
+                                                    maxLength={6}
+                                                    value={otpCode}
+                                                    onChange={(e) => setOtpCode(e.target.value)}
+                                                    className="w-full px-4 py-3 text-center text-2xl font-mono border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all tracking-widest"
+                                                    placeholder="000000"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1 text-center">Enter the 6-digit code</p>
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                disabled={isLoading || otpCode.length !== 6}
+                                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                {isLoading ? "Verifying..." : "Verify & Sign In"}
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => { setOtpSent(false); setOtpCode(""); setError(null); }}
+                                                className="w-full text-sm text-gray-600 hover:text-gray-800 py-2"
+                                            >
+                                                ← Change Phone Number
+                                            </button>
+                                        </form>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </>

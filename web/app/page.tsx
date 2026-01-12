@@ -17,7 +17,7 @@ export default function Home() {
 
     useEffect(() => {
         // Check for Wallet OR Email (JWT)
-        const jwt = localStorage.getItem("osool_jwt");
+        const jwt = localStorage.getItem("access_token");
         if (jwt || account) {
             setIsAuthenticated(true);
         } else {

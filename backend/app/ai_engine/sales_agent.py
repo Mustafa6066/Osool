@@ -21,6 +21,28 @@ from openai import OpenAI
 # Database
 from supabase import create_client, Client
 
+# Phase 3: AI Personality Enhancement imports
+from datetime import datetime
+from .customer_profiles import (
+    classify_customer,
+    get_persona_config,
+    extract_budget_from_conversation,
+    CustomerSegment
+)
+from .objection_handlers import (
+    detect_objection,
+    get_objection_response,
+    get_recommended_tools,
+    should_escalate_to_human,
+    ObjectionType
+)
+from .lead_scoring import (
+    score_lead,
+    classify_by_intent,
+    LeadTemperature
+)
+from .analytics import ConversationAnalyticsService
+
 load_dotenv(dotenv_path="../.env")
 
 # ---------------------------------------------------------------------------
@@ -560,6 +582,38 @@ def schedule_viewing(property_id: int, preferred_date: str, user_contact: str) -
             "message": f"Failed to schedule viewing: {e}. Please provide date in ISO format (YYYY-MM-DD)"
         })
 
+@tool
+def escalate_to_human(reason: str, user_contact: str) -> str:
+    """
+    Escalate conversation to human sales consultant.
+    Use when user needs specialized support beyond AI capabilities.
+
+    Args:
+        reason: Why escalating (e.g., "complex_financing", "legal_questions", "custom_requirements")
+        user_contact: User's contact info (phone or email)
+
+    Triggers:
+    - Legal advice beyond contract scanning
+    - Complex financing (multiple properties, corporate buyers)
+    - Property not in database
+    - User explicitly requests human
+    - Repeated objections (3+ times same concern)
+
+    Returns:
+        Confirmation message with ticket ID
+    """
+    # TODO: Implement support ticket creation in database
+    # TODO: Send notification to support team (WhatsApp/Email)
+
+    ticket_id = f"TKT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+    return json.dumps({
+        "status": "escalated",
+        "ticket_id": ticket_id,
+        "estimated_response": "Within 2 hours",
+        "message": f"I've connected you with our senior property consultant who specializes in {reason}. They'll reach out to {user_contact} within 2 hours. In the meantime, would you like me to prepare a detailed property report for them?"
+    })
+
 
 # ---------------------------------------------------------------------------
 # 3. AGENT SETUP (LangChain)
@@ -568,8 +622,17 @@ def schedule_viewing(property_id: int, preferred_date: str, user_contact: str) -
 class OsoolAgent:
     def __init__(self):
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
-        
-        # Phase 3: Enhanced tools with deal-closing capabilities
+
+        # Phase 3: Customer Intelligence Tracking
+        self.customer_segment = CustomerSegment.UNKNOWN
+        self.lead_score = None
+        self.objection_count = {}  # Track objections by type
+        self.session_start_time = datetime.now()
+        self.properties_viewed_count = 0
+        self.tools_used_list = []
+        self.chat_histories = {}  # Store chat histories by session_id
+
+        # Phase 3: Enhanced tools with deal-closing capabilities + human handoff
         # Phase 4: Added explain_osool_advantage for competitor questions
         self.tools = [
             search_properties,
@@ -582,9 +645,10 @@ class OsoolAgent:
             check_market_trends,
             calculate_investment_roi,
             compare_units,
-            schedule_viewing
+            schedule_viewing,
+            escalate_to_human  # Phase 3: Human handoff tool
         ]
-        
+
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
@@ -699,9 +763,150 @@ Remember: You're building long-term relationships. A client who trusts you bring
         self.agent = create_openai_tools_agent(self.llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(agent=self.agent, tools=self.tools, verbose=True)
 
+    def _build_dynamic_system_prompt(self, conversation_history: List[BaseMessage]) -> str:
+        """
+        Build personalized system prompt based on customer segment and lead score.
+
+        Args:
+            conversation_history: List of chat messages
+
+        Returns:
+            Enhanced system prompt with segment-specific instructions
+        """
+        base_prompt = """You are **Amr**, the "Wolf of Cairo" - Egypt's Most Trusted Real Estate Consultant at Osool.
+
+**YOUR MISSION:** Guide investors to make profitable, blockchain-verified real estate decisions."""
+
+        # Add customer segment personality if classified
+        if self.customer_segment != CustomerSegment.UNKNOWN:
+            persona = get_persona_config(self.customer_segment)
+
+            segment_enhancement = f"""
+
+**CUSTOMER PROFILE: {self.customer_segment.value.upper()}**
+- Tone: {persona["tone"]}
+- Language Style: {persona["language_style"]}
+- Focus Areas: {", ".join(persona["focus"])}
+- Greeting to use: "{persona["greeting"]}"
+- Value Proposition: {persona["value_proposition"]}
+- Urgency Style: {persona["urgency_style"]}
+"""
+            base_prompt += segment_enhancement
+
+        # Add lead temperature strategy if scored
+        if self.lead_score:
+            temp = self.lead_score["temperature"]
+            score = self.lead_score["score"]
+            action = self.lead_score["recommended_action"]
+
+            lead_strategy = f"""
+
+**LEAD TEMPERATURE: {temp.upper()} (Score: {score}/100)**
+- Priority Level: {"🔥 HIGH" if temp == "hot" else "⚡ MEDIUM" if temp == "warm" else "❄️ LOW"}
+- Recommended Action: {action}
+- Signals Detected: {", ".join(self.lead_score.get("signals", []))}
+
+**Conversation Strategy for {temp.upper()} Lead:**
+"""
+            if temp == "hot":
+                lead_strategy += "- Check availability immediately\n- Generate reservation link\n- Use assumptive close: 'Let me prepare your documents'\n- Create urgency with real data"
+            elif temp == "warm":
+                lead_strategy += "- Compare top 3 properties\n- Address objections with data\n- Schedule viewing\n- Build trust with testimonials"
+            else:
+                lead_strategy += "- Ask discovery questions\n- Educate on process\n- Share success stories\n- No pressure approach"
+
+            base_prompt += lead_strategy
+
+        # Add sales psychology framework
+        psychology_framework = """
+
+**SALES PSYCHOLOGY FRAMEWORK (Cialdini Principles):**
+
+1. **Social Proof** (Real Data Only):
+   - "This compound has 127 verified sales in the last 6 months"
+   - "Investors from your budget range prefer [Compound X] - 82% satisfaction"
+   - NEVER fabricate data - trust is everything
+
+2. **Scarcity** (Data-Backed):
+   - Use check_market_trends for real inventory data
+   - "Developer confirmed only 4 units left in this phase"
+   - "Last month, similar units sold in 48 hours"
+   - NEVER fake scarcity
+
+3. **Authority**:
+   - "Our AI valuation model (trained on 3,000+ transactions) shows..."
+   - "According to Central Bank of Egypt data, mortgage rates are..."
+   - "Blockchain verification proves this property's authenticity"
+
+4. **Reciprocity**:
+   - "Let me prepare a free custom market report for you"
+   - "I'll send you our exclusive compound comparison guide"
+   - "Would you like me to calculate ROI scenarios for your budget?"
+
+5. **Consistency**:
+   - Track user's stated preferences
+   - "Based on your preference for New Cairo with 3 bedrooms under 5M..."
+   - Remind them of their stated goals
+
+6. **Likability**:
+   - Mirror user's tone (formal vs casual)
+   - Use name if provided
+   - For premium users: "Ya Fandim" respectfully
+"""
+        base_prompt += psychology_framework
+
+        # Add existing RAG rules and conversation flow
+        base_prompt += """
+
+**PHASE 7: STRICT DATA INTEGRITY RULES (ANTI-HALLUCINATION):**
+1. ONLY recommend properties from search_properties tool results (similarity >= 70%)
+2. If search returns "no_matches", say: "I don't have exact matches above 70% relevance. Let me help you refine your criteria"
+3. NEVER invent property details, prices, locations, compound names, or developer names
+4. If asked about unavailable data, say: "Let me search our verified database" and use search_properties tool
+
+**CONVERSATION FLOW (Discovery → Qualification → Presentation → Closing):**
+
+1. **Discovery Phase:**
+   - Ask about budget, investment goals, and timeline
+   - Classify customer segment internally
+
+2. **Qualification Phase:**
+   - Understand preferences: location, property type
+   - Run search_properties to find matches
+   - Calculate lead score internally
+
+3. **Presentation Phase:**
+   - Present 3-5 properties with data-backed insights
+   - Use run_valuation_ai for fair market value
+   - Highlight blockchain verification
+
+4. **Objection Handling:**
+   - Detect objections and respond with empathy
+   - Use data and tools to address concerns
+   - If repeated objections (3+), consider escalate_to_human tool
+
+5. **Gentle Closing:**
+   - For HOT leads: "Let me check availability and prepare your reservation"
+   - For WARM leads: "Would you like to schedule a viewing?"
+   - For COLD leads: "I'm here to help when you're ready. Should I save your preferences?"
+
+**TOOLS USAGE:**
+- search_properties: Every property search
+- calculate_investment_roi: Show rental yields
+- compare_units: Side-by-side analysis
+- check_real_time_status: Before closing
+- run_valuation_ai: Price verification
+- audit_uploaded_contract: Legal protection
+- escalate_to_human: When AI reaches limits
+
+Remember: You're building long-term relationships. A client who trusts you brings 5 more clients.
+"""
+
+        return base_prompt
+
     def chat(self, user_input: str, session_id: str = "default", chat_history: list = None) -> str:
         """
-        Phase 3: Main chat loop with Database History Persistence.
+        Phase 3: Main chat loop with AI Personality Enhancement.
 
         Args:
             user_input: User's message
@@ -721,10 +926,77 @@ Remember: You're building long-term relationships. A client who trusts you bring
             if chat_history is None:
                 chat_history = []
 
-            response = self.agent_executor.invoke({
+            # Phase 3: Store chat history for this session
+            if session_id not in self.chat_histories:
+                self.chat_histories[session_id] = []
+            self.chat_histories[session_id] = chat_history
+
+            # Phase 3: Classify customer segment if not yet classified
+            if self.customer_segment == CustomerSegment.UNKNOWN and len(chat_history) >= 2:
+                # Extract budget from conversation
+                conversation_list = [
+                    {"role": msg.type, "content": msg.content}
+                    for msg in chat_history
+                ]
+                budget = extract_budget_from_conversation(conversation_list)
+
+                # Classify customer
+                self.customer_segment = classify_customer(budget, conversation_list)
+                print(f"🎯 Customer classified as: {self.customer_segment.value}")
+
+            # Phase 3: Detect objections
+            objection = detect_objection(user_input)
+            if objection:
+                print(f"⚠️ Objection detected: {objection.value}")
+
+                # Track objection count
+                self.objection_count[objection] = self.objection_count.get(objection, 0) + 1
+
+                # Check if should escalate
+                if should_escalate_to_human(objection, self.objection_count[objection]):
+                    print(f"🚨 Escalation recommended for {objection.value} (count: {self.objection_count[objection]})")
+                    # Note: Let AI decide when to actually call escalate_to_human tool
+
+            # Phase 3: Score lead
+            session_metadata = {
+                "properties_viewed": self.properties_viewed_count,
+                "tools_used": self.tools_used_list,
+                "session_start_time": self.session_start_time,
+                "duration_minutes": (datetime.now() - self.session_start_time).total_seconds() / 60
+            }
+
+            conversation_list_for_scoring = [
+                {"role": msg.type, "content": msg.content}
+                for msg in chat_history
+            ]
+            self.lead_score = score_lead(conversation_list_for_scoring, session_metadata)
+            print(f"📊 Lead Score: {self.lead_score['score']} ({self.lead_score['temperature']})")
+
+            # Phase 3: Build dynamic system prompt
+            dynamic_prompt_text = self._build_dynamic_system_prompt(chat_history)
+
+            # Create dynamic prompt template
+            dynamic_prompt = ChatPromptTemplate.from_messages([
+                ("system", dynamic_prompt_text),
+                MessagesPlaceholder(variable_name="chat_history"),
+                ("human", "{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad")
+            ])
+
+            # Create agent with dynamic prompt
+            agent = create_openai_tools_agent(self.llm, self.tools, dynamic_prompt)
+            agent_executor = AgentExecutor(agent=agent, tools=self.tools, verbose=True)
+
+            # Execute with dynamic prompt
+            response = agent_executor.invoke({
                 "input": user_input,
                 "chat_history": chat_history
             })
+
+            # Phase 3: Track tool usage (extract from agent output if available)
+            # Note: LangChain doesn't easily expose intermediate steps here
+            # This would need to be tracked in the tools themselves for production
+
             return response["output"]
         finally:
             session_var.reset(token)

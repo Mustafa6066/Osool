@@ -235,3 +235,44 @@ class LiquidityPosition(Base):
 
     user = relationship("User")
     pool = relationship("LiquidityPool")
+
+
+class ConversationAnalytics(Base):
+    """
+    Phase 3: AI Conversation Analytics
+    Tracks AI agent performance for optimization and conversion analysis.
+    Used for: lead scoring, conversion tracking, A/B testing, performance metrics.
+    """
+    __tablename__ = "conversation_analytics"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    session_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=True)  # NULL for anonymous users
+
+    # Segmentation (from customer_profiles.py)
+    customer_segment: Mapped[str] = mapped_column(String, nullable=True)  # luxury, first_time, savvy, unknown
+    lead_temperature: Mapped[str] = mapped_column(String, nullable=True)  # hot, warm, cold
+    lead_score: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Behavior Tracking
+    properties_viewed: Mapped[int] = mapped_column(Integer, default=0)
+    tools_used: Mapped[dict] = mapped_column(String, nullable=True)  # JSON list of tool usage
+    objections_raised: Mapped[dict] = mapped_column(String, nullable=True)  # JSON list of objections
+
+    # Outcome Metrics
+    conversion_status: Mapped[str] = mapped_column(String, default="browsing")  # browsing, reserved, abandoned, viewing_scheduled
+    reservation_generated: Mapped[bool] = mapped_column(Boolean, default=False)
+    viewing_scheduled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Engagement Metrics
+    session_duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    message_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Additional Context
+    user_intent: Mapped[str] = mapped_column(String, nullable=True)  # residential, investment, resale, unknown
+    budget_mentioned: Mapped[int] = mapped_column(Integer, nullable=True)  # Budget in EGP
+    preferred_locations: Mapped[str] = mapped_column(String, nullable=True)  # JSON list of locations
+
+    # Timestamps
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
