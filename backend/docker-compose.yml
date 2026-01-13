@@ -41,7 +41,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - ENVIRONMENT=development
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-osool}:${POSTGRES_PASSWORD:-osool_password}@db:5432/${POSTGRES_DB:-osool_db}
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
