@@ -8,7 +8,15 @@ Create Date: 2026-01-09
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-from pgvector.sqlalchemy import Vector
+import os
+
+# Try to import pgvector, use Text fallback if not available
+PGVECTOR_AVAILABLE = False
+try:
+    from pgvector.sqlalchemy import Vector
+    PGVECTOR_AVAILABLE = True
+except ImportError:
+    Vector = None
 
 # revision identifiers, used by Alembic.
 revision = '001_initial_schema'
@@ -18,8 +26,12 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Enable pgvector extension
-    op.execute('CREATE EXTENSION IF NOT EXISTS vector')
+    # Try to enable pgvector extension (optional - not all PostgreSQL instances have it)
+    try:
+        op.execute('CREATE EXTENSION IF NOT EXISTS vector')
+    except Exception as e:
+        print(f"Warning: Could not create vector extension: {e}")
+        print("Vector search will be disabled. Using text-based search fallback.")
 
     # Users table
     op.create_table('users',
@@ -65,7 +77,7 @@ def upgrade() -> None:
         sa.Column('image_url', sa.Text(), nullable=True),
         sa.Column('nawy_url', sa.Text(), nullable=True),
         sa.Column('sale_type', sa.String(), nullable=True),
-        sa.Column('embedding', Vector(1536), nullable=True),
+        sa.Column('embedding', Vector(1536) if PGVECTOR_AVAILABLE and Vector else sa.Text(), nullable=True),
         sa.Column('blockchain_id', sa.Integer(), nullable=True),
         sa.Column('is_available', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),

@@ -2,14 +2,22 @@
 Osool Database Models
 ---------------------
 Defines the schema for Users, Properties, and Transactions.
-Includes pgvector support for AI semantic search.
+Includes pgvector support for AI semantic search (when available).
 """
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
-from pgvector.sqlalchemy import Vector
 from app.database import Base
+
+# Try to import pgvector, fallback to Text if not available
+PGVECTOR_AVAILABLE = False
+try:
+    from pgvector.sqlalchemy import Vector
+    PGVECTOR_AVAILABLE = True
+except ImportError:
+    # Fallback: Use Text column to store JSON representation of embeddings
+    Vector = lambda dim: Text
 
 class User(Base):
     __tablename__ = "users"

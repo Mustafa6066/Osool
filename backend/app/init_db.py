@@ -43,8 +43,13 @@ async def init_models():
     """Create tables."""
     async with engine.begin() as conn:
         print("Creating tables...")
-        # Enable vector extension
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        # Try to enable vector extension (optional - not all PostgreSQL instances have it)
+        try:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            print("pgvector extension enabled")
+        except Exception as e:
+            print(f"Warning: Could not create vector extension: {e}")
+            print("Vector search will be disabled. Using text-based search fallback.")
         await conn.run_sync(Base.metadata.create_all)
         print("Tables created.")
 
