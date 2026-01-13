@@ -53,19 +53,21 @@ class Config:
     CLAUDE_TEMPERATURE: float = float(os.getenv("CLAUDE_TEMPERATURE", "0.3"))
 
     # ═══════════════════════════════════════════════════════════════
-    # BLOCKCHAIN (REQUIRED IN PRODUCTION)
+    # BLOCKCHAIN (OPTIONAL - Phase 1+)
     # ═══════════════════════════════════════════════════════════════
 
     PRIVATE_KEY: Optional[str] = os.getenv("PRIVATE_KEY")
+    ALCHEMY_RPC_URL: Optional[str] = os.getenv("ALCHEMY_RPC_URL")
 
-    if ENVIRONMENT == "production":
+    # Feature flag: Enable blockchain features (Phase 2+)
+    BLOCKCHAIN_ENABLED: bool = os.getenv("ENABLE_BLOCKCHAIN", "false").lower() == "true"
+
+    if ENVIRONMENT == "production" and BLOCKCHAIN_ENABLED:
         if not PRIVATE_KEY:
-            raise ValueError("❌ PRIVATE_KEY required in production environment")
+            raise ValueError("❌ PRIVATE_KEY required when blockchain is enabled")
 
-        # Polygon Mainnet RPC URL (Alchemy)
-        ALCHEMY_RPC_URL: Optional[str] = os.getenv("ALCHEMY_RPC_URL")
         if not ALCHEMY_RPC_URL:
-            raise ValueError("❌ ALCHEMY_RPC_URL required in production for Polygon Mainnet")
+            raise ValueError("❌ ALCHEMY_RPC_URL required when blockchain is enabled for Polygon Mainnet")
 
         # Verify it's a mainnet URL
         if "polygon-mainnet" not in ALCHEMY_RPC_URL and "polygon-rpc.com" not in ALCHEMY_RPC_URL:
@@ -76,34 +78,45 @@ class Config:
     ELITE_PLATFORM_ADDRESS: Optional[str] = os.getenv("ELITE_PLATFORM_ADDRESS")
 
     # ═══════════════════════════════════════════════════════════════
-    # PAYMENT VERIFICATION (REQUIRED IN PRODUCTION)
+    # PAYMENT VERIFICATION (OPTIONAL - Phase 2+)
     # ═══════════════════════════════════════════════════════════════
 
     PAYMOB_API_KEY: Optional[str] = os.getenv("PAYMOB_API_KEY")
 
-    if ENVIRONMENT == "production" and not PAYMOB_API_KEY:
-        raise ValueError("❌ PAYMOB_API_KEY required in production for payment verification")
+    # Feature flag: Enable payment processing (Phase 2+)
+    PAYMENTS_ENABLED: bool = os.getenv("ENABLE_PAYMENTS", "false").lower() == "true"
+
+    if ENVIRONMENT == "production" and PAYMENTS_ENABLED:
+        if not PAYMOB_API_KEY:
+            raise ValueError("❌ PAYMOB_API_KEY required when payments are enabled")
 
     # ═══════════════════════════════════════════════════════════════
-    # SMS (REQUIRED IN PRODUCTION FOR KYC)
+    # SMS (OPTIONAL - Phase 2+)
     # ═══════════════════════════════════════════════════════════════
 
     TWILIO_ACCOUNT_SID: Optional[str] = os.getenv("TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN: Optional[str] = os.getenv("TWILIO_AUTH_TOKEN")
     TWILIO_PHONE_NUMBER: Optional[str] = os.getenv("TWILIO_PHONE_NUMBER")
 
-    if ENVIRONMENT == "production":
+    # Feature flag: Enable SMS/KYC features (Phase 2+)
+    SMS_ENABLED: bool = os.getenv("ENABLE_SMS", "false").lower() == "true"
+
+    if ENVIRONMENT == "production" and SMS_ENABLED:
         if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not TWILIO_PHONE_NUMBER:
-            raise ValueError("❌ Twilio credentials (SID, TOKEN, PHONE) required in production for KYC OTP")
+            raise ValueError("❌ Twilio credentials (SID, TOKEN, PHONE) required when SMS is enabled")
 
     # ═══════════════════════════════════════════════════════════════
-    # EMAIL (REQUIRED IN PRODUCTION)
+    # EMAIL (OPTIONAL - Phase 2+)
     # ═══════════════════════════════════════════════════════════════
 
     SENDGRID_API_KEY: Optional[str] = os.getenv("SENDGRID_API_KEY")
 
-    if ENVIRONMENT == "production" and not SENDGRID_API_KEY:
-        raise ValueError("❌ SENDGRID_API_KEY required in production for email verification")
+    # Feature flag: Enable email features (Phase 2+)
+    EMAIL_ENABLED: bool = os.getenv("ENABLE_EMAIL", "false").lower() == "true"
+
+    if ENVIRONMENT == "production" and EMAIL_ENABLED:
+        if not SENDGRID_API_KEY:
+            raise ValueError("❌ SENDGRID_API_KEY required when email is enabled")
 
     # ═══════════════════════════════════════════════════════════════
     # OPTIONAL SERVICES

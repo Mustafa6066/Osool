@@ -27,11 +27,19 @@ logger = logging.getLogger(__name__)
 # Configuration - Phase 4: No fallback secrets (will raise error if not set)
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
-    raise ValueError("JWT_SECRET_KEY environment variable must be set")
+    raise ValueError("❌ JWT_SECRET_KEY environment variable must be set for production")
+
+# Validate secret key strength (minimum 32 characters)
+if len(SECRET_KEY) < 32:
+    raise ValueError("❌ JWT_SECRET_KEY must be at least 32 characters long for security")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 Hours (Phase 6: Reduced from 30 days)
 REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 Days for refresh tokens
+
+# Token blacklist (for logout functionality)
+# In production, use Redis for distributed blacklist
+_token_blacklist = set()  # Stores invalidated token JTI (JWT ID)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -77,16 +85,66 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """
+    Create JWT access token with enhanced security.
+
+    Includes:
+    - Expiration time (exp)
+    - Issued at time (iat)
+    - JWT ID (jti) for blacklisting
+    """
+    import uuid
+
     to_encode = data.copy()
+    now = datetime.utcnow()
+
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    
-    to_encode.update({"exp": expire})
-    # Ensure role is in payload if passed in data, otherwise it's handled by caller
+        expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    # Add security claims
+    to_encode.update({
+        "exp": expire,
+        "iat": now,
+        "jti": str(uuid.uuid4())  # Unique token ID for blacklisting
+    })
+
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def invalidate_token(token: str):
+    """
+    Add token to blacklist (logout functionality).
+
+    In production, use Redis with TTL matching token expiration.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+
+        if jti:
+            _token_blacklist.add(jti)
+            logger.info(f"Token {jti[:8]}... invalidated")
+            return True
+        return False
+    except JWTError as e:
+        logger.warning(f"Failed to invalidate token: {e}")
+        return False
+
+
+def is_token_blacklisted(jti: str) -> bool:
+    """
+    Check if token is blacklisted.
+
+    Args:
+        jti: JWT ID from token payload
+
+    Returns:
+        True if token is blacklisted (invalidated)
+    """
+    return jti in _token_blacklist
 
 # ═══════════════════════════════════════════════════════════════
 # WEB3 AUTHENTICATION (SIWE)
@@ -148,15 +206,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
+
+        # Check if token is blacklisted
+        jti = payload.get("jti")
+        if jti and is_token_blacklisted(jti):
+            logger.warning(f"Blacklisted token attempted: {jti[:8]}...")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         # Token can contain 'sub' (email) or 'wallet' (address)
         username: str = payload.get("sub")
         wallet: str = payload.get("wallet")
         # role: str = payload.get("role") # Optionally validate role here
-        
+
         if username is None and wallet is None:
             raise credentials_exception
-            
+
         token_data = {"sub": username, "wallet": wallet}
     except JWTError:
         raise credentials_exception
