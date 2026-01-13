@@ -26,12 +26,23 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Try to enable pgvector extension (optional - not all PostgreSQL instances have it)
-    try:
-        op.execute('CREATE EXTENSION IF NOT EXISTS vector')
-    except Exception as e:
-        print(f"Warning: Could not create vector extension: {e}")
-        print("Vector search will be disabled. Using text-based search fallback.")
+    # Skip pgvector extension on environments that don't support it (like Railway)
+    # Set SKIP_PGVECTOR=1 in environment to disable vector extension
+    import os
+    skip_pgvector = os.getenv('SKIP_PGVECTOR', '0') == '1'
+    
+    if not skip_pgvector and PGVECTOR_AVAILABLE:
+        # Only attempt extension creation if pgvector is available and not skipped
+        # Note: This may still fail on some PostgreSQL instances
+        print("Attempting to enable pgvector extension...")
+        try:
+            op.execute('CREATE EXTENSION IF NOT EXISTS vector')
+            print("pgvector extension enabled successfully")
+        except Exception as e:
+            print(f"Warning: Could not create vector extension: {e}")
+            print("Vector search will be disabled. Using text-based search fallback.")
+    else:
+        print("Skipping pgvector extension (SKIP_PGVECTOR=1 or pgvector not available)")
 
     # Users table
     op.create_table('users',
