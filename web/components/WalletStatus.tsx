@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
+// Extend Window interface for Ethereum provider
+declare global {
+    interface Window {
+        ethereum?: {
+            request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+            on: (event: string, callback: (...args: unknown[]) => void) => void;
+            removeListener: (event: string, callback: (...args: unknown[]) => void) => void;
+        };
+    }
+}
+
 const WalletStatus = () => {
     const [address, setAddress] = useState<string | null>(null);
     const [chainId, setChainId] = useState<string | null>(null);
@@ -16,8 +27,8 @@ const WalletStatus = () => {
     const checkConnection = async () => {
         if (typeof window.ethereum !== 'undefined') {
             try {
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                const chain = await window.ethereum.request({ method: 'eth_chainId' });
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' }) as string[];
+                const chain = await window.ethereum.request({ method: 'eth_chainId' }) as string;
 
                 if (accounts.length > 0) {
                     setAddress(accounts[0]);
