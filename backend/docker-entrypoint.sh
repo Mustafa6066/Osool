@@ -18,24 +18,42 @@ echo -e "${GREEN}[*] Osool Backend Starting...${NC}"
 # ==========================================
 echo -e "${YELLOW}[1/5] Waiting for PostgreSQL...${NC}"
 
-until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>/dev/null; do
-  echo "PostgreSQL is unavailable - sleeping"
-  sleep 2
-done
-
-echo -e "${GREEN}✓ PostgreSQL is up${NC}"
+if command -v psql >/dev/null 2>&1 && [ -n "$POSTGRES_HOST" ]; then
+    # Traditional docker-compose environment with psql available
+    until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>/dev/null; do
+        echo "PostgreSQL is unavailable - sleeping"
+        sleep 2
+    done
+    echo -e "${GREEN}✓ PostgreSQL is up${NC}"
+else
+    # Railway/cloud environment - DATABASE_URL provided, services auto-ready
+    echo "Using Railway/cloud managed database - skipping manual wait"
+    sleep 3
+    echo -e "${GREEN}✓ PostgreSQL is ready${NC}"
+fi
 
 # ==========================================
 # 2. Wait for Redis
 # ==========================================
-echo -e "${YELLOW}[2/5] Waiting for Redis...${NC}"
+echo -e "${YELLOW}[2/5] Checking Redis...${NC}"
 
-until redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping 2>/dev/null | grep -q PONG; do
-  echo "Redis is unavailable - sleeping"
-  sleep 2
-done
-
-echo -e "${GREEN}✓ Redis is up${NC}"
+if [ -n "$REDIS_URL" ]; then
+    if command -v redis-cli >/dev/null 2>&1 && [ -n "$REDIS_HOST" ]; then
+        # Traditional environment with redis-cli available
+        until redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping 2>/dev/null | grep -q PONG; do
+            echo "Redis is unavailable - sleeping"
+            sleep 2
+        done
+        echo -e "${GREEN}✓ Redis is up${NC}"
+    else
+        # Railway environment - trust service is ready via REDIS_URL
+        echo "Redis configured via REDIS_URL - assuming ready"
+        echo -e "${GREEN}✓ Redis configured${NC}"
+    fi
+else
+    echo "Redis not configured - skipping (optional for Phase 1)"
+    echo -e "${YELLOW}⚠ Redis disabled${NC}"
+fi
 
 # ==========================================
 # 3. Run Database Migrations
@@ -98,6 +116,7 @@ if [ "${ENVIRONMENT}" = "production" ]; then
         "JWT_SECRET_KEY"
         "DATABASE_URL"
         "OPENAI_API_KEY"
+        "ADMIN_API_KEY"
     )
 
     MISSING_VARS=()
