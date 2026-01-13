@@ -40,9 +40,11 @@ pytest-xdist>=3.5.0  # Parallel test execution
 
 # Database & AI (New)
 supabase>=2.0.0
-langchain>=0.1.0
-langchain-openai>=0.0.1
-langchain-anthropic>=0.1.0  # Claude integration for LangChain
+langchain>=0.1.0,<0.2.0  # Pin to 0.1.x to avoid breaking import changes
+langchain-openai>=0.0.1,<0.2.0
+langchain-community>=0.0.1,<0.2.0  # Required for SupabaseVectorStore
+langchain-core>=0.1.0,<0.2.0  # Core functionality
+langchain-anthropic>=0.1.0,<0.2.0  # Claude integration for LangChain
 psycopg2-binary>=2.9.0
 
 # Security
