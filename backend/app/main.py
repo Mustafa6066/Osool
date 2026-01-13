@@ -133,7 +133,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
-            "connect-src 'self' https://api.openai.com wss://; "
+            "connect-src 'self' https://api.openai.com wss://"
         )
 
         # Referrer Policy
