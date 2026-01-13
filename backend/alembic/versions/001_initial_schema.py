@@ -88,7 +88,7 @@ def upgrade() -> None:
         sa.Column('image_url', sa.Text(), nullable=True),
         sa.Column('nawy_url', sa.Text(), nullable=True),
         sa.Column('sale_type', sa.String(), nullable=True),
-        sa.Column('embedding', Vector(1536) if PGVECTOR_AVAILABLE and Vector else sa.Text(), nullable=True),
+        sa.Column('embedding', Vector(1536) if (PGVECTOR_AVAILABLE and Vector and not skip_pgvector) else sa.Text(), nullable=True),
         sa.Column('blockchain_id', sa.Integer(), nullable=True),
         sa.Column('is_available', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
