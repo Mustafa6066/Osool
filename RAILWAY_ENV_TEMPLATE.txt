@@ -47,6 +47,27 @@ JWT_SECRET_KEY=PASTE_GENERATED_KEY_HERE
 WALLET_ENCRYPTION_KEY=PASTE_GENERATED_KEY_HERE
 
 # ─────────────────────────────────────────────────────────────
+# ADMIN API KEY (CRITICAL - Required by main.py:243)
+# ─────────────────────────────────────────────────────────────
+# Generate with: python backend/generate_secrets.py
+# This key is REQUIRED for the backend to start in production mode
+ADMIN_API_KEY=PASTE_GENERATED_KEY_HERE
+
+# ─────────────────────────────────────────────────────────────
+# REDIS (Optional - Auto-linked from Railway Redis service)
+# ─────────────────────────────────────────────────────────────
+# If you added Redis service in Railway, uncomment and use:
+REDIS_URL=${{Redis.REDIS_URL}}
+# If Redis not added, leave empty (optional for Phase 1)
+
+# ─────────────────────────────────────────────────────────────
+# PGVECTOR COMPATIBILITY
+# ─────────────────────────────────────────────────────────────
+# Railway PostgreSQL doesn't include pgvector extension by default
+# Set to 1 to use text-based fallback (still fully functional)
+SKIP_PGVECTOR=1
+
+# ─────────────────────────────────────────────────────────────
 # CORS (Update after Vercel deployment)
 # ─────────────────────────────────────────────────────────────
 # Start with localhost, then update to Vercel URL
@@ -75,9 +96,11 @@ LOG_LEVEL=info
 # ═══════════════════════════════════════════════════════════════
 # DEPLOYMENT STEPS:
 # ═══════════════════════════════════════════════════════════════
-# 1. Generate JWT_SECRET_KEY and WALLET_ENCRYPTION_KEY
+# 1. Generate security keys: python backend/generate_secrets.py
+#    This generates: JWT_SECRET_KEY, ADMIN_API_KEY, WALLET_ENCRYPTION_KEY
 # 2. Get API keys from OpenAI and Anthropic
-# 3. Set up Supabase project and copy credentials
-# 4. Copy all variables to Railway Dashboard
-# 5. Deploy!
+# 3. (Optional) Set up Supabase project for vector store, or use Railway PostgreSQL
+# 4. Copy all variables to Railway Dashboard → Variables Tab
+# 5. Ensure SKIP_PGVECTOR=1 is set if not using pgvector extension
+# 6. Deploy and monitor logs for "[+] Osool Backend is ONLINE"
 # ═══════════════════════════════════════════════════════════════
