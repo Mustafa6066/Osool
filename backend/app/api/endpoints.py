@@ -29,6 +29,7 @@ from app.auth import create_access_token, get_current_user, get_current_user_opt
 from app.database import get_db
 from app.models import User, Property, Transaction, PaymentApproval
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
