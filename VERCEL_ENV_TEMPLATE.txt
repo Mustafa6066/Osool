@@ -1,0 +1,43 @@
+# ═══════════════════════════════════════════════════════════════
+# OSOOL VERCEL PRODUCTION ENVIRONMENT VARIABLES
+# ═══════════════════════════════════════════════════════════════
+# Copy these to Vercel Dashboard → Settings → Environment Variables
+# ═══════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────
+# BACKEND API URL (From Railway)
+# ─────────────────────────────────────────────────────────────
+# Get this URL from Railway after deploying backend
+NEXT_PUBLIC_API_URL=https://osool-backend-production.up.railway.app
+
+# IMPORTANT:
+# - NO trailing slash!
+# - Must be the full Railway URL
+# - Update this after deploying to Railway
+
+# ─────────────────────────────────────────────────────────────
+# THIRDWEB (Web3 Wallet)
+# ─────────────────────────────────────────────────────────────
+# Get from: https://thirdweb.com/dashboard
+NEXT_PUBLIC_THIRDWEB_CLIENT_ID=YOUR_THIRDWEB_CLIENT_ID_HERE
+
+# ═══════════════════════════════════════════════════════════════
+# DEPLOYMENT CHECKLIST:
+# ═══════════════════════════════════════════════════════════════
+# 1. Deploy backend to Railway FIRST
+# 2. Copy Railway URL to NEXT_PUBLIC_API_URL
+# 3. Get ThirdWeb Client ID from dashboard
+# 4. Deploy frontend to Vercel
+# 5. Update Railway FRONTEND_DOMAIN with Vercel URL
+# ═══════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════
+# VERCEL PROJECT SETTINGS:
+# ═══════════════════════════════════════════════════════════════
+# Framework: Next.js
+# Root Directory: web (CRITICAL!)
+# Build Command: npm run build
+# Output Directory: .next
+# Install Command: npm install
+# Node.js Version: 20.x
+# ═══════════════════════════════════════════════════════════════
