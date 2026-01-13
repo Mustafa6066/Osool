@@ -29,11 +29,6 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("❌ JWT_SECRET_KEY environment variable must be set for production")
 
-# DEBUG: Log JWT_SECRET_KEY info for Railway troubleshooting
-print(f"🔍 [DEBUG] JWT_SECRET_KEY length: {len(SECRET_KEY)}")
-print(f"🔍 [DEBUG] JWT_SECRET_KEY first 10 chars: {SECRET_KEY[:10]}...")
-print(f"🔍 [DEBUG] JWT_SECRET_KEY last 10 chars: ...{SECRET_KEY[-10:]}")
-
 # Validate secret key strength (minimum 32 characters)
 if len(SECRET_KEY) < 32:
     raise ValueError(f"❌ JWT_SECRET_KEY must be at least 32 characters long for security (got {len(SECRET_KEY)} characters)")
