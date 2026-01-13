@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 # LangChain & AI
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.agents import tool, AgentExecutor, create_openai_tools_agent
+from langchain_core.tools import tool
+from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
 from langchain_community.vectorstores import SupabaseVectorStore
 from openai import OpenAI
