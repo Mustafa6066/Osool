@@ -41,8 +41,7 @@ else:
 
 # Import routers
 from app.api.endpoints import router as api_router
-from app.api.auth_endpoints import router as auth_router  # Phase 7: KYC-compliant auth
-from app.api.liquidity_endpoints import router as liquidity_router
+from app.api.auth_endpoints import router as auth_router
 from app.services.metrics import metrics_endpoint
 
 # ═══════════════════════════════════════════════════════════════
@@ -52,28 +51,31 @@ from app.services.metrics import metrics_endpoint
 app = FastAPI(
     title="Osool API",
     description="""
-    🏠 **Osool (أصول)** - State-of-the-Art Real Estate Platform
-    
+    🏠 **Osool (أصول)** - AI-Powered Real Estate Platform for Egypt
+
     ## Features
-    
-    ### 🔗 Blockchain Registry (CBE Law 194 Compliant)
-    - Property listing and status tracking
-    - Immutable ownership records
-    - EGP payments via InstaPay/Fawry (no crypto)
-    
+
     ### 🤖 AI Intelligence Layer
-    - **Legal Contract Analysis**: Scans for Egyptian real estate scams
-    - **Smart Valuation**: AI-powered price estimation with reasoning
-    - **Price Comparison**: Is the asking price fair?
-    
-    ### 💳 Payment Flow
-    1. User pays via InstaPay/Fawry (EGP)
-    2. Backend verifies payment
-    3. Blockchain status updated
-    4. User receives TX hash as proof
+    - **AMR AI Agent**: Chat with Claude 3.5 Sonnet for property search in Egyptian Arabic & English
+    - **Smart Valuation**: XGBoost + GPT-4o hybrid pricing model with market reasoning
+    - **Natural Language Search**: Semantic search across 3,274 verified properties
+    - **Visual Analytics**: Investment scorecards, payment timelines, market trends, comparison charts
+    - **Proactive Recommendations**: AMR suggests properties and analyses automatically
+
+    ### 🏘️ Property Database
+    - 3,274 verified Egyptian properties with semantic search
+    - Real-time market data and price analysis
+    - Payment plan calculations with CBE interest rates
+    - ROI projections and investment risk scoring
+
+    ### 🇪🇬 Egyptian Market Expertise
+    - Bilingual support (Egyptian Arabic dialect + English)
+    - Location-specific insights (New Cairo, Sheikh Zayed, 6th October, etc.)
+    - Buyer psychology integration (first-time buyers, investors, upgraders)
+    - Cultural context and family-focused recommendations
     """,
     version="1.0.0",
-    docs_url=None, # Disabled for Production Security
+    docs_url=None,
     redoc_url=None
 )
 
@@ -93,12 +95,19 @@ limiter = Limiter(key_func=get_remote_address)
 # CORS MIDDLEWARE
 # ═══════════════════════════════════════════════════════════════
 
+# Get frontend domain and strip trailing slash
+frontend_domain = os.getenv("FRONTEND_DOMAIN", "https://osool.com").rstrip("/")
+
 origins = [
-    "http://localhost:3000", # Dev
-    "http://localhost:8000", # Swagger
-    os.getenv("FRONTEND_DOMAIN", "https://osool.com"), # Production
-    "https://osool.eg", # Production (Core)
+    "http://localhost:3000",  # Dev
+    "http://localhost:8000",  # Swagger
+    frontend_domain,  # Production (from env, with trailing slash stripped)
+    "https://osoool.vercel.app",  # Vercel deployment (explicit)
+    "https://osool.eg",  # Production (Core)
 ]
+
+# Log CORS origins at startup for debugging
+print(f"[+] CORS Origins configured: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -176,23 +185,24 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ═══════════════════════════════════════════════════════════════
 
 app.include_router(api_router)
-app.include_router(auth_router)  # Phase 7: KYC-compliant authentication (CRITICAL FIX)
-app.include_router(liquidity_router)  # Phase 6: Liquidity Marketplace
+app.include_router(auth_router)
 
 
 @app.get("/")
 def root():
     """Root endpoint - API status"""
     return {
-        "name": "Osool API",
+        "name": "Osool API - AI-First Real Estate Platform",
         "version": "1.0.0",
         "status": "online",
-        "docs": "/docs",
+        "phase": "1",
         "features": [
-            "blockchain_registry",
-            "ai_contract_analysis",
-            "ai_valuation",
-            "egp_payment_verification"
+            "amr_ai_agent",
+            "bilingual_chat",
+            "semantic_search",
+            "hybrid_valuation",
+            "visual_analytics",
+            "proactive_recommendations"
         ]
     }
 
@@ -237,10 +247,10 @@ async def startup_event():
 
     if environment == "production":
         required_vars = [
-            "WALLET_ENCRYPTION_KEY",
             "JWT_SECRET_KEY",
             "DATABASE_URL",
-            "ADMIN_API_KEY"
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY"
         ]
 
         missing_vars = [var for var in required_vars if not os.getenv(var)]
@@ -250,19 +260,12 @@ async def startup_event():
             print(f"[!] {error_msg}")
             raise RuntimeError(error_msg)
 
-        # Validate encryption key format
-        encryption_key = os.getenv("WALLET_ENCRYPTION_KEY")
-        try:
-            from cryptography.fernet import Fernet
-            Fernet(encryption_key.encode())
-            print("    |-- Wallet Encryption: VALIDATED")
-        except Exception as e:
-            raise RuntimeError(f"Invalid WALLET_ENCRYPTION_KEY: {e}")
-
     print("    |-- AI Intelligence Layer: READY")
-    print("    |-- Blockchain Service: READY")
-    print("    +-- Payment Verification: READY")
+    print("    |-- AMR Agent (Claude 3.5 Sonnet): READY")
+    print("    |-- Hybrid Brain (XGBoost + GPT-4o): READY")
+    print("    +-- Semantic Search (pgvector): READY")
     print(f"[+] Osool Backend is ONLINE (Environment: {environment})")
+    print(f"[+] Phase 1: AI-First Real Estate Platform")
 
 
 if __name__ == "__main__":
