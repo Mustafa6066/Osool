@@ -184,87 +184,74 @@ export default function Home() {
             <FloatingParticles />
 
             {/* Hero Section */}
-            <section className="relative pt-28 pb-24 px-4">
+            {/* Hero Section - ChatGPT Style */}
+            <section className="relative pt-32 pb-24 px-4 min-h-[85vh] flex flex-col items-center justify-center">
                 {/* Background gradients */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-purple-600/20 blur-[150px] rounded-full opacity-40 pointer-events-none" />
-                <div className="absolute top-40 right-0 w-[400px] h-[400px] bg-blue-600/15 blur-[100px] rounded-full pointer-events-none" />
 
-                <div className="container mx-auto relative z-10">
-                    <div className="grid lg:grid-cols-2 gap-16 items-center">
-                        {/* Left: Text Content */}
-                        <div className="text-center lg:text-left">
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.6 }}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-purple-500/30 bg-purple-500/10 backdrop-blur-sm mb-6"
+                <div className="container mx-auto relative z-10 flex flex-col items-center text-center max-w-4xl">
+
+                    {/* Agent Avatar - Center Stage */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8 }}
+                        className="mb-8"
+                    >
+                        <AMRAvatar />
+                    </motion.div>
+
+                    <motion.h1
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.7, delay: 0.2 }}
+                        className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6"
+                    >
+                        Meet{" "}
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 animate-gradient">
+                            Amr
+                        </span>
+                        <br />
+                        <span className="text-gray-300 text-3xl md:text-5xl mt-2 block">Your AI Real Estate Partner</span>
+                    </motion.h1>
+
+                    <motion.p
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.7, delay: 0.3 }}
+                        className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed"
+                    >
+                        Uses <span className="text-purple-400 font-medium">Hybrid AI Brain</span> to verify properties,
+                        uncover market trends, and negotiate the best deals.
+                    </motion.p>
+
+                    {/* Chat Input - Central Feature */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.7, delay: 0.4 }}
+                        className="w-full max-w-3xl"
+                    >
+                        <form action="/chat" className="relative group">
+                            <input
+                                type="text"
+                                name="q"
+                                placeholder="Message Amr... (e.g., 'Find me a villa in New Cairo under 10M')"
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 pr-16 text-white text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all shadow-2xl shadow-purple-900/20 backdrop-blur-xl"
+                            />
+                            <button
+                                type="submit"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg hover:scale-105"
                             >
-                                <Sparkles className="w-4 h-4 text-purple-400" />
-                                <span className="text-sm font-medium text-purple-300">Phase One • The Agentic Era</span>
-                            </motion.div>
-
-                            <motion.h1
-                                initial={{ opacity: 0, y: 30 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.7, delay: 0.1 }}
-                                className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6"
-                            >
-                                Meet{" "}
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 animate-gradient">
-                                    Amr
-                                </span>
-                                <br />
-                                <span className="text-gray-300">Your AI Agent</span>
-                            </motion.h1>
-
-                            <motion.p
-                                initial={{ opacity: 0, y: 30 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.7, delay: 0.2 }}
-                                className="text-lg md:text-xl text-gray-400 max-w-lg mx-auto lg:mx-0 mb-8 leading-relaxed"
-                            >
-                                The first AI that{" "}
-                                <span className="text-white font-medium">speaks Egyptian Arabic</span>,
-                                understands market psychology, and leads you to a{" "}
-                                <span className="text-purple-400 font-medium">successful property deal</span>.
-                            </motion.p>
-
-                            <motion.div
-                                initial={{ opacity: 0, y: 30 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.7, delay: 0.3 }}
-                                className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start"
-                            >
-                                <Link
-                                    href="/chat"
-                                    className="group relative px-8 py-4 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg transition-all hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 flex items-center gap-2"
-                                >
-                                    <MessageCircle className="w-5 h-5" />
-                                    Talk to Amr
-                                    <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                                </Link>
-
-                                <Link
-                                    href="/login"
-                                    className="px-8 py-4 rounded-full border border-white/20 text-white font-medium hover:bg-white/5 transition-all flex items-center gap-2"
-                                >
-                                    Sign In
-                                    <ChevronRight className="w-4 h-4" />
-                                </Link>
-                            </motion.div>
+                                <ArrowRight className="w-6 h-6" />
+                            </button>
+                        </form>
+                        <div className="flex justify-center gap-4 mt-4 text-sm text-gray-500">
+                            <Link href="/chat?q=Investment ROI" className="hover:text-purple-400 transition-colors">📈 Investment ROI</Link>
+                            <Link href="/chat?q=Market Trends" className="hover:text-purple-400 transition-colors">📊 Market Trends</Link>
+                            <Link href="/chat?q=Verified Properties" className="hover:text-purple-400 transition-colors">✅ Verified Properties</Link>
                         </div>
-
-                        {/* Right: AMR Avatar + Chat Preview */}
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.8, delay: 0.4 }}
-                            className="hidden lg:flex flex-col items-center gap-8"
-                        >
-                            <AMRAvatar />
-                            <ChatPreview />
-                        </motion.div>
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 

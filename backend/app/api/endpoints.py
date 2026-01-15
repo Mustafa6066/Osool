@@ -19,7 +19,7 @@ from typing import Optional
 from app.ai_engine.openai_service import osool_ai
 from app.ai_engine.hybrid_brain import hybrid_brain
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
-from app.ai_engine.sales_agent import sales_agent
+from app.ai_engine.claude_sales_agent import claude_sales_agent
 from app.services.paymob_service import paymob_service
 from app.tasks import reserve_property_task
 from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet, create_custodial_wallet

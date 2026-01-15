@@ -1,97 +1,129 @@
-import asyncio
-import sys
+
 import os
 import random
 import string
-from sqlalchemy import select
+import sys
+from sqlalchemy import select, create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from passlib.context import CryptContext
+from dotenv import load_dotenv
 
-# Append backend directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Add parent directory to path to import app modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database import AsyncSessionLocal, init_db
-from app.models import User
-from app.auth import get_password_hash
-import io
+# Import models
+try:
+    from app.models import User, Base
+except ImportError as e:
+    print(f"❌ Failed to import models: {e}")
+    sys.exit(1)
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+load_dotenv()
 
-def generate_simple_password(length=8):
-    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    print("⚠️ DATABASE_URL not found, defaulting to SQLite (Sync)")
+    DATABASE_URL = "sqlite:///./osool_dev.db"
 
-async def seed_users():
-    print("Starting User Seeding (Async)...")
+# Force sync for this script
+if "+asyncpg" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("+asyncpg", "")
+if "+aiosqlite" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("+aiosqlite", "")
+
+print(f"🔌 Connecting to: {DATABASE_URL}")
+
+try:
+    engine = create_engine(DATABASE_URL, echo=False)
+    SessionLocal = sessionmaker(bind=engine)
+except Exception as e:
+    print(f"❌ Failed to create engine: {e}")
+    sys.exit(1)
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def generate_random_password(length=10):
+    chars = string.ascii_letters + string.digits + "!@#$%"
+    return ''.join(random.choice(chars) for i in range(length))
+
+def seed_users():
+    print("🌱 Seeding 14 Beta Users (Synchronous Mode)...")
     
-    # Initialize DB (create tables if not exist)
-    await init_db()
-    
-    async with AsyncSessionLocal() as db:
-        # 1. Main Beta Users
-        core_users = [
-            {"name": "Mustafa", "email": "mustafa@osool.eg", "role": "admin"},
-            {"name": "Hani", "email": "hani@osool.eg", "role": "investor"},
-            {"name": "Abady", "email": "abady@osool.eg", "role": "investor"},
-            {"name": "Sama", "email": "sama@osool.eg", "role": "investor"},
-        ]
-        
-        # 2. Tester Users
-        testers = []
-        for i in range(1, 11):
-            testers.append({
-                "name": f"Tester {i}",
-                "email": f"tester{i}@osool.eg",
-                "role": "investor"
-            })
-        
-        all_users = core_users + testers
-        created_credentials = []
-
-        print("-" * 60)
-        print(f"{'Full Name':<15} | {'Email':<25} | {'Password':<15} | {'Role':<10}")
-        print("-" * 60)
-
-        for user_data in all_users:
-            # Check if user exists
-            result = await db.execute(select(User).filter(User.email == user_data["email"]))
-            existing_user = result.scalar_one_or_none()
+    try:
+        # Create tables if they don't exist
+        Base.metadata.create_all(bind=engine)
             
-            if existing_user:
-                print(f"⚠️  Skipping {user_data['name']} (Already exists)")
-                continue
+        with SessionLocal() as db:
+            # Define users
+            beta_users = [
+                {"name": "Mustafa", "email": "mustafa@osool.eg", "role": "admin"},
+                {"name": "Hani", "email": "hani@osool.eg", "role": "admin"},
+                {"name": "Abady", "email": "abady@osool.eg", "role": "tester"},
+                {"name": "Sama", "email": "sama@osool.eg", "role": "tester"},
+            ]
             
-            if user_data["name"] in ["Mustafa", "Hani", "Abady", "Sama"]:
-                plain_password = "Password123!"
-            else:
-                plain_password = generate_simple_password()
+            # Add 10 generic testers
+            for i in range(1, 11):
+                beta_users.append({
+                    "name": f"Tester {i}",
+                    "email": f"tester{i}@osool.eg",
+                    "role": "tester"
+                })
                 
-            hashed_pw = get_password_hash(plain_password)
+            created_count = 0
+            credentials = []
+
+            for user_data in beta_users:
+                # Check if user exists
+                # Note: execute(select(...)) returns a Result object in 1.4/2.0
+                stmt = select(User).filter(User.email == user_data["email"])
+                existing_user = db.execute(stmt).scalars().first()
+                
+                if not existing_user:
+                    password = generate_random_password()
+                    new_user = User(
+                        email=user_data["email"],
+                        full_name=user_data["name"],
+                        password_hash=get_password_hash(password),
+                        role=user_data["role"],
+                        is_verified=True,
+                        phone_verified=True,
+                        phone_number=f"+2010000000{random.randint(10, 99)}"
+                    )
+                    db.add(new_user)
+                    created_count += 1
+                    credentials.append(f"User: {user_data['name']} | Email: {user_data['email']} | Password: {password}")
+                    print(f"✅ Created: {user_data['name']}")
+                else:
+                    print(f"⚠️ Skipped: {user_data['name']} (Already exists)")
+                    
+            db.commit()
             
-            new_user = User(
-                email=user_data["email"],
-                full_name=user_data["name"],
-                password_hash=hashed_pw,
-                role=user_data["role"],
-                is_verified=True,
-                email_verified=True
-            )
+            print(f"\n🎉 Successfully seeded {created_count} new users.")
             
-            db.add(new_user)
-            created_credentials.append(f"{user_data['email']}:{plain_password}")
-            
-            print(f"{user_data['name']:<15} | {user_data['email']:<25} | {plain_password:<15} | {user_data['role']:<10}")
-        
-        await db.commit()
-        
-        print("-" * 60)
-        print(f"✅ Seeding Complete. Created {len(created_credentials)} new users.")
-        
-        # Save credentials
-        with open("BETA_USER_CREDENTIALS.txt", "w") as f:
-            f.write("BETA USER CREDENTIALS\n=====================\n")
-            for line in created_credentials:
-                 f.write(line + "\n")
-        print("📁 Credentials saved to 'BETA_USER_CREDENTIALS.txt'.")
+            if credentials:
+                print("\n🔐 CREDENTIALS (SAVE THESE):")
+                print("="*60)
+                for cred in credentials:
+                    print(cred)
+                print("="*60)
+                
+                # Save to file
+                with open("BETA_CREDENTIALS.md", "a") as f:
+                    f.write("\n\n## New Batch\n")
+                    for cred in credentials:
+                        f.write(f"- {cred}\n")
+                print("Checking beta credentials file... saved.")
+                
+    except Exception as e:
+        print(f"❌ Error during seeding: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(seed_users())
+    seed_users()

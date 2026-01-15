@@ -1146,4 +1146,12 @@ def get_last_search_results(session_id: str) -> list:
     return get_session_results(session_id)
 
 # Singleton
-sales_agent = OsoolAgent()
+try:
+    if os.getenv("OPENAI_API_KEY"):
+        sales_agent = OsoolAgent()
+    else:
+        print("⚠️ OPENAI_API_KEY not found. Legacy OsoolAgent will be disabled.")
+        sales_agent = None
+except Exception as e:
+    print(f"⚠️ Failed to initialize OsoolAgent: {e}")
+    sales_agent = None
