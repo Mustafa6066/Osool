@@ -64,7 +64,7 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
 
-async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)) -> Optional[User]:
+async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme_optional), db = Depends(get_db)) -> Optional[User]:
     """
     OPTIONAL authentication.
     Returns User object if token is valid, None if not provided or invalid.
@@ -74,6 +74,8 @@ async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme
         return None
         
     try:
+        from sqlalchemy import select
+        
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         wallet: str = payload.get("wallet")
@@ -82,9 +84,11 @@ async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme
             return None
             
         if username:
-            user = db.query(User).filter(User.email == username).first()
+            result = await db.execute(select(User).filter(User.email == username))
+            user = result.scalar_one_or_none()
         elif wallet:
-            user = db.query(User).filter(User.wallet_address == wallet).first()
+            result = await db.execute(select(User).filter(User.wallet_address == wallet))
+            user = result.scalar_one_or_none()
         else:
             return None
             
@@ -207,7 +211,9 @@ def get_or_create_user_by_wallet(db: Session, wallet_address: str, email: Option
         
     return user
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get_db)):
+    from sqlalchemy import select
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -229,7 +235,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         # Token can contain 'sub' (email) or 'wallet' (address)
         username: str = payload.get("sub")
         wallet: str = payload.get("wallet")
-        # role: str = payload.get("role") # Optionally validate role here
 
         if username is None and wallet is None:
             raise credentials_exception
@@ -238,11 +243,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     except JWTError:
         raise credentials_exception
         
-    # Find user by either metric
+    # Find user by either metric (async pattern)
     if token_data["sub"]:
-        user = db.query(User).filter(User.email == token_data["sub"]).first()
+        result = await db.execute(select(User).filter(User.email == token_data["sub"]))
+        user = result.scalar_one_or_none()
     elif token_data["wallet"]:
-        user = db.query(User).filter(User.wallet_address == token_data["wallet"]).first()
+        result = await db.execute(select(User).filter(User.wallet_address == token_data["wallet"]))
+        user = result.scalar_one_or_none()
     else:
         user = None
         
