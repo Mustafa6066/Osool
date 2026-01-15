@@ -95,16 +95,22 @@ limiter = Limiter(key_func=get_remote_address)
 # CORS MIDDLEWARE
 # ═══════════════════════════════════════════════════════════════
 
-# Get frontend domain and strip trailing slash
+# Get frontend domain and strip trailing slash AND any path
 frontend_domain = os.getenv("FRONTEND_DOMAIN", "https://osool.com").rstrip("/")
+# Strip any path from the domain (e.g., /login)
+from urllib.parse import urlparse
+parsed = urlparse(frontend_domain)
+if parsed.scheme and parsed.netloc:
+    frontend_domain = f"{parsed.scheme}://{parsed.netloc}"
 
 origins = [
     "http://localhost:3000",  # Dev
     "http://localhost:8000",  # Swagger
-    frontend_domain,  # Production (from env, with trailing slash stripped)
+    frontend_domain,  # Production (from env, cleaned)
     "https://osool.vercel.app",  # Vercel deployment
     "https://osoool.vercel.app",  # Vercel deployment (triple o)
     "https://osool-one.vercel.app", # Specific Vercel deployment
+    "https://osool-cu8lynoku-mustafas-projects-948a09fa.vercel.app",  # Current preview
     "https://osool.eg",  # Production (Core)
 ]
 
@@ -129,8 +135,7 @@ print(f"[+] Vercel preview URLs also allowed via wildcard pattern")
 # Use allow_origin_regex to accept all Vercel preview URLs
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app",
+    allow_origins=["*"],  # Allow all origins for Phase 1 debugging
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
