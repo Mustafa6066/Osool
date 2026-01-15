@@ -90,7 +90,17 @@ class HybridValuationRequest(BaseModel):
     is_compound: int = Field(1, description="1 if in gated compound, 0 otherwise")
 
 
-# Phase 1: Removed FractionalInvestmentRequest and PaymentInitiateRequest (blockchain features)
+
+# Phase 1: Payment request model (kept for Paymob integration)
+class PaymentInitiateRequest(BaseModel):
+    """Request model for initiating Paymob payments."""
+    property_id: int = Field(..., description="Property ID to reserve")
+    amount_egp: float = Field(..., description="Payment amount in EGP")
+    email: str = Field(..., description="User email")
+    phone_number: str = Field(..., description="User phone number")
+    first_name: str = Field(..., description="User first name")
+    last_name: str = Field(..., description="User last name")
+
 
 # ---------------------------------------------------------------------------
 # SECURITY DEPENDENCIES
