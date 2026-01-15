@@ -59,13 +59,17 @@ class ConversationAnalytics(Base):
 class ConversationAnalyticsService:
     """Service for tracking and analyzing AI agent conversations."""
 
-    def __init__(self, db_session):
+    def __init__(self, db_session=None):
         """
         Initialize analytics service.
 
         Args:
-            db_session: SQLAlchemy database session
+            db_session: SQLAlchemy database session (optional, can be set later)
         """
+        self.db = db_session
+    
+    def set_db_session(self, db_session):
+        """Set the database session for analytics operations."""
         self.db = db_session
 
     async def create_session(
