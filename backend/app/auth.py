@@ -12,7 +12,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from sqlalchemy.orm import Session
@@ -41,9 +40,29 @@ REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 Days for refresh tokens
 # In production, use Redis for distributed blacklist
 _token_blacklist = set()  # Stores invalidated token JTI (JWT ID)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use direct bcrypt instead of passlib for compatibility
+import bcrypt
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password using bcrypt directly. Handles 72-byte limit."""
+    try:
+        # Truncate password to 72 bytes (bcrypt limit)
+        password_bytes = plain_password.encode('utf-8')[:72]
+        return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
+    except Exception as e:
+        logger.error(f"Password verification failed: {e}")
+        return False
+
+def get_password_hash(password: str) -> str:
+    """Hash password using bcrypt directly. Handles 72-byte limit."""
+    # Truncate password to 72 bytes (bcrypt limit)
+    password_bytes = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+
 
 async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)) -> Optional[User]:
     """
@@ -55,10 +74,6 @@ async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme
         return None
         
     try:
-        # Re-use logic from get_current_user but verify token manually since we can't call get_current_user directly 
-        # (it relies on strict oauth2_scheme which might conflict in dependency injection if we nest them awkwardly)
-        # Actually, we can just decode here.
-        
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         wallet: str = payload.get("wallet")
@@ -77,12 +92,6 @@ async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme
     except JWTError:
         return None
 
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """
