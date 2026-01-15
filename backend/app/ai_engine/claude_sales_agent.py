@@ -651,10 +651,27 @@ Confidence comes from data, not hype. Show, don't tell.
             self.customer_segment = classify_customer(budget, full_conversation, user)
 
         # Lead scoring
+        # Prepare conversation history for scoring (List[Dict])
+        conversation_list_for_scoring = []
+        for msg in chat_history:
+            if hasattr(msg, "content"):
+                role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
+                conversation_list_for_scoring.append({"role": role, "content": msg.content})
+        
+        # Add current message
+        conversation_list_for_scoring.append({"role": "user", "content": user_input})
+
+        # Prepare session metadata
+        properties_viewed_count = len(await get_last_search_results(session_id))
+        session_metadata = {
+            "properties_viewed": properties_viewed_count,
+            "session_start_time": datetime.now(), # Approximation since we don't persist start time
+            "duration_minutes": (len(chat_history) * 0.5) # Rough estimate: 30s per message
+        }
+
         self.lead_score = score_lead(
-            conversation_history=full_conversation,
-            properties_viewed=len(await get_last_search_results(session_id)),
-            session_duration_seconds=len(chat_history) * 30,  # Rough estimate
+            conversation_history=conversation_list_for_scoring,
+            session_metadata=session_metadata,
             user_profile=user
         )
 
