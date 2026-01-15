@@ -102,6 +102,13 @@ class PaymentInitiateRequest(BaseModel):
     last_name: str = Field(..., description="User last name")
 
 
+class FractionalInvestmentRequest(BaseModel):
+    """Request model for fractional property investment."""
+    property_id: int = Field(..., description="Property ID to invest in")
+    investor_address: str = Field(..., description="Investor wallet address")
+    investment_amount_egp: float = Field(..., description="Investment amount in EGP")
+
+
 # ---------------------------------------------------------------------------
 # SECURITY DEPENDENCIES
 # ---------------------------------------------------------------------------
