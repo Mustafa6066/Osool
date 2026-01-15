@@ -417,3 +417,15 @@ def handle_objection(objection_type: str, context: dict = None) -> dict:
         "action": "provide_more_information",
         "reframing": "Convert concern into opportunity for education"
     }
+
+
+# Alias functions for backward compatibility with sales_agent.py imports
+def detect_buyer_persona(conversation_context: dict) -> str:
+    """Alias for get_buyer_persona for backward compatibility."""
+    return get_buyer_persona(conversation_context)
+
+
+def handle_objection_egyptian_style(objection_type: str, context: dict = None) -> dict:
+    """Alias for handle_objection for backward compatibility."""
+    return handle_objection(objection_type, context)
+
