@@ -84,8 +84,15 @@ if SUPABASE_URL and SUPABASE_KEY:
 else:
     print("⚠️ Supabase Credentials Missing. RAG will fail.")
 
-# Initialize OpenAI client
-client = OpenAI(api_key=OPENAI_API_KEY)
+# Initialize OpenAI client safely
+client = None
+if OPENAI_API_KEY:
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+    except Exception as e:
+        print(f"⚠️ OpenAI Client Init Failed: {e}")
+else:
+    print("⚠️ OPENAI_API_KEY missing. OpenAI client disabled.")
 
 # Removed PostgresHistory class as per diff
 
