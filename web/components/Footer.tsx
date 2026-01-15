@@ -3,6 +3,7 @@
 import { useLanguage } from '@/contexts/LanguageContext';
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
+import ClientOnly from './ClientOnly';
 
 export default function Footer() {
     const { t, language } = useLanguage();
@@ -85,7 +86,7 @@ export default function Footer() {
                 {/* Bottom Bar */}
                 <div className="py-6 border-t border-[var(--color-border)] flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-sm text-[var(--color-text-muted)]">
-                        © {new Date().getFullYear()} Osool. All rights reserved.
+                        © <ClientOnly>{new Date().getFullYear()}</ClientOnly> Osool. All rights reserved.
                     </p>
                     <p className="text-sm text-[var(--color-text-muted)]">
                         {t('footer.compliance')}
