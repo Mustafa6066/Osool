@@ -1141,9 +1141,7 @@ Remember: You're building long-term relationships. A client who trusts you bring
         finally:
             session_var.reset(token)
 
-def get_last_search_results(session_id: str) -> list:
-    """Helper for endpoints.py to get search context."""
-    return get_session_results(session_id)
+
 
 # Singleton
 try:
