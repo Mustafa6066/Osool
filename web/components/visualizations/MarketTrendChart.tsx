@@ -74,7 +74,6 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
     const config = trendConfig[trend];
 
     return (
-    return (
         <ClientOnly>
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
