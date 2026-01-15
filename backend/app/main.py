@@ -201,7 +201,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 
     return JSONResponse(
         status_code=500,
-        content={"error": "Osool System Busy - Our agents are notified."},
+        content={
+            "error": "Osool System Busy - Our agents are notified.",
+            "debug_error": str(exc) # DEBUGGING: Reveal error
+        },
     )
 
 # ═══════════════════════════════════════════════════════════════
