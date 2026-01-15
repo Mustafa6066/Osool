@@ -103,17 +103,34 @@ origins = [
     "http://localhost:8000",  # Swagger
     frontend_domain,  # Production (from env, with trailing slash stripped)
     "https://osool.vercel.app",  # Vercel deployment
+    "https://osoool.vercel.app",  # Vercel deployment (triple o)
     "https://osool-one.vercel.app", # Specific Vercel deployment
-    "https://osool-3z40hptvm-mustafas-projects-948a09fa.vercel.app", # User Provided Preview URL
     "https://osool.eg",  # Production (Core)
 ]
 
+# Add all Vercel preview URLs dynamically
+# Vercel creates preview URLs like: osool-xxx-mustafas-projects-xxx.vercel.app
+import re
+
+def is_allowed_origin(origin: str) -> bool:
+    """Check if origin is allowed, including Vercel preview patterns."""
+    if origin in origins:
+        return True
+    # Match any Vercel preview URL for this project
+    vercel_pattern = r'https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app'
+    if re.match(vercel_pattern, origin):
+        return True
+    return False
+
 # Log CORS origins at startup for debugging
 print(f"[+] CORS Origins configured: {origins}")
+print(f"[+] Vercel preview URLs also allowed via wildcard pattern")
 
+# Use allow_origin_regex to accept all Vercel preview URLs
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
