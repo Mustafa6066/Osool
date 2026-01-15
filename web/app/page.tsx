@@ -1,397 +1,159 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Bot, TrendingUp, BarChart3, MessageCircle, Sparkles, ChevronRight, Globe } from "lucide-react";
-import { useState, useEffect } from "react";
-import Navigation from "@/components/Navigation";
-import Footer from "@/components/Footer";
-
-import ClientOnly from "@/components/ClientOnly";
-
-// Animated counter for stats
-function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
-    return (
-        <ClientOnly>
-            <AnimatedNumberInner value={value} suffix={suffix} />
-        </ClientOnly>
-    );
-}
-
-function AnimatedNumberInner({ value, suffix = "" }: { value: number; suffix?: string }) {
-    const [count, setCount] = useState(0);
-
-    useEffect(() => {
-        const duration = 2000;
-        const steps = 60;
-        const increment = value / steps;
-        let current = 0;
-
-        const timer = setInterval(() => {
-            current += increment;
-            if (current >= value) {
-                setCount(value);
-                clearInterval(timer);
-            } else {
-                setCount(Math.floor(current));
-            }
-        }, duration / steps);
-
-        return () => clearInterval(timer);
-    }, [value]);
-
-    return <span>{count.toLocaleString()}{suffix}</span>;
-}
-
-// Floating particles background (Hydration Safe)
-function FloatingParticles() {
-    return (
-        <ClientOnly>
-            <FloatingParticlesInner />
-        </ClientOnly>
-    );
-}
-
-function FloatingParticlesInner() {
-    const [particles, setParticles] = useState<Array<{
-        id: number;
-        initialX: number;
-        initialY: number;
-        animateY: number;
-        duration: number;
-    }>>([]);
-
-    useEffect(() => {
-        // Generate particles only on client to avoid hydration mismatch
-        const width = typeof window !== 'undefined' ? window.innerWidth : 1000;
-        const newParticles = [...Array(20)].map((_, i) => ({
-            id: i,
-            initialX: Math.random() * width,
-            initialY: Math.random() * 600,
-            animateY: Math.random() * 600,
-            duration: 10 + Math.random() * 10
-        }));
-        setParticles(newParticles);
-    }, []);
-
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {particles.map((p) => (
-                <motion.div
-                    key={p.id}
-                    className="absolute w-1 h-1 bg-purple-500/30 rounded-full"
-                    initial={{
-                        x: p.initialX,
-                        y: p.initialY,
-                    }}
-                    animate={{
-                        y: [null, p.animateY],
-                        opacity: [0.2, 0.5, 0.2],
-                    }}
-                    transition={{
-                        duration: p.duration,
-                        repeat: Infinity,
-                        ease: "linear",
-                    }}
-                />
-            ))}
-        </div>
-    );
-}
-
-
-// AMR Avatar Component
-function AMRAvatar() {
-    return (
-        <motion.div
-            className="relative"
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        >
-            <div className="relative w-32 h-32 mx-auto">
-                {/* Glow effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-2xl opacity-50" />
-
-                {/* Main avatar */}
-                <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center border-4 border-white/20 shadow-2xl">
-                    <Bot className="w-16 h-16 text-white" />
-                </div>
-
-                {/* Status indicator */}
-                <div className="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-[#0a0a0a] flex items-center justify-center">
-                    <span className="animate-ping absolute w-full h-full rounded-full bg-green-400 opacity-75" />
-                </div>
-            </div>
-
-            {/* Name badge */}
-            <motion.div
-                className="mt-4 text-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-            >
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                    عمرو • Amr
-                </h3>
-                <p className="text-gray-400 text-sm mt-1">AI Real Estate Advisor</p>
-            </motion.div>
-        </motion.div>
-    );
-}
-
-// Chat preview bubble
-function ChatPreview() {
-    const messages = [
-        { role: "user", text: "عايز شقة في التجمع 3 غرف", isArabic: true },
-        { role: "amr", text: "تمام! لقيتلك 8 شقق مناسبة لميزانيتك...", isArabic: true },
-        { role: "user", text: "Show me ROI analysis", isArabic: false },
-        { role: "amr", text: "This property offers 8.5% annual yield 📊", isArabic: false },
-    ];
-
-    const [visibleMessages, setVisibleMessages] = useState(0);
-
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setVisibleMessages(prev => (prev + 1) % (messages.length + 1));
-        }, 2000);
-        return () => clearInterval(timer);
-    }, []);
-
-    return (
-        <div className="bg-[#1a1c2e]/80 backdrop-blur-xl rounded-2xl p-4 border border-white/10 shadow-2xl max-w-sm mx-auto">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/10">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
-                    <Bot className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                    <p className="text-white font-medium text-sm">Amr</p>
-                    <p className="text-green-400 text-xs">● Online</p>
-                </div>
-            </div>
-
-            <div className="space-y-3 min-h-[140px]">
-                <AnimatePresence mode="popLayout">
-                    {messages.slice(0, visibleMessages).map((msg, idx) => (
-                        <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                            <div
-                                className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.role === 'user'
-                                    ? 'bg-purple-600 text-white rounded-br-none'
-                                    : 'bg-white/10 text-gray-200 rounded-bl-none'
-                                    }`}
-                                dir={msg.isArabic ? 'rtl' : 'ltr'}
-                            >
-                                {msg.text}
-                            </div>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
-            </div>
-        </div>
-    );
-}
+import Link from 'next/link';
+import { ArrowRight, CheckCircle2, TrendingUp, Shield, Brain, Sparkles, MessageSquare } from 'lucide-react';
+import AmrDemoChat from '../components/AmrDemoChat';
+import { motion } from 'framer-motion';
 
 export default function Home() {
     return (
-        <main className="min-h-screen bg-[#0a0a0a] text-white overflow-hidden">
-            <Navigation />
-            <FloatingParticles />
+        <main className="min-h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden relative">
+            {/* Background Gradients */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-green-500/10 rounded-full blur-[100px] animate-pulse"></div>
+                <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[100px] animate-pulse [animation-delay:2s]"></div>
+            </div>
+
+            {/* Navbar (Simple) */}
+            <nav className="relative z-50 w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <span className="text-2xl font-black bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent">Osool</span>
+                    <span className="px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800">BETA</span>
+                </div>
+                <div className="flex items-center gap-4">
+                    <Link href="/login" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">Login</Link>
+                    <Link href="/signup" className="px-5 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                        Get Early Access
+                    </Link>
+                </div>
+            </nav>
 
             {/* Hero Section */}
-            {/* Hero Section - ChatGPT Style */}
-            <section className="relative pt-32 pb-24 px-4 min-h-[85vh] flex flex-col items-center justify-center">
-                {/* Background gradients */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-purple-600/20 blur-[150px] rounded-full opacity-40 pointer-events-none" />
+            <section className="relative z-10 w-full max-w-7xl mx-auto px-6 pt-10 pb-20 md:pt-20 md:pb-32 grid lg:grid-cols-2 gap-16 items-center">
 
-                <div className="container mx-auto relative z-10 flex flex-col items-center text-center max-w-4xl">
+                {/* Left: Copy */}
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="space-y-8"
+                >
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <Sparkles size={16} className="text-amber-500" />
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Phase 1: The Only Honest Agent in Egypt</span>
+                    </div>
 
-                    {/* Agent Avatar - Center Stage */}
+                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
+                        Meet <span className="text-green-600">Amr.</span> <br />
+                        Your Real Estate <br />
+                        <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Wealth Partner.</span>
+                    </h1>
+
+                    <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-lg leading-relaxed">
+                        Stop guessing. Start investing. Amr analyzes 5,000+ verified listings against inflation data to find your perfect hedge.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                        <Link href="/chat" className="group px-8 py-4 rounded-full bg-green-600 hover:bg-green-700 text-white font-bold text-lg shadow-lg shadow-green-500/30 transition-all flex items-center justify-center gap-2">
+                            Start Chatting Free
+                            <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                        <Link href="/market" className="px-8 py-4 rounded-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-lg border border-slate-200 dark:border-slate-700 hover:border-green-500/50 transition-all flex items-center justify-center gap-2">
+                            <TrendingUp size={20} className="text-slate-500" />
+                            Market Data
+                        </Link>
+                    </div>
+
+                    <div className="flex items-center gap-6 pt-4 text-sm text-slate-500 dark:text-slate-500 font-medium">
+                        <div className="flex items-center gap-2">
+                            <CheckCircle2 size={18} className="text-green-500" /> No Sales Calls
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <CheckCircle2 size={18} className="text-green-500" /> Verified Data
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <CheckCircle2 size={18} className="text-green-500" /> AI-Driven ROI
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Right: Demo */}
+                <motion.div
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className="relative"
+                >
+                    <div className="absolute -inset-4 bg-gradient-to-tr from-green-500/20 to-blue-500/20 rounded-[2rem] blur-2xl opacity-70"></div>
+                    <AmrDemoChat />
+
+                    {/* Floating Badges */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.8 }}
-                        className="mb-8"
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                        className="absolute -right-8 top-20 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 z-20 hidden md:block"
                     >
-                        <AMRAvatar />
-                    </motion.div>
-
-                    <motion.h1
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, delay: 0.2 }}
-                        className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6"
-                    >
-                        Meet{" "}
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 animate-gradient">
-                            Amr
-                        </span>
-                        <br />
-                        <span className="text-gray-300 text-3xl md:text-5xl mt-2 block">Your AI Real Estate Partner</span>
-                    </motion.h1>
-
-                    <motion.p
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, delay: 0.3 }}
-                        className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed"
-                    >
-                        Uses <span className="text-purple-400 font-medium">Hybrid AI Brain</span> to verify properties,
-                        uncover market trends, and negotiate the best deals.
-                    </motion.p>
-
-                    {/* Chat Input - Central Feature */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, delay: 0.4 }}
-                        className="w-full max-w-3xl"
-                    >
-                        <form action="/chat" className="relative group">
-                            <input
-                                type="text"
-                                name="q"
-                                placeholder="Message Amr... (e.g., 'Find me a villa in New Cairo under 10M')"
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 pr-16 text-white text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all shadow-2xl shadow-purple-900/20 backdrop-blur-xl"
-                            />
-                            <button
-                                type="submit"
-                                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg hover:scale-105"
-                            >
-                                <ArrowRight className="w-6 h-6" />
-                            </button>
-                        </form>
-                        <div className="flex justify-center gap-4 mt-4 text-sm text-gray-500">
-                            <Link href="/chat?q=Investment ROI" className="hover:text-purple-400 transition-colors">📈 Investment ROI</Link>
-                            <Link href="/chat?q=Market Trends" className="hover:text-purple-400 transition-colors">📊 Market Trends</Link>
-                            <Link href="/chat?q=Verified Properties" className="hover:text-purple-400 transition-colors">✅ Verified Properties</Link>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                                <Brain size={20} className="text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500 font-bold uppercase">Intelligence</p>
+                                <p className="text-sm font-bold text-slate-900 dark:text-white">GPT-4o + XGBoost</p>
+                            </div>
                         </div>
                     </motion.div>
-                </div>
-            </section>
 
-            {/* Stats Section */}
-            <section className="py-16 border-y border-white/5 bg-gradient-to-b from-transparent to-purple-900/5">
-                <div className="container mx-auto px-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                        {[
-                            { value: 3274, label: "Properties", suffix: "+" },
-                            { value: 95, label: "Match Accuracy", suffix: "%" },
-                            { value: 24, label: "Response Time", suffix: "h" },
-                            { value: 2, label: "Languages", suffix: "" },
-                        ].map((stat, idx) => (
-                            <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: idx * 0.1 }}
-                                className="text-center"
-                            >
-                                <div className="text-3xl md:text-4xl font-bold text-white mb-1">
-                                    <AnimatedNumber value={stat.value} suffix={stat.suffix} />
-                                </div>
-                                <div className="text-gray-500 text-sm">{stat.label}</div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Features Section */}
-            <section className="py-24 px-4">
-                <div className="container mx-auto">
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        className="text-center mb-16"
+                        animate={{ y: [0, 10, 0] }}
+                        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                        className="absolute -left-8 bottom-20 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 z-20 hidden md:block"
                     >
-                        <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                            Why Amr <span className="text-purple-400">Beats</span> the Competition
-                        </h2>
-                        <p className="text-gray-400 max-w-2xl mx-auto">
-                            Powered by a hybrid brain combining GPT-4o&apos;s speed, Claude&apos;s reasoning,
-                            and XGBoost&apos;s precision. No other platform comes close.
-                        </p>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
+                                <Shield size={20} className="text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500 font-bold uppercase">Trust</p>
+                                <p className="text-sm font-bold text-slate-900 dark:text-white">0% hallucinations</p>
+                            </div>
+                        </div>
                     </motion.div>
+                </motion.div>
 
-                    <div className="grid md:grid-cols-3 gap-6">
-                        <FeatureCard
-                            icon={<Globe className="w-8 h-8 text-purple-400" />}
-                            title="Bilingual AI"
-                            desc="عمرو بيفهمك - Amr speaks Egyptian Arabic naturally, not formal MSA. First of its kind in real estate."
-                            gradient="from-purple-500/20 to-blue-500/20"
-                        />
-                        <FeatureCard
-                            icon={<TrendingUp className="w-8 h-8 text-emerald-400" />}
-                            title="Investment Analysis"
-                            desc="Real-time ROI calculations, rental yield forecasts, and market trend analysis powered by ML."
-                            gradient="from-emerald-500/20 to-teal-500/20"
-                        />
-                        <FeatureCard
-                            icon={<BarChart3 className="w-8 h-8 text-blue-400" />}
-                            title="Visual Intelligence"
-                            desc="Charts, comparisons, and scorecards. Amr doesn't just talk - he shows you data."
-                            gradient="from-blue-500/20 to-cyan-500/20"
-                        />
-                    </div>
+            </section>
+
+            {/* Feature Grid (Quick) */}
+            <section className="w-full max-w-7xl mx-auto px-6 py-20 border-t border-slate-200 dark:border-slate-800">
+                <div className="grid md:grid-cols-3 gap-8">
+                    {[
+                        {
+                            icon: <MessageSquare size={32} className="text-blue-500" />,
+                            title: "Visual Conversations",
+                            desc: "Amr doesn't just text. He draws charts, maps, and ROI projections in real-time."
+                        },
+                        {
+                            icon: <Brain size={32} className="text-purple-500" />,
+                            title: "Inflation Hedging",
+                            desc: "Our engine tracks currency devaluation daily to recommend assets that hold value."
+                        },
+                        {
+                            icon: <Shield size={32} className="text-green-500" />,
+                            title: "Verified Inventory",
+                            desc: "Access 14,000+ units from top developers. No ghost listings. No waste of time."
+                        }
+                    ].map((feature, i) => (
+                        <div key={i} className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all">
+                            <div className="mb-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 inline-block">
+                                {feature.icon}
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">{feature.title}</h3>
+                            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{feature.desc}</p>
+                        </div>
+                    ))}
                 </div>
             </section>
 
-            {/* CTA Section */}
-            <section className="py-24 px-4 relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-purple-900/20 to-transparent pointer-events-none" />
-                <div className="container mx-auto relative z-10">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-3xl p-12 md:p-16 border border-white/10 backdrop-blur-sm text-center"
-                    >
-                        <h2 className="text-3xl md:text-5xl font-bold mb-6">
-                            Ready to Find Your <span className="text-purple-400">Dream Property</span>?
-                        </h2>
-                        <p className="text-gray-400 text-lg mb-8 max-w-xl mx-auto">
-                            Join thousands of Egyptians who trust Amr for their real estate decisions.
-                            Start your journey today - it&apos;s free.
-                        </p>
-                        <Link
-                            href="/chat"
-                            className="inline-flex items-center gap-2 px-10 py-5 rounded-full bg-white text-black font-bold text-lg transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-white/20"
-                        >
-                            <MessageCircle className="w-5 h-5" />
-                            Start Chatting with Amr
-                            <ArrowRight className="w-5 h-5" />
-                        </Link>
-                    </motion.div>
-                </div>
-            </section>
-
-            <Footer />
         </main>
-    );
-}
-
-function FeatureCard({ icon, title, desc, gradient }: { icon: React.ReactNode; title: string; desc: string; gradient: string }) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -5, scale: 1.02 }}
-            className={`relative p-8 rounded-3xl border border-white/10 bg-gradient-to-br ${gradient} backdrop-blur-sm overflow-hidden group`}
-        >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative z-10">
-                <div className="mb-5 p-3 rounded-2xl bg-white/5 w-fit">{icon}</div>
-                <h3 className="text-xl font-bold mb-3 text-white">{title}</h3>
-                <p className="text-gray-400 leading-relaxed">{desc}</p>
-            </div>
-        </motion.div>
     );
 }
