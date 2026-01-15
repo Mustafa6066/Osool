@@ -15,6 +15,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -203,17 +204,21 @@ async def signup_with_kyc(req: SignupRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login_with_verification(
+async def login_with_verification(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Login endpoint with phone verification gate.
 
     Returns 403 if user hasn't verified their phone number.
     """
-    # Find user by email (synchronous pattern - matches Session type)
-    user = db.query(User).filter(User.email == form_data.username).first()
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
+    
+    # Find user by email (async pattern for AsyncSession)
+    result = await db.execute(select(User).filter(User.email == form_data.username))
+    user = result.scalar_one_or_none()
 
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
@@ -240,7 +245,7 @@ def login_with_verification(
         "role": user.role
     })
 
-    logger.info(f"✅ Login successful: {user.email}")
+    logger.info(f"Login successful: {user.email}")
 
     return {
         "access_token": access_token,
