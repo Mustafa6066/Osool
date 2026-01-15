@@ -12,8 +12,8 @@
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// Base URL from environment or default to localhost
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Base URL from environment or default to localhost (strip trailing slash)
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 // Create axios instance
 const api = axios.create({

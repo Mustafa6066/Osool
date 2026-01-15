@@ -10,7 +10,7 @@ interface AuthModalProps {
     onSuccess: () => void;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
     const [activeTab, setActiveTab] = useState<"login" | "signup">("login");

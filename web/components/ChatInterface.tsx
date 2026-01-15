@@ -185,8 +185,9 @@ export default function ChatInterface() {
 
         try {
             const token = localStorage.getItem("access_token");
+            const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/chat`,
+                `${apiUrl}/api/chat`,
                 {
                     method: "POST",
                     headers: {
@@ -299,8 +300,8 @@ export default function ChatInterface() {
                                 <div className="flex-shrink-0">
                                     <div
                                         className={`w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user"
-                                                ? "bg-purple-600"
-                                                : "bg-gradient-to-br from-purple-600 to-blue-600"
+                                            ? "bg-purple-600"
+                                            : "bg-gradient-to-br from-purple-600 to-blue-600"
                                             }`}
                                     >
                                         {msg.role === "user" ? (
@@ -316,8 +317,8 @@ export default function ChatInterface() {
                                     <div className="group relative">
                                         <div
                                             className={`inline-block px-4 py-3 rounded-2xl text-[15px] leading-relaxed ${msg.role === "user"
-                                                    ? "bg-purple-600 text-white rounded-tr-md"
-                                                    : "bg-white/5 text-gray-200 rounded-tl-md border border-white/5"
+                                                ? "bg-purple-600 text-white rounded-tr-md"
+                                                : "bg-white/5 text-gray-200 rounded-tl-md border border-white/5"
                                                 }`}
                                             dir={isArabic(msg.content) ? "rtl" : "ltr"}
                                         >
