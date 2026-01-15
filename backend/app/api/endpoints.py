@@ -16,9 +16,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional
 
-from app.services.blockchain import blockchain_service
-from app.services.payment_service import payment_service, PaymentStatus
-from app.services.blockchain_prod import blockchain_service_prod
 from app.ai_engine.openai_service import osool_ai
 from app.ai_engine.hybrid_brain import hybrid_brain
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
@@ -93,20 +90,7 @@ class HybridValuationRequest(BaseModel):
     is_compound: int = Field(1, description="1 if in gated compound, 0 otherwise")
 
 
-class FractionalInvestmentRequest(BaseModel):
-    """Request model for fractional property investment."""
-    property_id: int = Field(..., description="Property ID to invest in")
-    investor_address: str = Field(..., description="Investor's wallet address")
-    investment_amount_egp: float = Field(..., description="Investment amount in EGP")
-    # payment_reference removed, we initiate valid payments now
-
-class PaymentInitiateRequest(BaseModel):
-    amount_egp: float
-    first_name: str
-    last_name: str
-    phone_number: str
-    email: str
-    property_id: int # Critical for fractional mapping
+# Phase 1: Removed FractionalInvestmentRequest and PaymentInitiateRequest (blockchain features)
 
 # ---------------------------------------------------------------------------
 # SECURITY DEPENDENCIES
@@ -325,21 +309,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         if health_status["status"] == "healthy":
             health_status["status"] = "degraded"
 
-    # 3. Blockchain Check
-    try:
-        is_connected = blockchain_service.is_connected()
-        health_status["checks"]["blockchain"] = {
-            "status": "healthy" if is_connected else "degraded",
-            "connected": is_connected
-        }
-        if not is_connected and health_status["status"] == "healthy":
-            health_status["status"] = "degraded"
-    except Exception as e:
-        health_status["checks"]["blockchain"] = {"status": "degraded", "error": str(e)}
-        if health_status["status"] == "healthy":
-            health_status["status"] = "degraded"
-
-    # 4. OpenAI API Check (lightweight test)
+    # 3. OpenAI API Check (lightweight test)
     try:
         from app.services.circuit_breaker import openai_breaker
         # Check circuit breaker state
@@ -380,19 +350,35 @@ def prometheus_metrics():
 
 
 @router.get("/property/{property_id}")
-def get_property(property_id: int):
-    """Get property details from blockchain"""
-    result = blockchain_service.get_property(property_id)
-    
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    
-    return result
+def get_property(property_id: int, db: Session = Depends(get_db)):
+    """Get property details from database"""
+    from app.models import Property
 
+    property = db.query(Property).filter(Property.id == property_id).first()
+
+    if not property:
+        raise HTTPException(status_code=404, detail=f"Property {property_id} not found")
 
     return {
-        "property_id": property_id,
-        "available": is_available
+        "id": property.id,
+        "title": property.title,
+        "description": property.description,
+        "type": property.type,
+        "location": property.location,
+        "compound": property.compound,
+        "developer": property.developer,
+        "price": property.price,
+        "price_per_sqm": property.price_per_sqm,
+        "size_sqm": property.size_sqm,
+        "bedrooms": property.bedrooms,
+        "bathrooms": property.bathrooms,
+        "finishing": property.finishing,
+        "delivery_date": property.delivery_date,
+        "down_payment": property.down_payment,
+        "installment_years": property.installment_years,
+        "monthly_installment": property.monthly_installment,
+        "image_url": property.image_url,
+        "is_available": property.is_available
     }
 
 @router.get("/properties")
@@ -428,152 +414,21 @@ def list_properties(db: Session = Depends(get_db)):
     return results
 
 
-@router.post("/reserve")
-def reserve_property(req: ReservationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    🏡 Reserve Property (Manual Payment Submission)
-    """
-    # 1. STRICT KYC CHECK
-    if not current_user.phone_number:
-        raise HTTPException(status_code=403, detail="Phone number verification required.")
-    if not current_user.national_id:
-        raise HTTPException(status_code=403, detail="National ID required for legal contract binding.")
+# Phase 1: Blockchain endpoints removed (Phase 2 feature)
+# @router.post("/reserve") - Reserved for Phase 2
+# @router.post("/finalize-sale") - Reserved for Phase 2
+# @router.post("/cancel-reservation") - Reserved for Phase 2
 
-    # 2. Validate Address
-    if not req.user_address.startswith("0x") or len(req.user_address) != 42:
-        raise HTTPException(status_code=400, detail="Invalid wallet address format")
-    
-    # 3. Check Availability (Blockchain Authority)
-    if not blockchain_service.is_available(req.property_id):
-        raise HTTPException(status_code=409, detail="Property is not available for reservation")
-
-    # 4. Record Transaction (Pending Admin Approval)
-    # In a real app this would go to a specialized "Payment Claims" table
-    # For now we use Transaction with a specific status
-    try:
-        tx = Transaction(
-            user_id=current_user.id,
-            property_id=req.property_id,
-            amount=req.payment_amount_egp,
-            paymob_order_id=f"MANUAL-{req.payment_reference}", # Hack for schema
-            status="pending_approval"
-        )
-        db.add(tx)
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-    return {
-        "status": "pending_approval",
-        "message": "Payment reference submitted. Reservation pending admin verification.",
-        "tx_id": tx.id
-    }
-
+# Kept for reference - will be re-enabled in Phase 2:
+"""
 class CancellationRequest(BaseModel):
     property_id: int
     reason: str
+"""
 
-@router.post("/finalize-sale")
-def finalize_sale(req: SaleFinalizationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    ✅ Finalize Sale (Mint NFT/Tokens)
-    """
-    
-    # Verify bank transfer via DB (Strict)
-    approval = db.query(PaymentApproval).filter(
-        PaymentApproval.reference_number == req.bank_transfer_reference,
-        PaymentApproval.status == "approved"
-    ).first()
-    
-    if not approval:
-        raise HTTPException(
-            status_code=400,
-            detail="Bank transfer verification failed: Reference not found or not approved by admin."
-        )
-        
-    # Check if property matches approval
-    if approval.property_id != req.property_id:
-         raise HTTPException(status_code=400, detail="Payment reference does not match property ID.")
-    
-    # Verify manual bank transfer if applicable
-    if req.payment_method == "bank_transfer":
-        if not verify_bank_transfer(req.reference_number, db):
-             raise HTTPException(status_code=400, detail="Bank transfer not found or not approved yet.")
-
-    # ENHANCEMENT: Call markSold() on-chain to transfer ownership
-    # This replaces the fractional minting approach with proper ownership transfer
-    property = db.query(Property).filter(Property.id == req.property_id).first()
-
-    if not property:
-        raise HTTPException(status_code=404, detail="Property not found")
-
-    blockchain_id = property.blockchain_id or property.id
-
-    # Call blockchain to mark property as SOLD (transfers ownership on-chain)
-    result = blockchain_service_prod.mark_sold(property_id=blockchain_id)
-
-    if "error" in result or not result.get("success"):
-        raise HTTPException(
-            status_code=500,
-            detail=f"Sale finalization failed on blockchain: {result.get('error', 'Unknown error')}"
-        )
-
-    # Update database to reflect blockchain state
-    tx_hash = result.get("tx_hash")
-    property.is_available = False
-
-    # Record transaction completion in database
-    db.commit()
-
-    return {
-        "status": "success",
-        "message": "Property sale finalized! Ownership transferred on-chain via markSold().",
-        "tx_hash": tx_hash,
-        "blockchain_proof": f"https://amoy.polygonscan.com/tx/{tx_hash}"
-    }
-
-
-@router.post("/cancel-reservation")
-def cancel_reservation(req: CancellationRequest):
-    """Cancel a property reservation (admin only)"""
-    
-    result = blockchain_service.cancel_reservation(req.property_id)
-    
-    if "error" in result:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Cancellation failed: {result['error']}"
-        )
-    
-    return {
-        "status": "success",
-        "message": "Reservation cancelled",
-        "tx_hash": result["tx_hash"],
-        "reason": req.reason
-    }
-
-
-# ═══════════════════════════════════════════════════════════════
-# PAYMENT VERIFICATION (PLACEHOLDERS)
-# ═══════════════════════════════════════════════════════════════
-
-def verify_egp_payment(reference: str) -> bool:
-    """
-    Verify payment using Paymob Service.
-    """
-    return paymob_service.verify_transaction(reference)
-
-
-def verify_bank_transfer(reference: str, db: Session) -> bool:
-    """
-    Strict verification against PaymentApproval table.
-    """
-    approval = db.query(PaymentApproval).filter(
-        PaymentApproval.reference_number == reference,
-        PaymentApproval.status == "approved"
-    ).first()
-    return approval is not None
+# Phase 1: Simplified - No blockchain reservation for now
+# When user wants to reserve, they chat with AMR who guides them
+# Blockchain integration will return in Phase 2
 
 
 # ═══════════════════════════════════════════════════════════════

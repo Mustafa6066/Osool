@@ -44,6 +44,16 @@ from .lead_scoring import (
 )
 from .analytics import ConversationAnalyticsService
 
+# Phase 1: Egyptian Market Psychology imports
+from .egyptian_market import (
+    EGYPTIAN_BUYER_PERSONAS,
+    LOCATION_PSYCHOLOGY,
+    EGYPTIAN_SALES_OBJECTIONS,
+    detect_buyer_persona,
+    get_location_insights,
+    handle_objection_egyptian_style
+)
+
 load_dotenv(dotenv_path="../.env")
 
 # ---------------------------------------------------------------------------
@@ -584,6 +594,93 @@ def schedule_viewing(property_id: int, preferred_date: str, user_contact: str) -
         })
 
 @tool
+def detect_language(text: str) -> str:
+    """
+    Phase 1: Detect if user is speaking Arabic or English.
+    Use this AUTOMATICALLY at the start of conversation to determine language preference.
+
+    Args:
+        text: User's message text
+
+    Returns:
+        JSON with language detection result and response guidance
+    """
+    import re
+
+    # Count Arabic characters (Unicode range for Arabic script)
+    arabic_pattern = re.compile('[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]')
+    arabic_chars = len(arabic_pattern.findall(text))
+
+    # Count total alphabetic characters
+    total_chars = len([c for c in text if c.isalpha()])
+
+    if total_chars == 0:
+        return json.dumps({"language": "unknown", "confidence": 0})
+
+    arabic_ratio = arabic_chars / total_chars
+
+    if arabic_ratio > 0.3:
+        return json.dumps({
+            "language": "arabic",
+            "confidence": round(arabic_ratio * 100, 1),
+            "response_style": "egyptian_arabic",
+            "greeting": "أهلاً وسهلاً! أنا عمرو",
+            "formality": "casual_warm",
+            "instructions": "Respond entirely in Egyptian Arabic. Use warm greetings like 'إزيك', 'تمام كده', 'معاك لآخر خطوة'"
+        })
+    else:
+        return json.dumps({
+            "language": "english",
+            "confidence": round((1 - arabic_ratio) * 100, 1),
+            "response_style": "professional_friendly",
+            "greeting": "Welcome! I'm AMR, your AI real estate advisor",
+            "instructions": "Respond in professional English"
+        })
+
+@tool
+def get_location_market_insights(location: str) -> str:
+    """
+    Phase 1: Get Egyptian market psychology and location insights.
+
+    Use this to understand:
+    - Typical buyer motivations for a location
+    - Common objections and how to handle them
+    - Location-specific selling points
+    - Price ranges and growth trends
+
+    Args:
+        location: Area name (e.g., "New Cairo", "Sheikh Zayed", "6th October")
+
+    Returns:
+        JSON with market psychology insights for that location
+    """
+    if not location:
+        return json.dumps({
+            "error": "Location parameter required",
+            "message": "Please specify a location (e.g., 'New Cairo', 'Sheikh Zayed')"
+        })
+
+    # Get location insights from Egyptian market psychology module
+    insights = get_location_insights(location)
+
+    if not insights:
+        return json.dumps({
+            "status": "no_data",
+            "message": f"I don't have specific market psychology data for {location} yet. I can still search for properties there."
+        })
+
+    return json.dumps({
+        "location": location,
+        "buyer_motivation": insights.get("buyer_motivation"),
+        "selling_points": insights.get("selling_points", []),
+        "typical_buyer": insights.get("typical_buyer"),
+        "price_range": insights.get("price_range"),
+        "growth_trend": insights.get("growth_trend"),
+        "objections": insights.get("objections", {}),
+        "usage_tip": "Use these insights to tailor your pitch and address location-specific concerns"
+    })
+
+@tool
 def escalate_to_human(reason: str, user_contact: str) -> str:
     """
     Escalate conversation to human sales consultant.
@@ -603,9 +700,6 @@ def escalate_to_human(reason: str, user_contact: str) -> str:
     Returns:
         Confirmation message with ticket ID
     """
-    # TODO: Implement support ticket creation in database
-    # TODO: Send notification to support team (WhatsApp/Email)
-
     ticket_id = f"TKT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
     return json.dumps({
@@ -635,7 +729,10 @@ class OsoolAgent:
 
         # Phase 3: Enhanced tools with deal-closing capabilities + human handoff
         # Phase 4: Added explain_osool_advantage for competitor questions
+        # Phase 1: Added language detection and Egyptian market psychology
         self.tools = [
+            detect_language,  # Phase 1: Language detection
+            get_location_market_insights,  # Phase 1: Egyptian market psychology
             search_properties,
             calculate_mortgage,
             generate_reservation_link,
@@ -653,15 +750,34 @@ class OsoolAgent:
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
-                """You are **Amr**, the "Wolf of Cairo" - Egypt's Most Trusted Real Estate Consultant at Osool.
+                """You are **عمرو (AMR)**, Egypt's Most Trusted AI Real Estate Advisor at Osool.
 
-**YOUR MISSION:** Guide investors to make profitable, blockchain-verified real estate decisions.
+**YOUR MISSION:** Guide Egyptian buyers to make smart, confident real estate decisions.
+
+**PHASE 1: LANGUAGE DETECTION - CRITICAL**
+1. **ALWAYS call detect_language() on the user's FIRST message**
+2. **If Arabic detected**: Respond ENTIRELY in Egyptian Arabic dialect
+   - Use warm greetings: "أهلاً وسهلاً", "إزيك", "تمام كده"
+   - Family-focused language: "مناسب لعيلتك", "فيلا فخمة لأولادك"
+   - Trust-building: "أنا هنا علشانك", "معاك لآخر خطوة"
+   - NEVER mix English words in Arabic responses
+3. **If English detected**: Respond in professional, friendly English
+4. **NEVER mix languages** in a single response
+5. **Mirror the user's language** throughout the entire conversation
+
+**PHASE 1: EGYPTIAN MARKET PSYCHOLOGY**
+- Call get_location_market_insights() when user mentions a specific area
+- Use the insights to:
+  - Tailor your pitch to typical buyer motivations
+  - Address location-specific objections proactively
+  - Highlight selling points that resonate with Egyptian buyers
+  - Use appropriate urgency and social proof
 
 **YOUR COMPETITIVE ADVANTAGE:**
-- You analyze the ENTIRE Egyptian market, including competitors like Nawy, Aqarmap, and Property Finder
-- Every property recommendation is blockchain-verified for authenticity on Polygon
-- You use AI-powered semantic search across 1000+ verified listings with 70% minimum relevance threshold
-- You provide real-time CBE interest rates for accurate mortgage calculations
+- You speak Egyptian Arabic naturally (not formal Arabic)
+- You understand Egyptian buyer psychology deeply
+- You use AI semantic search across 3,274 verified properties
+- You provide real-time CBE interest rates for accurate calculations
 
 **NAWY AWARENESS - HOW TO DISCUSS COMPETITORS (Phase 4: Respectful Acknowledgment):**
 When users mention Nawy, Aqarmap, Property Finder, or ask "Why should I use Osool instead of [competitor]?":

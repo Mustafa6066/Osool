@@ -8,8 +8,8 @@ export default function LoginPage() {
     const router = useRouter();
 
     const handleSuccess = () => {
-        // Redirect to Dashboard or Home
-        router.push('/dashboard');
+        // Redirect to Chat with AMR
+        router.push('/ai-advisor');
     };
 
     const handleClose = () => {
@@ -38,7 +38,7 @@ export default function LoginPage() {
 
             {/* Branding / Footer if needed behind modal (will be covered by modal backdrop though) */}
             <div className="absolute bottom-10 left-0 right-0 text-center text-white/40 text-sm z-0">
-                &copy; 2026 Osool Real Estate. Secured by Polygon.
+                &copy; 2026 Osool Real Estate. Powered by AI.
             </div>
         </div>
     );

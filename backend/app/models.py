@@ -20,26 +20,26 @@ except ImportError:
     Vector = lambda dim: Text
 
 class User(Base):
+    """
+    User Model - Phase 1: Simplified for email/password auth
+
+    Phase 1: Email, password, full_name (required)
+    Phase 2: Will add back wallet_address, national_id, phone_number for KYC
+    """
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
-    # KYC Fields - Required for Egyptian FRA compliance
-    # Note: nullable=True for backward compatibility with existing users
-    # New signups enforce these at application level
-    national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
-    phone_number: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
-
-    # Authentication Fields
-    wallet_address: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
-    email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
-    password_hash: Mapped[str] = mapped_column(String, nullable=True)
-    full_name: Mapped[str] = mapped_column(String, nullable=True)
+    # Phase 1: Core Authentication Fields
+    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String)
+    full_name: Mapped[str] = mapped_column(String)
     role: Mapped[str] = mapped_column(String, default="investor") # investor, admin
 
-    # Phase 1: Encrypted wallet private key storage (custodial wallets only)
-    # Stores Fernet-encrypted private keys for email-based users
-    # NULL for wallet-only users (non-custodial accounts)
+    # Phase 2: KYC & Web3 Fields (kept for database compatibility, not used in Phase 1)
+    national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
+    phone_number: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
+    wallet_address: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
     encrypted_private_key: Mapped[str] = mapped_column(Text, nullable=True)
 
     # Verification Status
@@ -103,6 +103,7 @@ class Property(Base):
 
 
 class Transaction(Base):
+    """Phase 2: Blockchain transaction tracking"""
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -126,7 +127,7 @@ class Transaction(Base):
 
 class PaymentApproval(Base):
     """
-    Manual Bank Transfer Approvals.
+    Phase 2: Manual Bank Transfer Approvals
     Admins must verify these before blockchain transfer.
     """
     __tablename__ = "payment_approvals"
@@ -180,7 +181,7 @@ class RefreshToken(Base):
 
 class LiquidityPool(Base):
     """
-    Phase 6: AMM Liquidity Pools for Property Token Trading
+    Phase 2: AMM Liquidity Pools for Property Token Trading
     Each property can have a liquidity pool for instant token trading.
     """
     __tablename__ = "liquidity_pools"
@@ -201,7 +202,7 @@ class LiquidityPool(Base):
 
 class Trade(Base):
     """
-    Phase 6: Trading History for AMM Swaps
+    Phase 2: Trading History for AMM Swaps
     Records all property token swaps through liquidity pools.
     """
     __tablename__ = "trades"
@@ -225,7 +226,7 @@ class Trade(Base):
 
 class LiquidityPosition(Base):
     """
-    Phase 6: Liquidity Provider Positions
+    Phase 2: Liquidity Provider Positions
     Tracks user LP token holdings and their value.
     """
     __tablename__ = "liquidity_positions"
