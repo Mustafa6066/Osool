@@ -33,24 +33,45 @@ function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string
     return <span>{count.toLocaleString()}{suffix}</span>;
 }
 
-// Floating particles background
+// Floating particles background (Hydration Safe)
 function FloatingParticles() {
+    const [particles, setParticles] = useState<Array<{
+        id: number;
+        initialX: number;
+        initialY: number;
+        animateY: number;
+        duration: number;
+    }>>([]);
+
+    useEffect(() => {
+        // Generate particles only on client to avoid hydration mismatch
+        const width = typeof window !== 'undefined' ? window.innerWidth : 1000;
+        const newParticles = [...Array(20)].map((_, i) => ({
+            id: i,
+            initialX: Math.random() * width,
+            initialY: Math.random() * 600,
+            animateY: Math.random() * 600,
+            duration: 10 + Math.random() * 10
+        }));
+        setParticles(newParticles);
+    }, []);
+
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {[...Array(20)].map((_, i) => (
+            {particles.map((p) => (
                 <motion.div
-                    key={i}
+                    key={p.id}
                     className="absolute w-1 h-1 bg-purple-500/30 rounded-full"
                     initial={{
-                        x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
-                        y: Math.random() * 600,
+                        x: p.initialX,
+                        y: p.initialY,
                     }}
                     animate={{
-                        y: [null, Math.random() * 600],
+                        y: [null, p.animateY],
                         opacity: [0.2, 0.5, 0.2],
                     }}
                     transition={{
-                        duration: 10 + Math.random() * 10,
+                        duration: p.duration,
                         repeat: Infinity,
                         ease: "linear",
                     }}
@@ -141,8 +162,8 @@ function ChatPreview() {
                         >
                             <div
                                 className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.role === 'user'
-                                        ? 'bg-purple-600 text-white rounded-br-none'
-                                        : 'bg-white/10 text-gray-200 rounded-bl-none'
+                                    ? 'bg-purple-600 text-white rounded-br-none'
+                                    : 'bg-white/10 text-gray-200 rounded-bl-none'
                                     }`}
                                 dir={msg.isArabic ? 'rtl' : 'ltr'}
                             >
