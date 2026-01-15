@@ -41,7 +41,7 @@ export default function ChatInterface() {
         {
             role: "assistant",
             content: `${GREETINGS.ar}\n\n${GREETINGS.en}`,
-            timestamp: new Date(),
+            // timestamp omitted to avoid hydration mismatch (server vs client time)
         },
     ]);
     const [input, setInput] = useState("");
