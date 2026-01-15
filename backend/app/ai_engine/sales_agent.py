@@ -14,7 +14,15 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import tool
-from langchain.agents import AgentExecutor, create_openai_tools_agent
+# Safe Import for Agent Executor (Legacy support)
+try:
+    from langchain.agents import AgentExecutor, create_openai_tools_agent
+except ImportError:
+    # If using older LangChain or different structure, mock or warn
+    print("⚠️ Warning: create_openai_tools_agent not found. OpenAI Agent may not work.")
+    AgentExecutor = None
+    create_openai_tools_agent = None
+
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
 from langchain_community.vectorstores import SupabaseVectorStore
 from openai import OpenAI
