@@ -65,8 +65,19 @@ load_dotenv()
 
 from app.config import config
 
-anthropic_client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
-anthropic_async = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
+# Check for API key to prevent startup/import crashes
+try:
+    if config.ANTHROPIC_API_KEY:
+        anthropic_client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        anthropic_async = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
+    else:
+        print("⚠️ ANTHROPIC_API_KEY not found. Claude agent will be disabled.")
+        anthropic_client = None
+        anthropic_async = None
+except Exception as e:
+    print(f"⚠️ Failed to initialize Anthropic client: {e}")
+    anthropic_client = None
+    anthropic_async = None
 
 # Cost tracking
 COST_PER_1M_INPUT_TOKENS = 3.0  # USD per 1M input tokens (Claude 3.5 Sonnet)
@@ -668,6 +679,9 @@ Confidence comes from data, not hype. Show, don't tell.
 
         # Call Claude API with tool use
         try:
+            if not anthropic_async:
+                return "I apologize, but my AI brain is currently offline (Missing API Key). Please check the backend configuration."
+
             response = await anthropic_async.messages.create(
                 model=self.model,
                 max_tokens=self.max_tokens,
