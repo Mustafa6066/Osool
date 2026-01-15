@@ -7,8 +7,18 @@ import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
+import ClientOnly from "@/components/ClientOnly";
+
 // Animated counter for stats
 function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
+    return (
+        <ClientOnly>
+            <AnimatedNumberInner value={value} suffix={suffix} />
+        </ClientOnly>
+    );
+}
+
+function AnimatedNumberInner({ value, suffix = "" }: { value: number; suffix?: string }) {
     const [count, setCount] = useState(0);
 
     useEffect(() => {
@@ -35,6 +45,14 @@ function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string
 
 // Floating particles background (Hydration Safe)
 function FloatingParticles() {
+    return (
+        <ClientOnly>
+            <FloatingParticlesInner />
+        </ClientOnly>
+    );
+}
+
+function FloatingParticlesInner() {
     const [particles, setParticles] = useState<Array<{
         id: number;
         initialX: number;
@@ -80,6 +98,7 @@ function FloatingParticles() {
         </div>
     );
 }
+
 
 // AMR Avatar Component
 function AMRAvatar() {
