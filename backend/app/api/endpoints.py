@@ -873,7 +873,15 @@ async def chat_with_agent(
 
     Frontend can render property cards from the `properties` array.
     """
-    from app.ai_engine.claude_sales_agent import claude_sales_agent, get_last_search_results
+    try:
+        from app.ai_engine.claude_sales_agent import claude_sales_agent, get_last_search_results
+    except ImportError as e:
+        print(f"❌ Critical Error: Failed to load AI Agent. Missing dependency? details: {e}")
+        # Phase 5: Graceful degradation
+        raise HTTPException(
+            status_code=503,
+            detail="AI Service Unavailable: System dependencies are initializing. Please contact support or check logs."
+        )
     from app.models import ChatMessage
     from sqlalchemy import select
     import json
