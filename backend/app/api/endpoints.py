@@ -144,9 +144,11 @@ class ChatRequest(BaseModel):
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/auth/signup")
-def signup(email: str, password: str, full_name: str, db: Session = Depends(get_db)):
+async def signup(email: str, password: str, full_name: str, db: AsyncSession = Depends(get_db)):
     """User Registration"""
-    user = db.query(User).filter(User.email == email).first()
+    from sqlalchemy import select
+    result = await db.execute(select(User).filter(User.email == email))
+    user = result.scalar_one_or_none()
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -165,20 +167,23 @@ def signup(email: str, password: str, full_name: str, db: Session = Depends(get_
     )
 
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
 
     # Security: Private key is encrypted and stored, never logged or exposed
-    print(f"🔐 Custodial Wallet Created for {email}: {wallet['address']}")
+    print(f"Custodial Wallet Created for {email}: {wallet['address']}")
     
     return {"status": "user_created", "email": email, "id": new_user.id, "wallet": wallet["address"]}
 
 @router.post("/auth/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     """
     Login endpoint. Returns JWT token.
     """
-    user = db.query(User).filter(User.email == form_data.username).first()
+    from sqlalchemy import select
+    result = await db.execute(select(User).filter(User.email == form_data.username))
+    user = result.scalar_one_or_none()
+    
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
