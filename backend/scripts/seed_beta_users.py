@@ -1,188 +1,143 @@
 """
-Seed Beta Users for Osool Phase 1 Launch
------------------------------------------
-Creates 14 beta accounts for testing and investor demos.
+Osool Beta User Seeding Script
+------------------------------
+Creates 14 pre-verified beta accounts for Phase One testing.
 
 Usage:
     cd backend
     python scripts/seed_beta_users.py
+
+Accounts Created:
+    - 4 Admin accounts: Mustafa, Hani, Abady, Sama
+    - 10 Tester accounts: tester1-10@osool.eg
 """
 
-import asyncio
 import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from dotenv import load_dotenv
+load_dotenv()
 
-from app.database import AsyncSessionLocal, engine
+# Use synchronous SQLAlchemy for seeding script
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import bcrypt
+
+# Database URL modification for sync driver
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./osool_dev.db")
+
+# Convert async drivers to sync for this script
+if "asyncpg" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("+asyncpg", "")
+elif "aiosqlite" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("+aiosqlite", "")
+elif DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+
+print(f"[INFO] Using database: {DATABASE_URL[:50]}...")
+
+# Create sync engine
+engine = create_engine(DATABASE_URL, echo=False)
+SessionLocal = sessionmaker(bind=engine)
+
+# Import models after engine is set up
 from app.models import User, Base
-from app.auth import get_password_hash
-from sqlalchemy import select
 
-BETA_USERS = [
-    # Core Team (4)
-    {
-        "email": "mustafa@osool.eg",
-        "full_name": "Mustafa",
-        "password": "Osool2025",
-        "role": "admin"
-    },
-    {
-        "email": "hani@osool.eg",
-        "full_name": "Hani",
-        "password": "Osool2025",
-        "role": "admin"
-    },
-    {
-        "email": "abady@osool.eg",
-        "full_name": "Abady",
-        "password": "Osool2025",
-        "role": "admin"
-    },
-    {
-        "email": "sama@osool.eg",
-        "full_name": "Sama",
-        "password": "Osool2025",
-        "role": "admin"
-    },
+# Password hashing using bcrypt directly
+def get_password_hash(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-    # Beta Testers (10)
-    {
-        "email": "tester1@osool.eg",
-        "full_name": "Beta Tester 1",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester2@osool.eg",
-        "full_name": "Beta Tester 2",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester3@osool.eg",
-        "full_name": "Beta Tester 3",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester4@osool.eg",
-        "full_name": "Beta Tester 4",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester5@osool.eg",
-        "full_name": "Beta Tester 5",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester6@osool.eg",
-        "full_name": "Beta Tester 6",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester7@osool.eg",
-        "full_name": "Beta Tester 7",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester8@osool.eg",
-        "full_name": "Beta Tester 8",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester9@osool.eg",
-        "full_name": "Beta Tester 9",
-        "password": "Osool2025",
-        "role": "investor"
-    },
-    {
-        "email": "tester10@osool.eg",
-        "full_name": "Beta Tester 10",
-        "password": "Osool2025",
-        "role": "investor"
-    },
+# Beta accounts configuration
+BETA_ACCOUNTS = [
+    # Admin accounts (Core Team)
+    {"full_name": "Mustafa", "email": "mustafa@osool.eg", "role": "admin"},
+    {"full_name": "Hani", "email": "hani@osool.eg", "role": "admin"},
+    {"full_name": "Abady", "email": "abady@osool.eg", "role": "admin"},
+    {"full_name": "Sama", "email": "sama@osool.eg", "role": "admin"},
+    
+    # Tester accounts
+    {"full_name": "Tester One", "email": "tester1@osool.eg", "role": "investor"},
+    {"full_name": "Tester Two", "email": "tester2@osool.eg", "role": "investor"},
+    {"full_name": "Tester Three", "email": "tester3@osool.eg", "role": "investor"},
+    {"full_name": "Tester Four", "email": "tester4@osool.eg", "role": "investor"},
+    {"full_name": "Tester Five", "email": "tester5@osool.eg", "role": "investor"},
+    {"full_name": "Tester Six", "email": "tester6@osool.eg", "role": "investor"},
+    {"full_name": "Tester Seven", "email": "tester7@osool.eg", "role": "investor"},
+    {"full_name": "Tester Eight", "email": "tester8@osool.eg", "role": "investor"},
+    {"full_name": "Tester Nine", "email": "tester9@osool.eg", "role": "investor"},
+    {"full_name": "Tester Ten", "email": "tester10@osool.eg", "role": "investor"},
 ]
 
-async def seed_beta_users():
-    """Create all beta user accounts."""
-    print("=" * 60)
-    print("Osool Phase 1: Beta User Seeding")
-    print("=" * 60)
-    print()
+COMMON_PASSWORD = "Osool2025"
 
-    # Create tables if they don't exist
-    print("📋 Checking database schema...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("✅ Database schema ready")
-    print()
 
-    async with AsyncSessionLocal() as db:
-        created_count = 0
-        skipped_count = 0
-
-        for user_data in BETA_USERS:
-            # Check if user already exists
-            result = await db.execute(
-                select(User).filter(User.email == user_data["email"])
-            )
-            existing_user = result.scalar_one_or_none()
-
-            if existing_user:
-                print(f"⚠️  {user_data['email']} already exists, skipping")
-                skipped_count += 1
-                continue
-
-            # Create user
-            user = User(
-                email=user_data["email"],
-                full_name=user_data["full_name"],
-                password_hash=get_password_hash(user_data["password"]),
-                role=user_data["role"],
-                is_verified=True,  # Pre-verified for beta
-                email_verified=True
-            )
-
-            db.add(user)
-            print(f"✅ Created: {user_data['email']} ({user_data['role']})")
-            created_count += 1
-
-        await db.commit()
-        print()
-        print("=" * 60)
-        print(f"✅ Beta user seeding complete!")
-        print(f"   Created: {created_count} users")
-        print(f"   Skipped: {skipped_count} users (already exist)")
-        print("=" * 60)
-        print()
-        print("📝 Credentials saved to: BETA_CREDENTIALS.md")
-        print()
+def seed_beta_users():
+    """Create or update beta user accounts."""
+    # Ensure tables exist
+    Base.metadata.create_all(bind=engine)
+    
+    db = SessionLocal()
+    created = 0
+    updated = 0
+    
+    try:
+        for account in BETA_ACCOUNTS:
+            # Check if user exists
+            existing = db.query(User).filter(User.email == account["email"]).first()
+            
+            if existing:
+                # Update existing user to ensure they're verified
+                existing.is_verified = True
+                existing.email_verified = True
+                existing.role = account["role"]
+                existing.password_hash = get_password_hash(COMMON_PASSWORD)
+                updated += 1
+                print(f"  [OK] Updated: {account['email']} (verified, role={account['role']})")
+            else:
+                # Generate unique wallet address based on email
+                import hashlib
+                wallet_hash = hashlib.sha256(account["email"].encode()).hexdigest()[:40]
+                wallet_address = f"0x{wallet_hash}"
+                
+                new_user = User(
+                    full_name=account["full_name"],
+                    email=account["email"],
+                    password_hash=get_password_hash(COMMON_PASSWORD),
+                    wallet_address=wallet_address,
+                    is_verified=True,
+                    email_verified=True,
+                    kyc_status="approved",
+                    role=account["role"]
+                )
+                db.add(new_user)
+                created += 1
+                print(f"  [+] Created: {account['email']} (role={account['role']})")
+        
+        db.commit()
+        
+        print(f"\n{'='*50}")
+        print(f"[SUCCESS] Beta User Seeding Complete!")
+        print(f"   Created: {created} new accounts")
+        print(f"   Updated: {updated} existing accounts")
+        print(f"   Total: {len(BETA_ACCOUNTS)} beta accounts ready")
+        print(f"{'='*50}")
+        print(f"\n[KEY] Common Password: {COMMON_PASSWORD}")
+        print(f"[EMAIL] Admin Emails: mustafa@osool.eg, hani@osool.eg, abady@osool.eg, sama@osool.eg")
+        print(f"[EMAIL] Tester Emails: tester1@osool.eg through tester10@osool.eg")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Error seeding users: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
-    print()
-    print("🚀 Starting beta user seeding...")
-    print()
-
-    try:
-        asyncio.run(seed_beta_users())
-        print("✅ Seeding successful!")
-        print()
-        print("You can now use these credentials to login:")
-        print("   - mustafa@osool.eg / Osool2025")
-        print("   - hani@osool.eg / Osool2025")
-        print("   - tester1@osool.eg / Osool2025")
-        print("   - ... (see BETA_CREDENTIALS.md for all accounts)")
-        print()
-    except Exception as e:
-        print(f"❌ Error during seeding: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    print("\n[SEED] Osool Beta User Seeding Script")
+    print("="*50)
+    seed_beta_users()

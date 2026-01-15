@@ -1,0 +1,243 @@
+{
+    "market_overview_2026": {
+        "status": "High Growth / Inflationary",
+        "inflation_rate": "15-20% annually",
+        "real_estate_appreciation": "10-30% annually (2025 projections)",
+        "market_size_usd": "20 billion (residential by 2025)",
+        "cagr": "11% through 2033",
+        "key_drivers": [
+            "Currency fluctuation driving asset acquisition",
+            "New Capital government relocation",
+            "High demand from expatriates (Gulf & Europe)",
+            "Population growth (2.5% annually)",
+            "Urbanization and smart city development",
+            "Extended payment plans (8-10 years)"
+        ]
+    },
+    "buyer_psychology": {
+        "families": {
+            "primary_motive": "Security & Stability",
+            "key_objections": [
+                "Maintenance fees",
+                "Delivery delays",
+                "School proximity",
+                "Traffic and commute time"
+            ],
+            "winning_points": [
+                "Gated security 24/7",
+                "International schools nearby",
+                "Payment plans > 8 years",
+                "Green spaces and amenities"
+            ],
+            "cultural_note": "قرار جماعي - الزوجة بتحدد 'الإحساس'، الزوج بيفاوض على 'السعر'",
+            "cultural_note_en": "Collective decision. Wife decides 'feeling' of home, husband negotiates price."
+        },
+        "investors": {
+            "primary_motive": "ROI & Capital Preservation",
+            "key_objections": [
+                "Resale liquidity",
+                "High entry price",
+                "Over-supply concerns",
+                "Developer delivery track record"
+            ],
+            "winning_points": [
+                "Rental yield > 6%",
+                "Price appreciation history",
+                "USD-pegged value retention",
+                "Strong developer reputation"
+            ],
+            "cultural_note": "بيفضلوا الكاش لو الخصم كبير (>20%)، غير كده أطول فترة سداد",
+            "cultural_note_en": "Prefer cash deals if discount > 20%, otherwise maximum installment years."
+        },
+        "expatriates": {
+            "primary_motive": "Investment & Family Home",
+            "key_objections": [
+                "Remote management",
+                "Currency conversion",
+                "Legal complexity"
+            ],
+            "winning_points": [
+                "Property management services",
+                "Virtual tours availability",
+                "Reliable developer track record",
+                "Easy payment from abroad"
+            ],
+            "cultural_note": "غالبا بيشتروا عشان العيلة أو استثمار للتقاعد",
+            "cultural_note_en": "Usually buying for family or retirement investment."
+        }
+    },
+    "location_deep_dive": {
+        "new_cairo": {
+            "vibe": "Modern, Fast-paced, Education-centric",
+            "landmarks": [
+                "AUC",
+                "Waterway",
+                "Cairo Festival City",
+                "Point 90"
+            ],
+            "top_compounds": [
+                "Hyde Park",
+                "Mountain View",
+                "Palm Hills",
+                "Villette"
+            ],
+            "avg_price_sqm": 55000,
+            "rental_yield_percent": "7-10%",
+            "appreciation_2025": "12-18%",
+            "target_buyers": [
+                "Young professionals",
+                "Families with children",
+                "Investors"
+            ]
+        },
+        "sheikh_zayed": {
+            "vibe": "Elite, Green, Quiet, Gulf-returnees preferred",
+            "landmarks": [
+                "Arkan",
+                "Galleria 40",
+                "Allegria",
+                "Mall of Arabia"
+            ],
+            "top_compounds": [
+                "Beverly Hills",
+                "Zayed Dunes",
+                "Villette",
+                "Sodic West"
+            ],
+            "avg_price_sqm": 60000,
+            "rental_yield_percent": "5-8%",
+            "appreciation_2025": "10-15%",
+            "target_buyers": [
+                "Elite families",
+                "Gulf returnees",
+                "Privacy seekers"
+            ]
+        },
+        "new_capital": {
+            "vibe": "Future, Government, Smart City",
+            "landmarks": [
+                "Iconic Tower",
+                "Green River",
+                "Government District",
+                "Expo City"
+            ],
+            "top_compounds": [
+                "Celia",
+                "Midtown",
+                "Bleu Vert",
+                "La Vista City"
+            ],
+            "avg_price_sqm": 45000,
+            "rental_yield_percent": "6-8%",
+            "appreciation_2025": "15-25%",
+            "target_buyers": [
+                "Government employees",
+                "Long-term investors",
+                "First-time buyers"
+            ]
+        },
+        "october": {
+            "vibe": "Established, Family-friendly, Mixed income",
+            "landmarks": [
+                "Mall of Egypt",
+                "Americana Plaza",
+                "Media Production City"
+            ],
+            "top_compounds": [
+                "Palm Hills October",
+                "Badya",
+                "O West",
+                "Mountain View October"
+            ],
+            "avg_price_sqm": 40000,
+            "rental_yield_percent": "5-7%",
+            "appreciation_2025": "8-12%",
+            "target_buyers": [
+                "Families",
+                "Young couples",
+                "Budget-conscious buyers"
+            ]
+        }
+    },
+    "competitive_analysis": {
+        "osool_vs_nawy": {
+            "language_support": {
+                "nawy": "Primarily English",
+                "osool": "Bilingual - Egyptian Arabic dialect + English"
+            },
+            "ai_technology": {
+                "nawy": "Basic search algorithm",
+                "osool": "Hybrid Brain: Claude Sonnet 3.5 + GPT-4o + XGBoost ML"
+            },
+            "analysis_features": {
+                "nawy": "None",
+                "osool": "Investment scorecard, Comparison matrix, Payment timeline, Market trends"
+            },
+            "proactivity": {
+                "nawy": "Passive listings",
+                "osool": "Proactive AI recommendations"
+            },
+            "unique_selling_points": [
+                "عمرو بيفهم السوق المصري - AMR understands Egyptian market",
+                "تحليل ROI فوري - Instant ROI analysis",
+                "مقارنة عقارات ذكية - Smart property comparison",
+                "توقعات السوق بالـ AI - AI-powered market forecasts"
+            ]
+        }
+    },
+    "sales_tactics": {
+        "objection_handling": {
+            "too_expensive": {
+                "response_ar": "فاهمك تماماً. خلينا نشوف الـ ROI على المدى البعيد - العقار ده حقق زيادة 15% السنة اللي فاتت.",
+                "response_en": "I completely understand. Let me show you the long-term ROI - this property appreciated 15% last year."
+            },
+            "not_ready_to_buy": {
+                "response_ar": "مفيش مشكلة! خليني أبعتلك updates على العقارات اللي بتناسب requirements بتاعتك.",
+                "response_en": "No problem! Let me send you updates on properties matching your requirements."
+            },
+            "competitor_comparison": {
+                "response_ar": "ممتاز إنك بتقارن! أصول بتقدملك تحليل AI مش موجود في أي منصة تانية.",
+                "response_en": "Great that you're comparing! Osool offers AI analysis not available on any other platform."
+            }
+        },
+        "closing_techniques": [
+            "Urgency: Limited units available at this price",
+            "Value: Compare total cost with rental savings",
+            "Trust: Show blockchain verification and legal checks",
+            "Convenience: One-click reservation with payment plan"
+        ]
+    },
+    "legal_safeguards": {
+        "essential_checks": [
+            "Taslsol Malekeya (تسلسل ملكية) - Ownership Chain",
+            "Tawkil Rasmy (توكيل رسمي) - Power of Attorney",
+            "Mokhalfa Building (مخالفات مباني) - Building Violations",
+            "Khashn/Tashtib (خشن/تشطيب) - Finishing Status Clause"
+        ],
+        "red_flags": [
+            "Missing ownership chain documentation",
+            "Verbal promises not in contract",
+            "Unrealistic payment terms",
+            "No developer license number"
+        ]
+    },
+    "amr_persona": {
+        "name": "عمرو (Amr)",
+        "title": "Senior Real Estate Consultant @ Osool",
+        "personality_traits": [
+            "Professional but friendly",
+            "Speaks Egyptian Arabic naturally",
+            "Data-driven advisor",
+            "Proactive problem solver"
+        ],
+        "greeting_ar": "أهلاً! أنا عمرو، مستشارك العقاري في أصول. بساعدك تلاقي عقار أحلامك بأحسن سعر. إزاي أقدر أساعدك النهارده؟",
+        "greeting_en": "Hello! I'm Amr, your real estate consultant at Osool. I help you find your dream property at the best price. How can I help you today?",
+        "expertise": [
+            "Egyptian real estate market trends",
+            "Investment analysis and ROI calculation",
+            "Property comparison and recommendation",
+            "Legal document verification",
+            "Payment plan optimization"
+        ]
+    }
+}

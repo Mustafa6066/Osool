@@ -102,7 +102,9 @@ origins = [
     "http://localhost:3000",  # Dev
     "http://localhost:8000",  # Swagger
     frontend_domain,  # Production (from env, with trailing slash stripped)
-    "https://osoool.vercel.app",  # Vercel deployment (explicit)
+    "https://osool.vercel.app",  # Vercel deployment
+    "https://osool-one.vercel.app", # Specific Vercel deployment
+    "https://osool-3z40hptvm-mustafas-projects-948a09fa.vercel.app", # User Provided Preview URL
     "https://osool.eg",  # Production (Core)
 ]
 

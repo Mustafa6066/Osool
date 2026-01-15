@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, User, Bot, Sparkles, Menu, Copy, Check } from "lucide-react";
+import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { Send, Bot, User, Sparkles, Plus, Copy, Check, ArrowDown, Loader2 } from "lucide-react";
 import DOMPurify from "dompurify";
 import PropertyCard from "./PropertyCard";
 import InvestmentScorecard from "./visualizations/InvestmentScorecard";
 import ComparisonMatrix from "./visualizations/ComparisonMatrix";
 import PaymentTimeline from "./visualizations/PaymentTimeline";
 import MarketTrendChart from "./visualizations/MarketTrendChart";
-import ConversationHistory from "./ConversationHistory";
 
 type Message = {
     role: "user" | "assistant";
     content: string;
+    timestamp?: Date;
     properties?: any[];
     visualizations?: {
         investment_scorecard?: any;
@@ -22,20 +22,39 @@ type Message = {
     };
 };
 
+// AMR Greeting based on language detection
+const GREETINGS = {
+    ar: "أهلاً وسهلاً! أنا عمرو، مستشارك العقاري الذكي. أقدر أساعدك تلاقي بيت أحلامك، أحلل الأسعار والاستثمارات، وأحسب الأقساط. إزاي أقدر أخدمك النهارده؟",
+    en: "Hello! I'm Amr, your AI real estate advisor. I can help you find your dream property, analyze prices and investments, and calculate payment plans. How can I help you today?",
+};
+
+// Loading phases for better UX
+const LOADING_PHASES = [
+    { text: "Thinking...", textAr: "بفكر..." },
+    { text: "Searching properties...", textAr: "بدور على العقارات..." },
+    { text: "Analyzing data...", textAr: "بحلل البيانات..." },
+    { text: "Preparing response...", textAr: "بجهز الرد..." },
+];
+
 export default function ChatInterface() {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: "assistant",
-            content: "مرحباً! أنا عمرو (AMR)، مستشارك العقاري الذكي في Osool. أقدر أساعدك تلاقي بيت أحلامك، أحلل الأسعار والاستثمارات، وأحسب الأقساط. إزاي أقدر أساعدك؟ / Hello! I'm Amr (AMR), your AI real estate advisor at Osool. I can help you find your dream home, analyze prices and investments, and calculate payments. How can I help you?"
-        }
+            content: `${GREETINGS.ar}\n\n${GREETINGS.en}`,
+            timestamp: new Date(),
+        },
     ]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [loadingPhase, setLoadingPhase] = useState<string>("thinking");
+    const [loadingPhase, setLoadingPhase] = useState(0);
     const [sessionId, setSessionId] = useState<string>("");
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+    const [showScrollButton, setShowScrollButton] = useState(false);
+    const [detectedLanguage, setDetectedLanguage] = useState<"ar" | "en" | null>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Detect if text contains Arabic characters
     const isArabic = (text: string): boolean => {
@@ -47,41 +66,35 @@ export default function ChatInterface() {
     const sanitizeHTML = (html: string): string => {
         if (typeof window !== "undefined") {
             return DOMPurify.sanitize(html, {
-                ALLOWED_TAGS: ["b", "i", "em", "strong", "br", "p", "ul", "li", "ol"],
-                ALLOWED_ATTR: []
+                ALLOWED_TAGS: ["b", "i", "em", "strong", "br", "p", "ul", "li", "ol", "span"],
+                ALLOWED_ATTR: ["class"],
             });
         }
         return html;
+    };
+
+    // Format message content with markdown-like styling
+    const formatContent = (content: string): string => {
+        return content
+            .replace(/\n/g, "<br/>")
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\*(.*?)\*/g, "<em>$1</em>")
+            .replace(/`(.*?)`/g, '<span class="bg-white/10 px-1 rounded text-purple-300">$1</span>');
     };
 
     // Copy message to clipboard
     const copyToClipboard = async (text: string, index: number) => {
         try {
             await navigator.clipboard.writeText(text);
-            setCopiedMessageIndex(index);
-            setTimeout(() => setCopiedMessageIndex(null), 2000);
+            setCopiedIndex(index);
+            setTimeout(() => setCopiedIndex(null), 2000);
         } catch (err) {
-            console.error("Failed to copy text:", err);
+            console.error("Failed to copy:", err);
         }
     };
 
-    // Handle conversation selection
-    const handleSelectConversation = (conversationId: string) => {
-        // In a real implementation, load conversation from backend
-        console.log("Loading conversation:", conversationId);
-    };
-
-    // Handle new conversation
-    const handleNewConversation = () => {
-        setMessages([{
-            role: "assistant",
-            content: "مرحباً! أنا عمرو (AMR)، مستشارك العقاري الذكي في Osool. أقدر أساعدك تلاقي بيت أحلامك، أحلل الأسعار والاستثمارات، وأحسب الأقساط. إزاي أقدر أساعدك؟ / Hello! I'm Amr (AMR), your AI real estate advisor at Osool. I can help you find your dream home, analyze prices and investments, and calculate payments. How can I help you?"
-        }]);
-        setSessionId(crypto.randomUUID());
-    };
-
+    // Generate session ID on mount
     useEffect(() => {
-        // Generate Session ID on mount
         if (typeof window !== "undefined") {
             const existing = sessionStorage.getItem("osool_chat_session");
             if (existing) {
@@ -94,269 +107,371 @@ export default function ChatInterface() {
         }
     }, []);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll to bottom smoothly
+    const scrollToBottom = (smooth = true) => {
+        messagesEndRef.current?.scrollIntoView({
+            behavior: smooth ? "smooth" : "auto"
+        });
     };
 
+    // Auto-scroll on new messages
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
-    // Cycle through loading phases for better UX
+    // Handle scroll for showing scroll-to-bottom button
+    const handleScroll = () => {
+        if (!chatContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+        setShowScrollButton(!isNearBottom);
+    };
+
+    // Loading phase animation
     useEffect(() => {
-        if (!isLoading) return;
-
-        const phases = [
-            "تحليل السؤال / Analyzing question...",
-            "البحث في العقارات / Searching properties...",
-            "حساب الأسعار / Calculating prices...",
-            "تحليل السوق / Analyzing market..."
-        ];
-
-        let phaseIndex = 0;
-        setLoadingPhase(phases[0]);
+        if (!isLoading) {
+            setLoadingPhase(0);
+            return;
+        }
 
         const interval = setInterval(() => {
-            phaseIndex = (phaseIndex + 1) % phases.length;
-            setLoadingPhase(phases[phaseIndex]);
-        }, 2000);
+            setLoadingPhase((prev) => (prev + 1) % LOADING_PHASES.length);
+        }, 1500);
 
         return () => clearInterval(interval);
     }, [isLoading]);
 
-    const handleSend = async () => {
-        if (!input.trim()) return;
+    // Auto-resize textarea
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = "auto";
+            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + "px";
+        }
+    }, [input]);
 
-        const userMessage = input;
+    // Handle new conversation
+    const handleNewConversation = () => {
+        setMessages([
+            {
+                role: "assistant",
+                content: `${GREETINGS.ar}\n\n${GREETINGS.en}`,
+                timestamp: new Date(),
+            },
+        ]);
+        const newId = crypto.randomUUID();
+        sessionStorage.setItem("osool_chat_session", newId);
+        setSessionId(newId);
+        setDetectedLanguage(null);
+    };
+
+    // Handle send message
+    const handleSend = async () => {
+        if (!input.trim() || isLoading) return;
+
+        const userMessage = input.trim();
         setInput("");
-        setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+
+        // Detect language from first real user message
+        if (!detectedLanguage) {
+            setDetectedLanguage(isArabic(userMessage) ? "ar" : "en");
+        }
+
+        // Add user message
+        setMessages((prev) => [
+            ...prev,
+            { role: "user", content: userMessage, timestamp: new Date() },
+        ]);
         setIsLoading(true);
 
         try {
             const token = localStorage.getItem("access_token");
-
-            // Direct call to Backend API
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    ...(token ? { "Authorization": `Bearer ${token}` } : {})
-                },
-                body: JSON.stringify({
-                    message: userMessage,  // CHANGED: 'text' -> 'message' to match backend model
-                    session_id: sessionId  // Added Session ID
-                }),
-            });
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/chat`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({
+                        message: userMessage,
+                        session_id: sessionId,
+                    }),
+                }
+            );
 
             const data = await response.json();
 
             if (data.response) {
-                setMessages((prev) => [...prev, {
-                    role: "assistant",
-                    content: data.response,
-                    properties: data.properties, // Store properties
-                    visualizations: data.visualizations // Store visualizations
-                }]);
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: "assistant",
+                        content: data.response,
+                        timestamp: new Date(),
+                        properties: data.properties,
+                        visualizations: data.visualizations,
+                    },
+                ]);
             } else if (data.error) {
-                setMessages((prev) => [...prev, { role: "assistant", content: "⚠️ System Error: " + data.error }]);
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: "assistant",
+                        content: `⚠️ ${data.error}`,
+                        timestamp: new Date(),
+                    },
+                ]);
             }
-
         } catch (error) {
             console.error("Chat Error:", error);
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: "⚠️ Connection Error. Please ensure backend is running." }
+                {
+                    role: "assistant",
+                    content: detectedLanguage === "ar"
+                        ? "⚠️ حصل مشكلة في الاتصال. جرب تاني."
+                        : "⚠️ Connection error. Please try again.",
+                    timestamp: new Date(),
+                },
             ]);
         } finally {
             setIsLoading(false);
         }
     };
 
+    // Handle keyboard shortcuts
+    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
+
     return (
-        <>
-            {/* Conversation History Sidebar */}
-            <ConversationHistory
-                isOpen={isHistoryOpen}
-                onClose={() => setIsHistoryOpen(false)}
-                onSelectConversation={handleSelectConversation}
-                onNewConversation={handleNewConversation}
-                currentConversationId={sessionId}
-            />
-
-            <div className="flex flex-col h-[600px] w-full max-w-2xl mx-auto bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow-2xl overflow-hidden">
-
-                {/* Header */}
-                <div className="bg-gradient-to-r from-[#1a1c2e] to-[#2d3748] p-4 flex items-center gap-3 border-b border-white/10">
-                    {/* Menu Button */}
-                    <button
-                        onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
-                    >
-                        <Menu className="w-5 h-5" />
-                    </button>
-
-                    <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center border-2 border-green-400">
-                        <Bot className="text-white w-6 h-6" />
-                    </div>
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1c2e] rounded-full"></span>
-                </div>
-                <div>
-                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                        Amr <span className="text-xs font-normal text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">Online</span>
-                    </h3>
-                    <p className="text-gray-400 text-xs">Senior Consultant @ Osool {sessionId.slice(0, 4)}</p>
-                </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0f111a]/80">
-                {messages.map((msg, idx) => (
-                    <div
-                        key={idx}
-                        className={`flex items-start gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"
-                            }`}
-                    >
-                        <div
-                            className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === "user" ? "bg-purple-600" : "bg-blue-600"
-                                }`}
+        <div className="flex flex-col h-screen bg-[#0a0a0a]">
+            {/* Header */}
+            <header className="flex-shrink-0 border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-xl sticky top-0 z-50">
+                <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleNewConversation}
+                            className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-white"
+                            title="New conversation"
                         >
-                            {msg.role === "user" ? <User size={16} /> : <Sparkles size={16} />}
-                        </div>
+                            <Plus className="w-5 h-5" />
+                        </button>
 
-                        <div className="flex flex-col max-w-[80%]">
-                            <div className="relative group">
-                                <div
-                                    className={`rounded-2xl p-4 text-sm leading-relaxed ${msg.role === "user"
-                                        ? "bg-purple-600 text-white rounded-tr-none shadow-lg shadow-purple-900/20"
-                                        : "bg-[#1e293b] text-gray-100 rounded-tl-none border border-white/5 shadow-lg"
-                                        }`}
-                                    dir={isArabic(msg.content) ? "rtl" : "ltr"}
-                                    style={{ textAlign: isArabic(msg.content) ? "right" : "left" }}
-                                >
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+                                    <Bot className="w-5 h-5 text-white" />
+                                </div>
+                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0a0a0a]" />
+                            </div>
+                            <div>
+                                <h1 className="text-white font-semibold">Amr • عمرو</h1>
+                                <p className="text-xs text-gray-500">AI Real Estate Advisor</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="text-xs text-gray-600">
+                        Session: {sessionId.slice(0, 8)}
+                    </div>
+                </div>
+            </header>
+
+            {/* Messages Container */}
+            <div
+                ref={chatContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto"
+            >
+                <div className="container mx-auto max-w-3xl px-4 py-6">
+                    <div className="space-y-6">
+                        {messages.map((msg, idx) => (
+                            <div
+                                key={idx}
+                                className={`flex gap-4 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                            >
+                                {/* Avatar */}
+                                <div className="flex-shrink-0">
                                     <div
-                                        dangerouslySetInnerHTML={{
-                                            __html: sanitizeHTML(
-                                                msg.content
-                                                    .replace(/\n/g, '<br/>')
-                                                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-                                            )
-                                        }}
-                                    />
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user"
+                                                ? "bg-purple-600"
+                                                : "bg-gradient-to-br from-purple-600 to-blue-600"
+                                            }`}
+                                    >
+                                        {msg.role === "user" ? (
+                                            <User className="w-4 h-4 text-white" />
+                                        ) : (
+                                            <Sparkles className="w-4 h-4 text-white" />
+                                        )}
+                                    </div>
                                 </div>
 
-                                {/* Copy Button */}
-                                <button
-                                    onClick={() => copyToClipboard(msg.content, idx)}
-                                    className={`absolute top-2 ${msg.role === "user" ? "left-2" : "right-2"} opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white`}
-                                    title="Copy message"
-                                >
-                                    {copiedMessageIndex === idx ? (
-                                        <Check size={14} className="text-green-400" />
-                                    ) : (
-                                        <Copy size={14} />
+                                {/* Message Content */}
+                                <div className={`flex-1 max-w-[85%] ${msg.role === "user" ? "text-right" : ""}`}>
+                                    <div className="group relative">
+                                        <div
+                                            className={`inline-block px-4 py-3 rounded-2xl text-[15px] leading-relaxed ${msg.role === "user"
+                                                    ? "bg-purple-600 text-white rounded-tr-md"
+                                                    : "bg-white/5 text-gray-200 rounded-tl-md border border-white/5"
+                                                }`}
+                                            dir={isArabic(msg.content) ? "rtl" : "ltr"}
+                                        >
+                                            <div
+                                                dangerouslySetInnerHTML={{
+                                                    __html: sanitizeHTML(formatContent(msg.content)),
+                                                }}
+                                            />
+                                        </div>
+
+                                        {/* Copy Button */}
+                                        <button
+                                            onClick={() => copyToClipboard(msg.content, idx)}
+                                            className={`absolute top-2 ${msg.role === "user" ? "left-2" : "right-2"
+                                                } opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-lg bg-black/50 hover:bg-black/70 text-gray-400 hover:text-white`}
+                                        >
+                                            {copiedIndex === idx ? (
+                                                <Check className="w-3.5 h-3.5 text-green-400" />
+                                            ) : (
+                                                <Copy className="w-3.5 h-3.5" />
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    {/* Timestamp */}
+                                    {msg.timestamp && (
+                                        <p className="text-[10px] text-gray-600 mt-1">
+                                            {msg.timestamp.toLocaleTimeString([], {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                        </p>
                                     )}
-                                </button>
+
+                                    {/* Property Cards */}
+                                    {msg.properties && msg.properties.length > 0 && (
+                                        <div className="mt-4 space-y-3">
+                                            {msg.properties.map((prop: any, pIdx: number) => (
+                                                <PropertyCard key={pIdx} property={prop} />
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Visualizations */}
+                                    {msg.visualizations?.investment_scorecard && (
+                                        <div className="mt-4">
+                                            <InvestmentScorecard
+                                                property={msg.visualizations.investment_scorecard.property}
+                                                analysis={msg.visualizations.investment_scorecard.analysis}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {msg.visualizations?.comparison_matrix && (
+                                        <div className="mt-4">
+                                            <ComparisonMatrix
+                                                properties={msg.visualizations.comparison_matrix.properties}
+                                                bestValueId={msg.visualizations.comparison_matrix.best_value_id}
+                                                recommendedId={msg.visualizations.comparison_matrix.recommended_id}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {msg.visualizations?.payment_timeline && (
+                                        <div className="mt-4">
+                                            <PaymentTimeline
+                                                property={msg.visualizations.payment_timeline.property}
+                                                payment={msg.visualizations.payment_timeline.payment}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {msg.visualizations?.market_trend_chart && (
+                                        <div className="mt-4">
+                                            <MarketTrendChart
+                                                location={msg.visualizations.market_trend_chart.location}
+                                                data={msg.visualizations.market_trend_chart.data}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
+                        ))}
 
-                            {/* Property Cards */}
-                            {msg.properties && msg.properties.length > 0 && (
-                                <div className="mt-2 space-y-2">
-                                    {msg.properties.map((prop: any, pIdx: number) => (
-                                        <PropertyCard key={pIdx} property={prop} />
-                                    ))}
+                        {/* Loading Indicator */}
+                        {isLoading && (
+                            <div className="flex gap-4">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center animate-pulse">
+                                    <Loader2 className="w-4 h-4 text-white animate-spin" />
                                 </div>
-                            )}
+                                <div className="bg-white/5 border border-white/5 rounded-2xl rounded-tl-md px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="flex gap-1">
+                                            <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                            <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                            <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
+                                        </span>
+                                        <span className="text-sm text-gray-400">
+                                            {detectedLanguage === "ar"
+                                                ? LOADING_PHASES[loadingPhase].textAr
+                                                : LOADING_PHASES[loadingPhase].text}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
-                            {/* Visualization Components */}
-                            {msg.visualizations?.investment_scorecard && (
-                                <div className="mt-4">
-                                    <InvestmentScorecard
-                                        property={msg.visualizations.investment_scorecard.property}
-                                        analysis={msg.visualizations.investment_scorecard.analysis}
-                                    />
-                                </div>
-                            )}
-
-                            {msg.visualizations?.comparison_matrix && (
-                                <div className="mt-4">
-                                    <ComparisonMatrix
-                                        properties={msg.visualizations.comparison_matrix.properties}
-                                        bestValueId={msg.visualizations.comparison_matrix.best_value_id}
-                                        recommendedId={msg.visualizations.comparison_matrix.recommended_id}
-                                    />
-                                </div>
-                            )}
-
-                            {msg.visualizations?.payment_timeline && (
-                                <div className="mt-4">
-                                    <PaymentTimeline
-                                        property={msg.visualizations.payment_timeline.property}
-                                        payment={msg.visualizations.payment_timeline.payment}
-                                    />
-                                </div>
-                            )}
-
-                            {msg.visualizations?.market_trend_chart && (
-                                <div className="mt-4">
-                                    <MarketTrendChart
-                                        location={msg.visualizations.market_trend_chart.location}
-                                        data={msg.visualizations.market_trend_chart.data}
-                                    />
-                                </div>
-                            )}
-                        </div>
+                        <div ref={messagesEndRef} />
                     </div>
-                ))}
-
-                {isLoading && (
-                    <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center animate-pulse">
-                            <Sparkles size={16} className="animate-spin" />
-                        </div>
-                        <div className="bg-[#1e293b] p-4 rounded-2xl rounded-tl-none border border-white/5 shadow-lg">
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="flex gap-1">
-                                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></span>
-                                </div>
-                                <span className="text-xs text-gray-400 animate-pulse">{loadingPhase}</span>
-                            </div>
-                            <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-[shimmer_2s_ease-in-out_infinite]" style={{ width: "60%" }}></div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                <div ref={messagesEndRef} />
+                </div>
             </div>
 
-            {/* Input */}
-            <div className="p-4 bg-[#1a1c2e] border-t border-white/10">
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        className="flex-1 bg-[#0f111a] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="Ask about properties, investments, or legal checks..."
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                        disabled={isLoading}
-                    />
-                    <button
-                        onClick={handleSend}
-                        disabled={isLoading || !input.trim()}
-                        className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/30"
-                    >
-                        <Send size={20} />
-                    </button>
+            {/* Scroll to bottom button */}
+            {showScrollButton && (
+                <button
+                    onClick={() => scrollToBottom()}
+                    className="fixed bottom-28 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full border border-white/10 transition-all shadow-lg"
+                >
+                    <ArrowDown className="w-5 h-5 text-white" />
+                </button>
+            )}
+
+            {/* Input Area */}
+            <div className="flex-shrink-0 border-t border-white/10 bg-[#0a0a0a]/80 backdrop-blur-xl">
+                <div className="container mx-auto max-w-3xl px-4 py-4">
+                    <div className="relative">
+                        <textarea
+                            ref={textareaRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder={
+                                detectedLanguage === "ar"
+                                    ? "اكتب رسالتك هنا..."
+                                    : "Message Amr..."
+                            }
+                            disabled={isLoading}
+                            rows={1}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all resize-none max-h-[200px]"
+                            dir={isArabic(input) ? "rtl" : "ltr"}
+                        />
+                        <button
+                            onClick={handleSend}
+                            disabled={isLoading || !input.trim()}
+                            className="absolute right-2 bottom-2 p-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl transition-all"
+                        >
+                            <Send className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <p className="text-center text-gray-600 text-[10px] mt-2">
+                        Amr can make mistakes. Please verify important information.
+                    </p>
                 </div>
-                <p className="text-gray-500 text-[10px] mt-2 text-center">
-                    Osool AI can make mistakes. Please check important info.
-                </p>
             </div>
         </div>
-        </>
     );
 }

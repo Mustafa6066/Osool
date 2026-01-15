@@ -22,7 +22,11 @@
       "Bash(ls:*)",
       "Bash(cd:*)",
       "Bash(docker-compose down:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash([ -d \"scripts\" ])",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run build:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

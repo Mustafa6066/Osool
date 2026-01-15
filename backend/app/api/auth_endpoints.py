@@ -203,7 +203,7 @@ async def signup_with_kyc(req: SignupRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-async def login_with_verification(
+def login_with_verification(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -212,11 +212,8 @@ async def login_with_verification(
 
     Returns 403 if user hasn't verified their phone number.
     """
-    from sqlalchemy import select
-    
-    # Find user by email (async pattern)
-    result = await db.execute(select(User).filter(User.email == form_data.username))
-    user = result.scalar_one_or_none()
+    # Find user by email (synchronous pattern - matches Session type)
+    user = db.query(User).filter(User.email == form_data.username).first()
 
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(

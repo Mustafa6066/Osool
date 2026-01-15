@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "AI-Powered Luxury Real Estate Platform with Blockchain Integration",
   "scripts": {
+    "build": "cd web && npm install && npm run build",
+    "vercel-build": "cd web && npm install && npm run build",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
