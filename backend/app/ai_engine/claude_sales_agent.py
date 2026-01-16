@@ -297,9 +297,9 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
         elif tool_name == "run_valuation_ai":
             return run_valuation_ai.invoke(tool_input)
         elif tool_name == "compare_units":
-            return compare_units.invoke(tool_input)
+            return await compare_units.ainvoke(tool_input)
         elif tool_name == "calculate_investment_roi":
-            return calculate_investment_roi.invoke(tool_input)
+            return await calculate_investment_roi.ainvoke(tool_input)
         elif tool_name == "check_real_time_status":
             return check_real_time_status.invoke(tool_input)
         elif tool_name == "generate_reservation_link":
