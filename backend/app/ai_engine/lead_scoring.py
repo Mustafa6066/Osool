@@ -183,7 +183,8 @@ def score_lead(
         score += 5  # Bonus for sustained conversation
 
     # 5. User Profile Signals (if available)
-    if user_profile:
+    # Defensive: ensure user_profile is a dict before using .get()
+    if user_profile and isinstance(user_profile, dict):
         # Existing property owners are often warmer leads
         if user_profile.get("properties_owned", 0) > 0:
             score += 10
