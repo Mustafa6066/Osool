@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Send, Bot, User, Sparkles, Plus, Copy, Check, ArrowDown, Loader2 } from "lucide-react";
+import { Send, Bot, User, Sparkles, Plus, Copy, Check, ArrowDown, Loader2, Menu, Mic, Paperclip } from "lucide-react";
 import DOMPurify from "dompurify";
 import PropertyCard from "./PropertyCard";
+import ConversationHistory from "./ConversationHistory";
 import InvestmentScorecard from "./visualizations/InvestmentScorecard";
 import ComparisonMatrix from "./visualizations/ComparisonMatrix";
 import PaymentTimeline from "./visualizations/PaymentTimeline";
@@ -51,6 +52,7 @@ export default function ChatInterface() {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [detectedLanguage, setDetectedLanguage] = useState<"ar" | "en" | null>(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -251,10 +253,31 @@ export default function ChatInterface() {
 
     return (
         <div className="flex flex-col h-screen bg-[#0a0a0a]">
+            {/* Conversation History Sidebar */}
+            <ConversationHistory
+                isOpen={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+                onSelectConversation={(id) => {
+                    console.log("Selected conversation:", id);
+                    // TODO: Load conversation by ID
+                }}
+                onNewConversation={handleNewConversation}
+                currentConversationId={sessionId}
+            />
+
             {/* Header */}
-            <header className="flex-shrink-0 border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-xl sticky top-0 z-50">
+            <header className="flex-shrink-0 border-b border-white/10 bg-[#0a0a0a]/80 backdrop-blur-xl sticky top-0 z-40">
                 <div className="container mx-auto px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                        {/* Sidebar Toggle */}
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-white"
+                            title="Chat history"
+                        >
+                            <Menu className="w-5 h-5" />
+                        </button>
+
                         <button
                             onClick={handleNewConversation}
                             className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-white"
@@ -444,28 +467,47 @@ export default function ChatInterface() {
             {/* Input Area */}
             <div className="flex-shrink-0 border-t border-white/10 bg-[#0a0a0a]/80 backdrop-blur-xl">
                 <div className="container mx-auto max-w-3xl px-4 py-4">
-                    <div className="relative">
-                        <textarea
-                            ref={textareaRef}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={
-                                detectedLanguage === "ar"
-                                    ? "اكتب رسالتك هنا..."
-                                    : "Message Amr..."
-                            }
-                            disabled={isLoading}
-                            rows={1}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all resize-none max-h-[200px]"
-                            dir={isArabic(input) ? "rtl" : "ltr"}
-                        />
+                    <div className="relative flex items-center gap-2">
+                        {/* Attachment Button */}
                         <button
-                            onClick={handleSend}
-                            disabled={isLoading || !input.trim()}
-                            className="absolute right-2 bottom-2 p-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl transition-all"
+                            className="p-2 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            title="Attach file"
                         >
-                            <Send className="w-4 h-4" />
+                            <Paperclip className="w-5 h-5" />
+                        </button>
+
+                        {/* Text Input */}
+                        <div className="relative flex-1">
+                            <textarea
+                                ref={textareaRef}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder={
+                                    detectedLanguage === "ar"
+                                        ? "اكتب رسالتك هنا..."
+                                        : "Message Amr..."
+                                }
+                                disabled={isLoading}
+                                rows={1}
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all resize-none max-h-[200px]"
+                                dir={isArabic(input) ? "rtl" : "ltr"}
+                            />
+                            <button
+                                onClick={handleSend}
+                                disabled={isLoading || !input.trim()}
+                                className="absolute right-2 bottom-2 p-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl transition-all"
+                            >
+                                <Send className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Voice Input Button */}
+                        <button
+                            className="p-2 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            title="Voice input"
+                        >
+                            <Mic className="w-5 h-5" />
                         </button>
                     </div>
                     <p className="text-center text-gray-600 text-[10px] mt-2">

@@ -30,7 +30,8 @@
     --shadow-ai: 0 10px 20px rgba(139, 92, 246, 0.4);
 
     /* Typography */
-    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-sans: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
+    --font-serif: var(--font-merriweather), 'Merriweather', Georgia, serif;
     --font-arabic: 'Cairo', 'Tajawal', sans-serif;
 
     /* Spacing */
@@ -201,9 +202,12 @@ body {
 
 /* Gradient text animation */
 @keyframes gradient-shift {
-    0%, 100% {
+
+    0%,
+    100% {
         background-position: 0% 50%;
     }
+
     50% {
         background-position: 100% 50%;
     }
@@ -310,6 +314,11 @@ body {
     font-size: clamp(1.25rem, 2.5vw, 1.5rem);
     line-height: 1.4;
     font-weight: 600;
+}
+
+/* Serif Headers (Claude-like) */
+.font-heading {
+    font-family: var(--font-serif);
 }
 
 /* ========================================
