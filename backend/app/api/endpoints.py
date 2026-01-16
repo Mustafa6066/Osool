@@ -937,10 +937,12 @@ async def chat_with_agent(
         await db.commit()
 
         # Phase 1: Track analytics (for future dashboard integration)
+        # Defensive: check if lead_score is a dict before calling .get()
+        lead_score_dict = claude_sales_agent.lead_score if isinstance(claude_sales_agent.lead_score, dict) else {}
         analytics_data = {
             "customer_segment": claude_sales_agent.customer_segment.value if claude_sales_agent.customer_segment else "unknown",
-            "lead_temperature": claude_sales_agent.lead_score.get("temperature") if claude_sales_agent.lead_score else "cold",
-            "lead_score": claude_sales_agent.lead_score.get("score", 0) if claude_sales_agent.lead_score else 0,
+            "lead_temperature": lead_score_dict.get("temperature", "cold"),
+            "lead_score": lead_score_dict.get("score", 0),
             "properties_viewed": len(search_results) if search_results else 0,
             "message_count": len(chat_history) + 2  # +2 for current exchange
         }
