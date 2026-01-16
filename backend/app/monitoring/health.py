@@ -102,7 +102,7 @@ class HealthCheck:
 
             # Simple test call with minimal tokens
             response = await client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=config.CLAUDE_MODEL,
                 max_tokens=10,
                 messages=[{"role": "user", "content": "test"}]
             )
@@ -110,7 +110,7 @@ class HealthCheck:
             return {
                 "status": HealthStatus.HEALTHY,
                 "message": "Claude API responding",
-                "model": "claude-3-5-sonnet-20241022"
+                "model": config.CLAUDE_MODEL
             }
 
         except Exception as e:
