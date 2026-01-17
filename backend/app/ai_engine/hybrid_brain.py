@@ -35,6 +35,8 @@ from app.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 
 class UIActionType(Enum):
     """Types of UI visualizations that can be triggered."""
