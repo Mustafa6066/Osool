@@ -146,13 +146,8 @@ async def search_properties(
             )
             return properties
 
-        # If embedding generation fails, check environment
-        if os.getenv("ENVIRONMENT") == "production":
-            logger.error("Embedding generation failed in production - returning no results")
-            return []  # NO fallback in production
-
-        # In development only: Allow keyword fallback
-        logger.warning("Using full-text search fallback (development mode only)")
+        # Fallback to keyword search (for environments without pgvector like Railway)
+        logger.warning("Using full-text search fallback (pgvector not available or embedding failed)")
         search_term = f"%{query_text}%"
 
         stmt = select(Property).filter(

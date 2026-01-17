@@ -22,14 +22,32 @@ def upgrade() -> None:
     """
     Convert embedding column from TEXT to VECTOR(1536).
     
-    Steps:
-    1. Ensure pgvector extension is enabled
-    2. Add a temporary vector column
-    3. Copy data from text to vector (parsing the JSON array)
-    4. Drop the old text column
-    5. Rename the new column
+    IMPORTANT: This migration will SKIP on PostgreSQL instances without pgvector.
+    Vector search will fall back to text search in those environments.
     """
-    # Step 1: Enable pgvector extension (if not already enabled)
+    import os
+    from sqlalchemy import text
+    from alembic import op
+    
+    # Check if pgvector is available on the database
+    conn = op.get_bind()
+    
+    try:
+        # Test if vector extension can be created
+        result = conn.execute(text("""
+            SELECT * FROM pg_available_extensions WHERE name = 'vector'
+        """))
+        pgvector_available = result.fetchone() is not None
+    except Exception:
+        pgvector_available = False
+    
+    if not pgvector_available:
+        print("⚠️ pgvector extension not available on this PostgreSQL instance.")
+        print("⚠️ Vector search will use TEXT fallback. This is OK for development.")
+        print("⚠️ For production vector search, use Supabase, Neon, or pgvector-enabled PostgreSQL.")
+        return  # Skip the migration entirely
+    
+    # If we get here, pgvector IS available
     print("🔧 Enabling pgvector extension...")
     op.execute('CREATE EXTENSION IF NOT EXISTS vector')
     
