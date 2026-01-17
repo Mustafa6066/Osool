@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ShieldCheck, TrendingUp, Sparkles, Menu, Plus } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer } from 'recharts';
 import ConversationHistory from './ConversationHistory';
+import api from '../lib/api';
 
 type Message = {
     id: string;
@@ -54,18 +55,28 @@ export default function ChatInterface() {
         setInput('');
         setIsTyping(true);
 
-        // Simulate Amr thinking and responding
-        // In a real app, this would call the /api/chat endpoint
-        setTimeout(() => {
+        try {
+            const { data } = await api.post('/api/chat', { message: text });
+
             const response: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'amr',
-                content: "I'm analyzing the market data for you. Based on current inflation rates, New Capital properties have shown a 24% increase in value against the EGP over the last 12 months.",
-                type: 'chart',
+                content: data.response || data.message || "I'm sorry, I couldn't process that request right now.",
+                type: data.type || 'text', // Backend supports 'text', 'chart', 'location'
             };
             setMessages((prev) => [...prev, response]);
+        } catch (error) {
+            console.error("Chat error:", error);
+            const errorMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'amr',
+                content: "I'm having trouble connecting to the server. Please try again later.",
+                type: 'text'
+            };
+            setMessages((prev) => [...prev, errorMessage]);
+        } finally {
             setIsTyping(false);
-        }, 1500);
+        }
     };
 
     const handleSend = () => {
