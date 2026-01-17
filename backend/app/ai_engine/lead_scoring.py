@@ -129,9 +129,10 @@ def score_lead(
     detected_behaviors: List[BehaviorSignal] = []
 
     # Combine user messages into searchable text
+    # Defensive: ensure each message is a dict before calling .get()
     user_messages = [
         msg.get("content", "") for msg in conversation_history
-        if msg.get("role") == "user"
+        if isinstance(msg, dict) and msg.get("role") == "user"
     ]
     full_text = " ".join(user_messages).lower()
 
