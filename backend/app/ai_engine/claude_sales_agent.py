@@ -616,7 +616,11 @@ Chain tools for maximum impact. A Wolf hunts smart.
 
                 for block in response.content:
                     if block.type == "text":
-                        assistant_content.append(block.text)
+                        # Convert text block to proper dict format
+                        assistant_content.append({
+                            "type": "text",
+                            "text": block.text
+                        })
                     elif block.type == "tool_use":
                         # Execute tool
                         tool_result = await execute_tool(block.name, block.input)
@@ -625,7 +629,13 @@ Chain tools for maximum impact. A Wolf hunts smart.
                             "tool_use_id": block.id,
                             "content": tool_result
                         })
-                        assistant_content.append(block)
+                        # Convert tool_use block to proper dict format
+                        assistant_content.append({
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input
+                        })
 
                 # Continue conversation with tool results
                 claude_messages.append({
