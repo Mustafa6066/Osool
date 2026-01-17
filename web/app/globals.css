@@ -1,8 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-
+@theme {
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-merriweather);
+}
 
 @layer utilities {
 
