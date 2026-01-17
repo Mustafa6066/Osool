@@ -66,9 +66,31 @@ def get_master_system_prompt() -> str:
     return AMR_SYSTEM_PROMPT
 
 
+def get_wolf_system_prompt(
+    customer_segment: Optional[str] = None,
+    lead_temperature: Optional[str] = None,
+    lead_score: Optional[int] = None,
+    detected_language: str = "ar",
+    conversation_phase: str = "discovery"
+) -> str:
+    """
+    Backward compatibility wrapper for old code.
+    The new reasoning loop doesn't use this function anymore,
+    but parallel_brain.py and legacy paths still might.
+    """
+    return AMR_SYSTEM_PROMPT
+
+
+def get_synthesis_prompt() -> str:
+    """Backward compatibility - synthesis is now handled in hybrid_brain."""
+    return ""
+
+
 # Export
 __all__ = [
     "AMR_SYSTEM_PROMPT",
     "WOLF_TACTICS",
-    "get_master_system_prompt"
+    "get_master_system_prompt",
+    "get_wolf_system_prompt",
+    "get_synthesis_prompt"
 ]
