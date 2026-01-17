@@ -26,7 +26,8 @@
       "Bash([ -d \"scripts\" ])",
       "Bash(npm uninstall:*)",
       "Bash(npm run build:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(wc:*)"
     ]
   }
 }
