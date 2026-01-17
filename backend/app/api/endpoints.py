@@ -918,11 +918,23 @@ async def chat_with_agent(
         await db.commit()
 
         # Get AI response from Claude agent (supports Arabic automatically)
+        # Create a clean user dict (avoid SQLAlchemy internals)
+        user_dict = None
+        if user:
+            user_dict = {
+                "id": user.id,
+                "email": getattr(user, "email", None),
+                "name": getattr(user, "name", None),
+                "phone_verified": getattr(user, "phone_verified", False),
+                "kyc_status": getattr(user, "kyc_status", None),
+                "properties_owned": getattr(user, "properties_owned", 0),
+            }
+        
         response_text = await claude_sales_agent.chat(
             user_input=req.message,
             session_id=req.session_id,
             chat_history=chat_history,
-            user=user.__dict__ if user else None
+            user=user_dict
         )
 
         # Save AI response to database (with hybrid retrieval - Redis + DB fallback)
