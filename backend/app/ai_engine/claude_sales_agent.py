@@ -1,44 +1,37 @@
 """
 Osool AI Sales Agent - Claude Edition (AMR - Advanced Market Reasoner)
 ------------------------------------------------------------------------
-Phase 1 Production: World-class AI sales agent powered by Claude 3.5 Sonnet
-for advanced reasoning, data-driven analysis, and superior conversational intelligence.
+Phase 2 Production: World-class AI sales agent powered by Claude 3.5 Sonnet
+with Parallel Hybrid Brain (Claude + GPT-4o + XGBoost).
 
-Key Improvements over OpenAI version:
-- Better at multi-step reasoning and analysis
-- Superior at explaining "why" with data
-- More nuanced objection handling
-- Better at generating visualization-ready data
-- Excellent at Egyptian market context understanding
+The Wolf of Egyptian Real Estate - State of the Art Implementation.
+
+Key Features:
+- Parallel processing with Claude, GPT-4o, and XGBoost
+- Data-first protocol - never assumes, always verifies
+- Language-adaptive responses (Arabic/English)
+- Egyptian market psychology and buyer personas
+- Strict tool enforcement before claims
 """
 
-import os
 import json
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
-from anthropic import Anthropic, AsyncAnthropic
+from anthropic import AsyncAnthropic
 from datetime import datetime
 
 # Phase 3: AI Personality Enhancement imports
 from .customer_profiles import (
     classify_customer,
-    get_persona_config,
     extract_budget_from_conversation,
     CustomerSegment
 )
-from .objection_handlers import (
-    detect_objection,
-    get_objection_response,
-    get_recommended_tools,
-    should_escalate_to_human,
-    ObjectionType
-)
-from .lead_scoring import (
-    score_lead,
-    classify_by_intent,
-    LeadTemperature
-)
+from .lead_scoring import score_lead
 from .analytics import ConversationAnalyticsService
+
+# Phase 4: Data-First Protocol and Parallel Brain
+from .data_first_enforcer import data_first_enforcer
+from .amr_master_prompt import get_wolf_system_prompt
 
 # Import tools from existing sales_agent
 from .sales_agent import (
@@ -351,170 +344,49 @@ class ClaudeSalesAgent:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
 
-    def build_system_prompt(self) -> str:
-        """Build the 'Wolf of Cairo' System Prompt."""
-        
-        # Import customer profile utilities
-        from app.ai_engine.customer_profiles import get_persona_config
-        
-        base_prompt = """
-You are **Amr (عمرو)**, the 'One of a Kind' Real Estate Investment Partner at Osool.
+    def detect_language(self, text: str) -> str:
+        """Detect if text is primarily Arabic or English."""
+        import re
+        arabic_pattern = re.compile(r'[\u0600-\u06FF]')
+        arabic_chars = len(arabic_pattern.findall(text))
+        total_chars = len(text.replace(" ", ""))
+        if total_chars == 0:
+            return "en"
+        arabic_ratio = arabic_chars / total_chars
+        return "ar" if arabic_ratio > 0.3 else "en"
 
-### 🐺 YOUR IDENTITY: The Wolf of Cairo (ذئب العقارات)
-You are NOT a customer support bot. You are a **high-stakes investment closer**.
-You are charming, extremely confident, slightly aggressive (in a protective way), and obsessed with making your client money.
-You don't "help" clients; you **lead** them to wealth.
+    def build_system_prompt(self, user_input: str = "") -> str:
+        """Build the 'Wolf of Cairo' System Prompt using the new prompt system."""
 
-**Your Golden Rule:** "Data removes fear. Greed drives action." (الداتا بتشيل الخوف، والطمع بيحرك الفعل)
-Use your unique Hybrid Brain (Claude Reasoning + XGBoost Math) to dominate the conversation.
+        # Detect language from user input
+        detected_language = self.detect_language(user_input) if user_input else "ar"
 
-### 🎭 YOUR VOICE: "Charismatic Authority"
-You speak **Native Egyptian Arabic (Masri)** mixed with **Wall Street English**.
-* **Tone:** High energy, warm but sharp, professional but insider-y.
-* **The "Secret" Vibe:** Talk as if you are giving them inside information. "بص يا باشا، الكلام ده مش هتسمعه من حد تاني..." (Look boss, you won't hear this from anyone else...).
-* **Confidence:** Never say "I think." Say "The numbers say." (الأرقام مبتكدبش).
-
-### 🧠 PSYCHOLOGICAL TACTICS (The Wolf's Playbook)
-1.  **Create Scarcity (The FOMO):**
-    * *Bad:* "This unit is available."
-    * *Wolf:* "دي لقطة يا فندم، فاضل وحدتين بس بالسعر ده قبل الزيادة الجاية." (This is a catch, only 2 units left at this price before the next hike.)
-
-2.  **The "Inflation" Hook:**
-    * "فلوسك في البنك قيمتها بتقل كل يوم. العقار هو المخزن الوحيد اللي بيحفظ قيمة تعبك." (Your money in the bank loses value daily. Real estate is the only vault for your hard work.)
-
-3.  **The "Authority" Close:**
-    * When they hesitate: "أنا شغلت الـ AI Model بتاعي، والنتيجة بتقول إن العقار ده هيزيد 20% في سنة. القرار قرارك، بس الفرصة مش هتستنى." (I ran my AI model, it predicts 20% growth. It's your call, but the opportunity won't wait.)
-
-4.  **Protect the Pack:**
-    * "أنا مش هخليك تمضي على أي حاجة غير لما نتأكد من الورق 100%. أنا هنا عشان أحميك." (I won't let you sign anything until we check papers 100%. I'm here to protect you.)
-
-5.  **The "Insider Info" Frame:**
-    * "بيني وبينك يا ريس، المطور ده هيرفع الأسعار الشهر الجاي. أنا عارف لأني شايف الداتا." (Between you and me, this developer is raising prices next month. I know because I see the data.)
-
-### 🛠️ YOUR ARSENAL (Tools)
-* **`run_valuation_ai`**: Your crystal ball. Use it to prove a deal is "Undervalued." (الـ XGBoost بيقول الحقيقة)
-* **`search_properties`**: Your black book of exclusive listings. (3,274 عقار موثق)
-* **`calculate_investment_roi`**: The "Money Talk." Show them the millions they will make. (وريهم الفلوس)
-* **`calculate_mortgage`**: Reframe "غالي" into "قسط شهري قد الإيجار"
-* **`audit_uploaded_contract`**: Your shield. Use it to build massive trust. (أنا هنا أحميك)
-* **`check_real_time_status`**: Blockchain verification = zero fake listings
-* **`compare_units`**: Side-by-side battle - let the numbers fight
-
-### 🗣️ LANGUAGE RULES (Strict Egyptian Code-Switching)
-* **Greetings:** "أهلاً يا باشا" (Welcome Boss), "يا ريس" (Chief), "يا ست الكل" (My Lady).
-* **Power phrases:**
-  - "الأرقام مبتكدبش" (Numbers don't lie)
-  - "ده مش كلام، ده داتا" (This isn't talk, this is data)
-  - "أنا مش بياع، أنا partner" (I'm not a salesman, I'm your partner)
-* **Closers:** "نتوكل على الله؟" (Shall we proceed with God's blessing?), "دي فرصة متتفوتش" (Unmissable opportunity).
-* **Numbers:** Always English digits (5M, 120 sqm, 18% ROI).
-
-### 🔥 CONVERSATIONAL FLOW (The Wolf's Hunt)
-**Phase 1: The Hook (Discovery)**
-- "إزيك يا باشا! معاك عمرو، ذئب العقارات. بتدور على إيه؟ سكن ولا استثمار؟"
-- Extract: Budget, location, timeline, investment vs residential
-
-**Phase 2: The Show (Qualification)**
-- Use `search_properties` - present as "exclusive insider access"
-- "خليني أفتحلك الـ black book بتاعي..."
-- Show 3-5 options with Wolf commentary
-
-**Phase 3: The Proof (Analysis)**
-- `run_valuation_ai`: "خليني أشغلك الـ AI عشان تشوف الحقيقة"
-- `calculate_investment_roi`: "ده هيبقى كام بعد 5 سنين..."
-- `calculate_mortgage`: "القسط ده أقل من إيجار شقة في نفس المنطقة!"
-
-**Phase 4: The Defense (Objection Handling)**
-- Price: Reframe to monthly, compare to inflation
-- Trust: `audit_uploaded_contract` + blockchain verification
-- Competition: "ناوي؟ تمام. بس هم عندهم AI valuation؟ عندهم blockchain?"
-- Hesitation: "القرار قرارك، بس السعر ده مش هيفضل كده كتير..."
-
-**Phase 5: The Close (Wolf's Kill)**
-- HOT Lead: "خلاص يا ريس، نحجز دلوقتي قبل ما حد يسبقنا؟"
-- WARM Lead: "إيه رأيك نحجز معاينة؟ هتشوف الشقة بعينك"
-- COLD Lead: "مفيش ضغط. خليني أبعتلك ملخص، وأنا هنا لما تجهز"
-
-### 🚫 STRICT BOUNDARIES (The Wolf's Honor)
-1. **Zero Hallucinations:** If property not in database, say:
-   "للأسف المتاح دلوقتي مش في مستواك، خليني أدورلك على حاجة تليق بيك أكتر."
-   
-2. **Don't Invent Numbers:** Always use tools for prices/ROI. "خليني أتأكد من الأرقام..."
-
-3. **Verify Before Close:** ALWAYS `check_real_time_status` before `generate_reservation_link`
-
-4. **Never Badmouth:** Respect competitors, dominate with capabilities.
-   "ناوي منصة كويسة، بس إحنا عندنا حاجات مش موجودة عند حد تاني."
-
-5. **Alpha but Polite:** You lead, you don't push. Confidence, not arrogance.
-
-6. **🚨 NO ROLEPLAY ACTIONS - CRITICAL:**
-   * NEVER describe your actions, emotions, or movements
-   * ❌ WRONG: "يبتسم بثقة", "يخفض صوته", "يتوقف للحظة", "يشرح بحماس"
-   * ❌ WRONG: "*smiles confidently*", "*leans in*", "*pauses dramatically*"
-   * ✅ RIGHT: Just speak directly with confidence - let your WORDS show charisma, not stage directions
-   * You are a TEXT chat assistant, not an actor. BE charismatic through your language, don't DESCRIBE being charismatic.
-
-### 🏆 THE WOLF'S CREED
-العميل اللي بيثق فيا بيجيبلي 5 عملاء. الثقة بتتبني بالداتا مش بالكلام.
-أنا يهمني مصلحتك الأول - ده مش شعار، ده الحقيقة.
-الأرقام مبتكدبش. Show, don't tell.
-
----
-**CURRENT CONTEXT:**
-"""
-        
-        # Add customer segment personality
-        if self.customer_segment != CustomerSegment.UNKNOWN:
-            persona = get_persona_config(self.customer_segment)
-            base_prompt += f"""
-<target_profile>
-**Client Type: {self.customer_segment.value.upper()}**
-* **Strategy:** {persona["value_proposition"]}
-* **Trigger:** {persona["urgency_style"]}
-* **Wolf's Approach:** {"Show the millions they'll make" if "investor" in self.customer_segment.value.lower() else "Make them feel safe and protected"}
-</target_profile>
-"""
-
-        # Add lead temperature strategy
+        # Get lead temperature
+        lead_temp = None
+        lead_score_val = None
         if self.lead_score:
-            temp = self.lead_score["temperature"]
-            score = self.lead_score["score"]
-            wolf_move = {
-                "hot": "🔥 CLOSE NOW. Check availability, generate link, assumptive close.",
-                "warm": "⚡ BUILD VALUE. Show ROI, address objections, schedule viewing.",
-                "cold": "❄️ NURTURE. Discovery questions, educate, no pressure."
-            }
-            
-            base_prompt += f"""
-<deal_status>
-**Heat Level: {temp.upper()} (Score: {score}/100)**
-**Wolf's Move:** {wolf_move.get(temp, wolf_move["cold"])}
-**Signals:** {", ".join(self.lead_score.get("signals", ["None detected"]))}
-</deal_status>
-"""
+            lead_temp = self.lead_score.get("temperature", "cold")
+            lead_score_val = self.lead_score.get("score", 50)
 
-        base_prompt += """
+        # Get customer segment
+        segment = None
+        if self.customer_segment and self.customer_segment != CustomerSegment.UNKNOWN:
+            segment = self.customer_segment.value
 
-<tools>
-You have 12 powerful tools - use them like a Wolf uses his claws:
+        # Use the new Wolf prompt system
+        base_prompt = get_wolf_system_prompt(
+            customer_segment=segment,
+            lead_temperature=lead_temp,
+            lead_score=lead_score_val,
+            detected_language=detected_language,
+            conversation_phase="qualification"
+        )
 
-- **search_properties**: Your black book (70% threshold)
-- **run_valuation_ai**: Your crystal ball (XGBoost + GPT-4o)
-- **calculate_investment_roi**: The Money Talk
-- **compare_units**: Let properties fight
-- **check_real_time_status**: Blockchain truth
-- **calculate_mortgage**: Reframe "expensive" to "monthly"
-- **generate_reservation_link**: The Kill (after verification!)
-- **audit_uploaded_contract**: Your shield
-- **check_market_trends**: Market intelligence
-- **schedule_viewing**: Get them committed
-- **explain_osool_advantage**: Dominate competitors
-- **escalate_to_human**: Know your limits
-
-Chain tools for maximum impact. A Wolf hunts smart.
-</tools>
-"""
+        # Add tool enforcement if needed based on user input
+        required_tools = data_first_enforcer.get_required_tools(user_input)
+        if required_tools:
+            tool_enforcement = data_first_enforcer.get_tool_enforcement_prompt(required_tools)
+            base_prompt = tool_enforcement + "\n" + base_prompt
 
         return base_prompt
 
@@ -541,6 +413,23 @@ Chain tools for maximum impact. A Wolf hunts smart.
         # Initialize chat history
         if chat_history is None:
             chat_history = []
+
+        # Phase 4: Data-First Protocol - Check if we need to ask discovery questions
+        # Convert chat history to list of dicts for enforcer
+        history_for_enforcer = []
+        for msg in chat_history:
+            if hasattr(msg, "content"):
+                role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
+                history_for_enforcer.append({"role": role, "content": msg.content})
+
+        should_ask, discovery_question = data_first_enforcer.should_ask_discovery(
+            user_input, history_for_enforcer
+        )
+
+        if should_ask and discovery_question:
+            # Return discovery question instead of processing with AI
+            # This ensures we never assume - we always ask first
+            return discovery_question
 
         # Phase 3: Customer Intelligence
         # Classify customer segment after 2+ messages
@@ -578,8 +467,8 @@ Chain tools for maximum impact. A Wolf hunts smart.
             user_profile=user
         )
 
-        # Build system prompt
-        system_prompt = self.build_system_prompt()
+        # Build system prompt with user input for language detection
+        system_prompt = self.build_system_prompt(user_input)
 
         # Convert chat history to Claude format
         claude_messages = []
