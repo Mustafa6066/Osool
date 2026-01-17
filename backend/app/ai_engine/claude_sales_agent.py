@@ -15,6 +15,7 @@ Key Features:
 """
 
 import json
+import os
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from anthropic import AsyncAnthropic
