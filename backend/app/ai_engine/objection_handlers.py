@@ -31,7 +31,10 @@ OBJECTION_LIBRARY: Dict[ObjectionType, Dict] = {
         "detection_keywords": [
             "expensive", "too much", "can't afford", "overpriced",
             "too high", "beyond my budget", "out of range",
-            "cheaper", "lower price", "discount", "negotiate"
+            "cheaper", "lower price", "discount", "negotiate",
+            # Egyptian Arabic price objection keywords
+            "غالي", "غالية", "أوي", "مش قادر", "فوق ميزانيتي",
+            "أرخص", "خصم", "فاصل", "كتير"
         ],
         "responses": {
             CustomerSegment.FIRST_TIME_BUYER: """I understand budget concerns are real. Let's look at this differently:
@@ -70,7 +73,9 @@ Would you like me to prepare a detailed investment analysis?"""
     ObjectionType.COMPETITOR_BETTER: {
         "detection_keywords": [
             "nawy", "aqarmap", "property finder", "other platform",
-            "competitor", "better deal", "saw cheaper", "amazon has"
+            "competitor", "better deal", "saw cheaper", "amazon has",
+            # Egyptian Arabic competitor keywords  
+            "ناوي", "عقار ماب", "منصة تانية", "لقيت أرخص"
         ],
         "responses": {
             CustomerSegment.FIRST_TIME_BUYER: """Great that you're comparing! That shows you're thinking carefully.
@@ -116,7 +121,10 @@ We focus on quality over volume. Which property are you comparing?"""
         "detection_keywords": [
             "think about it", "later", "not ready", "need to discuss",
             "too soon", "rushing", "more time", "sleep on it",
-            "premature", "hasty decision"
+            "premature", "hasty decision",
+            # Egyptian Arabic time objection keywords
+            "محتاج أفكر", "بكرة", "مش جاهز", "خد وقتي", "بعدين",
+            "مستعجل", "مش مستعجل"
         ],
         "responses": {
             CustomerSegment.FIRST_TIME_BUYER: """Of course! Buying property is a big decision - you should take your time.
@@ -157,7 +165,10 @@ I'll reserve this unit's details in your profile for when you're ready."""
         "detection_keywords": [
             "wife", "husband", "spouse", "family", "partner",
             "need approval", "discuss with", "consult", "parents",
-            "ask my", "check with"
+            "ask my", "check with",
+            # Egyptian Arabic family approval keywords
+            "المدام", "مراتي", "جوزي", "العيلة", "أهلي",
+            "أبويا", "أمي", "أستشير", "أتكلم مع"
         ],
         "responses": {
             "all_segments": """That's wonderful - including your family in this decision is smart!
@@ -201,7 +212,10 @@ Many of our clients had similar concerns initially, but the compound's amenities
         "detection_keywords": [
             "trust", "reliable", "developer reputation", "scam",
             "fraud", "safe", "legitimate", "track record",
-            "delivered before", "delays"
+            "delivered before", "delays",
+            # Egyptian Arabic trust keywords
+            "أمين", "موثوق", "نصب", "احتيال", "مطور أمين",
+            "سلم مشاريعه", "تأخر", "خايف", "مخاطر"
         ],
         "responses": {
             "all_segments": """Trust is EVERYTHING in real estate. Here's why this developer is verified:
@@ -253,7 +267,10 @@ Would you like me to show you different scenarios? We can find something that fi
     ObjectionType.MARKET_TIMING: {
         "detection_keywords": [
             "market crash", "prices falling", "wait", "bad timing",
-            "recession", "economic", "devaluation", "pound"
+            "recession", "economic", "devaluation", "pound",
+            # Egyptian Arabic market timing keywords
+            "السوق هيقع", "الأسعار هتنزل", "مستني", "الجنيه",
+            "التضخم", "الاقتصاد", "الوضع سيء"
         ],
         "responses": {
             CustomerSegment.SAVVY_INVESTOR: """Smart to consider market timing. Here's the data:
