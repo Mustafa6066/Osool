@@ -188,9 +188,14 @@ async def search_properties(
         if not properties and len(query_text.split()) > 1:
             logger.info(f"🔍 Text Search Attempt 2: Split keywords")
             keywords = query_text.split()
-            # Filter out common stop words
-            stop_words = {'in', 'at', 'the', 'a', 'an', 'for', 'of', 'with'}
-            keywords = [k for k in keywords if k.lower() not in stop_words and len(k) > 2]
+            # Filter out common stop words (English + Arabic)
+            stop_words = {
+                # English
+                'in', 'at', 'the', 'a', 'an', 'for', 'of', 'with', 'under', 'above', 'below',
+                # Arabic
+                'في', 'من', 'إلى', 'على', 'عن', 'مع', 'تحت', 'فوق', 'عند', 'إن', 'أن', 'ال', 'و', 'أو'
+            }
+            keywords = [k for k in keywords if k.lower() not in stop_words and len(k) > 1]
             
             if keywords:
                 # Construct OR conditions for each keyword
