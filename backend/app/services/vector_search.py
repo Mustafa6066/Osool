@@ -93,26 +93,34 @@ async def search_properties(
                 if embedding:
                     logger.info(f"🔎 PostgreSQL Vector Search (threshold: {similarity_threshold}): '{query_text}'")
 
-                    # Calculate cosine similarity (1 - cosine_distance)
-                    similarity_expr = 1 - Property.embedding.cosine_distance(embedding)
-
-                    # CRITICAL: Filter by threshold AND order by similarity
-                    stmt = (
-                        select(Property, similarity_expr.label('similarity'))
-                        .filter(
-                            Property.is_available == True,
-                            similarity_expr >= similarity_threshold
+                    # Helper function to execute search with specific threshold
+                    async def _execute_vector_search(current_threshold):
+                        similarity_expr = 1 - Property.embedding.cosine_distance(embedding)
+                        stmt = (
+                            select(Property, similarity_expr.label('similarity'))
+                            .filter(
+                                Property.is_available == True,
+                                similarity_expr >= current_threshold
+                            )
+                            .order_by(similarity_expr.desc())
+                            .limit(limit)
                         )
-                        .order_by(similarity_expr.desc())
-                        .limit(limit)
-                    )
+                        result = await db.execute(stmt)
+                        return result.all()
 
-                    result = await db.execute(stmt)
-                    rows = result.all()
+                    # Try High Precision First (The "Perfect Match")
+                    rows = await _execute_vector_search(similarity_threshold)
+
+                    if not rows and similarity_threshold > 0.5:
+                        logger.warning(
+                            f"⚠️ No exact matches for '{query_text}' at {similarity_threshold}. Widening search radius to 0.50..."
+                        )
+                        # Fallback: Widen the net (The "Opportunity")
+                        rows = await _execute_vector_search(0.50)
 
                     if not rows:
                         logger.warning(
-                            f"⚠️ No properties meet {int(similarity_threshold*100)}% similarity threshold. Returning empty."
+                            f"⚠️ No properties meet 50% similarity threshold. Returning empty."
                         )
                         return []
 
@@ -147,7 +155,7 @@ async def search_properties(
                         }
                         properties.append(prop_dict)
 
-                    logger.info(f"Found {len(properties)} properties with similarity >= {similarity_threshold}")
+                    logger.info(f"Found {len(properties)} properties (best score: {properties[0]['_similarity_score']:.2f})")
                     return properties
 
             except Exception as vector_error:
