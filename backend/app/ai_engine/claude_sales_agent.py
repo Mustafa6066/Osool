@@ -15,11 +15,14 @@ Key Features:
 """
 
 import json
+import logging
 import os
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from anthropic import AsyncAnthropic
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 # Phase 3: AI Personality Enhancement imports
 from .customer_profiles import (
