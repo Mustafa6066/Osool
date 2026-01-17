@@ -405,17 +405,43 @@ class ClaudeSalesAgent:
             user: User object if authenticated
 
         Returns:
-            AI response text
+            AI response text (for backward compatibility)
         """
-        
+        result = await self.chat_with_context(user_input, session_id, chat_history, user)
+
+        # For backward compatibility, return just the text response
+        if isinstance(result, dict):
+            return result.get("response", "")
+        return result
+
+    async def chat_with_context(
+        self,
+        user_input: str,
+        session_id: str = "default",
+        chat_history: list = None,
+        user: Optional[dict] = None
+    ) -> dict:
+        """
+        Chat method that returns full context including UI actions and psychology.
+
+        Args:
+            user_input: User's message
+            session_id: Session identifier
+            chat_history: Previous conversation messages
+            user: User object if authenticated
+
+        Returns:
+            Dict with 'response', 'properties', 'ui_actions', 'psychology', 'agentic_action'
+        """
+
         # Feature flag for safe rollback
         REASONING_LOOP_ENABLED = os.getenv("ENABLE_REASONING_LOOP", "true").lower() == "true"
-        
+
         try:
             if REASONING_LOOP_ENABLED:
-                # NEW ARCHITECTURE: Reasoning Loop (Hunt → Analyze → Speak)
+                # NEW ARCHITECTURE: Reasoning Loop V4 (Hunt → Analyze → Psychology → Speak → UI)
                 from app.ai_engine.hybrid_brain import hybrid_brain
-                
+
                 # Convert chat history to simple dict format
                 history_for_loop = []
                 if chat_history:
@@ -425,25 +451,44 @@ class ClaudeSalesAgent:
                             history_for_loop.append({"role": role, "content": msg.content})
                         elif isinstance(msg, dict):
                             history_for_loop.append(msg)
-                
-                # Delegate to reasoning loop
-                response = await hybrid_brain.process_turn(
+
+                # Delegate to reasoning loop - now returns full dict
+                result = await hybrid_brain.process_turn(
                     query=user_input,
                     history=history_for_loop,
                     profile=user
                 )
-                
-                return response
-                
+
+                # Store properties for get_last_search_results
+                if result.get("properties"):
+                    self._last_search_results = result["properties"]
+                    await self._cache_search_results(session_id, result["properties"])
+
+                return result
+
             else:
                 # OLD ARCHITECTURE: Direct Claude (fallback)
-                return await self._legacy_claude_chat(user_input, session_id, chat_history, user)
-                
+                response_text = await self._legacy_claude_chat(user_input, session_id, chat_history, user)
+                return {
+                    "response": response_text,
+                    "properties": [],
+                    "ui_actions": [],
+                    "psychology": None,
+                    "agentic_action": None
+                }
+
         except Exception as e:
             logger.error(f"❌ Reasoning loop failed: {e}", exc_info=True)
             # Auto-fallback to legacy system
             logger.warning("⚠️ Falling back to legacy Claude chat")
-            return await self._legacy_claude_chat(user_input, session_id, chat_history, user)
+            response_text = await self._legacy_claude_chat(user_input, session_id, chat_history, user)
+            return {
+                "response": response_text,
+                "properties": [],
+                "ui_actions": [],
+                "psychology": None,
+                "agentic_action": None
+            }
     
     async def _legacy_claude_chat(
         self,

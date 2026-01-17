@@ -1,29 +1,84 @@
 """
-Osool Hybrid Intelligence Engine - V3 Reasoning Loop
-----------------------------------------------------
-The "Brain" of the Wolf - Now with Structured Thinking.
+Osool Hybrid Intelligence Engine - V4 "Wolf Brain"
+---------------------------------------------------
+The "Brain" of the Wolf - Now with Psychology Layer & UI Triggers.
 
 Architecture:
 1. PERCEPTION (GPT-4o): Extract intent & filters from natural language
-2. HUNT (Database): Search for real properties
-3. ANALYZE (XGBoost): Score deals, find "La2ta" (the catch)
-4. STRATEGY (Psychology): Determine pitch angle (investor vs family)
-5. SPEAK (Claude): Generate narrative using ONLY verified data
+2. PSYCHOLOGY (Pattern Matching): Detect emotional state (FOMO, Risk-Averse, Greed)
+3. PIVOT CHECK: Detect impossible requests and redirect
+4. HUNT (Database): Search for real properties
+5. ANALYZE (XGBoost): Score deals, find "La2ta" (the catch)
+6. STRATEGY (Psychology-Aware): Determine pitch angle based on emotional state
+7. SPEAK (Claude): Generate narrative using ONLY verified data
+8. UI_TRIGGERS: Determine which visualizations to render in frontend
 """
 
 import json
 import logging
 import os
 from typing import List, Dict, Any, Optional
-from openai import OpenAI, AsyncOpenAI
+from enum import Enum
+from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
 
-from app.ai_engine.amr_master_prompt import AMR_SYSTEM_PROMPT, WOLF_TACTICS
+from app.ai_engine.amr_master_prompt import AMR_SYSTEM_PROMPT
 from app.ai_engine.xgboost_predictor import xgboost_predictor
+from app.ai_engine.psychology_layer import (
+    analyze_psychology,
+    get_psychology_context_for_prompt,
+    PsychologyProfile,
+    PsychologicalState
+)
 from app.services.vector_search import search_properties as db_search_properties
 from app.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
+
+
+class UIActionType(Enum):
+    """Types of UI visualizations that can be triggered."""
+    INFLATION_KILLER = "inflation_killer"
+    INVESTMENT_SCORECARD = "investment_scorecard"
+    COMPARISON_MATRIX = "comparison_matrix"
+    PAYMENT_TIMELINE = "payment_timeline"
+    MARKET_TREND_CHART = "market_trend_chart"
+    LA2TA_ALERT = "la2ta_alert"
+    LAW_114_GUARDIAN = "law_114_guardian"
+    REALITY_CHECK = "reality_check"
+
+
+# Impossible request patterns for agentic pivots
+IMPOSSIBLE_COMBINATIONS = [
+    {
+        "description": "Luxury area + Very low budget for villa",
+        "conditions": {
+            "locations": ["Sheikh Zayed", "New Cairo", "New Capital", "زايد", "التجمع", "العاصمة"],
+            "budget_max": 2_000_000,
+            "property_types": ["villa", "فيلا", "penthouse", "بنتهاوس", "توين هاوس", "twin house"]
+        },
+        "reality_message_ar": "يا باشا، صراحة فيلا في المنطقة دي تحت 2 مليون مش موجودة في السوق دلوقتي. بس خليني أقولك البدائل الذكية...",
+        "reality_message_en": "Boss, a villa in this area under 2M doesn't exist in today's market. But let me show you smart alternatives...",
+        "alternatives": [
+            {"label_ar": "نفس الميزانية في أكتوبر", "label_en": "Same budget in 6th October", "action": "search_october"},
+            {"label_ar": "شقة بجاردن في نفس المنطقة", "label_en": "Garden apartment in same area", "action": "search_garden_apt"},
+            {"label_ar": "زيادة الميزانية لـ 3.5 مليون", "label_en": "Increase budget to 3.5M", "action": "increase_budget"}
+        ]
+    },
+    {
+        "description": "Ultra-luxury expectations with modest budget",
+        "conditions": {
+            "locations": ["Beverly Hills", "بيفرلي هيلز", "Lake View", "ليك فيو", "Hyde Park", "هايد بارك"],
+            "budget_max": 3_000_000
+        },
+        "reality_message_ar": "الكمباوندات دي من أغلى الكمباوندات في مصر يا باشا. الميزانية دي محتاج أشوفلك فيها بدائل تانية...",
+        "reality_message_en": "These are among Egypt's most premium compounds. With this budget, let me find you better alternatives...",
+        "alternatives": [
+            {"label_ar": "كمباوندات قريبة بأسعار أقل", "label_en": "Similar nearby compounds at lower prices", "action": "search_nearby"},
+            {"label_ar": "وحدات إعادة بيع", "label_en": "Resale units (better prices)", "action": "search_resale"}
+        ]
+    }
+]
 
 
 class OsoolHybridBrain:
@@ -41,57 +96,266 @@ class OsoolHybridBrain:
         self.enabled = os.getenv("ENABLE_REASONING_LOOP", "true").lower() == "true"
         
     async def process_turn(
-        self, 
-        query: str, 
-        history: List[Dict], 
+        self,
+        query: str,
+        history: List[Dict],
         profile: Optional[Dict] = None
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
-        The Main Thinking Loop.
-        
+        The Main Thinking Loop - V4 with Psychology & UI Actions.
+
         Args:
             query: User's natural language query
             history: Conversation history as list of dicts with 'role' and 'content'
             profile: User profile dict (optional)
-            
+
         Returns:
-            AI response text
+            Dict with 'response', 'properties', 'ui_actions', 'psychology'
         """
         try:
-            logger.info(f"🧠 Reasoning Loop: Processing query: {query[:100]}...")
-            
+            logger.info(f"🧠 Wolf Brain V4: Processing query: {query[:100]}...")
+
             # 1. PERCEPTION: Analyze Intent & Extract Filters (GPT-4o)
             intent = await self._analyze_intent(query, history)
             logger.info(f"📊 Intent extracted: {intent}")
-            
-            # 2. HUNT: Data Retrieval (PostgreSQL + Vector Search)
+
+            # 2. PSYCHOLOGY: Detect emotional state
+            psychology = analyze_psychology(query, history, intent)
+            logger.info(f"🧠 Psychology: {psychology.primary_state.value}, Urgency: {psychology.urgency_level.value}")
+
+            # 3. PIVOT CHECK: Detect impossible requests
+            reality_check = self._detect_impossible_request(intent, query)
+            if reality_check:
+                logger.info(f"🚨 REALITY_CHECK_PIVOT: {reality_check['detected']}")
+                # Return pivot response with alternatives
+                return {
+                    "response": reality_check['message_ar'],
+                    "properties": [],
+                    "ui_actions": [{
+                        "type": UIActionType.REALITY_CHECK.value,
+                        "priority": 10,
+                        "data": reality_check
+                    }],
+                    "psychology": psychology.to_dict(),
+                    "agentic_action": "REALITY_CHECK_PIVOT"
+                }
+
+            # 4. HUNT: Data Retrieval (PostgreSQL + Vector Search)
             market_data = []
             if intent.get('action') == 'search':
                 market_data = await self._search_database(intent.get('filters', {}))
                 logger.info(f"🔍 Found {len(market_data)} properties")
-            
-            # 3. ANALYZE: Deal Scoring (XGBoost)
+
+            # 5. ANALYZE: Deal Scoring (XGBoost)
             scored_data = self._apply_wolf_analytics(market_data, intent)
             logger.info(f"📈 Scored and ranked {len(scored_data)} properties")
-            
-            # 4. STRATEGY: Determine Pitch Angle (Psychology)
-            strategy = self._determine_strategy(profile, scored_data, intent)
+
+            # 6. STRATEGY: Determine Pitch Angle (Psychology-Aware)
+            strategy = self._determine_strategy(profile, scored_data, intent, psychology)
             logger.info(f"🎯 Strategy: {strategy}")
-            
-            # 5. SPEAK: Generate Response (Claude 3.5 Sonnet)
+
+            # 7. SPEAK: Generate Response (Claude 3.5 Sonnet)
             response = await self._generate_wolf_narrative(
-                query, 
-                scored_data, 
-                history, 
-                strategy
+                query,
+                scored_data,
+                history,
+                strategy,
+                psychology
             )
-            
-            logger.info(f"✅ Reasoning loop complete")
-            return response
-            
+
+            # 8. UI_TRIGGERS: Determine which visualizations to show
+            ui_actions = self._determine_ui_actions(psychology, scored_data, intent, query)
+            logger.info(f"🎨 UI Actions: {[a['type'] for a in ui_actions]}")
+
+            logger.info(f"✅ Wolf Brain V4 complete")
+            return {
+                "response": response,
+                "properties": scored_data,
+                "ui_actions": ui_actions,
+                "psychology": psychology.to_dict(),
+                "agentic_action": None
+            }
+
         except Exception as e:
-            logger.error(f"❌ Reasoning loop failed: {e}", exc_info=True)
+            logger.error(f"❌ Wolf Brain failed: {e}", exc_info=True)
             raise  # Let caller handle fallback
+
+    def _detect_impossible_request(self, intent: Dict, query: str) -> Optional[Dict]:
+        """
+        Detect if user is asking for something that doesn't exist in the market.
+        Triggers REALITY_CHECK_PIVOT agentic action.
+
+        Returns:
+            Reality check data if impossible request detected, None otherwise
+        """
+        query_lower = query.lower()
+        filters = intent.get('filters', {})
+
+        for combo in IMPOSSIBLE_COMBINATIONS:
+            conditions = combo['conditions']
+
+            # Check location match
+            location_match = any(
+                loc.lower() in query_lower or loc.lower() in filters.get('location', '').lower()
+                for loc in conditions.get('locations', [])
+            )
+
+            # Check budget violation
+            budget_violation = False
+            if 'budget_max' in conditions and 'budget_max' in filters:
+                budget_violation = filters['budget_max'] <= conditions['budget_max']
+
+            # Check property type match
+            type_match = any(
+                ptype in query_lower
+                for ptype in conditions.get('property_types', [])
+            )
+
+            # Trigger if location + (budget violation OR property type mismatch)
+            if location_match and (budget_violation and type_match if 'property_types' in conditions else budget_violation):
+                return {
+                    "type": "reality_check",
+                    "detected": combo['description'],
+                    "message_ar": combo['reality_message_ar'],
+                    "message_en": combo['reality_message_en'],
+                    "alternatives": combo.get('alternatives', []),
+                    "pivot_action": "REALITY_CHECK_PIVOT"
+                }
+
+        return None
+
+    def _determine_ui_actions(
+        self,
+        psychology: PsychologyProfile,
+        properties: List[Dict],
+        intent: Dict,
+        query: str
+    ) -> List[Dict]:
+        """
+        Determine which UI visualizations to trigger based on context.
+
+        Returns:
+            List of ui_action dicts ready for frontend consumption
+        """
+        ui_actions = []
+        query_lower = query.lower()
+
+        # Rule 1: FOMO user + bargain property -> show La2ta Alert
+        if psychology.primary_state == PsychologicalState.FOMO:
+            bargains = [p for p in properties if p.get('valuation_verdict') == 'BARGAIN']
+            if bargains:
+                ui_actions.append({
+                    "type": UIActionType.LA2TA_ALERT.value,
+                    "priority": 10,
+                    "data": {
+                        "properties": bargains[:3],
+                        "message_ar": f"🐺 لقيتلك {len(bargains)} لقطة! ده تحت السوق",
+                        "message_en": f"Found {len(bargains)} bargain(s)! Below market price"
+                    }
+                })
+
+        # Rule 2: Greed-driven user OR investment keywords -> show Inflation Killer
+        investment_keywords = ['استثمار', 'عائد', 'roi', 'investment', 'profit', 'ربح', 'تضخم', 'inflation']
+        if (psychology.primary_state == PsychologicalState.GREED_DRIVEN or
+            any(kw in query_lower for kw in investment_keywords)):
+            if properties:
+                ui_actions.append({
+                    "type": UIActionType.INFLATION_KILLER.value,
+                    "priority": 9,
+                    "data": {
+                        "initial_investment": properties[0].get('price', 5_000_000),
+                        "years": 5
+                    }
+                })
+
+        # Rule 3: Risk-averse user OR contract/legal keywords -> show Law 114 Guardian
+        legal_keywords = ['عقد', 'contract', 'قانون', 'legal', 'ضمان', 'guarantee', 'أمان', 'safe']
+        if (psychology.primary_state == PsychologicalState.RISK_AVERSE or
+            any(kw in query_lower for kw in legal_keywords)):
+            ui_actions.append({
+                "type": UIActionType.LAW_114_GUARDIAN.value,
+                "priority": 8,
+                "data": {
+                    "status": "ready",
+                    "capabilities": [
+                        "كشف البنود المخفية (Red Flag Detection)",
+                        "التحقق من بنود العقد الناقصة",
+                        "مراجعة شروط المطور",
+                        "التوافق مع قانون 114"
+                    ],
+                    "cta": {
+                        "text_ar": "ارفع العقد وأنا أفحصه",
+                        "text_en": "Upload contract for AI scan"
+                    }
+                }
+            })
+
+        # Rule 4: Multiple properties -> show Comparison Matrix
+        if len(properties) > 1:
+            ui_actions.append({
+                "type": UIActionType.COMPARISON_MATRIX.value,
+                "priority": 7,
+                "data": {
+                    "properties": properties[:4],
+                    "best_value_id": self._find_best_value(properties),
+                    "recommended_id": properties[0].get('id') if properties else None
+                }
+            })
+
+        # Rule 5: Payment/installment keywords -> show Payment Timeline
+        payment_keywords = ['قسط', 'تقسيط', 'installment', 'payment', 'دفع', 'monthly', 'شهري']
+        if any(kw in query_lower for kw in payment_keywords) and properties:
+            ui_actions.append({
+                "type": UIActionType.PAYMENT_TIMELINE.value,
+                "priority": 6,
+                "data": {
+                    "property": properties[0],
+                    "payment": {
+                        "down_payment_percent": properties[0].get('down_payment', 10),
+                        "installment_years": properties[0].get('installment_years', 7),
+                        "price": properties[0].get('price', 0)
+                    }
+                }
+            })
+
+        # Rule 6: Single high-scoring property -> show Investment Scorecard
+        if properties and len(properties) == 1 and properties[0].get('wolf_score', 0) >= 70:
+            ui_actions.append({
+                "type": UIActionType.INVESTMENT_SCORECARD.value,
+                "priority": 5,
+                "data": {
+                    "property": properties[0],
+                    "analysis": {
+                        "match_score": properties[0].get('wolf_score', 75),
+                        "roi_projection": 6.5,
+                        "risk_level": "Medium" if properties[0].get('wolf_score', 0) < 85 else "Low",
+                        "market_trend": "Bullish",
+                        "price_verdict": properties[0].get('price_vs_market', 'Fair price')
+                    }
+                }
+            })
+
+        # Sort by priority (highest first) and return
+        return sorted(ui_actions, key=lambda x: x['priority'], reverse=True)
+
+    def _find_best_value(self, properties: List[Dict]) -> Optional[int]:
+        """Find property with best price per sqm."""
+        if not properties:
+            return None
+
+        best = None
+        best_ratio = float('inf')
+
+        for prop in properties:
+            price = prop.get('price', 0)
+            size = prop.get('size_sqm', 1)
+            if price > 0 and size > 0:
+                ratio = price / size
+                if ratio < best_ratio:
+                    best_ratio = ratio
+                    best = prop.get('id')
+
+        return best
 
     async def _analyze_intent(self, query: str, history: List) -> Dict:
         """
@@ -221,27 +485,52 @@ Examples:
             return properties[:3]  # Return top 3 without scoring
 
     def _determine_strategy(
-        self, 
-        profile: Optional[Dict], 
+        self,
+        profile: Optional[Dict],
         data: List[Dict],
-        intent: Dict
+        intent: Dict,
+        psychology: Optional[PsychologyProfile] = None
     ) -> str:
         """
-        STEP 4: STRATEGY (Psychology)
-        Decide: Are we selling Fear (Scarcity) or Greed (ROI)?
+        STEP 6: STRATEGY (Psychology-Aware)
+        Decide pitch angle based on emotional state and data.
         """
         # If no data, always pivot to discovery
         if not data:
             return "PIVOT_TO_DISCOVERY"
-        
-        # Check if user is investor-focused (based on profile or query)
+
+        # Use psychology if available
+        if psychology:
+            state = psychology.primary_state
+
+            # Map psychological states to strategies
+            if state == PsychologicalState.FOMO:
+                # Check for bargains to exploit FOMO
+                has_bargain = any(p.get('valuation_verdict') == 'BARGAIN' for p in data)
+                return "AGGRESSIVE_BARGAIN_PITCH" if has_bargain else "SCARCITY_PITCH"
+
+            elif state == PsychologicalState.GREED_DRIVEN:
+                return "ROI_FOCUSED_PITCH"
+
+            elif state == PsychologicalState.RISK_AVERSE:
+                return "TRUST_BUILDING_PITCH"
+
+            elif state == PsychologicalState.ANALYSIS_PARALYSIS:
+                return "SIMPLIFY_AND_RECOMMEND"
+
+            elif state == PsychologicalState.IMPULSE_BUYER:
+                return "FAST_CLOSE_PITCH"
+
+            elif state == PsychologicalState.TRUST_DEFICIT:
+                return "PROOF_AND_AUTHORITY_PITCH"
+
+        # Fallback to original logic
         is_investor = False
         if profile:
             is_investor = profile.get('investor_mode', False)
-        
-        # Check if any property is a "BARGAIN"
+
         has_bargain = any(p.get('valuation_verdict') == 'BARGAIN' for p in data)
-        
+
         if has_bargain:
             return "AGGRESSIVE_BARGAIN_PITCH"
         elif is_investor:
@@ -250,15 +539,17 @@ Examples:
             return "FAMILY_SAFETY_PITCH"
 
     async def _generate_wolf_narrative(
-        self, 
-        query: str, 
-        data: List[Dict], 
+        self,
+        query: str,
+        data: List[Dict],
         history: List[Dict],
-        strategy: str
+        strategy: str,
+        psychology: Optional[PsychologyProfile] = None
     ) -> str:
         """
-        STEP 5: SPEAK (Claude 3.5 Sonnet)
+        STEP 7: SPEAK (Claude 3.5 Sonnet)
         Generate the Wolf's response using ONLY verified data.
+        Now with psychology-aware context injection.
         """
         try:
             # Prepare database context
@@ -289,10 +580,25 @@ INSTRUCTION:
 
 STRATEGY: {strategy}
 """
-            
-            # Build Claude prompt
-            system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}"
-            
+
+            # Add psychology context if available
+            psychology_context = ""
+            if psychology:
+                psychology_context = get_psychology_context_for_prompt(psychology)
+
+                # Add visual integration hint if UI actions will be triggered
+                if psychology.primary_state in [PsychologicalState.GREED_DRIVEN, PsychologicalState.FOMO]:
+                    psychology_context += """
+[VISUAL_INTEGRATION]
+A chart or visualization is being shown to the user. Reference it in your response:
+- "بص على الشاشة دلوقتي..." (Look at the screen now...)
+- "الرسم البياني ده بيوضح..." (This chart shows...)
+- "زي ما واضح في الأرقام..." (As shown in the numbers...)
+"""
+
+            # Build Claude prompt with psychology
+            system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}" + psychology_context
+
             # Convert history to Claude format
             messages = []
             for msg in history[-10:]:  # Last 10 messages for context
@@ -301,14 +607,13 @@ STRATEGY: {strategy}
                 elif hasattr(msg, 'content'):
                     role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
                     messages.append({"role": role, "content": msg.content})
-            
+
             # Add current query
             messages.append({"role": "user", "content": query})
-            
+
             # Call Claude (use Haiku for speed/cost or Sonnet if env configured)
-            import os
             claude_model = os.getenv("CLAUDE_MODEL", "claude-3-haiku-20240307")
-            
+
             response = await self.anthropic_async.messages.create(
                 model=claude_model,
                 max_tokens=1000,
@@ -316,9 +621,9 @@ STRATEGY: {strategy}
                 system=system_prompt,
                 messages=messages
             )
-            
+
             return response.content[0].text
-            
+
         except Exception as e:
             logger.error(f"Narrative generation failed: {e}", exc_info=True)
             return "عذراً، حصل مشكلة فنية. جرب تاني يا باشا. (Sorry, technical issue. Try again, boss.)"
