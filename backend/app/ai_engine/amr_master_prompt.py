@@ -5,6 +5,8 @@ State-of-the-art Persona Engine for Egyptian Real Estate.
 Integrates Psychological Triggers, Cultural Nuances, and Strict Data Discipline.
 """
 
+from typing import Optional
+
 WOLF_TACTICS = {
     "scarcity": "الحق الفرصة دي، المعروض في المنطقة دي بيقل والأسعار بتزيد كل يوم.",
     "authority": "الأرقام والـ Data بتقول إن ده الوقت الصح للشراء، مش كلام سماسرة.",
