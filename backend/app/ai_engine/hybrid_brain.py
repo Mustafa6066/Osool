@@ -1,105 +1,328 @@
 """
-Osool Hybrid Intelligence Engine
---------------------------------
-The "Brain" of the Wolf.
-Combines:
-1. Retrieval (Vector Search with Dynamic Fallback)
-2. Analysis (XGBoost Deal Probability)
-3. Synthesis (Wolf Persona via GPT-4o)
+Osool Hybrid Intelligence Engine - V3 Reasoning Loop
+----------------------------------------------------
+The "Brain" of the Wolf - Now with Structured Thinking.
+
+Architecture:
+1. PERCEPTION (GPT-4o): Extract intent & filters from natural language
+2. HUNT (Database): Search for real properties
+3. ANALYZE (XGBoost): Score deals, find "La2ta" (the catch)
+4. STRATEGY (Psychology): Determine pitch angle (investor vs family)
+5. SPEAK (Claude): Generate narrative using ONLY verified data
 """
 
 import json
 import logging
-from typing import List, Dict, Any
+import os
+from typing import List, Dict, Any, Optional
+from openai import OpenAI, AsyncOpenAI
+from anthropic import AsyncAnthropic
+
 from app.ai_engine.amr_master_prompt import AMR_SYSTEM_PROMPT, WOLF_TACTICS
+from app.ai_engine.xgboost_predictor import xgboost_predictor
 from app.services.vector_search import search_properties as db_search_properties
-from app.ai_engine.xgboost_predictor import predict_deal_probability
 from app.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
-class VectorSearchService:
-    """Shim to adapt functional vector_search to class-based usage."""
-    async def search_properties(self, query: str, limit: int = 5) -> List[Dict]:
-        async with AsyncSessionLocal() as db:
-            # We use the updated search_properties with dynamic fallback
-            return await db_search_properties(db, query, limit=limit, similarity_threshold=0.7)
 
-class HybridBrain:
-    def __init__(self, llm_client=None):
-        # Allow passing distinct client or default to None (handled in generate methods)
-        self.llm = llm_client
-        self.vector_search = VectorSearchService()
+class OsoolHybridBrain:
+    """
+    The Reasoning Loop Orchestrator.
+    Forces: Hunt (Data) → Analyze (Math) → Speak (Charisma)
+    """
+    
+    def __init__(self):
+        """Initialize all AI components."""
+        self.openai_async = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.anthropic_async = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         
-        # Initialize OpenAI client if not provided
-        if not self.llm:
-            from openai import OpenAI
-            import os
-            self.llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    async def think_and_act(self, user_query: str, history: List[Dict]) -> str:
+        # Feature flag for rollback safety
+        self.enabled = os.getenv("ENABLE_REASONING_LOOP", "true").lower() == "true"
+        
+    async def process_turn(
+        self, 
+        query: str, 
+        history: List[Dict], 
+        profile: Optional[Dict] = None
+    ) -> str:
         """
-        The Core Logic Loop: Retrieve -> Analyze -> Synthesize.
+        The Main Thinking Loop.
+        
+        Args:
+            query: User's natural language query
+            history: Conversation history as list of dicts with 'role' and 'content'
+            profile: User profile dict (optional)
+            
+        Returns:
+            AI response text
         """
-        # 1. RETRIEVE (The Ammo)
-        # Dynamic threshold logic is handled inside search_properties
-        properties = await self.vector_search.search_properties(user_query)
-        
-        # 2. ANALYZE (The Math - XGBoost)
-        # We calculate a 'Deal Heat' score for the retrieved properties
-        market_context = []
-        for prop in properties:
-            # Predict likelihood of this property selling (0.0 to 1.0)
-            success_prob = await predict_deal_probability(prop) 
-            prop['ai_deal_score'] = f"{success_prob * 100:.1f}%"
-            market_context.append(prop)
+        try:
+            logger.info(f"🧠 Reasoning Loop: Processing query: {query[:100]}...")
+            
+            # 1. PERCEPTION: Analyze Intent & Extract Filters (GPT-4o)
+            intent = await self._analyze_intent(query, history)
+            logger.info(f"📊 Intent extracted: {intent}")
+            
+            # 2. HUNT: Data Retrieval (PostgreSQL + Vector Search)
+            market_data = []
+            if intent.get('action') == 'search':
+                market_data = await self._search_database(intent.get('filters', {}))
+                logger.info(f"🔍 Found {len(market_data)} properties")
+            
+            # 3. ANALYZE: Deal Scoring (XGBoost)
+            scored_data = self._apply_wolf_analytics(market_data, intent)
+            logger.info(f"📈 Scored and ranked {len(scored_data)} properties")
+            
+            # 4. STRATEGY: Determine Pitch Angle (Psychology)
+            strategy = self._determine_strategy(profile, scored_data, intent)
+            logger.info(f"🎯 Strategy: {strategy}")
+            
+            # 5. SPEAK: Generate Response (Claude 3.5 Sonnet)
+            response = await self._generate_wolf_narrative(
+                query, 
+                scored_data, 
+                history, 
+                strategy
+            )
+            
+            logger.info(f"✅ Reasoning loop complete")
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ Reasoning loop failed: {e}", exc_info=True)
+            raise  # Let caller handle fallback
 
-        # 3. SYNTHESIZE (The Wolf Persona)
-        # We don't just dump data. We frame it.
-        if not market_context:
-            # Handle the "Empty Handed" case with charisma, not stupidity
-            return await self._generate_pivot_response(user_query, history)
-
-        return await self._generate_wolf_response(user_query, market_context, history)
-
-    async def _generate_wolf_response(self, query, context, history):
-        # We feed the "Deal Score" into the prompt to give Amr confidence.
-        context_str = json.dumps(context, ensure_ascii=False, indent=2)
-        
-        system_instruction = f"""
-        {AMR_SYSTEM_PROMPT}
-        
-        [LIVE MARKET DATA - EYES ONLY]
-        {context_str}
-        
-        [TACTICAL DIRECTIVE]
-        1. Pick the property with the highest 'ai_deal_score'. This is your "Star".
-        2. Use the 'Scarcity' tactic: "{WOLF_TACTICS['scarcity']}"
-        3. Ignore the boring details. Sell the ROI (Return on Investment) and the Lifestyle.
-        4. Speak ONLY in Egyptian Arabic (Masri). Be high energy.
+    async def _analyze_intent(self, query: str, history: List) -> Dict:
         """
+        STEP 1: PERCEPTION (GPT-4o)
+        Extract structured filters from natural language.
+        """
+        try:
+            # Build a simple prompt for intent extraction
+            system_msg = """You are an intent extraction system for Egyptian real estate.
+Extract search filters from user queries and return JSON.
 
-        response = self.llm.chat.completions.create(
-            model="gpt-4o", 
-            messages=[
-                {"role": "system", "content": system_instruction},
-                *history,
-                {"role": "user", "content": query}
-            ],
-            temperature=0.7 # Higher temperature for charisma
-        )
-        return response.choices[0].message.content
+Output format:
+{
+  "action": "search" | "valuation" | "question",
+  "filters": {
+    "location": string (e.g., "New Cairo", "Sheikh Zayed"),
+    "budget_max": int (in EGP),
+    "bedrooms": int,
+    "property_type": string
+  }
+}
 
-    async def _generate_pivot_response(self, query, history):
-        """When we have no data, we don't say 'I don't know'. We pivot."""
-        return self.llm.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": AMR_SYSTEM_PROMPT + "\n\nCRITICAL: You found NO properties. Do not apologize. Instead, pivot to asking about their budget or preferred location to 'unlock' your private inventory."},
-                *history,
-                {"role": "user", "content": query}
-            ]
-        ).choices[0].message.content
+Examples:
+- "عايز شقة في التجمع تحت 2 مليون" → {"action": "search", "filters": {"location": "New Cairo", "budget_max": 2000000}}
+- "Apartment in Zayed, 3 bedrooms" → {"action": "search", "filters": {"location": "Sheikh Zayed", "bedrooms": 3}}
+"""
+            
+            completion = await self.openai_async.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": query}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.3
+            )
+            
+            intent = json.loads(completion.choices[0].message.content)
+            
+            # Ensure filters exist
+            if 'filters' not in intent:
+                intent['filters'] = {}
+                
+            return intent
+            
+        except Exception as e:
+            logger.error(f"Intent extraction failed: {e}")
+            # Fallback: assume it's a search
+            return {"action": "search", "filters": {}}
+
+    async def _search_database(self, filters: Dict) -> List[Dict]:
+        """
+        STEP 2: HUNT (Database Query)
+        Query actual PostgreSQL database for properties.
+        """
+        try:
+            async with AsyncSessionLocal() as db:
+                # Build query text from filters
+                query_parts = []
+                if 'location' in filters:
+                    query_parts.append(filters['location'])
+                if 'bedrooms' in filters:
+                    query_parts.append(f"{filters['bedrooms']} bedrooms")
+                if 'property_type' in filters:
+                    query_parts.append(filters['property_type'])
+                    
+                query_text = " ".join(query_parts) if query_parts else "property"
+                
+                # Call the vector search service
+                # Note: vector_search.search_properties signature is (db, query_text, limit, threshold)
+                results = await db_search_properties(
+                    db=db,
+                    query_text=query_text,
+                    limit=10,
+                    similarity_threshold=0.65  # Slightly lower for better recall
+                )
+                
+                # Filter by budget if specified
+                if 'budget_max' in filters and filters['budget_max']:
+                    results = [r for r in results if r.get('price', 0) <= filters['budget_max']]
+                
+                # Filter by bedrooms if specified
+                if 'bedrooms' in filters and filters['bedrooms']:
+                    results = [r for r in results if r.get('bedrooms', 0) >= filters['bedrooms']]
+                
+                return results[:5]  # Top 5 results
+                
+        except Exception as e:
+            logger.error(f"Database search failed: {e}", exc_info=True)
+            return []
+
+    def _apply_wolf_analytics(self, properties: List[Dict], intent: Dict) -> List[Dict]:
+        """
+        STEP 3: ANALYZE (XGBoost Scoring)
+        Find the "La2ta" (The Catch) - best deals.
+        """
+        if not properties:
+            return []
+            
+        try:
+            for prop in properties:
+                # Predict deal probability
+                deal_features = {
+                    "price": prop.get('price', 0),
+                    "location": prop.get('location', ''),
+                    "size_sqm": prop.get('size_sqm', 0)
+                }
+                
+                deal_score = xgboost_predictor.predict_deal_probability(deal_features)
+                
+                # Compare to market price
+                valuation = xgboost_predictor.compare_price_to_market(
+                    asking_price=prop.get('price', 0),
+                    features=deal_features
+                )
+                
+                # Add Wolf intelligence to each property
+                prop['wolf_score'] = int(deal_score * 100)  # Convert to 0-100
+                prop['valuation_verdict'] = valuation.get('verdict', 'FAIR')
+                prop['price_vs_market'] = valuation.get('comparison', 'Fair price')
+                
+            # Sort by Wolf Score (best deals first)
+            return sorted(properties, key=lambda x: x.get('wolf_score', 0), reverse=True)[:3]
+            
+        except Exception as e:
+            logger.error(f"Analytics failed: {e}")
+            return properties[:3]  # Return top 3 without scoring
+
+    def _determine_strategy(
+        self, 
+        profile: Optional[Dict], 
+        data: List[Dict],
+        intent: Dict
+    ) -> str:
+        """
+        STEP 4: STRATEGY (Psychology)
+        Decide: Are we selling Fear (Scarcity) or Greed (ROI)?
+        """
+        # If no data, always pivot to discovery
+        if not data:
+            return "PIVOT_TO_DISCOVERY"
+        
+        # Check if user is investor-focused (based on profile or query)
+        is_investor = False
+        if profile:
+            is_investor = profile.get('investor_mode', False)
+        
+        # Check if any property is a "BARGAIN"
+        has_bargain = any(p.get('valuation_verdict') == 'BARGAIN' for p in data)
+        
+        if has_bargain:
+            return "AGGRESSIVE_BARGAIN_PITCH"
+        elif is_investor:
+            return "ROI_FOCUSED_PITCH"
+        else:
+            return "FAMILY_SAFETY_PITCH"
+
+    async def _generate_wolf_narrative(
+        self, 
+        query: str, 
+        data: List[Dict], 
+        history: List[Dict],
+        strategy: str
+    ) -> str:
+        """
+        STEP 5: SPEAK (Claude 3.5 Sonnet)
+        Generate the Wolf's response using ONLY verified data.
+        """
+        try:
+            # Prepare database context
+            if not data and strategy == "PIVOT_TO_DISCOVERY":
+                context_str = """
+[DATABASE_CONTEXT]: EMPTY - No properties found matching criteria.
+
+INSTRUCTION: Since no properties were found, you MUST ask clarifying questions:
+- "ميزانيتك في حدود كام يا باشا؟" (What's your budget range, boss?)
+- "بتدور في أي منطقة؟" (Which area are you looking in?)
+- "سكن ولا استثمار؟" (Living or investment?)
+
+DO NOT invent any properties. Be charming and helpful while gathering info.
+"""
+            else:
+                # Format properties for Claude
+                props_formatted = json.dumps(data, indent=2, ensure_ascii=False)
+                context_str = f"""
+[DATABASE_CONTEXT]: {len(data)} VERIFIED PROPERTIES FROM DATABASE
+
+{props_formatted}
+
+INSTRUCTION:
+- Present the TOP property (first in the list) as the "La2ta" (the catch)
+- Mention its wolf_score: "الـ AI بتاعي قيمها بـ {data[0].get('wolf_score', 0)}/100"
+- Highlight the valuation_verdict: "{data[0].get('valuation_verdict', 'FAIR')}"
+- Use ONLY data from above. DO NOT invent compound names or prices.
+
+STRATEGY: {strategy}
+"""
+            
+            # Build Claude prompt
+            system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}"
+            
+            # Convert history to Claude format
+            messages = []
+            for msg in history[-10:]:  # Last 10 messages for context
+                if isinstance(msg, dict):
+                    messages.append(msg)
+                elif hasattr(msg, 'content'):
+                    role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
+                    messages.append({"role": role, "content": msg.content})
+            
+            # Add current query
+            messages.append({"role": "user", "content": query})
+            
+            # Call Claude
+            response = await self.anthropic_async.messages.create(
+                model="claude-3-5-sonnet-20240620",
+                max_tokens=1000,
+                temperature=0.7,
+                system=system_prompt,
+                messages=messages
+            )
+            
+            return response.content[0].text
+            
+        except Exception as e:
+            logger.error(f"Narrative generation failed: {e}", exc_info=True)
+            return "عذراً، حصل مشكلة فنية. جرب تاني يا باشا. (Sorry, technical issue. Try again, boss.)"
+
 
 # Singleton instance
-hybrid_brain = HybridBrain()
+hybrid_brain = OsoolHybridBrain()
+
+# Export
+__all__ = ["hybrid_brain", "OsoolHybridBrain"]

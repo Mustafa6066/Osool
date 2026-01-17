@@ -395,7 +395,7 @@ class ClaudeSalesAgent:
         user: Optional[dict] = None
     ) -> str:
         """
-        Main chat method with Claude integration.
+        Main chat method - Now with Reasoning Loop Architecture.
 
         Args:
             user_input: User's message
@@ -406,6 +406,52 @@ class ClaudeSalesAgent:
         Returns:
             AI response text
         """
+        
+        # Feature flag for safe rollback
+        REASONING_LOOP_ENABLED = os.getenv("ENABLE_REASONING_LOOP", "true").lower() == "true"
+        
+        try:
+            if REASONING_LOOP_ENABLED:
+                # NEW ARCHITECTURE: Reasoning Loop (Hunt → Analyze → Speak)
+                from app.ai_engine.hybrid_brain import hybrid_brain
+                
+                # Convert chat history to simple dict format
+                history_for_loop = []
+                if chat_history:
+                    for msg in chat_history:
+                        if hasattr(msg, "content"):
+                            role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
+                            history_for_loop.append({"role": role, "content": msg.content})
+                        elif isinstance(msg, dict):
+                            history_for_loop.append(msg)
+                
+                # Delegate to reasoning loop
+                response = await hybrid_brain.process_turn(
+                    query=user_input,
+                    history=history_for_loop,
+                    profile=user
+                )
+                
+                return response
+                
+            else:
+                # OLD ARCHITECTURE: Direct Claude (fallback)
+                return await self._legacy_claude_chat(user_input, session_id, chat_history, user)
+                
+        except Exception as e:
+            logger.error(f"❌ Reasoning loop failed: {e}", exc_info=True)
+            # Auto-fallback to legacy system
+            logger.warning("⚠️ Falling back to legacy Claude chat")
+            return await self._legacy_claude_chat(user_input, session_id, chat_history, user)
+    
+    async def _legacy_claude_chat(
+        self,
+        user_input: str,
+        session_id: str,
+        chat_history: list,
+        user: Optional[dict]
+    ) -> str:
+        """Legacy Claude-only chat method (pre-reasoning loop)."""
 
         # Initialize chat history
         if chat_history is None:
