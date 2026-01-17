@@ -67,7 +67,7 @@ async def search_properties(
     Phase 7 Production Enhancement:
     - Primary: pgvector cosine similarity search with 0.7 minimum threshold
     - ANTI-HALLUCINATION: Returns empty if no results meet threshold
-    - Fallback: Disabled in production to prevent false recommendations
+    - Fallback: Text search when pgvector is not available
 
     Args:
         db: Database session
@@ -79,15 +79,18 @@ async def search_properties(
         List of property dicts with similarity scores and _source metadata
     """
     try:
-        # Import pgvector availability flag
-        from app.models import PGVECTOR_AVAILABLE
+        # FORCE DISABLE vector search when pgvector extension is not on PostgreSQL
+        # The Python package being installed doesn't mean the DB has the extension
+        # Set ENABLE_VECTOR_SEARCH=1 in env when using pgvector-enabled PostgreSQL (Supabase, Neon)
+        import os
+        VECTOR_SEARCH_ENABLED = os.getenv("ENABLE_VECTOR_SEARCH", "0") == "1"
         
-        # Only try vector search if pgvector is available
-        if PGVECTOR_AVAILABLE:
-            embedding = await get_embedding(query_text)
-
-            if embedding:
-                try:
+        if VECTOR_SEARCH_ENABLED:
+            try:
+                # Try vector search first
+                embedding = await get_embedding(query_text)
+        
+                if embedding:
                     logger.info(f"🔎 PostgreSQL Vector Search (threshold: {similarity_threshold}): '{query_text}'")
 
                     # Calculate cosine similarity (1 - cosine_distance)
@@ -113,12 +116,7 @@ async def search_properties(
                         )
                         return []
 
-                except Exception as vector_error:
-                    # pgvector query failed (likely TEXT column instead of VECTOR)
-                    logger.warning(f"Vector search failed, falling back to text search: {vector_error}")
-                    # Fall through to text search below
-                else:
-                    # Vector search succeeded - return results
+                    # Convert to dicts with similarity scores
                     properties = []
                     for row in rows:
                         prop = row.Property
@@ -151,7 +149,12 @@ async def search_properties(
 
                     logger.info(f"Found {len(properties)} properties with similarity >= {similarity_threshold}")
                     return properties
-        
+
+            except Exception as vector_error:
+                # pgvector query failed (likely TEXT column instead of VECTOR or extension missing)
+                logger.warning(f"Vector search failed, falling back to text search: {vector_error}")
+                # Fall through to text search below
+
         # TEXT SEARCH FALLBACK (when pgvector not available or vector search failed)
         logger.info(f"🔍 Using text-based keyword search for: '{query_text}'")
         search_term = f"%{query_text}%"
