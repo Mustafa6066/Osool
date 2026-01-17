@@ -79,75 +79,81 @@ async def search_properties(
         List of property dicts with similarity scores and _source metadata
     """
     try:
-        # Try vector search first
-        embedding = await get_embedding(query_text)
+        # Import pgvector availability flag
+        from app.models import PGVECTOR_AVAILABLE
+        
+        # Only try vector search if pgvector is available
+        if PGVECTOR_AVAILABLE:
+            embedding = await get_embedding(query_text)
 
-        if embedding:
-            logger.info(f"Using pgvector semantic search (threshold: {similarity_threshold})")
+            if embedding:
+                try:
+                    logger.info(f"🔎 PostgreSQL Vector Search (threshold: {similarity_threshold}): '{query_text}'")
 
-            # Calculate cosine similarity (1 - cosine_distance)
-            # Similarity ranges from 0 (completely different) to 1 (identical)
-            similarity_expr = 1 - Property.embedding.cosine_distance(embedding)
+                    # Calculate cosine similarity (1 - cosine_distance)
+                    similarity_expr = 1 - Property.embedding.cosine_distance(embedding)
 
-            # CRITICAL: Filter by threshold AND order by similarity
-            stmt = (
-                select(Property, similarity_expr.label('similarity'))
-                .filter(
-                    Property.is_available == True,
-                    similarity_expr >= similarity_threshold  # STRICT THRESHOLD
-                )
-                .order_by(similarity_expr.desc())
-                .limit(limit)
-            )
+                    # CRITICAL: Filter by threshold AND order by similarity
+                    stmt = (
+                        select(Property, similarity_expr.label('similarity'))
+                        .filter(
+                            Property.is_available == True,
+                            similarity_expr >= similarity_threshold
+                        )
+                        .order_by(similarity_expr.desc())
+                        .limit(limit)
+                    )
 
-            result = await db.execute(stmt)
-            rows = result.all()
+                    result = await db.execute(stmt)
+                    rows = result.all()
 
-            if not rows:
-                logger.warning(
-                    f"No properties found above similarity threshold {similarity_threshold} "
-                    f"for query: '{query_text}'"
-                )
-                return []  # Return empty instead of hallucinating
+                    if not rows:
+                        logger.warning(
+                            f"⚠️ No properties meet {int(similarity_threshold*100)}% similarity threshold. Returning empty."
+                        )
+                        return []
 
-            # Convert to dicts with similarity scores
-            properties = []
-            for row in rows:
-                prop = row.Property
-                prop_dict = {
-                    "id": prop.id,
-                    "title": prop.title,
-                    "description": prop.description,
-                    "type": prop.type,
-                    "location": prop.location,
-                    "compound": prop.compound,
-                    "developer": prop.developer,
-                    "price": prop.price,
-                    "price_per_sqm": prop.price_per_sqm,
-                    "size_sqm": prop.size_sqm,
-                    "bedrooms": prop.bedrooms,
-                    "bathrooms": prop.bathrooms,
-                    "finishing": prop.finishing,
-                    "delivery_date": prop.delivery_date,
-                    "down_payment": prop.down_payment,
-                    "installment_years": prop.installment_years,
-                    "monthly_installment": prop.monthly_installment,
-                    "image_url": prop.image_url,
-                    "nawy_url": prop.nawy_url,
-                    "sale_type": prop.sale_type,
-                    "is_available": prop.is_available,
-                    "_source": "database",
-                    "_similarity_score": float(row.similarity)
-                }
-                properties.append(prop_dict)
+                except Exception as vector_error:
+                    # pgvector query failed (likely TEXT column instead of VECTOR)
+                    logger.warning(f"Vector search failed, falling back to text search: {vector_error}")
+                    # Fall through to text search below
+                else:
+                    # Vector search succeeded - return results
+                    properties = []
+                    for row in rows:
+                        prop = row.Property
+                        prop_dict = {
+                            "id": prop.id,
+                            "title": prop.title,
+                            "description": prop.description,
+                            "type": prop.type,
+                            "location": prop.location,
+                            "compound": prop.compound,
+                            "developer": prop.developer,
+                            "price": prop.price,
+                            "price_per_sqm": prop.price_per_sqm,
+                            "size_sqm": prop.size_sqm,
+                            "bedrooms": prop.bedrooms,
+                            "bathrooms": prop.bathrooms,
+                            "finishing": prop.finishing,
+                            "delivery_date": prop.delivery_date,
+                            "down_payment": prop.down_payment,
+                            "installment_years": prop.installment_years,
+                            "monthly_installment": prop.monthly_installment,
+                            "image_url": prop.image_url,
+                            "nawy_url": prop.nawy_url,
+                            "sale_type": prop.sale_type,
+                            "is_available": prop.is_available,
+                            "_source": "database",
+                            "_similarity_score": float(row.similarity)
+                        }
+                        properties.append(prop_dict)
 
-            logger.info(
-                f"Found {len(properties)} properties with similarity >= {similarity_threshold}"
-            )
-            return properties
-
-        # Fallback to keyword search (for environments without pgvector like Railway)
-        logger.warning("Using full-text search fallback (pgvector not available or embedding failed)")
+                    logger.info(f"Found {len(properties)} properties with similarity >= {similarity_threshold}")
+                    return properties
+        
+        # TEXT SEARCH FALLBACK (when pgvector not available or vector search failed)
+        logger.info(f"🔍 Using text-based keyword search for: '{query_text}'")
         search_term = f"%{query_text}%"
 
         stmt = select(Property).filter(
@@ -168,7 +174,7 @@ async def search_properties(
             logger.warning(f"No properties found for query: '{query_text}'")
             return []
 
-        # Convert to dicts without similarity scores
+        # Convert to dicts without similarity scores (text search fallback)
         return [
             {
                 "id": p.id,
@@ -192,7 +198,7 @@ async def search_properties(
                 "nawy_url": p.nawy_url,
                 "sale_type": p.sale_type,
                 "is_available": p.is_available,
-                "_source": "database_fallback",
+                "_source": "text_search_fallback",
                 "_similarity_score": None
             }
             for p in properties
