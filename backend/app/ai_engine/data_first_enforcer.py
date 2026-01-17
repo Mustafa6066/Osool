@@ -110,7 +110,9 @@ class DataFirstEnforcer:
             r"(\d+)\s*(مليون|million|M|م)",
             r"(budget|ميزانية).{0,20}(\d+)",
             r"(من|from).{0,10}(\d+).{0,10}(لـ|to|إلى).{0,10}(\d+)",
-            r"(تحت|under|فوق|over|around|حوالي).{0,10}(\d+)",
+            r"(تحت|under|فوق|over|around|حوالي|في حدود).{0,10}(\d+)",
+            r"(\d+).{0,5}(مليون|million)",  # Catch "2 مليون" with slight spacing
+            r"(حوالي|في حدود).{0,15}(\d+)",  # "around/approximately" + number
         ],
         MissingContext.PURPOSE: [
             r"(استثمار|investment|invest)",
