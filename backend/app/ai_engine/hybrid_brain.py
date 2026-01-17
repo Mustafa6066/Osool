@@ -205,7 +205,7 @@ Examples:
                 # Compare to market price
                 valuation = xgboost_predictor.compare_price_to_market(
                     asking_price=prop.get('price', 0),
-                    features=deal_features
+                    property_features=deal_features
                 )
                 
                 # Add Wolf intelligence to each property
@@ -307,7 +307,7 @@ STRATEGY: {strategy}
             
             # Call Claude
             response = await self.anthropic_async.messages.create(
-                model="claude-3-5-sonnet-20240620",
+                model="claude-3-5-sonnet-20241022",
                 max_tokens=1000,
                 temperature=0.7,
                 system=system_prompt,
