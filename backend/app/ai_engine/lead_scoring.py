@@ -303,7 +303,7 @@ def classify_by_intent(conversation_history: List[Dict]) -> str:
     """
     full_text = " ".join([
         msg.get("content", "") for msg in conversation_history
-        if msg.get("role") == "user"
+        if isinstance(msg, dict) and msg.get("role") == "user"
     ]).lower()
 
     # Intent patterns

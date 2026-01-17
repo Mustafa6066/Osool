@@ -57,9 +57,10 @@ def classify_customer(
     """
 
     # Combine all messages into searchable text
+    # Defensive: ensure each message is a dict before calling .get()
     full_conversation = " ".join([
         msg.get("content", "") for msg in conversation_history
-        if msg.get("role") == "user"
+        if isinstance(msg, dict) and msg.get("role") == "user"
     ]).lower()
 
     # === PRIMARY SIGNAL: Budget Threshold ===
@@ -280,9 +281,10 @@ def extract_budget_from_conversation(conversation_history: List[Dict]) -> Option
     - "2.5M EGP" → 2,500,000
     - "budget is 4 million" → 4,000,000
     """
+    # Defensive: ensure each message is a dict before calling .get()
     full_text = " ".join([
         msg.get("content", "") for msg in conversation_history
-        if msg.get("role") == "user"
+        if isinstance(msg, dict) and msg.get("role") == "user"
     ])
 
     # Pattern: "X million" or "XM"
