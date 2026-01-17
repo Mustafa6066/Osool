@@ -465,7 +465,6 @@ class ClaudeSalesAgent:
                 # Store properties for get_last_search_results
                 if result.get("properties"):
                     self._last_search_results = result["properties"]
-                    await self._cache_search_results(session_id, result["properties"])
 
                 return result
 
