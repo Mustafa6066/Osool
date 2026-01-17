@@ -61,15 +61,12 @@ from app.config import config
 # Check for API key to prevent startup/import crashes
 try:
     if config.ANTHROPIC_API_KEY:
-        anthropic_client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
         anthropic_async = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
     else:
         print("⚠️ ANTHROPIC_API_KEY not found. Claude agent will be disabled.")
-        anthropic_client = None
         anthropic_async = None
 except Exception as e:
     print(f"⚠️ Failed to initialize Anthropic client: {e}")
-    anthropic_client = None
     anthropic_async = None
 
 # Cost tracking
