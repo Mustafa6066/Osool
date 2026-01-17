@@ -929,16 +929,23 @@ async def chat_with_agent(
                 "kyc_status": getattr(user, "kyc_status", None),
                 "properties_owned": getattr(user, "properties_owned", 0),
             }
-        
-        response_text = await claude_sales_agent.chat(
+
+        # V4: Use chat_with_context to get full response including UI actions
+        ai_result = await claude_sales_agent.chat_with_context(
             user_input=req.message,
             session_id=req.session_id,
             chat_history=chat_history,
             user=user_dict
         )
 
-        # Save AI response to database (with hybrid retrieval - Redis + DB fallback)
-        search_results = await get_last_search_results(req.session_id, db)
+        # Extract components from result
+        response_text = ai_result.get("response", "")
+        search_results = ai_result.get("properties", [])
+        ui_actions = ai_result.get("ui_actions", [])
+        psychology = ai_result.get("psychology")
+        agentic_action = ai_result.get("agentic_action")
+
+        # Save AI response to database
         ai_message = ChatMessage(
             session_id=req.session_id,
             role="assistant",
@@ -949,59 +956,89 @@ async def chat_with_agent(
         await db.commit()
 
         # Phase 1: Track analytics (for future dashboard integration)
-        # Defensive: check if lead_score is a dict before calling .get()
         lead_score_dict = claude_sales_agent.lead_score if isinstance(claude_sales_agent.lead_score, dict) else {}
         analytics_data = {
             "customer_segment": claude_sales_agent.customer_segment.value if claude_sales_agent.customer_segment else "unknown",
             "lead_temperature": lead_score_dict.get("temperature", "cold"),
             "lead_score": lead_score_dict.get("score", 0),
             "properties_viewed": len(search_results) if search_results else 0,
-            "message_count": len(chat_history) + 2  # +2 for current exchange
+            "message_count": len(chat_history) + 2,  # +2 for current exchange
+            "psychology": psychology  # V4: Include psychology in analytics
         }
 
-        # Week 3: Generate visualization data based on response content
-        from app.ai_engine.visualization_helpers import attach_visualizations_to_response
+        # V4: Generate inflation killer chart data if triggered by ui_actions
+        from app.ai_engine.visualization_helpers import (
+            attach_visualizations_to_response,
+            generate_inflation_killer_chart
+        )
 
+        # Build visualizations from ui_actions (V4) + legacy visualization logic
         visualizations = {}
-        if search_results and len(search_results) > 0:
-            # Detect intent from response text
+
+        # Process V4 UI actions to generate visualization data
+        for action in ui_actions:
+            action_type = action.get("type", "")
+            action_data = action.get("data", {})
+
+            if action_type == "inflation_killer":
+                # Generate full inflation killer chart data
+                initial_investment = action_data.get("initial_investment", 5_000_000)
+                years = action_data.get("years", 5)
+                visualizations["inflation_killer"] = generate_inflation_killer_chart(initial_investment, years)
+
+            elif action_type == "comparison_matrix":
+                visualizations["comparison_matrix"] = action_data
+
+            elif action_type == "payment_timeline":
+                visualizations["payment_timeline"] = action_data
+
+            elif action_type == "investment_scorecard":
+                visualizations["investment_scorecard"] = action_data
+
+            elif action_type == "la2ta_alert":
+                visualizations["la2ta_alert"] = action_data
+
+            elif action_type == "law_114_guardian":
+                visualizations["law_114_guardian"] = action_data
+
+            elif action_type == "reality_check":
+                visualizations["reality_check"] = action_data
+
+        # Legacy fallback: if no ui_actions, use keyword-based detection
+        if not ui_actions and search_results:
             response_lower = response_text.lower()
 
-            # Show investment scorecard for valuation/analysis requests
             show_scorecard = any(keyword in response_lower for keyword in [
                 "تحليل", "analysis", "investment", "استثمار", "roi", "return"
             ])
-
-            # Show comparison for multiple properties
             show_comparison = len(search_results) > 1 and any(keyword in response_lower for keyword in [
                 "قارن", "compare", "comparison", "مقارنة", "options", "choose"
             ])
-
-            # Show payment timeline for payment/installment questions
             show_payment = any(keyword in response_lower for keyword in [
                 "payment", "دفع", "أقساط", "installment", "monthly", "شهري"
             ])
-
-            # Show market trends for trend/market questions
             show_trends = any(keyword in response_lower for keyword in [
                 "trend", "market", "سوق", "نمو", "growth", "اتجاه"
             ])
 
-            visualizations = attach_visualizations_to_response(
+            legacy_viz = attach_visualizations_to_response(
                 properties=search_results,
                 show_scorecard=show_scorecard,
                 show_comparison=show_comparison,
                 show_payment=show_payment,
                 show_trends=show_trends
             )
+            visualizations.update(legacy_viz)
 
         return {
             "response": response_text,
             "properties": search_results,
-            "visualizations": visualizations,  # NEW: Visualization data
+            "visualizations": visualizations,
+            "ui_actions": ui_actions,  # V4: Direct UI action triggers for frontend
             "session_id": req.session_id,
             "analytics": analytics_data,
-            "cost": claude_sales_agent.get_cost_summary()  # For monitoring
+            "agentic_action": agentic_action,  # V4: Indicates if pivot occurred
+            "cost": claude_sales_agent.get_cost_summary()
         }
     except Exception as e:
         await db.rollback()

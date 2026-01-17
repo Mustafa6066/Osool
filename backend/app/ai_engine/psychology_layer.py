@@ -1,0 +1,415 @@
+"""
+Psychology Layer for AMR - "The Wolf's Eye"
+--------------------------------------------
+Extracts psychological state from user messages to enable
+psychology-aware selling tactics.
+
+States:
+- FOMO: Fear of Missing Out - responds to scarcity
+- RISK_AVERSE: Safety-focused - needs reassurance
+- GREED_DRIVEN: ROI-focused - responds to gains
+- ANALYSIS_PARALYSIS: Overthinking - needs simplification
+- IMPULSE_BUYER: Quick decisions - reduce friction
+- TRUST_DEFICIT: Skeptical - needs proof/verification
+"""
+
+import logging
+import re
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
+
+
+class PsychologicalState(Enum):
+    """User's emotional decision-making driver."""
+    FOMO = "fomo"                        # Fear of Missing Out
+    RISK_AVERSE = "risk_averse"          # Safety-focused
+    GREED_DRIVEN = "greed_driven"        # ROI-focused
+    ANALYSIS_PARALYSIS = "analysis_paralysis"  # Overthinking
+    IMPULSE_BUYER = "impulse_buyer"      # Quick decisions
+    TRUST_DEFICIT = "trust_deficit"      # Skeptical
+    NEUTRAL = "neutral"                  # No clear signal
+
+
+class UrgencyLevel(Enum):
+    """How soon user needs to act."""
+    BROWSING = "browsing"       # 0-20% urgency
+    EXPLORING = "exploring"     # 20-40% urgency
+    EVALUATING = "evaluating"   # 40-60% urgency
+    READY_TO_ACT = "ready"      # 60-80% urgency
+    URGENT = "urgent"           # 80-100% urgency
+
+
+@dataclass
+class PsychologyProfile:
+    """Complete psychological profile for a user session."""
+    primary_state: PsychologicalState
+    secondary_state: Optional[PsychologicalState] = None
+    urgency_level: UrgencyLevel = UrgencyLevel.EXPLORING
+    confidence_score: float = 0.5  # 0-1
+    detected_triggers: List[str] = field(default_factory=list)
+    recommended_tactics: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "primary_state": self.primary_state.value,
+            "secondary_state": self.secondary_state.value if self.secondary_state else None,
+            "urgency_level": self.urgency_level.value,
+            "confidence_score": round(self.confidence_score, 2),
+            "detected_triggers": self.detected_triggers,
+            "recommended_tactics": self.recommended_tactics
+        }
+
+
+# Psychology detection patterns - Arabic and English keywords
+PSYCHOLOGY_PATTERNS = {
+    PsychologicalState.FOMO: {
+        "keywords_ar": [
+            "هيخلص", "فاضل كام", "هتخلص", "محدود", "آخر فرصة",
+            "ناس تانية", "حد تاني", "هيرفع", "زيادة", "السعر هيزيد",
+            "لحد إمتى", "متاح لحد إمتى", "الحق", "فرصة"
+        ],
+        "keywords_en": [
+            "limited", "running out", "last chance", "hurry",
+            "others interested", "price increase", "how many left",
+            "selling fast", "won't last", "before it's gone"
+        ],
+        "signals": [
+            "asking_about_availability_multiple_times",
+            "mentioning_competitor_properties",
+            "asking_how_many_left",
+            "rush_language"
+        ],
+        "recommended_tactics": ["scarcity", "insider"],
+        "weight": 1.0
+    },
+    PsychologicalState.RISK_AVERSE: {
+        "keywords_ar": [
+            "خايف", "مخاطر", "أمان", "ضمان", "موثوق", "تسليم",
+            "مضمون", "نصب", "احتيال", "مشاكل", "قانوني", "عقد",
+            "قلقان", "متردد", "مش متأكد", "أضمن", "المادة 114"
+        ],
+        "keywords_en": [
+            "safe", "secure", "guarantee", "trusted", "delivery",
+            "scam", "fraud", "legal", "contract", "worried",
+            "concerned", "protection", "risk", "reliable"
+        ],
+        "signals": [
+            "asking_about_developer_reputation",
+            "mentioning_scams",
+            "asking_for_proof",
+            "legal_questions"
+        ],
+        "recommended_tactics": ["authority", "legal_protection"],
+        "weight": 1.0
+    },
+    PsychologicalState.GREED_DRIVEN: {
+        "keywords_ar": [
+            "عائد", "ربح", "استثمار", "إيجار", "هيزيد", "هيجيب كام",
+            "ROI", "دخل", "مكسب", "فلوس", "تضخم", "دهب", "دولار",
+            "أحسن استثمار", "هيطلع كام"
+        ],
+        "keywords_en": [
+            "roi", "profit", "investment", "rental", "appreciation",
+            "returns", "income", "gains", "money", "yield",
+            "inflation", "hedge", "portfolio", "resale"
+        ],
+        "signals": [
+            "multiple_roi_questions",
+            "comparing_investment_options",
+            "asking_about_resale",
+            "mentioning_other_investments"
+        ],
+        "recommended_tactics": ["vision", "roi_focused"],
+        "weight": 1.0
+    },
+    PsychologicalState.ANALYSIS_PARALYSIS: {
+        "keywords_ar": [
+            "محتاج أفكر", "مش متأكد", "كتير أوي", "محتار",
+            "إيه الفرق", "قارن", "أحسن واحدة", "إيه رأيك",
+            "مش عارف أختار", "صعب", "معقد"
+        ],
+        "keywords_en": [
+            "need to think", "not sure", "too many options",
+            "confused", "difference", "compare", "best one",
+            "which one", "hard to decide", "complex", "overwhelmed"
+        ],
+        "signals": [
+            "asking_same_question_multiple_times",
+            "requesting_many_comparisons",
+            "long_decision_time"
+        ],
+        "recommended_tactics": ["simplify", "authority"],
+        "weight": 0.8
+    },
+    PsychologicalState.IMPULSE_BUYER: {
+        "keywords_ar": [
+            "عايز دلوقتي", "حالاً", "النهارده", "فوراً", "أحجز",
+            "خلاص قررت", "ماشي", "تمام", "موافق", "همضي"
+        ],
+        "keywords_en": [
+            "now", "today", "immediately", "book it", "decided",
+            "let's go", "done", "agreed", "sign", "ready"
+        ],
+        "signals": [
+            "quick_responses",
+            "minimal_questions",
+            "immediate_action_language"
+        ],
+        "recommended_tactics": ["close_fast", "reduce_friction"],
+        "weight": 0.9
+    },
+    PsychologicalState.TRUST_DEFICIT: {
+        "keywords_ar": [
+            "إزاي أثق", "مين يضمن", "سمعت إن", "ناس اتنصبت",
+            "المطور ده", "سمعته إيه", "مشاكل", "تأخير",
+            "كلام سماسرة", "مش مصدق", "بتقنعني"
+        ],
+        "keywords_en": [
+            "how can i trust", "who guarantees", "heard that",
+            "people got scammed", "developer reputation", "problems",
+            "delays", "agent talk", "don't believe", "convince me"
+        ],
+        "signals": [
+            "questioning_credentials",
+            "mentioning_bad_experiences",
+            "skeptical_tone"
+        ],
+        "recommended_tactics": ["authority", "proof", "testimonials"],
+        "weight": 1.0
+    }
+}
+
+# Urgency detection patterns
+URGENCY_PATTERNS = {
+    UrgencyLevel.URGENT: {
+        "keywords_ar": ["لازم", "ضروري", "النهارده", "حالاً", "مستعجل", "فوراً"],
+        "keywords_en": ["must", "urgent", "today", "immediately", "asap", "now"]
+    },
+    UrgencyLevel.READY_TO_ACT: {
+        "keywords_ar": ["جاهز", "عايز أحجز", "نمضي", "خطوة جاية", "أدفع"],
+        "keywords_en": ["ready", "want to book", "next step", "sign", "pay", "reserve"]
+    },
+    UrgencyLevel.EVALUATING: {
+        "keywords_ar": ["بقارن", "بفكر", "محتاج أشوف", "قبل ما أقرر"],
+        "keywords_en": ["comparing", "thinking", "need to see", "before deciding"]
+    },
+    UrgencyLevel.EXPLORING: {
+        "keywords_ar": ["بدور", "عايز أعرف", "إيه المتاح", "فيه إيه"],
+        "keywords_en": ["looking for", "want to know", "what's available", "show me"]
+    },
+    UrgencyLevel.BROWSING: {
+        "keywords_ar": ["بتفرج", "لسه", "بعدين", "مش مستعجل"],
+        "keywords_en": ["just browsing", "later", "not in a hurry", "someday"]
+    }
+}
+
+
+def analyze_psychology(
+    query: str,
+    history: List[Dict],
+    intent: Optional[Dict] = None
+) -> PsychologyProfile:
+    """
+    Analyze user's psychological state from query and history.
+
+    Args:
+        query: Current user message
+        history: Conversation history
+        intent: Extracted intent from perception layer
+
+    Returns:
+        PsychologyProfile with detected state and recommendations
+    """
+    query_lower = query.lower()
+
+    # Combine current query with recent history for analysis
+    all_text = query_lower
+    for msg in history[-5:]:  # Last 5 messages
+        if msg.get("role") == "user":
+            all_text += " " + msg.get("content", "").lower()
+
+    # Score each psychological state
+    state_scores: Dict[PsychologicalState, float] = {}
+    detected_triggers: Dict[PsychologicalState, List[str]] = {}
+
+    for state, patterns in PSYCHOLOGY_PATTERNS.items():
+        score = 0.0
+        triggers = []
+
+        # Check Arabic keywords
+        for keyword in patterns.get("keywords_ar", []):
+            if keyword in all_text:
+                score += 1.0 * patterns["weight"]
+                triggers.append(f"ar:{keyword}")
+
+        # Check English keywords
+        for keyword in patterns.get("keywords_en", []):
+            if keyword in all_text:
+                score += 1.0 * patterns["weight"]
+                triggers.append(f"en:{keyword}")
+
+        state_scores[state] = score
+        detected_triggers[state] = triggers
+
+    # Find primary and secondary states
+    sorted_states = sorted(state_scores.items(), key=lambda x: x[1], reverse=True)
+
+    primary_state = PsychologicalState.NEUTRAL
+    secondary_state = None
+    confidence = 0.0
+    all_triggers = []
+
+    if sorted_states[0][1] > 0:
+        primary_state = sorted_states[0][0]
+        confidence = min(sorted_states[0][1] / 3.0, 1.0)  # Normalize to 0-1
+        all_triggers = detected_triggers[primary_state]
+
+        if len(sorted_states) > 1 and sorted_states[1][1] > 0:
+            secondary_state = sorted_states[1][0]
+            all_triggers.extend(detected_triggers[secondary_state])
+
+    # Detect urgency level
+    urgency = _detect_urgency(query_lower, history)
+
+    # Get recommended tactics
+    tactics = PSYCHOLOGY_PATTERNS.get(primary_state, {}).get("recommended_tactics", [])
+    if secondary_state:
+        tactics.extend(PSYCHOLOGY_PATTERNS.get(secondary_state, {}).get("recommended_tactics", []))
+    tactics = list(set(tactics))  # Remove duplicates
+
+    profile = PsychologyProfile(
+        primary_state=primary_state,
+        secondary_state=secondary_state,
+        urgency_level=urgency,
+        confidence_score=confidence,
+        detected_triggers=all_triggers[:5],  # Limit to top 5 triggers
+        recommended_tactics=tactics
+    )
+
+    logger.info(f"🧠 Psychology: {primary_state.value} (conf: {confidence:.2f}), Urgency: {urgency.value}")
+
+    return profile
+
+
+def _detect_urgency(query: str, history: List[Dict]) -> UrgencyLevel:
+    """Detect urgency level from query and history."""
+
+    # Check from most urgent to least
+    for level in [UrgencyLevel.URGENT, UrgencyLevel.READY_TO_ACT,
+                  UrgencyLevel.EVALUATING, UrgencyLevel.EXPLORING]:
+        patterns = URGENCY_PATTERNS.get(level, {})
+
+        for keyword in patterns.get("keywords_ar", []):
+            if keyword in query:
+                return level
+
+        for keyword in patterns.get("keywords_en", []):
+            if keyword in query:
+                return level
+
+    # Default based on conversation length
+    if len(history) > 10:
+        return UrgencyLevel.EVALUATING
+    elif len(history) > 5:
+        return UrgencyLevel.EXPLORING
+    else:
+        return UrgencyLevel.BROWSING
+
+
+def get_psychology_context_for_prompt(profile: PsychologyProfile) -> str:
+    """
+    Generate context string to inject into Claude's system prompt.
+
+    Args:
+        profile: The detected psychology profile
+
+    Returns:
+        Context string for the AI prompt
+    """
+    state = profile.primary_state
+    urgency = profile.urgency_level
+
+    context_parts = [
+        f"\n[PSYCHOLOGY_MODE: {state.value.upper()}]"
+    ]
+
+    # State-specific instructions
+    if state == PsychologicalState.FOMO:
+        context_parts.append("""
+- User is susceptible to scarcity. Use time-limited language.
+- Mention: "الحق الفرصة دي" (Catch this opportunity)
+- Highlight: Limited units, upcoming price increases, other interested buyers
+- Urgency phrases: "قبل ما تخلص", "السعر ده مش هيفضل"
+""")
+
+    elif state == PsychologicalState.RISK_AVERSE:
+        context_parts.append("""
+- User needs reassurance and safety. Lead with protection.
+- Mention: Developer reputation, delivery track record, Law 114 compliance
+- Use: "على مسؤوليتي", "أنا بحميك", "العقد سليم"
+- Offer: Contract review, legal verification, testimonials
+""")
+
+    elif state == PsychologicalState.GREED_DRIVEN:
+        context_parts.append("""
+- User is ROI-focused. Lead with numbers and returns.
+- Show: ROI projections, rental yields, appreciation forecasts
+- Compare: Property vs Cash vs Gold (Inflation Killer)
+- Use: "العائد", "الـ ROI", "هتكسب كام في السنة"
+""")
+
+    elif state == PsychologicalState.ANALYSIS_PARALYSIS:
+        context_parts.append("""
+- User is overthinking. Simplify and guide decisively.
+- Limit options to TOP 2 maximum
+- Make the recommendation clear: "لو أنا مكانك..."
+- Reduce cognitive load, be direct about best choice
+""")
+
+    elif state == PsychologicalState.IMPULSE_BUYER:
+        context_parts.append("""
+- User wants to act fast. Reduce friction.
+- Skip lengthy explanations, get to booking/payment
+- Provide quick next step: "خلينا نحجز دلوقتي"
+- Don't over-explain, maintain momentum
+""")
+
+    elif state == PsychologicalState.TRUST_DEFICIT:
+        context_parts.append("""
+- User is skeptical. Build credibility with proof.
+- Reference: "السيستم بتاعي بيقول" (data-backed claims)
+- Offer: Verification, references, developer portfolio
+- Don't push hard, build trust first
+""")
+
+    # Urgency context
+    if urgency == UrgencyLevel.URGENT or urgency == UrgencyLevel.READY_TO_ACT:
+        context_parts.append("""
+[URGENCY: HIGH]
+- User is ready to act. Move to closing.
+- Provide booking/reservation link or next step
+- Don't introduce new options, focus on closing current interest
+""")
+
+    return "\n".join(context_parts)
+
+
+# Singleton-style function for easy import
+def get_psychology_analyzer():
+    """Return the analyze_psychology function for external use."""
+    return analyze_psychology
+
+
+# Export
+__all__ = [
+    "PsychologicalState",
+    "UrgencyLevel",
+    "PsychologyProfile",
+    "analyze_psychology",
+    "get_psychology_context_for_prompt",
+    "PSYCHOLOGY_PATTERNS"
+]
