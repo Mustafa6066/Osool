@@ -305,9 +305,12 @@ STRATEGY: {strategy}
             # Add current query
             messages.append({"role": "user", "content": query})
             
-            # Call Claude
+            # Call Claude (use Haiku for speed/cost or Sonnet if env configured)
+            import os
+            claude_model = os.getenv("CLAUDE_MODEL", "claude-3-haiku-20240307")
+            
             response = await self.anthropic_async.messages.create(
-                model="claude-3-5-sonnet-latest",
+                model=claude_model,
                 max_tokens=1000,
                 temperature=0.7,
                 system=system_prompt,
