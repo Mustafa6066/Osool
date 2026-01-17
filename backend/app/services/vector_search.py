@@ -120,9 +120,10 @@ async def search_properties(
 
                     if not rows:
                         logger.warning(
-                            f"⚠️ No properties meet 50% similarity threshold. Returning empty."
+                            f"⚠️ No properties meet 50% similarity threshold. Falling back to Keyword Search."
                         )
-                        return []
+                        # Do NOT return [] here. Fall through to text search.
+                        raise Exception("Zero vector matches found - triggering fallback")
 
                     # Convert to dicts with similarity scores
                     properties = []
@@ -164,7 +165,8 @@ async def search_properties(
                 # Fall through to text search below
 
         # TEXT SEARCH FALLBACK (when pgvector not available or vector search failed)
-        logger.info(f"🔍 Using text-based keyword search for: '{query_text}'")
+        # TEXT SEARCH STRATEGY 1: Exact Phrase Match
+        logger.info(f"🔍 Text Search Attempt 1: Exact phrase '{query_text}'")
         search_term = f"%{query_text}%"
 
         stmt = select(Property).filter(
@@ -174,15 +176,42 @@ async def search_properties(
                 Property.location.ilike(search_term),
                 Property.compound.ilike(search_term),
                 Property.description.ilike(search_term),
-                Property.developer.ilike(search_term)
+                Property.developer.ilike(search_term),
+                Property.type.ilike(search_term)
             )
         ).limit(limit)
 
         result = await db.execute(stmt)
         properties = result.scalars().all()
 
+        # TEXT SEARCH STRATEGY 2: Split Keywords (if Exact Match fails)
+        if not properties and len(query_text.split()) > 1:
+            logger.info(f"🔍 Text Search Attempt 2: Split keywords")
+            keywords = query_text.split()
+            # Filter out common stop words
+            stop_words = {'in', 'at', 'the', 'a', 'an', 'for', 'of', 'with'}
+            keywords = [k for k in keywords if k.lower() not in stop_words and len(k) > 2]
+            
+            if keywords:
+                # Construct OR conditions for each keyword
+                conditions = []
+                for word in keywords:
+                    term = f"%{word}%"
+                    conditions.append(Property.title.ilike(term))
+                    conditions.append(Property.location.ilike(term))
+                    conditions.append(Property.compound.ilike(term))
+                    conditions.append(Property.type.ilike(term))
+                
+                stmt = select(Property).filter(
+                    Property.is_available == True,
+                    or_(*conditions)
+                ).limit(limit)
+                
+                result = await db.execute(stmt)
+                properties = result.scalars().all()
+
         if not properties:
-            logger.warning(f"No properties found for query: '{query_text}'")
+            logger.warning(f"No properties found via text search for query: '{query_text}'")
             return []
 
         # Convert to dicts without similarity scores (text search fallback)
