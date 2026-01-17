@@ -6,16 +6,18 @@ import { PiBed, PiBathtub, PiRuler } from 'react-icons/pi';
 import { HiOutlineLocationMarker } from 'react-icons/hi';
 
 interface PropertyCardMinimalProps {
-    id: number;
-    title: string;
-    location: string;
-    compound?: string;
-    price: number;
-    size_sqm: number;
-    bedrooms: number;
-    bathrooms?: number;
-    image_url?: string;
-    type?: string;
+    property: {
+        id: number;
+        title: string;
+        location: string;
+        compound?: string;
+        price: number;
+        size_sqm: number;
+        bedrooms: number;
+        bathrooms?: number;
+        image_url?: string;
+        type?: string;
+    };
     onClick?: () => void;
 }
 
@@ -29,18 +31,22 @@ interface PropertyCardMinimalProps {
  * - Subtle hover effects for premium feel
  */
 export default function PropertyCardMinimal({
-    id,
-    title,
-    location,
-    compound,
-    price,
-    size_sqm,
-    bedrooms,
-    bathrooms,
-    image_url,
-    type,
+    property,
     onClick
 }: PropertyCardMinimalProps) {
+
+    const {
+        id,
+        title,
+        location,
+        compound,
+        price,
+        size_sqm,
+        bedrooms,
+        bathrooms,
+        image_url,
+        type
+    } = property;
 
     // Format price with Egyptian locale (e.g., "2,500,000 EGP")
     const formatPrice = (value: number): string => {
