@@ -15,6 +15,85 @@
         ]
     },
     "buyer_psychology": {
+        "cultural_dynamics": {
+            "decision_making_timeline": {
+                "families": "3-6 months (multiple family consultations required)",
+                "investors": "1-4 weeks (faster if numbers align)",
+                "first_time_buyers": "6-12 months (fear of commitment)",
+                "note_ar": "القرار بياخد وقت عشان البيت مش مجرد استثمار - ده 'كيان العيلة'",
+                "note_en": "Decision takes time because a home isn't just investment - it's 'the family entity'"
+            },
+            "social_pressure_points": {
+                "neighborhood_status": "Living in 'راقي' (upscale) compounds = social validation",
+                "keeping_up_with_peers": "If Hassan bought in Hyde Park, Mohamed needs Beverly Hills",
+                "wedding_driver": "Newly engaged couples under family pressure to secure home",
+                "expatriate_return": "Gulf returnees showing off purchasing power",
+                "cultural_note_ar": "المصري بيحب يقول 'أنا ساكن فين' قبل ما يقول اسمه",
+                "cultural_note_en": "Egyptians love to say 'where I live' before saying their name"
+            },
+            "family_hierarchy": {
+                "influencers_ranking": [
+                    "1. الأب (Father) - Final approval on budget",
+                    "2. الأم (Mother) - Emotional veto power on 'feeling'",
+                    "3. الجد/الجدة (Grandparents) - Traditional wisdom + loan source",
+                    "4. الأخ الأكبر (Eldest Brother) - 'المشورة' - Advisory role",
+                    "5. الأصحاب (Friends) - Comparative validation"
+                ],
+                "veto_triggers": [
+                    "Mother: 'مش حاسة ان المكان ده جامد' (doesn't feel solid)",
+                    "Father: 'السعر غالي شوية' (price slightly high)",
+                    "Grandmother: 'المنطقة بعيدة عن الجوامع' (far from mosques)"
+                ]
+            },
+            "emotional_vs_rational_split": {
+                "emotional_triggers": {
+                    "families": [
+                        "The 'first time seeing the view' moment",
+                        "Imagining kids playing in the compound",
+                        "Feeling of 'safety' from gated security",
+                        "Pride of ownership ('ملك' vs 'إيجار')"
+                    ],
+                    "investors": [
+                        "Excitement of 'getting ahead of inflation'",
+                        "Peer validation from smart investment",
+                        "Fear of missing out (FOMO) on appreciation"
+                    ]
+                },
+                "rational_triggers": {
+                    "families": [
+                        "Proximity to schools (<15 min drive)",
+                        "Commute time to work (<45 min)",
+                        "Maintenance fees (<1,500 EGP/month)",
+                        "Payment plan flexibility"
+                    ],
+                    "investors": [
+                        "ROI above bank deposit rates (>8%)",
+                        "Developer track record (on-time delivery)",
+                        "Resale potential in 3-5 years",
+                        "Rental demand evidence"
+                    ]
+                }
+            },
+            "egyptian_negotiation_psychology": {
+                "expected_discount": "15-25% off asking price (cultural expectation)",
+                "bargaining_dance": [
+                    "1. Buyer: 'السعر غالي جداً' (too expensive)",
+                    "2. Seller: Shows market comparisons",
+                    "3. Buyer: 'عندي عروض أحسن' (I have better offers)",
+                    "4. Seller: Shows exclusive value-adds",
+                    "5. Buyer: 'خلينا في النص' (let's meet in the middle)",
+                    "6. Seller: 'أقصى خصم X%' (maximum discount X%)"
+                ],
+                "trust_builders": [
+                    "Showing previous satisfied buyers from same background",
+                    "Mentioning mutual connections (social proof)",
+                    "Demonstrating legal transparency upfront",
+                    "Offering 'special family discount' (even if standard)"
+                ],
+                "cultural_note_ar": "المفاوضة جزء من المتعة - حتى لو السعر كويس، لازم نفاوض",
+                "cultural_note_en": "Negotiation is part of the fun - even if price is good, we must negotiate"
+            }
+        },
         "families": {
             "primary_motive": "Security & Stability",
             "key_objections": [
@@ -30,7 +109,13 @@
                 "Green spaces and amenities"
             ],
             "cultural_note": "قرار جماعي - الزوجة بتحدد 'الإحساس'، الزوج بيفاوض على 'السعر'",
-            "cultural_note_en": "Collective decision. Wife decides 'feeling' of home, husband negotiates price."
+            "cultural_note_en": "Collective decision. Wife decides 'feeling' of home, husband negotiates price.",
+            "hidden_motivators": [
+                "Impressing in-laws with 'راقي' compound",
+                "Children's future school reputation",
+                "Avoiding long-term rent 'waste'",
+                "Building generational wealth legacy"
+            ]
         },
         "investors": {
             "primary_motive": "ROI & Capital Preservation",
@@ -47,7 +132,21 @@
                 "Strong developer reputation"
             ],
             "cultural_note": "بيفضلوا الكاش لو الخصم كبير (>20%)، غير كده أطول فترة سداد",
-            "cultural_note_en": "Prefer cash deals if discount > 20%, otherwise maximum installment years."
+            "cultural_note_en": "Prefer cash deals if discount > 20%, otherwise maximum installment years.",
+            "investor_archetypes": {
+                "the_opportunist": {
+                    "traits": "Buys in pre-construction for max appreciation",
+                    "kryptonite": "Developer delays, legal uncertainty"
+                },
+                "the_hedger": {
+                    "traits": "Escaping inflation, converting EGP to real assets",
+                    "kryptonite": "Currency strength recovery, bank interest hikes"
+                },
+                "the_income_seeker": {
+                    "traits": "Focused purely on rental yield",
+                    "kryptonite": "High vacancy rates, tenant disputes"
+                }
+            }
         },
         "expatriates": {
             "primary_motive": "Investment & Family Home",
@@ -63,7 +162,37 @@
                 "Easy payment from abroad"
             ],
             "cultural_note": "غالبا بيشتروا عشان العيلة أو استثمار للتقاعد",
-            "cultural_note_en": "Usually buying for family or retirement investment."
+            "cultural_note_en": "Usually buying for family or retirement investment.",
+            "psychological_drivers": [
+                "Nostalgia for homeland (emotional pull)",
+                "Preparing for eventual return",
+                "Providing family with status symbol",
+                "Hedging against Gulf market instability"
+            ]
+        },
+        "first_time_buyers": {
+            "primary_motive": "Escaping Rent Trap",
+            "age_range": "28-35 years",
+            "key_fears": [
+                "Making wrong decision",
+                "Hidden costs after purchase",
+                "Developer bankruptcy",
+                "Inability to resell if needed"
+            ],
+            "winning_points": [
+                "Education-focused content",
+                "Transparent all-in cost breakdown",
+                "Comparison with rent projections",
+                "Money-back guarantees (if available)"
+            ],
+            "cultural_note_ar": "الخوف من 'الغلطة الكبيرة' بتخلي القرار بطيء",
+            "cultural_note_en": "Fear of 'the big mistake' makes decision very slow",
+            "hand_holding_needs": [
+                "Step-by-step purchase guide",
+                "Legal jargon translation",
+                "Budget planning assistance",
+                "Emotional reassurance"
+            ]
         }
     },
     "location_deep_dive": {
