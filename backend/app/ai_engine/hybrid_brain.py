@@ -307,7 +307,7 @@ STRATEGY: {strategy}
             
             # Call Claude
             response = await self.anthropic_async.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-3-5-sonnet-latest",
                 max_tokens=1000,
                 temperature=0.7,
                 system=system_prompt,
