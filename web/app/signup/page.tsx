@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
@@ -14,7 +14,7 @@ interface InvitationStatus {
     invited_by?: string;
 }
 
-export default function SignupPage() {
+function SignupContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { login: contextLogin } = useAuth();
@@ -145,11 +145,10 @@ export default function SignupPage() {
                 )}
 
                 {invitationStatus && !isValidating && (
-                    <div className={`flex items-center gap-2 p-3 rounded-xl ${
-                        invitationStatus.valid
-                            ? 'bg-emerald-500/10 border border-emerald-500/20'
-                            : 'bg-red-500/10 border border-red-500/20'
-                    }`}>
+                    <div className={`flex items-center gap-2 p-3 rounded-xl ${invitationStatus.valid
+                        ? 'bg-emerald-500/10 border border-emerald-500/20'
+                        : 'bg-red-500/10 border border-red-500/20'
+                        }`}>
                         {invitationStatus.valid ? (
                             <>
                                 <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
@@ -276,5 +275,18 @@ export default function SignupPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+// Wrap with Suspense for useSearchParams
+export default function SignupPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+                <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+            </div>
+        }>
+            <SignupContent />
+        </Suspense>
     );
 }
