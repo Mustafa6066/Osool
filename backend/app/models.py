@@ -54,8 +54,13 @@ class User(Base):
 
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    # Invitation tracking
+    invitations_sent: Mapped[int] = mapped_column(Integer, default=0)  # Count of invitations sent
+    invited_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)  # Who invited this user
+
     transactions = relationship("Transaction", back_populates="user")
     chat_messages = relationship("ChatMessage", back_populates="user")
+    invitations_created = relationship("Invitation", back_populates="created_by_user", foreign_keys="Invitation.created_by_user_id")
 
 
 class Property(Base):
@@ -285,3 +290,32 @@ class ConversationAnalytics(Base):
     # Timestamps
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+
+class Invitation(Base):
+    """
+    Invitation System for Controlled User Registration
+    ---------------------------------------------------
+    - Each invitation code can only be used once
+    - Regular users can generate max 2 invitations
+    - Admin users (Mustafa, Hani, Abady, Sama) can generate unlimited invitations
+    """
+    __tablename__ = "invitations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)  # Unique invitation code
+
+    # Creator info
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    # Usage info
+    used_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)  # Who used this invitation
+    is_used: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Timestamps
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    used_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)  # Optional expiration
+
+    # Relationships
+    created_by_user = relationship("User", back_populates="invitations_created", foreign_keys=[created_by_user_id])

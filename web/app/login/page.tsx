@@ -9,7 +9,7 @@ export default function LoginPage() {
 
     const handleSuccess = () => {
         // Redirect to Chat with AMR
-        router.push('/ai-advisor');
+        router.push('/chat');
     };
 
     const handleClose = () => {

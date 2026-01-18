@@ -22,7 +22,7 @@ from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.claude_sales_agent import claude_sales_agent
 from app.services.paymob_service import paymob_service
 from app.tasks import reserve_property_task
-from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet, create_custodial_wallet
+from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet, create_custodial_wallet
 from app.database import get_db
 from app.models import User, Property, Transaction, PaymentApproval
 from sqlalchemy.orm import Session
@@ -857,7 +857,7 @@ async def chat_with_agent(
     req: ChatRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user_optional)
+    user: User = Depends(get_current_user)  # REQUIRED auth - no anonymous access
 ):
     """
     💬 Main AI Chat Endpoint (Phase 1: Claude-Powered with Arabic Support)
@@ -908,9 +908,10 @@ async def chat_with_agent(
                 from langchain_core.messages import AIMessage
                 chat_history.append(AIMessage(content=msg.content))
 
-        # Save user message to database
+        # Save user message to database (linked to authenticated user)
         user_message = ChatMessage(
             session_id=req.session_id,
+            user_id=user.id,  # Link message to authenticated user
             role="user",
             content=req.message
         )
@@ -945,9 +946,10 @@ async def chat_with_agent(
         psychology = ai_result.get("psychology")
         agentic_action = ai_result.get("agentic_action")
 
-        # Save AI response to database
+        # Save AI response to database (linked to authenticated user)
         ai_message = ChatMessage(
             session_id=req.session_id,
+            user_id=user.id,  # Link message to authenticated user
             role="assistant",
             content=response_text,
             properties_json=json.dumps(search_results) if search_results else None
@@ -1052,7 +1054,7 @@ async def chat_stream(
     req: ChatRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user_optional)
+    user: User = Depends(get_current_user)  # REQUIRED auth - no anonymous access
 ):
     """
     🌊 Streaming AI Chat Endpoint (V6: Real-time Token Streaming)
@@ -1096,23 +1098,22 @@ async def chat_stream(
                     from langchain_core.messages import AIMessage
                     chat_history.append(AIMessage(content=msg.content))
 
-            # Save user message
+            # Save user message (linked to authenticated user)
             user_message = ChatMessage(
                 session_id=req.session_id,
+                user_id=user.id,  # Link message to authenticated user
                 role="user",
                 content=req.message
             )
             db.add(user_message)
             await db.commit()
 
-            # Create user dict
-            user_dict = None
-            if user:
-                user_dict = {
-                    "id": user.id,
-                    "email": getattr(user, "email", None),
-                    "name": getattr(user, "name", None),
-                }
+            # Create user dict for AI context
+            user_dict = {
+                "id": user.id,
+                "email": getattr(user, "email", None),
+                "name": getattr(user, "name", None),
+            }
 
             # Send initial tool indication
             yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'search_properties'})}\n\n"
@@ -1141,9 +1142,10 @@ async def chat_stream(
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
                 await asyncio.sleep(0.02)  # 20ms delay between words
 
-            # Save AI response to database
+            # Save AI response to database (linked to authenticated user)
             ai_message = ChatMessage(
                 session_id=req.session_id,
+                user_id=user.id,  # Link message to authenticated user
                 role="assistant",
                 content=response_text,
                 properties_json=json.dumps(search_results) if search_results else None
@@ -1395,3 +1397,271 @@ def admin_withdraw_fees(api_key: str = Depends(verify_api_key)):
     """
     # Logic to call blockchain_service.withdraw_fees() would go here
     return {"status": "Not implemented yet"}
+
+
+# ═══════════════════════════════════════════════════════════════
+# ADMIN CHAT MANAGEMENT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/admin/users")
+async def admin_get_all_users(
+    db: AsyncSession = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    🔐 Admin: Get all registered users with chat statistics.
+    Protected by X-Admin-Key header.
+
+    Returns list of users with:
+    - Basic info (id, email, name, role)
+    - Total message count
+    - Last activity timestamp
+    """
+    from sqlalchemy import select, func
+    from app.models import ChatMessage
+
+    # Get all users with chat counts
+    result = await db.execute(
+        select(
+            User.id,
+            User.email,
+            User.full_name,
+            User.role,
+            User.created_at,
+            func.count(ChatMessage.id).label("message_count"),
+            func.max(ChatMessage.created_at).label("last_activity")
+        )
+        .outerjoin(ChatMessage, User.id == ChatMessage.user_id)
+        .group_by(User.id)
+        .order_by(User.created_at.desc())
+    )
+
+    users = []
+    for row in result.all():
+        users.append({
+            "id": row.id,
+            "email": row.email,
+            "full_name": row.full_name,
+            "role": row.role,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "message_count": row.message_count or 0,
+            "last_activity": row.last_activity.isoformat() if row.last_activity else None
+        })
+
+    return {
+        "total_users": len(users),
+        "users": users
+    }
+
+
+@router.get("/admin/chats/{user_id}")
+async def admin_get_user_chats(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    🔐 Admin: Get all chat sessions for a specific user.
+    Protected by X-Admin-Key header.
+
+    Returns grouped chat sessions with messages.
+    """
+    from sqlalchemy import select, func
+    from app.models import ChatMessage
+
+    # First verify user exists
+    user_result = await db.execute(select(User).filter(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get all messages for this user grouped by session
+    result = await db.execute(
+        select(ChatMessage)
+        .filter(ChatMessage.user_id == user_id)
+        .order_by(ChatMessage.created_at.asc())
+    )
+    messages = result.scalars().all()
+
+    # Group by session_id
+    sessions = {}
+    for msg in messages:
+        session_id = msg.session_id
+        if session_id not in sessions:
+            sessions[session_id] = {
+                "session_id": session_id,
+                "messages": [],
+                "message_count": 0,
+                "first_message_at": None,
+                "last_message_at": None
+            }
+
+        sessions[session_id]["messages"].append({
+            "id": msg.id,
+            "role": msg.role,
+            "content": msg.content,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None,
+            "has_properties": msg.properties_json is not None
+        })
+        sessions[session_id]["message_count"] += 1
+
+        if sessions[session_id]["first_message_at"] is None:
+            sessions[session_id]["first_message_at"] = msg.created_at.isoformat() if msg.created_at else None
+        sessions[session_id]["last_message_at"] = msg.created_at.isoformat() if msg.created_at else None
+
+    return {
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role
+        },
+        "total_sessions": len(sessions),
+        "total_messages": len(messages),
+        "sessions": list(sessions.values())
+    }
+
+
+@router.get("/admin/chats")
+async def admin_get_all_chats(
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    🔐 Admin: Get recent chat messages across all users.
+    Protected by X-Admin-Key header.
+
+    Returns the most recent messages with user info.
+    """
+    from sqlalchemy import select
+    from app.models import ChatMessage
+
+    result = await db.execute(
+        select(ChatMessage, User.email, User.full_name)
+        .outerjoin(User, ChatMessage.user_id == User.id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(limit)
+    )
+
+    messages = []
+    for row in result.all():
+        msg, email, full_name = row
+        messages.append({
+            "id": msg.id,
+            "session_id": msg.session_id,
+            "user_id": msg.user_id,
+            "user_email": email,
+            "user_name": full_name,
+            "role": msg.role,
+            "content": msg.content[:200] + "..." if len(msg.content) > 200 else msg.content,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None,
+            "has_properties": msg.properties_json is not None
+        })
+
+    return {
+        "total_messages": len(messages),
+        "messages": messages
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER CHAT HISTORY ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/chat/history")
+async def get_user_chat_history(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """
+    📜 Get authenticated user's chat sessions.
+    Returns list of chat sessions with preview.
+    """
+    from sqlalchemy import select, func
+    from app.models import ChatMessage
+
+    # Get distinct sessions for this user with message counts
+    result = await db.execute(
+        select(
+            ChatMessage.session_id,
+            func.count(ChatMessage.id).label("message_count"),
+            func.min(ChatMessage.created_at).label("started_at"),
+            func.max(ChatMessage.created_at).label("last_message_at")
+        )
+        .filter(ChatMessage.user_id == user.id)
+        .group_by(ChatMessage.session_id)
+        .order_by(func.max(ChatMessage.created_at).desc())
+    )
+
+    sessions = []
+    for row in result.all():
+        # Get first user message as preview
+        preview_result = await db.execute(
+            select(ChatMessage.content)
+            .filter(
+                ChatMessage.session_id == row.session_id,
+                ChatMessage.user_id == user.id,
+                ChatMessage.role == "user"
+            )
+            .order_by(ChatMessage.created_at.asc())
+            .limit(1)
+        )
+        preview = preview_result.scalar_one_or_none()
+
+        sessions.append({
+            "session_id": row.session_id,
+            "message_count": row.message_count,
+            "started_at": row.started_at.isoformat() if row.started_at else None,
+            "last_message_at": row.last_message_at.isoformat() if row.last_message_at else None,
+            "preview": (preview[:100] + "...") if preview and len(preview) > 100 else preview
+        })
+
+    return {
+        "user_id": user.id,
+        "total_sessions": len(sessions),
+        "sessions": sessions
+    }
+
+
+@router.get("/chat/history/{session_id}")
+async def get_session_messages(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """
+    📜 Get all messages from a specific chat session.
+    Only returns messages belonging to the authenticated user.
+    """
+    from sqlalchemy import select
+    from app.models import ChatMessage
+    import json
+
+    result = await db.execute(
+        select(ChatMessage)
+        .filter(
+            ChatMessage.session_id == session_id,
+            ChatMessage.user_id == user.id
+        )
+        .order_by(ChatMessage.created_at.asc())
+    )
+    messages = result.scalars().all()
+
+    if not messages:
+        raise HTTPException(status_code=404, detail="Session not found or access denied")
+
+    return {
+        "session_id": session_id,
+        "message_count": len(messages),
+        "messages": [
+            {
+                "id": msg.id,
+                "role": msg.role,
+                "content": msg.content,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                "properties": json.loads(msg.properties_json) if msg.properties_json else None
+            }
+            for msg in messages
+        ]
+    }

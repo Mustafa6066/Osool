@@ -49,28 +49,26 @@ def get_password_hash(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-# Beta accounts configuration
+# Beta accounts configuration with UNIQUE passwords
 BETA_ACCOUNTS = [
-    # Admin accounts (Core Team)
-    {"full_name": "Mustafa", "email": "mustafa@osool.eg", "role": "admin"},
-    {"full_name": "Hani", "email": "hani@osool.eg", "role": "admin"},
-    {"full_name": "Abady", "email": "abady@osool.eg", "role": "admin"},
-    {"full_name": "Sama", "email": "sama@osool.eg", "role": "admin"},
-    
-    # Tester accounts
-    {"full_name": "Tester One", "email": "tester1@osool.eg", "role": "investor"},
-    {"full_name": "Tester Two", "email": "tester2@osool.eg", "role": "investor"},
-    {"full_name": "Tester Three", "email": "tester3@osool.eg", "role": "investor"},
-    {"full_name": "Tester Four", "email": "tester4@osool.eg", "role": "investor"},
-    {"full_name": "Tester Five", "email": "tester5@osool.eg", "role": "investor"},
-    {"full_name": "Tester Six", "email": "tester6@osool.eg", "role": "investor"},
-    {"full_name": "Tester Seven", "email": "tester7@osool.eg", "role": "investor"},
-    {"full_name": "Tester Eight", "email": "tester8@osool.eg", "role": "investor"},
-    {"full_name": "Tester Nine", "email": "tester9@osool.eg", "role": "investor"},
-    {"full_name": "Tester Ten", "email": "tester10@osool.eg", "role": "investor"},
-]
+    # Admin accounts (Core Team) - Each has unique password
+    {"full_name": "Mustafa", "email": "mustafa@osool.eg", "password": "Mustafa@Osool2025!", "role": "admin"},
+    {"full_name": "Hani", "email": "hani@osool.eg", "password": "Hani@Osool2025!", "role": "admin"},
+    {"full_name": "Abady", "email": "abady@osool.eg", "password": "Abady@Osool2025!", "role": "admin"},
+    {"full_name": "Sama", "email": "sama@osool.eg", "password": "Sama@Osool2025!", "role": "admin"},
 
-COMMON_PASSWORD = "Osool2025"
+    # Tester accounts - Each has unique password
+    {"full_name": "Tester One", "email": "tester1@osool.eg", "password": "Tester1@Beta2025", "role": "investor"},
+    {"full_name": "Tester Two", "email": "tester2@osool.eg", "password": "Tester2@Beta2025", "role": "investor"},
+    {"full_name": "Tester Three", "email": "tester3@osool.eg", "password": "Tester3@Beta2025", "role": "investor"},
+    {"full_name": "Tester Four", "email": "tester4@osool.eg", "password": "Tester4@Beta2025", "role": "investor"},
+    {"full_name": "Tester Five", "email": "tester5@osool.eg", "password": "Tester5@Beta2025", "role": "investor"},
+    {"full_name": "Tester Six", "email": "tester6@osool.eg", "password": "Tester6@Beta2025", "role": "investor"},
+    {"full_name": "Tester Seven", "email": "tester7@osool.eg", "password": "Tester7@Beta2025", "role": "investor"},
+    {"full_name": "Tester Eight", "email": "tester8@osool.eg", "password": "Tester8@Beta2025", "role": "investor"},
+    {"full_name": "Tester Nine", "email": "tester9@osool.eg", "password": "Tester9@Beta2025", "role": "investor"},
+    {"full_name": "Tester Ten", "email": "tester10@osool.eg", "password": "Tester10@Beta2025", "role": "investor"},
+]
 
 
 def seed_beta_users():
@@ -92,7 +90,7 @@ def seed_beta_users():
                 existing.is_verified = True
                 existing.email_verified = True
                 existing.role = account["role"]
-                existing.password_hash = get_password_hash(COMMON_PASSWORD)
+                existing.password_hash = get_password_hash(account["password"])
                 updated += 1
                 print(f"  [OK] Updated: {account['email']} (verified, role={account['role']})")
             else:
@@ -104,7 +102,7 @@ def seed_beta_users():
                 new_user = User(
                     full_name=account["full_name"],
                     email=account["email"],
-                    password_hash=get_password_hash(COMMON_PASSWORD),
+                    password_hash=get_password_hash(account["password"]),
                     wallet_address=wallet_address,
                     is_verified=True,
                     email_verified=True,
@@ -117,15 +115,23 @@ def seed_beta_users():
         
         db.commit()
         
-        print(f"\n{'='*50}")
+        print(f"\n{'='*60}")
         print(f"[SUCCESS] Beta User Seeding Complete!")
         print(f"   Created: {created} new accounts")
         print(f"   Updated: {updated} existing accounts")
         print(f"   Total: {len(BETA_ACCOUNTS)} beta accounts ready")
-        print(f"{'='*50}")
-        print(f"\n[KEY] Common Password: {COMMON_PASSWORD}")
-        print(f"[EMAIL] Admin Emails: mustafa@osool.eg, hani@osool.eg, abady@osool.eg, sama@osool.eg")
-        print(f"[EMAIL] Tester Emails: tester1@osool.eg through tester10@osool.eg")
+        print(f"{'='*60}")
+        print(f"\n[CREDENTIALS] Beta Account Credentials:")
+        print(f"{'='*60}")
+        print(f"  ADMIN ACCOUNTS:")
+        print(f"    mustafa@osool.eg    | Mustafa@Osool2025!")
+        print(f"    hani@osool.eg       | Hani@Osool2025!")
+        print(f"    abady@osool.eg      | Abady@Osool2025!")
+        print(f"    sama@osool.eg       | Sama@Osool2025!")
+        print(f"\n  TESTER ACCOUNTS:")
+        for i in range(1, 11):
+            print(f"    tester{i}@osool.eg    | Tester{i}@Beta2025")
+        print(f"{'='*60}")
         
     except Exception as e:
         db.rollback()
