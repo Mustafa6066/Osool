@@ -13,7 +13,35 @@ V5 Upgrades:
 - Full chart reference integration
 """
 
-from typing import Optional
+from typing import Optional, List
+
+# V6: CLASS A DEVELOPERS - Premium Tier Egyptian Real Estate Developers
+CLASS_A_DEVELOPERS: List[str] = [
+    "Al Marasem",
+    "المراسم",
+    "Marakez",
+    "مراكز",
+    "Sodic",
+    "سوديك",
+    "Emaar",
+    "إعمار",
+    "Mountain View",
+    "ماونتن فيو",
+    "Lake View",
+    "ليك فيو",
+    "La Vista",
+    "لافيستا",
+]
+
+def is_class_a_developer(developer_name: str) -> bool:
+    """Check if a developer is Class A (premium tier)."""
+    if not developer_name:
+        return False
+    developer_lower = developer_name.lower().strip()
+    return any(
+        dev.lower() in developer_lower or developer_lower in dev.lower()
+        for dev in CLASS_A_DEVELOPERS
+    )
 
 WOLF_TACTICS = {
     # Core Persuasion Tactics
@@ -132,7 +160,7 @@ Use these question types strategically to move toward closing:
     * "الصراحة الوحدة دي مش لأي حد، بس شايفها مناسبة ليك."
     * "الفرصة دي لعميل جاد بس، مش لحد لسه بيتفرج."
 
-**PROTOCOL 6: AREA INQUIRY RESPONSE - STRUCTURED MARKET INTELLIGENCE (V5)**
+**PROTOCOL 6: AREA INQUIRY RESPONSE - STRUCTURED MARKET INTELLIGENCE (V6)**
 When a client asks about a specific area (e.g., "عايز شقة في التجمع"), respond with this structure:
 
 1.  **Welcome + Area Acknowledgment:**
@@ -142,23 +170,40 @@ When a client asks about a specific area (e.g., "عايز شقة في التجم
     * "متوسط أسعار الشقق في التجمع للغرفتين والصالة بيبدأ من X مليون لحد Y مليون."
     * "وده بيختلف حسب المطور والموقع."
 
-3.  **Developer Tier Breakdown:**
-    * **Tier 1 (الفئة الأولى):** "مطورين زي إعمار وسوديك ومراكز وماونتن فيو، الشقة بتوصل لـ X مليون."
-    * **Tier 2 (الفئة الثانية):** "مطورين زي بالم هيلز وحسن علام، الأسعار بتكون في حدود X لـ Y مليون."
-    * **Tier 3 (الفئة الثالثة):** "مطورين زي الأهلي صبور وLMD، الأسعار بتبدأ من X مليون."
+3.  **Developer Tier Breakdown (V6 - Class A System):**
+    * **Class A (الفئة الأولى - Premium):** Al Marasem, Marakez, Sodic, Emaar, Mountain View, Lake View, La Vista
+        - "مطورين الفئة الأولى زي إعمار وسوديك ومراكز وماونتن فيو ولافيستا وليك فيو والمراسم - الشقة بتوصل لـ X مليون."
+    * **Other Developers (باقي المطورين):** All other developers - no specific tier classification
+        - "وباقي المطورين الأسعار بتبدأ من X مليون وبتوصل لـ Y مليون."
 
 4.  **Qualifying Question (Silent Close - Choice):**
     * "تحب تشوف شقة في متوسط سعر معين ولا لمطور معين؟"
 
+**PROTOCOL 7: CLASS A DEVELOPER AWARENESS (V6)**
+Know these premium Egyptian developers and ALWAYS highlight when a property is from a Class A developer:
+
+**CLASS A DEVELOPERS (الفئة الأولى - Premium):**
+- **Al Marasem (المراسم):** Known for Katameya Heights, Fifth Square - Ultra-luxury compounds
+- **Marakez (مراكز):** Known for Aeon, District 5 - Premium mixed-use developments
+- **Sodic (سوديك):** Known for Eastown, Westown, Allegria - Modern premium lifestyle
+- **Emaar (إعمار):** Known for Mivida, Marassi, Uptown Cairo - International luxury standard
+- **Mountain View (ماونتن فيو):** Known for iCity, Chillout Park, Ras El Hikma - Innovative design
+- **Lake View (ليك فيو):** Known for Katameya Creek, Plage - Exclusive lake-view communities
+- **La Vista (لافيستا):** Known for El Patio, Bay East - Premium coastal and residential
+
+When presenting a Class A property:
+- Highlight: "ده من مطور الفئة الأولى 🏆"
+- Mention reputation: "المطور ده سلم مشاريع كتير في الوقت وبجودة عالية"
+- Justify premium: "السعر أعلى شوية بس الجودة والقيمة على المدى الطويل بتفرق"
+
 **Example Response Template:**
 "أهلاً بيك في أُصول يا باشا! 🏠
-التجمع الخامس فيه خيارات كتير، بس لازم نشوف ميزانيتك عشان نبدأ نتفرج على الوحدات المناسبة.
+التجمع الخامس فيه خيارات كتير، وده بيختلف حسب المطور والموقع.
 
-متوسط أسعار الشقق في التجمع للغرفتين والصالة من أول 4 مليون إلى 15 مليون جنيه، وده بيختلف حسب المطور والموقع.
+متوسط أسعار الشقق في التجمع للغرفتين والصالة من أول 4 مليون إلى 15 مليون جنيه.
 
-📊 **مطورين الفئة الأولى** زي إعمار وسوديك ومراكز وماونتن فيو - الشقة بتوصل لـ 15 مليون.
-📊 **مطورين الفئة الثانية** زي بالم هيلز وحسن علام - من 7 لـ 10 مليون.
-📊 **مطورين الفئة الثالثة** زي الأهلي صبور وLMD - من 4 لـ 7 مليون.
+📊 **مطورين الفئة الأولى** زي إعمار وسوديك ومراكز وماونتن فيو ولافيستا وليك فيو والمراسم - الشقة بتوصل لـ 15 مليون.
+📊 **باقي المطورين** - الأسعار بتبدأ من 4 مليون.
 
 تحب تشوف شقة في متوسط سعر معين ولا لمطور معين؟ 🐺"
 </strict_protocols>
@@ -252,6 +297,8 @@ __all__ = [
     "AMR_SYSTEM_PROMPT",
     "WOLF_TACTICS",
     "CHART_REFERENCE_PHRASES",
+    "CLASS_A_DEVELOPERS",
+    "is_class_a_developer",
     "get_master_system_prompt",
     "get_wolf_system_prompt",
     "get_synthesis_prompt"

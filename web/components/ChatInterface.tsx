@@ -12,7 +12,17 @@ import {
     Copy,
     Check,
     ChevronDown,
-    Zap
+    Zap,
+    Search,
+    Calculator,
+    TrendingUp,
+    GitCompare,
+    Calendar,
+    MapPin,
+    DollarSign,
+    BarChart3,
+    Home,
+    Loader2
 } from 'lucide-react';
 import ConversationHistory from './ConversationHistory';
 import VisualizationRenderer from './visualizations/VisualizationRenderer';
@@ -53,8 +63,21 @@ type Message = {
     isTyping?: boolean;
 };
 
-// Typewriter Hook
-function useTypewriter(text: string, speed: number = 15, enabled: boolean = true) {
+// Class A Developers List
+const CLASS_A_DEVELOPERS = [
+    'al marasem', 'المراسم', 'marakez', 'مراكز', 'sodic', 'سوديك',
+    'emaar', 'إعمار', 'mountain view', 'ماونتن فيو', 'lake view', 'ليك فيو',
+    'la vista', 'لافيستا', 'lavista'
+];
+
+const isClassADeveloper = (developer: string | undefined): boolean => {
+    if (!developer) return false;
+    const devLower = developer.toLowerCase().trim();
+    return CLASS_A_DEVELOPERS.some(d => devLower.includes(d) || d.includes(devLower));
+};
+
+// Enhanced Typewriter Hook V2 - Variable speed based on character type
+function useTypewriter(text: string, baseSpeed: number = 12, enabled: boolean = true) {
     const [displayedText, setDisplayedText] = useState('');
     const [isComplete, setIsComplete] = useState(false);
 
@@ -68,19 +91,47 @@ function useTypewriter(text: string, speed: number = 15, enabled: boolean = true
         setDisplayedText('');
         setIsComplete(false);
         let index = 0;
+        let timeoutId: NodeJS.Timeout;
 
-        const timer = setInterval(() => {
+        const typeNext = () => {
             if (index < text.length) {
+                const char = text[index];
                 setDisplayedText(text.slice(0, index + 1));
                 index++;
+
+                // Variable speed based on character type
+                let delay = baseSpeed;
+
+                // Long pause on sentence endings
+                if (['.', '!', '?', '،', '؟', '。'].includes(char)) {
+                    delay = baseSpeed * 6;
+                }
+                // Medium pause on punctuation
+                else if ([',', ':', ';', '؛', '-', '–'].includes(char)) {
+                    delay = baseSpeed * 3;
+                }
+                // Slight pause on spaces
+                else if (char === ' ') {
+                    delay = baseSpeed * 1.3;
+                }
+                // Slightly faster for Arabic (flows better)
+                else if (/[\u0600-\u06FF]/.test(char)) {
+                    delay = baseSpeed * 0.9;
+                }
+                // Emojis get a pause
+                else if (/[\u{1F300}-\u{1F9FF}]/u.test(char)) {
+                    delay = baseSpeed * 2;
+                }
+
+                timeoutId = setTimeout(typeNext, delay);
             } else {
                 setIsComplete(true);
-                clearInterval(timer);
             }
-        }, speed);
+        };
 
-        return () => clearInterval(timer);
-    }, [text, speed, enabled]);
+        timeoutId = setTimeout(typeNext, 50);
+        return () => clearTimeout(timeoutId);
+    }, [text, baseSpeed, enabled]);
 
     return { displayedText, isComplete };
 }
@@ -95,21 +146,42 @@ const formatPrice = (price: number): string => {
 
 // Property Card
 function PropertyCard({ property, delay = 0 }: { property: Property; delay?: number }) {
+    const isClassA = isClassADeveloper(property.developer);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay, type: "spring", stiffness: 400, damping: 25 }}
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            className="group relative bg-[var(--color-surface)] rounded-2xl p-5 
-                       border border-[var(--color-border)] hover:border-[var(--color-primary)]
-                       shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
+            className={`group relative bg-[var(--color-surface)] rounded-2xl p-5
+                       border hover:border-[var(--color-primary)]
+                       shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer
+                       ${isClassA ? 'border-amber-500/30 ring-1 ring-amber-500/10' : 'border-[var(--color-border)]'}`}
         >
             {/* Glow effect on hover */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500/0 to-teal-500/0 
-                          group-hover:from-emerald-500/5 group-hover:to-teal-500/5 transition-all duration-500" />
+            <div className={`absolute inset-0 rounded-2xl transition-all duration-500
+                          ${isClassA
+                            ? 'bg-gradient-to-br from-amber-500/5 to-orange-500/5 group-hover:from-amber-500/10 group-hover:to-orange-500/10'
+                            : 'bg-gradient-to-br from-emerald-500/0 to-teal-500/0 group-hover:from-emerald-500/5 group-hover:to-teal-500/5'}`} />
 
             <div className="relative">
+                {/* Class A Badge */}
+                {isClassA && (
+                    <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: delay + 0.1 }}
+                        className="absolute -top-2 -right-2 z-10"
+                    >
+                        <span className="text-xs bg-gradient-to-r from-amber-500 to-orange-500
+                                       text-white px-2.5 py-1 rounded-full font-bold shadow-lg shadow-amber-500/30
+                                       flex items-center gap-1">
+                            🏆 Class A
+                        </span>
+                    </motion.div>
+                )}
+
                 <div className="flex justify-between items-start mb-3">
                     <h4 className="font-semibold text-[var(--color-text-primary)] text-sm line-clamp-1 flex-1 pr-2">
                         {property.title}
@@ -139,6 +211,13 @@ function PropertyCard({ property, delay = 0 }: { property: Property; delay?: num
                     <span>{property.bedrooms} bed</span>
                 </p>
 
+                {/* Developer name with Class A indicator */}
+                {property.developer && (
+                    <p className={`text-xs mb-3 font-medium ${isClassA ? 'text-amber-500' : 'text-[var(--color-text-muted)]'}`}>
+                        {isClassA && '⭐ '}{property.developer}
+                    </p>
+                )}
+
                 <div className="flex justify-between items-center">
                     <span className="text-[var(--color-primary)] font-bold text-lg">
                         {formatPrice(property.price)}
@@ -148,7 +227,7 @@ function PropertyCard({ property, delay = 0 }: { property: Property; delay?: num
                             initial={{ scale: 0, rotate: -10 }}
                             animate={{ scale: 1, rotate: 0 }}
                             transition={{ delay: delay + 0.3, type: "spring" }}
-                            className="text-xs bg-gradient-to-r from-emerald-500 to-teal-500 
+                            className="text-xs bg-gradient-to-r from-emerald-500 to-teal-500
                                      text-white px-3 py-1.5 rounded-full font-medium shadow-lg shadow-emerald-500/25"
                         >
                             🐺 La2ta!
@@ -196,14 +275,23 @@ function TypewriterMessage({
 function ChatMessage({
     message,
     onCopy,
-    isLatest
+    isLatest,
+    onQuickAction
 }: {
     message: Message;
     onCopy: (id: string) => void;
     isLatest: boolean;
+    onQuickAction?: (prompt: string) => void;
 }) {
     const isUser = message.role === 'user';
     const [showExtras, setShowExtras] = useState(!isLatest || isUser);
+
+    // Determine quick action context based on message content
+    const getQuickActionContext = () => {
+        if (message.properties && message.properties.length > 0) return 'property_shown';
+        if (message.visualizations && message.visualizations.length > 0) return 'search_complete';
+        return 'default';
+    };
 
     return (
         <motion.div
@@ -307,6 +395,14 @@ function ChatMessage({
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* Quick Actions - Show after AMR response with content */}
+                {!isUser && showExtras && isLatest && onQuickAction && (
+                    <QuickActions
+                        context={getQuickActionContext()}
+                        onAction={onQuickAction}
+                    />
+                )}
             </div>
 
             {isUser && <div className="w-10 flex-shrink-0" />}
@@ -314,39 +410,151 @@ function ChatMessage({
     );
 }
 
+// Tool metadata for execution indicators
+const TOOL_METADATA: Record<string, { icon: React.ElementType; label_ar: string; label_en: string }> = {
+    'search_properties': { icon: Search, label_ar: 'جاري البحث عن العقارات...', label_en: 'Searching properties...' },
+    'run_valuation_ai': { icon: Calculator, label_ar: 'جاري التقييم...', label_en: 'Running valuation...' },
+    'calculate_mortgage': { icon: DollarSign, label_ar: 'حساب القسط الشهري...', label_en: 'Calculating mortgage...' },
+    'check_market_trends': { icon: TrendingUp, label_ar: 'تحليل اتجاهات السوق...', label_en: 'Analyzing market trends...' },
+    'compare_units': { icon: GitCompare, label_ar: 'مقارنة العقارات...', label_en: 'Comparing properties...' },
+    'schedule_viewing': { icon: Calendar, label_ar: 'حجز موعد المعاينة...', label_en: 'Scheduling viewing...' },
+    'check_area': { icon: MapPin, label_ar: 'تحليل المنطقة...', label_en: 'Analyzing area...' },
+    'investment_analysis': { icon: BarChart3, label_ar: 'تحليل الاستثمار...', label_en: 'Analyzing investment...' },
+    'default': { icon: Loader2, label_ar: 'جاري التحليل...', label_en: 'Processing...' },
+};
+
+// Tool Execution Indicator Component
+function ToolExecutionIndicator({ tool, status = 'running' }: { tool: string; status?: 'running' | 'complete' }) {
+    const metadata = TOOL_METADATA[tool] || TOOL_METADATA['default'];
+    const Icon = metadata.icon;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -5, scale: 0.95 }}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
+        >
+            <motion.div
+                animate={status === 'running' ? { rotate: 360 } : {}}
+                transition={{ duration: 1, repeat: status === 'running' ? Infinity : 0, ease: 'linear' }}
+            >
+                <Icon className="w-5 h-5 text-emerald-500" />
+            </motion.div>
+            <span className="text-sm text-emerald-400">{metadata.label_ar}</span>
+            {status === 'complete' && <Check className="w-4 h-4 text-emerald-500 ml-auto" />}
+        </motion.div>
+    );
+}
+
+// Quick Actions Component
+type QuickAction = {
+    id: string;
+    label_ar: string;
+    label_en: string;
+    icon: React.ElementType;
+    prompt: string;
+    variant: 'primary' | 'secondary' | 'ghost';
+};
+
+const QUICK_ACTIONS: Record<string, QuickAction[]> = {
+    'property_shown': [
+        { id: 'schedule', label_ar: 'حجز معاينة', label_en: 'Schedule Viewing', icon: Calendar, prompt: 'عايز أحجز معاينة للعقار ده', variant: 'primary' },
+        { id: 'compare', label_ar: 'قارن مع عقارات تانية', label_en: 'Compare', icon: GitCompare, prompt: 'قارنلي العقار ده مع عقارات تانية مشابهة', variant: 'secondary' },
+        { id: 'mortgage', label_ar: 'احسب القسط', label_en: 'Calculate Mortgage', icon: Calculator, prompt: 'احسبلي القسط الشهري للعقار ده', variant: 'ghost' },
+    ],
+    'search_complete': [
+        { id: 'filter_price', label_ar: 'غير الميزانية', label_en: 'Adjust Budget', icon: DollarSign, prompt: 'عايز أشوف في ميزانية تانية', variant: 'secondary' },
+        { id: 'filter_location', label_ar: 'منطقة تانية', label_en: 'Different Area', icon: MapPin, prompt: 'ورني في منطقة تانية', variant: 'secondary' },
+        { id: 'class_a', label_ar: 'مطورين الفئة الأولى', label_en: 'Class A Developers', icon: Home, prompt: 'ورني من مطورين الفئة الأولى بس', variant: 'ghost' },
+    ],
+    'default': [
+        { id: 'search', label_ar: 'ابحث عن عقار', label_en: 'Search Properties', icon: Search, prompt: 'عايز أدور على شقة في التجمع', variant: 'primary' },
+        { id: 'valuation', label_ar: 'قيم عقار', label_en: 'Valuation', icon: BarChart3, prompt: 'عايز تقييم لعقار', variant: 'secondary' },
+        { id: 'market', label_ar: 'تحليل السوق', label_en: 'Market Analysis', icon: TrendingUp, prompt: 'إيه أحسن منطقة للاستثمار دلوقتي؟', variant: 'ghost' },
+    ]
+};
+
+function QuickActions({ context, onAction }: { context: string; onAction: (prompt: string) => void }) {
+    const actions = QUICK_ACTIONS[context] || QUICK_ACTIONS['default'];
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="flex flex-wrap gap-2 mt-4"
+        >
+            {actions.map((action, idx) => {
+                const Icon = action.icon;
+                return (
+                    <motion.button
+                        key={action.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4 + idx * 0.1 }}
+                        whileHover={{ scale: 1.02, y: -1 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => onAction(action.prompt)}
+                        className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-200
+                            ${action.variant === 'primary'
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40'
+                                : action.variant === 'secondary'
+                                    ? 'bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] hover:border-[var(--color-primary)]'
+                                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]'}`}
+                    >
+                        <Icon size={16} />
+                        {action.label_ar}
+                    </motion.button>
+                );
+            })}
+        </motion.div>
+    );
+}
+
 // Typing Indicator
-function TypingIndicator() {
+function TypingIndicator({ currentTool }: { currentTool?: string }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex items-center gap-3"
+            className="flex flex-col gap-3"
         >
-            <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 
-                          flex items-center justify-center text-white text-sm font-bold 
-                          shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-500/20"
-            >
-                A
-            </motion.div>
-            <div className="flex items-center gap-2 glass px-5 py-4 rounded-2xl rounded-bl-md 
-                          border border-[var(--color-border)] shadow-md">
-                <Zap size={14} className="text-emerald-500" />
-                <span className="text-sm text-[var(--color-text-secondary)]">Thinking</span>
-                <motion.div className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                        <motion.span
-                            key={i}
-                            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
-                            transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
-                            className="w-2 h-2 bg-emerald-500 rounded-full"
-                        />
-                    ))}
+            <div className="flex items-center gap-3">
+                <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500
+                              flex items-center justify-center text-white text-sm font-bold
+                              shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-500/20"
+                >
+                    A
                 </motion.div>
+                <div className="flex items-center gap-2 glass px-5 py-4 rounded-2xl rounded-bl-md
+                              border border-[var(--color-border)] shadow-md">
+                    <Zap size={14} className="text-emerald-500" />
+                    <span className="text-sm text-[var(--color-text-secondary)]">Thinking</span>
+                    <motion.div className="flex gap-1">
+                        {[0, 1, 2].map((i) => (
+                            <motion.span
+                                key={i}
+                                animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+                                transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+                                className="w-2 h-2 bg-emerald-500 rounded-full"
+                            />
+                        ))}
+                    </motion.div>
+                </div>
             </div>
+            {/* Show current tool execution */}
+            <AnimatePresence>
+                {currentTool && (
+                    <div className="ml-13 pl-13">
+                        <ToolExecutionIndicator tool={currentTool} />
+                    </div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 }
@@ -701,9 +909,10 @@ export default function ChatInterface() {
                                     message={msg}
                                     onCopy={handleCopy}
                                     isLatest={idx === messages.length - 1}
+                                    onQuickAction={(prompt) => handleSend(prompt)}
                                 />
                             ))}
-                            {isTyping && <TypingIndicator />}
+                            {isTyping && <TypingIndicator currentTool="search_properties" />}
                         </AnimatePresence>
                     )}
                 </div>

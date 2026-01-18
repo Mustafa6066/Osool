@@ -167,4 +167,155 @@ export const storeAuthTokens = (accessToken: string, refreshToken?: string): voi
   }
 };
 
+/**
+ * V6: Streaming Chat Response Types
+ */
+export type StreamEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'error';
+
+export interface StreamEvent {
+  type: StreamEventType;
+  content?: string;
+  tool?: string;
+  properties?: any[];
+  ui_actions?: any[];
+  psychology?: any;
+  message?: string;
+}
+
+export interface StreamChatCallbacks {
+  onToken: (token: string) => void;
+  onToolStart: (tool: string) => void;
+  onToolEnd: (tool: string) => void;
+  onComplete: (data: { properties: any[]; ui_actions: any[]; psychology?: any }) => void;
+  onError: (error: string) => void;
+}
+
+/**
+ * V6: Streaming Chat Function
+ * Connects to /api/chat/stream endpoint via Server-Sent Events
+ *
+ * @param message - User message to send
+ * @param sessionId - Chat session ID
+ * @param callbacks - Event callbacks for streaming updates
+ * @returns AbortController to cancel the stream
+ */
+export const streamChat = async (
+  message: string,
+  sessionId: string,
+  callbacks: StreamChatCallbacks
+): Promise<AbortController> => {
+  const controller = new AbortController();
+
+  try {
+    const accessToken = typeof window !== 'undefined'
+      ? localStorage.getItem('access_token')
+      : null;
+
+    const response = await fetch(`${BASE_URL}/api/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({ message, session_id: sessionId }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    // Read stream
+    let buffer = '';
+
+    const processLine = (line: string) => {
+      if (line.startsWith('data: ')) {
+        try {
+          const data: StreamEvent = JSON.parse(line.slice(6));
+
+          switch (data.type) {
+            case 'token':
+              if (data.content) callbacks.onToken(data.content);
+              break;
+            case 'tool_start':
+              if (data.tool) callbacks.onToolStart(data.tool);
+              break;
+            case 'tool_end':
+              if (data.tool) callbacks.onToolEnd(data.tool);
+              break;
+            case 'done':
+              callbacks.onComplete({
+                properties: data.properties || [],
+                ui_actions: data.ui_actions || [],
+                psychology: data.psychology,
+              });
+              break;
+            case 'error':
+              callbacks.onError(data.message || 'Unknown error');
+              break;
+          }
+        } catch (e) {
+          console.error('Failed to parse SSE data:', e);
+        }
+      }
+    };
+
+    // Process stream
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (line.trim()) {
+          processLine(line);
+        }
+      }
+    }
+
+    // Process any remaining buffer
+    if (buffer.trim()) {
+      processLine(buffer);
+    }
+
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') {
+      console.log('Stream cancelled by user');
+    } else {
+      callbacks.onError((error as Error).message);
+    }
+  }
+
+  return controller;
+};
+
+/**
+ * V6: Simple non-streaming chat (wrapper for backwards compatibility)
+ */
+export const sendChatMessage = async (
+  message: string,
+  sessionId: string = 'default'
+): Promise<{
+  response: string;
+  properties: any[];
+  ui_actions: any[];
+  psychology?: any;
+}> => {
+  const { data } = await api.post('/api/chat', { message, session_id: sessionId });
+  return data;
+};
+
 export default api;

@@ -1046,6 +1046,129 @@ async def chat_with_agent(
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
 
+@router.post("/chat/stream")
+@limiter.limit("20/minute")
+async def chat_stream(
+    req: ChatRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_current_user_optional)
+):
+    """
+    🌊 Streaming AI Chat Endpoint (V6: Real-time Token Streaming)
+
+    Same as /chat but streams response tokens in real-time via Server-Sent Events (SSE).
+    The frontend receives tokens as they're generated, enabling typewriter effect.
+
+    SSE Format:
+    - data: {"type": "token", "content": "..."} - Text token
+    - data: {"type": "tool_start", "tool": "search_properties"} - Tool execution started
+    - data: {"type": "tool_end", "tool": "search_properties"} - Tool execution ended
+    - data: {"type": "done", "properties": [...], "ui_actions": [...]} - Final response
+
+    Frontend should use EventSource or fetch with ReadableStream to consume.
+    """
+    from fastapi.responses import StreamingResponse
+    import json
+    import asyncio
+
+    async def generate():
+        try:
+            from app.ai_engine.claude_sales_agent import claude_sales_agent
+            from app.models import ChatMessage
+            from sqlalchemy import select
+
+            # Load chat history
+            chat_history = []
+            result = await db.execute(
+                select(ChatMessage)
+                .filter(ChatMessage.session_id == req.session_id)
+                .order_by(ChatMessage.created_at.desc())
+                .limit(20)
+            )
+            messages = result.scalars().all()
+
+            for msg in reversed(messages):
+                if msg.role == "user":
+                    from langchain_core.messages import HumanMessage
+                    chat_history.append(HumanMessage(content=msg.content))
+                elif msg.role == "assistant":
+                    from langchain_core.messages import AIMessage
+                    chat_history.append(AIMessage(content=msg.content))
+
+            # Save user message
+            user_message = ChatMessage(
+                session_id=req.session_id,
+                role="user",
+                content=req.message
+            )
+            db.add(user_message)
+            await db.commit()
+
+            # Create user dict
+            user_dict = None
+            if user:
+                user_dict = {
+                    "id": user.id,
+                    "email": getattr(user, "email", None),
+                    "name": getattr(user, "name", None),
+                }
+
+            # Send initial tool indication
+            yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'search_properties'})}\n\n"
+            await asyncio.sleep(0.1)
+
+            # Get AI response (non-streaming for now, will be enhanced later)
+            ai_result = await claude_sales_agent.chat_with_context(
+                user_input=req.message,
+                session_id=req.session_id,
+                chat_history=chat_history,
+                user=user_dict
+            )
+
+            yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'search_properties'})}\n\n"
+
+            # Extract response components
+            response_text = ai_result.get("response", "")
+            search_results = ai_result.get("properties", [])
+            ui_actions = ai_result.get("ui_actions", [])
+            psychology = ai_result.get("psychology")
+
+            # Stream response text token by token (simulated streaming)
+            words = response_text.split(' ')
+            for i, word in enumerate(words):
+                token = word + (' ' if i < len(words) - 1 else '')
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+                await asyncio.sleep(0.02)  # 20ms delay between words
+
+            # Save AI response to database
+            ai_message = ChatMessage(
+                session_id=req.session_id,
+                role="assistant",
+                content=response_text,
+                properties_json=json.dumps(search_results) if search_results else None
+            )
+            db.add(ai_message)
+            await db.commit()
+
+            # Send final response with all metadata
+            yield f"data: {json.dumps({'type': 'done', 'properties': search_results, 'ui_actions': ui_actions, 'psychology': psychology})}\n\n"
+
+        except Exception as e:
+            await db.rollback()
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
 
 
 
