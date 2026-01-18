@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send,
-    ShieldCheck,
     Sparkles,
     Menu,
     Plus,
@@ -12,10 +11,12 @@ import {
     PanelLeft,
     Copy,
     Check,
-    ChevronDown
+    ChevronDown,
+    MessageSquare
 } from 'lucide-react';
 import ConversationHistory from './ConversationHistory';
 import VisualizationRenderer from './visualizations/VisualizationRenderer';
+import ThemeToggle from './ThemeToggle';
 import api from '../lib/api';
 
 // Types
@@ -62,36 +63,46 @@ const formatPrice = (price: number): string => {
 // Property Card Component
 function PropertyCard({ property }: { property: Property }) {
     return (
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700 hover:border-green-500/50 transition-colors">
-            <div className="flex justify-between items-start mb-2">
-                <h4 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-1">
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="group relative bg-[var(--color-surface)] rounded-2xl p-4 
+                       border border-[var(--color-border)] hover:border-[var(--color-primary)]/50
+                       shadow-sm hover:shadow-md transition-all duration-300"
+        >
+            <div className="flex justify-between items-start mb-3">
+                <h4 className="font-semibold text-[var(--color-text-primary)] text-sm line-clamp-1 flex-1 pr-2">
                     {property.title}
                 </h4>
                 {property.wolf_score && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${property.wolf_score >= 80
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${property.wolf_score >= 80
+                            ? 'bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20'
                             : property.wolf_score >= 60
-                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                ? 'bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/20'
+                                : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]'
                         }`}>
                         {property.wolf_score}/100
                     </span>
                 )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                {property.location} • {property.size_sqm} sqm • {property.bedrooms} bed
+            <p className="text-xs text-[var(--color-text-muted)] mb-3 flex items-center gap-2">
+                <span>{property.location}</span>
+                <span className="w-1 h-1 rounded-full bg-[var(--color-border)]"></span>
+                <span>{property.size_sqm} sqm</span>
+                <span className="w-1 h-1 rounded-full bg-[var(--color-border)]"></span>
+                <span>{property.bedrooms} bed</span>
             </p>
             <div className="flex justify-between items-center">
-                <span className="text-green-600 dark:text-green-400 font-bold">
+                <span className="text-[var(--color-primary)] font-bold text-lg">
                     {formatPrice(property.price)}
                 </span>
                 {property.valuation_verdict === 'BARGAIN' && (
-                    <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">
-                        La2ta!
+                    <span className="text-xs bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-3 py-1 rounded-full font-medium">
+                        🐺 La2ta!
                     </span>
                 )}
             </div>
-        </div>
+        </motion.div>
     );
 }
 
@@ -107,24 +118,27 @@ function ChatMessage({
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`group flex gap-4 ${isUser ? 'justify-end' : 'justify-start'}`}
+            initial={{ opacity: 0, y: 15, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            className={`group flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
         >
             {/* AMR Avatar */}
             {!isUser && (
                 <div className="flex-shrink-0 mt-1">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-green-500/20">
+                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 
+                                  flex items-center justify-center text-white text-sm font-bold 
+                                  shadow-lg shadow-emerald-500/25">
                         A
                     </div>
                 </div>
             )}
 
-            <div className={`flex flex-col max-w-[85%] md:max-w-[75%] space-y-3`}>
+            <div className={`flex flex-col max-w-[85%] md:max-w-[70%] space-y-3`}>
                 {/* Message Bubble */}
-                <div className={`relative rounded-2xl p-4 ${isUser
-                        ? 'bg-green-600 text-white rounded-br-sm'
-                        : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-sm border border-slate-100 dark:border-slate-700 shadow-sm'
+                <div className={`relative rounded-2xl px-4 py-3 message-bubble ${isUser
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-br-md'
+                        : 'glass border border-[var(--color-border)] text-[var(--color-text-primary)] rounded-bl-md'
                     }`}>
                     <div className="text-sm leading-relaxed whitespace-pre-wrap" dir="auto">
                         {message.content}
@@ -134,12 +148,14 @@ function ChatMessage({
                     {!isUser && (
                         <button
                             onClick={() => onCopy(message.id)}
-                            className="absolute -bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-700 rounded-full p-1.5 shadow-md border border-slate-200 dark:border-slate-600"
+                            className="absolute -bottom-2 right-2 opacity-0 group-hover:opacity-100 
+                                     transition-all duration-200 bg-[var(--color-surface)] rounded-full p-1.5 
+                                     shadow-md border border-[var(--color-border)] hover:border-[var(--color-primary)]"
                         >
                             {message.copied ? (
-                                <Check size={12} className="text-green-500" />
+                                <Check size={12} className="text-emerald-500" />
                             ) : (
-                                <Copy size={12} className="text-slate-400" />
+                                <Copy size={12} className="text-[var(--color-text-muted)]" />
                             )}
                         </button>
                     )}
@@ -154,7 +170,8 @@ function ChatMessage({
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.1 }}
-                                className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm"
+                                className="rounded-2xl overflow-hidden border border-[var(--color-border)] 
+                                          bg-[var(--color-surface)] shadow-lg"
                             >
                                 <VisualizationRenderer
                                     type={viz.type}
@@ -167,7 +184,7 @@ function ChatMessage({
 
                 {/* Property Cards */}
                 {message.properties && message.properties.length > 0 && (
-                    <div className="mt-3 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="mt-2 grid gap-3 grid-cols-1 lg:grid-cols-2">
                         {message.properties.slice(0, 4).map((prop) => (
                             <PropertyCard key={prop.id} property={prop} />
                         ))}
@@ -175,8 +192,8 @@ function ChatMessage({
                 )}
             </div>
 
-            {/* User Avatar (placeholder space for alignment) */}
-            {isUser && <div className="w-8 flex-shrink-0" />}
+            {/* User Avatar space */}
+            {isUser && <div className="w-9 flex-shrink-0" />}
         </motion.div>
     );
 }
@@ -185,62 +202,109 @@ function ChatMessage({
 function TypingIndicator() {
     return (
         <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex items-center gap-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-3"
         >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-green-500/20">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 
+                          flex-shrink-0 flex items-center justify-center text-white text-sm font-bold 
+                          shadow-lg shadow-emerald-500/25">
                 A
             </div>
-            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 px-4 py-3 rounded-2xl rounded-bl-sm border border-slate-100 dark:border-slate-700 shadow-sm">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce" />
+            <div className="flex items-center gap-1.5 glass px-5 py-3 rounded-2xl rounded-bl-md border border-[var(--color-border)]">
+                <motion.span
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                    className="w-2 h-2 bg-emerald-500 rounded-full"
+                />
+                <motion.span
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }}
+                    className="w-2 h-2 bg-emerald-500 rounded-full"
+                />
+                <motion.span
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }}
+                    className="w-2 h-2 bg-emerald-500 rounded-full"
+                />
             </div>
         </motion.div>
     );
 }
 
 // Empty State
-function EmptyState() {
+function EmptyState({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
     const suggestions = [
-        "عايز شقة في التجمع تحت 5 مليون",
-        "قارنلي بين زايد والتجمع للاستثمار",
-        "إيه أحسن منطقة للعائد الإيجاري؟",
-        "Show me properties in New Cairo"
+        { text: "عايز شقة في التجمع تحت 5 مليون", icon: "🏠" },
+        { text: "قارنلي بين زايد والتجمع للاستثمار", icon: "📊" },
+        { text: "إيه أحسن منطقة للعائد الإيجاري؟", icon: "💰" },
+        { text: "Show me properties in New Cairo", icon: "🔍" }
     ];
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="flex flex-col items-center justify-center h-full text-center px-4 py-12"
         >
-            <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-green-500/20">
+            <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-500 
+                          flex items-center justify-center mb-8 shadow-2xl shadow-emerald-500/30"
+            >
                 <span className="text-4xl font-bold text-white">A</span>
-            </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                Ahlan! Ana Amr
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-md">
-                Your AI Real Estate Consultant. I help you find verified properties,
-                analyze market trends, and protect your investment.
-            </p>
+            </motion.div>
 
-            <div className="grid gap-3 w-full max-w-lg">
-                <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">
+            <motion.h2
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="text-3xl font-bold text-[var(--color-text-primary)] mb-3"
+            >
+                Ahlan! Ana Amr 👋
+            </motion.h2>
+
+            <motion.p
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-[var(--color-text-secondary)] mb-10 max-w-md text-lg"
+            >
+                Your AI Real Estate Consultant. I help you find verified properties
+                and protect your investment.
+            </motion.p>
+
+            <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="grid gap-3 w-full max-w-lg"
+            >
+                <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider mb-2 font-medium">
                     Try asking
                 </p>
                 {suggestions.map((suggestion, idx) => (
-                    <button
+                    <motion.button
                         key={idx}
-                        className="text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 text-sm hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/10 transition-all"
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.4 + idx * 0.1 }}
+                        onClick={() => onSuggestionClick(suggestion.text)}
+                        className="group text-left px-5 py-4 rounded-2xl border border-[var(--color-border)] 
+                                 bg-[var(--color-surface)] text-[var(--color-text-secondary)] text-sm 
+                                 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]
+                                 transition-all duration-300 flex items-center gap-3"
                     >
-                        {suggestion}
-                    </button>
+                        <span className="text-xl">{suggestion.icon}</span>
+                        <span className="group-hover:text-[var(--color-text-primary)] transition-colors">
+                            {suggestion.text}
+                        </span>
+                    </motion.button>
                 ))}
-            </div>
+            </motion.div>
         </motion.div>
     );
 }
@@ -259,11 +323,11 @@ export default function ChatInterface() {
     // Auto-scroll to bottom
     useEffect(() => {
         if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
         }
     }, [messages, isTyping]);
 
-    // Check scroll position for "scroll to bottom" button
+    // Check scroll position
     const handleScroll = useCallback(() => {
         if (scrollRef.current) {
             const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
@@ -292,14 +356,14 @@ export default function ChatInterface() {
     };
 
     // Send message
-    const handleSend = async () => {
-        const text = input.trim();
-        if (!text || isTyping) return;
+    const handleSend = async (text?: string) => {
+        const messageText = text || input.trim();
+        if (!messageText || isTyping) return;
 
         const userMessage: Message = {
             id: `user-${Date.now()}`,
             role: 'user',
-            content: text,
+            content: messageText,
             timestamp: new Date()
         };
 
@@ -307,13 +371,12 @@ export default function ChatInterface() {
         setInput('');
         setIsTyping(true);
 
-        // Reset textarea height
         if (inputRef.current) {
             inputRef.current.style.height = 'auto';
         }
 
         try {
-            const { data } = await api.post('/api/chat', { message: text });
+            const { data } = await api.post('/api/chat', { message: messageText });
 
             const amrMessage: Message = {
                 id: `amr-${Date.now()}`,
@@ -352,7 +415,7 @@ export default function ChatInterface() {
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setInput(e.target.value);
         e.target.style.height = 'auto';
-        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+        e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
     };
 
     // New conversation
@@ -362,21 +425,28 @@ export default function ChatInterface() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-slate-100 dark:bg-slate-950 overflow-hidden">
+        <div className="flex h-screen bg-[var(--color-background)] overflow-hidden">
             {/* Desktop Sidebar */}
-            <div className={`hidden md:flex flex-col bg-slate-900 dark:bg-black transition-all duration-300 ${isSidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'
-                }`}>
-                <div className="p-4 border-b border-slate-800">
+            <motion.div
+                initial={false}
+                animate={{ width: isSidebarCollapsed ? 0 : 280 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="hidden md:flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-border)] overflow-hidden"
+            >
+                <div className="p-4 border-b border-[var(--color-border)]">
                     <button
                         onClick={handleNewConversation}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors text-sm font-medium"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 
+                                 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl 
+                                 font-medium shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30
+                                 transition-all duration-300 hover:-translate-y-0.5"
                     >
                         <Plus size={18} />
                         New Chat
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-2">
+                <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
                     <ConversationHistory
                         isOpen={true}
                         onClose={() => { }}
@@ -386,19 +456,22 @@ export default function ChatInterface() {
                     />
                 </div>
 
-                <div className="p-4 border-t border-slate-800">
-                    <div className="flex items-center gap-3 text-slate-400 text-xs">
-                        <ShieldCheck size={14} className="text-green-500" />
+                <div className="p-4 border-t border-[var(--color-border)]">
+                    <div className="flex items-center gap-3 text-[var(--color-text-muted)] text-xs">
+                        <Sparkles size={14} className="text-emerald-500" />
                         <span>Powered by Wolf Brain V5</span>
                     </div>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Sidebar Toggle */}
             <button
                 onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-r-lg transition-colors"
-                style={{ left: isSidebarCollapsed ? 0 : '256px' }}
+                className="hidden md:flex absolute top-1/2 -translate-y-1/2 z-20 
+                         bg-[var(--color-surface)] border border-[var(--color-border)] 
+                         hover:border-[var(--color-primary)] text-[var(--color-text-secondary)] 
+                         p-2 rounded-r-lg transition-all duration-300 shadow-md"
+                style={{ left: isSidebarCollapsed ? 0 : 280 }}
             >
                 {isSidebarCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
             </button>
@@ -418,51 +491,64 @@ export default function ChatInterface() {
             />
 
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900">
+            <div className="flex-1 flex flex-col h-full">
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <header className="flex items-center justify-between px-4 md:px-6 py-3 
+                               border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 
+                               backdrop-blur-xl sticky top-0 z-10">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(true)}
-                            className="md:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                            className="md:hidden p-2 text-[var(--color-text-secondary)] 
+                                     hover:bg-[var(--color-surface-elevated)] rounded-xl transition-colors"
                         >
                             <Menu size={20} />
                         </button>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                             <div className="relative">
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold shadow-md">
+                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 
+                                              flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-500/20">
                                     A
                                 </div>
-                                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white dark:border-slate-900 rounded-full" />
+                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 
+                                              border-2 border-[var(--color-surface)] rounded-full" />
                             </div>
                             <div>
-                                <h3 className="font-semibold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
-                                    Amr <ShieldCheck size={14} className="text-green-500" />
+                                <h3 className="font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+                                    Amr
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">
+                                        Online
+                                    </span>
                                 </h3>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                <p className="text-xs text-[var(--color-text-muted)]">
                                     Wolf of Osool
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleNewConversation}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                        <Plus size={16} />
-                        <span className="hidden sm:inline">New</span>
-                    </button>
-                </div>
+                    <div className="flex items-center gap-2">
+                        <ThemeToggle />
+                        <button
+                            onClick={handleNewConversation}
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium 
+                                     text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-elevated)] 
+                                     rounded-xl transition-colors"
+                        >
+                            <Plus size={16} />
+                            <span className="hidden sm:inline">New</span>
+                        </button>
+                    </div>
+                </header>
 
                 {/* Messages Area */}
                 <div
                     ref={scrollRef}
                     onScroll={handleScroll}
-                    className="flex-1 overflow-y-auto px-4 py-6 space-y-6"
+                    className="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-5 custom-scrollbar"
                 >
                     {messages.length === 0 ? (
-                        <EmptyState />
+                        <EmptyState onSuggestionClick={(text) => handleSend(text)} />
                     ) : (
                         <AnimatePresence mode="popLayout">
                             {messages.map((msg) => (
@@ -481,11 +567,14 @@ export default function ChatInterface() {
                 <AnimatePresence>
                     {showScrollButton && (
                         <motion.button
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
                             onClick={scrollToBottom}
-                            className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-slate-700 text-white p-2 rounded-full shadow-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors"
+                            className="absolute bottom-28 left-1/2 -translate-x-1/2 
+                                     bg-[var(--color-surface)] border border-[var(--color-border)]
+                                     text-[var(--color-text-secondary)] p-2 rounded-full shadow-lg 
+                                     hover:border-[var(--color-primary)] transition-all"
                         >
                             <ChevronDown size={20} />
                         </motion.button>
@@ -493,9 +582,11 @@ export default function ChatInterface() {
                 </AnimatePresence>
 
                 {/* Input Area */}
-                <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-xl p-4">
                     <div className="max-w-4xl mx-auto">
-                        <div className="relative flex items-end bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/20 transition-all">
+                        <div className="relative flex items-end bg-[var(--color-surface-elevated)] 
+                                      rounded-2xl border border-[var(--color-border)] input-focus
+                                      shadow-sm hover:shadow-md transition-all duration-300">
                             <textarea
                                 ref={inputRef}
                                 value={input}
@@ -503,21 +594,29 @@ export default function ChatInterface() {
                                 onKeyDown={handleKeyDown}
                                 placeholder="اسأل عمرو عن أي حاجة في العقارات..."
                                 rows={1}
-                                className="flex-1 bg-transparent text-slate-900 dark:text-white py-4 px-5 text-sm resize-none focus:outline-none max-h-[200px]"
+                                className="flex-1 bg-transparent text-[var(--color-text-primary)] py-4 px-5 
+                                         text-sm resize-none focus:outline-none max-h-[150px] 
+                                         placeholder:text-[var(--color-text-muted)]"
                                 dir="auto"
                             />
                             <button
-                                onClick={handleSend}
+                                onClick={() => handleSend()}
                                 disabled={!input.trim() || isTyping}
-                                className="m-2 w-10 h-10 bg-green-600 hover:bg-green-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl flex items-center justify-center transition-all shadow-lg shadow-green-600/20 disabled:shadow-none"
+                                className="m-2 w-11 h-11 bg-gradient-to-r from-emerald-500 to-teal-500
+                                         disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed 
+                                         text-white rounded-xl flex items-center justify-center 
+                                         transition-all duration-300 shadow-lg shadow-emerald-500/20 
+                                         disabled:shadow-none hover:shadow-emerald-500/40 hover:-translate-y-0.5
+                                         active:translate-y-0"
                             >
                                 <Send size={18} />
                             </button>
                         </div>
 
-                        <p className="text-center mt-3 text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
+                        <p className="text-center mt-3 text-[10px] text-[var(--color-text-muted)] 
+                                    flex items-center justify-center gap-2">
                             <Sparkles size={10} className="text-amber-500" />
-                            <span>Powered by Osool Hybrid Brain V5 (Claude + GPT-4o + XGBoost)</span>
+                            <span>Powered by Osool Hybrid Brain V5</span>
                         </p>
                     </div>
                 </div>
