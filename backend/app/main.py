@@ -110,6 +110,7 @@ origins = [
     "https://osool.vercel.app",  # Vercel deployment
     "https://osoool.vercel.app",  # Vercel deployment (triple o)
     "https://osool-one.vercel.app", # Specific Vercel deployment
+    "https://osool-ten.vercel.app", # Latest Vercel deployment
     "https://osool-cu8lynoku-mustafas-projects-948a09fa.vercel.app",  # Current preview
     "https://osool.eg",  # Production (Core)
 ]
