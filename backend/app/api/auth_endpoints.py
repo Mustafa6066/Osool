@@ -845,3 +845,106 @@ async def signup_with_invitation(
         "token_type": "bearer",
         "user_id": new_user.id
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# ADMIN: SEED BETA USERS
+# ═══════════════════════════════════════════════════════════════
+
+class SeedBetaUsersRequest(BaseModel):
+    """Request to seed beta users - requires admin secret"""
+    admin_secret: str
+
+
+# Beta accounts configuration
+BETA_ACCOUNTS = [
+    # Admin accounts (Core Team) - Unlimited invitations
+    {"full_name": "Mustafa", "email": "mustafa@osool.eg", "password": "Mustafa@Osool2025!", "role": "admin"},
+    {"full_name": "Hani", "email": "hani@osool.eg", "password": "Hani@Osool2025!", "role": "admin"},
+    {"full_name": "Abady", "email": "abady@osool.eg", "password": "Abady@Osool2025!", "role": "admin"},
+    {"full_name": "Sama", "email": "sama@osool.eg", "password": "Sama@Osool2025!", "role": "admin"},
+    # Tester accounts - 2 invitations each
+    {"full_name": "Tester One", "email": "tester1@osool.eg", "password": "Tester1@Beta2025", "role": "investor"},
+    {"full_name": "Tester Two", "email": "tester2@osool.eg", "password": "Tester2@Beta2025", "role": "investor"},
+    {"full_name": "Tester Three", "email": "tester3@osool.eg", "password": "Tester3@Beta2025", "role": "investor"},
+    {"full_name": "Tester Four", "email": "tester4@osool.eg", "password": "Tester4@Beta2025", "role": "investor"},
+    {"full_name": "Tester Five", "email": "tester5@osool.eg", "password": "Tester5@Beta2025", "role": "investor"},
+    {"full_name": "Tester Six", "email": "tester6@osool.eg", "password": "Tester6@Beta2025", "role": "investor"},
+    {"full_name": "Tester Seven", "email": "tester7@osool.eg", "password": "Tester7@Beta2025", "role": "investor"},
+    {"full_name": "Tester Eight", "email": "tester8@osool.eg", "password": "Tester8@Beta2025", "role": "investor"},
+    {"full_name": "Tester Nine", "email": "tester9@osool.eg", "password": "Tester9@Beta2025", "role": "investor"},
+    {"full_name": "Tester Ten", "email": "tester10@osool.eg", "password": "Tester10@Beta2025", "role": "investor"},
+]
+
+
+@router.post("/admin/seed-beta-users")
+async def seed_beta_users(
+    req: SeedBetaUsersRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Seed beta users into the database.
+    
+    Requires admin_secret that matches JWT_SECRET_KEY environment variable.
+    This is a one-time operation for production setup.
+    """
+    from sqlalchemy import select
+    import hashlib
+    
+    # Verify admin secret (use JWT_SECRET_KEY as the admin secret)
+    admin_secret = os.getenv("JWT_SECRET_KEY", "")
+    if not admin_secret or req.admin_secret != admin_secret:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin secret"
+        )
+    
+    created = 0
+    updated = 0
+    
+    for account in BETA_ACCOUNTS:
+        # Check if user exists
+        result = await db.execute(
+            select(User).filter(User.email == account["email"])
+        )
+        existing = result.scalar_one_or_none()
+        
+        if existing:
+            # Update existing user
+            existing.is_verified = True
+            existing.email_verified = True
+            existing.role = account["role"]
+            existing.password_hash = get_password_hash(account["password"])
+            updated += 1
+            logger.info(f"[SEED] Updated: {account['email']}")
+        else:
+            # Generate wallet address
+            wallet_hash = hashlib.sha256(account["email"].encode()).hexdigest()[:40]
+            wallet_address = f"0x{wallet_hash}"
+            
+            new_user = User(
+                full_name=account["full_name"],
+                email=account["email"],
+                password_hash=get_password_hash(account["password"]),
+                wallet_address=wallet_address,
+                is_verified=True,
+                email_verified=True,
+                kyc_status="approved",
+                role=account["role"],
+                invitations_sent=0
+            )
+            db.add(new_user)
+            created += 1
+            logger.info(f"[SEED] Created: {account['email']}")
+    
+    await db.commit()
+    
+    logger.info(f"✅ Beta user seeding complete: {created} created, {updated} updated")
+    
+    return {
+        "status": "success",
+        "message": f"Beta users seeded successfully",
+        "created": created,
+        "updated": updated,
+        "total": len(BETA_ACCOUNTS)
+    }
