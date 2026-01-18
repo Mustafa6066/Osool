@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, Search, Trash2, Clock, ChevronRight } from "lucide-react";
+import { MessageSquare, Search, Trash2, Clock, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ClientOnly from "./ClientOnly";
 
@@ -92,21 +92,21 @@ export default function ConversationHistory({
                 {/* Search */}
                 <div className="p-2">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
                         <input
                             type="text"
                             placeholder="Search..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-slate-800/50 border border-slate-700/50 rounded-[1rem] pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all"
+                            className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl pl-9 pr-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
                         />
                     </div>
                 </div>
 
                 {/* Conversations List */}
-                <div className="flex-1 overflow-y-auto space-y-1 px-2">
+                <div className="flex-1 overflow-y-auto space-y-1 px-2 custom-scrollbar">
                     {filteredConversations.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500">
+                        <div className="text-center py-8 text-[var(--color-text-muted)]">
                             <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
                             <p className="text-xs">
                                 {searchQuery ? "No matches" : "No chats yet"}
@@ -114,21 +114,23 @@ export default function ConversationHistory({
                         </div>
                     ) : (
                         filteredConversations.map((conv) => (
-                            <div
+                            <motion.div
                                 key={conv.id}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
                                 onClick={() => onSelectConversation(conv.id)}
-                                className={`group relative p-3 rounded-[1rem] cursor-pointer transition-all duration-200 ${currentConversationId === conv.id
-                                        ? "bg-green-600/20 border border-green-500/30 shadow-lg shadow-green-500/10"
-                                        : "hover:bg-slate-800/70 border border-transparent hover:border-slate-700/50"
+                                className={`group relative p-3 rounded-2xl cursor-pointer transition-all duration-200 ${currentConversationId === conv.id
+                                    ? "bg-[var(--color-primary-light)] border border-[var(--color-primary)]/30"
+                                    : "hover:bg-[var(--color-surface-elevated)] border border-transparent"
                                     }`}
                             >
-                                <h3 className="text-sm font-medium text-white truncate mb-1">
+                                <h3 className="text-sm font-medium text-[var(--color-text-primary)] truncate mb-1">
                                     {conv.title}
                                 </h3>
-                                <p className="text-xs text-slate-400 truncate mb-1">
+                                <p className="text-xs text-[var(--color-text-muted)] truncate mb-1">
                                     {conv.preview}
                                 </p>
-                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
                                     <Clock className="w-3 h-3" />
                                     <span>{formatTimestamp(conv.timestamp)}</span>
                                 </div>
@@ -136,11 +138,11 @@ export default function ConversationHistory({
                                 {/* Delete Button */}
                                 <button
                                     onClick={(e) => handleDelete(conv.id, e)}
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400"
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-xl hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-                            </div>
+                            </motion.div>
                         ))
                     )}
                 </div>
@@ -169,32 +171,32 @@ export default function ConversationHistory({
                             animate={{ x: 0 }}
                             exit={{ x: -300 }}
                             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="fixed left-0 top-0 h-full w-80 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/50 z-50 flex flex-col shadow-2xl md:hidden"
+                            className="fixed left-0 top-0 h-full w-80 bg-[var(--color-surface)] border-r border-[var(--color-border)] z-50 flex flex-col shadow-2xl md:hidden"
                         >
                             {/* Header */}
-                            <div className="p-4 border-b border-white/10">
+                            <div className="p-4 border-b border-[var(--color-border)]">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                        <MessageSquare className="w-5 h-5 text-blue-400" />
+                                    <h2 className="text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2">
+                                        <MessageSquare className="w-5 h-5 text-[var(--color-primary)]" />
                                         Conversations
                                     </h2>
                                     <button
                                         onClick={onClose}
-                                        className="md:hidden text-gray-400 hover:text-white transition-colors"
+                                        className="md:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1.5 rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors"
                                     >
-                                        <ChevronRight className="w-5 h-5" />
+                                        <X className="w-5 h-5" />
                                     </button>
                                 </div>
 
                                 {/* Search */}
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
                                     <input
                                         type="text"
                                         placeholder="Search conversations..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full bg-[#1e293b]/70 border border-white/10 rounded-[1rem] pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                                        className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl pl-10 pr-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
                                     />
                                 </div>
 
@@ -204,7 +206,7 @@ export default function ConversationHistory({
                                         onNewConversation();
                                         onClose();
                                     }}
-                                    className="w-full mt-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-2.5 px-4 rounded-[1rem] transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
+                                    className="w-full mt-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-2.5 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2"
                                 >
                                     <MessageSquare className="w-4 h-4" />
                                     New Conversation
@@ -212,9 +214,9 @@ export default function ConversationHistory({
                             </div>
 
                             {/* Conversations List */}
-                            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                            <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                                 {filteredConversations.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500">
+                                    <div className="text-center py-8 text-[var(--color-text-muted)]">
                                         <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
                                         <p className="text-sm">
                                             {searchQuery ? "No conversations found" : "No conversations yet"}
@@ -231,24 +233,24 @@ export default function ConversationHistory({
                                                 onSelectConversation(conv.id);
                                                 onClose();
                                             }}
-                                            className={`group relative p-3 rounded-[1rem] cursor-pointer transition-all duration-200 ${currentConversationId === conv.id
-                                                ? "bg-blue-600/20 border border-blue-500/30 shadow-lg shadow-blue-500/10"
-                                                : "bg-[#1e293b]/50 hover:bg-[#1e293b]/80 border border-transparent hover:border-white/10"
+                                            className={`group relative p-3 rounded-2xl cursor-pointer transition-all duration-200 ${currentConversationId === conv.id
+                                                ? "bg-[var(--color-primary-light)] border border-[var(--color-primary)]/30"
+                                                : "bg-[var(--color-surface-elevated)]/50 hover:bg-[var(--color-surface-elevated)] border border-transparent hover:border-[var(--color-border)]"
                                                 }`}
                                         >
                                             {/* Conversation Content */}
                                             <div className="flex items-start gap-3">
-                                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                                                <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md">
                                                     <MessageSquare className="w-4 h-4 text-white" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <h3 className="text-sm font-semibold text-white truncate mb-1">
+                                                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)] truncate mb-1">
                                                         {conv.title}
                                                     </h3>
-                                                    <p className="text-xs text-gray-400 truncate mb-2">
+                                                    <p className="text-xs text-[var(--color-text-muted)] truncate mb-2">
                                                         {conv.preview}
                                                     </p>
-                                                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                                                    <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
                                                         <span className="flex items-center gap-1">
                                                             <Clock className="w-3 h-3" />
                                                             {formatTimestamp(conv.timestamp)}
@@ -261,7 +263,7 @@ export default function ConversationHistory({
                                             {/* Delete Button */}
                                             <button
                                                 onClick={(e) => handleDelete(conv.id, e)}
-                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400"
+                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-xl hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -271,8 +273,8 @@ export default function ConversationHistory({
                             </div>
 
                             {/* Footer */}
-                            <div className="p-4 border-t border-white/10">
-                                <div className="text-xs text-gray-500 text-center">
+                            <div className="p-4 border-t border-[var(--color-border)]">
+                                <div className="text-xs text-[var(--color-text-muted)] text-center">
                                     <p>Total: {conversations.length} conversations</p>
                                 </div>
                             </div>

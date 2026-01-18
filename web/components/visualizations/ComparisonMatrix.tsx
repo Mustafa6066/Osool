@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Home, MapPin, DollarSign, Calendar, TrendingUp, Award, CheckCircle2 } from "lucide-react";
+import { Home, MapPin, DollarSign, Calendar, TrendingUp, Award, CheckCircle2, Maximize2 } from "lucide-react";
 
 interface Property {
     id: number;
@@ -37,55 +37,52 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="bg-[var(--color-surface)] rounded-[1.5rem] p-6 border border-[var(--color-border)] shadow-2xl"
+            className="bg-[var(--color-surface)] rounded-3xl p-6 border border-[var(--color-border)] shadow-xl"
         >
             {/* Header */}
             <div className="mb-6">
                 <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2 flex items-center gap-2">
-                    <Award className="w-5 h-5 text-yellow-400" />
+                    <Award className="w-5 h-5 text-amber-500" />
                     Property Comparison
                 </h3>
-                <p className="text-[var(--color-text-secondary)] text-sm">
+                <p className="text-[var(--color-text-muted)] text-sm">
                     Side-by-side analysis of {properties.length} properties
                 </p>
             </div>
 
             {/* Comparison Table */}
             <div className="overflow-x-auto -mx-6 px-6">
-                <table className="w-full min-w-[500px] table-fixed">
+                <table className="w-full min-w-[500px]">
                     <thead>
                         <tr className="border-b border-[var(--color-border)]">
-                            <th className="text-left py-3 px-3 text-[var(--color-text-secondary)] text-sm font-medium w-28">Metric</th>
-                            {properties.map((property, idx) => {
-                                const isRecommended = property.id === recommendedId;
-                                const isBestValue = property.id === bestValueId;
-
-                                return (
-                                    <th key={property.id} className="py-3 px-3 text-center min-w-[140px]">
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: idx * 0.1 }}
-                                            className="flex flex-col items-center gap-1.5"
-                                        >
-                                            {/* Badges - stacked vertically */}
-                                            <div className="flex flex-wrap justify-center gap-1.5 min-h-[24px]">
-                                                {isRecommended && (
-                                                    <span className="inline-flex items-center px-2.5 py-1 bg-blue-500/15 text-blue-500 text-[10px] font-semibold rounded-full border border-blue-500/30">
-                                                        ⭐ Recommended
-                                                    </span>
-                                                )}
-                                                {isBestValue && (
-                                                    <span className="inline-flex items-center px-2.5 py-1 bg-emerald-500/15 text-emerald-500 text-[10px] font-semibold rounded-full border border-emerald-500/30">
-                                                        💰 Best Value
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-xs text-[var(--color-text-muted)]">Property {idx + 1}</div>
-                                        </motion.div>
-                                    </th>
-                                );
-                            })}
+                            <th className="text-left py-3 px-3 text-[var(--color-text-muted)] text-sm font-medium w-28">Metric</th>
+                            {properties.map((property, idx) => (
+                                <th key={property.id} className="py-3 px-3 text-center" style={{ minWidth: '160px' }}>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.1 }}
+                                        className="relative pt-6"
+                                    >
+                                        {/* Badges - Positioned with proper spacing */}
+                                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                            {property.id === recommendedId && (
+                                                <span className="px-2.5 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-[10px] rounded-full whitespace-nowrap font-semibold shadow-lg shadow-blue-500/30 flex items-center gap-1">
+                                                    <CheckCircle2 size={10} />
+                                                    Recommended
+                                                </span>
+                                            )}
+                                            {property.id === bestValueId && property.id !== recommendedId && (
+                                                <span className="px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] rounded-full whitespace-nowrap font-semibold shadow-lg shadow-emerald-500/30 flex items-center gap-1">
+                                                    <TrendingUp size={10} />
+                                                    Best Value
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-xs text-[var(--color-text-secondary)] font-medium">Property {idx + 1}</div>
+                                    </motion.div>
+                                </th>
+                            ))}
                         </tr>
                     </thead>
                     <tbody>
@@ -93,7 +90,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                         <tr className="border-b border-[var(--color-border)]">
                             <td className="py-4 px-3">
                                 <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
-                                    <Home className="w-4 h-4 flex-shrink-0" />
+                                    <Home className="w-4 h-4 flex-shrink-0 text-[var(--color-primary)]" />
                                     <span>Title</span>
                                 </div>
                             </td>
@@ -106,8 +103,8 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         className="text-sm text-[var(--color-text-primary)] text-center font-medium break-words"
                                         title={property.title}
                                     >
-                                        {property.title.length > 25
-                                            ? property.title.substring(0, 25) + "..."
+                                        {property.title.length > 30
+                                            ? property.title.substring(0, 30) + "..."
                                             : property.title}
                                     </motion.div>
                                 </td>
@@ -116,14 +113,14 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
 
                         {/* Location */}
                         <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50">
-                            <td className="py-4 px-2">
+                            <td className="py-4 px-3">
                                 <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
-                                    <MapPin className="w-4 h-4" />
+                                    <MapPin className="w-4 h-4 text-[var(--color-primary)]" />
                                     <span>Location</span>
                                 </div>
                             </td>
                             {properties.map((property, idx) => (
-                                <td key={property.id} className="py-4 px-2">
+                                <td key={property.id} className="py-4 px-3">
                                     <motion.div
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
@@ -138,21 +135,21 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
 
                         {/* Total Price */}
                         <tr className="border-b border-[var(--color-border)]">
-                            <td className="py-4 px-2">
+                            <td className="py-4 px-3">
                                 <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
-                                    <DollarSign className="w-4 h-4" />
+                                    <DollarSign className="w-4 h-4 text-[var(--color-primary)]" />
                                     <span>Total Price</span>
                                 </div>
                             </td>
                             {properties.map((property, idx) => (
-                                <td key={property.id} className="py-4 px-2">
+                                <td key={property.id} className="py-4 px-3">
                                     <motion.div
                                         initial={{ opacity: 0, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: 0.4 + idx * 0.1 }}
                                         className="text-center"
                                     >
-                                        <div className="text-lg font-bold text-blue-400">
+                                        <div className="text-lg font-bold text-[var(--color-primary)]">
                                             {(property.price / 1000000).toFixed(1)}M
                                         </div>
                                         <div className="text-xs text-[var(--color-text-muted)]">EGP</div>
@@ -163,14 +160,14 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
 
                         {/* Price per sqm */}
                         <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50">
-                            <td className="py-4 px-2">
+                            <td className="py-4 px-3">
                                 <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
-                                    <TrendingUp className="w-4 h-4" />
+                                    <TrendingUp className="w-4 h-4 text-[var(--color-primary)]" />
                                     <span>Price/sqm</span>
                                 </div>
                             </td>
                             {properties.map((property, idx) => (
-                                <td key={property.id} className="py-4 px-2">
+                                <td key={property.id} className="py-4 px-3">
                                     <motion.div
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
@@ -178,15 +175,15 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         className="text-center"
                                     >
                                         <div className={`text-sm font-semibold ${property.price_per_sqm === lowestPricePerSqm
-                                            ? "text-green-400"
+                                            ? "text-emerald-500"
                                             : "text-[var(--color-text-primary)]"
                                             }`}>
                                             {(property.price_per_sqm || 0).toLocaleString()} EGP
                                         </div>
                                         {property.price_per_sqm === lowestPricePerSqm && (
                                             <div className="flex items-center justify-center gap-1 mt-1">
-                                                <CheckCircle2 className="w-3 h-3 text-green-400" />
-                                                <span className="text-[10px] text-green-400">Best Value</span>
+                                                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                                <span className="text-[10px] text-emerald-500 font-medium">Best Value</span>
                                             </div>
                                         )}
                                     </motion.div>
@@ -196,14 +193,14 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
 
                         {/* Size */}
                         <tr className="border-b border-[var(--color-border)]">
-                            <td className="py-4 px-2">
+                            <td className="py-4 px-3">
                                 <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
-                                    <span className="w-4 h-4 flex items-center justify-center text-xs">📐</span>
+                                    <Maximize2 className="w-4 h-4 text-[var(--color-primary)]" />
                                     <span>Size</span>
                                 </div>
                             </td>
                             {properties.map((property, idx) => (
-                                <td key={property.id} className="py-4 px-2">
+                                <td key={property.id} className="py-4 px-3">
                                     <motion.div
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
@@ -222,14 +219,14 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                         {/* Monthly Payment */}
                         {properties.some(p => p.monthly_installment) && (
                             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50">
-                                <td className="py-4 px-2">
+                                <td className="py-4 px-3">
                                     <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
-                                        <Calendar className="w-4 h-4" />
+                                        <Calendar className="w-4 h-4 text-[var(--color-primary)]" />
                                         <span>Monthly</span>
                                     </div>
                                 </td>
                                 {properties.map((property, idx) => (
-                                    <td key={property.id} className="py-4 px-2">
+                                    <td key={property.id} className="py-4 px-3">
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
@@ -238,7 +235,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         >
                                             {property.monthly_installment ? (
                                                 <>
-                                                    <div className="text-sm font-semibold text-purple-400">
+                                                    <div className="text-sm font-semibold text-purple-500">
                                                         {(property.monthly_installment / 1000).toFixed(0)}K
                                                     </div>
                                                     <div className="text-xs text-[var(--color-text-muted)]">EGP/mo</div>
@@ -255,14 +252,14 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                         {/* ROI */}
                         {properties.some(p => p.roi_projection) && (
                             <tr className="border-b border-[var(--color-border)]">
-                                <td className="py-4 px-2">
+                                <td className="py-4 px-3">
                                     <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
-                                        <TrendingUp className="w-4 h-4 text-green-400" />
+                                        <TrendingUp className="w-4 h-4 text-emerald-500" />
                                         <span>ROI</span>
                                     </div>
                                 </td>
                                 {properties.map((property, idx) => (
-                                    <td key={property.id} className="py-4 px-2">
+                                    <td key={property.id} className="py-4 px-3">
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
@@ -272,15 +269,15 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                             {property.roi_projection ? (
                                                 <>
                                                     <div className={`text-sm font-semibold ${property.roi_projection === highestROI
-                                                        ? "text-green-400"
+                                                        ? "text-emerald-500"
                                                         : "text-[var(--color-text-primary)]"
                                                         }`}>
                                                         {property.roi_projection.toFixed(1)}%
                                                     </div>
                                                     {property.roi_projection === highestROI && (
                                                         <div className="flex items-center justify-center gap-1 mt-1">
-                                                            <CheckCircle2 className="w-3 h-3 text-green-400" />
-                                                            <span className="text-[10px] text-green-400">Highest</span>
+                                                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                                            <span className="text-[10px] text-emerald-500 font-medium">Highest</span>
                                                         </div>
                                                     )}
                                                 </>
@@ -296,14 +293,14 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                         {/* Delivery */}
                         {properties.some(p => p.delivery_date) && (
                             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50">
-                                <td className="py-4 px-2">
+                                <td className="py-4 px-3">
                                     <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
-                                        <Calendar className="w-4 h-4" />
+                                        <Calendar className="w-4 h-4 text-[var(--color-primary)]" />
                                         <span>Delivery</span>
                                     </div>
                                 </td>
                                 {properties.map((property, idx) => (
-                                    <td key={property.id} className="py-4 px-2">
+                                    <td key={property.id} className="py-4 px-3">
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
@@ -323,7 +320,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
             {/* Footer */}
             <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
                 <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)]">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
                     <span>Powered by AMR Hybrid AI Brain</span>
                 </div>
             </div>
