@@ -150,21 +150,23 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="bg-gradient-to-br from-[#1a1c2e] to-[#2d3748] rounded-2xl p-6 border border-white/10 overflow-hidden"
+            className="bg-[var(--color-surface)] rounded-3xl p-6 border border-[var(--color-border)] shadow-xl overflow-hidden"
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <span className="text-3xl">🔥</span>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg">
+                        <TrendingUp className="w-5 h-5 text-white" />
+                    </div>
                     <div>
-                        <h3 className="text-xl font-bold text-white">Inflation Killer</h3>
-                        <p className="text-gray-400 text-sm">
+                        <h3 className="text-xl font-bold text-[var(--color-text-primary)]">Inflation Killer</h3>
+                        <p className="text-[var(--color-text-muted)] text-sm">
                             {formatMillions(initial_investment)} EGP over {years} years
                         </p>
                     </div>
                 </div>
                 {assumptions?.source && (
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <div className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
                         <Info className="w-3 h-3" />
                         <span>{assumptions.source}</span>
                     </div>
@@ -178,20 +180,20 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-red-500/10 border border-red-500/20 rounded-xl p-4"
+                    className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4"
                 >
                     <div className="flex items-center gap-2 mb-2">
-                        <Banknote className="w-5 h-5 text-red-400" />
-                        <span className="text-sm text-gray-400">Cash</span>
+                        <Banknote className="w-5 h-5 text-red-500" />
+                        <span className="text-sm text-[var(--color-text-muted)]">Cash</span>
                     </div>
-                    <div className="text-2xl font-bold text-red-400">
+                    <div className="text-2xl font-bold text-red-500">
                         -{summary.cash_loss_percent}%
                     </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                    <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mt-1">
                         <TrendingDown className="w-3 h-3" />
                         Inflation eats it
                     </div>
-                    <div className="text-xs text-gray-600 mt-2">
+                    <div className="text-xs text-[var(--color-text-muted)] mt-2">
                         → {formatMillions(summary.cash_final)} EGP
                     </div>
                 </motion.div>
@@ -201,20 +203,20 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4"
+                    className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4"
                 >
                     <div className="flex items-center gap-2 mb-2">
-                        <Coins className="w-5 h-5 text-yellow-400" />
-                        <span className="text-sm text-gray-400">Gold</span>
+                        <Coins className="w-5 h-5 text-yellow-500" />
+                        <span className="text-sm text-[var(--color-text-muted)]">Gold</span>
                     </div>
-                    <div className="text-2xl font-bold text-yellow-400">
+                    <div className="text-2xl font-bold text-yellow-500">
                         +{summary.gold_gain_percent}%
                     </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                    <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mt-1">
                         <TrendingUp className="w-3 h-3" />
                         Volatile gains
                     </div>
-                    <div className="text-xs text-gray-600 mt-2">
+                    <div className="text-xs text-[var(--color-text-muted)] mt-2">
                         → {formatMillions(summary.gold_final)} EGP
                     </div>
                 </motion.div>
@@ -224,20 +226,20 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-green-500/10 border border-green-500/20 rounded-xl p-4"
+                    className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4"
                 >
                     <div className="flex items-center gap-2 mb-2">
-                        <Home className="w-5 h-5 text-green-400" />
-                        <span className="text-sm text-gray-400">Property</span>
+                        <Home className="w-5 h-5 text-emerald-500" />
+                        <span className="text-sm text-[var(--color-text-muted)]">Property</span>
                     </div>
-                    <div className="text-2xl font-bold text-green-400">
+                    <div className="text-2xl font-bold text-emerald-500">
                         +{summary.property_gain_percent}%
                     </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                    <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mt-1">
                         <TrendingUp className="w-3 h-3" />
                         + Rental Income
                     </div>
-                    <div className="text-xs text-gray-600 mt-2">
+                    <div className="text-xs text-[var(--color-text-muted)] mt-2">
                         → {formatMillions(summary.property_final)} EGP
                     </div>
                 </motion.div>
@@ -248,7 +250,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="bg-white/5 rounded-xl p-4 border border-white/10 mb-4"
+                className="bg-[var(--color-surface-elevated)]/50 rounded-2xl p-4 border border-[var(--color-border)] mb-4"
             >
                 <ResponsiveContainer width="100%" height={280}>
                     <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -266,28 +268,31 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-[var(--color-border)]" />
                         <XAxis
                             dataKey="label"
-                            stroke="#94a3b8"
-                            tick={{ fontSize: 12 }}
+                            className="text-[var(--color-text-muted)]"
+                            tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }}
                             tickLine={false}
+                            stroke="var(--color-text-muted)"
                         />
                         <YAxis
-                            stroke="#94a3b8"
-                            tick={{ fontSize: 12 }}
+                            className="text-[var(--color-text-muted)]"
+                            tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }}
                             tickLine={false}
                             tickFormatter={formatMillions}
                             width={50}
+                            stroke="var(--color-text-muted)"
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: "#1a1c2e",
-                                border: "1px solid #ffffff20",
-                                borderRadius: "8px",
+                                backgroundColor: "var(--color-surface-elevated)",
+                                border: "1px solid var(--color-border)",
+                                borderRadius: "12px",
                                 padding: "12px",
+                                color: "var(--color-text-primary)",
                             }}
-                            labelStyle={{ color: "#fff", fontWeight: "bold", marginBottom: "8px" }}
+                            labelStyle={{ color: "var(--color-text-primary)", fontWeight: "bold", marginBottom: "8px" }}
                             formatter={(value: number, name: string) => [
                                 `${formatCurrency(value)} EGP`,
                                 name.charAt(0).toUpperCase() + name.slice(1),
@@ -296,7 +301,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                         <Legend
                             wrapperStyle={{ paddingTop: "20px" }}
                             formatter={(value) => (
-                                <span className="text-gray-400 text-sm">
+                                <span className="text-[var(--color-text-muted)] text-sm">
                                     {value.charAt(0).toUpperCase() + value.slice(1)}
                                 </span>
                             )}
@@ -334,19 +339,21 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
-                className="bg-green-500/10 border border-green-500/20 rounded-xl p-4"
+                className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4"
             >
                 <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-2xl">🏆</span>
-                        <span className="text-3xl font-bold text-green-400">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+                            <TrendingUp className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-3xl font-bold text-emerald-500">
                             +{formatMillions(summary.property_vs_cash_advantage)} EGP
                         </span>
                     </div>
-                    <p className="text-sm text-gray-300" dir="rtl">
+                    <p className="text-sm text-[var(--color-text-primary)]" dir="rtl">
                         {verdict.message_ar}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">{verdict.message_en}</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1">{verdict.message_en}</p>
                 </div>
             </motion.div>
 
@@ -356,9 +363,9 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6 }}
-                    className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-400"
+                    className="mt-4 flex items-center justify-center gap-2 text-sm text-[var(--color-text-muted)]"
                 >
-                    <span>💰</span>
+                    <Banknote className="w-4 h-4 text-emerald-500" />
                     <span>
                         Total rental income: {formatCurrency(summary.total_rent_earned)} EGP over {years} years
                     </span>
