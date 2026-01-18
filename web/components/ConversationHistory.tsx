@@ -98,7 +98,7 @@ export default function ConversationHistory({
                             placeholder="Search..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all"
+                            className="w-full bg-slate-800/50 border border-slate-700/50 rounded-[1rem] pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all"
                         />
                     </div>
                 </div>
@@ -117,11 +117,10 @@ export default function ConversationHistory({
                             <div
                                 key={conv.id}
                                 onClick={() => onSelectConversation(conv.id)}
-                                className={`group relative p-3 rounded-lg cursor-pointer transition-all ${
-                                    currentConversationId === conv.id
-                                        ? "bg-green-600/20 border border-green-500/30"
-                                        : "hover:bg-slate-800 border border-transparent"
-                                }`}
+                                className={`group relative p-3 rounded-[1rem] cursor-pointer transition-all duration-200 ${currentConversationId === conv.id
+                                        ? "bg-green-600/20 border border-green-500/30 shadow-lg shadow-green-500/10"
+                                        : "hover:bg-slate-800/70 border border-transparent hover:border-slate-700/50"
+                                    }`}
                             >
                                 <h3 className="text-sm font-medium text-white truncate mb-1">
                                     {conv.title}
@@ -170,7 +169,7 @@ export default function ConversationHistory({
                             animate={{ x: 0 }}
                             exit={{ x: -300 }}
                             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="fixed left-0 top-0 h-full w-80 bg-slate-900 border-r border-slate-800 z-50 flex flex-col shadow-2xl md:hidden"
+                            className="fixed left-0 top-0 h-full w-80 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/50 z-50 flex flex-col shadow-2xl md:hidden"
                         >
                             {/* Header */}
                             <div className="p-4 border-b border-white/10">
@@ -195,7 +194,7 @@ export default function ConversationHistory({
                                         placeholder="Search conversations..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full bg-[#1e293b] border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                        className="w-full bg-[#1e293b]/70 border border-white/10 rounded-[1rem] pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
                                     />
                                 </div>
 
@@ -205,7 +204,7 @@ export default function ConversationHistory({
                                         onNewConversation();
                                         onClose();
                                     }}
-                                    className="w-full mt-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-2 px-4 rounded-lg transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
+                                    className="w-full mt-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-2.5 px-4 rounded-[1rem] transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
                                 >
                                     <MessageSquare className="w-4 h-4" />
                                     New Conversation
@@ -232,9 +231,9 @@ export default function ConversationHistory({
                                                 onSelectConversation(conv.id);
                                                 onClose();
                                             }}
-                                            className={`group relative p-3 rounded-lg cursor-pointer transition-all ${currentConversationId === conv.id
-                                                ? "bg-blue-600/20 border border-blue-500/30"
-                                                : "bg-[#1e293b]/50 hover:bg-[#1e293b] border border-transparent hover:border-white/10"
+                                            className={`group relative p-3 rounded-[1rem] cursor-pointer transition-all duration-200 ${currentConversationId === conv.id
+                                                ? "bg-blue-600/20 border border-blue-500/30 shadow-lg shadow-blue-500/10"
+                                                : "bg-[#1e293b]/50 hover:bg-[#1e293b]/80 border border-transparent hover:border-white/10"
                                                 }`}
                                         >
                                             {/* Conversation Content */}

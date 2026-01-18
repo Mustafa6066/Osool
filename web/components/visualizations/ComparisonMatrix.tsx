@@ -37,15 +37,15 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="bg-gradient-to-br from-[#1a1c2e] to-[#2d3748] rounded-2xl p-6 border border-white/10 shadow-2xl"
+            className="bg-[var(--color-surface)] rounded-[1.5rem] p-6 border border-[var(--color-border)] shadow-2xl"
         >
             {/* Header */}
             <div className="mb-6">
-                <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2 flex items-center gap-2">
                     <Award className="w-5 h-5 text-yellow-400" />
                     Property Comparison
                 </h3>
-                <p className="text-gray-400 text-sm">
+                <p className="text-[var(--color-text-secondary)] text-sm">
                     Side-by-side analysis of {properties.length} properties
                 </p>
             </div>
@@ -54,37 +54,45 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
             <div className="overflow-x-auto -mx-6 px-6">
                 <table className="w-full min-w-[500px] table-fixed">
                     <thead>
-                        <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-3 text-gray-400 text-sm font-medium w-28">Metric</th>
-                            {properties.map((property, idx) => (
-                                <th key={property.id} className="py-3 px-3 text-center min-w-[140px]">
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: idx * 0.1 }}
-                                        className="relative"
-                                    >
-                                        {property.id === recommendedId && (
-                                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-blue-500 text-white text-[10px] rounded-full whitespace-nowrap">
-                                                Recommended
+                        <tr className="border-b border-[var(--color-border)]">
+                            <th className="text-left py-3 px-3 text-[var(--color-text-secondary)] text-sm font-medium w-28">Metric</th>
+                            {properties.map((property, idx) => {
+                                const isRecommended = property.id === recommendedId;
+                                const isBestValue = property.id === bestValueId;
+
+                                return (
+                                    <th key={property.id} className="py-3 px-3 text-center min-w-[140px]">
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: idx * 0.1 }}
+                                            className="flex flex-col items-center gap-1.5"
+                                        >
+                                            {/* Badges - stacked vertically */}
+                                            <div className="flex flex-wrap justify-center gap-1.5 min-h-[24px]">
+                                                {isRecommended && (
+                                                    <span className="inline-flex items-center px-2.5 py-1 bg-blue-500/15 text-blue-500 text-[10px] font-semibold rounded-full border border-blue-500/30">
+                                                        ⭐ Recommended
+                                                    </span>
+                                                )}
+                                                {isBestValue && (
+                                                    <span className="inline-flex items-center px-2.5 py-1 bg-emerald-500/15 text-emerald-500 text-[10px] font-semibold rounded-full border border-emerald-500/30">
+                                                        💰 Best Value
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
-                                        {property.id === bestValueId && (
-                                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-green-500 text-white text-[10px] rounded-full whitespace-nowrap">
-                                                Best Value
-                                            </div>
-                                        )}
-                                        <div className="text-xs text-gray-400 mt-2">Property {idx + 1}</div>
-                                    </motion.div>
-                                </th>
-                            ))}
+                                            <div className="text-xs text-[var(--color-text-muted)]">Property {idx + 1}</div>
+                                        </motion.div>
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     <tbody>
                         {/* Title */}
-                        <tr className="border-b border-white/10">
+                        <tr className="border-b border-[var(--color-border)]">
                             <td className="py-4 px-3">
-                                <div className="flex items-center gap-2 text-gray-300 text-sm">
+                                <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
                                     <Home className="w-4 h-4 flex-shrink-0" />
                                     <span>Title</span>
                                 </div>
@@ -95,7 +103,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.2 + idx * 0.1 }}
-                                        className="text-sm text-white text-center font-medium break-words"
+                                        className="text-sm text-[var(--color-text-primary)] text-center font-medium break-words"
                                         title={property.title}
                                     >
                                         {property.title.length > 25
@@ -107,9 +115,9 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                         </tr>
 
                         {/* Location */}
-                        <tr className="border-b border-white/10 bg-white/5">
+                        <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50">
                             <td className="py-4 px-2">
-                                <div className="flex items-center gap-2 text-gray-300 text-sm">
+                                <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
                                     <MapPin className="w-4 h-4" />
                                     <span>Location</span>
                                 </div>
@@ -120,7 +128,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.3 + idx * 0.1 }}
-                                        className="text-sm text-gray-400 text-center"
+                                        className="text-sm text-[var(--color-text-secondary)] text-center"
                                     >
                                         {property.location}
                                     </motion.div>
@@ -129,9 +137,9 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                         </tr>
 
                         {/* Total Price */}
-                        <tr className="border-b border-white/10">
+                        <tr className="border-b border-[var(--color-border)]">
                             <td className="py-4 px-2">
-                                <div className="flex items-center gap-2 text-gray-300 text-sm">
+                                <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
                                     <DollarSign className="w-4 h-4" />
                                     <span>Total Price</span>
                                 </div>
@@ -147,16 +155,16 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         <div className="text-lg font-bold text-blue-400">
                                             {(property.price / 1000000).toFixed(1)}M
                                         </div>
-                                        <div className="text-xs text-gray-500">EGP</div>
+                                        <div className="text-xs text-[var(--color-text-muted)]">EGP</div>
                                     </motion.div>
                                 </td>
                             ))}
                         </tr>
 
                         {/* Price per sqm */}
-                        <tr className="border-b border-white/10 bg-white/5">
+                        <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50">
                             <td className="py-4 px-2">
-                                <div className="flex items-center gap-2 text-gray-300 text-sm">
+                                <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
                                     <TrendingUp className="w-4 h-4" />
                                     <span>Price/sqm</span>
                                 </div>
@@ -170,8 +178,8 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         className="text-center"
                                     >
                                         <div className={`text-sm font-semibold ${property.price_per_sqm === lowestPricePerSqm
-                                                ? "text-green-400"
-                                                : "text-white"
+                                            ? "text-green-400"
+                                            : "text-[var(--color-text-primary)]"
                                             }`}>
                                             {(property.price_per_sqm || 0).toLocaleString()} EGP
                                         </div>
@@ -187,9 +195,9 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                         </tr>
 
                         {/* Size */}
-                        <tr className="border-b border-white/10">
+                        <tr className="border-b border-[var(--color-border)]">
                             <td className="py-4 px-2">
-                                <div className="flex items-center gap-2 text-gray-300 text-sm">
+                                <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
                                     <span className="w-4 h-4 flex items-center justify-center text-xs">📐</span>
                                     <span>Size</span>
                                 </div>
@@ -200,10 +208,10 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.6 + idx * 0.1 }}
-                                        className="text-sm text-white text-center font-medium"
+                                        className="text-sm text-[var(--color-text-primary)] text-center font-medium"
                                     >
                                         {property.size_sqm} sqm
-                                        <div className="text-xs text-gray-500 mt-1">
+                                        <div className="text-xs text-[var(--color-text-muted)] mt-1">
                                             {property.bedrooms} bed
                                         </div>
                                     </motion.div>
@@ -213,9 +221,9 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
 
                         {/* Monthly Payment */}
                         {properties.some(p => p.monthly_installment) && (
-                            <tr className="border-b border-white/10 bg-white/5">
+                            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50">
                                 <td className="py-4 px-2">
-                                    <div className="flex items-center gap-2 text-gray-300 text-sm">
+                                    <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
                                         <Calendar className="w-4 h-4" />
                                         <span>Monthly</span>
                                     </div>
@@ -233,10 +241,10 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                                     <div className="text-sm font-semibold text-purple-400">
                                                         {(property.monthly_installment / 1000).toFixed(0)}K
                                                     </div>
-                                                    <div className="text-xs text-gray-500">EGP/mo</div>
+                                                    <div className="text-xs text-[var(--color-text-muted)]">EGP/mo</div>
                                                 </>
                                             ) : (
-                                                <span className="text-xs text-gray-600">N/A</span>
+                                                <span className="text-xs text-[var(--color-text-muted)]">N/A</span>
                                             )}
                                         </motion.div>
                                     </td>
@@ -246,9 +254,9 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
 
                         {/* ROI */}
                         {properties.some(p => p.roi_projection) && (
-                            <tr className="border-b border-white/10">
+                            <tr className="border-b border-[var(--color-border)]">
                                 <td className="py-4 px-2">
-                                    <div className="flex items-center gap-2 text-gray-300 text-sm">
+                                    <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
                                         <TrendingUp className="w-4 h-4 text-green-400" />
                                         <span>ROI</span>
                                     </div>
@@ -264,8 +272,8 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                             {property.roi_projection ? (
                                                 <>
                                                     <div className={`text-sm font-semibold ${property.roi_projection === highestROI
-                                                            ? "text-green-400"
-                                                            : "text-white"
+                                                        ? "text-green-400"
+                                                        : "text-[var(--color-text-primary)]"
                                                         }`}>
                                                         {property.roi_projection.toFixed(1)}%
                                                     </div>
@@ -277,7 +285,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                                     )}
                                                 </>
                                             ) : (
-                                                <span className="text-xs text-gray-600">N/A</span>
+                                                <span className="text-xs text-[var(--color-text-muted)]">N/A</span>
                                             )}
                                         </motion.div>
                                     </td>
@@ -287,9 +295,9 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
 
                         {/* Delivery */}
                         {properties.some(p => p.delivery_date) && (
-                            <tr className="border-b border-white/10 bg-white/5">
+                            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]/50">
                                 <td className="py-4 px-2">
-                                    <div className="flex items-center gap-2 text-gray-300 text-sm">
+                                    <div className="flex items-center gap-2 text-[var(--color-text-secondary)] text-sm">
                                         <Calendar className="w-4 h-4" />
                                         <span>Delivery</span>
                                     </div>
@@ -300,7 +308,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.9 + idx * 0.1 }}
-                                            className="text-sm text-gray-400 text-center"
+                                            className="text-sm text-[var(--color-text-secondary)] text-center"
                                         >
                                             {property.delivery_date || "N/A"}
                                         </motion.div>
@@ -313,8 +321,8 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
             </div>
 
             {/* Footer */}
-            <div className="mt-6 pt-4 border-t border-white/10">
-                <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+            <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
+                <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)]">
                     <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                     <span>Powered by AMR Hybrid AI Brain</span>
                 </div>

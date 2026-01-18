@@ -162,8 +162,8 @@ function PropertyCard({ property, delay = 0 }: { property: Property; delay?: num
             {/* Glow effect on hover */}
             <div className={`absolute inset-0 rounded-2xl transition-all duration-500
                           ${isClassA
-                            ? 'bg-gradient-to-br from-amber-500/5 to-orange-500/5 group-hover:from-amber-500/10 group-hover:to-orange-500/10'
-                            : 'bg-gradient-to-br from-emerald-500/0 to-teal-500/0 group-hover:from-emerald-500/5 group-hover:to-teal-500/5'}`} />
+                    ? 'bg-gradient-to-br from-amber-500/5 to-orange-500/5 group-hover:from-amber-500/10 group-hover:to-orange-500/10'
+                    : 'bg-gradient-to-br from-emerald-500/0 to-teal-500/0 group-hover:from-emerald-500/5 group-hover:to-teal-500/5'}`} />
 
             <div className="relative">
                 {/* Class A Badge */}
@@ -192,10 +192,10 @@ function PropertyCard({ property, delay = 0 }: { property: Property; delay?: num
                             animate={{ scale: 1 }}
                             transition={{ delay: delay + 0.2, type: "spring" }}
                             className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${property.wolf_score >= 80
-                                    ? 'bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30'
-                                    : property.wolf_score >= 60
-                                        ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30'
-                                        : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]'
+                                ? 'bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30'
+                                : property.wolf_score >= 60
+                                    ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30'
+                                    : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]'
                                 }`}
                         >
                             {property.wolf_score}/100
@@ -321,8 +321,8 @@ function ChatMessage({
                 <motion.div
                     layout
                     className={`relative rounded-2xl px-5 py-4 ${isUser
-                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-br-md shadow-lg shadow-emerald-500/20'
-                            : 'glass border border-[var(--color-border)] text-[var(--color-text-primary)] rounded-bl-md shadow-md'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-br-md shadow-lg shadow-emerald-500/20'
+                        : 'glass border border-[var(--color-border)] text-[var(--color-text-primary)] rounded-bl-md shadow-md'
                         }`}
                 >
                     {isUser ? (
@@ -559,100 +559,156 @@ function TypingIndicator({ currentTool }: { currentTool?: string }) {
     );
 }
 
-// Empty State
-function EmptyState({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
+// Empty State - ChatGPT-like centered experience
+function EmptyState({
+    onSuggestionClick,
+    input,
+    onInputChange,
+    onKeyDown,
+    onSend,
+    inputRef,
+    isTyping
+}: {
+    onSuggestionClick: (text: string) => void;
+    input: string;
+    onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    onKeyDown: (e: React.KeyboardEvent) => void;
+    onSend: () => void;
+    inputRef: React.RefObject<HTMLTextAreaElement | null>;
+    isTyping: boolean;
+}) {
     const suggestions = [
-        { text: "عايز شقة في التجمع تحت 5 مليون", icon: "🏠", color: "from-blue-500 to-cyan-500" },
-        { text: "قارنلي بين زايد والتجمع للاستثمار", icon: "📊", color: "from-purple-500 to-pink-500" },
-        { text: "إيه أحسن منطقة للعائد الإيجاري؟", icon: "💰", color: "from-amber-500 to-orange-500" },
-        { text: "Show me properties in New Cairo", icon: "🔍", color: "from-emerald-500 to-teal-500" }
+        { text: "عايز شقة في التجمع تحت 5 مليون", icon: "🏠" },
+        { text: "قارنلي بين زايد والتجمع للاستثمار", icon: "📊" },
+        { text: "إيه أحسن منطقة للعائد الإيجاري؟", icon: "💰" },
+        { text: "Show me properties in New Cairo", icon: "🔍" }
     ];
 
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center h-full text-center px-4 py-8"
+            exit={{ opacity: 0, y: -50 }}
+            className="flex flex-col items-center justify-center h-full text-center px-4"
         >
             {/* Animated Logo */}
             <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                className="relative mb-8"
+                className="relative mb-6"
             >
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-500 
+                <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-emerald-500 to-teal-500 
                               flex items-center justify-center shadow-2xl shadow-emerald-500/40
                               ring-4 ring-emerald-500/20">
-                    <span className="text-5xl font-bold text-white">A</span>
+                    <span className="text-4xl font-bold text-white">A</span>
                 </div>
                 <motion.div
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
-                    className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-400 rounded-full 
+                    className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full 
                               border-4 border-[var(--color-background)]"
                 />
             </motion.div>
 
             <motion.h2
-                initial={{ y: 30, opacity: 0 }}
+                initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="text-4xl font-bold text-[var(--color-text-primary)] mb-3"
+                className="text-3xl md:text-4xl font-bold text-[var(--color-text-primary)] mb-2"
             >
                 Ahlan! Ana Amr 👋
             </motion.h2>
 
             <motion.p
-                initial={{ y: 30, opacity: 0 }}
+                initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="text-[var(--color-text-secondary)] mb-10 max-w-lg text-lg leading-relaxed"
+                className="text-[var(--color-text-secondary)] mb-8 max-w-md text-base leading-relaxed"
             >
-                Your AI Real Estate Consultant. I help you find verified properties
-                and protect your investment in Egypt.
+                Your AI Real Estate Consultant for Egypt.
             </motion.p>
 
+            {/* Centered Input Box */}
             <motion.div
                 initial={{ y: 30, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="grid gap-3 w-full max-w-xl"
+                className="w-full max-w-2xl mb-6"
             >
-                <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-2 font-semibold">
-                    ✨ Try asking
-                </p>
+                <motion.div
+                    layout
+                    className="relative flex items-end bg-[var(--color-surface)] 
+                              rounded-[1.5rem] border-2 border-[var(--color-border)]
+                              shadow-xl hover:shadow-2xl focus-within:border-[var(--color-primary)]
+                              focus-within:ring-4 focus-within:ring-[var(--color-primary-light)]
+                              transition-all duration-300"
+                >
+                    <textarea
+                        ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+                        value={input}
+                        onChange={onInputChange}
+                        onKeyDown={onKeyDown}
+                        placeholder="اسأل عمرو عن أي حاجة في العقارات..."
+                        rows={1}
+                        className="flex-1 bg-transparent text-[var(--color-text-primary)] py-5 px-6 
+                                 text-base resize-none focus:outline-none max-h-[150px] 
+                                 placeholder:text-[var(--color-text-muted)]"
+                        dir="auto"
+                    />
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={onSend}
+                        disabled={!input.trim() || isTyping}
+                        className="m-3 w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500
+                                 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed 
+                                 text-white rounded-xl flex items-center justify-center 
+                                 transition-all duration-300 shadow-lg shadow-emerald-500/25 
+                                 disabled:shadow-none hover:shadow-emerald-500/50"
+                    >
+                        <Send size={18} />
+                    </motion.button>
+                </motion.div>
+            </motion.div>
+
+            {/* Suggestion Chips */}
+            <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="flex flex-wrap gap-2 justify-center max-w-2xl"
+            >
                 {suggestions.map((suggestion, idx) => (
                     <motion.button
                         key={idx}
-                        initial={{ x: idx % 2 === 0 ? -30 : 30, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.5 + idx * 0.1, type: "spring" }}
-                        whileHover={{ scale: 1.02, x: 5 }}
-                        whileTap={{ scale: 0.98 }}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.6 + idx * 0.08, type: "spring" }}
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => onSuggestionClick(suggestion.text)}
-                        className="group text-left px-5 py-4 rounded-2xl border border-[var(--color-border)] 
+                        className="px-4 py-2.5 rounded-[1rem] border border-[var(--color-border)] 
                                  bg-[var(--color-surface)] text-[var(--color-text-secondary)] text-sm 
-                                 hover:border-[var(--color-primary)] hover:shadow-lg
-                                 transition-all duration-300 flex items-center gap-4"
+                                 hover:border-[var(--color-primary)] hover:text-[var(--color-text-primary)]
+                                 hover:shadow-lg transition-all duration-300 flex items-center gap-2"
                     >
-                        <span className={`w-10 h-10 rounded-xl bg-gradient-to-br ${suggestion.color} 
-                                       flex items-center justify-center text-lg shadow-md`}>
-                            {suggestion.icon}
-                        </span>
-                        <span className="group-hover:text-[var(--color-text-primary)] transition-colors flex-1">
-                            {suggestion.text}
-                        </span>
-                        <motion.span
-                            initial={{ x: 0, opacity: 0 }}
-                            whileHover={{ x: 5, opacity: 1 }}
-                            className="text-[var(--color-primary)]"
-                        >
-                            →
-                        </motion.span>
+                        <span>{suggestion.icon}</span>
+                        <span className="hidden sm:inline">{suggestion.text}</span>
+                        <span className="sm:hidden">{suggestion.text.slice(0, 20)}...</span>
                     </motion.button>
                 ))}
             </motion.div>
+
+            <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="mt-8 text-xs text-[var(--color-text-muted)] flex items-center gap-2"
+            >
+                <Sparkles size={12} className="text-amber-500" />
+                <span>Powered by Osool Hybrid Brain V5</span>
+            </motion.p>
         </motion.div>
     );
 }
@@ -900,7 +956,15 @@ export default function ChatInterface() {
                     className="flex-1 overflow-y-auto px-4 md:px-8 py-8 space-y-6 custom-scrollbar"
                 >
                     {messages.length === 0 ? (
-                        <EmptyState onSuggestionClick={(text) => handleSend(text)} />
+                        <EmptyState
+                            onSuggestionClick={(text) => handleSend(text)}
+                            input={input}
+                            onInputChange={handleInputChange}
+                            onKeyDown={handleKeyDown}
+                            onSend={() => handleSend()}
+                            inputRef={inputRef}
+                            isTyping={isTyping}
+                        />
                     ) : (
                         <AnimatePresence mode="popLayout">
                             {messages.map((msg, idx) => (
@@ -936,50 +1000,57 @@ export default function ChatInterface() {
                     )}
                 </AnimatePresence>
 
-                {/* Input Area */}
-                <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-2xl p-4 md:p-6">
-                    <div className="max-w-4xl mx-auto">
-                        <motion.div
-                            className="relative flex items-end bg-[var(--color-surface-elevated)] 
+                {/* Input Area - only show when there are messages */}
+                {messages.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="border-t border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-2xl p-4 md:p-6"
+                    >
+                        <div className="max-w-4xl mx-auto">
+                            <motion.div
+                                className="relative flex items-end bg-[var(--color-surface-elevated)] 
                                       rounded-2xl border border-[var(--color-border)]
                                       shadow-lg hover:shadow-xl focus-within:border-[var(--color-primary)]
                                       focus-within:ring-4 focus-within:ring-[var(--color-primary-light)]
                                       transition-all duration-300"
-                        >
-                            <textarea
-                                ref={inputRef}
-                                value={input}
-                                onChange={handleInputChange}
-                                onKeyDown={handleKeyDown}
-                                placeholder="اسأل عمرو عن أي حاجة في العقارات..."
-                                rows={1}
-                                className="flex-1 bg-transparent text-[var(--color-text-primary)] py-4 px-6 
+                            >
+                                <textarea
+                                    ref={inputRef}
+                                    value={input}
+                                    onChange={handleInputChange}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="اسأل عمرو عن أي حاجة في العقارات..."
+                                    rows={1}
+                                    className="flex-1 bg-transparent text-[var(--color-text-primary)] py-4 px-6 
                                          text-sm resize-none focus:outline-none max-h-[150px] 
                                          placeholder:text-[var(--color-text-muted)]"
-                                dir="auto"
-                            />
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => handleSend()}
-                                disabled={!input.trim() || isTyping}
-                                className="m-2.5 w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500
+                                    dir="auto"
+                                />
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => handleSend()}
+                                    disabled={!input.trim() || isTyping}
+                                    className="m-2.5 w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500
                                          disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed 
                                          text-white rounded-xl flex items-center justify-center 
                                          transition-all duration-300 shadow-lg shadow-emerald-500/25 
                                          disabled:shadow-none hover:shadow-emerald-500/50"
-                            >
-                                <Send size={18} />
-                            </motion.button>
-                        </motion.div>
+                                >
+                                    <Send size={18} />
+                                </motion.button>
+                            </motion.div>
 
-                        <p className="text-center mt-4 text-xs text-[var(--color-text-muted)] 
+                            <p className="text-center mt-4 text-xs text-[var(--color-text-muted)] 
                                     flex items-center justify-center gap-2">
-                            <Sparkles size={12} className="text-amber-500" />
-                            <span>Powered by Osool Hybrid Brain V5 • Claude + GPT-4o + XGBoost</span>
-                        </p>
-                    </div>
-                </div>
+                                <Sparkles size={12} className="text-amber-500" />
+                                <span>Powered by Osool Hybrid Brain V5 • Claude + GPT-4o + XGBoost</span>
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
             </div>
         </div>
     );
