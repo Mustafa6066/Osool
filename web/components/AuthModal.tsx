@@ -29,13 +29,16 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         setError(null);
 
         try {
-            const formData = new FormData();
+            const formData = new URLSearchParams();
             formData.append("username", email);
             formData.append("password", password);
 
             const res = await fetch(`${API_URL}/api/auth/login`, {
                 method: "POST",
-                body: formData,
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: formData.toString(),
             });
 
             if (!res.ok) {
