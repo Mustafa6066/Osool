@@ -51,13 +51,13 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
             </div>
 
             {/* Comparison Table */}
-            <div className="overflow-x-auto">
-                <table className="w-full">
+            <div className="overflow-x-auto -mx-6 px-6">
+                <table className="w-full min-w-[500px] table-fixed">
                     <thead>
                         <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-2 text-gray-400 text-sm font-medium">Metric</th>
+                            <th className="text-left py-3 px-3 text-gray-400 text-sm font-medium w-28">Metric</th>
                             {properties.map((property, idx) => (
-                                <th key={property.id} className="py-3 px-2 text-center">
+                                <th key={property.id} className="py-3 px-3 text-center min-w-[140px]">
                                     <motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -83,22 +83,23 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                     <tbody>
                         {/* Title */}
                         <tr className="border-b border-white/10">
-                            <td className="py-4 px-2">
+                            <td className="py-4 px-3">
                                 <div className="flex items-center gap-2 text-gray-300 text-sm">
-                                    <Home className="w-4 h-4" />
+                                    <Home className="w-4 h-4 flex-shrink-0" />
                                     <span>Title</span>
                                 </div>
                             </td>
                             {properties.map((property, idx) => (
-                                <td key={property.id} className="py-4 px-2">
+                                <td key={property.id} className="py-4 px-3">
                                     <motion.div
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.2 + idx * 0.1 }}
-                                        className="text-sm text-white text-center font-medium"
+                                        className="text-sm text-white text-center font-medium break-words"
+                                        title={property.title}
                                     >
-                                        {property.title.length > 30
-                                            ? property.title.substring(0, 30) + "..."
+                                        {property.title.length > 25
+                                            ? property.title.substring(0, 25) + "..."
                                             : property.title}
                                     </motion.div>
                                 </td>
@@ -168,11 +169,10 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         transition={{ delay: 0.5 + idx * 0.1 }}
                                         className="text-center"
                                     >
-                                        <div className={`text-sm font-semibold ${
-                                            property.price_per_sqm === lowestPricePerSqm
+                                        <div className={`text-sm font-semibold ${property.price_per_sqm === lowestPricePerSqm
                                                 ? "text-green-400"
                                                 : "text-white"
-                                        }`}>
+                                            }`}>
                                             {(property.price_per_sqm || 0).toLocaleString()} EGP
                                         </div>
                                         {property.price_per_sqm === lowestPricePerSqm && (
@@ -263,11 +263,10 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                         >
                                             {property.roi_projection ? (
                                                 <>
-                                                    <div className={`text-sm font-semibold ${
-                                                        property.roi_projection === highestROI
+                                                    <div className={`text-sm font-semibold ${property.roi_projection === highestROI
                                                             ? "text-green-400"
                                                             : "text-white"
-                                                    }`}>
+                                                        }`}>
                                                         {property.roi_projection.toFixed(1)}%
                                                     </div>
                                                     {property.roi_projection === highestROI && (
