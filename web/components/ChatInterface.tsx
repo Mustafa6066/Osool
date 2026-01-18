@@ -68,13 +68,12 @@ function PropertyCard({ property }: { property: Property }) {
                     {property.title}
                 </h4>
                 {property.wolf_score && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        property.wolf_score >= 80
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${property.wolf_score >= 80
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                             : property.wolf_score >= 60
-                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                    }`}>
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                        }`}>
                         {property.wolf_score}/100
                     </span>
                 )}
@@ -123,11 +122,10 @@ function ChatMessage({
 
             <div className={`flex flex-col max-w-[85%] md:max-w-[75%] space-y-3`}>
                 {/* Message Bubble */}
-                <div className={`relative rounded-2xl p-4 ${
-                    isUser
+                <div className={`relative rounded-2xl p-4 ${isUser
                         ? 'bg-green-600 text-white rounded-br-sm'
                         : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-sm border border-slate-100 dark:border-slate-700 shadow-sm'
-                }`}>
+                    }`}>
                     <div className="text-sm leading-relaxed whitespace-pre-wrap" dir="auto">
                         {message.content}
                     </div>
@@ -169,7 +167,7 @@ function ChatMessage({
 
                 {/* Property Cards */}
                 {message.properties && message.properties.length > 0 && (
-                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                    <div className="mt-3 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                         {message.properties.slice(0, 4).map((prop) => (
                             <PropertyCard key={prop.id} property={prop} />
                         ))}
@@ -366,9 +364,8 @@ export default function ChatInterface() {
     return (
         <div className="flex h-[calc(100vh-64px)] bg-slate-100 dark:bg-slate-950 overflow-hidden">
             {/* Desktop Sidebar */}
-            <div className={`hidden md:flex flex-col bg-slate-900 dark:bg-black transition-all duration-300 ${
-                isSidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'
-            }`}>
+            <div className={`hidden md:flex flex-col bg-slate-900 dark:bg-black transition-all duration-300 ${isSidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'
+                }`}>
                 <div className="p-4 border-b border-slate-800">
                     <button
                         onClick={handleNewConversation}
@@ -382,7 +379,7 @@ export default function ChatInterface() {
                 <div className="flex-1 overflow-y-auto p-2">
                     <ConversationHistory
                         isOpen={true}
-                        onClose={() => {}}
+                        onClose={() => { }}
                         onSelectConversation={(id) => console.log("Selected:", id)}
                         onNewConversation={handleNewConversation}
                         isDesktopSidebar={true}

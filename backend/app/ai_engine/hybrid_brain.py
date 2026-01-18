@@ -477,6 +477,35 @@ Examples:
                 if 'bedrooms' in filters and filters['bedrooms']:
                     results = [r for r in results if r.get('bedrooms', 0) >= filters['bedrooms']]
                 
+                # Filter by property_type if specified (critical for apartment vs office/villa)
+                if 'property_type' in filters and filters['property_type']:
+                    requested_type = filters['property_type'].lower()
+                    # Map common variations to standard types
+                    type_mappings = {
+                        'apartment': ['apartment', 'شقة', 'شقه', 'flat'],
+                        'villa': ['villa', 'فيلا', 'فيللا'],
+                        'townhouse': ['townhouse', 'تاون هاوس', 'تاونهاوس'],
+                        'twinhouse': ['twinhouse', 'twin house', 'توين هاوس', 'توينهاوس'],
+                        'penthouse': ['penthouse', 'بنتهاوس', 'بنت هاوس'],
+                        'duplex': ['duplex', 'دوبلكس'],
+                        'studio': ['studio', 'ستوديو'],
+                        'office': ['office', 'مكتب', 'اوفيس']
+                    }
+                    
+                    # Find matching type group
+                    allowed_types = [requested_type]
+                    for standard_type, variations in type_mappings.items():
+                        if requested_type in variations or requested_type == standard_type:
+                            allowed_types = variations + [standard_type]
+                            break
+                    
+                    # Filter results
+                    results = [
+                        r for r in results 
+                        if r.get('type', '').lower() in allowed_types
+                    ]
+                    logger.info(f"🏠 Property type filter: '{requested_type}' → {len(results)} results")
+                
                 return results[:5]  # Top 5 results
                 
         except Exception as e:
