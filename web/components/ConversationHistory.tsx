@@ -19,6 +19,7 @@ interface ConversationHistoryProps {
     onSelectConversation: (conversationId: string) => void;
     onNewConversation: () => void;
     currentConversationId?: string;
+    isDesktopSidebar?: boolean;
 }
 
 export default function ConversationHistory({
@@ -26,7 +27,8 @@ export default function ConversationHistory({
     onClose,
     onSelectConversation,
     onNewConversation,
-    currentConversationId
+    currentConversationId,
+    isDesktopSidebar = false
 }: ConversationHistoryProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [conversations, setConversations] = useState<Conversation[]>([
@@ -83,6 +85,71 @@ export default function ConversationHistory({
         }
     };
 
+    // Desktop sidebar mode - render inline without modal
+    if (isDesktopSidebar) {
+        return (
+            <div className="flex flex-col h-full">
+                {/* Search */}
+                <div className="p-2">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all"
+                        />
+                    </div>
+                </div>
+
+                {/* Conversations List */}
+                <div className="flex-1 overflow-y-auto space-y-1 px-2">
+                    {filteredConversations.length === 0 ? (
+                        <div className="text-center py-8 text-slate-500">
+                            <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                            <p className="text-xs">
+                                {searchQuery ? "No matches" : "No chats yet"}
+                            </p>
+                        </div>
+                    ) : (
+                        filteredConversations.map((conv) => (
+                            <div
+                                key={conv.id}
+                                onClick={() => onSelectConversation(conv.id)}
+                                className={`group relative p-3 rounded-lg cursor-pointer transition-all ${
+                                    currentConversationId === conv.id
+                                        ? "bg-green-600/20 border border-green-500/30"
+                                        : "hover:bg-slate-800 border border-transparent"
+                                }`}
+                            >
+                                <h3 className="text-sm font-medium text-white truncate mb-1">
+                                    {conv.title}
+                                </h3>
+                                <p className="text-xs text-slate-400 truncate mb-1">
+                                    {conv.preview}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{formatTimestamp(conv.timestamp)}</span>
+                                </div>
+
+                                {/* Delete Button */}
+                                <button
+                                    onClick={(e) => handleDelete(conv.id, e)}
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // Mobile modal mode
     return (
         <ClientOnly>
             <AnimatePresence>
@@ -103,7 +170,7 @@ export default function ConversationHistory({
                             animate={{ x: 0 }}
                             exit={{ x: -300 }}
                             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="fixed left-0 top-0 h-full w-80 bg-gradient-to-b from-[#0f111a] to-[#1a1c2e] border-r border-white/10 z-50 flex flex-col shadow-2xl"
+                            className="fixed left-0 top-0 h-full w-80 bg-slate-900 border-r border-slate-800 z-50 flex flex-col shadow-2xl md:hidden"
                         >
                             {/* Header */}
                             <div className="p-4 border-b border-white/10">

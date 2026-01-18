@@ -1,20 +1,22 @@
 """
-XGBoost Predictor - The Wolf's Crystal Ball
--------------------------------------------
+XGBoost Predictor - The Wolf's Crystal Ball V2
+----------------------------------------------
 Machine learning predictions for deal scoring, price prediction,
-and urgency detection.
+urgency detection, inflation hedging, and bargain detection.
 
 Features:
 - Deal Probability: Will this lead convert?
 - Price Prediction: Is this property fairly priced?
 - Urgency Score: How soon should we close?
+- Inflation Hedge Score: How well does this property protect against inflation?
+- La2ta Detection: Find bargains >10% below market value
 
 Note: Uses heuristic model for Phase 1. Can be upgraded to
 trained XGBoost model by loading from pickle file.
 """
 
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 # Try to import XGBoost and sklearn
 try:
@@ -364,6 +366,238 @@ class OsoolXGBoostPredictor:
             "message_ar": message_ar,
             "message_en": message_en,
             "confidence": prediction["confidence"]
+        }
+
+    def calculate_inflation_hedge_score(
+        self,
+        property_features: Dict[str, Any],
+        investment_horizon_years: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Calculate how well this property hedges against inflation vs alternatives.
+        The "Inflation Killer" - shows property vs cash vs gold over time.
+
+        Uses Egyptian market data:
+        - Inflation Rate: ~28% (2024)
+        - Gold Appreciation: ~35% annually in EGP terms
+        - Property Appreciation: ~18% annually + rental yield
+        - Rental Yield: ~6.5% annually
+
+        Args:
+            property_features: Dict with 'price' and optionally 'location', 'size_sqm'
+            investment_horizon_years: Projection period (default 5 years)
+
+        Returns:
+            Dict with projections, hedge_score, and comparison data
+        """
+        # Egyptian market constants (2024 data)
+        INFLATION_RATE = 0.28  # 28% annual inflation
+        GOLD_APPRECIATION = 0.35  # Gold in EGP terms
+        PROPERTY_APPRECIATION = 0.18  # Property appreciation
+        RENTAL_YIELD = 0.065  # 6.5% annual rental yield
+        RENT_INCREASE_RATE = 0.10  # 10% annual rent increase
+
+        initial_investment = property_features.get('price', 5_000_000)
+
+        # Calculate year-by-year projections
+        projections = []
+
+        cash_value = initial_investment
+        gold_value = initial_investment
+        property_value = initial_investment
+        cumulative_rent = 0
+
+        for year in range(investment_horizon_years + 1):
+            if year == 0:
+                projections.append({
+                    "year": 2024,
+                    "cash_real_value": initial_investment,
+                    "gold_value": initial_investment,
+                    "property_value": initial_investment,
+                    "property_total": initial_investment,
+                    "annual_rent": 0
+                })
+            else:
+                # Cash loses value to inflation (real purchasing power)
+                cash_value = initial_investment / ((1 + INFLATION_RATE) ** year)
+
+                # Gold appreciates in EGP terms
+                gold_value = initial_investment * ((1 + GOLD_APPRECIATION) ** year)
+
+                # Property appreciates + generates rent
+                property_value = initial_investment * ((1 + PROPERTY_APPRECIATION) ** year)
+                annual_rent = initial_investment * RENTAL_YIELD * ((1 + RENT_INCREASE_RATE) ** (year - 1))
+                cumulative_rent += annual_rent
+                property_total = property_value + cumulative_rent
+
+                projections.append({
+                    "year": 2024 + year,
+                    "cash_real_value": int(cash_value),
+                    "gold_value": int(gold_value),
+                    "property_value": int(property_value),
+                    "property_total": int(property_total),
+                    "annual_rent": int(annual_rent)
+                })
+
+        # Final values
+        final = projections[-1]
+
+        # Calculate advantages
+        advantage_vs_cash = final["property_total"] - final["cash_real_value"]
+        advantage_vs_gold = final["property_total"] - final["gold_value"]
+
+        # Property beats both = high score
+        # Property beats cash but not gold = medium score
+        # Property beats neither = low score
+        if advantage_vs_cash > 0 and advantage_vs_gold > 0:
+            hedge_score = min(100, 70 + int((advantage_vs_gold / initial_investment) * 100))
+        elif advantage_vs_cash > 0:
+            hedge_score = 50 + int((advantage_vs_cash / initial_investment) * 30)
+        else:
+            hedge_score = max(10, 30 + int((advantage_vs_cash / initial_investment) * 30))
+
+        # Calculate percentage changes
+        cash_change_pct = ((final["cash_real_value"] - initial_investment) / initial_investment) * 100
+        gold_change_pct = ((final["gold_value"] - initial_investment) / initial_investment) * 100
+        property_change_pct = ((final["property_total"] - initial_investment) / initial_investment) * 100
+
+        return {
+            "hedge_score": min(100, max(0, hedge_score)),
+            "initial_investment": initial_investment,
+            "investment_horizon_years": investment_horizon_years,
+            "projections": projections,
+            "final_values": {
+                "cash_real_value": final["cash_real_value"],
+                "gold_value": final["gold_value"],
+                "property_value": final["property_value"],
+                "property_total": final["property_total"],
+                "total_rent_earned": int(cumulative_rent)
+            },
+            "percentage_changes": {
+                "cash": round(cash_change_pct, 1),
+                "gold": round(gold_change_pct, 1),
+                "property": round(property_change_pct, 1)
+            },
+            "advantages": {
+                "vs_cash": int(advantage_vs_cash),
+                "vs_gold": int(advantage_vs_gold)
+            },
+            "verdict": {
+                "message_ar": f"العقار هيكسبك {int(advantage_vs_cash/1_000_000):.1f} مليون جنيه أكتر من لو فلوسك فضلت كاش!",
+                "message_en": f"Property gains {int(advantage_vs_cash/1_000_000):.1f}M EGP more than keeping cash!",
+                "beats_cash": advantage_vs_cash > 0,
+                "beats_gold": advantage_vs_gold > 0
+            },
+            "summary_cards": [
+                {
+                    "label": "Cash (Bank)",
+                    "label_ar": "كاش (بنك)",
+                    "value": final["cash_real_value"],
+                    "change_pct": round(cash_change_pct, 1),
+                    "color": "red"
+                },
+                {
+                    "label": "Gold",
+                    "label_ar": "دهب",
+                    "value": final["gold_value"],
+                    "change_pct": round(gold_change_pct, 1),
+                    "color": "yellow"
+                },
+                {
+                    "label": "Property",
+                    "label_ar": "عقار",
+                    "value": final["property_total"],
+                    "change_pct": round(property_change_pct, 1),
+                    "color": "green"
+                }
+            ]
+        }
+
+    def detect_la2ta(
+        self,
+        properties: List[Dict[str, Any]],
+        threshold_percent: float = 10.0
+    ) -> List[Dict[str, Any]]:
+        """
+        Detect "La2ta" (bargain) properties that are significantly below market.
+        The Wolf's Radar for finding deals.
+
+        Args:
+            properties: List of property dicts with 'price', 'location', 'size_sqm', etc.
+            threshold_percent: Minimum discount percentage to qualify as La2ta (default 10%)
+
+        Returns:
+            List of properties with la2ta metadata, sorted by discount (best first)
+        """
+        la2ta_properties = []
+
+        for prop in properties:
+            # Get property features for valuation
+            property_features = {
+                "location": prop.get('location', ''),
+                "size_sqm": prop.get('size_sqm', 150),
+                "bedrooms": prop.get('bedrooms', 3),
+                "finishing": prop.get('finishing', 'fully finished'),
+                "floor": prop.get('floor', 3),
+                "is_compound": prop.get('compound') is not None
+            }
+
+            # Get predicted fair price
+            prediction = self.predict_fair_price(property_features)
+            predicted_price = prediction.get('predicted_price', 0)
+            asking_price = prop.get('price', 0)
+
+            if predicted_price > 0 and asking_price > 0:
+                # Calculate discount percentage
+                discount_percent = ((predicted_price - asking_price) / predicted_price) * 100
+
+                if discount_percent >= threshold_percent:
+                    # This is a La2ta!
+                    savings = predicted_price - asking_price
+
+                    la2ta_prop = {
+                        **prop,
+                        "la2ta_score": round(discount_percent, 1),
+                        "predicted_price": predicted_price,
+                        "savings": int(savings),
+                        "savings_formatted": f"{int(savings/1000):,}K" if savings < 1_000_000 else f"{savings/1_000_000:.1f}M",
+                        "is_la2ta": True,
+                        "la2ta_message_ar": f"🐺 لقطة! تحت السوق بـ {discount_percent:.0f}% - توفير {int(savings/1000):,} ألف",
+                        "la2ta_message_en": f"Bargain! {discount_percent:.0f}% below market - Save {int(savings/1000):,}K EGP",
+                        "urgency_message_ar": "فرصة نادرة، الأسعار دي مش بتدوم!",
+                        "urgency_message_en": "Rare opportunity, prices like this don't last!"
+                    }
+                    la2ta_properties.append(la2ta_prop)
+
+        # Sort by la2ta_score (highest discount first)
+        return sorted(la2ta_properties, key=lambda x: x.get('la2ta_score', 0), reverse=True)
+
+    def get_market_comparison_data(
+        self,
+        property_features: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Get comprehensive market comparison data for a property.
+        Used for detailed analysis views.
+        """
+        price_prediction = self.predict_fair_price(property_features)
+        asking_price = property_features.get('price', price_prediction['predicted_price'])
+
+        price_comparison = self.compare_price_to_market(asking_price, property_features)
+        inflation_hedge = self.calculate_inflation_hedge_score(property_features)
+
+        return {
+            "price_analysis": price_prediction,
+            "market_comparison": price_comparison,
+            "inflation_hedge": inflation_hedge,
+            "wolf_recommendation": {
+                "score": price_comparison.get('verdict') == 'BARGAIN' and 90 or
+                         price_comparison.get('verdict') == 'FAIR' and 70 or 50,
+                "action_ar": "اشتري دلوقتي!" if price_comparison.get('verdict') == 'BARGAIN' else
+                            "سعر معقول" if price_comparison.get('verdict') == 'FAIR' else "فاوض على السعر",
+                "action_en": "Buy now!" if price_comparison.get('verdict') == 'BARGAIN' else
+                            "Fair price" if price_comparison.get('verdict') == 'FAIR' else "Negotiate"
+            }
         }
 
     def _predict_with_model(self, features: Dict[str, Any]) -> float:

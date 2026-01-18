@@ -30,6 +30,7 @@ from app.ai_engine.psychology_layer import (
     PsychologyProfile,
     PsychologicalState
 )
+from app.ai_engine.proactive_alerts import proactive_alert_engine
 from app.services.vector_search import search_properties as db_search_properties
 from app.database import AsyncSessionLocal
 
@@ -169,11 +170,21 @@ class OsoolHybridBrain:
             ui_actions = self._determine_ui_actions(psychology, scored_data, intent, query)
             logger.info(f"🎨 UI Actions: {[a['type'] for a in ui_actions]}")
 
-            logger.info(f"✅ Wolf Brain V4 complete")
+            # 9. PROACTIVE_ALERTS: Scan for opportunities (V2)
+            proactive_alerts = proactive_alert_engine.scan_for_opportunities(
+                user_preferences=intent.get('filters', {}),
+                market_data=scored_data,
+                psychology=psychology,
+                intent=intent
+            )
+            logger.info(f"🚨 Proactive Alerts: {len(proactive_alerts)} alerts generated")
+
+            logger.info(f"✅ Wolf Brain V5 complete")
             return {
                 "response": response,
                 "properties": scored_data,
                 "ui_actions": ui_actions,
+                "proactive_alerts": proactive_alerts,
                 "psychology": psychology.to_dict(),
                 "agentic_action": None
             }
@@ -235,6 +246,7 @@ class OsoolHybridBrain:
     ) -> List[Dict]:
         """
         Determine which UI visualizations to trigger based on context.
+        V2: Now includes full visualization data and chart references.
 
         Returns:
             List of ui_action dicts ready for frontend consumption
@@ -246,28 +258,50 @@ class OsoolHybridBrain:
         if psychology.primary_state == PsychologicalState.FOMO:
             bargains = [p for p in properties if p.get('valuation_verdict') == 'BARGAIN']
             if bargains:
-                ui_actions.append({
-                    "type": UIActionType.LA2TA_ALERT.value,
-                    "priority": 10,
-                    "data": {
-                        "properties": bargains[:3],
-                        "message_ar": f"🐺 لقيتلك {len(bargains)} لقطة! ده تحت السوق",
-                        "message_en": f"Found {len(bargains)} bargain(s)! Below market price"
-                    }
-                })
+                # Use detect_la2ta for enhanced bargain data
+                la2ta_bargains = xgboost_predictor.detect_la2ta(bargains, threshold_percent=5.0)
+                if la2ta_bargains:
+                    ui_actions.append({
+                        "type": UIActionType.LA2TA_ALERT.value,
+                        "priority": 10,
+                        "data": {
+                            "properties": la2ta_bargains[:3],
+                            "best_discount": la2ta_bargains[0].get('la2ta_score', 0),
+                            "total_savings": sum(b.get('savings', 0) for b in la2ta_bargains[:3]),
+                            "message_ar": f"🐺 لقيتلك {len(la2ta_bargains)} لقطة! ده تحت السوق",
+                            "message_en": f"Found {len(la2ta_bargains)} bargain(s)! Below market price"
+                        },
+                        "trigger_reason": "FOMO psychology + BARGAIN properties",
+                        "chart_reference": "شايف اللقطة دي؟ تحت السوق بـ {}%!".format(
+                            la2ta_bargains[0].get('la2ta_score', 10)
+                        )
+                    })
 
-        # Rule 2: Greed-driven user OR investment keywords -> show Inflation Killer
+        # Rule 2: Greed-driven user OR investment keywords -> show Inflation Killer with FULL data
         investment_keywords = ['استثمار', 'عائد', 'roi', 'investment', 'profit', 'ربح', 'تضخم', 'inflation']
         if (psychology.primary_state == PsychologicalState.GREED_DRIVEN or
             any(kw in query_lower for kw in investment_keywords)):
             if properties:
+                # Generate full inflation hedge data
+                inflation_data = xgboost_predictor.calculate_inflation_hedge_score({
+                    'price': properties[0].get('price', 5_000_000)
+                })
                 ui_actions.append({
                     "type": UIActionType.INFLATION_KILLER.value,
                     "priority": 9,
                     "data": {
                         "initial_investment": properties[0].get('price', 5_000_000),
-                        "years": 5
-                    }
+                        "years": 5,
+                        "projections": inflation_data.get('projections', []),
+                        "summary_cards": inflation_data.get('summary_cards', []),
+                        "final_values": inflation_data.get('final_values', {}),
+                        "percentage_changes": inflation_data.get('percentage_changes', {}),
+                        "advantages": inflation_data.get('advantages', {}),
+                        "verdict": inflation_data.get('verdict', {}),
+                        "hedge_score": inflation_data.get('hedge_score', 0)
+                    },
+                    "trigger_reason": "GREED_DRIVEN psychology or investment keywords",
+                    "chart_reference": "بص على الشاشة دلوقتي يا باشا، الخط الأخضر ده العقار..."
                 })
 
         # Rule 3: Risk-averse user OR contract/legal keywords -> show Law 114 Guardian

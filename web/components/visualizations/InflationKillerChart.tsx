@@ -15,19 +15,32 @@ import {
 
 interface DataPoint {
     year: number;
+    label?: string;
+    cash?: number;
+    gold?: number;
+    property?: number;
+    // V5 format from backend
+    cash_real_value?: number;
+    gold_value?: number;
+    property_value?: number;
+    property_total?: number;
+    annual_rent?: number;
+}
+
+interface SummaryCard {
     label: string;
-    cash: number;
-    gold: number;
-    property: number;
-    property_value_only?: number;
-    cumulative_rent?: number;
+    label_ar: string;
+    value: number;
+    change_pct: number;
+    color: string;
 }
 
 interface InflationKillerChartProps {
-    initial_investment: number;
-    years: number;
-    data_points: DataPoint[];
-    summary: {
+    initial_investment?: number;
+    years?: number;
+    // Legacy format
+    data_points?: DataPoint[];
+    summary?: {
         cash_final: number;
         cash_loss_percent: number;
         gold_final: number;
@@ -45,11 +58,34 @@ interface InflationKillerChartProps {
         rental_yield: number;
         source?: string;
     };
-    verdict: {
-        winner: string;
+    verdict?: {
+        winner?: string;
         message_ar: string;
         message_en: string;
+        beats_cash?: boolean;
+        beats_gold?: boolean;
     };
+    // V5 format from backend
+    projections?: DataPoint[];
+    summary_cards?: SummaryCard[];
+    final_values?: {
+        cash_real_value: number;
+        gold_value: number;
+        property_value: number;
+        property_total: number;
+        total_rent_earned: number;
+    };
+    percentage_changes?: {
+        cash: number;
+        gold: number;
+        property: number;
+    };
+    advantages?: {
+        vs_cash: number;
+        vs_gold: number;
+    };
+    hedge_score?: number;
+    investment_horizon_years?: number;
 }
 
 // Format large numbers to millions
@@ -65,14 +101,50 @@ const formatCurrency = (value: number): string => {
     }).format(value);
 };
 
-export default function InflationKillerChart({
-    initial_investment,
-    years,
-    data_points,
-    summary,
-    assumptions,
-    verdict,
-}: InflationKillerChartProps) {
+export default function InflationKillerChart(props: InflationKillerChartProps) {
+    // Normalize data to handle both legacy and V5 formats
+    const initial_investment = props.initial_investment || 5_000_000;
+    const years = props.years || props.investment_horizon_years || 5;
+
+    // Convert V5 projections to chart format
+    const chartData = props.data_points || (props.projections?.map(p => ({
+        year: p.year,
+        label: String(p.year),
+        cash: p.cash ?? p.cash_real_value ?? 0,
+        gold: p.gold ?? p.gold_value ?? 0,
+        property: p.property ?? p.property_total ?? 0,
+    })) || []);
+
+    // Build summary from either format
+    const summary = props.summary || (props.final_values && props.percentage_changes ? {
+        cash_final: props.final_values.cash_real_value,
+        cash_loss_percent: Math.abs(props.percentage_changes.cash),
+        gold_final: props.final_values.gold_value,
+        gold_gain_percent: props.percentage_changes.gold,
+        property_final: props.final_values.property_total,
+        property_gain_percent: props.percentage_changes.property,
+        property_vs_cash_advantage: props.advantages?.vs_cash || 0,
+        property_vs_gold_advantage: props.advantages?.vs_gold || 0,
+        total_rent_earned: props.final_values.total_rent_earned,
+    } : {
+        cash_final: initial_investment * 0.4,
+        cash_loss_percent: 60,
+        gold_final: initial_investment * 1.5,
+        gold_gain_percent: 50,
+        property_final: initial_investment * 2,
+        property_gain_percent: 100,
+        property_vs_cash_advantage: initial_investment * 1.6,
+        property_vs_gold_advantage: initial_investment * 0.5,
+        total_rent_earned: 0,
+    });
+
+    const verdict = props.verdict || {
+        message_ar: "العقار هو الحصان الكسبان!",
+        message_en: "Property wins the race!",
+    };
+
+    const assumptions = props.assumptions;
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -179,7 +251,7 @@ export default function InflationKillerChart({
                 className="bg-white/5 rounded-xl p-4 border border-white/10 mb-4"
             >
                 <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={data_points} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="colorProperty" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
