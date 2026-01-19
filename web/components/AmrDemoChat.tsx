@@ -1,27 +1,19 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ShieldCheck, TrendingUp, MapPin, Sparkles } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Send, ShieldCheck, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 type Message = {
     id: string;
     role: 'user' | 'amr';
     content: string;
-    type: 'text' | 'chart' | 'location';
+    type: 'text';
 };
 
-const data = [
-    { year: '2021', value: 100, currency: 100 },
-    { year: '2022', value: 115, currency: 85 },
-    { year: '2023', value: 145, currency: 60 },
-    { year: '2024', value: 185, currency: 40 },
-    { year: '2025', value: 240, currency: 30 },
-];
-
 export default function AmrDemoChat() {
-    const [messages, setMessages] = useState<Message[]>([
+    const [messages] = useState<Message[]>([
         {
             id: '1',
             role: 'amr',
@@ -30,52 +22,26 @@ export default function AmrDemoChat() {
         },
     ]);
     const [input, setInput] = useState('');
-    const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const router = useRouter();
 
     // Auto-scroll
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages, isTyping]);
-
-    // Simulation Sequence
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            handleUserMessage("Ezayak ya Amr? I'm worried about the EGP devaluation.");
-        }, 2000); // Auto start after 2s for demo impact
-
-        return () => clearTimeout(timer);
-    }, []);
-
-    const handleUserMessage = async (text: string) => {
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: text,
-            type: 'text',
-        };
-        setMessages((prev) => [...prev, newMessage]);
-        setInput('');
-        setIsTyping(true);
-
-        // Simulate Amr thinking and responding
-        setTimeout(() => {
-            const response: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'amr',
-                content: "Ahlan ya Sadiq! I understand your anxiety. Numbers don't lie. Look at how New Capital properties (Green) have outperformed the EGP (Purple) over the last 4 years. This is your safe haven.",
-                type: 'chart',
-            };
-            setMessages((prev) => [...prev, response]);
-            setIsTyping(false);
-        }, 1500);
-    };
+    }, [messages]);
 
     const handleSend = () => {
         if (!input.trim()) return;
-        handleUserMessage(input);
+        // Redirect to main chat with the message
+        router.push(`/chat?initialMessage=${encodeURIComponent(input)}`);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSend();
+        }
     };
 
     return (
@@ -108,66 +74,32 @@ export default function AmrDemoChat() {
                         >
                             <div
                                 className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${msg.role === 'user'
-                                        ? 'bg-blue-600 text-white rounded-br-none'
-                                        : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none border border-gray-100 dark:border-slate-700'
+                                    ? 'bg-blue-600 text-white rounded-br-none'
+                                    : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none border border-gray-100 dark:border-slate-700'
                                     }`}
                             >
                                 <div className="text-sm leading-relaxed">{msg.content}</div>
-
-                                {msg.type === 'chart' && (
-                                    <div className="mt-4 bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-100 dark:border-slate-800 h-48 w-full">
-                                        <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                            <TrendingUp size={14} /> Property vs Currency
-                                        </div>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={data}>
-                                                <defs>
-                                                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                                                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                                                    </linearGradient>
-                                                    <linearGradient id="colorCurrency" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                                    </linearGradient>
-                                                </defs>
-                                                <Tooltip
-                                                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
-                                                />
-                                                <Area type="monotone" dataKey="value" stroke="#22c55e" fillOpacity={1} fill="url(#colorValue)" name="Property Value" strokeWidth={2} />
-                                                <Area type="monotone" dataKey="currency" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorCurrency)" name="EGP Value" strokeWidth={2} />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                )}
                             </div>
                         </motion.div>
                     ))}
                 </AnimatePresence>
-
-                {isTyping && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex items-center gap-1 text-slate-400 text-xs ml-2"
-                    >
-                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                    </motion.div>
-                )}
             </div>
 
-            {/* Input Area (Visual Only) */}
+            {/* Input Area (Functional) */}
             <div className="p-3 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800">
                 <div className="relative">
                     <input
                         type="text"
-                        disabled
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
                         placeholder="Ask Amr about investment..."
-                        className="w-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 cursor-not-allowed opacity-70"
+                        className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-full py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
                     />
-                    <button className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors">
+                    <button
+                        onClick={handleSend}
+                        disabled={!input.trim()}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         <Send size={14} />
                     </button>
                 </div>

@@ -31,29 +31,7 @@ export default function ConversationHistory({
     isDesktopSidebar = false
 }: ConversationHistoryProps) {
     const [searchQuery, setSearchQuery] = useState("");
-    const [conversations, setConversations] = useState<Conversation[]>([
-        {
-            id: "1",
-            title: "بحث عن شقة في القاهرة الجديدة",
-            preview: "أبحث عن شقة 3 غرف نوم...",
-            timestamp: new Date(),
-            messageCount: 12
-        },
-        {
-            id: "2",
-            title: "Property Investment Analysis",
-            preview: "Can you analyze the ROI for...",
-            timestamp: new Date(Date.now() - 86400000),
-            messageCount: 8
-        },
-        {
-            id: "3",
-            title: "Legal Contract Review",
-            preview: "I need help reviewing this contract...",
-            timestamp: new Date(Date.now() - 172800000),
-            messageCount: 5
-        }
-    ]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
 
     const filteredConversations = conversations.filter(conv =>
         conv.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

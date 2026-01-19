@@ -32,10 +32,10 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
     const getDisplayName = () => {
         // Specific mapping for core team (no space after title)
         const email = user.email?.toLowerCase();
-        if (email === 'mustafa@osool.eg') return 'Mr.Mustafa';
-        if (email === 'hani@osool.eg') return 'Mr.Hani';
-        if (email === 'abady@osool.eg') return 'Mr.Abady';
-        if (email === 'sama@osool.eg') return 'Mrs.Sama';
+        if (email === 'mustafa@osool.eg') return 'Mustafa';
+        if (email === 'hani@osool.eg') return 'Hani';
+        if (email === 'abady@osool.eg') return 'Abady';
+        if (email === 'sama@osool.eg') return 'Mrs. Mustafa';
 
         // Enhanced fallback logic
         if (user.full_name && user.full_name !== 'Wallet User') return user.full_name;

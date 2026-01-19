@@ -89,8 +89,18 @@ class AuthResponse(BaseModel):
 # KYC-COMPLIANT SIGNUP & LOGIN (FRA Egyptian Compliance)
 # ═══════════════════════════════════════════════════════════════
 
-@router.post("/signup")
-async def signup_with_kyc(req: SignupRequest, db: Session = Depends(get_db)):
+# @router.post("/signup")
+# async def signup_with_kyc(req: SignupRequest, db: Session = Depends(get_db)):
+#     """
+#     DISABLED FOR PHASE 1 - INVITATION ONLY
+#     """
+#     raise HTTPException(
+#         status_code=status.HTTP_403_FORBIDDEN,
+#         detail="Public signup is currently disabled. Please use an invitation link."
+#     )
+    
+@router.post("/signup_disabled_public") # Renamed to avoid route conflict if enabled later
+async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get_db)):
     """
     FRA-Compliant Signup requiring National ID + Phone Verification.
 
@@ -866,7 +876,7 @@ BETA_ACCOUNTS = [
     {"full_name": "Mustafa", "email": "mustafa@osool.eg", "password": "Mustafa@Osool2025!", "role": "admin"},
     {"full_name": "Hani", "email": "hani@osool.eg", "password": "Hani@Osool2025!", "role": "admin"},
     {"full_name": "Abady", "email": "abady@osool.eg", "password": "Abady@Osool2025!", "role": "admin"},
-    {"full_name": "Sama", "email": "sama@osool.eg", "password": "Sama@Osool2025!", "role": "admin"},
+    {"full_name": "Mrs. Mustafa", "email": "sama@osool.eg", "password": "Sama@Osool2025!", "role": "admin"},
     # Tester accounts - 2 invitations each
     {"full_name": "Tester One", "email": "tester1@osool.eg", "password": "Tester1@Beta2025", "role": "investor"},
     {"full_name": "Tester Two", "email": "tester2@osool.eg", "password": "Tester2@Beta2025", "role": "investor"},

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChatLayout } from "@/components/chat";
+import ChatInterface from "@/components/ChatInterface";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 /**
@@ -18,7 +18,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 export default function ChatPage() {
     return (
         <ProtectedRoute>
-            <ChatLayout />
+            <ChatInterface />
         </ProtectedRoute>
     );
 }
