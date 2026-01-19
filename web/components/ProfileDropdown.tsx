@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { User, ChevronDown, LinkIcon, LogOut, Gift } from 'lucide-react';
+import { User, ChevronDown, LogOut, Gift } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProfileDropdownProps {
@@ -30,12 +30,12 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
 
     // Get display name with specific admin titles
     const getDisplayName = () => {
-        // Specific mapping for core team
+        // Specific mapping for core team (no space after title)
         const email = user.email?.toLowerCase();
-        if (email === 'mustafa@osool.eg') return 'Mr. Mustafa';
-        if (email === 'hani@osool.eg') return 'Mr. Hani';
-        if (email === 'abady@osool.eg') return 'Mr. Abady';
-        if (email === 'sama@osool.eg') return 'Mrs. Sama';
+        if (email === 'mustafa@osool.eg') return 'Mr.Mustafa';
+        if (email === 'hani@osool.eg') return 'Mr.Hani';
+        if (email === 'abady@osool.eg') return 'Mr.Abady';
+        if (email === 'sama@osool.eg') return 'Mrs.Sama';
 
         // Enhanced fallback logic
         if (user.full_name && user.full_name !== 'Wallet User') return user.full_name;
@@ -51,8 +51,11 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
     const getInitials = () => {
         // Use clean name without title for initials
         let name = displayName;
-        if (name.startsWith('Mr. ') || name.startsWith('Mrs. ')) {
-            name = name.split(' ')[1];
+        // Handle both "Mr.Name" and "Mrs.Name" formats (no space)
+        if (name.startsWith('Mr.')) {
+            name = name.substring(3); // Remove "Mr."
+        } else if (name.startsWith('Mrs.')) {
+            name = name.substring(4); // Remove "Mrs."
         }
 
         const parts = name.split(' ');

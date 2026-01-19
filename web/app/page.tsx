@@ -37,7 +37,15 @@ export default function Home() {
                     {loading ? (
                         <div className="w-24 h-10 bg-slate-200 dark:bg-slate-800 rounded-full animate-pulse"></div>
                     ) : isAuthenticated ? (
-                        <ProfileDropdown onGenerateInvitation={() => setShowInvitationModal(true)} />
+                        <>
+                            <button
+                                onClick={() => setShowInvitationModal(true)}
+                                className="px-5 py-2.5 rounded-full bg-green-600 text-white text-sm font-bold shadow-lg hover:bg-green-700 hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                            >
+                                Generate Invitation Link
+                            </button>
+                            <ProfileDropdown onGenerateInvitation={() => setShowInvitationModal(true)} />
+                        </>
                     ) : (
                         <>
                             <Link href="/login" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">Login</Link>
