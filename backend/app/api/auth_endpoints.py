@@ -242,6 +242,8 @@ async def login_with_verification(
     # Generate JWT with full_name included
     access_token = create_access_token(data={
         "sub": user.email,
+        "email": user.email,     # Explicit email claim for frontend
+        "id": user.id,           # User ID for frontend
         "wallet": user.wallet_address,
         "role": user.role,
         "full_name": user.full_name
