@@ -1,11 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, TrendingUp, Shield, Brain, Sparkles, MessageSquare } from 'lucide-react';
 import AmrDemoChat from '../components/AmrDemoChat';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
+import ProfileDropdown from '@/components/ProfileDropdown';
+import InvitationModal from '@/components/InvitationModal';
 
 export default function Home() {
+    const { isAuthenticated, loading } = useAuth();
+    const [showInvitationModal, setShowInvitationModal] = useState(false);
+
     return (
         <main className="min-h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden relative">
             {/* Background Gradients */}
@@ -14,17 +21,31 @@ export default function Home() {
                 <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[100px] animate-pulse [animation-delay:2s]"></div>
             </div>
 
-            {/* Navbar (Simple) */}
+            {/* Invitation Modal */}
+            <InvitationModal
+                isOpen={showInvitationModal}
+                onClose={() => setShowInvitationModal(false)}
+            />
+
+            {/* Navbar (Auth-Aware) */}
             <nav className="relative z-50 w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <span className="text-2xl font-black bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent">Osool</span>
                     <span className="px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800">BETA</span>
                 </div>
                 <div className="flex items-center gap-4">
-                    <Link href="/login" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">Login</Link>
-                    <Link href="/signup" className="px-5 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
-                        Get Early Access
-                    </Link>
+                    {loading ? (
+                        <div className="w-24 h-10 bg-slate-200 dark:bg-slate-800 rounded-full animate-pulse"></div>
+                    ) : isAuthenticated ? (
+                        <ProfileDropdown onGenerateInvitation={() => setShowInvitationModal(true)} />
+                    ) : (
+                        <>
+                            <Link href="/login" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">Login</Link>
+                            <Link href="/signup" className="px-5 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                                Get Early Access
+                            </Link>
+                        </>
+                    )}
                 </div>
             </nav>
 

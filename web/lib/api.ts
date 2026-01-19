@@ -318,4 +318,57 @@ export const sendChatMessage = async (
   return data;
 };
 
+// ═══════════════════════════════════════════════════════════════
+// INVITATION SYSTEM API
+// ═══════════════════════════════════════════════════════════════
+
+export interface InvitationResponse {
+  status: string;
+  invitation_code: string;
+  invitation_link: string;
+  invitations_remaining: number | 'unlimited';
+}
+
+export interface MyInvitationsResponse {
+  total_invitations: number;
+  invitations_remaining: number | 'unlimited';
+  invitations: Array<{
+    code: string;
+    is_used: boolean;
+    created_at: string | null;
+    used_at: string | null;
+  }>;
+}
+
+export interface InvitationValidation {
+  valid: boolean;
+  message: string;
+  invited_by?: string;
+}
+
+/**
+ * Generate a new invitation link
+ * Admins can generate unlimited, regular users limited to 2
+ */
+export const generateInvitation = async (): Promise<InvitationResponse> => {
+  const { data } = await api.post('/api/auth/invitation/generate', {});
+  return data;
+};
+
+/**
+ * Get all invitations created by the current user
+ */
+export const getMyInvitations = async (): Promise<MyInvitationsResponse> => {
+  const { data } = await api.get('/api/auth/invitation/my-invitations');
+  return data;
+};
+
+/**
+ * Validate an invitation code (check if it's valid and unused)
+ */
+export const validateInvitation = async (code: string): Promise<InvitationValidation> => {
+  const { data } = await api.get(`/api/auth/invitation/validate/${code}`);
+  return data;
+};
+
 export default api;
