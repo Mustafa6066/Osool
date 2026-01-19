@@ -36,16 +36,10 @@ const UserMessage = ({ content }: { content: string }) => {
     const safeContent = useMemo(() => sanitizeContent(content), [content]);
 
     return (
-        <div className="flex flex-col items-end gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-end gap-3 max-w-[80%] md:max-w-[60%]">
-                <div className="flex flex-col gap-1 items-end">
-                    <div className="bg-[var(--color-surface)] text-[var(--color-text-primary)] px-5 py-3 rounded-2xl rounded-tr-sm border border-[var(--color-border)] leading-relaxed text-[15px] shadow-sm" dir="auto">
-                        {safeContent}
-                    </div>
-                </div>
-                <div className="w-9 h-9 rounded-full bg-[var(--color-primary-light)] shrink-0 border border-[var(--color-primary)]/30 flex items-center justify-center text-xs text-[var(--color-primary)] font-bold">
-                    ME
-                </div>
+        <div className="flex flex-col items-end gap-1 w-full animate-in fade-in slide-in-from-bottom-2 duration-300 py-2">
+            {/* User Message Bubble: ChatGPT uses light gray background for user in light mode, or distinct color */}
+            <div className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] px-5 py-3 rounded-3xl rounded-br-sm max-w-[85%] md:max-w-[75%] shadow-sm leading-relaxed text-[15px]" dir="auto">
+                {safeContent}
             </div>
         </div>
     );
@@ -57,26 +51,29 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
     const safeContent = useMemo(() => sanitizeContent(content || ''), [content]);
 
     return (
-        <div className="flex flex-col items-start gap-2 w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="flex items-start gap-3 w-full max-w-5xl">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] shrink-0 flex items-center justify-center shadow-lg shadow-[var(--color-primary)]/20">
-                    <MessageSquare size={18} className="text-white" />
+        <div className="flex flex-col items-start gap-1 w-full animate-in fade-in slide-in-from-bottom-2 duration-500 py-2">
+            <div className="flex items-start gap-4 w-full">
+                {/* Agent Icon */}
+                <div className="w-8 h-8 rounded-full bg-[var(--color-surface-elevated)] flex items-center justify-center shrink-0 border border-[var(--color-border)] mt-1">
+                    <span className="text-[var(--color-text-primary)] font-bold text-xs">AI</span>
                 </div>
-                <div className="flex-1 flex flex-col gap-4">
-                    <div className="flex items-baseline justify-between w-full">
-                        <span className="text-[#a2b3af] text-xs">AMR Agent • Active now</span>
+
+                <div className="flex-1 min-w-0 space-y-2">
+                    {/* Header Name */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-[var(--color-text-primary)]">Osool AMR</span>
                     </div>
 
-                    {/* Text Content with Markdown Support - XSS Protected */}
+                    {/* Text Content */}
                     <div
-                        className="text-[var(--color-text-primary)] leading-loose text-[16px] max-w-[680px] prose prose-invert prose-headings:text-[var(--color-text-primary)] prose-p:text-[var(--color-text-primary)] prose-strong:text-[var(--color-primary)] prose-li:text-[var(--color-text-primary)] prose-code:text-[var(--color-secondary)] prose-pre:bg-[var(--color-surface-elevated)] prose-pre:border prose-pre:border-[var(--color-border)]"
+                        className="text-[var(--color-text-primary)] leading-relaxed text-[16px] prose prose-invert max-w-none prose-p:leading-7 prose-p:mb-4 prose-ul:my-4 prose-li:my-1"
                         dir="auto"
                     >
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {safeContent}
                         </ReactMarkdown>
                         {isTyping && (
-                            <span className="inline-block w-1.5 h-4 bg-[var(--color-primary)] animate-pulse ml-1 align-middle"></span>
+                            <span className="inline-block w-2 h-2 bg-[var(--color-text-primary)] rounded-full animate-pulse ml-1 align-middle"></span>
                         )}
                     </div>
 
@@ -390,92 +387,71 @@ export default function ChatInterface() {
 
             <main className="flex-1 flex flex-col h-full relative">
                 {/* Header */}
-                <header className="h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 bg-[var(--color-background)]/80 backdrop-blur-md z-10 sticky top-0">
-                    <div className="flex items-center gap-3">
-                        <button className="md:hidden text-[var(--color-text-muted)]">
-                            <Menu size={24} />
-                        </button>
-                        <div className="flex items-center gap-2">
-                            <Rocket className="text-[var(--color-primary)]" size={20} />
-                            <h2 className="text-lg font-bold tracking-tight text-[var(--color-text-primary)]">
-                                Mission Control: Real Estate Analysis
-                            </h2>
-                        </div>
+                {/* Header - Minimal e.g. Model Selector */}
+                <header className="h-14 flex items-center justify-between px-4 z-10 sticky top-0 bg-[var(--color-background)]/90 backdrop-blur">
+                    <div className="flex items-center gap-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] px-3 py-2 rounded-lg cursor-pointer transition-colors">
+                        <span className="font-semibold text-lg">Osool 4o</span>
+                        <span className="text-xs opacity-50">▼</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Link
-                            href="/"
-                            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
-                            title="Back to Home"
-                        >
-                            <Home size={20} />
-                        </Link>
-                        <div className="w-8 h-8 rounded-full bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary)] font-bold text-xs ml-2 border border-[var(--color-primary)]/30">
+                        <div className="w-8 h-8 rounded-full bg-[var(--color-surface)] flex items-center justify-center text-[var(--color-text-primary)] text-xs font-bold border border-[var(--color-border)]">
                             {getUserInitials()}
                         </div>
                     </div>
                 </header>
 
-                {/* Chat Area */}
+                {/* Chat Area - Centered Stream */}
                 <div
                     ref={scrollRef}
-                    className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 scroll-smooth scrollbar-hide relative"
-                    style={{ paddingBottom: messages.length === 0 ? '0px' : '180px' }}
+                    className="flex-1 overflow-y-auto space-y-8 scroll-smooth scrollbar-hide relative w-full"
+                    style={{ paddingBottom: messages.length === 0 ? '0px' : '150px' }}
                 >
-                    {messages.length === 0 ? (
-                        // Empty State - Centered Welcome
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center space-y-6 w-full max-w-2xl px-4"
-                        >
-                            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center shadow-2xl shadow-[var(--color-primary)]/30 mb-4 mx-auto">
-                                <MessageSquare size={40} className="text-white fill-white/20" />
-                            </div>
-                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[var(--color-text-primary)]">
-                                Welcome, <span className="text-[var(--color-primary)]">{getDisplayName()}</span>.
-                            </h1>
-                            <p className="text-[var(--color-text-muted)] text-lg max-w-lg mx-auto">
-                                Ready to analyze the market? Ask about price trends, property valuations, or investment
-                                opportunities.
-                            </p>
+                    <div className="max-w-3xl mx-auto px-4 w-full flex flex-col gap-6 py-6">
+                        {messages.length === 0 ? (
+                            // Empty State - Centered
+                            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-in fade-in duration-700">
+                                <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] flex items-center justify-center shadow-sm">
+                                    <Rocket size={32} className="text-[var(--color-text-primary)] opacity-80" />
+                                </div>
+                                <h2 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                                    How can I help you analyze real estate today?
+                                </h2>
 
-                            {/* Starter Prompts */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-8">
-                                {[
-                                    { icon: <BarChart3 size={20} />, text: 'Show price trends in New Cairo' },
-                                    { icon: <Building2 size={20} />, text: 'Compare developers in 5th Settlement' },
-                                    { icon: <MapPin size={20} />, text: 'Best ROI in North Coast' },
-                                ].map((prompt, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setInput(prompt.text)}
-                                        className="flex flex-col items-start gap-2 p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 transition-all text-left group"
-                                    >
-                                        <div className="text-[var(--color-primary)]">{prompt.icon}</div>
-                                        <span className="text-sm text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)] transition-colors">
+                                {/* Starter Prompts */}
+                                <div className="grid grid-cols-2 gap-4 w-full max-w-2xl mt-8">
+                                    {[
+                                        { text: 'Analyze market trends in New Cairo' },
+                                        { text: 'Compare 5th Settlement vs Sheikh Zayed' },
+                                        { text: 'Find investment opportunities under 5M' },
+                                        { text: 'What is the "La2ta" this week?' },
+                                    ].map((prompt, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setInput(prompt.text)}
+                                            className="px-4 py-3 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-sm text-left transition-colors truncate"
+                                        >
                                             {prompt.text}
-                                        </span>
-                                    </button>
-                                ))}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </motion.div>
-                    ) : (
-                        // Messages
-                        messages.map((msg) =>
-                            msg.role === 'user' ? (
-                                <UserMessage key={msg.id} content={msg.content} />
-                            ) : (
-                                <AgentMessage
-                                    key={msg.id}
-                                    content={msg.content}
-                                    visualizations={msg.visualizations}
-                                    properties={msg.properties}
-                                    isTyping={msg.isTyping}
-                                />
+                        ) : (
+                            // Messages Stream
+                            messages.map((msg) =>
+                                msg.role === 'user' ? (
+                                    <UserMessage key={msg.id} content={msg.content} />
+                                ) : (
+                                    <AgentMessage
+                                        key={msg.id}
+                                        content={msg.content}
+                                        visualizations={msg.visualizations}
+                                        properties={msg.properties}
+                                        isTyping={msg.isTyping}
+                                    />
+                                )
                             )
-                        )
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 {/* Input Area - Dynamically positioned */}
@@ -485,7 +461,7 @@ export default function ChatInterface() {
                     animate={
                         messages.length === 0
                             ? { position: 'absolute', top: 'auto', bottom: '0', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
-                            : { position: 'absolute', top: 'auto', bottom: '1.5rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
+                            : { position: 'absolute', top: 'auto', bottom: '1rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
                     }
                     transition={{ type: 'spring', bounce: 0, duration: 0.6 }}
                     className="px-4 md:px-8 z-20"
