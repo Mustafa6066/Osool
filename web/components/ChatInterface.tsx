@@ -495,7 +495,7 @@ export default function ChatInterface() {
 
                     {/* Disclaimer */}
                     {messages.length === 0 && (
-                        <p className="text-center text-xs text-[#a2b3af]/50 mt-3 pb-4">
+                        <p className="text-center text-xs text-[#a2b3af]/50 mt-2 mb-1">
                             AI can make mistakes. Please verify important information.
                         </p>
                     )}
