@@ -498,7 +498,7 @@ export default function ChatInterface() {
                     initial={false}
                     animate={
                         messages.length === 0
-                            ? { position: 'absolute', top: '75%', bottom: 'auto', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
+                            ? { position: 'absolute', top: 'auto', bottom: '3rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
                             : { position: 'absolute', top: 'auto', bottom: '1.5rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
                     }
                     transition={{ type: 'spring', bounce: 0, duration: 0.6 }}

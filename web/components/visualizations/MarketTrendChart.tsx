@@ -79,12 +79,12 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-gradient-to-br from-[#1a1c2e] to-[#2d3748] rounded-2xl p-6 border border-white/10 shadow-2xl"
+                className="bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-surface-elevated)] rounded-2xl p-6 border border-[var(--color-border)] shadow-2xl"
             >
                 {/* Header */}
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <h3 className="text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2">
                             <Activity className="w-5 h-5 text-blue-400" />
                             Market Trends
                         </h3>
@@ -98,7 +98,7 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                             <span className={`font-semibold text-sm ${config.text}`}>{trend}</span>
                         </motion.div>
                     </div>
-                    <p className="text-gray-400 text-sm">{location}</p>
+                    <p className="text-[var(--color-text-secondary)] text-sm">{location}</p>
                 </div>
 
                 {/* Key Metrics */}
@@ -108,13 +108,13 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.1 }}
-                        className="bg-white/5 rounded-xl p-4 border border-white/10"
+                        className="bg-[var(--color-surface-elevated)] rounded-xl p-4 border border-[var(--color-border)]"
                     >
-                        <div className="text-xs text-gray-400 mb-1">Current Avg Price</div>
-                        <div className="text-2xl font-bold text-white">
+                        <div className="text-xs text-[var(--color-text-muted)] mb-1">Current Avg Price</div>
+                        <div className="text-2xl font-bold text-[var(--color-text-primary)]">
                             {(current_price / 1000).toFixed(0)}K
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">EGP/sqm</div>
+                        <div className="text-xs text-[var(--color-text-muted)] mt-1">EGP/sqm</div>
                     </motion.div>
 
                     {/* YoY Change */}
@@ -125,7 +125,7 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                             transition={{ delay: 0.2 }}
                             className={`rounded-xl p-4 border ${config.bg} ${config.border}`}
                         >
-                            <div className="text-xs text-gray-400 mb-1">YoY Change</div>
+                            <div className="text-xs text-[var(--color-text-muted)] mb-1">YoY Change</div>
                             <div className={`text-2xl font-bold ${config.text} flex items-center gap-1`}>
                                 {yoy_change > 0 ? "+" : ""}{yoy_change.toFixed(1)}%
                                 {yoy_change > 0 ? (
@@ -134,7 +134,7 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                                     <TrendingDown className="w-4 h-4" />
                                 )}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">vs last year</div>
+                            <div className="text-xs text-[var(--color-text-muted)] mt-1">vs last year</div>
                         </motion.div>
                     )}
 
@@ -144,10 +144,10 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ delay: 0.3 }}
-                            className="bg-white/5 rounded-xl p-4 border border-white/10"
+                            className="bg-[var(--color-surface-elevated)] rounded-xl p-4 border border-[var(--color-border)]"
                         >
-                            <div className="text-xs text-gray-400 mb-1">Momentum</div>
-                            <div className="text-sm font-semibold text-white">
+                            <div className="text-xs text-[var(--color-text-muted)] mb-1">Momentum</div>
+                            <div className="text-sm font-semibold text-[var(--color-text-primary)]">
                                 {momentum}
                             </div>
                         </motion.div>
@@ -160,9 +160,9 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="bg-white/5 rounded-xl p-4 border border-white/10 mb-6"
+                        className="bg-[var(--color-surface-elevated)] rounded-xl p-4 border border-[var(--color-border)] mb-6"
                     >
-                        <h4 className="text-sm font-semibold text-gray-300 mb-4">Price Movement</h4>
+                        <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-4">Price Movement</h4>
                         <ResponsiveContainer width="100%" height={250}>
                             <AreaChart data={combinedData}>
                                 <defs>
@@ -232,7 +232,7 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                         <AlertCircle className={`w-5 h-5 ${config.text} flex-shrink-0 mt-0.5`} />
                         <div>
                             <h5 className={`text-sm font-semibold ${config.text} mb-2`}>Market Insights</h5>
-                            <div className="space-y-2 text-xs text-gray-400">
+                            <div className="space-y-2 text-xs text-[var(--color-text-muted)]">
                                 {trend === "Bullish" && (
                                     <>
                                         <p>• {location} is experiencing strong price growth ({yoy_change > 0 ? `+${yoy_change.toFixed(1)}%` : ""} YoY)</p>
