@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
     Menu, Plus, Mic, ArrowUp, Loader2,
     MessageSquare, Home, BarChart3, Settings, Bell,
-    Rocket, Building2, MapPin
+    Rocket, Building2, MapPin, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -91,39 +91,120 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
 
                     {/* Properties Grid */}
                     {properties && properties.length > 0 && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-2 w-full">
+                        <div className="space-y-4 mt-2 w-full max-w-3xl">
                             {properties.map((prop: any, idx: number) => (
                                 <div
                                     key={idx}
-                                    className="bg-[#1c2120] border border-[#2c3533] rounded-xl overflow-hidden shadow-xl hover:border-[#267360]/30 transition-all group flex flex-col"
+                                    className="bg-[#1c2b31] border border-[#273d44] rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 group cursor-pointer"
                                 >
-                                    <div className="relative h-40 bg-slate-800">
-                                        <div className="absolute inset-0 flex items-center justify-center text-slate-600">
-                                            <Building2 size={48} opacity={0.2} />
+                                    <div className="flex flex-col sm:flex-row">
+                                        {/* Image Section */}
+                                        <div className="w-full sm:w-2/5 h-56 sm:h-auto bg-slate-800 relative overflow-hidden">
+                                            <div className="absolute inset-0 flex items-center justify-center text-slate-600 bg-gradient-to-br from-slate-800 to-slate-900">
+                                                <Building2 size={64} opacity={0.15} />
+                                            </div>
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent sm:bg-gradient-to-r"></div>
+                                            <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/70 backdrop-blur-md text-[#267360] text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide border border-white/20">
+                                                Top Pick
+                                            </div>
+                                            <div className="absolute bottom-3 left-3 sm:hidden text-white">
+                                                <p className="text-lg font-bold drop-shadow-md">
+                                                    {prop.price.toLocaleString()} EGP
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="absolute top-3 right-3 bg-[#267360] text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-md">
-                                            Verified
-                                        </div>
-                                    </div>
-                                    <div className="p-4 flex flex-col gap-3 flex-1">
-                                        <div>
-                                            <h4 className="text-white font-bold text-lg leading-tight line-clamp-1">
-                                                {prop.title}
-                                            </h4>
-                                            <p className="text-[#a2b3af] text-xs flex items-center gap-1 mt-1">
-                                                <MapPin size={12} />
-                                                {prop.location}
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-[#a2b3af] text-xs mt-auto pt-3 border-t border-[#2c3533]">
-                                            <span className="font-bold text-white text-base">
-                                                {prop.price.toLocaleString()} EGP
-                                            </span>
-                                            <div className="ml-auto w-8 h-8 rounded-full bg-[#2c3533] hover:bg-white hover:text-black text-white flex items-center justify-center transition-colors cursor-pointer">
-                                                <ArrowUp size={16} className="rotate-45" />
+
+                                        {/* Content Section */}
+                                        <div className="p-5 flex flex-col justify-between flex-1">
+                                            <div>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold uppercase tracking-wider">
+                                                        High Growth
+                                                    </div>
+                                                    <div className="flex items-center gap-1 bg-[#2c3533] px-2 py-1 rounded-md">
+                                                        <span className="text-amber-400 text-xs">★</span>
+                                                        <span className="text-xs font-bold text-white">
+                                                            {prop.wolf_score || '9.2'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <h3 className="text-lg font-bold text-white leading-tight mb-1 group-hover:text-[#267360] transition-colors">
+                                                    {prop.title}
+                                                </h3>
+                                                <p className="text-[13px] text-[#97b8c3] mb-3 flex items-center gap-1">
+                                                    <MapPin size={14} />
+                                                    {prop.location}
+                                                </p>
+                                                <div className="hidden sm:block text-2xl font-extrabold text-white mb-4 tracking-tight">
+                                                    {prop.price.toLocaleString()} EGP
+                                                </div>
+
+                                                {/* Property Stats */}
+                                                <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-white/5 text-gray-300">
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-xs mb-1 opacity-70">🛏️</span>
+                                                        <span className="text-xs font-bold">
+                                                            {prop.bedrooms || 3} Bed
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col items-center border-l border-white/5">
+                                                        <span className="text-xs mb-1 opacity-70">🚿</span>
+                                                        <span className="text-xs font-bold">
+                                                            {prop.bathrooms || 2} Bath
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col items-center border-l border-white/5">
+                                                        <span className="text-xs mb-1 opacity-70">📏</span>
+                                                        <span className="text-xs font-bold">
+                                                            {prop.size_sqm || '180'}m²
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="flex gap-3 mt-4">
+                                                <button className="flex-1 bg-[#124759] hover:bg-[#124759]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[#124759]/20 hover:shadow-[#124759]/30">
+                                                    View Details
+                                                </button>
+                                                <button className="px-3 py-2 border border-[#273d44] hover:bg-white/5 rounded-lg text-white transition-colors">
+                                                    <span className="text-xl">🔖</span>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Price Appreciation Forecast */}
+                                    {prop.show_chart !== false && (
+                                        <div className="px-6 py-5 bg-black/20 border-t border-[#273d44]">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h4 className="text-xs font-bold text-white">
+                                                    Price Appreciation Forecast (5 Years)
+                                                </h4>
+                                                <span className="text-xs font-bold text-green-400 flex items-center gap-1 bg-green-900/20 px-2 py-0.5 rounded">
+                                                    <TrendingUp size={14} /> +12.4% Projected
+                                                </span>
+                                            </div>
+                                            {/* Simple Chart Visualization */}
+                                            <div className="h-20 w-full mt-3 flex items-end gap-1">
+                                                {[65, 70, 68, 75, 82, 88].map((height, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="flex-1 bg-gradient-to-t from-[#267360] to-[#2dd4bf] rounded-t transition-all hover:opacity-80"
+                                                        style={{ height: `${height}%` }}
+                                                    ></div>
+                                                ))}
+                                            </div>
+                                            <div className="flex justify-between text-[10px] text-gray-500 mt-2">
+                                                <span>2024</span>
+                                                <span>2025</span>
+                                                <span>2026</span>
+                                                <span>2027</span>
+                                                <span>2028</span>
+                                                <span>2029</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -243,12 +324,29 @@ export default function ChatInterface() {
 
     const getDisplayName = () => {
         if (!user) return 'Agent';
-        const email = user.email?.toLowerCase();
+        const email = user?.email?.toLowerCase();
+        // Check admin users first
         if (email === 'mustafa@osool.eg') return 'Mustafa';
         if (email === 'hani@osool.eg') return 'Hani';
         if (email === 'abady@osool.eg') return 'Abady';
         if (email === 'sama@osool.eg') return 'Mrs. Mustafa';
-        return user.full_name || user.email?.split('@')[0] || 'Agent';
+        // Then check full_name
+        if (user.full_name && user.full_name !== 'Wallet User') return user.full_name;
+        // Fallback to email
+        return email?.split('@')[0] || 'Agent';
+    };
+
+    const getUserInitials = () => {
+        const name = getDisplayName();
+        if (name.startsWith('Mrs.')) {
+            const actualName = name.substring(4).trim();
+            return actualName.substring(0, 2).toUpperCase();
+        }
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+            return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
     };
 
     return (
@@ -277,7 +375,7 @@ export default function ChatInterface() {
                             <Settings size={20} />
                         </button>
                         <div className="w-8 h-8 rounded-full bg-[#267360]/20 flex items-center justify-center text-[#267360] font-bold text-xs ml-2 border border-[#267360]/30">
-                            {getDisplayName()[0]}
+                            {getUserInitials()}
                         </div>
                     </div>
                 </header>
@@ -286,7 +384,7 @@ export default function ChatInterface() {
                 <div
                     ref={scrollRef}
                     className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 scroll-smooth scrollbar-hide relative"
-                    style={{ paddingBottom: messages.length === 0 ? '50vh' : '12rem' }}
+                    style={{ paddingBottom: messages.length === 0 ? '300px' : '180px' }}
                 >
                     {messages.length === 0 ? (
                         // Empty State - Centered Welcome
