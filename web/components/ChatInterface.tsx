@@ -453,7 +453,7 @@ export default function ChatInterface() {
                     initial={false}
                     animate={
                         messages.length === 0
-                            ? { position: 'absolute', top: 'auto', bottom: '1rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
+                            ? { position: 'absolute', top: 'auto', bottom: '0', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
                             : { position: 'absolute', top: 'auto', bottom: '1.5rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
                     }
                     transition={{ type: 'spring', bounce: 0, duration: 0.6 }}
@@ -495,7 +495,7 @@ export default function ChatInterface() {
 
                     {/* Disclaimer */}
                     {messages.length === 0 && (
-                        <p className="text-center text-xs text-[#a2b3af]/50 mt-3">
+                        <p className="text-center text-xs text-[#a2b3af]/50 mt-3 pb-4">
                             AI can make mistakes. Please verify important information.
                         </p>
                     )}
