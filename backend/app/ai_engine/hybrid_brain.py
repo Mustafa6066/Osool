@@ -102,7 +102,8 @@ class OsoolHybridBrain:
         self,
         query: str,
         history: List[Dict],
-        profile: Optional[Dict] = None
+        profile: Optional[Dict] = None,
+        language: str = "auto"
     ) -> Dict[str, Any]:
         """
         The Main Thinking Loop - V4 with Psychology & UI Actions.
@@ -111,6 +112,7 @@ class OsoolHybridBrain:
             query: User's natural language query
             history: Conversation history as list of dicts with 'role' and 'content'
             profile: User profile dict (optional)
+            language: Preferred language ('ar', 'en', 'auto')
 
         Returns:
             Dict with 'response', 'properties', 'ui_actions', 'psychology'
@@ -163,7 +165,8 @@ class OsoolHybridBrain:
                 scored_data,
                 history,
                 strategy,
-                psychology
+                psychology,
+                language=language
             )
 
             # 8. UI_TRIGGERS: Determine which visualizations to show
@@ -609,12 +612,13 @@ Examples:
         data: List[Dict],
         history: List[Dict],
         strategy: str,
-        psychology: Optional[PsychologyProfile] = None
+        psychology: Optional[PsychologyProfile] = None,
+        language: str = "auto"
     ) -> str:
         """
         STEP 7: SPEAK (Claude 3.5 Sonnet)
         Generate the Wolf's response using ONLY verified data.
-        Now with psychology-aware context injection.
+        Now with psychology-aware context injection and language control.
         """
         try:
             # Prepare database context
@@ -663,6 +667,12 @@ A chart or visualization is being shown to the user. Reference it in your respon
 
             # Build Claude prompt with psychology
             system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}" + psychology_context
+
+            # Language Enforcement
+            if language == "ar":
+                system_prompt += "\n\nCRITICAL INSTRUCTION: You MUST reply in Egyptian Arabic (لغة عامية مصرية محترفة style)."
+            elif language == "en":
+                system_prompt += "\n\nCRITICAL INSTRUCTION: You MUST reply in English."
 
             # Convert history to Claude format
             messages = []

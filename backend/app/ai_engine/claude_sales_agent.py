@@ -422,7 +422,8 @@ class ClaudeSalesAgent:
         user_input: str,
         session_id: str = "default",
         chat_history: list = None,
-        user: Optional[dict] = None
+        user: Optional[dict] = None,
+        language: str = "auto"
     ) -> dict:
         """
         Chat method that returns full context including UI actions and psychology.
@@ -432,6 +433,7 @@ class ClaudeSalesAgent:
             session_id: Session identifier
             chat_history: Previous conversation messages
             user: User object if authenticated
+            language: Preferred language ('ar', 'en', 'auto')
 
         Returns:
             Dict with 'response', 'properties', 'ui_actions', 'psychology', 'agentic_action'
@@ -459,7 +461,8 @@ class ClaudeSalesAgent:
                 result = await hybrid_brain.process_turn(
                     query=user_input,
                     history=history_for_loop,
-                    profile=user
+                    profile=user,
+                    language=language
                 )
 
                 # Store properties for get_last_search_results
