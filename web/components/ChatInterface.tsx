@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { streamChat } from '@/lib/api';
 import ChartVisualization from './ChartVisualization';
+import Sidebar from '@/components/Sidebar';
 
 /**
  * Sanitize content to prevent XSS attacks.
@@ -27,52 +28,6 @@ const sanitizeContent = (content: string): string => {
         ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
         ALLOW_DATA_ATTR: false,
     });
-};
-
-// --- Sidebar Component ---
-const Sidebar = ({ onNewChat }: { onNewChat: () => void }) => {
-    return (
-        <aside className="hidden md:flex flex-col w-72 h-full border-r border-[var(--color-border)] bg-[var(--color-background)] flex-shrink-0 z-20">
-            <div className="p-6 flex flex-col gap-1">
-                <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <h1 className="text-[var(--color-text-primary)] text-xl font-bold tracking-tight">AMR Advisor</h1>
-                </Link>
-                <p className="text-[var(--color-text-muted)] text-xs">Real Estate Intelligence</p>
-            </div>
-            <nav className="flex-1 overflow-y-auto px-4 space-y-6 scrollbar-hide">
-                <div className="space-y-1">
-                    <p className="px-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Platform</p>
-                    <Link
-                        href="/dashboard"
-                        className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] rounded-lg transition-colors group w-full"
-                    >
-                        <Home size={20} className="group-hover:text-[var(--color-primary)] transition-colors" />
-                        <span className="text-sm font-medium">Dashboard</span>
-                    </Link>
-                    <div className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-primary)] bg-[var(--color-surface)] rounded-lg transition-colors group w-full">
-                        <MessageSquare size={20} className="text-[var(--color-primary)] fill-current" />
-                        <span className="text-sm font-medium">Active Chat</span>
-                    </div>
-                    <Link
-                        href="/market"
-                        className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] rounded-lg transition-colors group w-full"
-                    >
-                        <BarChart3 size={20} className="group-hover:text-[var(--color-primary)] transition-colors" />
-                        <span className="text-sm font-medium">Market Analysis</span>
-                    </Link>
-                </div>
-            </nav>
-            <div className="p-4 border-t border-[var(--color-border)]">
-                <button
-                    onClick={onNewChat}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] h-10 px-4 text-white text-sm font-bold transition-all shadow-lg shadow-[var(--color-primary)]/20"
-                >
-                    <Plus size={18} />
-                    <span>New Analysis</span>
-                </button>
-            </div>
-        </aside>
-    );
 };
 
 // --- User Message Component ---
@@ -434,7 +389,7 @@ export default function ChatInterface() {
                 <div
                     ref={scrollRef}
                     className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 scroll-smooth scrollbar-hide relative"
-                    style={{ paddingBottom: messages.length === 0 ? '300px' : '180px' }}
+                    style={{ paddingBottom: messages.length === 0 ? '0px' : '180px' }}
                 >
                     {messages.length === 0 ? (
                         // Empty State - Centered Welcome
@@ -498,7 +453,7 @@ export default function ChatInterface() {
                     initial={false}
                     animate={
                         messages.length === 0
-                            ? { position: 'absolute', top: 'auto', bottom: '3rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
+                            ? { position: 'absolute', top: 'auto', bottom: '1rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
                             : { position: 'absolute', top: 'auto', bottom: '1.5rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
                     }
                     transition={{ type: 'spring', bounce: 0, duration: 0.6 }}
