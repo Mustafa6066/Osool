@@ -239,11 +239,12 @@ async def login_with_verification(
             }
         )
 
-    # Generate JWT
+    # Generate JWT with full_name included
     access_token = create_access_token(data={
         "sub": user.email,
         "wallet": user.wallet_address,
-        "role": user.role
+        "role": user.role,
+        "full_name": user.full_name
     })
 
     logger.info(f"Login successful: {user.email}")
@@ -251,7 +252,8 @@ async def login_with_verification(
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_id": user.id
+        "user_id": user.id,
+        "full_name": user.full_name
     }
 
 

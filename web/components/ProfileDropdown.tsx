@@ -28,18 +28,39 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
 
     if (!user) return null;
 
+    // Get display name with specific admin titles
+    const getDisplayName = () => {
+        // Specific mapping for core team
+        const email = user.email?.toLowerCase();
+        if (email === 'mustafa@osool.eg') return 'Mr. Mustafa';
+        if (email === 'hani@osool.eg') return 'Mr. Hani';
+        if (email === 'abady@osool.eg') return 'Mr. Abady';
+        if (email === 'sama@osool.eg') return 'Mrs. Sama';
+
+        // Enhanced fallback logic
+        if (user.full_name && user.full_name !== 'Wallet User') return user.full_name;
+        if (user.full_name === 'Wallet User' && user.wallet_address) {
+            return `${user.wallet_address.substring(0, 6)}...${user.wallet_address.substring(38)}`;
+        }
+        return user.email?.split('@')[0] || 'User';
+    };
+
+    const displayName = getDisplayName();
+
     // Get user initials for avatar
     const getInitials = () => {
-        const name = user.full_name || user.email || 'U';
+        // Use clean name without title for initials
+        let name = displayName;
+        if (name.startsWith('Mr. ') || name.startsWith('Mrs. ')) {
+            name = name.split(' ')[1];
+        }
+
         const parts = name.split(' ');
         if (parts.length >= 2) {
             return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
         }
         return name.substring(0, 2).toUpperCase();
     };
-
-    // Get display name
-    const displayName = user.full_name || user.email?.split('@')[0] || 'User';
 
     return (
         <div className="relative" ref={dropdownRef}>
