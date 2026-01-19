@@ -396,7 +396,7 @@ export default function ChatInterface() {
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="absolute top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center space-y-6 w-full max-w-2xl px-4"
+                            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center space-y-6 w-full max-w-2xl px-4"
                         >
                             <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center shadow-2xl shadow-[var(--color-primary)]/30 mb-4 mx-auto">
                                 <MessageSquare size={40} className="text-white fill-white/20" />
