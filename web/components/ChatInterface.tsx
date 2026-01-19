@@ -1,48 +1,71 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import DOMPurify from 'dompurify';
 import {
     Menu, Plus, Mic, ArrowUp, Loader2,
-    MessageSquare, Home, BarChart3, Settings, Bell,
+    MessageSquare, Home, BarChart3,
     Rocket, Building2, MapPin, TrendingUp
 } from 'lucide-react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { streamChat } from '@/lib/api';
 import ChartVisualization from './ChartVisualization';
 
+/**
+ * Sanitize content to prevent XSS attacks.
+ * Uses DOMPurify to remove potentially dangerous HTML/JS.
+ */
+const sanitizeContent = (content: string): string => {
+    if (typeof window === 'undefined') return content;
+    return DOMPurify.sanitize(content, {
+        ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+        ALLOW_DATA_ATTR: false,
+    });
+};
+
 // --- Sidebar Component ---
 const Sidebar = ({ onNewChat }: { onNewChat: () => void }) => {
     return (
-        <aside className="hidden md:flex flex-col w-72 h-full border-r border-[#2c3533] bg-[#121615] flex-shrink-0 z-20">
+        <aside className="hidden md:flex flex-col w-72 h-full border-r border-[var(--color-border)] bg-[var(--color-background)] flex-shrink-0 z-20">
             <div className="p-6 flex flex-col gap-1">
-                <h1 className="text-white text-xl font-bold tracking-tight">AMR Advisor</h1>
-                <p className="text-[#a2b3af] text-xs">Real Estate Intelligence</p>
+                <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <h1 className="text-[var(--color-text-primary)] text-xl font-bold tracking-tight">AMR Advisor</h1>
+                </Link>
+                <p className="text-[var(--color-text-muted)] text-xs">Real Estate Intelligence</p>
             </div>
             <nav className="flex-1 overflow-y-auto px-4 space-y-6 scrollbar-hide">
                 <div className="space-y-1">
-                    <p className="px-3 text-xs font-semibold text-[#a2b3af] uppercase tracking-wider mb-2">Platform</p>
-                    <button className="flex items-center gap-3 px-3 py-2 text-[#a2b3af] hover:text-white hover:bg-[#2c3533] rounded-lg transition-colors group w-full text-left">
-                        <Home size={20} className="group-hover:text-[#267360] transition-colors" />
+                    <p className="px-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Platform</p>
+                    <Link
+                        href="/dashboard"
+                        className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] rounded-lg transition-colors group w-full"
+                    >
+                        <Home size={20} className="group-hover:text-[var(--color-primary)] transition-colors" />
                         <span className="text-sm font-medium">Dashboard</span>
-                    </button>
-                    <button className="flex items-center gap-3 px-3 py-2 text-white bg-[#2c3533] rounded-lg transition-colors group w-full text-left">
-                        <MessageSquare size={20} className="text-[#267360] fill-current" />
+                    </Link>
+                    <div className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-primary)] bg-[var(--color-surface)] rounded-lg transition-colors group w-full">
+                        <MessageSquare size={20} className="text-[var(--color-primary)] fill-current" />
                         <span className="text-sm font-medium">Active Chat</span>
-                    </button>
-                    <button className="flex items-center gap-3 px-3 py-2 text-[#a2b3af] hover:text-white hover:bg-[#2c3533] rounded-lg transition-colors group w-full text-left">
-                        <BarChart3 size={20} className="group-hover:text-[#267360] transition-colors" />
+                    </div>
+                    <Link
+                        href="/market"
+                        className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] rounded-lg transition-colors group w-full"
+                    >
+                        <BarChart3 size={20} className="group-hover:text-[var(--color-primary)] transition-colors" />
                         <span className="text-sm font-medium">Market Analysis</span>
-                    </button>
+                    </Link>
                 </div>
             </nav>
-            <div className="p-4 border-t border-[#2c3533]">
+            <div className="p-4 border-t border-[var(--color-border)]">
                 <button
                     onClick={onNewChat}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#267360] hover:bg-[#1e5c4d] h-10 px-4 text-white text-sm font-bold transition-all shadow-[0_0_15px_rgba(38,115,96,0.3)]"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] h-10 px-4 text-white text-sm font-bold transition-all shadow-lg shadow-[var(--color-primary)]/20"
                 >
                     <Plus size={18} />
                     <span>New Analysis</span>
@@ -53,27 +76,35 @@ const Sidebar = ({ onNewChat }: { onNewChat: () => void }) => {
 };
 
 // --- User Message Component ---
-const UserMessage = ({ content }: { content: string }) => (
-    <div className="flex flex-col items-end gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div className="flex items-end gap-3 max-w-[80%] md:max-w-[60%]">
-            <div className="flex flex-col gap-1 items-end">
-                <div className="bg-[#2c3533] text-white px-5 py-3 rounded-2xl rounded-tr-sm border border-[#3A4542] leading-relaxed text-[15px] shadow-sm" dir="auto">
-                    {content}
+const UserMessage = ({ content }: { content: string }) => {
+    // Sanitize user content to prevent XSS
+    const safeContent = useMemo(() => sanitizeContent(content), [content]);
+
+    return (
+        <div className="flex flex-col items-end gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-end gap-3 max-w-[80%] md:max-w-[60%]">
+                <div className="flex flex-col gap-1 items-end">
+                    <div className="bg-[var(--color-surface)] text-[var(--color-text-primary)] px-5 py-3 rounded-2xl rounded-tr-sm border border-[var(--color-border)] leading-relaxed text-[15px] shadow-sm" dir="auto">
+                        {safeContent}
+                    </div>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-[var(--color-primary-light)] shrink-0 border border-[var(--color-primary)]/30 flex items-center justify-center text-xs text-[var(--color-primary)] font-bold">
+                    ME
                 </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-slate-700 shrink-0 border border-[#2c3533] flex items-center justify-center text-xs text-white font-bold">
-                ME
-            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // --- AMR Agent Message Component ---
 const AgentMessage = ({ content, visualizations, properties, isTyping }: any) => {
+    // Sanitize AI content to prevent XSS from malicious data
+    const safeContent = useMemo(() => sanitizeContent(content || ''), [content]);
+
     return (
         <div className="flex flex-col items-start gap-2 w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="flex items-start gap-3 w-full max-w-5xl">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#267360] to-[#0F4C3E] shrink-0 flex items-center justify-center shadow-lg shadow-[#267360]/20">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] shrink-0 flex items-center justify-center shadow-lg shadow-[var(--color-primary)]/20">
                     <MessageSquare size={18} className="text-white" />
                 </div>
                 <div className="flex-1 flex flex-col gap-4">
@@ -81,16 +112,16 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                         <span className="text-[#a2b3af] text-xs">AMR Agent • Active now</span>
                     </div>
 
-                    {/* Text Content with Markdown Support */}
+                    {/* Text Content with Markdown Support - XSS Protected */}
                     <div
-                        className="text-white leading-loose text-[16px] max-w-[680px] prose prose-invert prose-headings:text-white prose-p:text-white prose-strong:text-[#267360] prose-li:text-white prose-code:text-[#2dd4bf] prose-pre:bg-[#1c2120] prose-pre:border prose-pre:border-[#2c3533]"
+                        className="text-[var(--color-text-primary)] leading-loose text-[16px] max-w-[680px] prose prose-invert prose-headings:text-[var(--color-text-primary)] prose-p:text-[var(--color-text-primary)] prose-strong:text-[var(--color-primary)] prose-li:text-[var(--color-text-primary)] prose-code:text-[var(--color-secondary)] prose-pre:bg-[var(--color-surface-elevated)] prose-pre:border prose-pre:border-[var(--color-border)]"
                         dir="auto"
                     >
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {content}
+                            {safeContent}
                         </ReactMarkdown>
                         {isTyping && (
-                            <span className="inline-block w-1.5 h-4 bg-[#267360] animate-pulse ml-1 align-middle"></span>
+                            <span className="inline-block w-1.5 h-4 bg-[var(--color-primary)] animate-pulse ml-1 align-middle"></span>
                         )}
                     </div>
 
@@ -100,7 +131,7 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                             {properties.map((prop: any, idx: number) => (
                                 <div
                                     key={idx}
-                                    className="bg-[#1c2b31] border border-[#273d44] rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 group cursor-pointer"
+                                    className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 group cursor-pointer"
                                 >
                                     <div className="flex flex-col sm:flex-row">
                                         {/* Image Section */}
@@ -109,7 +140,7 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                                                 <Building2 size={64} opacity={0.15} />
                                             </div>
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent sm:bg-gradient-to-r"></div>
-                                            <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/70 backdrop-blur-md text-[#267360] text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide border border-white/20">
+                                            <div className="absolute top-3 left-3 bg-[var(--color-surface-glass)] backdrop-blur-md text-[var(--color-primary)] text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide border border-[var(--color-border-light)] shadow-sm">
                                                 Top Pick
                                             </div>
                                             <div className="absolute bottom-3 left-3 sm:hidden text-white">
@@ -123,42 +154,42 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                                         <div className="p-5 flex flex-col justify-between flex-1">
                                             <div>
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <div className="px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold uppercase tracking-wider">
+                                                    <div className="px-2 py-0.5 rounded bg-[var(--color-primary-light)] text-[var(--color-primary-hover)] text-[10px] font-bold uppercase tracking-wider">
                                                         High Growth
                                                     </div>
-                                                    <div className="flex items-center gap-1 bg-[#2c3533] px-2 py-1 rounded-md">
+                                                    <div className="flex items-center gap-1 bg-[var(--color-surface)] border border-[var(--color-border)] px-2 py-1 rounded-md">
                                                         <span className="text-amber-400 text-xs">★</span>
-                                                        <span className="text-xs font-bold text-white">
+                                                        <span className="text-xs font-bold text-[var(--color-text-primary)]">
                                                             {prop.wolf_score || '9.2'}
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <h3 className="text-lg font-bold text-white leading-tight mb-1 group-hover:text-[#267360] transition-colors">
+                                                <h3 className="text-lg font-bold text-[var(--color-text-primary)] leading-tight mb-1 group-hover:text-[var(--color-primary)] transition-colors">
                                                     {prop.title}
                                                 </h3>
-                                                <p className="text-[13px] text-[#97b8c3] mb-3 flex items-center gap-1">
+                                                <p className="text-[13px] text-[var(--color-text-muted)] mb-3 flex items-center gap-1">
                                                     <MapPin size={14} />
                                                     {prop.location}
                                                 </p>
-                                                <div className="hidden sm:block text-2xl font-extrabold text-white mb-4 tracking-tight">
+                                                <div className="hidden sm:block text-2xl font-extrabold text-[var(--color-text-primary)] mb-4 tracking-tight">
                                                     {prop.price.toLocaleString()} EGP
                                                 </div>
 
                                                 {/* Property Stats */}
-                                                <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-white/5 text-gray-300">
+                                                <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-[var(--color-border)] text-[var(--color-text-secondary)]">
                                                     <div className="flex flex-col items-center">
                                                         <span className="text-xs mb-1 opacity-70">🛏️</span>
                                                         <span className="text-xs font-bold">
                                                             {prop.bedrooms || 3} Bed
                                                         </span>
                                                     </div>
-                                                    <div className="flex flex-col items-center border-l border-white/5">
+                                                    <div className="flex flex-col items-center border-l border-[var(--color-border)]">
                                                         <span className="text-xs mb-1 opacity-70">🚿</span>
                                                         <span className="text-xs font-bold">
                                                             {prop.bathrooms || 2} Bath
                                                         </span>
                                                     </div>
-                                                    <div className="flex flex-col items-center border-l border-white/5">
+                                                    <div className="flex flex-col items-center border-l border-[var(--color-border)]">
                                                         <span className="text-xs mb-1 opacity-70">📏</span>
                                                         <span className="text-xs font-bold">
                                                             {prop.size_sqm || '180'}m²
@@ -169,10 +200,10 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
 
                                             {/* Action Buttons */}
                                             <div className="flex gap-3 mt-4">
-                                                <button className="flex-1 bg-[#124759] hover:bg-[#124759]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[#124759]/20 hover:shadow-[#124759]/30">
+                                                <button className="flex-1 bg-[var(--chat-primary)] hover:bg-[var(--chat-primary)]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[var(--chat-primary)]/20 hover:shadow-[var(--chat-primary)]/30">
                                                     View Details
                                                 </button>
-                                                <button className="px-3 py-2 border border-[#273d44] hover:bg-white/5 rounded-lg text-white transition-colors">
+                                                <button className="px-3 py-2 border border-[var(--color-border)] hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-primary)] transition-colors">
                                                     <span className="text-xl">🔖</span>
                                                 </button>
                                             </div>
@@ -181,12 +212,12 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
 
                                     {/* Price Appreciation Forecast */}
                                     {prop.show_chart !== false && (
-                                        <div className="px-6 py-5 bg-black/20 border-t border-[#273d44]">
+                                        <div className="px-6 py-5 bg-[var(--color-surface)]/50 border-t border-[var(--color-border)]">
                                             <div className="flex items-center justify-between mb-2">
-                                                <h4 className="text-xs font-bold text-white">
+                                                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">
                                                     Price Appreciation Forecast (5 Years)
                                                 </h4>
-                                                <span className="text-xs font-bold text-green-400 flex items-center gap-1 bg-green-900/20 px-2 py-0.5 rounded">
+                                                <span className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded">
                                                     <TrendingUp size={14} /> +12.4% Projected
                                                 </span>
                                             </div>
@@ -195,7 +226,7 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                                                 {[65, 70, 68, 75, 82, 88].map((height, i) => (
                                                     <div
                                                         key={i}
-                                                        className="flex-1 bg-gradient-to-t from-[#267360] to-[#2dd4bf] rounded-t transition-all hover:opacity-80"
+                                                        className="flex-1 bg-gradient-to-t from-[var(--color-primary)] to-[var(--color-secondary)] rounded-t transition-all hover:opacity-80"
                                                         style={{ height: `${height}%` }}
                                                     ></div>
                                                 ))}
@@ -277,6 +308,7 @@ export default function ChatInterface() {
         let fullResponse = '';
 
         try {
+            // Pass language context for proper AI response localization
             await streamChat(userMsg.content, 'default-session', {
                 onToken: (token) => {
                     fullResponse += token;
@@ -319,7 +351,7 @@ export default function ChatInterface() {
                     );
                     setIsTyping(false);
                 },
-            });
+            }, language === 'ar' ? 'ar' : language === 'en' ? 'en' : 'auto');
         } catch (e) {
             setIsTyping(false);
         }
@@ -339,8 +371,10 @@ export default function ChatInterface() {
 
     const getDisplayName = () => {
         if (!user) return 'Agent';
+        // Use display_name from JWT token if available (set by backend mapping)
+        if ((user as any).display_name) return (user as any).display_name;
         const email = user?.email?.toLowerCase();
-        // Check admin users first
+        // Fallback: Check admin users first
         if (email === 'mustafa@osool.eg') return 'Mustafa';
         if (email === 'hani@osool.eg') return 'Hani';
         if (email === 'abady@osool.eg') return 'Abady';
@@ -365,31 +399,32 @@ export default function ChatInterface() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-64px)] w-full relative bg-[#121615] font-display selection:bg-[#267360] selection:text-white overflow-hidden">
+        <div className="flex h-[calc(100vh-64px)] w-full relative bg-[var(--color-background)] font-display selection:bg-[#267360] selection:text-[var(--color-text-primary)] overflow-hidden">
             <Sidebar onNewChat={handleNewChat} />
 
             <main className="flex-1 flex flex-col h-full relative">
                 {/* Header */}
-                <header className="h-16 border-b border-[#2c3533] flex items-center justify-between px-6 bg-[#121615]/80 backdrop-blur-md z-10 sticky top-0">
+                <header className="h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 bg-[var(--color-background)]/80 backdrop-blur-md z-10 sticky top-0">
                     <div className="flex items-center gap-3">
-                        <button className="md:hidden text-[#a2b3af]">
+                        <button className="md:hidden text-[var(--color-text-muted)]">
                             <Menu size={24} />
                         </button>
                         <div className="flex items-center gap-2">
-                            <Rocket className="text-[#267360]" size={20} />
-                            <h2 className="text-lg font-bold tracking-tight text-white">
+                            <Rocket className="text-[var(--color-primary)]" size={20} />
+                            <h2 className="text-lg font-bold tracking-tight text-[var(--color-text-primary)]">
                                 Mission Control: Real Estate Analysis
                             </h2>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#2c3533] text-[#a2b3af] hover:text-white transition-colors">
-                            <Bell size={20} />
-                        </button>
-                        <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#2c3533] text-[#a2b3af] hover:text-white transition-colors">
-                            <Settings size={20} />
-                        </button>
-                        <div className="w-8 h-8 rounded-full bg-[#267360]/20 flex items-center justify-center text-[#267360] font-bold text-xs ml-2 border border-[#267360]/30">
+                        <Link
+                            href="/"
+                            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                            title="Back to Home"
+                        >
+                            <Home size={20} />
+                        </Link>
+                        <div className="w-8 h-8 rounded-full bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary)] font-bold text-xs ml-2 border border-[var(--color-primary)]/30">
                             {getUserInitials()}
                         </div>
                     </div>
@@ -408,13 +443,13 @@ export default function ChatInterface() {
                             animate={{ opacity: 1, y: 0 }}
                             className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center space-y-6 w-full max-w-2xl px-4"
                         >
-                            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-[#267360] to-teal-600 flex items-center justify-center shadow-2xl shadow-[#267360]/30 mb-4 mx-auto">
+                            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center shadow-2xl shadow-[var(--color-primary)]/30 mb-4 mx-auto">
                                 <MessageSquare size={40} className="text-white fill-white/20" />
                             </div>
-                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
-                                Welcome, <span className="text-[#267360]">{getDisplayName()}</span>.
+                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[var(--color-text-primary)]">
+                                Welcome, <span className="text-[var(--color-primary)]">{getDisplayName()}</span>.
                             </h1>
-                            <p className="text-[#a2b3af] text-lg max-w-lg mx-auto">
+                            <p className="text-[var(--color-text-muted)] text-lg max-w-lg mx-auto">
                                 Ready to analyze the market? Ask about price trends, property valuations, or investment
                                 opportunities.
                             </p>
@@ -429,10 +464,10 @@ export default function ChatInterface() {
                                     <button
                                         key={idx}
                                         onClick={() => setInput(prompt.text)}
-                                        className="flex flex-col items-start gap-2 p-4 rounded-xl bg-[#1c2120] border border-[#2c3533] hover:border-[#267360]/30 transition-all text-left group"
+                                        className="flex flex-col items-start gap-2 p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 transition-all text-left group"
                                     >
-                                        <div className="text-[#267360]">{prompt.icon}</div>
-                                        <span className="text-sm text-[#a2b3af] group-hover:text-white transition-colors">
+                                        <div className="text-[var(--color-primary)]">{prompt.icon}</div>
+                                        <span className="text-sm text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)] transition-colors">
                                             {prompt.text}
                                         </span>
                                     </button>
@@ -469,8 +504,8 @@ export default function ChatInterface() {
                     transition={{ type: 'spring', bounce: 0, duration: 0.6 }}
                     className="px-4 md:px-8 z-20"
                 >
-                    <div className="w-full bg-[#1c2120]/90 backdrop-blur-xl border border-[#2c3533] rounded-2xl shadow-2xl p-2 flex items-end gap-2 transition-all focus-within:border-[#267360]/50 focus-within:ring-1 focus-within:ring-[#267360]/50">
-                        <button className="w-10 h-10 flex items-center justify-center rounded-xl text-[#a2b3af] hover:text-white hover:bg-[#2c3533] transition-colors shrink-0">
+                    <div className="w-full bg-[var(--color-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] rounded-2xl shadow-2xl p-2 flex items-end gap-2 transition-all focus-within:border-[var(--color-primary)]/50 focus-within:ring-1 focus-within:ring-[var(--color-primary)]/50">
+                        <button className="w-10 h-10 flex items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors shrink-0">
                             <Plus size={20} />
                         </button>
                         <textarea
@@ -478,7 +513,7 @@ export default function ChatInterface() {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="flex-1 bg-transparent border-none text-white placeholder-[#a2b3af]/50 focus:ring-0 text-sm font-medium py-3 px-0 resize-none max-h-[200px] scrollbar-hide"
+                            className="flex-1 bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)]/50 focus:ring-0 text-sm font-medium py-3 px-0 resize-none max-h-[200px] scrollbar-hide"
                             placeholder={
                                 language === 'ar'
                                     ? 'اسأل عمرو عن العقارات...'
@@ -487,13 +522,13 @@ export default function ChatInterface() {
                             rows={1}
                             dir="auto"
                         />
-                        <button className="w-10 h-10 flex items-center justify-center rounded-xl text-[#a2b3af] hover:text-white hover:bg-[#2c3533] transition-colors shrink-0">
+                        <button className="w-10 h-10 flex items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors shrink-0">
                             <Mic size={20} />
                         </button>
                         <button
                             onClick={handleSend}
                             disabled={!input.trim() || isTyping}
-                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#267360] hover:bg-[#1e5c4d] text-white shadow-lg shadow-[#267360]/20 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-lg shadow-[var(--color-primary)]/20 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isTyping ? (
                                 <Loader2 size={18} className="animate-spin" />

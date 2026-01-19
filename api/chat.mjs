@@ -5,38 +5,25 @@
 import fs from 'fs';
 import path from 'path';
 
-// Load property data from data/properties.json (PRIMARY source)
+// Load property data from public/assets/js/data.js (PRIMARY source)
 let propertyData;
 try {
-    // Primary source: data/properties.json (authoritative data)
-    const dataPath = path.join(process.cwd(), 'data', 'properties.json');
+    // Primary source: public/assets/js/data.js (authoritative data)
+    const dataPath = path.join(process.cwd(), 'public', 'assets', 'js', 'data.js');
     if (fs.existsSync(dataPath)) {
-        propertyData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-        console.log(`✅ Loaded ${propertyData.properties?.length || 0} properties from data/properties.json`);
+        // Read the file content
+        const fileContent = fs.readFileSync(dataPath, 'utf8');
+        // Remove the "window.egyptianData = " prefix and any trailing semicolon
+        const jsonContent = fileContent.replace('window.egyptianData = ', '').replace(/;\s*$/, '');
+        propertyData = JSON.parse(jsonContent);
+        console.log(`✅ Loaded ${propertyData.properties?.length || 0} properties from public/assets/js/data.js`);
     } else {
         throw new Error(`Property file not found at ${dataPath}`);
     }
 } catch (e) {
-    console.error('Failed to load properties from data/properties.json:', e.message);
-    // Fallback to public/assets/js/data.js if JSON fails
-    try {
-        const fallbackPath = path.join(process.cwd(), 'public', 'assets', 'js', 'data.js');
-        if (fs.existsSync(fallbackPath)) {
-            const fileContent = fs.readFileSync(fallbackPath, 'utf8');
-            const jsonMatch = fileContent.match(/window\.egyptianData\s*=\s*(\{[\s\S]*\});?\s*$/);
-            if (jsonMatch) {
-                propertyData = JSON.parse(jsonMatch[1]);
-                console.log(`⚠️ Using fallback data.js (${propertyData.properties?.length || 0} properties)`);
-            } else {
-                throw new Error('Could not parse data.js format');
-            }
-        } else {
-            propertyData = { properties: [], metadata: {} };
-        }
-    } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-        propertyData = { properties: [], metadata: {} };
-    }
+    console.error('CRITICAL: Failed to load primary property data from public/assets/js/data.js.', e);
+    // Fallback to empty data to prevent crash
+    propertyData = { properties: [], metadata: {} };
 }
 
 export default async function handler(req, res) {

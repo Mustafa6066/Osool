@@ -40,6 +40,60 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 # ═══════════════════════════════════════════════════════════════
+# DISPLAY NAME MAPPING (Phase 1 - Specific User Mapping)
+# ═══════════════════════════════════════════════════════════════
+DISPLAY_NAME_MAPPING = {
+    "hani@osool.eg": "Hani",
+    "mustafa@osool.eg": "Mustafa",
+    "abady@osool.eg": "Abady",
+    "sama@osool.eg": "Mrs. Mustafa",
+}
+
+
+def get_display_name(user: User) -> str:
+    """
+    Get the display name for a user based on specific mapping rules.
+
+    Rules:
+    - Hani → Display: "Hani"
+    - Mustafa → Display: "Mustafa"
+    - Abady → Display: "Abady"
+    - Sama → Display: "Mrs. Mustafa"
+    - Others → Use full_name or email username
+    """
+    if user.email and user.email.lower() in DISPLAY_NAME_MAPPING:
+        return DISPLAY_NAME_MAPPING[user.email.lower()]
+
+    if user.full_name and user.full_name != "Wallet User":
+        return user.full_name
+
+    # Fallback to email username
+    if user.email:
+        return user.email.split("@")[0].capitalize()
+
+    return "User"
+
+
+def generate_secure_token(length: int = 32) -> str:
+    """
+    Generate a cryptographically secure token using OpenSSL-equivalent method.
+    Uses os.urandom which is backed by the OS's cryptographic PRNG.
+
+    Args:
+        length: Number of random bytes (will be base64 encoded, resulting in longer string)
+
+    Returns:
+        URL-safe base64 encoded token string
+    """
+    import base64
+    # os.urandom uses the OS's cryptographic random number generator
+    # On Linux/Mac this is /dev/urandom, on Windows it's CryptGenRandom
+    random_bytes = os.urandom(length)
+    # URL-safe base64 encoding without padding
+    return base64.urlsafe_b64encode(random_bytes).rstrip(b'=').decode('ascii')
+
+
+# ═══════════════════════════════════════════════════════════════
 # REQUEST/RESPONSE MODELS
 # ═══════════════════════════════════════════════════════════════
 
@@ -249,23 +303,28 @@ async def login_with_verification(
             }
         )
 
-    # Generate JWT with full_name included
+    # Get the proper display name using mapping rules
+    display_name = get_display_name(user)
+
+    # Generate JWT with full_name and display_name included
     access_token = create_access_token(data={
         "sub": user.email,
         "email": user.email,     # Explicit email claim for frontend
         "id": user.id,           # User ID for frontend
         "wallet": user.wallet_address,
         "role": user.role,
-        "full_name": user.full_name
+        "full_name": user.full_name,
+        "display_name": display_name  # Mapped display name
     })
 
-    logger.info(f"Login successful: {user.email}")
+    logger.info(f"Login successful: {user.email} (Display: {display_name})")
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user_id": user.id,
-        "full_name": user.full_name
+        "full_name": user.full_name,
+        "display_name": display_name  # Return display name to frontend
     }
 
 
@@ -635,8 +694,6 @@ async def generate_invitation(
     - invitation_link: Full URL for sharing
     """
     from sqlalchemy import select, func
-    from app.auth import get_current_user
-    import secrets
 
     # Check if user is admin (unlimited invitations)
     is_admin = current_user.email.lower() in [e.lower() for e in UNLIMITED_INVITATION_ADMINS]
@@ -655,8 +712,8 @@ async def generate_invitation(
                 detail=f"You have reached the maximum of {MAX_INVITATIONS_PER_USER} invitations. Only admin users can generate more."
             )
 
-    # Generate unique invitation code
-    invitation_code = secrets.token_urlsafe(16)  # 22 characters
+    # Generate cryptographically secure invitation code using OpenSSL-equivalent method
+    invitation_code = generate_secure_token(24)  # 32 character URL-safe token
 
     # Create invitation record
     new_invitation = Invitation(
@@ -843,13 +900,20 @@ async def signup_with_invitation(
     await db.commit()
     await db.refresh(new_user)
 
-    logger.info(f"✅ New user signed up via invitation: {req.email}")
+    # Get the proper display name using mapping rules
+    display_name = get_display_name(new_user)
 
-    # Generate JWT for immediate login
+    logger.info(f"✅ New user signed up via invitation: {req.email} (Display: {display_name})")
+
+    # Generate JWT for immediate login with display_name
     access_token = create_access_token(data={
         "sub": new_user.email,
+        "email": new_user.email,
+        "id": new_user.id,
         "wallet": new_user.wallet_address,
-        "role": new_user.role
+        "role": new_user.role,
+        "full_name": new_user.full_name,
+        "display_name": display_name
     })
 
     return {
@@ -857,7 +921,42 @@ async def signup_with_invitation(
         "message": "Account created successfully!",
         "access_token": access_token,
         "token_type": "bearer",
-        "user_id": new_user.id
+        "user_id": new_user.id,
+        "full_name": new_user.full_name,
+        "display_name": display_name
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER PROFILE
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/profile")
+async def get_user_profile(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get current user's profile with proper display name mapping.
+
+    Returns:
+    - email: User's email
+    - full_name: Original full name from database
+    - display_name: Mapped display name (e.g., Sama → "Mrs. Mustafa")
+    - role: User role (investor, admin)
+    - is_admin: Whether user has admin privileges
+    """
+    display_name = get_display_name(current_user)
+    is_admin = current_user.email.lower() in [e.lower() for e in UNLIMITED_INVITATION_ADMINS]
+
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "display_name": display_name,
+        "role": current_user.role,
+        "is_admin": is_admin,
+        "invitations_sent": current_user.invitations_sent or 0,
+        "invitations_remaining": "unlimited" if is_admin else max(0, MAX_INVITATIONS_PER_USER - (current_user.invitations_sent or 0))
     }
 
 

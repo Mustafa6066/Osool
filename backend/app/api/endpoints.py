@@ -136,6 +136,7 @@ class ChatRequest(BaseModel):
     """Request model for AI chat."""
     message: str = Field(..., description="User message to the AI agent")
     session_id: str = Field(default="default", description="Chat session ID for history")
+    language: str = Field(default="auto", description="User's preferred language: 'ar' (Arabic), 'en' (English), or 'auto' (detect)")
 
 
 
@@ -932,11 +933,13 @@ async def chat_with_agent(
             }
 
         # V4: Use chat_with_context to get full response including UI actions
+        # Pass language preference for proper response localization
         ai_result = await claude_sales_agent.chat_with_context(
             user_input=req.message,
             session_id=req.session_id,
             chat_history=chat_history,
-            user=user_dict
+            user=user_dict,
+            language=req.language  # Pass user's language preference (ar/en/auto)
         )
 
         # Extract components from result
@@ -1120,11 +1123,13 @@ async def chat_stream(
             await asyncio.sleep(0.1)
 
             # Get AI response (non-streaming for now, will be enhanced later)
+            # Pass language preference for proper response localization
             ai_result = await claude_sales_agent.chat_with_context(
                 user_input=req.message,
                 session_id=req.session_id,
                 chat_history=chat_history,
-                user=user_dict
+                user=user_dict,
+                language=req.language  # Pass user's language preference (ar/en/auto)
             )
 
             yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'search_properties'})}\n\n"

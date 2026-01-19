@@ -197,12 +197,14 @@ export interface StreamChatCallbacks {
  * @param message - User message to send
  * @param sessionId - Chat session ID
  * @param callbacks - Event callbacks for streaming updates
+ * @param language - User's preferred language ('ar', 'en', or 'auto')
  * @returns AbortController to cancel the stream
  */
 export const streamChat = async (
   message: string,
   sessionId: string,
-  callbacks: StreamChatCallbacks
+  callbacks: StreamChatCallbacks,
+  language: 'ar' | 'en' | 'auto' = 'auto'
 ): Promise<AbortController> => {
   const controller = new AbortController();
 
@@ -217,7 +219,7 @@ export const streamChat = async (
         'Content-Type': 'application/json',
         ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify({ message, session_id: sessionId }),
+      body: JSON.stringify({ message, session_id: sessionId, language }),
       signal: controller.signal,
     });
 
@@ -304,17 +306,22 @@ export const streamChat = async (
 
 /**
  * V6: Simple non-streaming chat (wrapper for backwards compatibility)
+ *
+ * @param message - User message to send
+ * @param sessionId - Chat session ID
+ * @param language - User's preferred language ('ar', 'en', or 'auto')
  */
 export const sendChatMessage = async (
   message: string,
-  sessionId: string = 'default'
+  sessionId: string = 'default',
+  language: 'ar' | 'en' | 'auto' = 'auto'
 ): Promise<{
   response: string;
   properties: any[];
   ui_actions: any[];
   psychology?: any;
 }> => {
-  const { data } = await api.post('/api/chat', { message, session_id: sessionId });
+  const { data } = await api.post('/api/chat', { message, session_id: sessionId, language });
   return data;
 };
 

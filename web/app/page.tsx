@@ -298,8 +298,8 @@ export default function Home() {
                         </p>
                     </div>
 
-                    {/* AI Chat */}
-                    <div className="md:col-span-2 group relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[#1A1D1F] p-8 shadow-sm hover:shadow-md transition-all">
+                    {/* AI Chat - Demo Section */}
+                    <div id="demo" className="md:col-span-2 group relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[#1A1D1F] p-8 shadow-sm hover:shadow-md transition-all scroll-mt-24">
                         <div className="absolute inset-0 bg-gradient-to-r from-[#267360]/20 to-transparent opacity-20"></div>
                         <div className="relative z-10 flex flex-col sm:flex-row gap-8 items-center">
                             <div className="flex-1">
@@ -372,7 +372,10 @@ export default function Home() {
                 </div>
             </footer>
 
-            <style jsx>{`
+            <style jsx global>{`
+                html {
+                    scroll-behavior: smooth;
+                }
                 @keyframes marquee {
                     0% { transform: translateX(0); }
                     100% { transform: translateX(-50%); }
