@@ -259,21 +259,10 @@ export default function ChatInterface() {
                     <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-teal-900/10 rounded-full blur-[120px]"></div>
                 </div>
 
-                {/* Header */}
-                <header className="flex-none h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 bg-white/80 dark:bg-[#16181d]/80 backdrop-blur-sm z-30 relative sticky top-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[var(--color-primary)] to-teal-800 flex items-center justify-center text-white shadow-glow">
-                            <MaterialIcon name="real_estate_agent" className="text-xl" />
-                        </div>
-                        <div>
-                            <h1 className="text-base font-bold tracking-tight leading-none text-[var(--color-text-primary)]">Agentic<span className="text-[var(--color-primary)] dark:text-[var(--color-secondary)] font-light">Workspace</span></h1>
-                            <p className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Professional Suite</p>
-                        </div>
-                    </div>
-                </header>
+                {/* Header Removed as per request */}
 
                 {/* Chat History */}
-                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10 z-10 relative scroll-smooth no-scrollbar">
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10 z-10 relative scroll-smooth no-scrollbar pt-12">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-80">
                             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center shadow-2xl skew-y-3">
@@ -296,10 +285,12 @@ export default function ChatInterface() {
                             )
                         )
                     )}
+                    {/* Spacer for bottom input area */}
+                    <div className="h-32"></div>
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 md:p-6 bg-gradient-to-t from-white via-white to-transparent dark:from-[#16181d] dark:via-[#16181d] dark:to-transparent z-20">
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)] to-transparent z-20 pb-8">
                     <div className="max-w-4xl mx-auto relative group">
                         <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] rounded-full blur opacity-20 group-hover:opacity-40 transition duration-1000 group-focus-within:opacity-50"></div>
                         <div className="relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full shadow-2xl flex items-center p-2 pr-2 transition-all duration-300 focus-within:border-[var(--color-primary)]/50 focus-within:ring-4 focus-within:ring-[var(--color-primary)]/10">
@@ -330,83 +321,15 @@ export default function ChatInterface() {
                 </div>
             </main>
 
-            {/* Right Contextual Pane */}
-            <aside className="w-[340px] flex-none border-l border-[var(--color-border)] bg-white/60 dark:bg-[#131d20] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20">
-                <div className="px-5 py-4 border-b border-[var(--color-border)] flex justify-between items-center sticky top-0 bg-white/80 dark:bg-[#131d20]/80 backdrop-blur z-10">
-                    <h2 className="font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-                        <MaterialIcon name="analytics" className="text-[var(--color-primary)] dark:text-[var(--color-secondary)]" />
-                        Listing Insights
-                    </h2>
-                    <button className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
-                        <MaterialIcon name="close_fullscreen" />
-                    </button>
-                </div>
-
-                <div className="p-5 space-y-8">
-                    {/* Map Module */}
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Location</h3>
-                            <a className="text-[11px] text-[var(--color-primary)] dark:text-[var(--color-secondary)] font-bold hover:underline flex items-center gap-1" href="#">
-                                View Larger <MaterialIcon name="open_in_new" size="12px" />
-                            </a>
-                        </div>
-                        <div className="aspect-[4/3] rounded-xl overflow-hidden relative shadow-md border border-[var(--color-border)] bg-slate-100 dark:bg-slate-800 group">
-                            <div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-110 bg-slate-700 relative">
-                                <div className="absolute inset-0 flex items-center justify-center text-white/20">
-                                    <MaterialIcon name="map" size="48px" />
-                                </div>
-                            </div>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                <div className="relative group/pin cursor-pointer">
-                                    <div className="w-12 h-12 bg-[var(--color-primary)]/30 rounded-full animate-ping absolute -top-4 -left-4"></div>
-                                    <div className="w-4 h-4 bg-[var(--color-primary)] dark:bg-[var(--color-secondary)] rounded-full border-2 border-white dark:border-[#16181d] shadow-lg relative z-10"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-2 bg-[var(--color-background)] p-2 rounded-lg">
-                            <MaterialIcon name="near_me" size="16px" />
-                            <span><span className="font-bold text-[var(--color-text-primary)]">0.2 mi</span> from Financial District</span>
-                        </p>
+            {/* Right Contextual Pane - Hidden until real data is available */}
+            <aside className="w-[340px] flex-none border-l border-[var(--color-border)] bg-white/60 dark:bg-[#131d20] backdrop-blur-md hidden xl:flex flex-col items-center justify-center p-6 text-center z-20 overflow-y-auto">
+                <div className="flex flex-col items-center gap-4 opacity-50">
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
+                        <MaterialIcon name="analytics" size="32px" className="text-[var(--color-text-muted)]" />
                     </div>
-
-                    {/* Stats Grid */}
-                    <div>
-                        <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Key Metrics</h3>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-[var(--color-surface)] p-3.5 rounded-xl border border-[var(--color-border)] shadow-sm hover:border-[var(--color-primary)]/30 transition-colors">
-                                <div className="flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)]">
-                                    <MaterialIcon name="percent" size="16px" />
-                                    <p className="text-[10px] uppercase font-bold">Cap Rate</p>
-                                </div>
-                                <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">4.8%</p>
-                            </div>
-                            <div className="bg-[var(--color-surface)] p-3.5 rounded-xl border border-[var(--color-border)] shadow-sm hover:border-[var(--color-primary)]/30 transition-colors">
-                                <div className="flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)]">
-                                    <MaterialIcon name="square_foot" size="16px" />
-                                    <p className="text-[10px] uppercase font-bold">Price / SqFt</p>
-                                </div>
-                                <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">$1,361</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* AI Insight */}
-                    <div className="relative overflow-hidden bg-[var(--color-primary)] text-white p-5 rounded-xl shadow-lg">
-                        <div className="absolute -right-4 -top-4 text-white/5 rotate-12">
-                            <MaterialIcon name="psychology" size="100px" />
-                        </div>
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="w-6 h-6 rounded bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                    <MaterialIcon name="lightbulb" size="16px" />
-                                </div>
-                                <h3 className="text-sm font-bold">AI Recommendation</h3>
-                            </div>
-                            <p className="text-sm text-white/90 leading-relaxed font-light mb-4">
-                                This property is priced <span className="font-bold text-white border-b border-white/30">3% below market value</span>. High rental yield expected.
-                            </p>
-                        </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-bold text-[var(--color-text-primary)]">Contextual Insights</p>
+                        <p className="text-xs text-[var(--color-text-muted)] max-w-[200px]">Select a property or start an analysis to view detailed metrics and maps.</p>
                     </div>
                 </div>
             </aside>
