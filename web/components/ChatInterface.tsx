@@ -204,17 +204,48 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                     {/* Visualizations (Charts, etc) */}
                     {visualizations && visualizations.length > 0 && (
                         <div className="space-y-4 mt-2">
-                            {visualizations.map((viz: any, idx: number) => (
-                                <ChartVisualization
-                                    key={idx}
-                                    type={viz.type || 'bar'}
-                                    title={viz.title || 'Market Analysis'}
-                                    data={viz.data}
-                                    labels={viz.labels}
-                                    trend={viz.trend}
-                                    subtitle={viz.subtitle}
-                                />
-                            ))}
+                            {visualizations.map((viz: any, idx: number) => {
+                                // Adapt backend data to component props
+                                let chartType: any = viz.type || 'bar';
+                                let chartData = viz.data;
+                                let chartLabels = viz.labels;
+                                let chartTitle = viz.title || 'Market Analysis';
+                                let chartSubtitle = viz.subtitle;
+
+                                // Handle Inflation Killer
+                                if (viz.type === 'inflation_killer' && viz.data?.projections) {
+                                    chartType = 'line';
+                                    chartTitle = 'Inflation Hedge: Property vs Cash';
+                                    chartData = viz.data.projections; // projection values
+                                    chartLabels = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5'];
+                                    chartSubtitle = `Projected value after ${viz.data.years} years`;
+                                }
+                                // Handle Market Trend
+                                else if (viz.type === 'market_trend_chart') {
+                                    chartType = 'line';
+                                }
+                                // Handle Investment Scorecard
+                                else if (viz.type === 'investment_scorecard') {
+                                    // Maybe map to comparison/bar if needed, or skip if not a chart
+                                    // For now, prevent crash if data isn't array
+                                    if (!Array.isArray(chartData)) chartData = [];
+                                }
+
+                                // Skip if no valid data array
+                                if (!Array.isArray(chartData) || chartData.length === 0) return null;
+
+                                return (
+                                    <ChartVisualization
+                                        key={idx}
+                                        type={chartType}
+                                        title={chartTitle}
+                                        data={chartData}
+                                        labels={chartLabels || []}
+                                        trend={viz.trend}
+                                        subtitle={chartSubtitle}
+                                    />
+                                );
+                            })}
                         </div>
                     )}
                 </div>

@@ -19,7 +19,9 @@ export default function ChartVisualization({
     trend,
     subtitle
 }: ChartVisualizationProps) {
-    const maxValue = Math.max(...data);
+    // Safeguard: Ensure data is an array of numbers
+    const cleanData = Array.isArray(data) ? data : [];
+    const maxValue = cleanData.length > 0 ? Math.max(...cleanData) : 100;
     const trendColor = trend?.includes('+') ? 'text-green-400' : 'text-red-400';
     const TrendIcon = trend?.includes('+') ? TrendingUp : TrendingDown;
 
