@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
     Menu, Plus, Mic, ArrowUp, Loader2,
     MessageSquare, Home, BarChart3, Settings, Bell,
@@ -10,6 +12,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { streamChat } from '@/lib/api';
+import ChartVisualization from './ChartVisualization';
 
 // --- Sidebar Component ---
 const Sidebar = ({ onNewChat }: { onNewChat: () => void }) => {
@@ -78,12 +81,14 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                         <span className="text-[#a2b3af] text-xs">AMR Agent • Active now</span>
                     </div>
 
-                    {/* Text Content */}
+                    {/* Text Content with Markdown Support */}
                     <div
-                        className="text-white leading-loose text-[16px] max-w-[680px] whitespace-pre-wrap"
+                        className="text-white leading-loose text-[16px] max-w-[680px] prose prose-invert prose-headings:text-white prose-p:text-white prose-strong:text-[#267360] prose-li:text-white prose-code:text-[#2dd4bf] prose-pre:bg-[#1c2120] prose-pre:border prose-pre:border-[#2c3533]"
                         dir="auto"
                     >
-                        {content}
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {content}
+                        </ReactMarkdown>
                         {isTyping && (
                             <span className="inline-block w-1.5 h-4 bg-[#267360] animate-pulse ml-1 align-middle"></span>
                         )}
@@ -212,8 +217,18 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
 
                     {/* Visualizations (Charts, etc) */}
                     {visualizations && visualizations.length > 0 && (
-                        <div className="space-y-2">
-                            {/* Future: Render charts here */}
+                        <div className="space-y-4 mt-2">
+                            {visualizations.map((viz: any, idx: number) => (
+                                <ChartVisualization
+                                    key={idx}
+                                    type={viz.type || 'bar'}
+                                    title={viz.title || 'Market Analysis'}
+                                    data={viz.data}
+                                    labels={viz.labels}
+                                    trend={viz.trend}
+                                    subtitle={viz.subtitle}
+                                />
+                            ))}
                         </div>
                     )}
                 </div>
@@ -495,9 +510,6 @@ export default function ChatInterface() {
                         </p>
                     )}
                 </motion.div>
-
-                {/* Gradient Fade */}
-                <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-[#121615] to-transparent pointer-events-none z-10"></div>
             </main>
 
             <style jsx global>{`
