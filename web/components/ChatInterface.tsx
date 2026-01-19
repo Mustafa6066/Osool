@@ -459,6 +459,13 @@ export default function ChatInterface() {
                     transition={{ type: 'spring', bounce: 0, duration: 0.6 }}
                     className="px-4 md:px-8 z-20"
                 >
+                    {/* Disclaimer */}
+                    {messages.length === 0 && (
+                        <p className="text-center text-xs text-[#a2b3af]/50 mb-2">
+                            AI can make mistakes. Please verify important information.
+                        </p>
+                    )}
+
                     <div className="w-full bg-[var(--color-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] rounded-2xl shadow-2xl p-2 flex items-end gap-2 transition-all focus-within:border-[var(--color-primary)]/50 focus-within:ring-1 focus-within:ring-[var(--color-primary)]/50">
                         <button className="w-10 h-10 flex items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors shrink-0">
                             <Plus size={20} />
@@ -492,13 +499,6 @@ export default function ChatInterface() {
                             )}
                         </button>
                     </div>
-
-                    {/* Disclaimer */}
-                    {messages.length === 0 && (
-                        <p className="text-center text-xs text-[#a2b3af]/50 mt-2 mb-1">
-                            AI can make mistakes. Please verify important information.
-                        </p>
-                    )}
                 </motion.div>
             </main>
 
