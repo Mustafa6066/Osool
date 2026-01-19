@@ -1,25 +1,25 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import DOMPurify from 'dompurify';
-import {
-    Menu, Plus, Mic, ArrowUp, Loader2,
-    MessageSquare, Home, BarChart3,
-    Rocket, Building2, MapPin, TrendingUp
-} from 'lucide-react';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { streamChat } from '@/lib/api';
 import ChartVisualization from './ChartVisualization';
 import Sidebar from '@/components/Sidebar';
 
+// Utility for Material Symbols
+const MaterialIcon = ({ name, className = '', size = '20px' }: { name: string, className?: string, size?: string }) => (
+    <span className={`material-symbols-outlined select-none ${className}`} style={{ fontSize: size }}>
+        {name}
+    </span>
+);
+
 /**
  * Sanitize content to prevent XSS attacks.
- * Uses DOMPurify to remove potentially dangerous HTML/JS.
  */
 const sanitizeContent = (content: string): string => {
     if (typeof window === 'undefined') return content;
@@ -32,14 +32,15 @@ const sanitizeContent = (content: string): string => {
 
 // --- User Message Component ---
 const UserMessage = ({ content }: { content: string }) => {
-    // Sanitize user content to prevent XSS
     const safeContent = useMemo(() => sanitizeContent(content), [content]);
 
     return (
-        <div className="flex flex-col items-end gap-1 w-full animate-in fade-in slide-in-from-bottom-2 duration-300 py-2">
-            {/* User Message Bubble: ChatGPT uses light gray background for user in light mode, or distinct color */}
-            <div className="bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] px-5 py-3 rounded-3xl rounded-br-sm max-w-[85%] md:max-w-[75%] shadow-sm leading-relaxed text-[15px]" dir="auto">
-                {safeContent}
+        <div className="flex justify-end animate-in slide-in-from-bottom-2 fade-in duration-500">
+            <div className="flex flex-col items-end gap-1 max-w-[85%] md:max-w-[70%] lg:max-w-[60%]">
+                <div className="bg-[var(--color-primary)] text-white px-6 py-4 rounded-3xl rounded-tr-sm shadow-lg shadow-[var(--color-primary)]/10">
+                    <p className="leading-relaxed text-[15px] font-medium" dir="auto">{safeContent}</p>
+                </div>
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)] mr-2">You • Just now</span>
             </div>
         </div>
     );
@@ -47,205 +48,137 @@ const UserMessage = ({ content }: { content: string }) => {
 
 // --- AMR Agent Message Component ---
 const AgentMessage = ({ content, visualizations, properties, isTyping }: any) => {
-    // Sanitize AI content to prevent XSS from malicious data
     const safeContent = useMemo(() => sanitizeContent(content || ''), [content]);
 
     return (
-        <div className="flex flex-col items-start gap-1 w-full animate-in fade-in slide-in-from-bottom-2 duration-500 py-2">
-            <div className="flex items-start gap-4 w-full">
-                {/* Agent Icon */}
-                <div className="w-8 h-8 rounded-full bg-[var(--color-surface-elevated)] flex items-center justify-center shrink-0 border border-[var(--color-border)] mt-1">
-                    <span className="text-[var(--color-text-primary)] font-bold text-xs">AI</span>
+        <div className="flex gap-5 max-w-full md:max-w-[90%] animate-in slide-in-from-bottom-4 fade-in duration-700">
+            <div className="flex-none flex flex-col items-center gap-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-secondary)] to-[var(--color-primary)] flex items-center justify-center shadow-lg shadow-[var(--color-primary)]/20">
+                    <MaterialIcon name="smart_toy" className="text-white" />
+                </div>
+            </div>
+            <div className="flex flex-col gap-4 flex-1 min-w-0">
+                {/* Text Response */}
+                <div>
+                    <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-sm font-bold text-[var(--color-text-primary)]">Agentic AI</span>
+                        <span className="text-[11px] text-[var(--color-text-muted)]">Just now</span>
+                    </div>
+                    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] px-6 py-4 rounded-3xl rounded-tl-sm shadow-sm inline-block">
+                        <div
+                            className="leading-relaxed text-[15px] prose prose-invert max-w-none prose-p:leading-7 prose-p:mb-4 prose-ul:my-4 prose-li:my-1"
+                            dir="auto"
+                        >
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {safeContent}
+                            </ReactMarkdown>
+                            {isTyping && (
+                                <span className="inline-block w-2 h-2 bg-[var(--color-secondary)] rounded-full animate-pulse ml-1 align-middle"></span>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex-1 min-w-0 space-y-2">
-                    {/* Header Name */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-[var(--color-text-primary)]">Osool AMR</span>
-                    </div>
-
-                    {/* Text Content */}
-                    <div
-                        className="text-[var(--color-text-primary)] leading-relaxed text-[16px] prose prose-invert max-w-none prose-p:leading-7 prose-p:mb-4 prose-ul:my-4 prose-li:my-1"
-                        dir="auto"
-                    >
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {safeContent}
-                        </ReactMarkdown>
-                        {isTyping && (
-                            <span className="inline-block w-2 h-2 bg-[var(--color-text-primary)] rounded-full animate-pulse ml-1 align-middle"></span>
-                        )}
-                    </div>
-
-                    {/* Properties Grid */}
-                    {properties && properties.length > 0 && (
-                        <div className="space-y-4 mt-2 w-full max-w-3xl">
-                            {properties.map((prop: any, idx: number) => (
-                                <div
-                                    key={idx}
-                                    className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 group cursor-pointer"
-                                >
-                                    <div className="flex flex-col sm:flex-row">
-                                        {/* Image Section */}
-                                        <div className="w-full sm:w-2/5 h-56 sm:h-auto bg-slate-800 relative overflow-hidden">
-                                            <div className="absolute inset-0 flex items-center justify-center text-slate-600 bg-gradient-to-br from-slate-800 to-slate-900">
-                                                <Building2 size={64} opacity={0.15} />
-                                            </div>
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent sm:bg-gradient-to-r"></div>
-                                            <div className="absolute top-3 left-3 bg-[var(--color-surface-glass)] backdrop-blur-md text-[var(--color-primary)] text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide border border-[var(--color-border-light)] shadow-sm">
-                                                Top Pick
-                                            </div>
-                                            <div className="absolute bottom-3 left-3 sm:hidden text-white">
-                                                <p className="text-lg font-bold drop-shadow-md">
-                                                    {prop.price.toLocaleString()} EGP
-                                                </p>
-                                            </div>
+                {/* Properties Grid */}
+                {properties && properties.length > 0 && (
+                    <div className="grid grid-cols-1 gap-4 max-w-2xl">
+                        {properties.map((prop: any, idx: number) => (
+                            <div key={idx} className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-xl shadow-black/5 dark:shadow-black/20 group transition-transform hover:scale-[1.01] duration-300">
+                                <div className="flex flex-col sm:flex-row">
+                                    {/* Image Section */}
+                                    <div className="w-full sm:w-2/5 h-56 sm:h-auto bg-cover bg-center relative bg-slate-800">
+                                        <div className="absolute inset-0 flex items-center justify-center text-white/10">
+                                            <MaterialIcon name="image" size="48px" />
                                         </div>
-
-                                        {/* Content Section */}
-                                        <div className="p-5 flex flex-col justify-between flex-1">
-                                            <div>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="px-2 py-0.5 rounded bg-[var(--color-primary-light)] text-[var(--color-primary-hover)] text-[10px] font-bold uppercase tracking-wider">
-                                                        High Growth
-                                                    </div>
-                                                    <div className="flex items-center gap-1 bg-[var(--color-surface)] border border-[var(--color-border)] px-2 py-1 rounded-md">
-                                                        <span className="text-amber-400 text-xs">★</span>
-                                                        <span className="text-xs font-bold text-[var(--color-text-primary)]">
-                                                            {prop.wolf_score || '9.2'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <h3 className="text-lg font-bold text-[var(--color-text-primary)] leading-tight mb-1 group-hover:text-[var(--color-primary)] transition-colors">
-                                                    {prop.title}
-                                                </h3>
-                                                <p className="text-[13px] text-[var(--color-text-muted)] mb-3 flex items-center gap-1">
-                                                    <MapPin size={14} />
-                                                    {prop.location}
-                                                </p>
-                                                <div className="hidden sm:block text-2xl font-extrabold text-[var(--color-text-primary)] mb-4 tracking-tight">
-                                                    {prop.price.toLocaleString()} EGP
-                                                </div>
-
-                                                {/* Property Stats */}
-                                                <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-[var(--color-border)] text-[var(--color-text-secondary)]">
-                                                    <div className="flex flex-col items-center">
-                                                        <span className="text-xs mb-1 opacity-70">🛏️</span>
-                                                        <span className="text-xs font-bold">
-                                                            {prop.bedrooms || 3} Bed
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col items-center border-l border-[var(--color-border)]">
-                                                        <span className="text-xs mb-1 opacity-70">🚿</span>
-                                                        <span className="text-xs font-bold">
-                                                            {prop.bathrooms || 2} Bath
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col items-center border-l border-[var(--color-border)]">
-                                                        <span className="text-xs mb-1 opacity-70">📏</span>
-                                                        <span className="text-xs font-bold">
-                                                            {prop.size_sqm || '180'}m²
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Action Buttons */}
-                                            <div className="flex gap-3 mt-4">
-                                                <button className="flex-1 bg-[var(--chat-primary)] hover:bg-[var(--chat-primary)]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[var(--chat-primary)]/20 hover:shadow-[var(--chat-primary)]/30">
-                                                    View Details
-                                                </button>
-                                                <button className="px-3 py-2 border border-[var(--color-border)] hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-primary)] transition-colors">
-                                                    <span className="text-xl">🔖</span>
-                                                </button>
-                                            </div>
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent sm:bg-gradient-to-r"></div>
+                                        <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/70 backdrop-blur-md text-[var(--color-primary)] dark:text-[var(--color-secondary)] text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide border border-white/20">
+                                            Top Pick
+                                        </div>
+                                        <div className="absolute bottom-3 left-3 sm:hidden text-white">
+                                            <p className="text-lg font-bold shadow-black drop-shadow-md">{prop.price.toLocaleString()} EGP</p>
                                         </div>
                                     </div>
-
-                                    {/* Price Appreciation Forecast */}
-                                    {prop.show_chart !== false && (
-                                        <div className="px-6 py-5 bg-[var(--color-surface)]/50 border-t border-[var(--color-border)]">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">
-                                                    Price Appreciation Forecast (5 Years)
-                                                </h4>
-                                                <span className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded">
-                                                    <TrendingUp size={14} /> +12.4% Projected
-                                                </span>
+                                    {/* Content Section */}
+                                    <div className="p-5 flex flex-col justify-between flex-1 relative">
+                                        <div>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold uppercase tracking-wider">
+                                                    High Growth
+                                                </div>
+                                                <div className="flex items-center gap-1 bg-[var(--color-background)] px-2 py-1 rounded-md">
+                                                    <MaterialIcon name="star" className="text-amber-400 text-[14px] fill-current" />
+                                                    <span className="text-xs font-bold text-[var(--color-text-primary)]">{prop.wolf_score || 9.2}</span>
+                                                </div>
                                             </div>
-                                            {/* Simple Chart Visualization */}
-                                            <div className="h-20 w-full mt-3 flex items-end gap-1">
-                                                {[65, 70, 68, 75, 82, 88].map((height, i) => (
-                                                    <div
-                                                        key={i}
-                                                        className="flex-1 bg-gradient-to-t from-[var(--color-primary)] to-[var(--color-secondary)] rounded-t transition-all hover:opacity-80"
-                                                        style={{ height: `${height}%` }}
-                                                    ></div>
-                                                ))}
-                                            </div>
-                                            <div className="flex justify-between text-[10px] text-gray-500 mt-2">
-                                                <span>2024</span>
-                                                <span>2025</span>
-                                                <span>2026</span>
-                                                <span>2027</span>
-                                                <span>2028</span>
-                                                <span>2029</span>
+                                            <h3 className="text-lg font-bold text-[var(--color-text-primary)] leading-tight mb-1 group-hover:text-[var(--color-primary)] dark:group-hover:text-[var(--color-secondary)] transition-colors">{prop.title}</h3>
+                                            <p className="text-[13px] text-[var(--color-text-muted)] mb-3">{prop.location}</p>
+                                            <div className="hidden sm:block text-2xl font-extrabold text-[var(--color-text-primary)] mb-4 tracking-tight">{prop.price.toLocaleString()} EGP</div>
+                                            <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-[var(--color-border)] text-[var(--color-text-muted)]">
+                                                <div className="flex flex-col items-center">
+                                                    <MaterialIcon name="bed" className="text-[18px] mb-1 opacity-70" />
+                                                    <span className="text-xs font-bold">{prop.bedrooms} Bed</span>
+                                                </div>
+                                                <div className="flex flex-col items-center border-l border-[var(--color-border)]">
+                                                    <MaterialIcon name="bathtub" className="text-[18px] mb-1 opacity-70" />
+                                                    <span className="text-xs font-bold">{prop.bathrooms} Bath</span>
+                                                </div>
+                                                <div className="flex flex-col items-center border-l border-[var(--color-border)]">
+                                                    <MaterialIcon name="square_foot" className="text-[18px] mb-1 opacity-70" />
+                                                    <span className="text-xs font-bold">{prop.size_sqm}m²</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
+                                        <div className="flex gap-3 mt-4">
+                                            <button className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/30">View Details</button>
+                                            <button className="px-3 py-2 border border-[var(--color-border)] hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-primary)] transition-colors">
+                                                <MaterialIcon name="bookmark" className="text-[20px]" />
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
-                    {/* Visualizations (Charts, etc) */}
-                    {visualizations && visualizations.length > 0 && (
-                        <div className="space-y-4 mt-2">
-                            {visualizations.map((viz: any, idx: number) => {
-                                // Adapt backend data to component props
-                                let chartType: any = viz.type || 'bar';
-                                let chartData = viz.data;
-                                let chartLabels = viz.labels;
-                                let chartTitle = viz.title || 'Market Analysis';
-                                let chartSubtitle = viz.subtitle;
+                {/* Visualizations (Charts) */}
+                {visualizations && visualizations.length > 0 && (
+                    <div className="space-y-4 mt-2">
+                        {visualizations.map((viz: any, idx: number) => {
+                            // Adapt backend data
+                            let chartType: any = viz.type || 'bar';
+                            let chartData = viz.data;
+                            let chartLabels = viz.labels;
+                            let chartTitle = viz.title || 'Market Analyis';
+                            let chartSubtitle = viz.subtitle;
 
-                                // Handle Inflation Killer
-                                if (viz.type === 'inflation_killer' && viz.data?.projections) {
-                                    chartType = 'line';
-                                    chartTitle = 'Inflation Hedge: Property vs Cash';
-                                    chartData = viz.data.projections; // projection values
-                                    chartLabels = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5'];
-                                    chartSubtitle = `Projected value after ${viz.data.years} years`;
-                                }
-                                // Handle Market Trend
-                                else if (viz.type === 'market_trend_chart') {
-                                    chartType = 'line';
-                                }
-                                // Handle Investment Scorecard
-                                else if (viz.type === 'investment_scorecard') {
-                                    // Maybe map to comparison/bar if needed, or skip if not a chart
-                                    // For now, prevent crash if data isn't array
-                                    if (!Array.isArray(chartData)) chartData = [];
-                                }
+                            if (viz.type === 'inflation_killer' && viz.data?.projections) {
+                                chartType = 'line';
+                                chartTitle = 'Inflation Hedge: Property vs Cash';
+                                chartData = viz.data.projections;
+                                chartLabels = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5'];
+                                chartSubtitle = `Projected value after ${viz.data.years} years`;
+                            } else if (viz.type === 'market_trend_chart') {
+                                chartType = 'line';
+                            }
 
-                                // Skip if no valid data array
-                                if (!Array.isArray(chartData) || chartData.length === 0) return null;
+                            if (!Array.isArray(chartData)) chartData = [];
+                            if (chartData.length === 0) return null;
 
-                                return (
-                                    <ChartVisualization
-                                        key={idx}
-                                        type={chartType}
-                                        title={chartTitle}
-                                        data={chartData}
-                                        labels={chartLabels || []}
-                                        trend={viz.trend}
-                                        subtitle={chartSubtitle}
-                                    />
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                            return (
+                                <ChartVisualization
+                                    key={idx}
+                                    type={chartType}
+                                    title={chartTitle}
+                                    data={chartData}
+                                    labels={chartLabels || []}
+                                    trend={viz.trend}
+                                    subtitle={chartSubtitle}
+                                />
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -261,83 +194,40 @@ export default function ChatInterface() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Auto-scroll on new messages
+    // Auto-scroll
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }, [messages, isTyping]);
-
-    // Auto-resize textarea
-    useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
-        }
-    }, [input]);
 
     const handleSend = async () => {
         if (!input.trim() || isTyping) return;
-
         const userMsg = { role: 'user', content: input, id: Date.now().toString() };
         setMessages((prev) => [...prev, userMsg]);
         setInput('');
         setIsTyping(true);
 
-        // Add placeholder AI message
         const aiMsgId = (Date.now() + 1).toString();
         setMessages((prev) => [...prev, { role: 'amr', content: '', id: aiMsgId, isTyping: true }]);
 
         let fullResponse = '';
-
         try {
-            // Pass language context for proper AI response localization
             await streamChat(userMsg.content, 'default-session', {
                 onToken: (token) => {
                     fullResponse += token;
-                    setMessages((prev) =>
-                        prev.map((m) => (m.id === aiMsgId ? { ...m, content: fullResponse } : m))
-                    );
+                    setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: fullResponse } : m)));
                 },
-                onToolStart: (tool) => {
-                    // Could add tool indicator state here
-                },
-                onToolEnd: (tool) => { },
+                onToolStart: () => { },
+                onToolEnd: () => { },
                 onComplete: (data) => {
-                    setMessages((prev) =>
-                        prev.map((m) =>
-                            m.id === aiMsgId
-                                ? {
-                                    ...m,
-                                    content: fullResponse,
-                                    properties: data.properties,
-                                    visualizations: data.ui_actions,
-                                    isTyping: false,
-                                }
-                                : m
-                        )
-                    );
+                    setMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, content: fullResponse, properties: data.properties, visualizations: data.ui_actions, isTyping: false } : m));
                     setIsTyping(false);
                 },
                 onError: (err) => {
-                    console.error(err);
-                    setMessages((prev) =>
-                        prev.map((m) =>
-                            m.id === aiMsgId
-                                ? {
-                                    ...m,
-                                    content: fullResponse + '\n\n[System Error: Failed to complete response]',
-                                    isTyping: false,
-                                }
-                                : m
-                        )
-                    );
+                    setMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, content: fullResponse + '\n\n[Error]', isTyping: false } : m));
                     setIsTyping(false);
-                },
-            }, language === 'ar' ? 'ar' : language === 'en' ? 'en' : 'auto');
-        } catch (e) {
-            setIsTyping(false);
-        }
+                }
+            }, language === 'ar' ? 'ar' : 'auto');
+        } catch (e) { setIsTyping(false); }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -352,172 +242,174 @@ export default function ChatInterface() {
         setInput('');
     };
 
-    const getDisplayName = () => {
-        if (!user) return 'Agent';
-        // Use display_name from JWT token if available (set by backend mapping)
-        if ((user as any).display_name) return (user as any).display_name;
-        const email = user?.email?.toLowerCase();
-        // Fallback: Check admin users first
-        if (email === 'mustafa@osool.eg') return 'Mustafa';
-        if (email === 'hani@osool.eg') return 'Hani';
-        if (email === 'abady@osool.eg') return 'Abady';
-        if (email === 'sama@osool.eg') return 'Mrs. Mustafa';
-        // Then check full_name
-        if (user.full_name && user.full_name !== 'Wallet User') return user.full_name;
-        // Fallback to email
-        return email?.split('@')[0] || 'Agent';
-    };
-
     const getUserInitials = () => {
-        const name = getDisplayName();
-        if (name.startsWith('Mrs.')) {
-            const actualName = name.substring(4).trim();
-            return actualName.substring(0, 2).toUpperCase();
-        }
-        const parts = name.split(' ');
-        if (parts.length >= 2) {
-            return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-        }
-        return name.substring(0, 2).toUpperCase();
+        const email = user?.email || 'User';
+        return email.substring(0, 2).toUpperCase();
     };
 
     return (
-        <div className="flex h-[calc(100vh-64px)] w-full relative bg-[var(--color-background)] font-display selection:bg-[#267360] selection:text-[var(--color-text-primary)] overflow-hidden">
+        <div className="flex h-[calc(100vh-64px)] w-full relative bg-[var(--color-background)] font-display selection:bg-[var(--color-secondary)] selection:text-black overflow-hidden">
             <Sidebar onNewChat={handleNewChat} />
 
-            <main className="flex-1 flex flex-col h-full relative">
+            {/* Central Chat Area */}
+            <main className="flex-1 flex flex-col min-w-0 bg-white/50 dark:bg-[#16181d]/50 relative">
+                {/* Decorative Background */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                    <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[var(--color-primary)]/5 rounded-full blur-[100px]"></div>
+                    <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-teal-900/10 rounded-full blur-[120px]"></div>
+                </div>
+
                 {/* Header */}
-                {/* Header - Minimal e.g. Model Selector */}
-                <header className="h-14 flex items-center justify-between px-4 z-10 sticky top-0 bg-[var(--color-background)]/90 backdrop-blur">
-                    <div className="flex items-center gap-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] px-3 py-2 rounded-lg cursor-pointer transition-colors">
-                        <span className="font-semibold text-lg">Osool 4o</span>
-                        <span className="text-xs opacity-50">▼</span>
-                    </div>
+                <header className="flex-none h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 bg-white/80 dark:bg-[#16181d]/80 backdrop-blur-sm z-30 relative sticky top-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[var(--color-surface)] flex items-center justify-center text-[var(--color-text-primary)] text-xs font-bold border border-[var(--color-border)]">
-                            {getUserInitials()}
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[var(--color-primary)] to-teal-800 flex items-center justify-center text-white shadow-glow">
+                            <MaterialIcon name="real_estate_agent" className="text-xl" />
+                        </div>
+                        <div>
+                            <h1 className="text-base font-bold tracking-tight leading-none text-[var(--color-text-primary)]">Agentic<span className="text-[var(--color-primary)] dark:text-[var(--color-secondary)] font-light">Workspace</span></h1>
+                            <p className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Professional Suite</p>
                         </div>
                     </div>
                 </header>
 
-                {/* Chat Area - Centered Stream */}
-                <div
-                    ref={scrollRef}
-                    className="flex-1 overflow-y-auto space-y-8 scroll-smooth scrollbar-hide relative w-full"
-                    style={{ paddingBottom: messages.length === 0 ? '0px' : '150px' }}
-                >
-                    <div className="max-w-3xl mx-auto px-4 w-full flex flex-col gap-6 py-6">
-                        {messages.length === 0 ? (
-                            // Empty State - Centered
-                            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-in fade-in duration-700">
-                                <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] flex items-center justify-center shadow-sm">
-                                    <Rocket size={32} className="text-[var(--color-text-primary)] opacity-80" />
-                                </div>
-                                <h2 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                                    How can I help you analyze real estate today?
-                                </h2>
-
-                                {/* Starter Prompts */}
-                                <div className="grid grid-cols-2 gap-4 w-full max-w-2xl mt-8">
-                                    {[
-                                        { text: 'Analyze market trends in New Cairo' },
-                                        { text: 'Compare 5th Settlement vs Sheikh Zayed' },
-                                        { text: 'Find investment opportunities under 5M' },
-                                        { text: 'What is the "La2ta" this week?' },
-                                    ].map((prompt, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setInput(prompt.text)}
-                                            className="px-4 py-3 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-sm text-left transition-colors truncate"
-                                        >
-                                            {prompt.text}
-                                        </button>
-                                    ))}
-                                </div>
+                {/* Chat History */}
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10 z-10 relative scroll-smooth no-scrollbar">
+                    {messages.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-80">
+                            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center shadow-2xl skew-y-3">
+                                <MaterialIcon name="smart_toy" className="text-white text-[40px]" />
                             </div>
-                        ) : (
-                            // Messages Stream
-                            messages.map((msg) =>
-                                msg.role === 'user' ? (
-                                    <UserMessage key={msg.id} content={msg.content} />
-                                ) : (
-                                    <AgentMessage
-                                        key={msg.id}
-                                        content={msg.content}
-                                        visualizations={msg.visualizations}
-                                        properties={msg.properties}
-                                        isTyping={msg.isTyping}
-                                    />
-                                )
+                            <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">Ready to analyze the market?</h2>
+                        </div>
+                    ) : (
+                        messages.map((msg) =>
+                            msg.role === 'user' ? (
+                                <UserMessage key={msg.id} content={msg.content} />
+                            ) : (
+                                <AgentMessage
+                                    key={msg.id}
+                                    content={msg.content}
+                                    visualizations={msg.visualizations}
+                                    properties={msg.properties}
+                                    isTyping={msg.isTyping}
+                                />
                             )
-                        )}
-                    </div>
+                        )
+                    )}
                 </div>
 
-                {/* Input Area - Dynamically positioned */}
-                <motion.div
-                    layout
-                    initial={false}
-                    animate={
-                        messages.length === 0
-                            ? { position: 'absolute', top: 'auto', bottom: '0', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
-                            : { position: 'absolute', top: 'auto', bottom: '1rem', left: '50%', x: '-50%', width: '100%', maxWidth: '48rem' }
-                    }
-                    transition={{ type: 'spring', bounce: 0, duration: 0.6 }}
-                    className="px-4 md:px-8 z-20"
-                >
-                    {/* Disclaimer */}
-                    {messages.length === 0 && (
-                        <p className="text-center text-xs text-[#a2b3af]/50 mb-2">
-                            AI can make mistakes. Please verify important information.
-                        </p>
-                    )}
-
-                    <div className="w-full bg-[var(--color-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] rounded-2xl shadow-2xl p-2 flex items-end gap-2 transition-all focus-within:border-[var(--color-primary)]/50 focus-within:ring-1 focus-within:ring-[var(--color-primary)]/50">
-                        <button className="w-10 h-10 flex items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors shrink-0">
-                            <Plus size={20} />
-                        </button>
-                        <textarea
-                            ref={textareaRef}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            className="flex-1 bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)]/50 focus:ring-0 text-sm font-medium py-3 px-0 resize-none max-h-[200px] scrollbar-hide"
-                            placeholder={
-                                language === 'ar'
-                                    ? 'اسأل عمرو عن العقارات...'
-                                    : 'Ask AMR about real estate...'
-                            }
-                            rows={1}
-                            dir="auto"
-                        />
-                        <button className="w-10 h-10 flex items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors shrink-0">
-                            <Mic size={20} />
-                        </button>
-                        <button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isTyping}
-                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-lg shadow-[var(--color-primary)]/20 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isTyping ? (
-                                <Loader2 size={18} className="animate-spin" />
-                            ) : (
-                                <ArrowUp size={20} />
-                            )}
-                        </button>
+                {/* Input Area */}
+                <div className="p-4 md:p-6 bg-gradient-to-t from-white via-white to-transparent dark:from-[#16181d] dark:via-[#16181d] dark:to-transparent z-20">
+                    <div className="max-w-4xl mx-auto relative group">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] rounded-full blur opacity-20 group-hover:opacity-40 transition duration-1000 group-focus-within:opacity-50"></div>
+                        <div className="relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full shadow-2xl flex items-center p-2 pr-2 transition-all duration-300 focus-within:border-[var(--color-primary)]/50 focus-within:ring-4 focus-within:ring-[var(--color-primary)]/10">
+                            <button className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] dark:hover:text-white hover:bg-[var(--color-background)] transition-colors">
+                                <MaterialIcon name="add_circle" />
+                            </button>
+                            <input
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                className="flex-1 bg-transparent border-none focus:ring-0 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] px-3 py-3 text-base"
+                                placeholder="Ask about properties, market trends..."
+                                type="text"
+                            />
+                            <div className="flex items-center gap-1">
+                                <button className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-background)] transition-colors">
+                                    <MaterialIcon name="mic" />
+                                </button>
+                                <button onClick={handleSend} disabled={!input.trim() || isTyping} className="p-3 rounded-full bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition-all shadow-md hover:shadow-lg transform active:scale-95 ml-1 flex items-center justify-center aspect-square disabled:opacity-50">
+                                    <MaterialIcon name="arrow_upward" size="20px" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="text-center mt-3">
+                            <p className="text-[10px] font-medium text-[var(--color-text-muted)]">AI can generate insights. Verify financial data independently.</p>
+                        </div>
                     </div>
-                </motion.div>
+                </div>
             </main>
 
-            <style jsx global>{`
-                .scrollbar-hide::-webkit-scrollbar {
-                    display: none;
-                }
-                .scrollbar-hide {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-            `}</style>
+            {/* Right Contextual Pane */}
+            <aside className="w-[340px] flex-none border-l border-[var(--color-border)] bg-white/60 dark:bg-[#131d20] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20">
+                <div className="px-5 py-4 border-b border-[var(--color-border)] flex justify-between items-center sticky top-0 bg-white/80 dark:bg-[#131d20]/80 backdrop-blur z-10">
+                    <h2 className="font-bold text-[var(--color-text-primary)] flex items-center gap-2">
+                        <MaterialIcon name="analytics" className="text-[var(--color-primary)] dark:text-[var(--color-secondary)]" />
+                        Listing Insights
+                    </h2>
+                    <button className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
+                        <MaterialIcon name="close_fullscreen" />
+                    </button>
+                </div>
+
+                <div className="p-5 space-y-8">
+                    {/* Map Module */}
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Location</h3>
+                            <a className="text-[11px] text-[var(--color-primary)] dark:text-[var(--color-secondary)] font-bold hover:underline flex items-center gap-1" href="#">
+                                View Larger <MaterialIcon name="open_in_new" size="12px" />
+                            </a>
+                        </div>
+                        <div className="aspect-[4/3] rounded-xl overflow-hidden relative shadow-md border border-[var(--color-border)] bg-slate-100 dark:bg-slate-800 group">
+                            <div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-110 bg-slate-700 relative">
+                                <div className="absolute inset-0 flex items-center justify-center text-white/20">
+                                    <MaterialIcon name="map" size="48px" />
+                                </div>
+                            </div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                <div className="relative group/pin cursor-pointer">
+                                    <div className="w-12 h-12 bg-[var(--color-primary)]/30 rounded-full animate-ping absolute -top-4 -left-4"></div>
+                                    <div className="w-4 h-4 bg-[var(--color-primary)] dark:bg-[var(--color-secondary)] rounded-full border-2 border-white dark:border-[#16181d] shadow-lg relative z-10"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-2 bg-[var(--color-background)] p-2 rounded-lg">
+                            <MaterialIcon name="near_me" size="16px" />
+                            <span><span className="font-bold text-[var(--color-text-primary)]">0.2 mi</span> from Financial District</span>
+                        </p>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div>
+                        <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Key Metrics</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-[var(--color-surface)] p-3.5 rounded-xl border border-[var(--color-border)] shadow-sm hover:border-[var(--color-primary)]/30 transition-colors">
+                                <div className="flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)]">
+                                    <MaterialIcon name="percent" size="16px" />
+                                    <p className="text-[10px] uppercase font-bold">Cap Rate</p>
+                                </div>
+                                <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">4.8%</p>
+                            </div>
+                            <div className="bg-[var(--color-surface)] p-3.5 rounded-xl border border-[var(--color-border)] shadow-sm hover:border-[var(--color-primary)]/30 transition-colors">
+                                <div className="flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)]">
+                                    <MaterialIcon name="square_foot" size="16px" />
+                                    <p className="text-[10px] uppercase font-bold">Price / SqFt</p>
+                                </div>
+                                <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">$1,361</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* AI Insight */}
+                    <div className="relative overflow-hidden bg-[var(--color-primary)] text-white p-5 rounded-xl shadow-lg">
+                        <div className="absolute -right-4 -top-4 text-white/5 rotate-12">
+                            <MaterialIcon name="psychology" size="100px" />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="w-6 h-6 rounded bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                                    <MaterialIcon name="lightbulb" size="16px" />
+                                </div>
+                                <h3 className="text-sm font-bold">AI Recommendation</h3>
+                            </div>
+                            <p className="text-sm text-white/90 leading-relaxed font-light mb-4">
+                                This property is priced <span className="font-bold text-white border-b border-white/30">3% below market value</span>. High rental yield expected.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
         </div>
     );
 }

@@ -15,133 +15,60 @@
    ============================================ */
 
 :root {
-  /* Light Theme Colors */
-  --color-background: #f8fafc;
+  /* Light Theme Colors - Agentic Workspace */
+  --color-background: #f4f2f1;
   --color-surface: #ffffff;
   --color-surface-elevated: #ffffff;
-  --color-surface-glass: rgba(255, 255, 255, 0.8);
+  --color-surface-glass: rgba(255, 255, 255, 0.7);
 
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
+  --color-text-primary: #124759; /* Slate 800ish replacement or Primary Dark */
+  --color-text-secondary: #64748b;
   --color-text-muted: #94a3b8;
 
   --color-border: #e2e8f0;
-  --color-border-light: #f1f5f9;
+  
+  /* Primary & Accents */
+  --color-primary: #124759; /* Deep Teal/Blue */
+  --color-primary-hover: #0e3f50;
+  --color-primary-light: rgba(18, 71, 89, 0.1);
+  --color-secondary: #2dd4bf; /* Teal Accent */
 
-  --color-primary: #10b981;
-  --color-primary-hover: #059669;
-  --color-primary-light: rgba(16, 185, 129, 0.1);
-  --color-secondary: #06b6d4;
+  /* New Design Specifics */
+  --color-background-light: #f4f2f1;
+  --color-background-dark: #16181d;
+  --color-surface-dark: #1c2b31;
+  --color-border-dark: #273d44;
+  --color-teal-accent: #2dd4bf;
 
-  --color-accent: #8b5cf6;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-
-  /* V6: Class A Developer Colors */
-  --color-class-a: #f59e0b;
-  --color-class-a-light: rgba(245, 158, 11, 0.1);
-  --color-class-a-glow: 0 0 20px -5px rgba(245, 158, 11, 0.4);
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-glow: 0 0 30px -5px rgba(16, 185, 129, 0.3);
-
-  /* V6: Enhanced Gradients */
-  --gradient-primary: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-  --gradient-surface: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%);
-  --gradient-aurora: linear-gradient(135deg,
-    rgba(16, 185, 129, 0.03) 0%,
-    rgba(6, 182, 212, 0.03) 50%,
-    rgba(139, 92, 246, 0.03) 100%);
-  --gradient-class-a: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-
-  /* V6: Fluid Design Variables */
-  --liquid-blur: 30px;
-  --liquid-blur-strong: 50px;
-  --liquid-glass: rgba(255, 255, 255, 0.7);
-
-  /* Animation */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
-
-  /* V6: Fluid Animation Curves */
-  --ease-fluid: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-glow: 0 0 15px rgba(18, 71, 89, 0.3);
 }
 
 /* Dark Theme Colors */
 .dark, [data-theme="dark"] {
-  --color-background: #0a0a0f;
-  --color-surface: #12121a;
+  --color-background: #16181d;
+  --color-surface: #1c2b31;
   --color-surface-elevated: #1a1a24;
-  --color-surface-glass: rgba(18, 18, 26, 0.85);
+  --color-surface-glass: rgba(19, 29, 32, 0.6);
 
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #97b8c3;
   --color-text-muted: #64748b;
 
-  --color-border: #1e293b;
-  --color-border-light: #334155;
+  --color-border: #273d44;
+  
+  --color-primary: #124759;
+  --color-primary-hover: #2dd4bf; /* On Dark maybe lighter? */
+  --color-secondary: #2dd4bf;
 
-  --color-primary: #10b981;
-  --color-primary-hover: #34d399;
-  --color-primary-light: rgba(16, 185, 129, 0.15);
-  --color-secondary: #06b6d4;
-
-  /* V6: Class A Developer Colors - Dark Mode */
-  --color-class-a: #fbbf24;
-  --color-class-a-light: rgba(251, 191, 36, 0.15);
-  --color-class-a-glow: 0 0 25px -5px rgba(251, 191, 36, 0.5);
-
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5);
-  --shadow-glow: 0 0 40px -5px rgba(16, 185, 129, 0.4);
-
-  /* V6: Enhanced Gradients - Dark Mode */
-  --gradient-primary: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-  --gradient-surface: linear-gradient(180deg, #0a0a0f 0%, #12121a 100%);
-  --gradient-glass: linear-gradient(135deg, rgba(26,26,36,0.95) 0%, rgba(18,18,26,0.85) 100%);
-  --gradient-aurora: linear-gradient(135deg,
-    rgba(16, 185, 129, 0.05) 0%,
-    rgba(6, 182, 212, 0.05) 50%,
-    rgba(139, 92, 246, 0.05) 100%);
-  --gradient-class-a: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
-
-  /* V6: Fluid Design Variables - Dark Mode */
-  --liquid-blur: 30px;
-  --liquid-blur-strong: 50px;
-  --liquid-glass: rgba(18, 18, 26, 0.8);
+  --shadow-glow: 0 0 20px rgba(45, 212, 191, 0.2);
 }
 
-/* ============================================
-   BASE STYLES
-   ============================================ */
-
-* {
-  transition: background-color var(--transition-normal),
-              border-color var(--transition-normal),
-              color var(--transition-fast),
-              box-shadow var(--transition-normal);
-}
-
-html {
-  scroll-behavior: smooth;
-}
+/* ... existing styles ... */
 
 body {
   background: var(--color-background);
   color: var(--color-text-primary);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: 'Manrope', var(--font-sans), system-ui, sans-serif;
 }
 
 /* ============================================
