@@ -32,6 +32,7 @@ from app.ai_engine.psychology_layer import (
 )
 from app.ai_engine.proactive_alerts import proactive_alert_engine
 from app.services.vector_search import search_properties as db_search_properties
+from app.services.market_statistics import get_market_statistics, format_statistics_for_ai
 from app.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
@@ -681,6 +682,17 @@ INSTRUCTION: Since no properties were found, you MUST ask clarifying questions:
 DO NOT invent any properties. Be charming and helpful while gathering info.
 """
             else:
+                # Fetch pre-computed market statistics for accurate data
+                market_stats = await get_market_statistics()
+                
+                # Determine location from search for location-specific stats
+                search_location = None
+                if data and len(data) > 0:
+                    search_location = data[0].get('location')
+                
+                # Format market stats for AI
+                market_stats_context = format_statistics_for_ai(market_stats, search_location)
+                
                 # Format properties for Claude with EXPLICIT names - RAG ENFORCEMENT
                 props_formatted = json.dumps(data, indent=2, ensure_ascii=False)
                 property_list = chr(10).join([f"  {i+1}. \"{p.get('title', 'Unknown')}\" - {p.get('compound', '')} - {p.get('location', 'Unknown')} - {p.get('price', 0):,} EGP" for i, p in enumerate(data)])
@@ -688,6 +700,10 @@ DO NOT invent any properties. Be charming and helpful while gathering info.
                 context_str = f"""
 ═══════════════════════════════════════════════════════════════════════════════
                           RAG SYSTEM - STRICT DATA GROUNDING
+═══════════════════════════════════════════════════════════════════════════════
+
+{market_stats_context}
+
 ═══════════════════════════════════════════════════════════════════════════════
 
 [RETRIEVED PROPERTIES]: {len(data)} properties found in database
