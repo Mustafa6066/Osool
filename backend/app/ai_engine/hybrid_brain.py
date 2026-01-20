@@ -413,13 +413,15 @@ Output format:
     "location": string (e.g., "New Cairo", "Sheikh Zayed"),
     "budget_max": int (in EGP),
     "bedrooms": int,
-    "property_type": string
+    "property_type": string,
+    "keywords": string (e.g., specific project name like "Solaris", "Hyde Park")
   }
 }
 
 Examples:
 - "عايز شقة في التجمع تحت 2 مليون" → {"action": "search", "filters": {"location": "New Cairo", "budget_max": 2000000}}
 - "Apartment in Zayed, 3 bedrooms" → {"action": "search", "filters": {"location": "Sheikh Zayed", "bedrooms": 3}}
+- "What do you have in Solaris?" → {"action": "search", "filters": {"keywords": "Solaris"}}
 """
             
             completion = await self.openai_async.chat.completions.create(
@@ -460,6 +462,8 @@ Examples:
                     query_parts.append(f"{filters['bedrooms']} bedrooms")
                 if 'property_type' in filters:
                     query_parts.append(filters['property_type'])
+                if 'keywords' in filters:
+                    query_parts.append(filters['keywords'])
                     
                 query_text = " ".join(query_parts) if query_parts else "property"
                 
