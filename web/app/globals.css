@@ -1,165 +1,134 @@
 @import "tailwindcss";
 
 /* ============================================
-   OSOOL DESIGN SYSTEM V2 - Fluid Professional
+   OSOOL DESIGN SYSTEM V3 - Neural Synapse
    ============================================ */
 
-/* Typography */
 @theme {
-  --font-sans: var(--font-inter);
-  --font-serif: var(--font-merriweather);
+  --font-sans: "Cairo", "Rajdhani", sans-serif;
+  --font-display: "Rajdhani", sans-serif;
+
+  --color-primary: #A3B18A;
+  /* Muted Sage Green */
+  --color-secondary: #D4A3A3;
+  /* Dusty Rose */
+  --color-tertiary: #E6D5B8;
+  /* Soft Sand */
+
+  --color-background-light: #F2F2EF;
+  --color-background-dark: #14171F;
+  /* Deep Matte Navy/Charcoal */
+
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #1C212B;
+
+  --color-text-off-white: #E8E8E3;
 }
 
 /* ============================================
-   CSS CUSTOM PROPERTIES - Dark/Light Themes
+   CSS CUSTOM PROPERTIES
    ============================================ */
 
 :root {
-  /* Light Theme Colors - Agentic Workspace */
-  --color-background: #ffffff;
-  /* Deep Black */
-  --color-surface: #f3f4f6;
+  /* Light Theme Defaults */
+  --color-background: var(--color-background-light);
+  --color-surface: var(--color-surface-light);
+  --color-text-primary: #334155;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+
+  --color-primary: #A3B18A;
+  --color-secondary: #D4A3A3;
+  --color-tertiary: #E6D5B8;
+
+  /* Legacy/Compat variables */
   --color-surface-elevated: #ffffff;
-  --color-surface-glass: rgba(255, 255, 255, 0.7);
-
-  --color-text-primary: #111827;
-  /* Dark text for light bg */
-  --color-text-secondary: #4b5563;
-  --color-text-muted: #6b7280;
-
-  --color-border: #e5e7eb;
-
-  /* Primary & Accents */
-  --color-primary: #124759;
-  /* Deep Teal/Blue */
-  --color-primary-hover: #0e3f50;
-  --color-primary-light: rgba(18, 71, 89, 0.1);
-  --color-secondary: #2dd4bf;
-  /* Teal Accent */
-
-  /* New Design Specifics */
-  --color-background-light: #ffffff;
-  --color-background-dark: #000000;
-  --color-surface-dark: #121212;
-  --color-border-dark: #27272a;
-  --color-teal-accent: #2dd4bf;
-
-  --shadow-glow: 0 0 15px rgba(18, 71, 89, 0.2);
 }
 
-/* Dark Theme Colors */
+/* Dark Theme Overrides */
 .dark,
 [data-theme="dark"] {
-  --color-background: #000000;
-  --color-surface: #121212;
-  --color-surface-elevated: #1e1e1e;
-  --color-surface-glass: rgba(0, 0, 0, 0.8);
+  --color-background: var(--color-background-dark);
+  --color-surface: var(--color-surface-dark);
+  --color-text-primary: var(--color-text-off-white);
+  --color-text-muted: #94a3b8;
+  --color-border: rgba(255, 255, 255, 0.08);
 
-  --color-text-primary: #f3f4f6;
-  --color-text-secondary: #9ca3af;
-  --color-text-muted: #6b7280;
-
-  --color-border: #27272a;
-
-  --color-primary: #124759;
-  --color-primary-hover: #2dd4bf;
-  --color-secondary: #2dd4bf;
-
-  --shadow-glow: 0 0 20px rgba(45, 212, 191, 0.2);
+  --color-surface-elevated: #232936;
 }
 
-/* ... existing styles ... */
-
 body {
-  background: var(--color-background);
+  background-color: var(--color-background);
   color: var(--color-text-primary);
-  font-family: 'Manrope', var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans);
+  transition: background-color 0.5s ease, color 0.5s ease;
+  overflow-x: hidden;
 }
 
 /* ============================================
-   UTILITY CLASSES
+   UTILITY CLASSES & ANIMATIONS
    ============================================ */
 
 @layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
 
-  /* Glass morphism */
-  .glass {
-    background: var(--color-surface-glass);
+  .grid-bg {
+    background-size: 60px 60px;
+    mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
+  }
+
+  .bg-grid-light {
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  }
+
+  .bg-grid-dark {
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  }
+
+  /* Glassmorphism */
+  .glass-panel {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
   }
 
-  .glass-strong {
-    background: var(--color-surface-glass);
-    backdrop-filter: blur(40px);
-    -webkit-backdrop-filter: blur(40px);
+  .glass-panel-light {
+    backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
   }
 
-  /* Gradients */
-  .gradient-primary {
-    background: var(--gradient-primary);
+  /* Hologram Effect */
+  .hologram-img {
+    filter: grayscale(0.2) sepia(0.1) contrast(1.05) brightness(0.95);
+    transition: all 0.5s ease;
   }
 
-  .gradient-text {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .hologram-img:hover {
+    filter: grayscale(0) sepia(0) contrast(1) brightness(1);
   }
 
-  /* Glow effects */
-  .glow-primary {
-    box-shadow: var(--shadow-glow);
+  /* Node Glow */
+  .node-glow {
+    box-shadow: 0 0 10px 2px rgba(230, 213, 184, 0.4);
+    animation: node-pulse 2s infinite ease-in-out;
   }
 
-  .glow-sm {
-    box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.2);
+  /* Synapse Animation */
+  .synapse-path {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: pulse-travel 4s infinite linear;
+    filter: drop-shadow(0 0 3px rgba(230, 213, 184, 0.5));
   }
 
-  /* Floating animation */
-  .float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  @keyframes float {
-
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-
-  /* Pulse glow */
-  .pulse-glow {
-    animation: pulseGlow 2s ease-in-out infinite;
-  }
-
-  @keyframes pulseGlow {
-
-    0%,
-    100% {
-      box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.3);
-    }
-
-    50% {
-      box-shadow: 0 0 30px -5px rgba(16, 185, 129, 0.5);
-    }
-  }
-
-  /* Smooth focus ring */
-  .focus-ring {
-    outline: none;
-  }
-
-  .focus-ring:focus-visible {
-    box-shadow: 0 0 0 3px var(--color-primary-light), 0 0 0 1px var(--color-primary);
-  }
-
-  /* Hide scrollbar */
+  /* Utilities from previous design system we want to keep */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -168,555 +137,51 @@ body {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-
-  /* Custom scrollbar */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 3px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-muted);
-  }
-
-  /* Fade in animation */
-  .fade-in {
-    animation: fadeIn 0.3s ease-out;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Slide up animation */
-  .slide-up {
-    animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* V6: Liquid Glass Effect */
-  .liquid-glass {
-    background: var(--liquid-glass);
-    backdrop-filter: blur(var(--liquid-blur));
-    -webkit-backdrop-filter: blur(var(--liquid-blur));
-  }
-
-  .liquid-glass-strong {
-    background: var(--liquid-glass);
-    backdrop-filter: blur(var(--liquid-blur-strong));
-    -webkit-backdrop-filter: blur(var(--liquid-blur-strong));
-  }
-
-  /* V6: Aurora Background */
-  .bg-aurora {
-    background: var(--gradient-aurora);
-  }
-
-  /* V6: Class A Developer Styles */
-  .class-a-badge {
-    background: var(--gradient-class-a);
-    box-shadow: var(--color-class-a-glow);
-  }
-
-  .class-a-border {
-    border-color: var(--color-class-a);
-  }
-
-  .class-a-glow {
-    box-shadow: var(--color-class-a-glow);
-  }
-
-  /* V6: Typewriter cursor animation */
-  .typewriter-cursor {
-    animation: blink 0.8s ease-in-out infinite;
-  }
-
-  @keyframes blink {
-
-    0%,
-    50% {
-      opacity: 1;
-    }
-
-    51%,
-    100% {
-      opacity: 0;
-    }
-  }
-
-  /* V6: Tool execution spinner */
-  .tool-spin {
-    animation: toolSpin 1s linear infinite;
-  }
-
-  @keyframes toolSpin {
-    from {
-      transform: rotate(0deg);
-    }
-
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  /* V6: Shimmer loading effect */
-  .shimmer {
-    background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.1) 50%,
-        transparent 100%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: -200% 0;
-    }
-
-    100% {
-      background-position: 200% 0;
-    }
-  }
-
-  /* V6: Fluid hover effect */
-  .hover-lift {
-    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
-  }
-
-  .hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  /* V6: Quick action button styles */
-  .quick-action {
-    transition: all var(--transition-fast);
-  }
-
-  .quick-action:hover {
-    transform: translateY(-2px) scale(1.02);
-  }
-
-  .quick-action:active {
-    transform: translateY(0) scale(0.98);
-  }
 }
 
-/* ============================================
-   COMPONENT STYLES
-   ============================================ */
-
-/* Chat message bubbles */
-.message-bubble {
-  transition: transform var(--transition-fast), box-shadow var(--transition-normal);
-}
-
-.message-bubble:hover {
-  transform: translateY(-1px);
-}
-
-/* Input focus styles */
-.input-focus {
-  transition: all var(--transition-normal);
-}
-
-.input-focus:focus-within {
-  box-shadow: 0 0 0 3px var(--color-primary-light);
-  border-color: var(--color-primary);
-}
-
-/* Button hover effects */
-.btn-primary {
-  background: var(--gradient-primary);
-  transition: all var(--transition-normal);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
-}
-
-/* ============================================
-   CHAT UI - AGENTIC WORKSPACE DESIGN
-   ============================================ */
-
-/* Chat UI Color Variables */
-:root {
-  --chat-primary: #124759;
-  --chat-teal-accent: #2dd4bf;
-  --chat-surface-dark: #1c2b31;
-  --chat-border-dark: #273d44;
-  --chat-text-secondary: #97b8c3;
-  --chat-background-dark: #16181d;
-  --chat-background-light: #f4f2f1;
-
-  /* Blob gradient colors */
-  --blob-teal: rgba(45, 212, 191, 0.15);
-  --blob-violet: rgba(167, 139, 250, 0.1);
-  --blob-primary: rgba(18, 71, 89, 0.1);
-}
-
-/* Chat Glass Panel */
-.chat-glass-panel {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.dark .chat-glass-panel {
-  background: rgba(19, 29, 32, 0.6);
-}
-
-/* Chat Surface */
-.chat-surface {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.dark .chat-surface {
-  background: var(--chat-surface-dark);
-}
-
-/* Chat Input with Glow Effect */
-.chat-input-container {
-  position: relative;
-}
-
-.chat-input-glow {
-  position: absolute;
-  inset: -1px;
-  background: linear-gradient(to right, var(--chat-primary), var(--chat-teal-accent));
-  border-radius: 9999px;
-  filter: blur(8px);
-  opacity: 0.2;
-  transition: opacity 0.3s ease;
-}
-
-.chat-input-container:focus-within .chat-input-glow {
-  opacity: 0.5;
-}
-
-.chat-input {
-  position: relative;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 9999px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
-
-.dark .chat-input {
-  background: var(--chat-surface-dark);
-  border-color: #4b5563;
-}
-
-.chat-input:focus-within {
-  border-color: rgba(18, 71, 89, 0.5);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(18, 71, 89, 0.1);
-}
-
-/* Animated Background Blobs */
-@keyframes blob-float-1 {
-
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-}
-
-@keyframes blob-float-2 {
-
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(0deg);
+/* Keyframes */
+@keyframes pulse-travel {
+  0% {
+    stroke-dashoffset: 1000;
+    opacity: 0.1;
   }
 
   50% {
-    transform: translate(-40px, 30px) rotate(180deg);
+    opacity: 0.8;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.1;
   }
 }
 
-@keyframes blob-float-3 {
+@keyframes node-pulse {
 
   0%,
   100% {
-    transform: translate(0, 0);
+    opacity: 0.5;
+    transform: scale(1);
   }
 
-  25% {
-    transform: translate(20px, -30px);
-  }
-
-  75% {
-    transform: translate(-30px, 20px);
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
   }
 }
 
-.animate-blob-1 {
-  animation: blob-float-1 15s infinite alternate;
-}
+@keyframes float {
 
-.animate-blob-2 {
-  animation: blob-float-2 20s infinite alternate-reverse;
-}
-
-.animate-blob-3 {
-  animation: blob-float-3 12s infinite linear;
-}
-
-/* Chat Status Indicator */
-.status-indicator {
-  position: relative;
-}
-
-.status-indicator::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 9999px;
-  background: var(--chat-teal-accent);
-  animation: status-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-@keyframes status-ping {
-
-  75%,
+  0%,
   100% {
-    transform: scale(2);
-    opacity: 0;
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
   }
 }
 
-/* Chat Message Styles */
-.chat-message-user {
-  background: var(--chat-primary);
-  color: white;
-  border-radius: 1.5rem 1.5rem 0.25rem 1.5rem;
-}
-
-.chat-message-ai {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 1.5rem 1.5rem 1.5rem 0.25rem;
-}
-
-.dark .chat-message-ai {
-  background: var(--chat-surface-dark);
-  border-color: var(--chat-border-dark);
-}
-
-/* Chat Property Card */
-.chat-property-card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 1rem;
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.dark .chat-property-card {
-  background: var(--chat-surface-dark);
-  border-color: var(--chat-border-dark);
-}
-
-.chat-property-card:hover {
-  transform: scale(1.01);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-}
-
-/* Chart Gradient */
-.chart-gradient-teal {
-  fill: url(#chartGradientTeal);
-}
-
-/* Sidebar Styles */
-.chat-sidebar {
-  width: 280px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--color-border);
-}
-
-.dark .chat-sidebar {
-  border-color: var(--chat-border-dark);
-}
-
-/* Contextual Pane */
-.chat-contextual-pane {
-  width: 340px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--color-border);
-}
-
-.dark .chat-contextual-pane {
-  border-color: var(--chat-border-dark);
-}
-
-/* AI Recommendation Card */
-.ai-recommendation-card {
-  background: var(--chat-primary);
-  color: white;
-  border-radius: 0.75rem;
-  overflow: hidden;
-  position: relative;
-}
-
-.ai-recommendation-card::before {
-  content: '';
-  position: absolute;
-  top: -1rem;
-  right: -1rem;
-  width: 6rem;
-  height: 6rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 50%;
-  transform: rotate(12deg);
-}
-
-/* Metric Card */
-.metric-card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  padding: 0.875rem;
-  transition: border-color 0.2s ease;
-}
-
-.dark .metric-card {
-  background: var(--chat-surface-dark);
-  border-color: var(--chat-border-dark);
-}
-
-.metric-card:hover {
-  border-color: rgba(18, 71, 89, 0.3);
-}
-
-/* Chat Scrollbar */
-.chat-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.chat-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(151, 184, 195, 0.2);
-  border-radius: 3px;
-}
-
-.chat-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--chat-primary);
-}
-
-/* Send Button */
-.chat-send-button {
-  background: var(--chat-primary);
-  color: white;
-  border-radius: 9999px;
-  padding: 0.75rem;
-  transition: all 0.2s ease;
-}
-
-.chat-send-button:hover {
-  background: rgba(18, 71, 89, 0.9);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.chat-send-button:active {
-  transform: scale(0.95);
-}
-
-/* New Inquiry Button */
-.new-inquiry-button {
-  background: var(--chat-primary);
-  color: white;
-  border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 10px 15px -3px rgba(18, 71, 89, 0.2);
-}
-
-.new-inquiry-button:hover {
-  background: rgba(18, 71, 89, 0.9);
-  box-shadow: 0 10px 15px -3px rgba(18, 71, 89, 0.3);
-  transform: translateY(-0.5px);
-}
-
-/* Recent Search Item */
-.recent-search-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  transition: background-color 0.2s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.recent-search-item::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(18, 71, 89, 0.05);
-  width: 0;
-  transition: width 0.3s ease;
-}
-
-.recent-search-item:hover::before {
-  width: 100%;
-}
-
-.recent-search-item.active {
-  background: white;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.dark .recent-search-item.active {
-  background: rgba(32, 41, 44, 1);
-  border-color: var(--chat-border-dark);
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }

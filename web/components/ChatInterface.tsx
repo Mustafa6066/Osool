@@ -11,6 +11,7 @@ import { streamChat } from '@/lib/api';
 import ChartVisualization from './ChartVisualization';
 import Sidebar from '@/components/Sidebar';
 import ContextualPane, { PropertyContext } from './chat/ContextualPane';
+import HologramCard from '@/components/HologramCard';
 
 // Utility for Material Symbols
 const MaterialIcon = ({ name, className = '', size = '20px' }: { name: string, className?: string, size?: string }) => (
@@ -82,77 +83,17 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
                 </div>
 
                 {/* Properties Grid */}
+                {/* Properties Carousel (Holographic) */}
                 {properties && properties.length > 0 && (
-                    <div className="grid grid-cols-1 gap-4 max-w-2xl">
+                    <div className="mt-4 flex gap-4 overflow-x-auto pb-4 px-1 no-scrollbar snap-x w-full">
                         {properties.map((prop: any, idx: number) => (
-                            <div key={idx}
-                                className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-xl shadow-black/5 dark:shadow-black/20 group transition-transform hover:scale-[1.01] duration-300 cursor-pointer"
-                                onClick={() => onSelectProperty && onSelectProperty(prop)}
-                            >
-                                <div className="flex flex-col sm:flex-row">
-                                    {/* Image Section */}
-                                    <div className="w-full sm:w-2/5 h-56 sm:h-auto bg-cover bg-center relative bg-slate-800">
-                                        <div className="absolute inset-0 flex items-center justify-center text-white/10">
-                                            <MaterialIcon name="image" size="48px" />
-                                        </div>
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent sm:bg-gradient-to-r"></div>
-                                        <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/70 backdrop-blur-md text-[var(--color-primary)] dark:text-[var(--color-secondary)] text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide border border-white/20">
-                                            Top Pick
-                                        </div>
-                                        <div className="absolute bottom-3 left-3 sm:hidden text-white">
-                                            <p className="text-lg font-bold shadow-black drop-shadow-md">{prop.price.toLocaleString()} EGP</p>
-                                        </div>
-                                    </div>
-                                    {/* Content Section - Minimal & Visual */}
-                                    <div className="p-4 flex flex-col justify-between flex-1 relative">
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                                                    <span className="text-[10px] font-medium uppercase tracking-wider">{prop.type}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5 bg-[var(--color-primary)]/10 px-2 py-0.5 rounded-full">
-                                                    <MaterialIcon name="star" className="text-[var(--color-primary)] text-[12px] fill-current" />
-                                                    <span className="text-[11px] font-bold text-[var(--color-primary)]">Wolf Score {prop.wolf_score || 92}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="mb-3">
-                                                <h3 className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight mt-1">{prop.price.toLocaleString()} EGP</h3>
-                                                <p className="text-sm font-medium text-[var(--color-text-muted)] truncate">{prop.compound} • {prop.location}</p>
-                                            </div>
-
-                                            <div className="flex items-center gap-4 py-2 text-[var(--color-text-muted)] border-t border-[var(--color-border)]/50">
-                                                <div className="flex items-center gap-1.5">
-                                                    <MaterialIcon name="bed" className="text-[16px] opacity-70" />
-                                                    <span className="text-xs font-semibold">{prop.bedrooms}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <MaterialIcon name="bathtub" className="text-[16px] opacity-70" />
-                                                    <span className="text-xs font-semibold">{prop.bathrooms}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <MaterialIcon name="square_foot" className="text-[16px] opacity-70" />
-                                                    <span className="text-xs font-semibold">{prop.size_sqm}m²</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--color-border)]/50">
-                                            <button
-                                                className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-[var(--color-surface)] py-2 rounded-md text-xs font-bold transition-all shadow-sm hover:shadow-md"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onSelectProperty && onSelectProperty(prop);
-                                                }}
-                                            >
-                                                View Details
-                                            </button>
-                                            <button className="px-3 py-2 border border-[var(--color-border)] hover:bg-[var(--color-surface-elevated)] rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors">
-                                                <MaterialIcon name="bookmark_border" className="text-[18px]" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div key={idx} className="snap-center shrink-0 w-[300px]">
+                                <HologramCard
+                                    property={prop}
+                                    onSelect={() => {
+                                        if (onSelectProperty) onSelectProperty(prop);
+                                    }}
+                                />
                             </div>
                         ))}
                     </div>
@@ -359,7 +300,7 @@ export default function ChatInterface() {
                     <div className="h-32"></div>
                 </div>
 
-                {/* Input Area - Dynamic Positioning */}
+                {/* Input Area - Floating Glass Pill */}
                 <motion.div
                     layout
                     initial={{ top: "60%", transform: "translateY(-50%)" }}
@@ -369,33 +310,35 @@ export default function ChatInterface() {
                             : { top: "auto", bottom: 0, transform: "translateY(0)" }
                     }
                     transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                    className={`absolute left-0 right-0 p-4 md:p-6 z-20 ${messages.length > 0 ? 'bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)] to-transparent pb-8' : ''}`}
+                    className={`absolute left-0 right-0 p-6 z-20 pointer-events-none ${messages.length > 0 ? '' : ''}`}
                 >
-                    <div className="max-w-4xl mx-auto relative group">
-                        {/* Glow removed */}
-                        <div className="relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full flex items-center p-2 pr-2 transition-all duration-300 focus-within:border-[var(--color-primary)]/50 focus-within:ring-1 focus-within:ring-[var(--color-primary)]/20">
-                            <button className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] dark:hover:text-white hover:bg-[var(--color-surface-elevated)] transition-colors">
+                    <div className="max-w-2xl mx-auto relative group pointer-events-auto">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-primary)]/30 via-[var(--color-tertiary)]/20 to-[var(--color-secondary)]/30 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition duration-700"></div>
+                        <div className="relative flex items-center bg-white dark:bg-[var(--color-surface-dark)]/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-full shadow-2xl overflow-hidden transition-colors hover:border-[var(--color-primary)]/20">
+                            <button className="pl-5 pr-3 text-slate-400 hover:text-[var(--color-primary)] transition">
                                 <MaterialIcon name="add_circle" />
                             </button>
                             <input
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                className="flex-1 bg-transparent border-none focus:ring-0 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] px-3 py-3 text-base"
+                                className="w-full py-4 bg-transparent border-none focus:ring-0 text-slate-700 dark:text-gray-200 placeholder-slate-400 font-sans text-base tracking-wide"
                                 placeholder="Ask about properties, market trends..."
                                 type="text"
                             />
-                            <div className="flex items-center gap-1">
-                                <button className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors">
-                                    <MaterialIcon name="mic" />
-                                </button>
-                                <button onClick={handleSend} disabled={!input.trim() || isTyping} className="p-3 rounded-full bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition-all transform active:scale-95 ml-1 flex items-center justify-center aspect-square disabled:opacity-50">
-                                    <MaterialIcon name="arrow_upward" size="20px" />
-                                </button>
-                            </div>
+                            <button className="p-3 text-slate-400 hover:text-[var(--color-primary)] transition">
+                                <MaterialIcon name="mic" />
+                            </button>
+                            <button
+                                onClick={handleSend}
+                                disabled={!input.trim() || isTyping}
+                                className="mr-2 p-2.5 bg-slate-100 dark:bg-white/10 rounded-full text-slate-500 dark:text-[var(--color-tertiary)] hover:bg-[var(--color-primary)] hover:text-white dark:hover:bg-[var(--color-primary)] dark:hover:text-white transition shadow-inner flex items-center justify-center disabled:opacity-50"
+                            >
+                                <MaterialIcon name="arrow_upward" size="20px" />
+                            </button>
                         </div>
                         <div className="text-center mt-3">
-                            <p className="text-[10px] font-medium text-[var(--color-text-muted)]">AI can generate insights. Verify financial data independently.</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 tracking-widest uppercase font-display opacity-70">AI insights require independent verification</p>
                         </div>
                     </div>
                 </motion.div>
