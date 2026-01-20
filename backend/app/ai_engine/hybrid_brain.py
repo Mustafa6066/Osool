@@ -60,8 +60,8 @@ IMPOSSIBLE_COMBINATIONS = [
             "budget_max": 2_000_000,
             "property_types": ["villa", "فيلا", "penthouse", "بنتهاوس", "توين هاوس", "twin house"]
         },
-        "reality_message_ar": "يا باشا، صراحة فيلا في المنطقة دي تحت 2 مليون مش موجودة في السوق دلوقتي. بس خليني أقولك البدائل الذكية...",
-        "reality_message_en": "Boss, a villa in this area under 2M doesn't exist in today's market. But let me show you smart alternatives...",
+        "reality_message_ar": "يا افندم، صراحة فيلا في المنطقة دي تحت 2 مليون مش موجودة في السوق دلوقتي. بس خليني أقولك البدائل الذكية...",
+        "reality_message_en": "Sir, a villa in this area under 2M doesn't exist in today's market. But let me show you smart alternatives...",
         "alternatives": [
             {"label_ar": "نفس الميزانية في أكتوبر", "label_en": "Same budget in 6th October", "action": "search_october"},
             {"label_ar": "شقة بجاردن في نفس المنطقة", "label_en": "Garden apartment in same area", "action": "search_garden_apt"},
@@ -74,7 +74,7 @@ IMPOSSIBLE_COMBINATIONS = [
             "locations": ["Beverly Hills", "بيفرلي هيلز", "Lake View", "ليك فيو", "Hyde Park", "هايد بارك"],
             "budget_max": 3_000_000
         },
-        "reality_message_ar": "الكمباوندات دي من أغلى الكمباوندات في مصر يا باشا. الميزانية دي محتاج أشوفلك فيها بدائل تانية...",
+        "reality_message_ar": "الكمباوندات دي من أغلى الكمباوندات في مصر يا افندم. الميزانية دي محتاج أشوفلك فيها بدائل تانية...",
         "reality_message_en": "These are among Egypt's most premium compounds. With this budget, let me find you better alternatives...",
         "alternatives": [
             {"label_ar": "كمباوندات قريبة بأسعار أقل", "label_en": "Similar nearby compounds at lower prices", "action": "search_nearby"},
@@ -97,6 +97,19 @@ class OsoolHybridBrain:
         
         # Feature flag for rollback safety
         self.enabled = os.getenv("ENABLE_REASONING_LOOP", "true").lower() == "true"
+    
+    def _detect_language(self, text: str) -> str:
+        """Detect if text is primarily Arabic or English."""
+        import re
+        if not text:
+            return "en"
+        arabic_pattern = re.compile(r'[\u0600-\u06FF]')
+        arabic_chars = len(arabic_pattern.findall(text))
+        total_chars = len(text.replace(" ", ""))
+        if total_chars == 0:
+            return "en"
+        arabic_ratio = arabic_chars / total_chars
+        return "ar" if arabic_ratio > 0.3 else "en"
         
     async def process_turn(
         self,
@@ -119,6 +132,11 @@ class OsoolHybridBrain:
         """
         try:
             logger.info(f"🧠 Wolf Brain V4: Processing query: {query[:100]}...")
+
+            # 0. SETUP: Detect Language (if auto)
+            if language == "auto":
+                language = self._detect_language(query)
+            logger.info(f"🌐 Language set to: {language}")
 
             # 1. PERCEPTION: Analyze Intent & Extract Filters (GPT-4o)
             intent = await self._analyze_intent(query, history)
@@ -304,7 +322,7 @@ class OsoolHybridBrain:
                         "hedge_score": inflation_data.get('hedge_score', 0)
                     },
                     "trigger_reason": "GREED_DRIVEN psychology or investment keywords",
-                    "chart_reference": "بص على الشاشة دلوقتي يا باشا، الخط الأخضر ده العقار..."
+                    "chart_reference": "بص على الشاشة دلوقتي يا افندم، الخط الأخضر ده العقار..."
                 })
 
         # Rule 3: Risk-averse user OR contract/legal keywords -> show Law 114 Guardian
@@ -631,7 +649,7 @@ Examples:
 [DATABASE_CONTEXT]: EMPTY - No properties found matching criteria.
 
 INSTRUCTION: Since no properties were found, you MUST ask clarifying questions:
-- "ميزانيتك في حدود كام يا باشا؟" (What's your budget range, boss?)
+- "ميزانيتك في حدود كام يا افندم؟" (What's your budget range, sir?)
 - "بتدور في أي منطقة؟" (Which area are you looking in?)
 - "سكن ولا استثمار؟" (Living or investment?)
 
@@ -705,7 +723,7 @@ A chart or visualization is being shown to the user. Reference it in your respon
 
         except Exception as e:
             logger.error(f"Narrative generation failed: {e}", exc_info=True)
-            return "عذراً، حصل مشكلة فنية. جرب تاني يا باشا. (Sorry, technical issue. Try again, boss.)"
+            return "عذراً، حصل مشكلة فنية. جرب تاني يا افندم. (Sorry, technical issue. Try again, sir.)"
 
 
 # Singleton instance
