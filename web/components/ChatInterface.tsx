@@ -55,7 +55,7 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
         <div className="flex gap-5 max-w-full md:max-w-[90%] animate-in slide-in-from-bottom-4 fade-in duration-700">
             <div className="flex-none flex flex-col items-center gap-2">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-secondary)] to-[var(--color-primary)] flex items-center justify-center shadow-lg shadow-[var(--color-primary)]/20">
-                    <MaterialIcon name="smart_toy" className="text-white" />
+                    <MaterialIcon name="auto_awesome" className="text-white" />
                 </div>
             </div>
             <div className="flex flex-col gap-4 flex-1 min-w-0">
@@ -303,8 +303,8 @@ export default function ChatInterface() {
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10 z-10 relative scroll-smooth no-scrollbar pt-12">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-80 pb-32">
-                            <div className="w-20 h-20 rounded-2xl bg-[#121212] border border-[var(--color-border)] flex items-center justify-center shadow-lg">
-                                <MaterialIcon name="smart_toy" className="text-[var(--color-primary)] text-[40px]" />
+                            <div className="w-20 h-20 rounded-2xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] flex items-center justify-center shadow-lg transition-colors">
+                                <MaterialIcon name="auto_awesome" className="text-[var(--color-primary)] dark:text-[var(--color-secondary)] text-[40px]" />
                             </div>
                             <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">Ready to analyze the market?</h2>
                         </div>

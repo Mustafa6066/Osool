@@ -49,15 +49,15 @@ export default function ContextualPane({
         return (
             <>
                 {/* Desktop Empty Pane */}
-                <aside className={`chat-contextual-pane bg-white/60 dark:bg-[#131d20] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20 chat-scrollbar ${isRTL ? 'border-r border-l-0' : ''}`}>
+                <aside className={`chat-contextual-pane bg-[var(--color-background)] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20 chat-scrollbar ${isRTL ? 'border-r border-l-0' : ''}`}>
                     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                        <div className="size-16 rounded-2xl bg-gray-100 dark:bg-[var(--chat-surface-dark)] flex items-center justify-center mb-4">
-                            <Home size={32} className="text-gray-400 dark:text-gray-500" />
+                        <div className="size-16 rounded-2xl bg-[var(--color-surface)] flex items-center justify-center mb-4">
+                            <Home size={32} className="text-[var(--color-text-muted)]" />
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                        <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-2">
                             {isRTL ? 'لا توجد عقارات محددة' : 'No Property Selected'}
                         </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-[200px]">
+                        <p className="text-sm text-[var(--color-text-muted)] max-w-[200px]">
                             {isRTL
                                 ? 'ابحث عن العقارات وسيظهر التفاصيل هنا'
                                 : 'Search for properties and details will appear here'
@@ -72,9 +72,9 @@ export default function ContextualPane({
     const paneContent = (
         <>
             {/* Context Header */}
-            <div className={`px-5 py-4 border-b border-gray-200 dark:border-[var(--chat-border-dark)] flex justify-between items-center sticky top-0 bg-white/80 dark:bg-[#131d20]/80 backdrop-blur z-10 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <h2 className={`font-bold text-gray-900 dark:text-white flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <BarChart2 size={20} className="text-[var(--chat-primary)] dark:text-[var(--chat-teal-accent)]" />
+            <div className={`px-5 py-4 border-b border-[var(--color-border)] flex justify-between items-center sticky top-0 bg-[var(--color-background)]/80 backdrop-blur z-10 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <h2 className={`font-bold text-[var(--color-text-primary)] flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <BarChart2 size={20} className="text-[var(--color-primary)] dark:text-[var(--color-secondary)]" />
                     {isRTL ? 'تفاصيل العقار' : 'Listing Insights'}
                 </h2>
                 <button
@@ -273,7 +273,7 @@ export default function ContextualPane({
     return (
         <>
             {/* Desktop Pane */}
-            <aside className={`chat-contextual-pane bg-white/60 dark:bg-[#131d20] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20 chat-scrollbar ${isRTL ? 'border-r border-l-0' : ''}`}>
+            <aside className={`chat-contextual-pane bg-[var(--color-background)] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20 chat-scrollbar ${isRTL ? 'border-r border-l-0' : ''}`}>
                 {paneContent}
             </aside>
 
@@ -294,7 +294,7 @@ export default function ContextualPane({
                             animate={{ x: 0 }}
                             exit={{ x: isRTL ? -340 : 340 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 h-full w-[340px] bg-white/95 dark:bg-[#131d20] backdrop-blur-md flex flex-col z-50 xl:hidden overflow-y-auto chat-scrollbar`}
+                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 h-full w-[340px] bg-[var(--color-background)] backdrop-blur-md flex flex-col z-50 xl:hidden overflow-y-auto chat-scrollbar`}
                         >
                             {paneContent}
                         </motion.aside>
