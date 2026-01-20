@@ -99,9 +99,9 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
                     </div>
                 </div>
 
-                {/* Properties Grid */}
+                {/* Properties Grid - Floating Outside Panel */}
                 {properties && properties.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-300">
                         {properties.map((prop: any, idx: number) => (
                             <PropertyCardMinimal
                                 key={idx}
@@ -112,9 +112,9 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
                     </div>
                 )}
 
-                {/* Visualizations (Charts) */}
+                {/* Visualizations (Charts) - Floating Outside Panel */}
                 {visualizations && visualizations.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-500">
                         {visualizations.map((viz: any, idx: number) => {
                             // Adapt backend data logic from original
                             let chartType: any = viz.type || 'bar';
@@ -137,7 +137,7 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
                             if (chartData.length === 0) return null;
 
                             return (
-                                <div key={idx} className="glass-panel rounded-2xl p-4">
+                                <div key={idx} className="glass-panel rounded-2xl p-4 border border-[var(--color-border)]">
                                     <ChartVisualization
                                         type={chartType}
                                         title={chartTitle}
@@ -310,52 +310,6 @@ export default function ChatInterface() {
                                 </div>
                             </motion.div>
 
-                            {/* Top Right: Listing Insights */}
-                            <motion.div
-                                initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4, duration: 0.8 }}
-                                className="hidden lg:block absolute right-[-5%] top-[5%] w-72 transform transition-transform hover:scale-105 duration-700 z-0 pointer-events-none xl:pointer-events-auto"
-                            >
-                                <div className="relative glass-panel rounded-2xl p-6 hover:border-[var(--color-secondary)]/30 transition-colors group">
-                                    <div className="absolute top-1/2 -left-1 w-2 h-2 bg-[var(--color-secondary)]/60 rounded-full node-glow blur-[1px]"></div>
-                                    <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b border-r border-[var(--color-secondary)]/60 rounded-br-lg"></div>
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Listing Insights</h3>
-                                        <MaterialIcon name="analytics" className="text-[var(--color-secondary)]/70 text-lg" />
-                                    </div>
-                                    <div className="space-y-6">
-                                        <div>
-                                            <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider">
-                                                <span>Cap Rate</span>
-                                                <span className="text-[var(--color-primary)]">High</span>
-                                            </div>
-                                            <div className="text-3xl font-light dark:text-white font-display">8%</div>
-                                            <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 mt-2 rounded-full overflow-hidden">
-                                                <div className="bg-gradient-to-r from-[var(--color-secondary)] to-[var(--color-primary)] w-[80%] h-full rounded-full opacity-80"></div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between text-xs text-slate-500 mb-1 font-display uppercase tracking-wider">
-                                                <span>Price / SQM</span>
-                                            </div>
-                                            <div className="text-2xl font-light dark:text-white font-display">110,000 <span className="text-sm text-slate-500">EGP</span></div>
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider">
-                                                <span>Wolf Score</span>
-                                                <span className="text-[var(--color-tertiary)] font-bold">85/100</span>
-                                            </div>
-                                            <div className="h-16 w-full flex items-end gap-1 mt-2">
-                                                <div className="w-1/6 bg-[var(--color-secondary)] h-[40%] rounded-t-sm opacity-20"></div>
-                                                <div className="w-1/6 bg-[var(--color-secondary)] h-[60%] rounded-t-sm opacity-30"></div>
-                                                <div className="w-1/6 bg-[var(--color-secondary)] h-[30%] rounded-t-sm opacity-40"></div>
-                                                <div className="w-1/6 bg-[var(--color-primary)] h-[80%] rounded-t-sm opacity-50"></div>
-                                                <div className="w-1/6 bg-[var(--color-primary)] h-[90%] rounded-t-sm opacity-70"></div>
-                                                <div className="w-1/6 bg-[var(--color-primary)] h-[50%] rounded-t-sm opacity-90"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
 
                             {/* Bottom Right: ROI */}
                             <motion.div
