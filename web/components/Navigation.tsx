@@ -40,66 +40,72 @@ export default function Navigation() {
                     {/* Theme Toggle */}
                     <ThemeToggle />
 
-                    {/* Authenticated Actions */}
-                    {isAuthenticated ? (
-                        <>
-                            {/* Profile / History Button */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => setUserMenuOpen(!isUserMenuOpen)}
-                                    className="px-5 py-2 rounded-full border border-slate-300 dark:border-white/10 text-sm hover:bg-white/5 transition text-slate-600 dark:text-slate-300 font-display tracking-wide backdrop-blur-sm bg-white/5 flex items-center gap-2"
-                                >
-                                    <User size={16} />
-                                    <span className="hidden sm:inline">
-                                        {user?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}
-                                    </span>
-                                </button>
+                    {/* History Button (Standalone) */}
+                    <Link
+                        href="/dashboard"
+                        className="px-5 py-2 rounded-full border border-slate-300 dark:border-white/10 text-sm hover:bg-white/5 transition text-slate-600 dark:text-slate-300 font-display tracking-wide backdrop-blur-sm bg-white/5 flex items-center gap-2"
+                    >
+                        <History size={16} />
+                        <span className="hidden sm:inline">History</span>
+                    </Link>
 
-                                {/* Dropdown */}
-                                <AnimatePresence>
-                                    {isUserMenuOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            className="absolute right-0 mt-2 w-56 rounded-xl bg-[var(--color-surface)] dark:bg-[var(--color-surface-dark)] border border-[var(--color-border)] shadow-xl overflow-hidden z-[60]"
-                                        >
-                                            <div className="p-2 space-y-1">
-                                                <button
-                                                    onClick={() => setInvitationModalOpen(true)}
-                                                    className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-[var(--color-background-light)] dark:hover:bg-white/5 transition-colors text-green-600"
-                                                >
-                                                    <Gift size={16} />
-                                                    Invite Friends
-                                                </button>
-                                                <Link href="/dashboard" className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-[var(--color-background-light)] dark:hover:bg-white/5 transition-colors text-[var(--color-text-primary)]">
-                                                    <History size={16} />
-                                                    History
-                                                </Link>
-                                                <div className="h-px bg-[var(--color-border)] my-1"></div>
-                                                <button
-                                                    onClick={() => logout()}
-                                                    className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-red-500"
-                                                >
-                                                    <LogOut size={16} />
-                                                    Sign Out
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                    {/* New Session Button */}
+                    <button
+                        onClick={handleNewSession}
+                        className="px-5 py-2 rounded-full bg-slate-800 dark:bg-white/10 text-white dark:text-[var(--color-tertiary)] border border-transparent dark:border-[var(--color-tertiary)]/20 text-sm font-medium tracking-wide hover:bg-slate-700 dark:hover:bg-white/20 transition flex items-center gap-2 backdrop-blur-md"
+                    >
+                        <PlusCircle size={16} />
+                        <span className="hidden sm:inline">New Session</span>
+                    </button>
 
-                            {/* New Session Button */}
+                    {/* User Menu (if authenticated) */}
+                    {isAuthenticated && (
+                        <div className="relative">
                             <button
-                                onClick={handleNewSession}
-                                className="px-5 py-2 rounded-full bg-slate-800 dark:bg-white/10 text-white dark:text-[var(--color-tertiary)] border border-transparent dark:border-[var(--color-tertiary)]/20 text-sm font-medium tracking-wide hover:bg-slate-700 dark:hover:bg-white/20 transition flex items-center gap-2 backdrop-blur-md"
+                                onClick={() => setUserMenuOpen(!isUserMenuOpen)}
+                                className="w-10 h-10 rounded-full border border-slate-300 dark:border-white/10 hover:bg-white/5 transition text-slate-600 dark:text-slate-300 backdrop-blur-sm bg-white/5 flex items-center justify-center"
                             >
-                                <PlusCircle size={16} />
-                                <span className="hidden sm:inline">New Session</span>
+                                <User size={18} />
                             </button>
-                        </>
-                    ) : (
+
+                            {/* Dropdown */}
+                            <AnimatePresence>
+                                {isUserMenuOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        className="absolute right-0 mt-2 w-56 rounded-xl bg-[var(--color-surface)] dark:bg-[var(--color-surface-dark)] border border-[var(--color-border)] shadow-xl overflow-hidden z-[60]"
+                                    >
+                                        <div className="p-3 border-b border-[var(--color-border)]">
+                                            <p className="text-sm font-medium text-[var(--color-text-primary)]">{user?.full_name || 'User'}</p>
+                                            <p className="text-xs text-[var(--color-text-muted)]">{user?.email}</p>
+                                        </div>
+                                        <div className="p-2 space-y-1">
+                                            <button
+                                                onClick={() => setInvitationModalOpen(true)}
+                                                className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-[var(--color-background-light)] dark:hover:bg-white/5 transition-colors text-green-600"
+                                            >
+                                                <Gift size={16} />
+                                                Invite Friends
+                                            </button>
+                                            <div className="h-px bg-[var(--color-border)] my-1"></div>
+                                            <button
+                                                onClick={() => logout()}
+                                                className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-red-500"
+                                            >
+                                                <LogOut size={16} />
+                                                Sign Out
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
+
+                    {/* Sign In (if not authenticated) */}
+                    {!isAuthenticated && (
                         <Link
                             href="/login"
                             className="px-6 py-2 rounded-full bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition text-sm font-bold tracking-wide"
