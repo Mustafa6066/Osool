@@ -293,7 +293,7 @@ export default function ChatInterface() {
             <Sidebar onNewChat={handleNewChat} />
 
             {/* Central Chat Area */}
-            <main className="flex-1 flex flex-col min-w-0 bg-[#050505] relative">
+            <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-background)] relative">
                 {/* Decorative Background - Removed for deep black theme */}
                 {/* <div className="absolute inset-0 overflow-hidden pointer-events-none z-0"> ... </div> */}
 

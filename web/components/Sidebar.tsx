@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import ThemeToggle from '@/components/ThemeToggle';
 
 // Utility for Material Symbols (matching ChatInterface)
 const MaterialIcon = ({ name, className = '', size = '20px' }: { name: string, className?: string, size?: string }) => (
@@ -92,6 +93,9 @@ const Sidebar = ({ onNewChat, activePage = 'chat' }: SidebarProps) => {
                     <MaterialIcon name="settings" className="text-[var(--color-text-muted)]" />
                     <span className="text-sm font-medium text-[var(--color-text-secondary)]">Settings</span>
                 </button>
+                <div className="mt-2 pt-2 border-t border-[var(--color-border)]">
+                    <ThemeToggle />
+                </div>
             </div>
         </aside>
     );
