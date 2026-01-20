@@ -721,6 +721,15 @@ DO NOT invent any properties. Be charming and helpful while gathering info.
 
 6. EVERY property name you mention MUST be copy-pasted from the list above.
 
+7. 🚫 PRICE HALLUCINATION PREVENTION:
+   - NEVER invent price ranges that don't match the actual properties
+   - The ACTUAL lowest price in results: {min([p.get('price', 0) for p in data]):,} EGP
+   - The ACTUAL highest price in results: {max([p.get('price', 0) for p in data]):,} EGP
+   - If you say "prices range from X to Y", X and Y MUST match the actual min/max above
+   - DO NOT make up market statistics or averages not in the data
+
+8. When presenting properties, simply list those you have - don't create fictional price comparisons.
+
 STRATEGY: {strategy}
 """
 
