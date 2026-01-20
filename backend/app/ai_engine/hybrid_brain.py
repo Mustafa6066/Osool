@@ -778,6 +778,34 @@ Do NOT overuse the name - use it 1-2 times per response maximum.
 
             # Build Claude prompt with psychology
             system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}" + psychology_context + personalization_context
+            
+            # Add CRITICAL override at the end (Claude pays more attention to end of prompt)
+            prices_in_results = [p.get('price', 0) for p in data] if data else [0]
+            min_price = min(prices_in_results)
+            max_price = max(prices_in_results)
+            
+            system_prompt += f"""
+
+═══════════════════════════════════════════════════════════════════════════════
+🚨🚨🚨 FINAL CRITICAL OVERRIDE - READ THIS CAREFULLY 🚨🚨🚨
+═══════════════════════════════════════════════════════════════════════════════
+
+VERSION: v2.5-anti-hallucination
+
+THE PROPERTIES I GAVE YOU HAVE THESE ACTUAL PRICES:
+- LOWEST PRICE IN RESULTS: {min_price:,} EGP
+- HIGHEST PRICE IN RESULTS: {max_price:,} EGP
+
+🚫 YOU MUST NOT SAY:
+- "الأسعار من 4 مليون لـ 15 مليون" (if that's not the actual min/max above)
+- Any price range that doesn't match the ACTUAL min/max above
+- Developer names like "إعمار", "سوديك", "ماونتن فيو" unless they are in the properties I gave you
+
+✅ YOU MUST SAY (example):
+- "الأسعار بتبدأ من {min_price/1000000:.1f} مليون لحد {max_price/1000000:.1f} مليون جنيه"
+
+IF I ONLY GAVE YOU ONE PROPERTY, just discuss THAT property. Don't make up price ranges.
+"""
 
             # Language Enforcement
             if language == "ar":
