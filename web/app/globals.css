@@ -120,12 +120,17 @@ body {
     animation: node-pulse 2s infinite ease-in-out;
   }
 
-  /* Synapse Animation */
+  /* Synapse Animation (Legacy) */
   .synapse-path {
     stroke-dasharray: 1000;
     stroke-dashoffset: 1000;
     animation: pulse-travel 4s infinite linear;
     filter: drop-shadow(0 0 3px rgba(230, 213, 184, 0.5));
+  }
+
+  /* Synapse Line Animation (Reference Design) */
+  .synapse-line {
+    animation: pulse-glow 4s infinite ease-in-out;
   }
 
   /* Utilities from previous design system we want to keep */
@@ -167,6 +172,20 @@ body {
   50% {
     opacity: 1;
     transform: scale(1.2);
+  }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    filter: drop-shadow(0 0 2px rgba(230, 213, 184, 0.3));
+  }
+
+  50% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 8px rgba(230, 213, 184, 0.6));
   }
 }
 

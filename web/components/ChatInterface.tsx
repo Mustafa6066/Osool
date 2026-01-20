@@ -266,10 +266,9 @@ export default function ChatInterface() {
                             {/* Top Left: Hologram Property */}
                             <motion.div
                                 initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, duration: 0.8 }}
-                                className="hidden lg:block absolute left-[-10%] top-[10%] w-80 transform transition-transform hover:scale-105 duration-700 z-0 pointer-events-none xl:pointer-events-auto"
+                                className="hidden lg:block absolute left-[10%] top-[25%] w-80 transform transition-transform hover:scale-105 duration-700 z-0 pointer-events-none xl:pointer-events-auto"
                             >
                                 <div className="relative glass-panel rounded-2xl p-5 group hover:border-[var(--color-primary)]/30 transition-colors">
-                                    <div className="absolute top-1/2 -right-1 w-2 h-2 bg-[var(--color-tertiary)]/60 rounded-full node-glow blur-[1px]"></div>
                                     <div className="absolute -top-[1px] -left-[1px] w-4 h-4 border-t border-l border-[var(--color-primary)]/60 rounded-tl-lg"></div>
                                     <div className="relative overflow-hidden rounded-xl mb-4 h-44 bg-[var(--color-surface-dark)]/50">
                                         <div className="w-full h-full bg-slate-800 relative overflow-hidden">
@@ -307,6 +306,9 @@ export default function ChatInterface() {
                                             </div>
                                         </div>
                                     </div>
+                                    {/* Connector Line (Right) */}
+                                    <div className="absolute top-1/2 -right-16 w-16 h-[1px] bg-gradient-to-r from-white/20 to-transparent"></div>
+                                    <div className="absolute top-1/2 -right-[66px] w-2 h-2 rounded-full bg-white/20 blur-[1px]"></div>
                                 </div>
                             </motion.div>
 
@@ -314,16 +316,17 @@ export default function ChatInterface() {
                             {/* Bottom Right: ROI */}
                             <motion.div
                                 initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.8 }}
-                                className="hidden lg:block absolute right-[10%] bottom-[10%] w-64 transform transition-transform hover:scale-105 duration-700 z-0 pointer-events-none xl:pointer-events-auto"
+                                className="hidden lg:block absolute right-[15%] bottom-[15%] w-64 transform transition-transform hover:scale-105 duration-700 z-0 pointer-events-none xl:pointer-events-auto"
                             >
                                 <div className="relative glass-panel rounded-2xl p-5 hover:border-[var(--color-primary)]/40 transition-colors">
-                                    <div className="absolute top-1/2 -left-1 w-2 h-2 bg-[var(--color-primary)]/60 rounded-full node-glow blur-[1px]"></div>
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Proj. Annual ROI</span>
                                         <MaterialIcon name="trending_up" className="text-[var(--color-primary)] text-sm" />
                                     </div>
                                     <div className="text-3xl font-light text-[var(--color-primary)] font-display">12.5%</div>
                                     <p className="text-[10px] text-slate-500 mt-2 leading-tight">Based on recent market trends in New Cairo.</p>
+                                    {/* Connector Line (Top) */}
+                                    <div className="absolute -top-12 left-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-white/20"></div>
                                 </div>
                             </motion.div>
 
@@ -403,7 +406,7 @@ export default function ChatInterface() {
                 <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50">
                     <div className="relative group">
                         <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-primary)]/30 via-[var(--color-tertiary)]/20 to-[var(--color-secondary)]/30 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition duration-700"></div>
-                        <div className="relative flex items-center bg-white dark:bg-[#1C212B]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-full overflow-hidden transition-colors hover:border-[var(--color-primary)]/20">
+                        <div className="relative flex items-center bg-white dark:bg-[var(--color-surface-dark)]/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-full shadow-2xl overflow-hidden transition-colors hover:border-[var(--color-primary)]/20">
 
                             {/* Add Button */}
                             <button className="pl-5 pr-3 text-slate-400 hover:text-[var(--color-primary)] transition">

@@ -47,11 +47,11 @@ export default function ContextualPane({
     // Don't render if no property data
     if (!property) return null;
 
-    // Simplified Listing Insights Card Content
     const listingInsightsCard = (
         <div className="relative glass-panel rounded-2xl p-6 group hover:border-[var(--color-secondary)]/30 transition-colors w-full h-full md:h-auto md:aspect-[3/4] flex flex-col">
-            <div className="absolute top-1/2 -left-1 w-2 h-2 bg-[var(--color-secondary)]/60 rounded-full node-glow blur-[1px]"></div>
             <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b border-r border-[var(--color-secondary)]/60 rounded-br-lg"></div>
+            {/* Connector Line (Left) */}
+            <div className="absolute top-1/2 -left-16 w-16 h-[1px] bg-gradient-to-l from-white/20 to-transparent"></div>
 
             <div className="flex justify-between items-center mb-6 flex-none">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)]">{isRTL ? 'رؤى العقار' : 'Listing Insights'}</h3>
