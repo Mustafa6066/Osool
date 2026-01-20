@@ -188,7 +188,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
-    access_token = create_access_token(data={"sub": user.email, "wallet": user.wallet_address, "role": user.role})
+    access_token = create_access_token(data={
+        "sub": user.email, 
+        "wallet": user.wallet_address, 
+        "role": user.role,
+        "full_name": user.full_name  # Include full_name for frontend display
+    })
     return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
 
