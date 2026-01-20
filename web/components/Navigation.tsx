@@ -30,11 +30,14 @@ export default function Navigation() {
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
                         <Link href="/" className="flex items-center gap-3 group">
-                            <div className="w-10 h-10 rounded-full border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/10 flex items-center justify-center backdrop-blur-md">
-                                <span className="material-symbols-outlined text-[var(--color-primary)] text-lg">hub</span>
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] 
+                                flex items-center justify-center text-white font-bold text-xl 
+                                shadow-lg shadow-[var(--color-primary)]/20 
+                                group-hover:shadow-[var(--color-primary)]/40 transition-shadow">
+                                O
                             </div>
-                            <span className="text-xl font-display font-medium tracking-widest uppercase text-[var(--color-text-primary)]">
-                                Osool<span className="text-[var(--color-primary)] font-bold">AI</span>
+                            <span className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">
+                                Osool
                             </span>
                         </Link>
 

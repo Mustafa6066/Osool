@@ -273,7 +273,7 @@ export default function ContextualPane({
     return (
         <>
             {/* Desktop Pane */}
-            <aside className={`w-[340px] flex-shrink-0 bg-[var(--color-surface-dark)]/80 backdrop-blur-xl hidden xl:flex flex-col overflow-y-auto z-20 custom-scrollbar border-l border-white/5 ${isRTL ? 'border-r border-l-0' : ''}`}>
+            <aside className={`chat-contextual-pane bg-[var(--color-background)] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20 chat-scrollbar ${isRTL ? 'border-r border-l-0' : ''}`}>
                 {paneContent}
             </aside>
 
@@ -286,7 +286,7 @@ export default function ContextualPane({
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={onClose}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 xl:hidden"
+                            className="fixed inset-0 bg-black/50 z-40 xl:hidden"
                         />
 
                         <motion.aside
@@ -294,7 +294,7 @@ export default function ContextualPane({
                             animate={{ x: 0 }}
                             exit={{ x: isRTL ? -340 : 340 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 h-full w-[340px] bg-[var(--color-surface-dark)] backdrop-blur-xl flex flex-col z-50 xl:hidden overflow-y-auto custom-scrollbar border-l border-white/10`}
+                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 h-full w-[340px] bg-[var(--color-background)] backdrop-blur-md flex flex-col z-50 xl:hidden overflow-y-auto chat-scrollbar`}
                         >
                             {paneContent}
                         </motion.aside>
