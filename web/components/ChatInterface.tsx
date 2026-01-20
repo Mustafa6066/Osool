@@ -255,6 +255,12 @@ export default function ChatInterface() {
                 onToolEnd: () => { },
                 onComplete: (data) => {
                     setMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, content: fullResponse, properties: data.properties, visualizations: data.ui_actions, isTyping: false } : m));
+
+                    // Auto-select the first property if available
+                    if (data.properties && data.properties.length > 0) {
+                        handleSelectProperty(data.properties[0]);
+                    }
+
                     setIsTyping(false);
                 },
                 onError: (err) => {

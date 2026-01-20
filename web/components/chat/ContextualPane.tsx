@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart2, Percent, Ruler, Footprints, Lightbulb, MessageCircle, Phone, ExternalLink, X, Home } from 'lucide-react';
+import { BarChart2, Percent, Ruler, Footprints, Lightbulb, MessageCircle, Phone, ExternalLink, X, Home, TrendingUp, ShieldCheck, Bus, GraduationCap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface PropertyContext {
@@ -13,6 +13,14 @@ export interface PropertyContext {
         walkScore?: number;
         size?: number;
         bedrooms?: number;
+        roi?: number; // Annual ROI
+        occupancyRate?: number; // Estimated Occupancy
+    };
+    priceHistory?: { year: string; price: number }[];
+    neighborhoodStats?: {
+        crimeRate: string;
+        schoolScore: number;
+        transitScore: number;
     };
     aiRecommendation?: string;
     tags?: string[];
@@ -177,6 +185,66 @@ export default function ContextualPane({
                         </div>
                     </div>
                 )}
+
+                {/* Investment Analysis */}
+                <div className="space-y-3">
+                    <h3 className="text-[11px] font-bold text-gray-500 dark:text-[var(--chat-text-secondary)] uppercase tracking-wider">
+                        {isRTL ? 'تحليل الاستثمار' : 'Investment Analysis'}
+                    </h3>
+                    <div className="bg-white dark:bg-[var(--chat-surface-dark)] border border-gray-200 dark:border-[var(--chat-border-dark)] rounded-xl p-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                                    <TrendingUp size={16} />
+                                </div>
+                                <span className="text-sm font-bold text-gray-900 dark:text-white">{isRTL ? 'العائد المتوقع' : 'Proj. Annual ROI'}</span>
+                            </div>
+                            <span className="text-lg font-bold text-green-600 dark:text-green-400">{property.metrics?.roi || 12.5}%</span>
+                        </div>
+                        {/* Simple Progress Bar for ROI */}
+                        <div className="h-2 w-full bg-gray-100 dark:bg-black/40 rounded-full overflow-hidden mb-4">
+                            <div
+                                className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full"
+                                style={{ width: `${(property.metrics?.roi || 12.5) * 4}%` }} // Scale roughly to 25% max visual
+                            ></div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-[var(--chat-border-dark)]">
+                            <div className="text-center">
+                                <p className="text-[10px] text-gray-500 uppercase mb-1">{isRTL ? 'الإشغال المقدر' : 'Est. Occupancy'}</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">{property.metrics?.occupancyRate || 88}%</p>
+                            </div>
+                            <div className="text-center border-l border-gray-100 dark:border-[var(--chat-border-dark)]">
+                                <p className="text-[10px] text-gray-500 uppercase mb-1">{isRTL ? 'نمو السعر (سنة)' : '1Y Appreciation'}</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">+15.2%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Neighborhood Insights */}
+                <div className="space-y-3">
+                    <h3 className="text-[11px] font-bold text-gray-500 dark:text-[var(--chat-text-secondary)] uppercase tracking-wider">
+                        {isRTL ? 'إحصائيات الحي' : 'Neighborhood Stats'}
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-white dark:bg-[var(--chat-surface-dark)] border border-gray-200 dark:border-[var(--chat-border-dark)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
+                            <ShieldCheck size={18} className="text-blue-500 dark:text-blue-400 mb-1" />
+                            <span className="text-[10px] text-gray-500 font-medium">{isRTL ? 'أمان' : 'Safety'}</span>
+                            <span className="text-xs font-bold text-gray-900 dark:text-white">{property.neighborhoodStats?.crimeRate || 'High'}</span>
+                        </div>
+                        <div className="bg-white dark:bg-[var(--chat-surface-dark)] border border-gray-200 dark:border-[var(--chat-border-dark)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
+                            <GraduationCap size={18} className="text-purple-500 dark:text-purple-400 mb-1" />
+                            <span className="text-[10px] text-gray-500 font-medium">{isRTL ? 'تعليم' : 'Schools'}</span>
+                            <span className="text-xs font-bold text-gray-900 dark:text-white">{property.neighborhoodStats?.schoolScore || '9.2'}/10</span>
+                        </div>
+                        <div className="bg-white dark:bg-[var(--chat-surface-dark)] border border-gray-200 dark:border-[var(--chat-border-dark)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
+                            <Bus size={18} className="text-amber-500 dark:text-amber-400 mb-1" />
+                            <span className="text-[10px] text-gray-500 font-medium">{isRTL ? 'مواصلات' : 'Transit'}</span>
+                            <span className="text-xs font-bold text-gray-900 dark:text-white">{property.neighborhoodStats?.transitScore || '85'}</span>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Agent Contact - Only show if agent exists */}
                 {property.agent && (
