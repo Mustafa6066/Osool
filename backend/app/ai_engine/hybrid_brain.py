@@ -493,16 +493,20 @@ Examples:
                     query_parts.append(filters['property_type'])
                 if 'keywords' in filters:
                     query_parts.append(filters['keywords'])
+                # Add budget hint for semantic search
+                if 'budget_max' in filters and filters['budget_max']:
+                    budget_mil = filters['budget_max'] / 1000000
+                    query_parts.append(f"under {budget_mil} million")
                     
                 query_text = " ".join(query_parts) if query_parts else "property"
                 
-                # Call the vector search service
+                # Call the vector search service with higher limit for post-filtering
                 # Note: vector_search.search_properties signature is (db, query_text, limit, threshold)
                 results = await db_search_properties(
                     db=db,
                     query_text=query_text,
-                    limit=10,
-                    similarity_threshold=0.65  # Slightly lower for better recall
+                    limit=50,  # Higher limit to allow budget filtering
+                    similarity_threshold=0.50  # Lower threshold for better recall
                 )
                 
                 # Filter by budget if specified
