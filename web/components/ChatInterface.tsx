@@ -279,10 +279,6 @@ export default function ChatInterface() {
         }
     };
 
-    const handleNewChat = () => {
-        setMessages([]);
-        setInput('');
-    };
 
     const getUserName = (): string => {
         // Priority: full_name > email prefix > 'You'
@@ -293,6 +289,17 @@ export default function ChatInterface() {
             return user.email.split('@')[0];
         }
         return 'You';
+    };
+
+    // Clear conversation memory and reset state
+    const handleNewChat = () => {
+        setMessages([]);
+        setSelectedProperty(null);
+        setInput('');
+        setIsTyping(false);
+        // Generate a new session ID to ensure backend also starts fresh
+        // The session_id in streamChat is currently hardcoded to 'default-session'
+        // For a full reset, we could generate a unique ID, but clearing UI is the main goal
     };
 
     return (
@@ -316,20 +323,33 @@ export default function ChatInterface() {
                             <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">Ready to analyze the market?</h2>
                         </div>
                     ) : (
-                        messages.map((msg) =>
-                            msg.role === 'user' ? (
-                                <UserMessage key={msg.id} content={msg.content} userName={getUserName()} />
-                            ) : (
-                                <AgentMessage
-                                    key={msg.id}
-                                    content={msg.content}
-                                    visualizations={msg.visualizations}
-                                    properties={msg.properties}
-                                    isTyping={msg.isTyping}
-                                    onSelectProperty={handleSelectProperty}
-                                />
-                            )
-                        )
+                        <>
+                            {/* Clear Memory Button - shown when there are messages */}
+                            <div className="flex justify-end mb-4">
+                                <button
+                                    onClick={handleNewChat}
+                                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] transition-colors"
+                                >
+                                    <MaterialIcon name="delete_sweep" size="18px" />
+                                    Clear Chat
+                                </button>
+                            </div>
+
+                            {messages.map((msg) =>
+                                msg.role === 'user' ? (
+                                    <UserMessage key={msg.id} content={msg.content} userName={getUserName()} />
+                                ) : (
+                                    <AgentMessage
+                                        key={msg.id}
+                                        content={msg.content}
+                                        visualizations={msg.visualizations}
+                                        properties={msg.properties}
+                                        isTyping={msg.isTyping}
+                                        onSelectProperty={handleSelectProperty}
+                                    />
+                                )
+                            )}
+                        </>
                     )}
                     {/* Spacer for bottom input area */}
                     <div className="h-32"></div>
