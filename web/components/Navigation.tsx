@@ -93,7 +93,7 @@ export default function Navigation() {
                             {/* New Session Button */}
                             <button
                                 onClick={handleNewSession}
-                                className="px-5 py-2 rounded-full bg-slate-800 dark:bg-white/10 text-white dark:text-[var(--color-tertiary)] border border-transparent dark:border-[var(--color-tertiary)]/20 text-sm font-medium tracking-wide hover:bg-slate-700 dark:hover:bg-white/20 transition shadow-lg shadow-black/10 flex items-center gap-2 backdrop-blur-md"
+                                className="px-5 py-2 rounded-full bg-slate-800 dark:bg-white/10 text-white dark:text-[var(--color-tertiary)] border border-transparent dark:border-[var(--color-tertiary)]/20 text-sm font-medium tracking-wide hover:bg-slate-700 dark:hover:bg-white/20 transition flex items-center gap-2 backdrop-blur-md"
                             >
                                 <PlusCircle size={16} />
                                 <span className="hidden sm:inline">New Session</span>
@@ -102,7 +102,7 @@ export default function Navigation() {
                     ) : (
                         <Link
                             href="/login"
-                            className="px-6 py-2 rounded-full bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition shadow-lg shadow-[var(--color-primary)]/20 text-sm font-bold tracking-wide"
+                            className="px-6 py-2 rounded-full bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition text-sm font-bold tracking-wide"
                         >
                             Sign In
                         </Link>

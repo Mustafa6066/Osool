@@ -403,7 +403,7 @@ export default function ChatInterface() {
                 <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50">
                     <div className="relative group">
                         <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-primary)]/30 via-[var(--color-tertiary)]/20 to-[var(--color-secondary)]/30 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition duration-700"></div>
-                        <div className="relative flex items-center bg-white dark:bg-[#1C212B]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-full shadow-2xl overflow-hidden transition-colors hover:border-[var(--color-primary)]/20">
+                        <div className="relative flex items-center bg-white dark:bg-[#1C212B]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-full overflow-hidden transition-colors hover:border-[var(--color-primary)]/20">
 
                             {/* Add Button */}
                             <button className="pl-5 pr-3 text-slate-400 hover:text-[var(--color-primary)] transition">

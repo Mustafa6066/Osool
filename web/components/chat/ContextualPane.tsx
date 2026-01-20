@@ -88,13 +88,21 @@ export default function ContextualPane({
                         <span className="text-[var(--color-tertiary)] font-bold">{property.metrics?.wolfScore || 85}/100</span>
                     </div>
                     <div className="h-16 w-full flex items-end gap-1 mt-2">
-                        {/* Visual bar chart simulation */}
-                        <div className="w-1/6 bg-[var(--color-secondary)] h-[40%] rounded-t-sm opacity-20"></div>
-                        <div className="w-1/6 bg-[var(--color-secondary)] h-[60%] rounded-t-sm opacity-30"></div>
-                        <div className="w-1/6 bg-[var(--color-secondary)] h-[30%] rounded-t-sm opacity-40"></div>
-                        <div className="w-1/6 bg-[var(--color-primary)] h-[80%] rounded-t-sm opacity-50"></div>
-                        <div className="w-1/6 bg-[var(--color-primary)] h-[90%] rounded-t-sm opacity-70"></div>
-                        <div className="w-1/6 bg-[var(--color-primary)] h-[50%] rounded-t-sm opacity-90"></div>
+                        {Array.from({ length: 6 }).map((_, i) => {
+                            const score = property.metrics?.wolfScore || 0;
+                            const threshold = (i + 1) * 16.6; // ~100/6
+                            const opacity = score >= threshold ? 0.3 + (i * 0.1) : 0.1;
+                            const height = score >= threshold ? 30 + (i * 10) : 20;
+                            const color = i > 3 ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-secondary)]';
+
+                            return (
+                                <div
+                                    key={i}
+                                    className={`w-1/6 ${color} rounded-t-sm transition-all duration-700`}
+                                    style={{ height: `${height}%`, opacity }}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
 

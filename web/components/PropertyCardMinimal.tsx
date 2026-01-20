@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { PiBed, PiBathtub, PiRuler } from 'react-icons/pi';
-import { HiOutlineLocationMarker } from 'react-icons/hi';
+import { Building2, Home, Briefcase, Factory, Map as MapIcon, Store } from 'lucide-react';
 
 interface PropertyCardMinimalProps {
     property: {
@@ -64,8 +64,21 @@ export default function PropertyCardMinimal({
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                 ) : (
-                    <div className="flex items-center justify-center h-full text-slate-600">
-                        <HiOutlineLocationMarker className="w-12 h-12 opacity-30" />
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-white/5 dark:to-white/10 group-hover:scale-105 transition-transform duration-500">
+                        <div className="p-4 rounded-full bg-[var(--color-background)]/50 backdrop-blur-sm border border-[var(--color-primary)]/20 shadow-inner mb-2 group-hover:border-[var(--color-primary)]/50 transition-colors">
+                            {(() => {
+                                const t = (type || '').toLowerCase();
+                                if (t.includes('villa') || t.includes('house')) return <Home className="w-8 h-8 text-[var(--color-primary)]" />;
+                                if (t.includes('office') || t.includes('admin')) return <Briefcase className="w-8 h-8 text-[var(--color-secondary)]" />;
+                                if (t.includes('retail') || t.includes('store') || t.includes('shop')) return <Store className="w-8 h-8 text-[var(--color-tertiary)]" />;
+                                if (t.includes('land') || t.includes('plot')) return <MapIcon className="w-8 h-8 text-emerald-600" />;
+                                if (t.includes('factory') || t.includes('warehouse')) return <Factory className="w-8 h-8 text-slate-500" />;
+                                return <Building2 className="w-8 h-8 text-[var(--color-primary)]/80" />;
+                            })()}
+                        </div>
+                        <span className="text-[10px] uppercase tracking-widest font-semibold opacity-60 font-display">
+                            {type || 'Property'}
+                        </span>
                     </div>
                 )}
 
