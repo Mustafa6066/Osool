@@ -36,8 +36,8 @@ const UserMessage = ({ content, userName }: { content: string; userName?: string
     const safeContent = useMemo(() => sanitizeContent(content), [content]);
 
     return (
-        <div className="flex justify-end animate-in slide-in-from-bottom-2 fade-in duration-500 mb-6">
-            <div className="flex flex-col items-end gap-1 max-w-[85%] md:max-w-[70%] lg:max-w-[60%]">
+        <div className="w-full max-w-2xl mx-auto flex justify-end animate-in slide-in-from-bottom-2 fade-in duration-500 mb-6">
+            <div className="flex flex-col items-end gap-1 max-w-[85%]">
                 <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/10 text-[var(--color-text-primary)] px-6 py-4 rounded-3xl rounded-tr-sm shadow-sm">
                     <p className="leading-relaxed text-[15px] font-medium" dir="auto">{safeContent}</p>
                 </div>
@@ -52,7 +52,7 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
     const safeContent = useMemo(() => sanitizeContent(content || ''), [content]);
 
     return (
-        <div className="flex gap-5 max-w-full md:max-w-[90%] animate-in slide-in-from-bottom-4 fade-in duration-700 mb-8">
+        <div className="w-full max-w-2xl mx-auto flex gap-5 animate-in slide-in-from-bottom-4 fade-in duration-700 mb-8">
             {/* Agent Avatar */}
             <div className="flex-none hidden sm:flex flex-col items-center gap-2">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-surface-dark)] border border-[var(--color-primary)]/20 flex items-center justify-center shadow-[0_0_15px_rgba(163,177,138,0.2)]">

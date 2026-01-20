@@ -38,9 +38,7 @@ export default function Navigation() {
 
                 <div className="flex items-center gap-3 md:gap-4 pointer-events-auto">
                     {/* Theme Toggle */}
-                    <div className="p-2 rounded-full border border-slate-300 dark:border-white/10 hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400 backdrop-blur-sm bg-white/5">
-                        <ThemeToggle />
-                    </div>
+                    <ThemeToggle />
 
                     {/* Authenticated Actions */}
                     {isAuthenticated ? (
