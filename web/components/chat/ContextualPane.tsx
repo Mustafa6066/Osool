@@ -272,12 +272,14 @@ export default function ContextualPane({
 
     return (
         <>
-            {/* Desktop Pane */}
-            <aside className={`chat-contextual-pane bg-[var(--color-background)] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20 chat-scrollbar ${isRTL ? 'border-r border-l-0' : ''}`}>
-                {paneContent}
+            {/* Desktop Pane - Floating Glass Panel */}
+            <aside className={`fixed top-24 bottom-6 ${isRTL ? 'left-6' : 'right-6'} w-[340px] glass-panel rounded-2xl hidden xl:flex flex-col overflow-hidden z-20`}>
+                <div className="flex-1 overflow-y-auto chat-scrollbar">
+                    {paneContent}
+                </div>
             </aside>
 
-            {/* Mobile Pane Overlay - Hidden by default, can be shown via prop */}
+            {/* Mobile Pane Overlay */}
             <AnimatePresence>
                 {isOpen && (
                     <>
@@ -286,7 +288,7 @@ export default function ContextualPane({
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={onClose}
-                            className="fixed inset-0 bg-black/50 z-40 xl:hidden"
+                            className="fixed inset-0 bg-black/60 z-40 xl:hidden backdrop-blur-sm"
                         />
 
                         <motion.aside
@@ -294,9 +296,11 @@ export default function ContextualPane({
                             animate={{ x: 0 }}
                             exit={{ x: isRTL ? -340 : 340 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 h-full w-[340px] bg-[var(--color-background)] backdrop-blur-md flex flex-col z-50 xl:hidden overflow-y-auto chat-scrollbar`}
+                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 bottom-0 w-[320px] bg-[var(--color-surface)]/90 backdrop-blur-xl border-[var(--color-border)] border-l flex flex-col z-50 xl:hidden overflow-hidden`}
                         >
-                            {paneContent}
+                            <div className="flex-1 overflow-y-auto">
+                                {paneContent}
+                            </div>
                         </motion.aside>
                     </>
                 )}
