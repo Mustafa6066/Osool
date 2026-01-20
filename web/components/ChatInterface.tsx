@@ -222,7 +222,7 @@ export default function ChatInterface() {
             metrics: {
                 bedrooms: prop.bedrooms,
                 size: prop.size_sqm,
-                walkScore: 85, // Mock for now
+                wolfScore: prop.wolf_score || 75, // Fallback to 75 if missing
                 capRate: "8%", // Mock
                 pricePerSqFt: `${Math.round(prop.price / prop.size_sqm).toLocaleString()}`
             },

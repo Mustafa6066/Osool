@@ -10,7 +10,7 @@ export interface PropertyContext {
     metrics?: {
         capRate?: string;
         pricePerSqFt?: string;
-        walkScore?: number;
+        wolfScore?: number;
         size?: number;
         bedrooms?: number;
         roi?: number; // Annual ROI
@@ -136,19 +136,19 @@ export default function ContextualPane({
                                     <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.bedrooms}</p>
                                 </div>
                             )}
-                            {property.metrics.walkScore && (
+                            {property.metrics.wolfScore && (
                                 <div className="metric-card col-span-2">
                                     <div className={`flex justify-between items-end mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                                         <div className={`flex items-center gap-1.5 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                            <Footprints size={16} />
-                                            <p className="text-[10px] uppercase font-bold">{isRTL ? 'نقاط المشي' : 'Walk Score'}</p>
+                                            <ShieldCheck size={16} className="text-amber-500" />
+                                            <p className="text-[10px] uppercase font-bold text-amber-500">{isRTL ? 'تصنيف وولف' : 'Wolf Score'}</p>
                                         </div>
-                                        <span className="text-xl font-bold text-[var(--color-text-primary)]">{property.metrics.walkScore}/100</span>
+                                        <span className="text-xl font-bold text-[var(--color-text-primary)]">{property.metrics.wolfScore}/100</span>
                                     </div>
                                     <div className="h-2 w-full bg-[var(--color-surface)] dark:bg-black/40 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"
-                                            style={{ width: `${property.metrics.walkScore}%` }}
+                                            className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.5)]"
+                                            style={{ width: `${property.metrics.wolfScore}%` }}
                                         ></div>
                                     </div>
                                 </div>
