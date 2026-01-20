@@ -32,8 +32,9 @@ const sanitizeContent = (content: string): string => {
 };
 
 // --- User Message Component ---
-const UserMessage = ({ content }: { content: string }) => {
+const UserMessage = ({ content, userName }: { content: string; userName?: string }) => {
     const safeContent = useMemo(() => sanitizeContent(content), [content]);
+    const displayName = userName || 'You';
 
     return (
         <div className="flex justify-end animate-in slide-in-from-bottom-2 fade-in duration-500">
@@ -41,7 +42,7 @@ const UserMessage = ({ content }: { content: string }) => {
                 <div className="bg-[var(--color-primary)] text-white px-6 py-4 rounded-3xl rounded-tr-sm shadow-lg shadow-[var(--color-primary)]/10">
                     <p className="leading-relaxed text-[15px] font-medium" dir="auto">{safeContent}</p>
                 </div>
-                <span className="text-[11px] font-medium text-[var(--color-text-muted)] mr-2">You • Just now</span>
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)] mr-2">{displayName} • Just now</span>
             </div>
         </div>
     );
@@ -67,7 +68,7 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
                     </div>
                     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] px-6 py-4 rounded-3xl rounded-tl-sm shadow-sm inline-block">
                         <div
-                            className="leading-relaxed text-[15px] prose prose-invert max-w-none prose-p:leading-7 prose-p:mb-4 prose-ul:my-4 prose-li:my-1"
+                            className="leading-relaxed text-[15px] prose dark:prose-invert max-w-none prose-p:leading-7 prose-p:mb-4 prose-ul:my-4 prose-li:my-1 text-[var(--color-text-primary)]"
                             dir="auto"
                         >
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -283,9 +284,15 @@ export default function ChatInterface() {
         setInput('');
     };
 
-    const getUserInitials = () => {
-        const email = user?.email || 'User';
-        return email.substring(0, 2).toUpperCase();
+    const getUserName = (): string => {
+        // Priority: full_name > email prefix > 'You'
+        if (user?.full_name) {
+            return user.full_name;
+        }
+        if (user?.email) {
+            return user.email.split('@')[0];
+        }
+        return 'You';
     };
 
     return (
@@ -311,7 +318,7 @@ export default function ChatInterface() {
                     ) : (
                         messages.map((msg) =>
                             msg.role === 'user' ? (
-                                <UserMessage key={msg.id} content={msg.content} />
+                                <UserMessage key={msg.id} content={msg.content} userName={getUserName()} />
                             ) : (
                                 <AgentMessage
                                     key={msg.id}

@@ -88,64 +88,64 @@ export default function ContextualPane({
             <div className="p-5 space-y-8" dir={isRTL ? 'rtl' : 'ltr'}>
                 {/* Property Title */}
                 <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{property.title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{property.address}</p>
-                    <p className="text-2xl font-bold text-[var(--chat-primary)] dark:text-[var(--chat-teal-accent)]">{property.price}</p>
+                    <h3 className="text-xl font-bold text-[var(--color-text-primary)]">{property.title}</h3>
+                    <p className="text-sm text-[var(--color-text-muted)]">{property.address}</p>
+                    <p className="text-2xl font-bold text-[var(--color-primary)] dark:text-[var(--color-secondary)]">{property.price}</p>
                 </div>
 
                 {/* Stats Grid - Only show if metrics exist */}
                 {property.metrics && (
                     <div>
-                        <h3 className="text-[11px] font-bold text-gray-500 dark:text-[var(--chat-text-secondary)] uppercase tracking-wider mb-3">
+                        <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
                             {isRTL ? 'المقاييس الرئيسية' : 'Key Metrics'}
                         </h3>
                         <div className="grid grid-cols-2 gap-3">
                             {property.metrics.capRate && (
                                 <div className="metric-card">
-                                    <div className={`flex items-center gap-1.5 mb-1 text-gray-500 dark:text-[var(--chat-text-secondary)] ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                    <div className={`flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
                                         <Percent size={16} />
                                         <p className="text-[10px] uppercase font-bold">{isRTL ? 'معدل العائد' : 'Cap Rate'}</p>
                                     </div>
-                                    <p className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{property.metrics.capRate}</p>
+                                    <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.capRate}</p>
                                 </div>
                             )}
                             {property.metrics.pricePerSqFt && (
                                 <div className="metric-card">
-                                    <div className={`flex items-center gap-1.5 mb-1 text-gray-500 dark:text-[var(--chat-text-secondary)] ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                    <div className={`flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
                                         <Ruler size={16} />
                                         <p className="text-[10px] uppercase font-bold">{isRTL ? 'السعر/م²' : 'Price / SqM'}</p>
                                     </div>
-                                    <p className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{property.metrics.pricePerSqFt}</p>
+                                    <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.pricePerSqFt}</p>
                                 </div>
                             )}
                             {property.metrics.size && (
                                 <div className="metric-card">
-                                    <div className={`flex items-center gap-1.5 mb-1 text-gray-500 dark:text-[var(--chat-text-secondary)] ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                    <div className={`flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
                                         <Ruler size={16} />
                                         <p className="text-[10px] uppercase font-bold">{isRTL ? 'المساحة' : 'Size'}</p>
                                     </div>
-                                    <p className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{property.metrics.size} {isRTL ? 'م²' : 'sqm'}</p>
+                                    <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.size} {isRTL ? 'م²' : 'sqm'}</p>
                                 </div>
                             )}
                             {property.metrics.bedrooms && (
                                 <div className="metric-card">
-                                    <div className={`flex items-center gap-1.5 mb-1 text-gray-500 dark:text-[var(--chat-text-secondary)] ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                    <div className={`flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
                                         <Home size={16} />
                                         <p className="text-[10px] uppercase font-bold">{isRTL ? 'غرف النوم' : 'Bedrooms'}</p>
                                     </div>
-                                    <p className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{property.metrics.bedrooms}</p>
+                                    <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.bedrooms}</p>
                                 </div>
                             )}
                             {property.metrics.walkScore && (
                                 <div className="metric-card col-span-2">
                                     <div className={`flex justify-between items-end mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                        <div className={`flex items-center gap-1.5 text-gray-500 dark:text-[var(--chat-text-secondary)] ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                        <div className={`flex items-center gap-1.5 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
                                             <Footprints size={16} />
                                             <p className="text-[10px] uppercase font-bold">{isRTL ? 'نقاط المشي' : 'Walk Score'}</p>
                                         </div>
-                                        <span className="text-xl font-bold text-gray-900 dark:text-white">{property.metrics.walkScore}/100</span>
+                                        <span className="text-xl font-bold text-[var(--color-text-primary)]">{property.metrics.walkScore}/100</span>
                                     </div>
-                                    <div className="h-2 w-full bg-gray-100 dark:bg-black/40 rounded-full overflow-hidden">
+                                    <div className="h-2 w-full bg-[var(--color-surface)] dark:bg-black/40 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"
                                             style={{ width: `${property.metrics.walkScore}%` }}
@@ -188,35 +188,35 @@ export default function ContextualPane({
 
                 {/* Investment Analysis */}
                 <div className="space-y-3">
-                    <h3 className="text-[11px] font-bold text-gray-500 dark:text-[var(--chat-text-secondary)] uppercase tracking-wider">
+                    <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
                         {isRTL ? 'تحليل الاستثمار' : 'Investment Analysis'}
                     </h3>
-                    <div className="bg-white dark:bg-[var(--chat-surface-dark)] border border-gray-200 dark:border-[var(--chat-border-dark)] rounded-xl p-4">
+                    <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl p-4">
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-2">
                                 <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
                                     <TrendingUp size={16} />
                                 </div>
-                                <span className="text-sm font-bold text-gray-900 dark:text-white">{isRTL ? 'العائد المتوقع' : 'Proj. Annual ROI'}</span>
+                                <span className="text-sm font-bold text-[var(--color-text-primary)]">{isRTL ? 'العائد المتوقع' : 'Proj. Annual ROI'}</span>
                             </div>
                             <span className="text-lg font-bold text-green-600 dark:text-green-400">{property.metrics?.roi || 12.5}%</span>
                         </div>
                         {/* Simple Progress Bar for ROI */}
-                        <div className="h-2 w-full bg-gray-100 dark:bg-black/40 rounded-full overflow-hidden mb-4">
+                        <div className="h-2 w-full bg-[var(--color-surface)] dark:bg-black/40 rounded-full overflow-hidden mb-4">
                             <div
                                 className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full"
                                 style={{ width: `${(property.metrics?.roi || 12.5) * 4}%` }} // Scale roughly to 25% max visual
                             ></div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-[var(--chat-border-dark)]">
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[var(--color-border)]">
                             <div className="text-center">
-                                <p className="text-[10px] text-gray-500 uppercase mb-1">{isRTL ? 'الإشغال المقدر' : 'Est. Occupancy'}</p>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">{property.metrics?.occupancyRate || 88}%</p>
+                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{isRTL ? 'الإشغال المقدر' : 'Est. Occupancy'}</p>
+                                <p className="text-sm font-bold text-[var(--color-text-primary)]">{property.metrics?.occupancyRate || 88}%</p>
                             </div>
-                            <div className="text-center border-l border-gray-100 dark:border-[var(--chat-border-dark)]">
-                                <p className="text-[10px] text-gray-500 uppercase mb-1">{isRTL ? 'نمو السعر (سنة)' : '1Y Appreciation'}</p>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">+15.2%</p>
+                            <div className="text-center border-l border-[var(--color-border)]">
+                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{isRTL ? 'نمو السعر (سنة)' : '1Y Appreciation'}</p>
+                                <p className="text-sm font-bold text-[var(--color-text-primary)]">+15.2%</p>
                             </div>
                         </div>
                     </div>
@@ -224,43 +224,43 @@ export default function ContextualPane({
 
                 {/* Neighborhood Insights */}
                 <div className="space-y-3">
-                    <h3 className="text-[11px] font-bold text-gray-500 dark:text-[var(--chat-text-secondary)] uppercase tracking-wider">
+                    <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
                         {isRTL ? 'إحصائيات الحي' : 'Neighborhood Stats'}
                     </h3>
                     <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-white dark:bg-[var(--chat-surface-dark)] border border-gray-200 dark:border-[var(--chat-border-dark)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
+                        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
                             <ShieldCheck size={18} className="text-blue-500 dark:text-blue-400 mb-1" />
-                            <span className="text-[10px] text-gray-500 font-medium">{isRTL ? 'أمان' : 'Safety'}</span>
-                            <span className="text-xs font-bold text-gray-900 dark:text-white">{property.neighborhoodStats?.crimeRate || 'High'}</span>
+                            <span className="text-[10px] text-[var(--color-text-muted)] font-medium">{isRTL ? 'أمان' : 'Safety'}</span>
+                            <span className="text-xs font-bold text-[var(--color-text-primary)]">{property.neighborhoodStats?.crimeRate || 'High'}</span>
                         </div>
-                        <div className="bg-white dark:bg-[var(--chat-surface-dark)] border border-gray-200 dark:border-[var(--chat-border-dark)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
+                        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
                             <GraduationCap size={18} className="text-purple-500 dark:text-purple-400 mb-1" />
-                            <span className="text-[10px] text-gray-500 font-medium">{isRTL ? 'تعليم' : 'Schools'}</span>
-                            <span className="text-xs font-bold text-gray-900 dark:text-white">{property.neighborhoodStats?.schoolScore || '9.2'}/10</span>
+                            <span className="text-[10px] text-[var(--color-text-muted)] font-medium">{isRTL ? 'تعليم' : 'Schools'}</span>
+                            <span className="text-xs font-bold text-[var(--color-text-primary)]">{property.neighborhoodStats?.schoolScore || '9.2'}/10</span>
                         </div>
-                        <div className="bg-white dark:bg-[var(--chat-surface-dark)] border border-gray-200 dark:border-[var(--chat-border-dark)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
+                        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
                             <Bus size={18} className="text-amber-500 dark:text-amber-400 mb-1" />
-                            <span className="text-[10px] text-gray-500 font-medium">{isRTL ? 'مواصلات' : 'Transit'}</span>
-                            <span className="text-xs font-bold text-gray-900 dark:text-white">{property.neighborhoodStats?.transitScore || '85'}</span>
+                            <span className="text-[10px] text-[var(--color-text-muted)] font-medium">{isRTL ? 'مواصلات' : 'Transit'}</span>
+                            <span className="text-xs font-bold text-[var(--color-text-primary)]">{property.neighborhoodStats?.transitScore || '85'}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Agent Contact - Only show if agent exists */}
                 {property.agent && (
-                    <div className={`bg-white dark:bg-[var(--chat-surface-dark)] p-4 rounded-xl border border-gray-200 dark:border-[var(--chat-border-dark)] shadow-sm flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <div className="size-12 rounded-full bg-gradient-to-br from-[var(--chat-primary)] to-teal-600 flex items-center justify-center text-white font-bold border-2 border-white dark:border-[var(--chat-background-dark)] shadow-sm">
+                    <div className={`bg-[var(--color-surface-elevated)] p-4 rounded-xl border border-[var(--color-border)] shadow-sm flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <div className="size-12 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-teal-600 flex items-center justify-center text-white font-bold border-2 border-[var(--color-surface)] shadow-sm">
                             {property.agent.name.split(' ').map(n => n[0]).join('')}
                         </div>
                         <div className={`flex-1 min-w-0 ${isRTL ? 'text-right' : ''}`}>
-                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{property.agent.name}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{property.agent.title}</p>
+                            <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">{property.agent.name}</p>
+                            <p className="text-xs text-[var(--color-text-muted)] truncate">{property.agent.title}</p>
                         </div>
                         <div className="flex gap-2">
-                            <button className="size-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 hover:bg-[var(--chat-primary)] hover:text-white dark:hover:bg-[var(--chat-primary)] transition-colors text-gray-600 dark:text-white">
+                            <button className="size-8 flex items-center justify-center rounded-full bg-[var(--color-surface)] hover:bg-[var(--color-primary)] hover:text-white transition-colors text-[var(--color-text-muted)]">
                                 <MessageCircle size={18} />
                             </button>
-                            <button className="size-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 hover:bg-[var(--chat-primary)] hover:text-white dark:hover:bg-[var(--chat-primary)] transition-colors text-gray-600 dark:text-white">
+                            <button className="size-8 flex items-center justify-center rounded-full bg-[var(--color-surface)] hover:bg-[var(--color-primary)] hover:text-white transition-colors text-[var(--color-text-muted)]">
                                 <Phone size={18} />
                             </button>
                         </div>

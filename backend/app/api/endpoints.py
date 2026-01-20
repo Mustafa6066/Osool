@@ -1115,7 +1115,7 @@ async def chat_stream(
             user_dict = {
                 "id": user.id,
                 "email": getattr(user, "email", None),
-                "name": getattr(user, "name", None),
+                "full_name": getattr(user, "full_name", None),
             }
 
             # Send initial tool indication

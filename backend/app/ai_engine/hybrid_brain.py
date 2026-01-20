@@ -184,7 +184,8 @@ class OsoolHybridBrain:
                 history,
                 strategy,
                 psychology,
-                language=language
+                language=language,
+                profile=profile
             )
 
             # 8. UI_TRIGGERS: Determine which visualizations to show
@@ -635,7 +636,8 @@ Examples:
         history: List[Dict],
         strategy: str,
         psychology: Optional[PsychologyProfile] = None,
-        language: str = "auto"
+        language: str = "auto",
+        profile: Optional[Dict] = None
     ) -> str:
         """
         STEP 7: SPEAK (Claude 3.5 Sonnet)
@@ -643,6 +645,11 @@ Examples:
         Now with psychology-aware context injection and language control.
         """
         try:
+            # Extract user's first name for personalization
+            user_first_name = None
+            if profile and profile.get('full_name'):
+                user_first_name = profile['full_name'].split()[0]
+
             # Prepare database context
             if not data and strategy == "PIVOT_TO_DISCOVERY":
                 context_str = """
@@ -656,18 +663,25 @@ INSTRUCTION: Since no properties were found, you MUST ask clarifying questions:
 DO NOT invent any properties. Be charming and helpful while gathering info.
 """
             else:
-                # Format properties for Claude
+                # Format properties for Claude with EXPLICIT names
+                property_names = [p.get('title', 'Unknown') for p in data]
                 props_formatted = json.dumps(data, indent=2, ensure_ascii=False)
                 context_str = f"""
 [DATABASE_CONTEXT]: {len(data)} VERIFIED PROPERTIES FROM DATABASE
 
+AVAILABLE PROPERTIES (USE ONLY THESE NAMES):
+{chr(10).join([f"  - {p.get('title', 'Unknown')} in {p.get('location', 'Unknown')} - {p.get('price', 0):,} EGP" for p in data])}
+
+FULL DATA:
 {props_formatted}
 
-INSTRUCTION:
-- Present the TOP property (first in the list) as the "La2ta" (the catch)
-- Mention its wolf_score: "الـ AI بتاعي قيمها بـ {data[0].get('wolf_score', 0)}/100"
-- Highlight the valuation_verdict: "{data[0].get('valuation_verdict', 'FAIR')}"
-- Use ONLY data from above. DO NOT invent compound names or prices.
+CRITICAL INSTRUCTION - ANTI-HALLUCINATION:
+1. You may ONLY discuss properties from the list above.
+2. DO NOT invent property names like "Palm Hills", "Hyde Park", "Regent's Park" unless they appear EXACTLY in the list above.
+3. If user asks about a project not in the list, say "مش لاقي بيانات عن المشروع ده دلوقتي" (I don't have data on this project right now).
+4. Present the TOP property (first in the list) as the "La2ta" (the catch).
+5. Mention its wolf_score: "الـ AI بتاعي قيمها بـ {data[0].get('wolf_score', 0)}/100"
+6. Highlight the valuation_verdict: "{data[0].get('valuation_verdict', 'FAIR')}"
 
 STRATEGY: {strategy}
 """
@@ -687,8 +701,20 @@ A chart or visualization is being shown to the user. Reference it in your respon
 - "زي ما واضح في الأرقام..." (As shown in the numbers...)
 """
 
+            # Add user personalization context
+            personalization_context = ""
+            if user_first_name:
+                personalization_context = f"""
+[USER_PERSONALIZATION]
+The user's name is "{user_first_name}". Address them by name occasionally to build rapport:
+- "تمام يا {user_first_name}..." 
+- "{user_first_name}, خليني أقولك حاجة..."
+- "بص يا {user_first_name}..."
+Do NOT overuse the name - use it 1-2 times per response maximum.
+"""
+
             # Build Claude prompt with psychology
-            system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}" + psychology_context
+            system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}" + psychology_context + personalization_context
 
             # Language Enforcement
             if language == "ar":
