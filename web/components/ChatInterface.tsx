@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -27,7 +27,56 @@ const sanitizeContent = (content: string): string => {
     });
 };
 
-// --- SVG Synapse Lines (exact from reference) ---
+// --- Response Type Detection ---
+type ResponseType = 'greeting' | 'property_recommendation' | 'market_analysis' | 'comparison' | 'general' | 'loading';
+
+const detectResponseType = (content: string, properties: any[], visualizations: any[]): ResponseType => {
+    if (!content) return 'loading';
+    const lowerContent = content.toLowerCase();
+
+    if (properties && properties.length > 1) return 'comparison';
+    if (properties && properties.length === 1) return 'property_recommendation';
+    if (visualizations && visualizations.length > 0) return 'market_analysis';
+    if (lowerContent.includes('أهلاً') || lowerContent.includes('مرحبا') || lowerContent.includes('hello')) return 'greeting';
+    if (lowerContent.includes('سعر') || lowerContent.includes('متوسط') || lowerContent.includes('trend') || lowerContent.includes('market')) return 'market_analysis';
+
+    return 'general';
+};
+
+// --- Smart Action Buttons based on context ---
+const getContextualActions = (responseType: ResponseType, hasProperties: boolean): Array<{ label: string, icon: string, primary?: boolean }> => {
+    switch (responseType) {
+        case 'property_recommendation':
+            return [
+                { label: 'حجز معاينة', icon: 'calendar_today' },
+                { label: 'عرض التفاصيل', icon: 'visibility', primary: true },
+                { label: 'مقارنة الأسعار', icon: 'compare_arrows' }
+            ];
+        case 'comparison':
+            return [
+                { label: 'حجز معاينة', icon: 'calendar_today' },
+                { label: 'تحليل مفصل', icon: 'analytics', primary: true },
+                { label: 'حفظ المقارنة', icon: 'bookmark' }
+            ];
+        case 'market_analysis':
+            return [
+                { label: 'تحميل التقرير', icon: 'download' },
+                { label: 'عرض المزيد', icon: 'expand_more', primary: true }
+            ];
+        case 'greeting':
+            return [
+                { label: 'ابحث عن عقار', icon: 'search', primary: true },
+                { label: 'تحليل السوق', icon: 'trending_up' }
+            ];
+        default:
+            return hasProperties ? [
+                { label: 'حجز معاينة', icon: 'calendar_today' },
+                { label: 'عرض التفاصيل', icon: 'visibility', primary: true }
+            ] : [];
+    }
+};
+
+// --- SVG Synapse Lines ---
 const SynapseLines = () => (
     <svg className="absolute inset-0 w-full h-full pointer-events-none hidden lg:block z-0" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -54,6 +103,208 @@ const SynapseLines = () => (
     </svg>
 );
 
+// --- Smart Property Card with animations ---
+const PropertyCard = ({ property, index = 0, isActive = false, onClick }: { property: any, index?: number, isActive?: boolean, onClick?: () => void }) => {
+    const topOffset = 20 + (index * 25);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, x: -80, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -80, scale: 0.9 }}
+            transition={{ delay: 0.1 + (index * 0.15), duration: 0.6, type: 'spring' }}
+            whileHover={{ scale: 1.03 }}
+            className={`hidden lg:block absolute w-80 transform transition-all duration-300 cursor-pointer z-10 ${isActive ? 'ring-2 ring-[#A3B18A]/50' : ''}`}
+            style={{ left: '10%', top: `${topOffset}%` }}
+            onClick={onClick}
+        >
+            <div className="relative glass-panel rounded-2xl p-5 group hover:border-[#A3B18A]/30 transition-colors">
+                <div className="absolute -top-[1px] -left-[1px] w-4 h-4 border-t border-l border-[#A3B18A]/60 rounded-tl-lg"></div>
+
+                {/* Active indicator */}
+                {isActive && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-[#A3B18A] rounded-full flex items-center justify-center shadow-lg"
+                    >
+                        <MaterialIcon name="check" className="text-white" size="14px" />
+                    </motion.div>
+                )}
+
+                <div className="relative overflow-hidden rounded-xl mb-4 h-44 bg-[#1C212B]/50">
+                    {property.image_url ? (
+                        <img alt="Property" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 hologram-img transition-all duration-500" src={property.image_url} />
+                    ) : (
+                        <div className="w-full h-full bg-slate-300 dark:bg-slate-800 flex items-center justify-center">
+                            <MaterialIcon name="apartment" className="text-slate-400 dark:text-white/20" size="48px" />
+                        </div>
+                    )}
+                    <div className="absolute top-3 left-3 px-3 py-1 bg-[#1C212B]/60 border border-white/20 text-[#E8E8E3] text-[10px] font-bold uppercase rounded-md backdrop-blur-md tracking-wider">
+                        {property.tag || 'Top Pick'}
+                    </div>
+                    {property.wolf_score && (
+                        <div className="absolute bottom-3 right-3 px-2 py-1 bg-[#A3B18A]/90 text-white text-[10px] font-bold rounded backdrop-blur-md">
+                            Wolf Score: {property.wolf_score}
+                        </div>
+                    )}
+                </div>
+                <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h3 className="text-lg font-medium leading-tight text-slate-800 dark:text-slate-100 font-sans">{property.title}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-display uppercase tracking-wide">{property.location}</p>
+                        </div>
+                        <div className="flex items-center gap-1 text-[#E6D5B8]">
+                            <MaterialIcon name="star" className="text-sm" />
+                            <span className="text-sm font-bold">{property.rating || 5.0}</span>
+                        </div>
+                    </div>
+                    <div className="text-2xl font-light text-[#A3B18A] font-display">{property.price?.toLocaleString() || '0'} <span className="text-base text-slate-500">EGP</span></div>
+                    <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-white/5">
+                        <div className="text-center"><MaterialIcon name="bed" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{property.bedrooms} Bed</p></div>
+                        <div className="text-center"><MaterialIcon name="bathtub" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{property.bathrooms} Bath</p></div>
+                        <div className="text-center"><MaterialIcon name="square_foot" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{property.size_sqm}m²</p></div>
+                    </div>
+                </div>
+                <div className="absolute top-1/2 -right-16 w-16 h-[1px] bg-gradient-to-r from-white/20 to-transparent"></div>
+                <div className="absolute top-1/2 -right-[66px] w-2 h-2 rounded-full bg-white/20 blur-[1px]"></div>
+            </div>
+        </motion.div>
+    );
+};
+
+// --- Dynamic Insights Panel ---
+const InsightsPanel = ({ property, responseType }: { property: any, responseType: ResponseType }) => {
+    const capRate = property?.cap_rate || 8;
+    const pricePerSqm = property ? Math.round(property.price / property.size_sqm) : 110000;
+    const walkScore = property?.walk_score || 85;
+    const wolfScore = property?.wolf_score || 68;
+
+    const getInsightLabel = () => {
+        switch (responseType) {
+            case 'comparison': return 'Comparison Insights';
+            case 'market_analysis': return 'Market Analysis';
+            default: return 'Listing Insights';
+        }
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, x: 80 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="hidden lg:block absolute right-[5%] top-[20%] w-72 z-10"
+        >
+            <div className="relative glass-panel rounded-2xl p-6 hover:border-[#D4A3A3]/30 transition-colors">
+                <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b border-r border-[#D4A3A3]/60 rounded-br-lg"></div>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">{getInsightLabel()}</h3>
+                    <MaterialIcon name="analytics" className="text-[#D4A3A3]/70 text-lg" />
+                </div>
+                <div className="space-y-6">
+                    {/* Cap Rate */}
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                        <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider">
+                            <span>Cap Rate</span>
+                            <span className="text-[#A3B18A]">{capRate > 7 ? 'High' : capRate > 5 ? 'Medium' : 'Low'}</span>
+                        </div>
+                        <div className="text-3xl font-light text-slate-800 dark:text-white font-display">{capRate}%</div>
+                        <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 mt-2 rounded-full overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${capRate * 10}%` }}
+                                transition={{ delay: 0.5, duration: 0.8 }}
+                                className="bg-gradient-to-r from-[#D4A3A3] to-[#A3B18A] h-full rounded-full opacity-80"
+                            />
+                        </div>
+                    </motion.div>
+
+                    {/* Price/SQM */}
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+                        <div className="flex justify-between text-xs text-slate-500 mb-1 font-display uppercase tracking-wider"><span>Price / SQM</span></div>
+                        <div className="text-2xl font-light text-slate-800 dark:text-white font-display">{pricePerSqm.toLocaleString()} <span className="text-sm text-slate-500">EGP</span></div>
+                    </motion.div>
+
+                    {/* Wolf Score (if available) or Walk Score */}
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+                        <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider">
+                            <span>{property?.wolf_score ? 'Wolf Score' : 'Walk Score'}</span>
+                            <span className="text-[#E6D5B8] font-bold">{property?.wolf_score || walkScore}/100</span>
+                        </div>
+                        <div className="h-16 w-full flex items-end gap-1 mt-2">
+                            {[40, 60, 30, 80, 90, 50].map((h, i) => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ height: 0 }}
+                                    animate={{ height: `${h}%` }}
+                                    transition={{ delay: 0.7 + (i * 0.1), duration: 0.4 }}
+                                    className={`w-1/6 ${i < 3 ? 'bg-[#D4A3A3]' : 'bg-[#A3B18A]'} rounded-t-sm`}
+                                    style={{ opacity: 0.2 + (i * 0.15) }}
+                                />
+                            ))}
+                        </div>
+                    </motion.div>
+                </div>
+                <div className="absolute top-1/2 -left-16 w-16 h-[1px] bg-gradient-to-l from-white/20 to-transparent"></div>
+            </div>
+        </motion.div>
+    );
+};
+
+// --- ROI Panel ---
+const ROIPanel = ({ roi = 12.5, property }: { roi?: number, property?: any }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.6 }}
+        className="hidden lg:block absolute right-[15%] bottom-[15%] w-64 z-10"
+    >
+        <div className="relative glass-panel rounded-2xl p-5 hover:border-[#A3B18A]/40 transition-colors">
+            <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Proj. Annual ROI</span>
+                <MaterialIcon name="trending_up" className="text-[#A3B18A] text-sm" />
+            </div>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                className="text-3xl font-light text-[#A3B18A] font-display"
+            >
+                {property?.roi || roi}%
+            </motion.div>
+            <p className="text-[10px] text-slate-500 mt-2 leading-tight">Based on recent market trends in {property?.location || 'New Cairo'}.</p>
+            <div className="absolute -top-12 left-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-white/20"></div>
+        </div>
+    </motion.div>
+);
+
+// --- Loading State Component ---
+const LoadingState = () => (
+    <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center py-12"
+    >
+        <div className="relative">
+            <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                className="w-16 h-16 rounded-full border-2 border-[#A3B18A]/20 border-t-[#A3B18A]"
+            />
+            <MaterialIcon name="auto_awesome" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#A3B18A]" size="24px" />
+        </div>
+        <motion.p
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="mt-4 text-slate-500 font-display"
+        >
+            جاري تحليل البيانات...
+        </motion.p>
+    </motion.div>
+);
+
+// --- Main Chat Interface ---
 export default function ChatInterface() {
     const { user, isAuthenticated, logout } = useAuth();
     const { language } = useLanguage();
@@ -67,23 +318,42 @@ export default function ChatInterface() {
     const [sessionId, setSessionId] = useState(() => `session-${Date.now()}`);
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isInvitationModalOpen, setInvitationModalOpen] = useState(false);
+    const [activePropertyIndex, setActivePropertyIndex] = useState(0);
 
-    // Default property
-    const defaultProperty = { title: 'Apartment in El Patio 7', location: 'New Cairo', price: 18150000, bedrooms: 3, bathrooms: 3, size_sqm: 165, rating: 5.0 };
-    const currentProperty = displayProperties[0] || defaultProperty;
+    // Default property for initial state
+    const defaultProperty = { title: 'Apartment in El Patio 7', location: 'New Cairo', price: 18150000, bedrooms: 3, bathrooms: 3, size_sqm: 165, rating: 5.0, wolf_score: 68 };
+
+    // Smart property selection
+    const currentProperty = displayProperties[activePropertyIndex] || (displayProperties.length > 0 ? displayProperties[0] : defaultProperty);
+    const hasProperties = displayProperties.length > 0;
 
     const latestAiMessage = useMemo(() => {
         const aiMessages = messages.filter(m => m.role === 'amr');
         return aiMessages.length > 0 ? aiMessages[aiMessages.length - 1] : null;
     }, [messages]);
 
-    const handleSelectProperty = (prop: any) => {
+    // Detect response type
+    const responseType = useMemo(() => {
+        return detectResponseType(
+            latestAiMessage?.content || '',
+            displayProperties,
+            visualizations
+        );
+    }, [latestAiMessage?.content, displayProperties, visualizations]);
+
+    // Get contextual actions
+    const contextualActions = useMemo(() => {
+        return getContextualActions(responseType, hasProperties);
+    }, [responseType, hasProperties]);
+
+    const handleSelectProperty = useCallback((prop: any, index: number = 0) => {
+        setActivePropertyIndex(index);
         setSelectedProperty({
-            title: prop.title, address: prop.location, price: `${prop.price.toLocaleString()} EGP`,
-            metrics: { bedrooms: prop.bedrooms, size: prop.size_sqm, wolfScore: prop.wolf_score || 75, capRate: "8%", pricePerSqFt: `${Math.round(prop.price / prop.size_sqm).toLocaleString()}` },
-            aiRecommendation: "Strong appreciation potential.", tags: ["High Growth"], agent: { name: "Amr", title: "Consultant" }
+            title: prop.title, address: prop.location, price: `${prop.price?.toLocaleString() || 0} EGP`,
+            metrics: { bedrooms: prop.bedrooms, size: prop.size_sqm, wolfScore: prop.wolf_score || 75, capRate: `${prop.cap_rate || 8}%`, pricePerSqFt: `${Math.round((prop.price || 0) / (prop.size_sqm || 1)).toLocaleString()}` },
+            aiRecommendation: prop.ai_recommendation || "Strong appreciation potential.", tags: prop.tags || ["High Growth"], agent: { name: "Amr", title: "Consultant" }
         });
-    };
+    }, []);
 
     const handleSend = async () => {
         if (!input.trim() || isTyping) return;
@@ -91,6 +361,7 @@ export default function ChatInterface() {
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsTyping(true);
+        setActivePropertyIndex(0);
 
         const aiMsgId = (Date.now() + 1).toString();
         setMessages(prev => [...prev, { role: 'amr', content: '', id: aiMsgId, isTyping: true }]);
@@ -102,7 +373,10 @@ export default function ChatInterface() {
                 onToolStart: () => { }, onToolEnd: () => { },
                 onComplete: (data) => {
                     setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: fullResponse, properties: data.properties, visualizations: data.ui_actions, isTyping: false } : m));
-                    if (data.properties?.length > 0) { setDisplayProperties(data.properties.slice(0, 3)); handleSelectProperty(data.properties[0]); }
+                    if (data.properties?.length > 0) {
+                        setDisplayProperties(data.properties.slice(0, 3));
+                        handleSelectProperty(data.properties[0], 0);
+                    }
                     if (data.ui_actions?.length > 0) { setVisualizations(data.ui_actions); }
                     setIsTyping(false);
                 },
@@ -113,17 +387,14 @@ export default function ChatInterface() {
 
     const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
     const getUserName = (): string => user?.full_name || user?.email?.split('@')[0] || 'Mustafa';
-    const handleNewSession = () => { setMessages([]); setSelectedProperty(null); setDisplayProperties([]); setVisualizations([]); setInput(''); setIsTyping(false); setSessionId(`session-${Date.now()}`); };
+    const handleNewSession = () => { setMessages([]); setSelectedProperty(null); setDisplayProperties([]); setVisualizations([]); setInput(''); setIsTyping(false); setSessionId(`session-${Date.now()}`); setActivePropertyIndex(0); };
 
-    // Check if we have any AI messages (including empty ones that are streaming)
     const hasAiResponse = messages.some(m => m.role === 'amr');
     const displayContent = latestAiMessage?.content ? sanitizeContent(latestAiMessage.content) : null;
     const showProcessing = isTyping || latestAiMessage?.isTyping;
 
-    // Calculate insights from property
-    const capRate = currentProperty?.cap_rate || 8;
-    const pricePerSqm = currentProperty ? Math.round(currentProperty.price / currentProperty.size_sqm) : 110000;
-    const walkScore = currentProperty?.walk_score || 85;
+    // Determine which properties to show
+    const propertiesToDisplay = hasProperties ? displayProperties : [defaultProperty];
 
     return (
         <div className="bg-[#F2F2EF] dark:bg-[#14171F] text-slate-700 dark:text-[#E8E8E3] font-sans transition-colors duration-500 overflow-hidden h-screen w-screen relative selection:bg-[#A3B18A] selection:text-white">
@@ -131,7 +402,7 @@ export default function ChatInterface() {
             <div className="absolute inset-0 z-0 pointer-events-none opacity-40 dark:opacity-100 bg-grid-light dark:bg-grid-dark grid-bg"></div>
             <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#F2F2EF]/50 via-transparent to-[#F2F2EF]/80 dark:from-[#14171F]/50 dark:via-transparent dark:to-[#14171F]/90 pointer-events-none"></div>
 
-            {/* Navigation - exact from reference */}
+            {/* Navigation */}
             <nav className="absolute top-0 left-0 w-full z-50 p-8 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full border border-[#A3B18A]/30 bg-[#A3B18A]/10 flex items-center justify-center backdrop-blur-md">
@@ -142,10 +413,10 @@ export default function ChatInterface() {
                     </Link>
                 </div>
                 <div className="flex gap-4">
-                    <button onClick={toggleTheme} className="p-2 rounded-full border border-slate-300 dark:border-white/10 hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400">
+                    <button onClick={toggleTheme} className="p-2 rounded-full border border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400">
                         <MaterialIcon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} className="text-xl" />
                     </button>
-                    <Link href="/dashboard" className="px-5 py-2 rounded-full border border-slate-300 dark:border-white/10 text-sm hover:bg-white/5 transition text-slate-600 dark:text-slate-300 font-display tracking-wide flex items-center gap-2">
+                    <Link href="/dashboard" className="px-5 py-2 rounded-full border border-slate-300 dark:border-white/10 text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition text-slate-600 dark:text-slate-300 font-display tracking-wide flex items-center gap-2">
                         <History size={16} /> History
                     </Link>
                     <button onClick={handleNewSession} className="px-5 py-2 rounded-full bg-slate-800 dark:bg-white/10 text-white dark:text-[#E6D5B8] border border-transparent dark:border-[#E6D5B8]/20 text-sm font-medium tracking-wide hover:bg-slate-700 dark:hover:bg-white/20 transition shadow-lg shadow-black/10 flex items-center gap-2">
@@ -153,7 +424,7 @@ export default function ChatInterface() {
                     </button>
                     {isAuthenticated && (
                         <div className="relative">
-                            <button onClick={() => setUserMenuOpen(!isUserMenuOpen)} className="w-10 h-10 rounded-full border border-slate-300 dark:border-white/10 hover:bg-white/5 transition text-slate-500 dark:text-slate-400 flex items-center justify-center">
+                            <button onClick={() => setUserMenuOpen(!isUserMenuOpen)} className="w-10 h-10 rounded-full border border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition text-slate-500 dark:text-slate-400 flex items-center justify-center">
                                 <User size={18} />
                             </button>
                             <AnimatePresence>
@@ -179,42 +450,24 @@ export default function ChatInterface() {
             <main className="relative z-10 w-full h-full flex items-center justify-center">
                 <SynapseLines />
 
-                {/* LEFT: Property Card - exact positioning from reference */}
-                <div className="hidden lg:block absolute left-[10%] top-[25%] w-80 transform transition-transform hover:scale-105 duration-700">
-                    <div className="relative glass-panel rounded-2xl p-5 group hover:border-[#A3B18A]/30 transition-colors">
-                        <div className="absolute -top-[1px] -left-[1px] w-4 h-4 border-t border-l border-[#A3B18A]/60 rounded-tl-lg"></div>
-                        <div className="relative overflow-hidden rounded-xl mb-4 h-44 bg-[#1C212B]/50">
-                            {currentProperty.image_url ? (
-                                <img alt="Property" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 hologram-img" src={currentProperty.image_url} />
-                            ) : (
-                                <div className="w-full h-full bg-slate-300 dark:bg-slate-800 flex items-center justify-center">
-                                    <MaterialIcon name="apartment" className="text-slate-400 dark:text-white/20" size="48px" />
-                                </div>
-                            )}
-                            <div className="absolute top-3 left-3 px-3 py-1 bg-[#1C212B]/40 border border-white/20 text-[#E8E8E3] text-[10px] font-bold uppercase rounded-md backdrop-blur-md tracking-wider">Top Pick</div>
-                        </div>
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="text-lg font-medium leading-tight text-slate-800 dark:text-slate-100 font-sans">{currentProperty.title}</h3>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-display uppercase tracking-wide">{currentProperty.location}</p>
-                                </div>
-                                <div className="flex items-center gap-1 text-[#E6D5B8]">
-                                    <MaterialIcon name="star" className="text-sm" />
-                                    <span className="text-sm font-bold">{currentProperty.rating || 5.0}</span>
-                                </div>
-                            </div>
-                            <div className="text-2xl font-light text-[#A3B18A] font-display">{currentProperty.price.toLocaleString()} <span className="text-base text-slate-500">EGP</span></div>
-                            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-white/5">
-                                <div className="text-center"><MaterialIcon name="bed" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{currentProperty.bedrooms} Bed</p></div>
-                                <div className="text-center"><MaterialIcon name="bathtub" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{currentProperty.bathrooms} Bath</p></div>
-                                <div className="text-center"><MaterialIcon name="square_foot" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{currentProperty.size_sqm}m²</p></div>
-                            </div>
-                        </div>
-                        <div className="absolute top-1/2 -right-16 w-16 h-[1px] bg-gradient-to-r from-white/20 to-transparent"></div>
-                        <div className="absolute top-1/2 -right-[66px] w-2 h-2 rounded-full bg-white/20 blur-[1px]"></div>
-                    </div>
-                </div>
+                {/* LEFT: Property Cards with AnimatePresence */}
+                <AnimatePresence mode="wait">
+                    {propertiesToDisplay.slice(0, 2).map((prop, idx) => (
+                        <PropertyCard
+                            key={`${prop.title}-${idx}`}
+                            property={prop}
+                            index={idx}
+                            isActive={idx === activePropertyIndex}
+                            onClick={() => handleSelectProperty(prop, idx)}
+                        />
+                    ))}
+                </AnimatePresence>
+
+                {/* RIGHT: Insights Panel */}
+                <InsightsPanel property={currentProperty} responseType={responseType} />
+
+                {/* BOTTOM-RIGHT: ROI Panel */}
+                <ROIPanel roi={12.5} property={currentProperty} />
 
                 {/* CENTER: Agentic Core Panel */}
                 <div className="relative z-20 w-full max-w-2xl mx-4 lg:mx-0 transform transition-all duration-700">
@@ -227,129 +480,111 @@ export default function ChatInterface() {
                             </div>
                             <div>
                                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400 mb-1">Agentic Core</h2>
-                                <span className="text-sm text-[#A3B18A]/80 font-display flex items-center gap-2">
+                                <motion.span
+                                    key={showProcessing ? 'processing' : 'complete'}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="text-sm text-[#A3B18A]/80 font-display flex items-center gap-2"
+                                >
                                     {showProcessing ? 'Processing Market Data' : 'Analysis Complete'}
                                     {showProcessing && <span className="flex space-x-1">{[0, 0.2, 0.4].map((d, i) => <span key={i} className="w-1 h-1 bg-[#A3B18A] rounded-full animate-bounce" style={{ animationDelay: `${d}s` }}></span>)}</span>}
-                                </span>
+                                </motion.span>
                             </div>
                         </div>
 
                         {/* Content */}
                         <div className="text-right font-sans text-lg leading-loose text-slate-700 dark:text-[#E8E8E3] space-y-6" dir="rtl">
-                            {displayContent ? (
-                                <div className="prose prose-lg dark:prose-invert max-w-none prose-p:text-slate-700 dark:prose-p:text-[#E8E8E3] prose-p:leading-loose prose-strong:text-[#A3B18A] prose-a:text-[#A3B18A]">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
-                                </div>
-                            ) : hasAiResponse ? (
-                                // Show loading state when AI is typing but no content yet
-                                <div className="flex items-center justify-center py-8">
-                                    <div className="flex items-center gap-3 text-slate-500">
-                                        <span className="flex space-x-1">
-                                            {[0, 0.2, 0.4].map((d, i) => <span key={i} className="w-2 h-2 bg-[#A3B18A] rounded-full animate-bounce" style={{ animationDelay: `${d}s` }}></span>)}
-                                        </span>
-                                        <span className="font-display">جاري التحليل...</span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    <p className="text-slate-900 dark:text-white font-medium">أهلاً بيك يا {getUserName()}! التجمع الخامس اختيار ممتاز.</p>
-                                    <p className="text-slate-600 dark:text-gray-300 font-light">بص، متوسط أسعار الشقق في التجمع الخامس بيبدأ من <span className="text-[#E6D5B8] font-bold px-1">5.4</span> مليون جنيه لحد <span className="text-[#E6D5B8] font-bold px-1">18.1</span> مليون جنيه. الفرق ده بيكون حسب المطور والموقع.</p>
-                                    <div className="p-4 bg-[#A3B18A]/5 border border-[#A3B18A]/10 rounded-xl relative overflow-hidden group">
-                                        <div className="absolute top-0 right-0 w-1 h-full bg-[#A3B18A]/40"></div>
-                                        <p className="text-slate-700 dark:text-gray-200">من الخيارات اللي عندي دلوقتي، في شقة في مشروع <span className="font-bold text-[#A3B18A]">السراي</span> بسعر 5.38 مليون جنيه، مساحتها 81 متر مربع، 1 نوم و2 حمام. الشقة دي الـ AI بتاعي قيمها بـ 50 على 100، يعني لقطة.</p>
-                                    </div>
-                                    <p className="text-sm text-slate-500 dark:text-slate-500 mt-6 font-display tracking-wide">تحب نحجز ميعاد معاينة للشقة دي يا {getUserName()}؟ عشان تشوفها على الطبيعة وأقدر أجبلك تفاصيل القسط الشهري.</p>
-                                </>
-                            )}
+                            <AnimatePresence mode="wait">
+                                {displayContent ? (
+                                    <motion.div
+                                        key="content"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        className="prose prose-lg dark:prose-invert max-w-none prose-p:text-slate-700 dark:prose-p:text-[#E8E8E3] prose-p:leading-loose prose-strong:text-[#A3B18A] prose-a:text-[#A3B18A]"
+                                    >
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
+                                    </motion.div>
+                                ) : hasAiResponse ? (
+                                    <LoadingState />
+                                ) : (
+                                    <motion.div key="greeting" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                        <p className="text-slate-900 dark:text-white font-medium">أهلاً بيك يا {getUserName()}! التجمع الخامس اختيار ممتاز.</p>
+                                        <p className="text-slate-600 dark:text-gray-300 font-light mt-4">بص، متوسط أسعار الشقق في التجمع الخامس بيبدأ من <span className="text-[#E6D5B8] font-bold px-1">5.4</span> مليون جنيه لحد <span className="text-[#E6D5B8] font-bold px-1">18.1</span> مليون جنيه.</p>
+                                        <div className="p-4 bg-[#A3B18A]/5 border border-[#A3B18A]/10 rounded-xl relative overflow-hidden mt-4">
+                                            <div className="absolute top-0 right-0 w-1 h-full bg-[#A3B18A]/40"></div>
+                                            <p className="text-slate-700 dark:text-gray-200">من الخيارات اللي عندي، في شقة في <span className="font-bold text-[#A3B18A]">السراي</span> بسعر 5.38 مليون جنيه. الـ AI بتاعي قيمها بـ 50/100.</p>
+                                        </div>
+                                        <p className="text-sm text-slate-500 mt-4 font-display">تحب نحجز معاينة يا {getUserName()}؟</p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* Charts */}
-                        {visualizations.length > 0 && (
-                            <div className="mt-6 space-y-4">
-                                {visualizations.map((viz: any, idx: number) => {
-                                    let chartData = viz.type === 'inflation_killer' && viz.data?.projections ? viz.data.projections : viz.data;
-                                    if (!Array.isArray(chartData) || chartData.length === 0) return null;
-                                    return (
-                                        <div key={idx} className="glass-panel rounded-xl p-4 bg-white/50 dark:bg-white/5">
-                                            <ChartVisualization type={viz.type === 'inflation_killer' ? 'line' : viz.type || 'bar'} title={viz.title || 'Analysis'} data={chartData} labels={viz.labels || []} trend={viz.trend} subtitle={viz.subtitle} />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        <AnimatePresence>
+                            {visualizations.length > 0 && (
+                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+                                    {visualizations.map((viz: any, idx: number) => {
+                                        let chartData = viz.type === 'inflation_killer' && viz.data?.projections ? viz.data.projections : viz.data;
+                                        if (!Array.isArray(chartData) || chartData.length === 0) return null;
+                                        return (
+                                            <div key={idx} className="glass-panel rounded-xl p-4 bg-white/50 dark:bg-white/5">
+                                                <ChartVisualization type={viz.type === 'inflation_killer' ? 'line' : viz.type || 'bar'} title={viz.title || 'Analysis'} data={chartData} labels={viz.labels || []} trend={viz.trend} subtitle={viz.subtitle} />
+                                            </div>
+                                        );
+                                    })}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                        {/* Buttons */}
-                        <div className="mt-8 flex flex-wrap gap-4 justify-end" dir="rtl">
-                            <button className="px-5 py-2.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent dark:border-white/5 rounded-xl text-sm text-slate-600 dark:text-slate-300 transition-all flex items-center gap-2 shadow-sm">
-                                <MaterialIcon name="calendar_today" className="text-lg" /> حجز معاينة
-                            </button>
-                            <button className="px-5 py-2.5 bg-[#A3B18A]/10 border border-[#A3B18A]/30 text-[#A3B18A] hover:bg-[#A3B18A]/20 rounded-xl text-sm transition-all flex items-center gap-2 shadow-sm">
-                                <MaterialIcon name="visibility" className="text-lg" /> عرض التفاصيل
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* RIGHT: Listing Insights - exact positioning from reference */}
-                <div className="hidden lg:block absolute right-[5%] top-[20%] w-72 transform transition-transform hover:scale-105 duration-700">
-                    <div className="relative glass-panel rounded-2xl p-6 hover:border-[#D4A3A3]/30 transition-colors group">
-                        <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b border-r border-[#D4A3A3]/60 rounded-br-lg"></div>
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Listing Insights</h3>
-                            <MaterialIcon name="analytics" className="text-[#D4A3A3]/70 text-lg" />
-                        </div>
-                        <div className="space-y-6">
-                            <div>
-                                <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider"><span>Cap Rate</span><span className="text-[#A3B18A]">High</span></div>
-                                <div className="text-3xl font-light text-slate-800 dark:text-white font-display">{capRate}%</div>
-                                <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 mt-2 rounded-full overflow-hidden"><div className="bg-gradient-to-r from-[#D4A3A3] to-[#A3B18A] w-[80%] h-full rounded-full opacity-80"></div></div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between text-xs text-slate-500 mb-1 font-display uppercase tracking-wider"><span>Price / SQM</span></div>
-                                <div className="text-2xl font-light text-slate-800 dark:text-white font-display">{pricePerSqm.toLocaleString()} <span className="text-sm text-slate-500">EGP</span></div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider"><span>Walk Score</span><span className="text-[#E6D5B8] font-bold">{walkScore}/100</span></div>
-                                <div className="h-16 w-full flex items-end gap-1 mt-2">
-                                    <div className="w-1/6 bg-[#D4A3A3] h-[40%] rounded-t-sm opacity-20"></div>
-                                    <div className="w-1/6 bg-[#D4A3A3] h-[60%] rounded-t-sm opacity-30"></div>
-                                    <div className="w-1/6 bg-[#D4A3A3] h-[30%] rounded-t-sm opacity-40"></div>
-                                    <div className="w-1/6 bg-[#A3B18A] h-[80%] rounded-t-sm opacity-50"></div>
-                                    <div className="w-1/6 bg-[#A3B18A] h-[90%] rounded-t-sm opacity-70"></div>
-                                    <div className="w-1/6 bg-[#A3B18A] h-[50%] rounded-t-sm opacity-90"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="absolute top-1/2 -left-16 w-16 h-[1px] bg-gradient-to-l from-white/20 to-transparent"></div>
-                    </div>
-                </div>
-
-                {/* BOTTOM-RIGHT: ROI Panel - exact positioning from reference */}
-                <div className="hidden lg:block absolute right-[15%] bottom-[15%] w-64 transform transition-transform hover:scale-105 duration-700">
-                    <div className="relative glass-panel rounded-2xl p-5 hover:border-[#A3B18A]/40 transition-colors">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Proj. Annual ROI</span>
-                            <MaterialIcon name="trending_up" className="text-[#A3B18A] text-sm" />
-                        </div>
-                        <div className="text-3xl font-light text-[#A3B18A] font-display">12.5%</div>
-                        <p className="text-[10px] text-slate-500 mt-2 leading-tight">Based on recent market trends in New Cairo.</p>
-                        <div className="absolute -top-12 left-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-white/20"></div>
+                        {/* Smart Action Buttons */}
+                        <motion.div
+                            key={responseType}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-8 flex flex-wrap gap-3 justify-end"
+                            dir="rtl"
+                        >
+                            {contextualActions.map((action, idx) => (
+                                <motion.button
+                                    key={action.label}
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    className={`px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2 shadow-sm ${action.primary
+                                            ? 'bg-[#A3B18A]/10 border border-[#A3B18A]/30 text-[#A3B18A] hover:bg-[#A3B18A]/20'
+                                            : 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300'
+                                        }`}
+                                >
+                                    <MaterialIcon name={action.icon} className="text-lg" /> {action.label}
+                                </motion.button>
+                            ))}
+                        </motion.div>
                     </div>
                 </div>
             </main>
 
-            {/* BOTTOM-LEFT: Floating Controls - exact positioning from reference */}
+            {/* Floating Controls */}
             <div className="absolute bottom-8 left-8 flex flex-col gap-3 z-50">
-                {['add', 'remove', 'my_location'].map(icon => (
-                    <button key={icon} className="w-11 h-11 rounded-xl bg-white/5 dark:bg-[#1C212B]/50 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 backdrop-blur-md flex items-center justify-center hover:bg-[#A3B18A]/20 hover:text-[#A3B18A] hover:border-[#A3B18A]/30 transition-all shadow-lg">
+                {['add', 'remove', 'my_location'].map((icon, idx) => (
+                    <motion.button
+                        key={icon}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 + (idx * 0.1) }}
+                        className="w-11 h-11 rounded-xl bg-white/80 dark:bg-[#1C212B]/50 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 backdrop-blur-md flex items-center justify-center hover:bg-[#A3B18A]/20 hover:text-[#A3B18A] hover:border-[#A3B18A]/30 transition-all shadow-lg"
+                    >
                         <MaterialIcon name={icon} className="text-xl" />
-                    </button>
+                    </motion.button>
                 ))}
             </div>
 
-            {/* BOTTOM: Input - exact positioning from reference */}
+            {/* Input */}
             <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50">
-                <div className="relative group">
+                <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="relative group">
                     <div className="absolute -inset-1 bg-gradient-to-r from-[#A3B18A]/30 via-[#E6D5B8]/20 to-[#D4A3A3]/30 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition duration-700"></div>
                     <div className="relative flex items-center bg-white dark:bg-[#1C212B]/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-full shadow-2xl overflow-hidden transition-colors hover:border-[#A3B18A]/20">
                         <button className="pl-5 pr-3 text-slate-400 hover:text-[#A3B18A] transition"><MaterialIcon name="add_circle" /></button>
@@ -360,7 +595,7 @@ export default function ChatInterface() {
                         </button>
                     </div>
                     <div className="text-center mt-3"><p className="text-[10px] text-slate-400 dark:text-slate-500 tracking-widest uppercase font-display opacity-70">AI insights require independent verification</p></div>
-                </div>
+                </motion.div>
             </div>
 
             <ContextualPane isOpen={!!selectedProperty} onClose={() => setSelectedProperty(null)} property={selectedProperty} isRTL={language === 'ar'} />
