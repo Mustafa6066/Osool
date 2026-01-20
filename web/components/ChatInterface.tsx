@@ -115,7 +115,9 @@ export default function ChatInterface() {
     const getUserName = (): string => user?.full_name || user?.email?.split('@')[0] || 'Mustafa';
     const handleNewSession = () => { setMessages([]); setSelectedProperty(null); setDisplayProperties([]); setVisualizations([]); setInput(''); setIsTyping(false); setSessionId(`session-${Date.now()}`); };
 
-    const displayContent = latestAiMessage ? sanitizeContent(latestAiMessage.content || '') : null;
+    // Check if we have any AI messages (including empty ones that are streaming)
+    const hasAiResponse = messages.some(m => m.role === 'amr');
+    const displayContent = latestAiMessage?.content ? sanitizeContent(latestAiMessage.content) : null;
     const showProcessing = isTyping || latestAiMessage?.isTyping;
 
     // Calculate insights from property
@@ -237,6 +239,16 @@ export default function ChatInterface() {
                             {displayContent ? (
                                 <div className="prose prose-lg dark:prose-invert max-w-none prose-p:text-slate-700 dark:prose-p:text-[#E8E8E3] prose-p:leading-loose prose-strong:text-[#A3B18A] prose-a:text-[#A3B18A]">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
+                                </div>
+                            ) : hasAiResponse ? (
+                                // Show loading state when AI is typing but no content yet
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="flex items-center gap-3 text-slate-500">
+                                        <span className="flex space-x-1">
+                                            {[0, 0.2, 0.4].map((d, i) => <span key={i} className="w-2 h-2 bg-[#A3B18A] rounded-full animate-bounce" style={{ animationDelay: `${d}s` }}></span>)}
+                                        </span>
+                                        <span className="font-display">جاري التحليل...</span>
+                                    </div>
                                 </div>
                             ) : (
                                 <>
