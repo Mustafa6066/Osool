@@ -500,16 +500,17 @@ Examples:
                     
                 query_text = " ".join(query_parts) if query_parts else "property"
                 
-                # Call the vector search service with higher limit for post-filtering
-                # Note: vector_search.search_properties signature is (db, query_text, limit, threshold)
+                # Call the vector search service with price filtering built-in
                 results = await db_search_properties(
                     db=db,
                     query_text=query_text,
-                    limit=50,  # Higher limit to allow budget filtering
-                    similarity_threshold=0.50  # Lower threshold for better recall
+                    limit=50,  # Higher limit for variety
+                    similarity_threshold=0.50,  # Lower threshold for better recall
+                    price_min=filters.get('budget_min'),  # Direct SQL filtering
+                    price_max=filters.get('budget_max')   # Direct SQL filtering
                 )
                 
-                # Filter by budget if specified
+                # Double-check budget filter (in case search didn't apply it)
                 if 'budget_max' in filters and filters['budget_max']:
                     results = [r for r in results if r.get('price', 0) <= filters['budget_max']]
                 

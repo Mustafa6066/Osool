@@ -59,7 +59,9 @@ async def search_properties(
     db: AsyncSession,
     query_text: str,
     limit: int = 5,
-    similarity_threshold: float = 0.7
+    similarity_threshold: float = 0.7,
+    price_min: int = None,
+    price_max: int = None
 ) -> List[dict]:
     """
     Search for properties using semantic similarity with STRICT threshold enforcement.
@@ -67,13 +69,16 @@ async def search_properties(
     Phase 7 Production Enhancement:
     - Primary: pgvector cosine similarity search with 0.7 minimum threshold
     - ANTI-HALLUCINATION: Returns empty if no results meet threshold
-    - Fallback: Text search when pgvector is not available
+    - Fallback: Text search when pgvector not available
+    - NEW: Direct price filtering for budget enforcement
 
     Args:
         db: Database session
         query_text: User search query
         limit: Maximum number of results
         similarity_threshold: Minimum similarity score (0-1), default 0.7
+        price_min: Minimum price filter (optional)
+        price_max: Maximum price filter (optional)
 
     Returns:
         List of property dicts with similarity scores and _source metadata
@@ -96,12 +101,19 @@ async def search_properties(
                     # Helper function to execute search with specific threshold
                     async def _execute_vector_search(current_threshold):
                         similarity_expr = 1 - Property.embedding.cosine_distance(embedding)
+                        filters = [
+                            Property.is_available == True,
+                            similarity_expr >= current_threshold
+                        ]
+                        # Apply price filters if specified
+                        if price_min is not None:
+                            filters.append(Property.price >= price_min)
+                        if price_max is not None:
+                            filters.append(Property.price <= price_max)
+                        
                         stmt = (
                             select(Property, similarity_expr.label('similarity'))
-                            .filter(
-                                Property.is_available == True,
-                                similarity_expr >= current_threshold
-                            )
+                            .filter(*filters)
                             .order_by(similarity_expr.desc())
                             .limit(limit)
                         )
@@ -165,11 +177,12 @@ async def search_properties(
                 # Fall through to text search below
 
         # TEXT SEARCH FALLBACK (when pgvector not available or vector search failed)
-        # TEXT SEARCH STRATEGY 1: Exact Phrase Match
+        # TEXT SEARCH STRATEGY 1: Exact Phrase Match with Price Filtering
         logger.info(f"🔍 Text Search Attempt 1: Exact phrase '{query_text}'")
         search_term = f"%{query_text}%"
 
-        stmt = select(Property).filter(
+        # Build base filters
+        base_filters = [
             Property.is_available == True,
             or_(
                 Property.title.ilike(search_term),
@@ -179,7 +192,15 @@ async def search_properties(
                 Property.developer.ilike(search_term),
                 Property.type.ilike(search_term)
             )
-        ).limit(limit)
+        ]
+        
+        # Apply price filters if specified
+        if price_min is not None:
+            base_filters.append(Property.price >= price_min)
+        if price_max is not None:
+            base_filters.append(Property.price <= price_max)
+
+        stmt = select(Property).filter(*base_filters).limit(limit)
 
         result = await db.execute(stmt)
         properties = result.scalars().all()
@@ -210,7 +231,15 @@ async def search_properties(
                 stmt = select(Property).filter(
                     Property.is_available == True,
                     or_(*conditions)
-                ).limit(limit)
+                )
+                
+                # Apply price filters if specified
+                if price_min is not None:
+                    stmt = stmt.filter(Property.price >= price_min)
+                if price_max is not None:
+                    stmt = stmt.filter(Property.price <= price_max)
+                
+                stmt = stmt.limit(limit)
                 
                 result = await db.execute(stmt)
                 properties = result.scalars().all()
