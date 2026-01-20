@@ -45,29 +45,7 @@ export default function ContextualPane({
     isRTL = false,
 }: ContextualPaneProps) {
     // Don't render if no property data
-    if (!property) {
-        return (
-            <>
-                {/* Desktop Empty Pane */}
-                <aside className={`chat-contextual-pane bg-[var(--color-background)] backdrop-blur-md hidden xl:flex flex-col overflow-y-auto z-20 chat-scrollbar ${isRTL ? 'border-r border-l-0' : ''}`}>
-                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                        <div className="size-16 rounded-2xl bg-[var(--color-surface)] flex items-center justify-center mb-4">
-                            <Home size={32} className="text-[var(--color-text-muted)]" />
-                        </div>
-                        <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-2">
-                            {isRTL ? 'لا توجد عقارات محددة' : 'No Property Selected'}
-                        </h3>
-                        <p className="text-sm text-[var(--color-text-muted)] max-w-[200px]">
-                            {isRTL
-                                ? 'ابحث عن العقارات وسيظهر التفاصيل هنا'
-                                : 'Search for properties and details will appear here'
-                            }
-                        </p>
-                    </div>
-                </aside>
-            </>
-        );
-    }
+    if (!property) return null;
 
     // Simplified Listing Insights Card Content
     const listingInsightsCard = (
@@ -136,7 +114,7 @@ export default function ContextualPane({
     return (
         <>
             {/* Desktop Pane - Floating Card (Top Right) */}
-            <aside className={`fixed top-[15%] right-[5%] w-72 z-20 hidden xl:block transition-all duration-500 transform ${property ? 'translate-x-0 opacity-100' : 'translate-x-10 opacity-0 pointer-events-none'}`}>
+            <aside className={`fixed top-[20%] right-[5%] w-72 z-20 hidden xl:block transition-all duration-500 transform ${property ? 'translate-x-0 opacity-100' : 'translate-x-10 opacity-0 pointer-events-none'}`}>
                 {property && listingInsightsCard}
             </aside>
 
