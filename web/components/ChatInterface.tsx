@@ -63,6 +63,11 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
             <div className="flex flex-col gap-6 flex-1 min-w-0">
                 {/* Agentic Core Panel */}
                 <div className="relative glass-panel bg-white/80 dark:bg-[var(--color-surface-dark)]/40 rounded-2xl p-6 lg:p-8 shadow-soft-glow backdrop-blur-3xl border border-white/10">
+                    {/* Decorative Node Glows matching floating cards */}
+                    <div className="absolute top-1/2 -left-1 w-1.5 h-1.5 bg-[var(--color-tertiary)]/40 rounded-full blur-[1px]"></div>
+                    <div className="absolute top-1/3 -right-1 w-1.5 h-1.5 bg-[var(--color-tertiary)]/40 rounded-full blur-[1px]"></div>
+                    <div className="absolute bottom-1/3 -left-1 w-1.5 h-1.5 bg-[var(--color-tertiary)]/40 rounded-full blur-[1px]"></div>
+
                     {/* Header */}
                     <div className="flex items-center gap-3 mb-4 border-b border-black/5 dark:border-white/5 pb-4">
                         <div className="sm:hidden w-8 h-8 rounded-lg bg-[var(--color-primary)]/10 flex items-center justify-center">

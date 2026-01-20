@@ -69,214 +69,75 @@ export default function ContextualPane({
         );
     }
 
-    const paneContent = (
-        <>
-            {/* Context Header */}
-            <div className={`px-5 py-4 border-b border-[var(--color-border)] flex justify-between items-center sticky top-0 bg-[var(--color-background)]/80 backdrop-blur z-10 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <h2 className={`font-bold text-[var(--color-text-primary)] flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <BarChart2 size={20} className="text-[var(--color-primary)] dark:text-[var(--color-secondary)]" />
-                    {isRTL ? 'تفاصيل العقار' : 'Listing Insights'}
-                </h2>
-                <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-                >
-                    <X size={20} />
-                </button>
+    // Simplified Listing Insights Card Content
+    const listingInsightsCard = (
+        <div className="relative glass-panel rounded-2xl p-6 group hover:border-[var(--color-secondary)]/30 transition-colors w-full h-full md:h-auto md:aspect-[3/4] flex flex-col">
+            <div className="absolute top-1/2 -left-1 w-2 h-2 bg-[var(--color-secondary)]/60 rounded-full node-glow blur-[1px]"></div>
+            <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b border-r border-[var(--color-secondary)]/60 rounded-br-lg"></div>
+
+            <div className="flex justify-between items-center mb-6 flex-none">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)]">{isRTL ? 'رؤى العقار' : 'Listing Insights'}</h3>
+                <BarChart2 size={24} className="text-[var(--color-secondary)]/70" />
             </div>
 
-            <div className="p-5 space-y-8" dir={isRTL ? 'rtl' : 'ltr'}>
-                {/* Property Title */}
-                <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-[var(--color-text-primary)]">{property.title}</h3>
-                    <p className="text-sm text-[var(--color-text-muted)]">{property.address}</p>
-                    <p className="text-2xl font-bold text-[var(--color-primary)] dark:text-[var(--color-secondary)]">{property.price}</p>
-                </div>
-
-                {/* Stats Grid - Only show if metrics exist */}
-                {property.metrics && (
-                    <div>
-                        <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
-                            {isRTL ? 'المقاييس الرئيسية' : 'Key Metrics'}
-                        </h3>
-                        <div className="grid grid-cols-2 gap-3">
-                            {property.metrics.capRate && (
-                                <div className="metric-card">
-                                    <div className={`flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                        <Percent size={16} />
-                                        <p className="text-[10px] uppercase font-bold">{isRTL ? 'معدل العائد' : 'Cap Rate'}</p>
-                                    </div>
-                                    <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.capRate}</p>
-                                </div>
-                            )}
-                            {property.metrics.pricePerSqFt && (
-                                <div className="metric-card">
-                                    <div className={`flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                        <Ruler size={16} />
-                                        <p className="text-[10px] uppercase font-bold">{isRTL ? 'السعر/م²' : 'Price / SqM'}</p>
-                                    </div>
-                                    <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.pricePerSqFt}</p>
-                                </div>
-                            )}
-                            {property.metrics.size && (
-                                <div className="metric-card">
-                                    <div className={`flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                        <Ruler size={16} />
-                                        <p className="text-[10px] uppercase font-bold">{isRTL ? 'المساحة' : 'Size'}</p>
-                                    </div>
-                                    <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.size} {isRTL ? 'م²' : 'sqm'}</p>
-                                </div>
-                            )}
-                            {property.metrics.bedrooms && (
-                                <div className="metric-card">
-                                    <div className={`flex items-center gap-1.5 mb-1 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                        <Home size={16} />
-                                        <p className="text-[10px] uppercase font-bold">{isRTL ? 'غرف النوم' : 'Bedrooms'}</p>
-                                    </div>
-                                    <p className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{property.metrics.bedrooms}</p>
-                                </div>
-                            )}
-                            {property.metrics.wolfScore && (
-                                <div className="metric-card col-span-2">
-                                    <div className={`flex justify-between items-end mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                        <div className={`flex items-center gap-1.5 text-[var(--color-text-muted)] ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                            <ShieldCheck size={16} className="text-amber-500" />
-                                            <p className="text-[10px] uppercase font-bold text-amber-500">{isRTL ? 'تصنيف وولف' : 'Wolf Score'}</p>
-                                        </div>
-                                        <span className="text-xl font-bold text-[var(--color-text-primary)]">{property.metrics.wolfScore}/100</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-[var(--color-surface)] dark:bg-black/40 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.5)]"
-                                            style={{ width: `${property.metrics.wolfScore}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+            <div className="space-y-6 flex-1 overflow-y-auto no-scrollbar">
+                {/* Cap Rate */}
+                <div>
+                    <div className="flex justify-between text-xs text-[var(--color-text-muted)] mb-2 font-display uppercase tracking-wider">
+                        <span>{isRTL ? 'معدل العائد' : 'Cap Rate'}</span>
+                        <span className="text-[var(--color-primary)] font-bold">High</span>
                     </div>
-                )}
-
-                {/* AI Insight Widget - Only show if recommendation exists */}
-                {property.aiRecommendation && (
-                    <div className="ai-recommendation-card p-5">
-                        <div className="relative z-10">
-                            <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                <div className="size-6 rounded bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                    <Lightbulb size={16} />
-                                </div>
-                                <h3 className="text-sm font-bold">{isRTL ? 'توصية الذكاء الاصطناعي' : 'AI Recommendation'}</h3>
-                            </div>
-                            <p className="text-sm text-white/90 leading-relaxed font-light mb-4">
-                                {property.aiRecommendation}
-                            </p>
-                            {property.tags && property.tags.length > 0 && (
-                                <div className={`flex flex-wrap gap-2 ${isRTL ? 'justify-end' : ''}`}>
-                                    {property.tags.map((tag, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-2 py-1 bg-white/10 backdrop-blur-md rounded text-[10px] font-medium border border-white/20"
-                                        >
-                                            {tag}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Investment Analysis */}
-                <div className="space-y-3">
-                    <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-                        {isRTL ? 'تحليل الاستثمار' : 'Investment Analysis'}
-                    </h3>
-                    <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl p-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <div className="flex items-center gap-2">
-                                <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
-                                    <TrendingUp size={16} />
-                                </div>
-                                <span className="text-sm font-bold text-[var(--color-text-primary)]">{isRTL ? 'العائد المتوقع' : 'Proj. Annual ROI'}</span>
-                            </div>
-                            <span className="text-lg font-bold text-green-600 dark:text-green-400">{property.metrics?.roi || 12.5}%</span>
-                        </div>
-                        {/* Simple Progress Bar for ROI */}
-                        <div className="h-2 w-full bg-[var(--color-surface)] dark:bg-black/40 rounded-full overflow-hidden mb-4">
-                            <div
-                                className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full"
-                                style={{ width: `${(property.metrics?.roi || 12.5) * 4}%` }} // Scale roughly to 25% max visual
-                            ></div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[var(--color-border)]">
-                            <div className="text-center">
-                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{isRTL ? 'الإشغال المقدر' : 'Est. Occupancy'}</p>
-                                <p className="text-sm font-bold text-[var(--color-text-primary)]">{property.metrics?.occupancyRate || 88}%</p>
-                            </div>
-                            <div className="text-center border-l border-[var(--color-border)]">
-                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{isRTL ? 'نمو السعر (سنة)' : '1Y Appreciation'}</p>
-                                <p className="text-sm font-bold text-[var(--color-text-primary)]">+15.2%</p>
-                            </div>
-                        </div>
+                    <div className="text-3xl font-light text-[var(--color-text-primary)] font-display">{property.metrics?.capRate || '8%'}</div>
+                    <div className="w-full bg-[var(--color-surface-elevated)] h-1.5 mt-2 rounded-full overflow-hidden">
+                        <div className="bg-gradient-to-r from-[var(--color-secondary)] to-[var(--color-primary)] w-[80%] h-full rounded-full opacity-80"></div>
                     </div>
                 </div>
 
-                {/* Neighborhood Insights */}
-                <div className="space-y-3">
-                    <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
-                        {isRTL ? 'إحصائيات الحي' : 'Neighborhood Stats'}
-                    </h3>
-                    <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
-                            <ShieldCheck size={18} className="text-blue-500 dark:text-blue-400 mb-1" />
-                            <span className="text-[10px] text-[var(--color-text-muted)] font-medium">{isRTL ? 'أمان' : 'Safety'}</span>
-                            <span className="text-xs font-bold text-[var(--color-text-primary)]">{property.neighborhoodStats?.crimeRate || 'High'}</span>
-                        </div>
-                        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
-                            <GraduationCap size={18} className="text-purple-500 dark:text-purple-400 mb-1" />
-                            <span className="text-[10px] text-[var(--color-text-muted)] font-medium">{isRTL ? 'تعليم' : 'Schools'}</span>
-                            <span className="text-xs font-bold text-[var(--color-text-primary)]">{property.neighborhoodStats?.schoolScore || '9.2'}/10</span>
-                        </div>
-                        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1">
-                            <Bus size={18} className="text-amber-500 dark:text-amber-400 mb-1" />
-                            <span className="text-[10px] text-[var(--color-text-muted)] font-medium">{isRTL ? 'مواصلات' : 'Transit'}</span>
-                            <span className="text-xs font-bold text-[var(--color-text-primary)]">{property.neighborhoodStats?.transitScore || '85'}</span>
-                        </div>
+                {/* Price / SQM */}
+                <div>
+                    <div className="flex justify-between text-xs text-[var(--color-text-muted)] mb-1 font-display uppercase tracking-wider">
+                        <span>{isRTL ? 'السعر / متر' : 'Price / SQM'}</span>
+                    </div>
+                    <div className="text-2xl font-light text-[var(--color-text-primary)] font-display">
+                        {property.metrics?.pricePerSqFt || '110,000'} <span className="text-sm text-[var(--color-text-muted)]">EGP</span>
                     </div>
                 </div>
 
-                {/* Agent Contact - Only show if agent exists */}
-                {property.agent && (
-                    <div className={`bg-[var(--color-surface-elevated)] p-4 rounded-xl border border-[var(--color-border)] shadow-sm flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <div className="size-12 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-teal-600 flex items-center justify-center text-white font-bold border-2 border-[var(--color-surface)] shadow-sm">
-                            {property.agent.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div className={`flex-1 min-w-0 ${isRTL ? 'text-right' : ''}`}>
-                            <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">{property.agent.name}</p>
-                            <p className="text-xs text-[var(--color-text-muted)] truncate">{property.agent.title}</p>
-                        </div>
-                        <div className="flex gap-2">
-                            <button className="size-8 flex items-center justify-center rounded-full bg-[var(--color-surface)] hover:bg-[var(--color-primary)] hover:text-white transition-colors text-[var(--color-text-muted)]">
-                                <MessageCircle size={18} />
-                            </button>
-                            <button className="size-8 flex items-center justify-center rounded-full bg-[var(--color-surface)] hover:bg-[var(--color-primary)] hover:text-white transition-colors text-[var(--color-text-muted)]">
-                                <Phone size={18} />
-                            </button>
-                        </div>
+                {/* Wolf Score */}
+                <div>
+                    <div className="flex justify-between text-xs text-[var(--color-text-muted)] mb-2 font-display uppercase tracking-wider">
+                        <span>{isRTL ? 'تصنيف وولف' : 'Wolf Score'}</span>
+                        <span className="text-[var(--color-tertiary)] font-bold">{property.metrics?.wolfScore || 85}/100</span>
                     </div>
-                )}
+                    <div className="h-16 w-full flex items-end gap-1 mt-2">
+                        {/* Visual bar chart simulation */}
+                        <div className="w-1/6 bg-[var(--color-secondary)] h-[40%] rounded-t-sm opacity-20"></div>
+                        <div className="w-1/6 bg-[var(--color-secondary)] h-[60%] rounded-t-sm opacity-30"></div>
+                        <div className="w-1/6 bg-[var(--color-secondary)] h-[30%] rounded-t-sm opacity-40"></div>
+                        <div className="w-1/6 bg-[var(--color-primary)] h-[80%] rounded-t-sm opacity-50"></div>
+                        <div className="w-1/6 bg-[var(--color-primary)] h-[90%] rounded-t-sm opacity-70"></div>
+                        <div className="w-1/6 bg-[var(--color-primary)] h-[50%] rounded-t-sm opacity-90"></div>
+                    </div>
+                </div>
+
+                {/* ROI Extra (from design) */}
+                <div className="pt-4 border-t border-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-[var(--color-text-muted)]">{isRTL ? 'العائد السنوي المتوقع' : 'Proj. Annual ROI'}</span>
+                        <TrendingUp size={16} className="text-[var(--color-primary)]" />
+                    </div>
+                    <div className="text-3xl font-light text-[var(--color-primary)] font-display">{property.metrics?.roi || '12.5'}%</div>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-2 leading-tight">Based on recent market trends.</p>
+                </div>
             </div>
-        </>
+        </div>
     );
 
     return (
         <>
-            {/* Desktop Pane - Floating Glass Panel */}
-            <aside className={`fixed top-24 bottom-6 ${isRTL ? 'left-6' : 'right-6'} w-[340px] glass-panel rounded-2xl hidden xl:flex flex-col overflow-hidden z-20`}>
-                <div className="flex-1 overflow-y-auto chat-scrollbar">
-                    {paneContent}
-                </div>
+            {/* Desktop Pane - Floating Card (Top Right) */}
+            <aside className={`fixed top-[15%] right-[5%] w-72 z-20 hidden xl:block transition-all duration-500 transform ${property ? 'translate-x-0 opacity-100' : 'translate-x-10 opacity-0 pointer-events-none'}`}>
+                {property && listingInsightsCard}
             </aside>
 
             {/* Mobile Pane Overlay */}
@@ -296,11 +157,12 @@ export default function ContextualPane({
                             animate={{ x: 0 }}
                             exit={{ x: isRTL ? -340 : 340 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 bottom-0 w-[320px] bg-[var(--color-surface)]/90 backdrop-blur-xl border-[var(--color-border)] border-l flex flex-col z-50 xl:hidden overflow-hidden`}
+                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 bottom-0 w-[300px] bg-[var(--color-surface)]/95 backdrop-blur-xl p-6 flex flex-col z-50 xl:hidden`}
                         >
-                            <div className="flex-1 overflow-y-auto">
-                                {paneContent}
+                            <div className="flex justify-end mb-4">
+                                <button onClick={onClose}><X className="text-[var(--color-text-muted)]" /></button>
                             </div>
+                            {listingInsightsCard}
                         </motion.aside>
                     </>
                 )}
