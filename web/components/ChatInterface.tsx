@@ -254,7 +254,136 @@ export default function ChatInterface() {
                 {/* Scrollable Content */}
                 <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-[15%] space-y-8 z-10 relative scroll-smooth no-scrollbar pt-24 pb-48">
                     {messages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full">
+                        <div className="flex flex-col items-center justify-center h-full w-full relative">
+
+                            {/* --- Floating Decorative Elements (Desktop Only) --- */}
+
+                            {/* Top Left: Hologram Property */}
+                            <motion.div
+                                initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, duration: 0.8 }}
+                                className="hidden lg:block absolute left-[-10%] top-[10%] w-80 transform transition-transform hover:scale-105 duration-700 z-0 pointer-events-none xl:pointer-events-auto"
+                            >
+                                <div className="relative glass-panel rounded-2xl p-5 group hover:border-[var(--color-primary)]/30 transition-colors">
+                                    <div className="absolute top-1/2 -right-1 w-2 h-2 bg-[var(--color-tertiary)]/60 rounded-full node-glow blur-[1px]"></div>
+                                    <div className="absolute -top-[1px] -left-[1px] w-4 h-4 border-t border-l border-[var(--color-primary)]/60 rounded-tl-lg"></div>
+                                    <div className="relative overflow-hidden rounded-xl mb-4 h-44 bg-[var(--color-surface-dark)]/50">
+                                        <div className="w-full h-full bg-slate-800 relative overflow-hidden">
+                                            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--color-primary)]/20 to-transparent"></div>
+                                            <MaterialIcon name="apartment" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/20 text-6xl" />
+                                        </div>
+                                        <div className="absolute top-3 left-3 px-3 py-1 bg-[var(--color-surface-dark)]/40 border border-white/20 text-white text-[10px] font-bold uppercase rounded-md backdrop-blur-md tracking-wider">
+                                            Top Pick
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="text-lg font-medium leading-tight text-slate-800 dark:text-slate-100 font-sans">Apartment in El Patio 7</h3>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-display uppercase tracking-wide">New Cairo</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[var(--color-tertiary)]">
+                                                <MaterialIcon name="star" size="14px" className="text-[var(--color-tertiary)]" />
+                                                <span className="text-sm font-bold">5.0</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-2xl font-light text-[var(--color-primary)] font-display">18,150,000 <span className="text-base text-slate-500">EGP</span></div>
+                                        <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-white/5">
+                                            <div className="text-center">
+                                                <MaterialIcon name="bed" className="text-slate-400 text-xs mb-1" />
+                                                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">3 Bed</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <MaterialIcon name="bathtub" className="text-slate-400 text-xs mb-1" />
+                                                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">3 Bath</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <MaterialIcon name="square_foot" className="text-slate-400 text-xs mb-1" />
+                                                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">165m²</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            {/* Top Right: Listing Insights */}
+                            <motion.div
+                                initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4, duration: 0.8 }}
+                                className="hidden lg:block absolute right-[-5%] top-[5%] w-72 transform transition-transform hover:scale-105 duration-700 z-0 pointer-events-none xl:pointer-events-auto"
+                            >
+                                <div className="relative glass-panel rounded-2xl p-6 hover:border-[var(--color-secondary)]/30 transition-colors group">
+                                    <div className="absolute top-1/2 -left-1 w-2 h-2 bg-[var(--color-secondary)]/60 rounded-full node-glow blur-[1px]"></div>
+                                    <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b border-r border-[var(--color-secondary)]/60 rounded-br-lg"></div>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Listing Insights</h3>
+                                        <MaterialIcon name="analytics" className="text-[var(--color-secondary)]/70 text-lg" />
+                                    </div>
+                                    <div className="space-y-6">
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider">
+                                                <span>Cap Rate</span>
+                                                <span className="text-[var(--color-primary)]">High</span>
+                                            </div>
+                                            <div className="text-3xl font-light dark:text-white font-display">8%</div>
+                                            <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 mt-2 rounded-full overflow-hidden">
+                                                <div className="bg-gradient-to-r from-[var(--color-secondary)] to-[var(--color-primary)] w-[80%] h-full rounded-full opacity-80"></div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-500 mb-1 font-display uppercase tracking-wider">
+                                                <span>Price / SQM</span>
+                                            </div>
+                                            <div className="text-2xl font-light dark:text-white font-display">110,000 <span className="text-sm text-slate-500">EGP</span></div>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider">
+                                                <span>Wolf Score</span>
+                                                <span className="text-[var(--color-tertiary)] font-bold">85/100</span>
+                                            </div>
+                                            <div className="h-16 w-full flex items-end gap-1 mt-2">
+                                                <div className="w-1/6 bg-[var(--color-secondary)] h-[40%] rounded-t-sm opacity-20"></div>
+                                                <div className="w-1/6 bg-[var(--color-secondary)] h-[60%] rounded-t-sm opacity-30"></div>
+                                                <div className="w-1/6 bg-[var(--color-secondary)] h-[30%] rounded-t-sm opacity-40"></div>
+                                                <div className="w-1/6 bg-[var(--color-primary)] h-[80%] rounded-t-sm opacity-50"></div>
+                                                <div className="w-1/6 bg-[var(--color-primary)] h-[90%] rounded-t-sm opacity-70"></div>
+                                                <div className="w-1/6 bg-[var(--color-primary)] h-[50%] rounded-t-sm opacity-90"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            {/* Bottom Right: ROI */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.8 }}
+                                className="hidden lg:block absolute right-[10%] bottom-[10%] w-64 transform transition-transform hover:scale-105 duration-700 z-0 pointer-events-none xl:pointer-events-auto"
+                            >
+                                <div className="relative glass-panel rounded-2xl p-5 hover:border-[var(--color-primary)]/40 transition-colors">
+                                    <div className="absolute top-1/2 -left-1 w-2 h-2 bg-[var(--color-primary)]/60 rounded-full node-glow blur-[1px]"></div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Proj. Annual ROI</span>
+                                        <MaterialIcon name="trending_up" className="text-[var(--color-primary)] text-sm" />
+                                    </div>
+                                    <div className="text-3xl font-light text-[var(--color-primary)] font-display">12.5%</div>
+                                    <p className="text-[10px] text-slate-500 mt-2 leading-tight">Based on recent market trends in New Cairo.</p>
+                                </div>
+                            </motion.div>
+
+                            {/* Bottom Left: FABs */}
+                            <motion.div
+                                initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8, duration: 0.8 }}
+                                className="hidden lg:flex absolute left-[-5%] bottom-[5%] flex-col gap-3 z-50"
+                            >
+                                <button className="w-11 h-11 rounded-xl bg-white/5 dark:bg-[var(--color-surface-dark)]/50 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 backdrop-blur-md flex items-center justify-center hover:bg-[var(--color-primary)]/20 hover:text-[var(--color-primary)] hover:border-[var(--color-primary)]/30 transition-all shadow-lg">
+                                    <MaterialIcon name="add" className="text-xl" />
+                                </button>
+                                <button className="w-11 h-11 rounded-xl bg-white/5 dark:bg-[var(--color-surface-dark)]/50 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 backdrop-blur-md flex items-center justify-center hover:bg-[var(--color-primary)]/20 hover:text-[var(--color-primary)] hover:border-[var(--color-primary)]/30 transition-all shadow-lg">
+                                    <MaterialIcon name="remove" className="text-xl" />
+                                </button>
+                                <button className="w-11 h-11 rounded-xl bg-white/5 dark:bg-[var(--color-surface-dark)]/50 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 backdrop-blur-md flex items-center justify-center hover:bg-[var(--color-primary)]/20 hover:text-[var(--color-primary)] hover:border-[var(--color-primary)]/30 transition-all shadow-lg">
+                                    <MaterialIcon name="my_location" className="text-xl" />
+                                </button>
+                            </motion.div>
+
                             {/* Empty State / Initial Greeting Card */}
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
