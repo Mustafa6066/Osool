@@ -132,7 +132,7 @@ const PropertyCard = ({ property, index = 0, isActive = false, onClick }: { prop
                     </motion.div>
                 )}
 
-                <div className="relative overflow-hidden rounded-xl mb-4 h-44 bg-[#1C212B]/50">
+                <div className="relative overflow-hidden rounded-xl mb-4 h-44 bg-slate-200/50 dark:bg-[#1C212B]/50">
                     {property.image_url ? (
                         <img alt="Property" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 hologram-img transition-all duration-500" src={property.image_url} />
                     ) : (
@@ -140,7 +140,7 @@ const PropertyCard = ({ property, index = 0, isActive = false, onClick }: { prop
                             <MaterialIcon name="apartment" className="text-slate-400 dark:text-white/20" size="48px" />
                         </div>
                     )}
-                    <div className="absolute top-3 left-3 px-3 py-1 bg-[#1C212B]/60 border border-white/20 text-[#E8E8E3] text-[10px] font-bold uppercase rounded-md backdrop-blur-md tracking-wider">
+                    <div className="absolute top-3 left-3 px-3 py-1 bg-slate-800/40 dark:bg-[#1C212B]/60 border border-slate-300/20 dark:border-white/20 text-white dark:text-[#E8E8E3] text-[10px] font-bold uppercase rounded-md backdrop-blur-md tracking-wider">
                         {property.tag || 'Top Pick'}
                     </div>
                     {property.wolf_score && (
@@ -413,7 +413,7 @@ export default function ChatInterface() {
                     </Link>
                 </div>
                 <div className="flex gap-4">
-                    <button onClick={toggleTheme} className="p-2 rounded-full border border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400">
+                    <button onClick={toggleTheme} className="p-2 rounded-full border border-slate-300 dark:border-white/10 hover:bg-white/50 dark:hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400">
                         <MaterialIcon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} className="text-xl" />
                     </button>
                     <Link href="/dashboard" className="px-5 py-2 rounded-full border border-slate-300 dark:border-white/10 text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition text-slate-600 dark:text-slate-300 font-display tracking-wide flex items-center gap-2">
@@ -475,7 +475,7 @@ export default function ChatInterface() {
                     <div className="relative glass-panel bg-white/80 dark:bg-[#1C212B]/40 rounded-2xl p-6 lg:p-10 shadow-soft-glow">
                         {/* Header */}
                         <div className="flex items-center gap-4 mb-8 border-b border-slate-200 dark:border-white/5 pb-6">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#A3B18A]/20 to-[#1C212B] border border-[#A3B18A]/20 flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#A3B18A]/20 to-slate-100 dark:to-[#1C212B] border border-[#A3B18A]/20 flex items-center justify-center">
                                 <MaterialIcon name="auto_awesome" className="text-[#A3B18A] font-light" />
                             </div>
                             <div>
@@ -555,8 +555,8 @@ export default function ChatInterface() {
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     className={`px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2 shadow-sm ${action.primary
-                                            ? 'bg-[#A3B18A]/10 border border-[#A3B18A]/30 text-[#A3B18A] hover:bg-[#A3B18A]/20'
-                                            : 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300'
+                                        ? 'bg-[#A3B18A]/10 border border-[#A3B18A]/30 text-[#A3B18A] hover:bg-[#A3B18A]/20'
+                                        : 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300'
                                         }`}
                                 >
                                     <MaterialIcon name={action.icon} className="text-lg" /> {action.label}
