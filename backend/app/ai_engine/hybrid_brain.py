@@ -663,25 +663,45 @@ INSTRUCTION: Since no properties were found, you MUST ask clarifying questions:
 DO NOT invent any properties. Be charming and helpful while gathering info.
 """
             else:
-                # Format properties for Claude with EXPLICIT names
-                property_names = [p.get('title', 'Unknown') for p in data]
+                # Format properties for Claude with EXPLICIT names - RAG ENFORCEMENT
                 props_formatted = json.dumps(data, indent=2, ensure_ascii=False)
+                property_list = chr(10).join([f"  {i+1}. \"{p.get('title', 'Unknown')}\" - {p.get('compound', '')} - {p.get('location', 'Unknown')} - {p.get('price', 0):,} EGP" for i, p in enumerate(data)])
+                
                 context_str = f"""
-[DATABASE_CONTEXT]: {len(data)} VERIFIED PROPERTIES FROM DATABASE
+═══════════════════════════════════════════════════════════════════════════════
+                          RAG SYSTEM - STRICT DATA GROUNDING
+═══════════════════════════════════════════════════════════════════════════════
 
-AVAILABLE PROPERTIES (USE ONLY THESE NAMES):
-{chr(10).join([f"  - {p.get('title', 'Unknown')} in {p.get('location', 'Unknown')} - {p.get('price', 0):,} EGP" for p in data])}
+[RETRIEVED PROPERTIES]: {len(data)} properties found in database
 
-FULL DATA:
+{property_list}
+
+[FULL PROPERTY DATA]:
 {props_formatted}
 
-CRITICAL INSTRUCTION - ANTI-HALLUCINATION:
-1. You may ONLY discuss properties from the list above.
-2. DO NOT invent property names like "Palm Hills", "Hyde Park", "Regent's Park" unless they appear EXACTLY in the list above.
-3. If user asks about a project not in the list, say "مش لاقي بيانات عن المشروع ده دلوقتي" (I don't have data on this project right now).
-4. Present the TOP property (first in the list) as the "La2ta" (the catch).
-5. Mention its wolf_score: "الـ AI بتاعي قيمها بـ {data[0].get('wolf_score', 0)}/100"
-6. Highlight the valuation_verdict: "{data[0].get('valuation_verdict', 'FAIR')}"
+═══════════════════════════════════════════════════════════════════════════════
+                         ABSOLUTE RULES - ZERO TOLERANCE
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 RAG ENFORCEMENT - YOU ARE A RETRIEVAL-AUGMENTED GENERATION SYSTEM 🚨
+
+1. YOU CAN ONLY DISCUSS THE {len(data)} PROPERTIES LISTED ABOVE.
+2. NEVER mention ANY property, compound, or developer NOT in the list above.
+3. FORBIDDEN NAMES (unless they appear in the list above):
+   - Palm Hills, Hyde Park, Regent's Park, Madinaty, Mountain View, Emaar
+   - Sodic, Hassan Allam, Talaat Moustafa, MNHD, Arkan, Mivida
+   - Any compound/developer name NOT explicitly in the retrieved data
+   
+4. If user asks about a compound NOT in your list, respond:
+   "للأسف مش لاقي بيانات عن [compound name] دلوقتي في قاعدة البيانات. 
+   بس عندي خيارات حلوة زي [mention 1-2 from your list]. تحب أقولك عنهم؟"
+
+5. PRESENT PROPERTIES IN ORDER OF WOLF SCORE (best deals first):
+   - Property 1 (wolf_score: {data[0].get('wolf_score', 85)}/100) = "اللقطة" (The Catch)
+   - Use EXACT prices and sizes from the data above
+   - Never round or estimate - use the exact numbers
+
+6. EVERY property name you mention MUST be copy-pasted from the list above.
 
 STRATEGY: {strategy}
 """
