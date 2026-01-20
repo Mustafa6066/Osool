@@ -9,7 +9,6 @@ export default function NeuralBackground() {
             <div className="absolute inset-0 opacity-40 dark:opacity-100 bg-grid-light dark:bg-grid-dark grid-bg"></div>
 
             {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[var(--color-background-light)]/50 via-transparent to-[var(--color-background-light)]/80 dark:from-[var(--color-background-dark)]/50 dark:via-transparent dark:to-[var(--color-background-dark)]/90 pointer-events-none"></div>
 
             {/* Animated Synapses */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible" xmlns="http://www.w3.org/2000/svg">
