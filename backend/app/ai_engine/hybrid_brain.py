@@ -567,28 +567,53 @@ Examples:
             
         try:
             for prop in properties:
-                # Predict deal probability
-                deal_features = {
-                    "price": prop.get('price', 0),
-                    "location": prop.get('location', ''),
-                    "size_sqm": prop.get('size_sqm', 0)
+                # 1. VALUE SCORE (Price/sqm vs Market Average)
+                price = prop.get('price', 0)
+                size = prop.get('size_sqm', 1) or 1
+                price_per_sqm = price / size
+                
+                # Market averages (approximate for now, will use real stats later)
+                market_avg = 50000 
+                if 'New Cairo' in prop.get('location', ''): market_avg = 65000
+                elif 'Sheikh Zayed' in prop.get('location', ''): market_avg = 70000
+                elif 'Capital' in prop.get('location', ''): market_avg = 60000
+                
+                # Lower price/sqm = Higher Value Score
+                value_ratio = market_avg / (price_per_sqm or 1)
+                value_score = min(100, max(0, int(value_ratio * 70)))
+                
+                # 2. GROWTH SCORE (Location Potential)
+                growth_score = 70
+                loc = prop.get('location', '')
+                if 'New Capital' in loc or 'Mostakbal' in loc: growth_score = 90
+                elif 'North Coast' in loc: growth_score = 85
+                elif 'New Cairo' in loc: growth_score = 80
+                
+                # 3. DEVELOPER SCORE (Reputation)
+                dev_score = 60
+                developer = prop.get('developer', '').lower()
+                tier1 = ['tmg', 'talaat', 'emaar', 'sodic', 'mountain view', 'palm hills', 'ora', 'city edge']
+                tier2 = ['hydepark', 'tatweer', 'misr italia', 'better home', 'gates']
+                
+                if any(d in developer for d in tier1): dev_score = 95
+                elif any(d in developer for d in tier2): dev_score = 80
+                
+                # FINAL WOLF SCORE WEIGHTING
+                # Investment: 40% Value, 40% Growth, 20% Developer
+                # Default: 35% Value, 35% Developer, 30% Growth
+                final_score = int((value_score * 0.35) + (dev_score * 0.35) + (growth_score * 0.30))
+                
+                prop['wolf_score'] = final_score
+                prop['score_breakdown'] = {
+                    "value": value_score,
+                    "growth": growth_score,
+                    "developer": dev_score
                 }
                 
-                deal_score = xgboost_predictor.predict_deal_probability(deal_features)
-                
-                # Compare to market price
-                valuation = xgboost_predictor.compare_price_to_market(
-                    asking_price=prop.get('price', 0),
-                    property_features=deal_features
-                )
-                
-                # Add Wolf intelligence to each property
-                prop['wolf_score'] = int(deal_score * 100)  # Convert to 0-100
-                prop['valuation_verdict'] = valuation.get('verdict', 'FAIR')
-                prop['price_vs_market'] = valuation.get('comparison', 'Fair price')
+                prop['valuation_verdict'] = "BARGAIN" if value_score > 85 else "FAIR" if value_score > 60 else "PREMIUM"
                 
             # Sort by Wolf Score (best deals first)
-            return sorted(properties, key=lambda x: x.get('wolf_score', 0), reverse=True)[:3]
+            return sorted(properties, key=lambda x: x.get('wolf_score', 0), reverse=True)[:5]
             
         except Exception as e:
             logger.error(f"Analytics failed: {e}")
@@ -745,6 +770,14 @@ DO NOT invent any properties. Be charming and helpful while gathering info.
    - DO NOT make up market statistics or averages not in the data
 
 8. When presenting properties, simply list those you have - don't create fictional price comparisons.
+
+9. WOLF SCORE EXPLANATION:
+   If user asks "Why these properties?" or "How do you rank them?", explain the Wolf Score:
+   - "أنا برتبهم حسب الـ Wolf Score اللي بيقيس 3 حاجات:"
+   - "القيمة مقابل السعر (Value): سعر المتر مقارنة بمتوسط المنطقة"
+   - "فرص النمو (High Growth): مستقبل المنطقة والعائد المتوقع"
+   - "قوة المطور (Developer): سمعة الشركة وسابقة أعمالها"
+   - Tell them the score of the top property (e.g., "أول شقة دي واخدة 88/100 عشان سعرها لقطة والمطور قوي جداً")
 
 STRATEGY: {strategy}
 """

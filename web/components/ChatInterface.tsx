@@ -103,39 +103,43 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
                                             <p className="text-lg font-bold shadow-black drop-shadow-md">{prop.price.toLocaleString()} EGP</p>
                                         </div>
                                     </div>
-                                    {/* Content Section */}
-                                    <div className="p-5 flex flex-col justify-between flex-1 relative">
+                                    {/* Content Section - Minimal & Visual */}
+                                    <div className="p-4 flex flex-col justify-between flex-1 relative">
                                         <div>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold uppercase tracking-wider">
-                                                    High Growth
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                                    <span className="text-[10px] font-medium uppercase tracking-wider">{prop.type}</span>
                                                 </div>
-                                                <div className="flex items-center gap-1 bg-[var(--color-background)] px-2 py-1 rounded-md">
-                                                    <MaterialIcon name="star" className="text-amber-400 text-[14px] fill-current" />
-                                                    <span className="text-xs font-bold text-[var(--color-text-primary)]">{prop.wolf_score || 9.2}</span>
+                                                <div className="flex items-center gap-1.5 bg-[var(--color-primary)]/10 px-2 py-0.5 rounded-full">
+                                                    <MaterialIcon name="star" className="text-[var(--color-primary)] text-[12px] fill-current" />
+                                                    <span className="text-[11px] font-bold text-[var(--color-primary)]">Wolf Score {prop.wolf_score || 92}</span>
                                                 </div>
                                             </div>
-                                            <h3 className="text-lg font-bold text-[var(--color-text-primary)] leading-tight mb-1 group-hover:text-[var(--color-primary)] dark:group-hover:text-[var(--color-secondary)] transition-colors">{prop.title}</h3>
-                                            <p className="text-[13px] text-[var(--color-text-muted)] mb-3">{prop.location}</p>
-                                            <div className="hidden sm:block text-2xl font-extrabold text-[var(--color-text-primary)] mb-4 tracking-tight">{prop.price.toLocaleString()} EGP</div>
-                                            <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-[var(--color-border)] text-[var(--color-text-muted)]">
-                                                <div className="flex flex-col items-center">
-                                                    <MaterialIcon name="bed" className="text-[18px] mb-1 opacity-70" />
-                                                    <span className="text-xs font-bold">{prop.bedrooms} Bed</span>
+
+                                            <div className="mb-3">
+                                                <h3 className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight mt-1">{prop.price.toLocaleString()} EGP</h3>
+                                                <p className="text-sm font-medium text-[var(--color-text-muted)] truncate">{prop.compound} • {prop.location}</p>
+                                            </div>
+
+                                            <div className="flex items-center gap-4 py-2 text-[var(--color-text-muted)] border-t border-[var(--color-border)]/50">
+                                                <div className="flex items-center gap-1.5">
+                                                    <MaterialIcon name="bed" className="text-[16px] opacity-70" />
+                                                    <span className="text-xs font-semibold">{prop.bedrooms}</span>
                                                 </div>
-                                                <div className="flex flex-col items-center border-l border-[var(--color-border)]">
-                                                    <MaterialIcon name="bathtub" className="text-[18px] mb-1 opacity-70" />
-                                                    <span className="text-xs font-bold">{prop.bathrooms} Bath</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <MaterialIcon name="bathtub" className="text-[16px] opacity-70" />
+                                                    <span className="text-xs font-semibold">{prop.bathrooms}</span>
                                                 </div>
-                                                <div className="flex flex-col items-center border-l border-[var(--color-border)]">
-                                                    <MaterialIcon name="square_foot" className="text-[18px] mb-1 opacity-70" />
-                                                    <span className="text-xs font-bold">{prop.size_sqm}m²</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <MaterialIcon name="square_foot" className="text-[16px] opacity-70" />
+                                                    <span className="text-xs font-semibold">{prop.size_sqm}m²</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex gap-3 mt-4">
+
+                                        <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--color-border)]/50">
                                             <button
-                                                className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/30"
+                                                className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-[var(--color-surface)] py-2 rounded-md text-xs font-bold transition-all shadow-sm hover:shadow-md"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     onSelectProperty && onSelectProperty(prop);
@@ -143,8 +147,8 @@ const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectP
                                             >
                                                 View Details
                                             </button>
-                                            <button className="px-3 py-2 border border-[var(--color-border)] hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-primary)] transition-colors">
-                                                <MaterialIcon name="bookmark" className="text-[20px]" />
+                                            <button className="px-3 py-2 border border-[var(--color-border)] hover:bg-[var(--color-surface-elevated)] rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors">
+                                                <MaterialIcon name="bookmark_border" className="text-[18px]" />
                                             </button>
                                         </div>
                                     </div>
