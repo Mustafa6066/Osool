@@ -777,7 +777,7 @@ DO NOT invent any properties. Be charming and helpful while gathering info.
    - "القيمة مقابل السعر (Value): سعر المتر مقارنة بمتوسط المنطقة"
    - "فرص النمو (High Growth): مستقبل المنطقة والعائد المتوقع"
    - "قوة المطور (Developer): سمعة الشركة وسابقة أعمالها"
-   - You MUST mention the ACTUAL Wolf Score of the top property (e.g., "أول شقة دي واخدة {score}/100 عشان...")
+   - You MUST mention the ACTUAL Wolf Score of the top property (e.g., "أول شقة دي واخدة [score]/100 عشان...")
    - Do NOT say "88/100" unless that is the REAL score.
 
 STRATEGY: {strategy}
