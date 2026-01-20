@@ -296,7 +296,7 @@ export default function ChatInterface() {
                 {/* Chat History */}
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10 z-10 relative scroll-smooth no-scrollbar pt-12">
                     {messages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-80 pt-20">
+                        <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-80 pb-32">
                             <div className="w-20 h-20 rounded-2xl bg-[#121212] border border-[var(--color-border)] flex items-center justify-center shadow-lg">
                                 <MaterialIcon name="smart_toy" className="text-[var(--color-primary)] text-[40px]" />
                             </div>
@@ -325,10 +325,10 @@ export default function ChatInterface() {
                 {/* Input Area - Dynamic Positioning */}
                 <motion.div
                     layout
-                    initial={{ top: "50%", transform: "translateY(-50%)" }}
+                    initial={{ top: "60%", transform: "translateY(-50%)" }}
                     animate={
                         messages.length === 0
-                            ? { top: "40%", bottom: "auto", transform: "translateY(-50%)" }
+                            ? { top: "60%", bottom: "auto", transform: "translateY(-50%)" }
                             : { top: "auto", bottom: 0, transform: "translateY(0)" }
                     }
                     transition={{ type: "spring", stiffness: 260, damping: 20 }}
