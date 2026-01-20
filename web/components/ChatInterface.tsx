@@ -205,6 +205,7 @@ export default function ChatInterface() {
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [selectedProperty, setSelectedProperty] = useState<PropertyContext | null>(null);
+    const [sessionId, setSessionId] = useState(() => `session-${Date.now()}`);
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -247,7 +248,7 @@ export default function ChatInterface() {
 
         let fullResponse = '';
         try {
-            await streamChat(userMsg.content, 'default-session', {
+            await streamChat(userMsg.content, sessionId, {
                 onToken: (token) => {
                     fullResponse += token;
                     setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, content: fullResponse } : m)));
@@ -297,9 +298,8 @@ export default function ChatInterface() {
         setSelectedProperty(null);
         setInput('');
         setIsTyping(false);
-        // Generate a new session ID to ensure backend also starts fresh
-        // The session_id in streamChat is currently hardcoded to 'default-session'
-        // For a full reset, we could generate a unique ID, but clearing UI is the main goal
+        // Generate a new session ID to ensure backend starts fresh conversation
+        setSessionId(`session-${Date.now()}`);
     };
 
     return (

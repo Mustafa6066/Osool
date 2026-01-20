@@ -429,18 +429,28 @@ Output format:
 {
   "action": "search" | "valuation" | "question",
   "filters": {
-    "location": string (e.g., "New Cairo", "Sheikh Zayed"),
-    "budget_max": int (in EGP),
-    "bedrooms": int,
-    "property_type": string,
-    "keywords": string (e.g., specific project name like "Solaris", "Hyde Park")
+"location": string (e.g., "New Cairo", "Sheikh Zayed"),
+"budget_min": int (in EGP, minimum budget),
+"budget_max": int (in EGP, maximum budget),
+"bedrooms": int,
+"property_type": string,
+"keywords": string (e.g., specific project name like "Solaris", "Hyde Park")
   }
 }
 
+IMPORTANT BUDGET RULES:
+- Watch for ranges like "من 4 مليون لـ 15 مليون" (from 4M to 15M)
+- "تحت X" means budget_max = X
+- "فوق X" or "اكتر من X" means budget_min = X
+- When a range is given, set BOTH budget_min AND budget_max
+- 1 million = 1,000,000 EGP
+
 Examples:
 - "عايز شقة في التجمع تحت 2 مليون" → {"action": "search", "filters": {"location": "New Cairo", "budget_max": 2000000}}
+- "Apartment from 4 million to 15 million" → {"action": "search", "filters": {"budget_min": 4000000, "budget_max": 15000000}}
+- "من 4 لـ 15 مليون" → {"action": "search", "filters": {"budget_min": 4000000, "budget_max": 15000000}}
 - "Apartment in Zayed, 3 bedrooms" → {"action": "search", "filters": {"location": "Sheikh Zayed", "bedrooms": 3}}
-- "What do you have in Solaris?" → {"action": "search", "filters": {"keywords": "Solaris"}}
+- "What do you have in El Patio?" → {"action": "search", "filters": {"keywords": "El Patio"}}
 """
             
             completion = await self.openai_async.chat.completions.create(
@@ -498,6 +508,9 @@ Examples:
                 # Filter by budget if specified
                 if 'budget_max' in filters and filters['budget_max']:
                     results = [r for r in results if r.get('price', 0) <= filters['budget_max']]
+                
+                if 'budget_min' in filters and filters['budget_min']:
+                    results = [r for r in results if r.get('price', 0) >= filters['budget_min']]
                 
                 # Filter by bedrooms if specified
                 if 'bedrooms' in filters and filters['bedrooms']:
