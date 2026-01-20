@@ -10,6 +10,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { streamChat } from '@/lib/api';
 import ChartVisualization from './ChartVisualization';
 import Sidebar from '@/components/Sidebar';
+import ContextualPane, { PropertyContext } from './chat/ContextualPane';
 
 // Utility for Material Symbols
 const MaterialIcon = ({ name, className = '', size = '20px' }: { name: string, className?: string, size?: string }) => (
@@ -47,7 +48,7 @@ const UserMessage = ({ content }: { content: string }) => {
 };
 
 // --- AMR Agent Message Component ---
-const AgentMessage = ({ content, visualizations, properties, isTyping }: any) => {
+const AgentMessage = ({ content, visualizations, properties, isTyping, onSelectProperty }: any) => {
     const safeContent = useMemo(() => sanitizeContent(content || ''), [content]);
 
     return (
@@ -83,7 +84,10 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                 {properties && properties.length > 0 && (
                     <div className="grid grid-cols-1 gap-4 max-w-2xl">
                         {properties.map((prop: any, idx: number) => (
-                            <div key={idx} className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-xl shadow-black/5 dark:shadow-black/20 group transition-transform hover:scale-[1.01] duration-300">
+                            <div key={idx}
+                                className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-xl shadow-black/5 dark:shadow-black/20 group transition-transform hover:scale-[1.01] duration-300 cursor-pointer"
+                                onClick={() => onSelectProperty && onSelectProperty(prop)}
+                            >
                                 <div className="flex flex-col sm:flex-row">
                                     {/* Image Section */}
                                     <div className="w-full sm:w-2/5 h-56 sm:h-auto bg-cover bg-center relative bg-slate-800">
@@ -129,7 +133,15 @@ const AgentMessage = ({ content, visualizations, properties, isTyping }: any) =>
                                             </div>
                                         </div>
                                         <div className="flex gap-3 mt-4">
-                                            <button className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/30">View Details</button>
+                                            <button
+                                                className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/30"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onSelectProperty && onSelectProperty(prop);
+                                                }}
+                                            >
+                                                View Details
+                                            </button>
                                             <button className="px-3 py-2 border border-[var(--color-border)] hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-primary)] transition-colors">
                                                 <MaterialIcon name="bookmark" className="text-[20px]" />
                                             </button>
@@ -191,8 +203,31 @@ export default function ChatInterface() {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [selectedProperty, setSelectedProperty] = useState<PropertyContext | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Adapt backend property model to UI Context model
+    const handleSelectProperty = (prop: any) => {
+        setSelectedProperty({
+            title: prop.title,
+            address: prop.location,
+            price: `${prop.price.toLocaleString()} EGP`,
+            metrics: {
+                bedrooms: prop.bedrooms,
+                size: prop.size_sqm,
+                walkScore: 85, // Mock for now
+                capRate: "8%", // Mock
+                pricePerSqFt: `${Math.round(prop.price / prop.size_sqm).toLocaleString()}`
+            },
+            aiRecommendation: "This property shows strong appreciation potential based on recent market trends in the area.",
+            tags: ["High Growth", "Great Location", "Value Pick"],
+            agent: {
+                name: "Amr The Agent",
+                title: "Senior Consultant"
+            }
+        });
+    };
 
     // Auto-scroll
     useEffect(() => {
@@ -248,7 +283,7 @@ export default function ChatInterface() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-64px)] w-full relative bg-[var(--color-background)] font-display selection:bg-[var(--color-secondary)] selection:text-black overflow-hidden">
+        <div className="flex h-screen w-full relative bg-[var(--color-background)] font-display selection:bg-[var(--color-secondary)] selection:text-black overflow-hidden">
             <Sidebar onNewChat={handleNewChat} />
 
             {/* Central Chat Area */}
@@ -281,6 +316,7 @@ export default function ChatInterface() {
                                     visualizations={msg.visualizations}
                                     properties={msg.properties}
                                     isTyping={msg.isTyping}
+                                    onSelectProperty={handleSelectProperty}
                                 />
                             )
                         )
@@ -321,18 +357,13 @@ export default function ChatInterface() {
                 </div>
             </main>
 
-            {/* Right Contextual Pane - Hidden until real data is available */}
-            <aside className="w-[340px] flex-none border-l border-[var(--color-border)] bg-white/60 dark:bg-[#131d20] backdrop-blur-md hidden xl:flex flex-col items-center justify-center p-6 text-center z-20 overflow-y-auto">
-                <div className="flex flex-col items-center gap-4 opacity-50">
-                    <div className="w-16 h-16 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
-                        <MaterialIcon name="analytics" size="32px" className="text-[var(--color-text-muted)]" />
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-sm font-bold text-[var(--color-text-primary)]">Contextual Insights</p>
-                        <p className="text-xs text-[var(--color-text-muted)] max-w-[200px]">Select a property or start an analysis to view detailed metrics and maps.</p>
-                    </div>
-                </div>
-            </aside>
+            {/* Right Contextual Pane */}
+            <ContextualPane
+                isOpen={!!selectedProperty}
+                onClose={() => setSelectedProperty(null)}
+                property={selectedProperty}
+                isRTL={language === 'ar'}
+            />
         </div>
     );
 }
