@@ -287,21 +287,18 @@ export default function ChatInterface() {
             <Sidebar onNewChat={handleNewChat} />
 
             {/* Central Chat Area */}
-            <main className="flex-1 flex flex-col min-w-0 bg-white/50 dark:bg-[#16181d]/50 relative">
-                {/* Decorative Background */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                    <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[var(--color-primary)]/5 rounded-full blur-[100px]"></div>
-                    <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-teal-900/10 rounded-full blur-[120px]"></div>
-                </div>
+            <main className="flex-1 flex flex-col min-w-0 bg-[#050505] relative">
+                {/* Decorative Background - Removed for deep black theme */}
+                {/* <div className="absolute inset-0 overflow-hidden pointer-events-none z-0"> ... </div> */}
 
                 {/* Header Removed as per request */}
 
                 {/* Chat History */}
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10 z-10 relative scroll-smooth no-scrollbar pt-12">
                     {messages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-80">
-                            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center shadow-2xl skew-y-3">
-                                <MaterialIcon name="smart_toy" className="text-white text-[40px]" />
+                        <div className="flex flex-col items-center justify-center h-full text-center space-y-6 opacity-80 pt-20">
+                            <div className="w-20 h-20 rounded-2xl bg-[#121212] border border-[var(--color-border)] flex items-center justify-center shadow-lg">
+                                <MaterialIcon name="smart_toy" className="text-[var(--color-primary)] text-[40px]" />
                             </div>
                             <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">Ready to analyze the market?</h2>
                         </div>
@@ -325,12 +322,22 @@ export default function ChatInterface() {
                     <div className="h-32"></div>
                 </div>
 
-                {/* Input Area */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)] to-transparent z-20 pb-8">
+                {/* Input Area - Dynamic Positioning */}
+                <motion.div
+                    layout
+                    initial={{ top: "50%", transform: "translateY(-50%)" }}
+                    animate={
+                        messages.length === 0
+                            ? { top: "40%", bottom: "auto", transform: "translateY(-50%)" }
+                            : { top: "auto", bottom: 0, transform: "translateY(0)" }
+                    }
+                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                    className={`absolute left-0 right-0 p-4 md:p-6 z-20 ${messages.length > 0 ? 'bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)] to-transparent pb-8' : ''}`}
+                >
                     <div className="max-w-4xl mx-auto relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] rounded-full blur opacity-20 group-hover:opacity-40 transition duration-1000 group-focus-within:opacity-50"></div>
-                        <div className="relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full shadow-2xl flex items-center p-2 pr-2 transition-all duration-300 focus-within:border-[var(--color-primary)]/50 focus-within:ring-4 focus-within:ring-[var(--color-primary)]/10">
-                            <button className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] dark:hover:text-white hover:bg-[var(--color-background)] transition-colors">
+                        {/* Glow removed */}
+                        <div className="relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-full flex items-center p-2 pr-2 transition-all duration-300 focus-within:border-[var(--color-primary)]/50 focus-within:ring-1 focus-within:ring-[var(--color-primary)]/20">
+                            <button className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] dark:hover:text-white hover:bg-[var(--color-surface-elevated)] transition-colors">
                                 <MaterialIcon name="add_circle" />
                             </button>
                             <input
@@ -342,10 +349,10 @@ export default function ChatInterface() {
                                 type="text"
                             />
                             <div className="flex items-center gap-1">
-                                <button className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-background)] transition-colors">
+                                <button className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors">
                                     <MaterialIcon name="mic" />
                                 </button>
-                                <button onClick={handleSend} disabled={!input.trim() || isTyping} className="p-3 rounded-full bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition-all shadow-md hover:shadow-lg transform active:scale-95 ml-1 flex items-center justify-center aspect-square disabled:opacity-50">
+                                <button onClick={handleSend} disabled={!input.trim() || isTyping} className="p-3 rounded-full bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition-all transform active:scale-95 ml-1 flex items-center justify-center aspect-square disabled:opacity-50">
                                     <MaterialIcon name="arrow_upward" size="20px" />
                                 </button>
                             </div>
@@ -354,7 +361,7 @@ export default function ChatInterface() {
                             <p className="text-[10px] font-medium text-[var(--color-text-muted)]">AI can generate insights. Verify financial data independently.</p>
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </main>
 
             {/* Right Contextual Pane */}
