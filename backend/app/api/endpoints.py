@@ -1675,3 +1675,196 @@ async def get_session_messages(
             for msg in messages
         ]
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# MARKET ANALYTICS ENDPOINTS (V5: Real-time Dashboard Data)
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/market/statistics")
+async def get_market_statistics_endpoint(
+    db: AsyncSession = Depends(get_db),
+    location: Optional[str] = None
+):
+    """
+    📊 Get real-time market statistics from the database.
+    
+    Powers the AMR analytics visualizations with actual database data.
+    Returns:
+    - Location-specific stats (avg price, price/sqm, property counts)
+    - Global market overview
+    - Trend indicators based on available data
+    """
+    from app.services.market_statistics import get_market_statistics, format_statistics_for_ai
+    
+    try:
+        stats = await get_market_statistics()
+        
+        # Filter by location if specified
+        if location:
+            location_data = stats.get("location_stats", {}).get(location, {})
+            return {
+                "location": location,
+                "statistics": location_data,
+                "global_stats": stats.get("global_stats", {}),
+                "formatted": format_statistics_for_ai(stats, location)
+            }
+        
+        return {
+            "global_stats": stats.get("global_stats", {}),
+            "locations": list(stats.get("location_stats", {}).keys()),
+            "top_locations": dict(list(stats.get("location_stats", {}).items())[:10]),
+            "top_developers": dict(list(stats.get("developer_stats", {}).items())[:10]),
+            "property_types": stats.get("type_stats", {})
+        }
+    except Exception as e:
+        logger.error(f"Market statistics error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch market statistics: {str(e)}")
+
+
+@router.get("/market/location/{location}")
+async def get_location_analytics(
+    location: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    📍 Get detailed analytics for a specific location.
+    
+    Returns:
+    - Price distribution (min, max, avg, median)
+    - Top compounds in location
+    - Price per sqm analysis
+    - Property type breakdown
+    """
+    from sqlalchemy import select, func
+    from app.models import Property
+    
+    try:
+        # Get location-specific data
+        result = await db.execute(
+            select(
+                func.count(Property.id).label('count'),
+                func.min(Property.price).label('min_price'),
+                func.max(Property.price).label('max_price'),
+                func.avg(Property.price).label('avg_price'),
+                func.avg(Property.price_per_sqm).label('avg_price_per_sqm')
+            ).filter(
+                Property.location.ilike(f"%{location}%"),
+                Property.is_available == True
+            )
+        )
+        stats = result.first()
+        
+        # Get compounds in location
+        compounds_result = await db.execute(
+            select(
+                Property.compound,
+                Property.developer,
+                func.count(Property.id).label('count'),
+                func.avg(Property.price).label('avg_price')
+            ).filter(
+                Property.location.ilike(f"%{location}%"),
+                Property.is_available == True,
+                Property.compound != None
+            ).group_by(Property.compound, Property.developer)
+            .order_by(func.count(Property.id).desc())
+            .limit(10)
+        )
+        compounds = compounds_result.all()
+        
+        # Get property types
+        types_result = await db.execute(
+            select(
+                Property.type,
+                func.count(Property.id).label('count'),
+                func.avg(Property.price).label('avg_price')
+            ).filter(
+                Property.location.ilike(f"%{location}%"),
+                Property.is_available == True
+            ).group_by(Property.type)
+            .order_by(func.count(Property.id).desc())
+        )
+        types = types_result.all()
+        
+        return {
+            "location": location,
+            "overview": {
+                "total_properties": stats.count or 0,
+                "min_price": float(stats.min_price or 0),
+                "max_price": float(stats.max_price or 0),
+                "avg_price": round(float(stats.avg_price or 0), 0),
+                "avg_price_per_sqm": round(float(stats.avg_price_per_sqm or 0), 0)
+            },
+            "compounds": [
+                {
+                    "name": c.compound,
+                    "developer": c.developer,
+                    "count": c.count,
+                    "avg_price": round(float(c.avg_price or 0), 0)
+                }
+                for c in compounds
+            ],
+            "property_types": [
+                {
+                    "type": t.type,
+                    "count": t.count,
+                    "avg_price": round(float(t.avg_price or 0), 0)
+                }
+                for t in types
+            ],
+            "market_trend": "Bullish" if location in ["New Capital", "العاصمة", "North Coast"] else "Stable"
+        }
+    except Exception as e:
+        logger.error(f"Location analytics error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch location analytics: {str(e)}")
+
+
+@router.get("/market/comparison")
+async def compare_locations(
+    locations: str,  # Comma-separated list
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    📈 Compare multiple locations for investment analysis.
+    
+    Powers the AMR comparison visualizations.
+    """
+    from sqlalchemy import select, func
+    from app.models import Property
+    
+    location_list = [loc.strip() for loc in locations.split(",")]
+    
+    comparison_data = []
+    for location in location_list[:5]:  # Max 5 locations
+        result = await db.execute(
+            select(
+                func.count(Property.id).label('count'),
+                func.avg(Property.price).label('avg_price'),
+                func.avg(Property.price_per_sqm).label('avg_price_per_sqm'),
+                func.min(Property.price).label('min_price'),
+                func.max(Property.price).label('max_price')
+            ).filter(
+                Property.location.ilike(f"%{location}%"),
+                Property.is_available == True
+            )
+        )
+        stats = result.first()
+        
+        comparison_data.append({
+            "location": location,
+            "property_count": stats.count or 0,
+            "avg_price": round(float(stats.avg_price or 0), 0),
+            "avg_price_per_sqm": round(float(stats.avg_price_per_sqm or 0), 0),
+            "price_range": {
+                "min": float(stats.min_price or 0),
+                "max": float(stats.max_price or 0)
+            }
+        })
+    
+    return {
+        "locations": comparison_data,
+        "analysis": {
+            "cheapest": min(comparison_data, key=lambda x: x['avg_price_per_sqm'])['location'] if comparison_data else None,
+            "most_properties": max(comparison_data, key=lambda x: x['property_count'])['location'] if comparison_data else None
+        }
+    }

@@ -45,6 +45,42 @@ const RealityCheck = dynamic(() => import("./RealityCheck"), {
     ssr: false,
 });
 
+// V6: Advanced Analytics Components
+const AreaAnalysis = dynamic(() => import("./AreaAnalysis"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
+const DeveloperAnalysis = dynamic(() => import("./DeveloperAnalysis"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
+const PropertyTypeAnalysis = dynamic(() => import("./PropertyTypeAnalysis"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
+const PaymentPlanComparison = dynamic(() => import("./PaymentPlanComparison"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
+const ResaleVsDeveloper = dynamic(() => import("./ResaleVsDeveloper"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
+const ROICalculator = dynamic(() => import("./ROICalculator"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
+const PriceHeatmap = dynamic(() => import("./PriceHeatmap"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
 // Loading skeleton
 function VisualizationSkeleton() {
     return (
@@ -105,6 +141,56 @@ export default function VisualizationRenderer({ type, data }: VisualizationRende
                 </Suspense>
             );
 
+        // V6: Advanced Analytics visualizations
+        case "area_analysis":
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <AreaAnalysis {...data} />
+                </Suspense>
+            );
+
+        case "developer_analysis":
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <DeveloperAnalysis {...data} />
+                </Suspense>
+            );
+
+        case "property_type_analysis":
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <PropertyTypeAnalysis {...data} />
+                </Suspense>
+            );
+
+        case "payment_plan_comparison":
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <PaymentPlanComparison {...data} />
+                </Suspense>
+            );
+
+        case "resale_vs_developer":
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <ResaleVsDeveloper {...data} />
+                </Suspense>
+            );
+
+        case "roi_calculator":
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <ROICalculator {...data} />
+                </Suspense>
+            );
+
+        case "price_heatmap":
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <PriceHeatmap {...data} />
+                </Suspense>
+            );
+
         // Legacy visualization types
         case "investment_scorecard":
             return (
@@ -141,8 +227,18 @@ export default function VisualizationRenderer({ type, data }: VisualizationRende
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <MarketTrendChart
-                        location={data.location}
-                        data={data.data}
+                        location={data.location || "Market"}
+                        data={{
+                            historical: data.trend_data?.map((d: any) => ({
+                                period: d.month,
+                                avg_price: d.price_index * 1000, // Convert index to approximate price
+                                volume: d.volume
+                            })) || [],
+                            current_price: data.trend_data?.[data.trend_data.length - 1]?.price_index * 1000 || 0,
+                            trend: data.price_growth_ytd > 15 ? "Bullish" : data.price_growth_ytd > 8 ? "Stable" : "Bearish",
+                            yoy_change: data.price_growth_ytd || 0,
+                            momentum: data.demand_index || "Medium"
+                        }}
                     />
                 </Suspense>
             );
