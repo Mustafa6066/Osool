@@ -1,7 +1,8 @@
 'use client';
 
-import { Bed, Bath, Ruler, Star, TrendingUp, Bookmark } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import { Bed, Bath, Ruler, Star, TrendingUp, Bookmark, MapPin } from 'lucide-react';
+import anime from 'animejs';
 
 interface PropertyData {
     id: string;
@@ -17,6 +18,8 @@ interface PropertyData {
     growthBadge?: string;
     projectedGrowth?: string;
     projectedPrice?: string;
+    wolfScore?: number;
+    isTopPick?: boolean;
 }
 
 interface PropertyCardEnhancedProps {
@@ -24,64 +27,114 @@ interface PropertyCardEnhancedProps {
     showChart?: boolean;
     onViewDetails?: (id: string) => void;
     onBookmark?: (id: string) => void;
+    isRTL?: boolean;
 }
 
-// SVG Appreciation Chart Component
-function AppreciationChart({ projectedPrice = '$2.75M', projectedGrowth = '+12.4%' }: { projectedPrice?: string; projectedGrowth?: string }) {
+// SVG Appreciation Chart Component with anime.js
+function AppreciationChart({
+    projectedPrice,
+    projectedGrowth,
+    isRTL = false
+}: {
+    projectedPrice?: string;
+    projectedGrowth?: string;
+    isRTL?: boolean;
+}) {
+    const chartRef = useRef<HTMLDivElement>(null);
+    const pathRef = useRef<SVGPathElement>(null);
+
+    useEffect(() => {
+        // Animate chart path
+        if (pathRef.current) {
+            const pathLength = pathRef.current.getTotalLength();
+            anime({
+                targets: pathRef.current,
+                strokeDashoffset: [pathLength, 0],
+                easing: 'easeOutExpo',
+                duration: 1500,
+                delay: 300,
+            });
+            pathRef.current.style.strokeDasharray = `${pathLength}`;
+        }
+
+        // Animate data points
+        if (chartRef.current) {
+            anime({
+                targets: chartRef.current.querySelectorAll('.data-point'),
+                opacity: [0, 1],
+                scale: [0, 1],
+                delay: anime.stagger(200, { start: 800 }),
+                easing: 'easeOutElastic(1, .8)',
+                duration: 600,
+            });
+        }
+    }, []);
+
+    // Don't show chart if no data
+    if (!projectedPrice && !projectedGrowth) return null;
+
     return (
-        <div className="px-6 py-5 bg-gray-50 dark:bg-black/20 border-t border-gray-200 dark:border-[var(--chat-border-dark)]">
+        <div ref={chartRef} className="property-chart-section">
             <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-bold text-gray-900 dark:text-white">Price Appreciation Forecast (5 Years)</h4>
-                <span className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1 bg-green-100 dark:bg-green-900/20 px-2 py-0.5 rounded">
-                    <TrendingUp size={14} /> {projectedGrowth} Projected
-                </span>
+                <h4 className="text-xs font-bold text-[var(--color-text-primary)]">
+                    {isRTL ? 'توقعات ارتفاع السعر (5 سنوات)' : 'Price Appreciation Forecast (5 Years)'}
+                </h4>
+                {projectedGrowth && (
+                    <span className="text-xs font-bold text-green-600 flex items-center gap-1 bg-green-100 dark:bg-green-900/20 px-2 py-0.5 rounded">
+                        <TrendingUp size={12} /> {projectedGrowth} {isRTL ? 'متوقع' : 'Projected'}
+                    </span>
+                )}
             </div>
+
             {/* Custom SVG Chart */}
             <div className="h-28 w-full mt-2 relative">
                 <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 400 100">
                     {/* Grid lines */}
-                    <line className="text-gray-200 dark:text-white/5" stroke="currentColor" strokeDasharray="4 4" strokeWidth="1" x1="0" x2="400" y1="20" y2="20" />
-                    <line className="text-gray-200 dark:text-white/5" stroke="currentColor" strokeDasharray="4 4" strokeWidth="1" x1="0" x2="400" y1="50" y2="50" />
-                    <line className="text-gray-200 dark:text-white/5" stroke="currentColor" strokeDasharray="4 4" strokeWidth="1" x1="0" x2="400" y1="80" y2="80" />
+                    <line className="chart-grid-line" x1="0" x2="400" y1="20" y2="20" />
+                    <line className="chart-grid-line" x1="0" x2="400" y1="50" y2="50" />
+                    <line className="chart-grid-line" x1="0" x2="400" y1="80" y2="80" />
 
                     {/* Area Gradient */}
                     <defs>
-                        <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.2" />
-                            <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0" />
+                        <linearGradient id="chartGradientEnhanced" x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stopColor="var(--color-teal-accent)" stopOpacity="0.2" />
+                            <stop offset="100%" stopColor="var(--color-teal-accent)" stopOpacity="0" />
                         </linearGradient>
                     </defs>
 
                     {/* Trend Line Path */}
                     <path
-                        className="dark:stroke-[var(--chat-teal-accent)] drop-shadow-md"
+                        ref={pathRef}
+                        className="chart-trend-line"
                         d="M0,85 C50,82 80,75 120,70 C180,62 220,50 280,35 C330,22 360,15 400,5"
-                        fill="none"
-                        stroke="var(--chat-primary)"
-                        strokeWidth="3"
                     />
 
                     {/* Fill Area */}
                     <path
                         d="M0,85 C50,82 80,75 120,70 C180,62 220,50 280,35 C330,22 360,15 400,5 V100 H0 Z"
-                        fill="url(#chartGradient)"
+                        fill="url(#chartGradientEnhanced)"
                         style={{ mixBlendMode: 'overlay' }}
                     />
 
                     {/* Data Points */}
-                    <circle className="fill-white dark:fill-[var(--chat-surface-dark)] stroke-[var(--chat-primary)] dark:stroke-[var(--chat-teal-accent)]" cx="0" cy="85" r="3" strokeWidth="2" />
-                    <circle className="fill-white dark:fill-[var(--chat-surface-dark)] stroke-[var(--chat-primary)] dark:stroke-[var(--chat-teal-accent)]" cx="120" cy="70" r="3" strokeWidth="2" />
-                    <circle className="fill-white dark:fill-[var(--chat-surface-dark)] stroke-[var(--chat-primary)] dark:stroke-[var(--chat-teal-accent)]" cx="280" cy="35" r="3" strokeWidth="2" />
+                    <circle className="data-point chart-data-point" cx="0" cy="85" r="3" style={{ opacity: 0 }} />
+                    <circle className="data-point chart-data-point" cx="120" cy="70" r="3" style={{ opacity: 0 }} />
+                    <circle className="data-point chart-data-point" cx="280" cy="35" r="3" style={{ opacity: 0 }} />
 
                     {/* Final Point with Tooltip-like label */}
-                    <g>
-                        <circle className="fill-[var(--chat-primary)] dark:fill-[var(--chat-teal-accent)] stroke-white dark:stroke-[var(--chat-background-dark)]" cx="400" cy="5" r="4" strokeWidth="2" />
-                        <rect className="fill-[var(--chat-primary)] dark:fill-[var(--chat-surface-dark)]" height="22" rx="4" width="70" x="340" y="-25" />
-                        <text className="fill-white text-[10px] font-bold" fontFamily="system-ui" textAnchor="middle" x="375" y="-10">{projectedPrice}</text>
+                    <g className="data-point" style={{ opacity: 0 }}>
+                        <circle className="fill-[var(--color-primary)] dark:fill-[var(--color-teal-accent)] stroke-white" cx="400" cy="5" r="4" strokeWidth="2" />
+                        {projectedPrice && (
+                            <>
+                                <rect className="fill-[var(--color-primary)] dark:fill-[var(--color-surface-dark)]" height="22" rx="4" width="70" x="325" y="-25" />
+                                <text className="fill-white text-[10px] font-bold" fontFamily="system-ui" textAnchor="middle" x="360" y="-10">{projectedPrice}</text>
+                            </>
+                        )}
                     </g>
                 </svg>
+
                 {/* X Axis Labels */}
-                <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-mono">
+                <div className="flex justify-between text-[10px] text-[var(--color-text-muted)] mt-2 font-mono">
                     <span>2024</span>
                     <span>2025</span>
                     <span>2026</span>
@@ -99,83 +152,129 @@ export default function PropertyCardEnhanced({
     showChart = true,
     onViewDetails,
     onBookmark,
+    isRTL = false,
 }: PropertyCardEnhancedProps) {
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    // Entrance animation
+    useEffect(() => {
+        if (cardRef.current) {
+            anime({
+                targets: cardRef.current,
+                opacity: [0, 1],
+                translateX: [-30, 0],
+                easing: 'easeOutExpo',
+                duration: 600,
+            });
+        }
+    }, []);
+
+    // Calculate if this is a top pick based on wolf score
+    const isTopPick = property.isTopPick || (property.wolfScore && property.wolfScore >= 85);
+
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="chat-property-card max-w-2xl group"
+        <div
+            ref={cardRef}
+            className="property-card-enhanced max-w-2xl group"
+            style={{ opacity: 0 }}
         >
-            <div className="flex flex-col sm:flex-row">
+            <div className={`flex flex-col sm:flex-row ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
                 {/* Image Section */}
                 <div
-                    className="w-full sm:w-2/5 h-56 sm:h-auto bg-cover bg-center relative"
+                    className="w-full sm:w-2/5 h-56 sm:h-auto bg-cover bg-center relative min-h-[200px]"
                     style={{
                         backgroundImage: property.image
                             ? `url('${property.image}')`
                             : 'linear-gradient(135deg, #1c2b31 0%, #124759 100%)',
                     }}
                 >
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent sm:bg-gradient-to-r"></div>
-                    {property.badge && (
-                        <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/70 backdrop-blur-md text-[var(--chat-primary)] dark:text-[var(--chat-teal-accent)] text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide border border-white/20">
+                    <div className={`absolute inset-0 bg-gradient-to-t from-black/60 to-transparent ${isRTL ? 'sm:bg-gradient-to-l' : 'sm:bg-gradient-to-r'}`} />
+
+                    {/* Top Pick Badge */}
+                    {isTopPick && (
+                        <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} badge-top-pick`}>
+                            {isRTL ? 'اختيار مميز' : 'Top Pick'}
+                        </div>
+                    )}
+
+                    {/* Developer Badge */}
+                    {property.badge && !isTopPick && (
+                        <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} badge-top-pick`}>
                             {property.badge}
                         </div>
                     )}
-                    <div className="absolute bottom-3 left-3 sm:hidden text-white">
-                        <p className="text-lg font-bold shadow-black drop-shadow-md">{property.price}</p>
+
+                    {/* Mobile Price */}
+                    <div className={`absolute bottom-3 ${isRTL ? 'right-3' : 'left-3'} sm:hidden text-white`}>
+                        <p className="text-lg font-bold drop-shadow-md">{property.price}</p>
                     </div>
                 </div>
 
                 {/* Content Section */}
-                <div className="p-5 flex flex-col justify-between flex-1 relative">
+                <div className={`p-5 flex flex-col justify-between flex-1 relative ${isRTL ? 'text-right' : ''}`}>
                     <div>
-                        <div className="flex justify-between items-start mb-2">
+                        <div className={`flex justify-between items-start mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                             {property.growthBadge && (
-                                <div className="px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold uppercase tracking-wider">
+                                <div className="badge-high-growth">
                                     {property.growthBadge}
                                 </div>
                             )}
                             {property.rating && (
-                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-md">
+                                <div className="flex items-center gap-1 bg-[var(--color-surface-elevated)] px-2 py-1 rounded-md border border-[var(--color-border)]">
                                     <Star size={14} className="text-amber-400 fill-amber-400" />
-                                    <span className="text-xs font-bold text-gray-700 dark:text-white">{property.rating}</span>
+                                    <span className="text-xs font-bold text-[var(--color-text-primary)]">{property.rating.toFixed(1)}</span>
+                                </div>
+                            )}
+                            {property.wolfScore && !property.rating && (
+                                <div className="flex items-center gap-1 bg-[var(--color-surface-elevated)] px-2 py-1 rounded-md border border-[var(--color-border)]">
+                                    <span className="text-[10px] text-[var(--color-text-muted)]">🐺</span>
+                                    <span className="text-xs font-bold text-[var(--color-text-primary)]">{property.wolfScore}</span>
                                 </div>
                             )}
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight mb-1 group-hover:text-[var(--chat-primary)] dark:group-hover:text-[var(--chat-teal-accent)] transition-colors">
+
+                        <h3 className="text-lg font-bold text-[var(--color-text-primary)] leading-tight mb-1 group-hover:text-[var(--color-primary)] transition-colors">
                             {property.title}
                         </h3>
-                        <p className="text-[13px] text-gray-500 dark:text-[var(--chat-text-secondary)] mb-3">{property.address}</p>
-                        <div className="hidden sm:block text-2xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">
+
+                        <p className={`text-[13px] text-[var(--color-text-muted)] mb-3 flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <MapPin size={12} />
+                            {property.address}
+                        </p>
+
+                        {/* Price - Desktop */}
+                        <div className="hidden sm:block text-2xl font-extrabold text-[var(--color-text-primary)] mb-4 tracking-tight">
                             {property.price}
                         </div>
-                        <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-gray-100 dark:border-white/5 text-gray-600 dark:text-gray-300">
+
+                        {/* Property Stats */}
+                        <div className={`grid grid-cols-3 gap-2 py-3 border-t border-b border-[var(--color-border)] text-[var(--color-text-muted)]`}>
                             <div className="flex flex-col items-center">
                                 <Bed size={18} className="mb-1 opacity-70" />
-                                <span className="text-xs font-bold">{property.bedrooms} Bed</span>
+                                <span className="text-xs font-bold">{property.bedrooms} {isRTL ? 'غرف' : 'Bed'}</span>
                             </div>
-                            <div className="flex flex-col items-center border-l border-gray-100 dark:border-white/5">
+                            <div className="flex flex-col items-center border-l border-[var(--color-border)]">
                                 <Bath size={18} className="mb-1 opacity-70" />
-                                <span className="text-xs font-bold">{property.bathrooms} Bath</span>
+                                <span className="text-xs font-bold">{property.bathrooms} {isRTL ? 'حمام' : 'Bath'}</span>
                             </div>
-                            <div className="flex flex-col items-center border-l border-gray-100 dark:border-white/5">
+                            <div className="flex flex-col items-center border-l border-[var(--color-border)]">
                                 <Ruler size={18} className="mb-1 opacity-70" />
-                                <span className="text-xs font-bold">{property.sqft.toLocaleString()}</span>
+                                <span className="text-xs font-bold">{property.sqft.toLocaleString()} {isRTL ? 'م²' : 'sqm'}</span>
                             </div>
                         </div>
                     </div>
-                    <div className="flex gap-3 mt-4">
+
+                    {/* Action Buttons */}
+                    <div className={`flex gap-3 mt-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
                         <button
                             onClick={() => onViewDetails?.(property.id)}
-                            className="flex-1 bg-[var(--chat-primary)] hover:bg-[var(--chat-primary)]/90 text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors shadow-lg shadow-[var(--chat-primary)]/20 hover:shadow-[var(--chat-primary)]/30"
+                            className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary-light)] text-white py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all shadow-lg shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/30"
                         >
-                            View Details
+                            {isRTL ? 'عرض التفاصيل' : 'View Details'}
                         </button>
                         <button
                             onClick={() => onBookmark?.(property.id)}
-                            className="px-3 py-2 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg text-gray-700 dark:text-white transition-colors"
+                            className="px-3 py-2 border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
                         >
                             <Bookmark size={20} />
                         </button>
@@ -183,13 +282,14 @@ export default function PropertyCardEnhanced({
                 </div>
             </div>
 
-            {/* Chart Section */}
-            {showChart && (
+            {/* Chart Section - Only show if there's projection data */}
+            {showChart && (property.projectedGrowth || property.projectedPrice) && (
                 <AppreciationChart
                     projectedPrice={property.projectedPrice}
                     projectedGrowth={property.projectedGrowth}
+                    isRTL={isRTL}
                 />
             )}
-        </motion.div>
+        </div>
     );
 }

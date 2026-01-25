@@ -456,6 +456,18 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
     // Auto-detect RTL based on input
     const [detectedRTL, setDetectedRTL] = useState(isRTL);
 
+    // Listen for triggered messages from sidebar tools
+    useEffect(() => {
+        const handleTriggeredMessage = (event: CustomEvent<{ message: string }>) => {
+            if (event.detail?.message && !isTyping) {
+                handleSend(event.detail.message);
+            }
+        };
+
+        window.addEventListener('triggerChatMessage', handleTriggeredMessage as EventListener);
+        return () => window.removeEventListener('triggerChatMessage', handleTriggeredMessage as EventListener);
+    }, [isTyping]);
+
     useEffect(() => {
         if (scrollRef.current && hasMessages) {
             scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });

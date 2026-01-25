@@ -1,10 +1,18 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import ChatHeader from './ChatHeader';
 import ChatSidebar from './ChatSidebar';
 import ChatMain from './ChatMain';
 import ContextualPane, { PropertyContext, UIActionData } from './ContextualPane';
+
+// Recent search type
+interface RecentSearch {
+    id: string;
+    query: string;
+    type: 'location' | 'property' | 'developer' | 'general';
+    timestamp: Date;
+}
 
 export default function ChatLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -12,6 +20,10 @@ export default function ChatLayout() {
     const [selectedProperty, setSelectedProperty] = useState<PropertyContext | null>(null);
     const [activeUIActions, setActiveUIActions] = useState<UIActionData[]>([]);
     const [chatInsight, setChatInsight] = useState<string | null>(null);
+    const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+
+    // Reference to ChatMain to trigger messages
+    const chatMainRef = useRef<{ sendMessage: (text: string) => void } | null>(null);
 
     const handleNewInquiry = () => {
         // Reset conversation - this will be handled by ChatMain
@@ -48,6 +60,35 @@ export default function ChatLayout() {
         }
     }, []);
 
+    // Handle tool clicks from sidebar - trigger chat messages
+    const handleToolClick = useCallback((query: string) => {
+        // Close sidebar on mobile
+        setIsSidebarOpen(false);
+
+        // Add to recent searches
+        const searchType: RecentSearch['type'] =
+            query.toLowerCase().includes('area') || query.includes('منطقة') ? 'location' :
+            query.toLowerCase().includes('developer') || query.includes('مطور') ? 'developer' :
+            query.toLowerCase().includes('property') || query.includes('عقار') ? 'property' : 'general';
+
+        setRecentSearches(prev => [{
+            id: `search-${Date.now()}`,
+            query: query.slice(0, 50),
+            type: searchType,
+            timestamp: new Date()
+        }, ...prev.slice(0, 4)]);
+
+        // Trigger message in ChatMain
+        // The ChatMain component will handle this via window event or ref
+        window.dispatchEvent(new CustomEvent('triggerChatMessage', { detail: { message: query } }));
+    }, []);
+
+    // Handle recent search click
+    const handleSearchClick = useCallback((search: RecentSearch) => {
+        setIsSidebarOpen(false);
+        window.dispatchEvent(new CustomEvent('triggerChatMessage', { detail: { message: search.query } }));
+    }, []);
+
     return (
         <div className="flex flex-col h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] overflow-hidden selection:bg-[var(--color-teal-accent)] selection:text-black">
             {/* Top Navigation */}
@@ -58,16 +99,25 @@ export default function ChatLayout() {
 
             {/* Main Workspace Layout */}
             <div className="flex flex-1 overflow-hidden relative">
+                {/* Decorative Background Elements */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                    <div className="decorative-gradient-1" />
+                    <div className="decorative-gradient-2" />
+                </div>
+
                 {/* Left Sidebar: Navigation & History */}
                 <ChatSidebar
                     isOpen={isSidebarOpen}
                     onClose={() => setIsSidebarOpen(false)}
                     onNewInquiry={handleNewInquiry}
+                    recentSearches={recentSearches}
+                    onToolClick={handleToolClick}
+                    onSearchClick={handleSearchClick}
                 />
 
                 {/* Central Chat Area */}
-                <ChatMain 
-                    onNewConversation={handleNewInquiry} 
+                <ChatMain
+                    onNewConversation={handleNewInquiry}
                     onPropertySelect={handlePropertySelect}
                     onChatContextUpdate={handleChatContextUpdate}
                 />
