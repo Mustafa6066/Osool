@@ -78,7 +78,7 @@ const getContextualActions = (responseType: ResponseType, hasProperties: boolean
 
 // --- SVG Synapse Lines ---
 const SynapseLines = () => (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none hidden lg:block z-0" xmlns="http://www.w3.org/2000/svg">
+    <svg className="absolute inset-0 w-full h-full pointer-events-none hidden lg:block z-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs>
             <linearGradient id="gradient-champagne" x1="0%" x2="100%" y1="0%" y2="0%">
                 <stop offset="0%" style={{ stopColor: '#E6D5B8', stopOpacity: 0 }}></stop>
@@ -96,10 +96,10 @@ const SynapseLines = () => (
                 <stop offset="100%" style={{ stopColor: '#A3B18A', stopOpacity: 0 }}></stop>
             </linearGradient>
         </defs>
-        <path className="synapse-line" d="M 50% 50% C 40% 45%, 30% 45%, 20% 40%" fill="none" opacity="0.6" stroke="url(#gradient-champagne)" strokeWidth="1"></path>
-        <path className="synapse-line" d="M 50% 50% C 60% 45%, 70% 35%, 80% 30%" fill="none" opacity="0.6" stroke="url(#gradient-rose)" strokeWidth="1" style={{ animationDelay: '1s' }}></path>
-        <path className="synapse-line" d="M 50% 50% C 60% 60%, 70% 65%, 75% 70%" fill="none" opacity="0.5" stroke="url(#gradient-sage)" strokeWidth="1" style={{ animationDelay: '2s' }}></path>
-        <path className="synapse-line" d="M 50% 50% C 40% 60%, 30% 70%, 25% 75%" fill="none" opacity="0.4" stroke="url(#gradient-champagne)" strokeWidth="1" style={{ animationDelay: '1.5s' }}></path>
+        <path className="synapse-line" d="M 50 50 C 40 45, 30 45, 20 40" fill="none" opacity="0.6" stroke="url(#gradient-champagne)" strokeWidth="0.2"></path>
+        <path className="synapse-line" d="M 50 50 C 60 45, 70 35, 80 30" fill="none" opacity="0.6" stroke="url(#gradient-rose)" strokeWidth="0.2" style={{ animationDelay: '1s' }}></path>
+        <path className="synapse-line" d="M 50 50 C 60 60, 70 65, 75 70" fill="none" opacity="0.5" stroke="url(#gradient-sage)" strokeWidth="0.2" style={{ animationDelay: '2s' }}></path>
+        <path className="synapse-line" d="M 50 50 C 40 60, 30 70, 25 75" fill="none" opacity="0.4" stroke="url(#gradient-champagne)" strokeWidth="0.2" style={{ animationDelay: '1.5s' }}></path>
     </svg>
 );
 
