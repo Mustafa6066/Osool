@@ -1,10 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { 
-    HomeModernIcon, 
+import {
+    HomeModernIcon,
     CurrencyDollarIcon,
-    RulerIcon,
+    ArrowsPointingOutIcon,
     UsersIcon
 } from "@heroicons/react/24/outline";
 
@@ -76,7 +76,7 @@ export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyT
                         <p className="text-sm font-bold text-emerald-400">{formatCurrency(analysis.avg_price)}</p>
                     </div>
                     <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
-                        <RulerIcon className="w-5 h-5 text-blue-400 mx-auto mb-2" />
+                        <ArrowsPointingOutIcon className="w-5 h-5 text-blue-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">متوسط المساحة</p>
                         <p className="text-sm font-bold text-blue-400">{Math.round(analysis.avg_size)} م²</p>
                     </div>
@@ -120,10 +120,10 @@ export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyT
                                             </span>
                                         </div>
                                         <div className="h-2 bg-[var(--color-surface)] rounded-full overflow-hidden">
-                                            <div 
+                                            <div
                                                 className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
-                                                style={{ 
-                                                    width: `${Math.min((item.avg_price_per_sqm / Math.max(...comparison.map(c => c.avg_price_per_sqm))) * 100, 100)}%` 
+                                                style={{
+                                                    width: `${Math.min((item.avg_price_per_sqm / Math.max(...comparison.map(c => c.avg_price_per_sqm))) * 100, 100)}%`
                                                 }}
                                             />
                                         </div>
