@@ -11,10 +11,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { streamChat } from '@/lib/api';
-import ChartVisualization from './ChartVisualization';
 import VisualizationRenderer from './visualizations/VisualizationRenderer';
 import InvitationModal from './InvitationModal';
-import { User, LogOut, Gift, PlusCircle, History, Sparkles, Send, Mic, Plus, Bookmark, MessageCircle, X } from 'lucide-react';
+import { User, LogOut, Gift, PlusCircle, History, Sparkles, Send, Mic, Plus, Bookmark } from 'lucide-react';
 
 // ============================================
 // UTILITY COMPONENTS
