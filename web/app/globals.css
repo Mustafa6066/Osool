@@ -6,21 +6,29 @@
    ============================================ */
 
 @theme {
-  --font-sans: "Manrope", "Cairo", sans-serif;
-  --font-display: "Manrope", sans-serif;
+  --font-sans: "Inter", "Manrope", "Cairo", sans-serif;
+  --font-display: "Playfair Display", "Manrope", serif;
 
   /* Primary Brand Colors */
   --color-primary: #124759;
   --color-primary-light: #1a5a70;
   --color-primary-dark: #0d3442;
-  
+
   /* Accent Colors */
   --color-teal-accent: #2dd4bf;
   --color-teal-accent-dark: #14b8a6;
-  
+
   /* Legacy Sage Colors (kept for compatibility) */
   --color-secondary: #D4A3A3;
   --color-tertiary: #E6D5B8;
+
+  /* Studio Theme Colors */
+  --color-studio-white: #FDFDFD;
+  --color-studio-gray: #F8F9FA;
+  --color-studio-accent: #2D3436;
+  --color-border-subtle: #E9ECEF;
+  --color-text-main: #2D3436;
+  --color-text-muted-studio: #636E72;
 
   /* Background Colors */
   --color-background-light: #f4f2f1;
@@ -29,11 +37,11 @@
   /* Surface Colors */
   --color-surface-light: #ffffff;
   --color-surface-dark: #1c2b31;
-  
+
   /* Border Colors */
   --color-border-light: #e5e7eb;
   --color-border-dark: #273d44;
-  
+
   /* Text Colors */
   --color-text-secondary: #97b8c3;
   --color-text-off-white: #E8E8E3;
@@ -136,13 +144,38 @@ body {
     box-shadow: 0 0 20px rgba(45, 212, 191, 0.3);
   }
 
+  /* Studio Theme Glass Effects */
+  .glass-header {
+    background: rgba(253, 253, 253, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-input {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .shadow-soft {
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+  }
+
+  .shadow-soft-glow {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  .shadow-subtle-line {
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+
   /* Background Grid */
   .bg-grid-light {
     background-image: none;
   }
 
   .bg-grid-dark {
-    background-image: 
+    background-image:
       linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
     background-size: 40px 40px;
@@ -274,10 +307,13 @@ body {
    ============================================ */
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.4;
     filter: drop-shadow(0 0 2px rgba(45, 212, 191, 0.3));
   }
+
   50% {
     opacity: 0.8;
     filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.6));
@@ -285,16 +321,21 @@ body {
 }
 
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
 }
 
 @keyframes ping-slow {
-  75%, 100% {
+
+  75%,
+  100% {
     transform: scale(2);
     opacity: 0;
   }
@@ -436,6 +477,7 @@ body {
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -447,6 +489,7 @@ body {
     opacity: 0;
     transform: translateX(20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -458,6 +501,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

@@ -1,19 +1,24 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import DOMPurify from 'dompurify';
 import Link from 'next/link';
+import anime from 'animejs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { streamChat } from '@/lib/api';
 import ChartVisualization from './ChartVisualization';
-import ContextualPane, { PropertyContext } from './chat/ContextualPane';
+import VisualizationRenderer from './visualizations/VisualizationRenderer';
 import InvitationModal from './InvitationModal';
-import { User, LogOut, Gift, PlusCircle, History } from 'lucide-react';
+import { User, LogOut, Gift, PlusCircle, History, Sparkles, Send, Mic, Plus, Bookmark, MessageCircle, X } from 'lucide-react';
+
+// ============================================
+// UTILITY COMPONENTS
+// ============================================
 
 const MaterialIcon = ({ name, className = '', size = '20px' }: { name: string, className?: string, size?: string }) => (
     <span className={`material-symbols-outlined select-none ${className}`} style={{ fontSize: size }}>{name}</span>
@@ -27,341 +32,444 @@ const sanitizeContent = (content: string): string => {
     });
 };
 
-// --- Response Type Detection ---
-type ResponseType = 'greeting' | 'property_recommendation' | 'market_analysis' | 'comparison' | 'general' | 'loading';
+// ============================================
+// TYPEWRITER HOOK
+// ============================================
 
-const detectResponseType = (content: string, properties: any[], visualizations: any[]): ResponseType => {
-    if (!content) return 'loading';
-    const lowerContent = content.toLowerCase();
+function useTypewriter(text: string, speed: number = 25) {
+    const [displayedText, setDisplayedText] = useState('');
+    const [isComplete, setIsComplete] = useState(false);
 
-    if (properties && properties.length > 1) return 'comparison';
-    if (properties && properties.length === 1) return 'property_recommendation';
-    if (visualizations && visualizations.length > 0) return 'market_analysis';
-    if (lowerContent.includes('أهلاً') || lowerContent.includes('مرحبا') || lowerContent.includes('hello')) return 'greeting';
-    if (lowerContent.includes('سعر') || lowerContent.includes('متوسط') || lowerContent.includes('trend') || lowerContent.includes('market')) return 'market_analysis';
-
-    return 'general';
-};
-
-// --- Smart Action Buttons based on context ---
-const getContextualActions = (responseType: ResponseType, hasProperties: boolean): Array<{ label: string, icon: string, primary?: boolean }> => {
-    switch (responseType) {
-        case 'property_recommendation':
-            return [
-                { label: 'حجز معاينة', icon: 'calendar_today' },
-                { label: 'عرض التفاصيل', icon: 'visibility', primary: true },
-                { label: 'مقارنة الأسعار', icon: 'compare_arrows' }
-            ];
-        case 'comparison':
-            return [
-                { label: 'حجز معاينة', icon: 'calendar_today' },
-                { label: 'تحليل مفصل', icon: 'analytics', primary: true },
-                { label: 'حفظ المقارنة', icon: 'bookmark' }
-            ];
-        case 'market_analysis':
-            return [
-                { label: 'تحميل التقرير', icon: 'download' },
-                { label: 'عرض المزيد', icon: 'expand_more', primary: true }
-            ];
-        case 'greeting':
-            return [
-                { label: 'ابحث عن عقار', icon: 'search', primary: true },
-                { label: 'تحليل السوق', icon: 'trending_up' }
-            ];
-        default:
-            return hasProperties ? [
-                { label: 'حجز معاينة', icon: 'calendar_today' },
-                { label: 'عرض التفاصيل', icon: 'visibility', primary: true }
-            ] : [];
-    }
-};
-
-// --- SVG Synapse Lines ---
-const SynapseLines = () => (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none hidden lg:block z-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs>
-            <linearGradient id="gradient-champagne" x1="0%" x2="100%" y1="0%" y2="0%">
-                <stop offset="0%" style={{ stopColor: '#E6D5B8', stopOpacity: 0 }}></stop>
-                <stop offset="50%" style={{ stopColor: '#E6D5B8', stopOpacity: 0.8 }}></stop>
-                <stop offset="100%" style={{ stopColor: '#E6D5B8', stopOpacity: 0 }}></stop>
-            </linearGradient>
-            <linearGradient id="gradient-rose" x1="0%" x2="100%" y1="0%" y2="0%">
-                <stop offset="0%" style={{ stopColor: '#D4A3A3', stopOpacity: 0 }}></stop>
-                <stop offset="50%" style={{ stopColor: '#D4A3A3', stopOpacity: 0.8 }}></stop>
-                <stop offset="100%" style={{ stopColor: '#D4A3A3', stopOpacity: 0 }}></stop>
-            </linearGradient>
-            <linearGradient id="gradient-sage" x1="0%" x2="100%" y1="0%" y2="0%">
-                <stop offset="0%" style={{ stopColor: '#A3B18A', stopOpacity: 0 }}></stop>
-                <stop offset="50%" style={{ stopColor: '#A3B18A', stopOpacity: 0.8 }}></stop>
-                <stop offset="100%" style={{ stopColor: '#A3B18A', stopOpacity: 0 }}></stop>
-            </linearGradient>
-        </defs>
-        <path className="synapse-line" d="M 50 50 C 40 45, 30 45, 20 40" fill="none" opacity="0.6" stroke="url(#gradient-champagne)" strokeWidth="0.2"></path>
-        <path className="synapse-line" d="M 50 50 C 60 45, 70 35, 80 30" fill="none" opacity="0.6" stroke="url(#gradient-rose)" strokeWidth="0.2" style={{ animationDelay: '1s' }}></path>
-        <path className="synapse-line" d="M 50 50 C 60 60, 70 65, 75 70" fill="none" opacity="0.5" stroke="url(#gradient-sage)" strokeWidth="0.2" style={{ animationDelay: '2s' }}></path>
-        <path className="synapse-line" d="M 50 50 C 40 60, 30 70, 25 75" fill="none" opacity="0.4" stroke="url(#gradient-champagne)" strokeWidth="0.2" style={{ animationDelay: '1.5s' }}></path>
-    </svg>
-);
-
-// --- Smart Property Card with animations ---
-const PropertyCard = ({ property, index = 0, isActive = false, onClick }: { property: any, index?: number, isActive?: boolean, onClick?: () => void }) => {
-    const topOffset = 20 + (index * 25);
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, x: -80, scale: 0.9 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -80, scale: 0.9 }}
-            transition={{ delay: 0.1 + (index * 0.15), duration: 0.6, type: 'spring' }}
-            whileHover={{ scale: 1.03 }}
-            className={`hidden lg:block absolute w-80 transform transition-all duration-300 cursor-pointer z-10 ${isActive ? 'ring-2 ring-[#A3B18A]/50' : ''}`}
-            style={{ left: '10%', top: `${topOffset}%` }}
-            onClick={onClick}
-        >
-            <div className="relative glass-panel rounded-2xl p-5 group hover:border-[#A3B18A]/30 transition-colors">
-                <div className="absolute -top-[1px] -left-[1px] w-4 h-4 border-t border-l border-[#A3B18A]/60 rounded-tl-lg"></div>
-
-                {/* Active indicator */}
-                {isActive && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-[#A3B18A] rounded-full flex items-center justify-center shadow-lg"
-                    >
-                        <MaterialIcon name="check" className="text-white" size="14px" />
-                    </motion.div>
-                )}
-
-                <div className="relative overflow-hidden rounded-xl mb-4 h-44 bg-slate-200/50 dark:bg-[#1C212B]/50">
-                    {property.image_url ? (
-                        <img alt="Property" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 hologram-img transition-all duration-500" src={property.image_url} />
-                    ) : (
-                        <div className="w-full h-full bg-slate-300 dark:bg-slate-800 flex items-center justify-center">
-                            <MaterialIcon name="apartment" className="text-slate-400 dark:text-white/20" size="48px" />
-                        </div>
-                    )}
-                    <div className="absolute top-3 left-3 px-3 py-1 bg-slate-800/40 dark:bg-[#1C212B]/60 border border-slate-300/20 dark:border-white/20 text-white dark:text-[#E8E8E3] text-[10px] font-bold uppercase rounded-md backdrop-blur-md tracking-wider">
-                        {property.tag || 'Top Pick'}
-                    </div>
-                    {property.wolf_score && (
-                        <div className="absolute bottom-3 right-3 px-2 py-1 bg-[#A3B18A]/90 text-white text-[10px] font-bold rounded backdrop-blur-md">
-                            Wolf Score: {property.wolf_score}
-                        </div>
-                    )}
-                </div>
-                <div className="space-y-3">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h3 className="text-lg font-medium leading-tight text-slate-800 dark:text-slate-100 font-sans">{property.title}</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-display uppercase tracking-wide">{property.location}</p>
-                        </div>
-                        <div className="flex items-center gap-1 text-[#E6D5B8]">
-                            <MaterialIcon name="star" className="text-sm" />
-                            <span className="text-sm font-bold">{property.rating || 5.0}</span>
-                        </div>
-                    </div>
-                    <div className="text-2xl font-light text-[#A3B18A] font-display">{property.price?.toLocaleString() || '0'} <span className="text-base text-slate-500">EGP</span></div>
-                    <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-white/5">
-                        <div className="text-center"><MaterialIcon name="bed" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{property.bedrooms} Bed</p></div>
-                        <div className="text-center"><MaterialIcon name="bathtub" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{property.bathrooms} Bath</p></div>
-                        <div className="text-center"><MaterialIcon name="square_foot" className="text-slate-400 text-xs mb-1" /><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{property.size_sqm}m²</p></div>
-                    </div>
-                </div>
-                <div className="absolute top-1/2 -right-16 w-16 h-[1px] bg-gradient-to-r from-white/20 to-transparent"></div>
-                <div className="absolute top-1/2 -right-[66px] w-2 h-2 rounded-full bg-white/20 blur-[1px]"></div>
-            </div>
-        </motion.div>
-    );
-};
-
-// --- Dynamic Insights Panel ---
-const InsightsPanel = ({ property, responseType }: { property: any, responseType: ResponseType }) => {
-    const capRate = property?.cap_rate || 8;
-    const pricePerSqm = property ? Math.round(property.price / property.size_sqm) : 110000;
-    const walkScore = property?.walk_score || 85;
-    const wolfScore = property?.wolf_score || 68;
-
-    const getInsightLabel = () => {
-        switch (responseType) {
-            case 'comparison': return 'Comparison Insights';
-            case 'market_analysis': return 'Market Analysis';
-            default: return 'Listing Insights';
+    useEffect(() => {
+        if (!text) {
+            setDisplayedText('');
+            setIsComplete(true);
+            return;
         }
-    };
+
+        setDisplayedText('');
+        setIsComplete(false);
+
+        let index = 0;
+        const interval = setInterval(() => {
+            if (index < text.length) {
+                setDisplayedText(text.slice(0, index + 1));
+                index++;
+            } else {
+                setIsComplete(true);
+                clearInterval(interval);
+            }
+        }, speed);
+
+        return () => clearInterval(interval);
+    }, [text, speed]);
+
+    return { displayedText, isComplete };
+}
+
+// ============================================
+// PROPERTY CARD - FEATURED LISTING
+// ============================================
+
+interface Property {
+    title: string;
+    location: string;
+    price: number;
+    size_sqm: number;
+    bedrooms: number;
+    bathrooms?: number;
+    image_url?: string;
+    roi?: number;
+    wolf_score?: number;
+    developer?: string;
+}
+
+function FeaturedPropertyCard({
+    property,
+    onBookmark,
+    onRequestDetails
+}: {
+    property: Property;
+    onBookmark?: () => void;
+    onRequestDetails?: () => void;
+}) {
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (cardRef.current) {
+            anime({
+                targets: cardRef.current,
+                opacity: [0, 1],
+                translateY: [30, 0],
+                easing: 'easeOutExpo',
+                duration: 800,
+            });
+        }
+    }, [property]);
+
+    const projectedGrowth = property.roi || 12.4;
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 80 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="hidden lg:block absolute right-[5%] top-[20%] w-72 z-10"
+            ref={cardRef}
+            className="bg-[var(--color-studio-white)] shadow-soft overflow-hidden group transition-all"
+            style={{ opacity: 0 }}
         >
-            <div className="relative glass-panel rounded-2xl p-6 hover:border-[#D4A3A3]/30 transition-colors">
-                <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b border-r border-[#D4A3A3]/60 rounded-br-lg"></div>
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">{getInsightLabel()}</h3>
-                    <MaterialIcon name="analytics" className="text-[#D4A3A3]/70 text-lg" />
+            <div className="flex flex-col lg:flex-row">
+                {/* Image Section */}
+                <div className="lg:w-3/5 h-[350px] lg:h-[450px] overflow-hidden relative">
+                    {property.image_url ? (
+                        <img
+                            alt={property.title}
+                            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                            src={property.image_url}
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+                            <MaterialIcon name="apartment" className="text-slate-400" size="64px" />
+                        </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 p-8 lg:p-10 bg-gradient-to-t from-black/40 to-transparent w-full">
+                        <div className="text-white">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.3em] mb-2 opacity-80">Featured Listing</p>
+                            <h2 className="font-serif text-2xl lg:text-3xl italic">{property.title}</h2>
+                        </div>
+                    </div>
                 </div>
-                <div className="space-y-6">
-                    {/* Cap Rate */}
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                        <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider">
-                            <span>Cap Rate</span>
-                            <span className="text-[#A3B18A]">{capRate > 7 ? 'High' : capRate > 5 ? 'Medium' : 'Low'}</span>
-                        </div>
-                        <div className="text-3xl font-light text-slate-800 dark:text-white font-display">{capRate}%</div>
-                        <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 mt-2 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${capRate * 10}%` }}
-                                transition={{ delay: 0.5, duration: 0.8 }}
-                                className="bg-gradient-to-r from-[#D4A3A3] to-[#A3B18A] h-full rounded-full opacity-80"
-                            />
-                        </div>
-                    </motion.div>
 
-                    {/* Price/SQM */}
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-                        <div className="flex justify-between text-xs text-slate-500 mb-1 font-display uppercase tracking-wider"><span>Price / SQM</span></div>
-                        <div className="text-2xl font-light text-slate-800 dark:text-white font-display">{pricePerSqm.toLocaleString()} <span className="text-sm text-slate-500">EGP</span></div>
-                    </motion.div>
-
-                    {/* Wolf Score (if available) or Walk Score */}
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-                        <div className="flex justify-between text-xs text-slate-500 mb-2 font-display uppercase tracking-wider">
-                            <span>{property?.wolf_score ? 'Wolf Score' : 'Walk Score'}</span>
-                            <span className="text-[#E6D5B8] font-bold">{property?.wolf_score || walkScore}/100</span>
+                {/* Details Section */}
+                <div className="lg:w-2/5 p-8 lg:p-10 flex flex-col justify-between bg-[var(--color-studio-white)]">
+                    <div className="space-y-6">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-2">Location</p>
+                            <p className="text-sm font-medium text-[var(--color-text-main)]">{property.location}</p>
                         </div>
-                        <div className="h-16 w-full flex items-end gap-1 mt-2">
-                            {[40, 60, 30, 80, 90, 50].map((h, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ height: 0 }}
-                                    animate={{ height: `${h}%` }}
-                                    transition={{ delay: 0.7 + (i * 0.1), duration: 0.4 }}
-                                    className={`w-1/6 ${i < 3 ? 'bg-[#D4A3A3]' : 'bg-[#A3B18A]'} rounded-t-sm`}
-                                    style={{ opacity: 0.2 + (i * 0.15) }}
-                                />
-                            ))}
+                        <div className="h-px bg-[var(--color-border-subtle)] w-full"></div>
+                        <div className="grid grid-cols-2 gap-y-6">
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">Asking Price</p>
+                                <p className="text-lg font-semibold tracking-tight text-[var(--color-text-main)]">
+                                    {property.price.toLocaleString()} <span className="text-sm text-[var(--color-text-muted-studio)]">EGP</span>
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">Sq. Footage</p>
+                                <p className="text-lg font-semibold tracking-tight text-[var(--color-text-main)]">{property.size_sqm}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">Beds / Baths</p>
+                                <p className="text-lg font-semibold tracking-tight text-[var(--color-text-main)]">
+                                    {property.bedrooms} / {property.bathrooms || 2}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">ROI Est.</p>
+                                <p className="text-lg font-semibold tracking-tight text-emerald-600">{projectedGrowth}%</p>
+                            </div>
                         </div>
-                    </motion.div>
+                    </div>
+                    <div className="pt-8 lg:pt-10 flex gap-4">
+                        <button
+                            onClick={onRequestDetails}
+                            className="flex-1 bg-[var(--color-studio-accent)] text-white py-4 text-[11px] font-bold uppercase tracking-widest hover:opacity-90 transition-opacity"
+                        >
+                            Request Prospectus
+                        </button>
+                        <button
+                            onClick={onBookmark}
+                            className="size-12 border border-[var(--color-border-subtle)] flex items-center justify-center hover:bg-[var(--color-studio-gray)] transition-colors"
+                        >
+                            <Bookmark size={20} className="text-[var(--color-text-muted-studio)]" />
+                        </button>
+                    </div>
                 </div>
-                <div className="absolute top-1/2 -left-16 w-16 h-[1px] bg-gradient-to-l from-white/20 to-transparent"></div>
+            </div>
+
+            {/* Appreciation Chart */}
+            <div className="px-8 lg:px-10 py-8 lg:py-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]">
+                <div className="flex justify-between items-center mb-6 lg:mb-8">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">Appreciation Projection (5Y)</p>
+                    <p className="text-[11px] font-medium text-[var(--color-text-main)]">+{projectedGrowth}% Compound Growth</p>
+                </div>
+                <div className="h-24 lg:h-32 w-full relative">
+                    <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 100">
+                        <line stroke="#E9ECEF" strokeWidth="1" x1="0" x2="800" y1="100" y2="100"></line>
+                        <path
+                            d="M0,90 C150,85 250,70 400,60 C550,50 650,20 800,10"
+                            fill="none"
+                            stroke="#2D3436"
+                            strokeLinecap="round"
+                            strokeWidth="1.5"
+                        ></path>
+                        <circle cx="0" cy="90" fill="#2D3436" r="2.5"></circle>
+                        <circle cx="400" cy="60" fill="#2D3436" r="2.5"></circle>
+                        <circle cx="800" cy="10" fill="#2D3436" r="3.5"></circle>
+                    </svg>
+                    <div className="flex justify-between mt-4 text-[10px] text-[var(--color-text-muted-studio)] font-medium tracking-widest">
+                        <span>2024</span>
+                        <span>2026</span>
+                        <span>2028</span>
+                    </div>
+                </div>
             </div>
         </motion.div>
     );
-};
+}
 
-// --- ROI Panel ---
-const ROIPanel = ({ roi = 12.5, property }: { roi?: number, property?: any }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.6 }}
-        className="hidden lg:block absolute right-[15%] bottom-[15%] w-64 z-10"
-    >
-        <div className="relative glass-panel rounded-2xl p-5 hover:border-[#A3B18A]/40 transition-colors">
-            <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Proj. Annual ROI</span>
-                <MaterialIcon name="trending_up" className="text-[#A3B18A] text-sm" />
+// ============================================
+// SIDEBAR COMPONENT
+// ============================================
+
+function Sidebar({
+    onNewSession,
+    isRTL
+}: {
+    onNewSession: () => void;
+    isRTL: boolean;
+}) {
+    return (
+        <aside className="w-64 flex-none bg-[var(--color-studio-white)] border-r border-[var(--color-border-subtle)] hidden lg:flex flex-col">
+            <div className="p-8">
+                <button
+                    onClick={onNewSession}
+                    className="w-full text-left py-2 px-0 border-b border-[var(--color-studio-accent)]/10 hover:border-[var(--color-studio-accent)] transition-all flex items-center justify-between group"
+                >
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-text-main)]">
+                        {isRTL ? 'محادثة جديدة' : 'New Session'}
+                    </span>
+                    <MaterialIcon name="east" className="text-sm group-hover:translate-x-1 transition-transform text-[var(--color-text-main)]" />
+                </button>
             </div>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                className="text-3xl font-light text-[#A3B18A] font-display"
-            >
-                {property?.roi || roi}%
-            </motion.div>
-            <p className="text-[10px] text-slate-500 mt-2 leading-tight">Based on recent market trends in {property?.location || 'New Cairo'}.</p>
-            <div className="absolute -top-12 left-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-white/20"></div>
-        </div>
-    </motion.div>
-);
 
-// --- Loading State Component ---
-const LoadingState = () => (
-    <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="flex flex-col items-center justify-center py-12"
-    >
-        <div className="relative">
-            <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                className="w-16 h-16 rounded-full border-2 border-[#A3B18A]/20 border-t-[#A3B18A]"
-            />
-            <MaterialIcon name="auto_awesome" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#A3B18A]" size="24px" />
-        </div>
-        <motion.p
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="mt-4 text-slate-500 font-display"
-        >
-            جاري تحليل البيانات...
-        </motion.p>
-    </motion.div>
-);
+            <div className="flex-1 overflow-y-auto px-8 space-y-10 pb-8">
+                <div>
+                    <h3 className="text-[10px] font-bold text-[var(--color-text-muted-studio)] uppercase tracking-[0.2em] mb-6">
+                        {isRTL ? 'السجل الأخير' : 'Recent History'}
+                    </h3>
+                    <div className="flex flex-col gap-5">
+                        <p className="text-xs text-[var(--color-text-muted-studio)] italic">
+                            {isRTL ? 'لا توجد محادثات سابقة' : 'No previous conversations'}
+                        </p>
+                    </div>
+                </div>
+            </div>
 
-// --- Main Chat Interface ---
+            <div className="p-8 border-t border-[var(--color-border-subtle)]">
+                <div className="flex items-center gap-4 text-[var(--color-text-muted-studio)]">
+                    <button className="hover:text-[var(--color-text-main)] transition-colors">
+                        <MaterialIcon name="settings" size="20px" />
+                    </button>
+                    <button className="hover:text-[var(--color-text-main)] transition-colors">
+                        <MaterialIcon name="help_outline" size="20px" />
+                    </button>
+                </div>
+            </div>
+        </aside>
+    );
+}
+
+// ============================================
+// CONTEXTUAL INSIGHTS PANE
+// ============================================
+
+function ContextualInsights({
+    property,
+    aiInsight,
+    visualizations,
+    isRTL
+}: {
+    property: Property | null;
+    aiInsight: string | null;
+    visualizations: any[];
+    isRTL: boolean;
+}) {
+    const paneRef = useRef<HTMLDivElement>(null);
+    const { displayedText: typedInsight, isComplete } = useTypewriter(aiInsight || '', 15);
+
+    useEffect(() => {
+        if (paneRef.current && (property || aiInsight || visualizations.length > 0)) {
+            anime({
+                targets: paneRef.current.querySelectorAll('.insight-item'),
+                opacity: [0, 1],
+                translateY: [20, 0],
+                delay: anime.stagger(100, { start: 200 }),
+                easing: 'easeOutExpo',
+                duration: 500,
+            });
+        }
+    }, [property, aiInsight, visualizations]);
+
+    const hasContent = property || aiInsight || visualizations.length > 0;
+
+    return (
+        <aside className="w-80 flex-none border-l border-[var(--color-border-subtle)] bg-[var(--color-studio-white)] hidden xl:flex flex-col">
+            <div className="p-6 lg:p-8 border-b border-[var(--color-border-subtle)]">
+                <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-main)] flex items-center gap-2">
+                    <MaterialIcon name="location_searching" size="18px" />
+                    {isRTL ? 'رؤى السياق' : 'Contextual Insights'}
+                </h2>
+            </div>
+
+            <div ref={paneRef} className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
+                {hasContent ? (
+                    <>
+                        {/* Property Location Map Placeholder */}
+                        {property && (
+                            <div className="insight-item space-y-4" style={{ opacity: 0 }}>
+                                <div className="aspect-square bg-[var(--color-studio-gray)] rounded-sm overflow-hidden relative border border-[var(--color-border-subtle)]">
+                                    <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                                        <div className="text-center">
+                                            <MaterialIcon name="map" className="text-slate-300" size="48px" />
+                                            <p className="text-xs text-slate-400 mt-2">{property.location}</p>
+                                        </div>
+                                    </div>
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                        <div className="size-3 bg-[var(--color-studio-accent)] rounded-full border-2 border-white shadow-sm"></div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)]">
+                                        {property.location?.split(',')[0] || 'Location'}
+                                    </span>
+                                    <a className="text-[10px] underline uppercase tracking-widest text-[var(--color-text-main)]" href="#">
+                                        {isRTL ? 'عرض الخريطة' : 'Map View'}
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Market Indicators */}
+                        {property && (
+                            <div className="insight-item space-y-6" style={{ opacity: 0 }}>
+                                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">
+                                    {isRTL ? 'مؤشرات السوق' : 'Market Indicators'}
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-baseline">
+                                        <span className="text-xs text-[var(--color-text-muted-studio)]">
+                                            {isRTL ? 'السعر / م²' : 'Price / SQM'}
+                                        </span>
+                                        <span className="text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
+                                            {property.size_sqm > 0 ? Math.round(property.price / property.size_sqm).toLocaleString() : '—'}
+                                        </span>
+                                    </div>
+                                    {property.roi && (
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-xs text-[var(--color-text-muted-studio)]">
+                                                {isRTL ? 'العائد المتوقع' : 'Expected ROI'}
+                                            </span>
+                                            <span className="text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
+                                                {property.roi}%
+                                            </span>
+                                        </div>
+                                    )}
+                                    {property.wolf_score && (
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-xs text-[var(--color-text-muted-studio)]">Wolf Score</span>
+                                            <span className="text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
+                                                {property.wolf_score}/100
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Visualizations from AI */}
+                        {visualizations.length > 0 && (
+                            <div className="insight-item space-y-4" style={{ opacity: 0 }}>
+                                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">
+                                    {isRTL ? 'التحليلات' : 'Analytics'}
+                                </h3>
+                                {visualizations.slice(0, 2).map((viz, idx) => (
+                                    <div key={idx} className="rounded-lg border border-[var(--color-border-subtle)] overflow-hidden">
+                                        <VisualizationRenderer type={viz.type} data={viz.data} />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* AI Insight */}
+                        {aiInsight && (
+                            <div className="insight-item p-6 bg-[var(--color-studio-gray)] border border-[var(--color-border-subtle)] space-y-4" style={{ opacity: 0 }}>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-studio-accent)]">
+                                    {isRTL ? 'رؤية الذكاء الاصطناعي' : 'AI Insight'}
+                                </p>
+                                <p className="text-xs leading-relaxed text-[var(--color-text-muted-studio)] font-medium">
+                                    {typedInsight}
+                                    {!isComplete && <span className="inline-block w-0.5 h-3 bg-[var(--color-studio-accent)] ml-0.5 animate-pulse" />}
+                                </p>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                        <div className="size-16 rounded-2xl bg-[var(--color-studio-gray)] flex items-center justify-center mb-4">
+                            <Sparkles size={28} className="text-[var(--color-text-muted-studio)]" />
+                        </div>
+                        <h3 className="text-sm font-medium text-[var(--color-text-main)] mb-2">
+                            {isRTL ? 'ابدأ محادثة' : 'Start Chatting'}
+                        </h3>
+                        <p className="text-xs text-[var(--color-text-muted-studio)] max-w-[180px]">
+                            {isRTL
+                                ? 'اسأل عن العقارات وسيظهر التحليل هنا'
+                                : 'Ask about properties and insights will appear here'}
+                        </p>
+                    </div>
+                )}
+            </div>
+        </aside>
+    );
+}
+
+// ============================================
+// MAIN CHAT INTERFACE
+// ============================================
+
 export default function ChatInterface() {
     const { user, isAuthenticated, logout } = useAuth();
     const { language } = useLanguage();
     const { theme, toggleTheme } = useTheme();
+
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [selectedProperty, setSelectedProperty] = useState<PropertyContext | null>(null);
-    const [displayProperties, setDisplayProperties] = useState<any[]>([]);
-    const [visualizations, setVisualizations] = useState<any[]>([]);
     const [sessionId, setSessionId] = useState(() => `session-${Date.now()}`);
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isInvitationModalOpen, setInvitationModalOpen] = useState(false);
-    const [activePropertyIndex, setActivePropertyIndex] = useState(0);
 
-    // Default property for initial state
-    const defaultProperty = { title: 'Apartment in El Patio 7', location: 'New Cairo', price: 18150000, bedrooms: 3, bathrooms: 3, size_sqm: 165, rating: 5.0, wolf_score: 68 };
+    // Contextual state - updated from AI responses
+    const [contextProperty, setContextProperty] = useState<Property | null>(null);
+    const [contextInsight, setContextInsight] = useState<string | null>(null);
+    const [contextVisualizations, setContextVisualizations] = useState<any[]>([]);
 
-    // Smart property selection
-    const currentProperty = displayProperties[activePropertyIndex] || (displayProperties.length > 0 ? displayProperties[0] : defaultProperty);
-    const hasProperties = displayProperties.length > 0;
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const isRTL = language === 'ar';
 
-    const latestAiMessage = useMemo(() => {
-        const aiMessages = messages.filter(m => m.role === 'amr');
-        return aiMessages.length > 0 ? aiMessages[aiMessages.length - 1] : null;
-    }, [messages]);
+    const scrollToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, []);
 
-    // Detect response type
-    const responseType = useMemo(() => {
-        return detectResponseType(
-            latestAiMessage?.content || '',
-            displayProperties,
-            visualizations
-        );
-    }, [latestAiMessage?.content, displayProperties, visualizations]);
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, scrollToBottom]);
 
-    // Get contextual actions
-    const contextualActions = useMemo(() => {
-        return getContextualActions(responseType, hasProperties);
-    }, [responseType, hasProperties]);
-
-    const handleSelectProperty = useCallback((prop: any, index: number = 0) => {
-        setActivePropertyIndex(index);
-        setSelectedProperty({
-            title: prop.title, address: prop.location, price: `${prop.price?.toLocaleString() || 0} EGP`,
-            metrics: { bedrooms: prop.bedrooms, size: prop.size_sqm, wolfScore: prop.wolf_score || 75, capRate: `${prop.cap_rate || 8}%`, pricePerSqFt: `${Math.round((prop.price || 0) / (prop.size_sqm || 1)).toLocaleString()}` },
-            aiRecommendation: prop.ai_recommendation || "Strong appreciation potential.", tags: prop.tags || ["High Growth"], agent: { name: "Amr", title: "Consultant" }
-        });
+    // Extract insight from AI message
+    const extractInsight = useCallback((content: string): string | null => {
+        if (!content) return null;
+        // Get first meaningful sentence as insight
+        const sentences = content.split(/[.!؟]/);
+        const insight = sentences.find(s => s.trim().length > 20);
+        return insight?.trim() || null;
     }, []);
 
     const handleSend = async () => {
         if (!input.trim() || isTyping) return;
+
         const userMsg = { role: 'user', content: input, id: Date.now().toString() };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsTyping(true);
-        setActivePropertyIndex(0);
 
         const aiMsgId = (Date.now() + 1).toString();
         setMessages(prev => [...prev, { role: 'amr', content: '', id: aiMsgId, isTyping: true }]);
@@ -369,74 +477,155 @@ export default function ChatInterface() {
         let fullResponse = '';
         try {
             await streamChat(userMsg.content, sessionId, {
-                onToken: (token) => { fullResponse += token; setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: fullResponse } : m)); },
-                onToolStart: () => { }, onToolEnd: () => { },
+                onToken: (token) => {
+                    fullResponse += token;
+                    setMessages(prev => prev.map(m =>
+                        m.id === aiMsgId ? { ...m, content: fullResponse } : m
+                    ));
+                },
+                onToolStart: () => { },
+                onToolEnd: () => { },
                 onComplete: (data) => {
-                    setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: fullResponse, properties: data.properties, visualizations: data.ui_actions, isTyping: false } : m));
+                    setMessages(prev => prev.map(m =>
+                        m.id === aiMsgId ? {
+                            ...m,
+                            content: fullResponse,
+                            properties: data.properties,
+                            visualizations: data.ui_actions,
+                            isTyping: false
+                        } : m
+                    ));
+
+                    // Update contextual pane with AI response data
                     if (data.properties?.length > 0) {
-                        setDisplayProperties(data.properties.slice(0, 3));
-                        handleSelectProperty(data.properties[0], 0);
+                        setContextProperty(data.properties[0]);
                     }
-                    if (data.ui_actions?.length > 0) { setVisualizations(data.ui_actions); }
+                    if (data.ui_actions?.length > 0) {
+                        setContextVisualizations(data.ui_actions);
+                    }
+                    // Extract insight from response
+                    const insight = extractInsight(fullResponse);
+                    if (insight) {
+                        setContextInsight(insight);
+                    }
+
                     setIsTyping(false);
                 },
-                onError: () => { setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: fullResponse + '\n\n[Error]', isTyping: false } : m)); setIsTyping(false); }
+                onError: () => {
+                    setMessages(prev => prev.map(m =>
+                        m.id === aiMsgId ? { ...m, content: fullResponse + '\n\n[Error]', isTyping: false } : m
+                    ));
+                    setIsTyping(false);
+                }
             }, language === 'ar' ? 'ar' : 'auto');
-        } catch { setIsTyping(false); }
+        } catch {
+            setIsTyping(false);
+        }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
-    const getUserName = (): string => user?.full_name || user?.email?.split('@')[0] || 'Mustafa';
-    const handleNewSession = () => { setMessages([]); setSelectedProperty(null); setDisplayProperties([]); setVisualizations([]); setInput(''); setIsTyping(false); setSessionId(`session-${Date.now()}`); setActivePropertyIndex(0); };
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
 
-    const hasAiResponse = messages.some(m => m.role === 'amr');
-    const displayContent = latestAiMessage?.content ? sanitizeContent(latestAiMessage.content) : null;
-    const showProcessing = isTyping || latestAiMessage?.isTyping;
+    const handleNewSession = () => {
+        setMessages([]);
+        setContextProperty(null);
+        setContextInsight(null);
+        setContextVisualizations([]);
+        setInput('');
+        setIsTyping(false);
+        setSessionId(`session-${Date.now()}`);
+    };
 
-    // Determine which properties to show
-    const propertiesToDisplay = hasProperties ? displayProperties : [defaultProperty];
+    const getUserName = (): string => user?.full_name || user?.email?.split('@')[0] || 'User';
+
+    // Get latest AI message for featured property
+    const latestAiMessage = useMemo(() => {
+        const aiMessages = messages.filter(m => m.role === 'amr' && !m.isTyping);
+        return aiMessages.length > 0 ? aiMessages[aiMessages.length - 1] : null;
+    }, [messages]);
+
+    const featuredProperty = latestAiMessage?.properties?.[0] || null;
 
     return (
-        <div className="bg-[#F2F2EF] dark:bg-[#14171F] text-slate-700 dark:text-[#E8E8E3] font-sans transition-colors duration-500 overflow-hidden h-screen w-screen relative selection:bg-[#A3B18A] selection:text-white">
-            {/* Grid Background */}
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-40 dark:opacity-100 bg-grid-light dark:bg-grid-dark grid-bg"></div>
-            <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#F2F2EF]/50 via-transparent to-[#F2F2EF]/80 dark:from-[#14171F]/50 dark:via-transparent dark:to-[#14171F]/90 pointer-events-none"></div>
-
-            {/* Navigation */}
-            <nav className="absolute top-0 left-0 w-full z-50 p-8 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full border border-[#A3B18A]/30 bg-[#A3B18A]/10 flex items-center justify-center backdrop-blur-md">
-                        <MaterialIcon name="hub" className="text-[#A3B18A] text-lg" />
+        <div className="bg-[var(--color-studio-gray)] text-[var(--color-text-main)] font-sans h-screen flex flex-col overflow-hidden">
+            {/* Glass Header */}
+            <header className="flex-none h-20 glass-header border-b border-[var(--color-border-subtle)] flex items-center justify-between px-6 lg:px-10 z-50">
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <MaterialIcon name="adjust" className="text-2xl text-[var(--color-studio-accent)] font-light" />
+                        <Link href="/" className="text-sm font-semibold tracking-[0.2em] uppercase text-[var(--color-text-main)]">
+                            Osool <span className="font-light opacity-50">AI</span>
+                        </Link>
                     </div>
-                    <Link href="/" className="text-xl font-display font-medium tracking-widest uppercase text-slate-800 dark:text-gray-200">
-                        Osool<span className="text-[#A3B18A] font-bold">AI</span>
-                    </Link>
+                    <div className="h-4 w-px bg-[var(--color-border-subtle)] mx-2 hidden md:block"></div>
+                    <div className="hidden md:flex items-center gap-2">
+                        <div className="size-1.5 rounded-full bg-[var(--color-studio-accent)] animate-pulse"></div>
+                        <span className="text-[11px] font-medium text-[var(--color-text-muted-studio)] tracking-wide uppercase">
+                            {isRTL ? 'محرك الذكاء نشط' : 'AI Engine Active'}
+                        </span>
+                    </div>
                 </div>
-                <div className="flex gap-4">
-                    <button onClick={toggleTheme} className="p-2 rounded-full border border-slate-300 dark:border-white/10 hover:bg-white/50 dark:hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400">
-                        <MaterialIcon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} className="text-xl" />
+
+                <div className="flex items-center gap-4 lg:gap-8">
+                    <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+                        <Link href="/dashboard" className="text-[11px] font-semibold uppercase tracking-widest hover:text-[var(--color-studio-accent)] transition-colors text-[var(--color-text-muted-studio)] flex items-center gap-2">
+                            <History size={14} />
+                            {isRTL ? 'السجل' : 'History'}
+                        </Link>
+                    </nav>
+
+                    <button
+                        onClick={toggleTheme}
+                        className="p-2 rounded-full border border-[var(--color-border-subtle)] hover:bg-[var(--color-studio-white)] transition-colors text-[var(--color-text-muted-studio)]"
+                    >
+                        <MaterialIcon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size="18px" />
                     </button>
-                    <Link href="/dashboard" className="px-5 py-2 rounded-full border border-slate-300 dark:border-white/10 text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition text-slate-600 dark:text-slate-300 font-display tracking-wide flex items-center gap-2">
-                        <History size={16} /> History
-                    </Link>
-                    <button onClick={handleNewSession} className="px-5 py-2 rounded-full bg-slate-800 dark:bg-white/10 text-white dark:text-[#E6D5B8] border border-transparent dark:border-[#E6D5B8]/20 text-sm font-medium tracking-wide hover:bg-slate-700 dark:hover:bg-white/20 transition shadow-lg shadow-black/10 flex items-center gap-2">
-                        <PlusCircle size={16} /> New Session
+
+                    <button
+                        onClick={handleNewSession}
+                        className="hidden sm:flex px-4 py-2 rounded-full bg-[var(--color-studio-accent)] text-white text-[11px] font-bold uppercase tracking-widest hover:opacity-90 transition-opacity items-center gap-2"
+                    >
+                        <PlusCircle size={14} />
+                        {isRTL ? 'جديد' : 'New'}
                     </button>
+
                     {isAuthenticated && (
                         <div className="relative">
-                            <button onClick={() => setUserMenuOpen(!isUserMenuOpen)} className="w-10 h-10 rounded-full border border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition text-slate-500 dark:text-slate-400 flex items-center justify-center">
+                            <button
+                                onClick={() => setUserMenuOpen(!isUserMenuOpen)}
+                                className="size-10 rounded-full bg-cover bg-center border border-[var(--color-border-subtle)] hover:opacity-80 transition-opacity flex items-center justify-center text-[var(--color-text-muted-studio)]"
+                            >
                                 <User size={18} />
                             </button>
                             <AnimatePresence>
                                 {isUserMenuOpen && (
-                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-[#1C212B] border border-slate-200 dark:border-white/10 shadow-xl z-[60]">
-                                        <div className="p-3 border-b border-slate-200 dark:border-white/10">
-                                            <p className="text-sm font-medium text-slate-800 dark:text-white">{user?.full_name || 'User'}</p>
-                                            <p className="text-xs text-slate-500">{user?.email}</p>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-[var(--color-border-subtle)] shadow-xl z-[60]"
+                                    >
+                                        <div className="p-3 border-b border-[var(--color-border-subtle)]">
+                                            <p className="text-sm font-medium text-[var(--color-text-main)]">{user?.full_name || 'User'}</p>
+                                            <p className="text-xs text-[var(--color-text-muted-studio)]">{user?.email}</p>
                                         </div>
                                         <div className="p-2">
-                                            <button onClick={() => setInvitationModalOpen(true)} className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-green-600"><Gift size={16} /> Invite</button>
-                                            <button onClick={() => logout()} className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10 text-red-500"><LogOut size={16} /> Sign Out</button>
+                                            <button
+                                                onClick={() => setInvitationModalOpen(true)}
+                                                className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-[var(--color-studio-gray)] text-emerald-600"
+                                            >
+                                                <Gift size={16} /> {isRTL ? 'دعوة' : 'Invite'}
+                                            </button>
+                                            <button
+                                                onClick={() => logout()}
+                                                className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-red-50 text-red-500"
+                                            >
+                                                <LogOut size={16} /> {isRTL ? 'خروج' : 'Sign Out'}
+                                            </button>
                                         </div>
                                     </motion.div>
                                 )}
@@ -444,161 +633,167 @@ export default function ChatInterface() {
                         </div>
                     )}
                 </div>
-            </nav>
+            </header>
 
-            {/* Main Content */}
-            <main className="relative z-10 w-full h-full flex items-center justify-center">
-                <SynapseLines />
+            {/* Main Content Area */}
+            <div className="flex flex-1 overflow-hidden">
+                {/* Left Sidebar */}
+                <Sidebar onNewSession={handleNewSession} isRTL={isRTL} />
 
-                {/* LEFT: Property Cards with AnimatePresence */}
-                <AnimatePresence mode="wait">
-                    {propertiesToDisplay.slice(0, 2).map((prop, idx) => (
-                        <PropertyCard
-                            key={`${prop.title}-${idx}`}
-                            property={prop}
-                            index={idx}
-                            isActive={idx === activePropertyIndex}
-                            onClick={() => handleSelectProperty(prop, idx)}
-                        />
-                    ))}
-                </AnimatePresence>
-
-                {/* RIGHT: Insights Panel */}
-                <InsightsPanel property={currentProperty} responseType={responseType} />
-
-                {/* BOTTOM-RIGHT: ROI Panel */}
-                <ROIPanel roi={12.5} property={currentProperty} />
-
-                {/* CENTER: Agentic Core Panel */}
-                <div className="relative z-20 w-full max-w-2xl mx-4 lg:mx-0 transform transition-all duration-700">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[#A3B18A]/20 via-[#E6D5B8]/10 to-[#D4A3A3]/20 rounded-3xl blur-xl opacity-30 dark:opacity-40 animate-pulse"></div>
-                    <div className="relative glass-panel bg-white/80 dark:bg-[#1C212B]/40 rounded-2xl p-6 lg:p-10 shadow-soft-glow">
-                        {/* Header */}
-                        <div className="flex items-center gap-4 mb-8 border-b border-slate-200 dark:border-white/5 pb-6">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#A3B18A]/20 to-slate-100 dark:to-[#1C212B] border border-[#A3B18A]/20 flex items-center justify-center">
-                                <MaterialIcon name="auto_awesome" className="text-[#A3B18A] font-light" />
+                {/* Main Chat Area */}
+                <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-studio-gray)]">
+                    <div className="flex-1 overflow-y-auto px-4 py-8 md:px-12 lg:px-20 space-y-12">
+                        {messages.length === 0 ? (
+                            /* Empty State */
+                            <div className="flex flex-col items-center justify-center h-full text-center py-20">
+                                <div className="size-20 rounded-2xl bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] flex items-center justify-center mb-6 shadow-soft">
+                                    <Sparkles size={32} className="text-[var(--color-studio-accent)]" />
+                                </div>
+                                <h2 className="text-xl font-serif italic text-[var(--color-text-main)] mb-3">
+                                    {isRTL ? 'أهلاً بك في أصول' : 'Welcome to Osool AI'}
+                                </h2>
+                                <p className="text-sm text-[var(--color-text-muted-studio)] max-w-md mb-8">
+                                    {isRTL
+                                        ? 'اسأل عن أي منطقة، مطور، أو نوع عقار وسأقدم لك تحليلات شاملة'
+                                        : 'Ask about any area, developer, or property type and I\'ll provide comprehensive analytics'}
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-3">
+                                    {[
+                                        { label: isRTL ? 'شقق في التجمع الخامس' : 'Apartments in New Cairo', icon: 'apartment' },
+                                        { label: isRTL ? 'مشاريع طلعت مصطفى' : 'TMG Projects', icon: 'business' },
+                                        { label: isRTL ? 'أفضل عائد استثماري' : 'Best ROI', icon: 'trending_up' },
+                                    ].map((suggestion) => (
+                                        <button
+                                            key={suggestion.label}
+                                            onClick={() => setInput(suggestion.label)}
+                                            className="px-4 py-2 rounded-full bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] text-sm text-[var(--color-text-muted-studio)] hover:border-[var(--color-studio-accent)] hover:text-[var(--color-text-main)] transition-all flex items-center gap-2 shadow-soft"
+                                        >
+                                            <MaterialIcon name={suggestion.icon} size="16px" />
+                                            {suggestion.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div>
-                                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400 mb-1">Agentic Core</h2>
-                                <motion.span
-                                    key={showProcessing ? 'processing' : 'complete'}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="text-sm text-[#A3B18A]/80 font-display flex items-center gap-2"
-                                >
-                                    {showProcessing ? 'Processing Market Data' : 'Analysis Complete'}
-                                    {showProcessing && <span className="flex space-x-1">{[0, 0.2, 0.4].map((d, i) => <span key={i} className="w-1 h-1 bg-[#A3B18A] rounded-full animate-bounce" style={{ animationDelay: `${d}s` }}></span>)}</span>}
-                                </motion.span>
-                            </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="text-right font-sans text-lg leading-loose text-slate-700 dark:text-[#E8E8E3] space-y-6" dir="rtl">
-                            <AnimatePresence mode="wait">
-                                {displayContent ? (
-                                    <motion.div
-                                        key="content"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -20 }}
-                                        className="prose prose-lg dark:prose-invert max-w-none prose-p:text-slate-700 dark:prose-p:text-[#E8E8E3] prose-p:leading-loose prose-strong:text-[#A3B18A] prose-a:text-[#A3B18A]"
-                                    >
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
-                                    </motion.div>
-                                ) : hasAiResponse ? (
-                                    <LoadingState />
-                                ) : (
-                                    <motion.div key="greeting" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                        <p className="text-slate-900 dark:text-white font-medium">أهلاً بيك يا {getUserName()}! التجمع الخامس اختيار ممتاز.</p>
-                                        <p className="text-slate-600 dark:text-gray-300 font-light mt-4">بص، متوسط أسعار الشقق في التجمع الخامس بيبدأ من <span className="text-[#E6D5B8] font-bold px-1">5.4</span> مليون جنيه لحد <span className="text-[#E6D5B8] font-bold px-1">18.1</span> مليون جنيه.</p>
-                                        <div className="p-4 bg-[#A3B18A]/5 border border-[#A3B18A]/10 rounded-xl relative overflow-hidden mt-4">
-                                            <div className="absolute top-0 right-0 w-1 h-full bg-[#A3B18A]/40"></div>
-                                            <p className="text-slate-700 dark:text-gray-200">من الخيارات اللي عندي، في شقة في <span className="font-bold text-[#A3B18A]">السراي</span> بسعر 5.38 مليون جنيه. الـ AI بتاعي قيمها بـ 50/100.</p>
-                                        </div>
-                                        <p className="text-sm text-slate-500 mt-4 font-display">تحب نحجز معاينة يا {getUserName()}؟</p>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Charts */}
-                        <AnimatePresence>
-                            {visualizations.length > 0 && (
-                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
-                                    {visualizations.map((viz: any, idx: number) => {
-                                        let chartData = viz.type === 'inflation_killer' && viz.data?.projections ? viz.data.projections : viz.data;
-                                        if (!Array.isArray(chartData) || chartData.length === 0) return null;
-                                        return (
-                                            <div key={idx} className="glass-panel rounded-xl p-4 bg-white/50 dark:bg-white/5">
-                                                <ChartVisualization type={viz.type === 'inflation_killer' ? 'line' : viz.type || 'bar'} title={viz.title || 'Analysis'} data={chartData} labels={viz.labels || []} trend={viz.trend} subtitle={viz.subtitle} />
+                        ) : (
+                            <>
+                                {messages.map((msg, idx) => (
+                                    <div key={msg.id || idx}>
+                                        {msg.role === 'user' ? (
+                                            /* User Message */
+                                            <div className="flex justify-end">
+                                                <div className="max-w-[80%] md:max-w-[60%] flex flex-col items-end">
+                                                    <div className="bg-[var(--color-studio-white)] px-6 lg:px-8 py-4 lg:py-5 rounded-2xl border border-[var(--color-border-subtle)] shadow-soft">
+                                                        <p className="text-[14px] leading-relaxed font-normal text-[var(--color-text-main)]" dir={isRTL ? 'rtl' : 'ltr'}>
+                                                            {msg.content}
+                                                        </p>
+                                                    </div>
+                                                    <span className="mt-3 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted-studio)] opacity-40">
+                                                        {getUserName()} • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        );
-                                    })}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                        ) : (
+                                            /* AI Message */
+                                            <div className="space-y-6 max-w-4xl">
+                                                <div className="flex gap-4 items-start">
+                                                    <div className="size-6 mt-1 flex-none bg-[var(--color-studio-accent)] flex items-center justify-center rounded-sm">
+                                                        <MaterialIcon name="auto_awesome" className="text-white" size="14px" />
+                                                    </div>
+                                                    <div className="space-y-6 flex-1">
+                                                        <div className="prose prose-sm max-w-none">
+                                                            {msg.isTyping && !msg.content ? (
+                                                                <div className="flex items-center gap-2 text-[var(--color-text-muted-studio)]">
+                                                                    <span className="animate-pulse">{isRTL ? 'جاري التحليل...' : 'Analyzing...'}</span>
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <div
+                                                                        className="text-sm lg:text-base leading-relaxed text-[var(--color-text-main)]"
+                                                                        dir={isRTL ? 'rtl' : 'ltr'}
+                                                                    >
+                                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                            {sanitizeContent(msg.content)}
+                                                                        </ReactMarkdown>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
 
-                        {/* Smart Action Buttons */}
-                        <motion.div
-                            key={responseType}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mt-8 flex flex-wrap gap-3 justify-end"
-                            dir="rtl"
-                        >
-                            {contextualActions.map((action, idx) => (
-                                <motion.button
-                                    key={action.label}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: idx * 0.1 }}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    className={`px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2 shadow-sm ${action.primary
-                                        ? 'bg-[#A3B18A]/10 border border-[#A3B18A]/30 text-[#A3B18A] hover:bg-[#A3B18A]/20'
-                                        : 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300'
-                                        }`}
-                                >
-                                    <MaterialIcon name={action.icon} className="text-lg" /> {action.label}
-                                </motion.button>
-                            ))}
-                        </motion.div>
+                                                        {/* Featured Property Card */}
+                                                        {msg.properties?.length > 0 && (
+                                                            <FeaturedPropertyCard
+                                                                property={msg.properties[0]}
+                                                                onRequestDetails={() => { }}
+                                                                onBookmark={() => { }}
+                                                            />
+                                                        )}
+
+                                                        {/* Inline Visualizations */}
+                                                        {msg.visualizations?.length > 0 && (
+                                                            <div className="space-y-4">
+                                                                {msg.visualizations.map((viz: any, vidx: number) => (
+                                                                    <div key={vidx} className="bg-[var(--color-studio-white)] rounded-xl border border-[var(--color-border-subtle)] overflow-hidden shadow-soft">
+                                                                        <VisualizationRenderer type={viz.type} data={viz.data} />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                <div ref={messagesEndRef} />
+                            </>
+                        )}
                     </div>
-                </div>
-            </main>
 
-            {/* Floating Controls */}
-            <div className="absolute bottom-8 left-8 flex flex-col gap-3 z-50">
-                {['add', 'remove', 'my_location'].map((icon, idx) => (
-                    <motion.button
-                        key={icon}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 + (idx * 0.1) }}
-                        className="w-11 h-11 rounded-xl bg-white/80 dark:bg-[#1C212B]/50 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 backdrop-blur-md flex items-center justify-center hover:bg-[#A3B18A]/20 hover:text-[#A3B18A] hover:border-[#A3B18A]/30 transition-all shadow-lg"
-                    >
-                        <MaterialIcon name={icon} className="text-xl" />
-                    </motion.button>
-                ))}
+                    {/* Input Area */}
+                    <div className="p-4 lg:p-8 glass-input z-30">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="relative flex items-center border-b border-[var(--color-studio-accent)]/20 focus-within:border-[var(--color-studio-accent)] transition-all pb-2 px-1">
+                                <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
+                                    <Plus size={20} />
+                                </button>
+                                <input
+                                    value={input}
+                                    onChange={e => setInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-4 placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)]"
+                                    placeholder={isRTL ? 'اسأل عن العقارات أو السوق...' : 'Ask about properties, market trends...'}
+                                    disabled={isTyping}
+                                    dir={isRTL ? 'rtl' : 'ltr'}
+                                />
+                                <div className="flex items-center gap-2">
+                                    <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
+                                        <Mic size={20} />
+                                    </button>
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={!input.trim() || isTyping}
+                                        className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors disabled:opacity-50"
+                                    >
+                                        <Send size={20} />
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.2em] mt-4 opacity-50">
+                                {isRTL ? 'أصول AI • محرك تحليل العقارات المتقدم' : 'Osool AI • Advanced Real Estate Analytics Engine'}
+                            </p>
+                        </div>
+                    </div>
+                </main>
+
+                {/* Right Contextual Pane */}
+                <ContextualInsights
+                    property={contextProperty}
+                    aiInsight={contextInsight}
+                    visualizations={contextVisualizations}
+                    isRTL={isRTL}
+                />
             </div>
 
-            {/* Input */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50">
-                <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[#A3B18A]/30 via-[#E6D5B8]/20 to-[#D4A3A3]/30 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition duration-700"></div>
-                    <div className="relative flex items-center bg-white dark:bg-[#1C212B]/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-full shadow-2xl overflow-hidden transition-colors hover:border-[#A3B18A]/20">
-                        <button className="pl-5 pr-3 text-slate-400 hover:text-[#A3B18A] transition"><MaterialIcon name="add_circle" /></button>
-                        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} className="w-full py-4 bg-transparent border-none focus:ring-0 focus:outline-none text-slate-700 dark:text-gray-200 placeholder-slate-400 font-sans text-base tracking-wide" placeholder="Ask about properties, market trends..." disabled={isTyping} />
-                        <button className="p-3 text-slate-400 hover:text-[#A3B18A] transition"><MaterialIcon name="mic" /></button>
-                        <button onClick={handleSend} disabled={!input.trim() || isTyping} className="mr-2 p-2.5 bg-slate-100 dark:bg-white/10 rounded-full text-slate-500 dark:text-[#E6D5B8] hover:bg-[#A3B18A] hover:text-white transition shadow-inner disabled:opacity-50">
-                            <MaterialIcon name="arrow_upward" className="text-lg" />
-                        </button>
-                    </div>
-                    <div className="text-center mt-3"><p className="text-[10px] text-slate-400 dark:text-slate-500 tracking-widest uppercase font-display opacity-70">AI insights require independent verification</p></div>
-                </motion.div>
-            </div>
-
-            <ContextualPane isOpen={!!selectedProperty} onClose={() => setSelectedProperty(null)} property={selectedProperty} isRTL={language === 'ar'} />
             <InvitationModal isOpen={isInvitationModalOpen} onClose={() => setInvitationModalOpen(false)} />
         </div>
     );
