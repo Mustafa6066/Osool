@@ -21,9 +21,12 @@ import { User, LogOut, Gift, PlusCircle, History, Sparkles, Send, Mic, Plus, Boo
 // UTILITY COMPONENTS
 // ============================================
 
-const MaterialIcon = ({ name, className = '', size = '20px' }: { name: string, className?: string, size?: string }) => (
-    <span className={`material-symbols-outlined select-none ${className}`} style={{ fontSize: size }}>{name}</span>
-);
+const MaterialIcon = ({ name, className = '', size = '20px' }: { name: string, className?: string, size?: string }) => {
+    if (!name) return null;
+    return (
+        <span className={`material-symbols-outlined select-none ${className}`} style={{ fontSize: size }}>{name}</span>
+    );
+};
 
 const sanitizeContent = (content: string): string => {
     if (typeof window === 'undefined') return content;
@@ -508,8 +511,15 @@ export default function ChatInterface() {
     const handleSend = async () => {
         if (!input.trim() || isTyping || isTransitioning) return;
 
-        // Detect analytics from user input
-        const analyticsMatches = analyticsEngine.detectAnalytics(input);
+        // Detect analytics from user input (with defensive check)
+        let analyticsMatches: AnalyticsMatch[] = [];
+        try {
+            if (analyticsEngine && typeof analyticsEngine.detectAnalytics === 'function') {
+                analyticsMatches = analyticsEngine.detectAnalytics(input) || [];
+            }
+        } catch (e) {
+            console.warn('Analytics detection failed:', e);
+        }
         if (analyticsMatches.length > 0) {
             setDetectedAnalytics(analyticsMatches);
         }
@@ -532,11 +542,20 @@ export default function ChatInterface() {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
+        let analyticsContext = null;
+        try {
+            if (analyticsMatches.length > 0 && analyticsEngine && typeof analyticsEngine.buildAnalyticsContext === 'function') {
+                analyticsContext = analyticsEngine.buildAnalyticsContext(analyticsMatches);
+            }
+        } catch (e) {
+            console.warn('Analytics context build failed:', e);
+        }
+
         const userMsg = {
             role: 'user',
             content: input,
             id: Date.now().toString(),
-            analytics: analyticsMatches.length > 0 ? analyticsEngine.buildAnalyticsContext(analyticsMatches) : null
+            analytics: analyticsContext
         };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
