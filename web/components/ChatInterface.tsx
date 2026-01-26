@@ -91,11 +91,13 @@ interface Property {
 function FeaturedPropertyCard({
     property,
     onBookmark,
-    onRequestDetails
+    onRequestDetails,
+    isRTL = false
 }: {
     property: Property;
     onBookmark?: () => void;
     onRequestDetails?: () => void;
+    isRTL?: boolean;
 }) {
     const cardRef = useRef<HTMLDivElement>(null);
 
@@ -133,41 +135,53 @@ function FeaturedPropertyCard({
                             <MaterialIcon name="apartment" className="text-slate-400" size="48px" />
                         </div>
                     )}
-                    <div className="absolute bottom-0 left-0 p-4 sm:p-6 lg:p-10 bg-gradient-to-t from-black/50 to-transparent w-full">
-                        <div className="text-white">
-                            <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-1 sm:mb-2 opacity-80">Featured</p>
+                    <div className={`absolute bottom-0 p-4 sm:p-6 lg:p-10 bg-gradient-to-t from-black/50 to-transparent w-full ${isRTL ? 'right-0' : 'left-0'}`}>
+                        <div className="text-white" dir={isRTL ? 'rtl' : 'ltr'}>
+                            <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-1 sm:mb-2 opacity-80">
+                                {isRTL ? 'مميز' : 'Featured'}
+                            </p>
                             <h2 className="font-serif text-lg sm:text-2xl lg:text-3xl italic line-clamp-2">{property.title}</h2>
                         </div>
                     </div>
                 </div>
 
-                {/* Details Section - Mobile Optimized */}
-                <div className="lg:w-2/5 p-4 sm:p-6 lg:p-10 flex flex-col justify-between bg-[var(--color-studio-white)]">
+                {/* Details Section - Mobile Optimized & RTL Aware */}
+                <div className="lg:w-2/5 p-4 sm:p-6 lg:p-10 flex flex-col justify-between bg-[var(--color-studio-white)]" dir={isRTL ? 'rtl' : 'ltr'}>
                     <div className="space-y-4 sm:space-y-6">
                         <div>
-                            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1 sm:mb-2">Location</p>
+                            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1 sm:mb-2">
+                                {isRTL ? 'الموقع' : 'Location'}
+                            </p>
                             <p className="text-xs sm:text-sm font-medium text-[var(--color-text-main)] line-clamp-1">{property.location}</p>
                         </div>
                         <div className="h-px bg-[var(--color-border-subtle)] w-full"></div>
                         <div className="grid grid-cols-2 gap-3 sm:gap-y-6">
                             <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">Price</p>
+                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">
+                                    {isRTL ? 'السعر' : 'Price'}
+                                </p>
                                 <p className="text-sm sm:text-lg font-semibold tracking-tight text-[var(--color-text-main)]">
-                                    {(property.price / 1000000).toFixed(1)}M <span className="text-xs text-[var(--color-text-muted-studio)]">EGP</span>
+                                    {(property.price / 1000000).toFixed(1)}M <span className="text-xs text-[var(--color-text-muted-studio)]">{isRTL ? 'ج.م' : 'EGP'}</span>
                                 </p>
                             </div>
                             <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">Size</p>
-                                <p className="text-sm sm:text-lg font-semibold tracking-tight text-[var(--color-text-main)]">{property.size_sqm} m²</p>
+                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">
+                                    {isRTL ? 'المساحة' : 'Size'}
+                                </p>
+                                <p className="text-sm sm:text-lg font-semibold tracking-tight text-[var(--color-text-main)]">{property.size_sqm} {isRTL ? 'م²' : 'm²'}</p>
                             </div>
                             <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">Beds/Baths</p>
+                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">
+                                    {isRTL ? 'غرف/حمام' : 'Beds/Baths'}
+                                </p>
                                 <p className="text-sm sm:text-lg font-semibold tracking-tight text-[var(--color-text-main)]">
                                     {property.bedrooms}/{property.bathrooms || 2}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">ROI</p>
+                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">
+                                    {isRTL ? 'العائد' : 'ROI'}
+                                </p>
                                 <p className="text-sm sm:text-lg font-semibold tracking-tight text-emerald-600">
                                     {projectedGrowth ? `${projectedGrowth}%` : 'N/A'}
                                 </p>
@@ -179,7 +193,7 @@ function FeaturedPropertyCard({
                             onClick={onRequestDetails}
                             className="flex-1 bg-[var(--color-studio-accent)] text-white py-2.5 sm:py-3 lg:py-4 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider sm:tracking-widest hover:opacity-90 transition-opacity active:scale-[0.98] rounded sm:rounded-none"
                         >
-                            Details
+                            {isRTL ? 'التفاصيل' : 'Details'}
                         </button>
                         <button
                             onClick={onBookmark}
@@ -193,9 +207,11 @@ function FeaturedPropertyCard({
 
             {/* Appreciation Chart - Hidden on very small screens */}
             {projectedGrowth && (
-            <div className="hidden sm:block px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]">
+            <div className="hidden sm:block px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]" dir={isRTL ? 'rtl' : 'ltr'}>
                 <div className="flex justify-between items-center mb-4 sm:mb-6 lg:mb-8">
-                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--color-text-muted-studio)]">5Y Projection</p>
+                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--color-text-muted-studio)]">
+                        {isRTL ? 'توقعات 5 سنوات' : '5Y Projection'}
+                    </p>
                     <p className="text-[10px] sm:text-[11px] font-medium text-[var(--color-text-main)]">+{projectedGrowth}%</p>
                 </div>
                 <div className="h-16 sm:h-24 lg:h-32 w-full relative">
@@ -236,16 +252,19 @@ function Sidebar({
     isRTL: boolean;
 }) {
     return (
-        <aside className="w-64 flex-none bg-[var(--color-studio-white)] border-r border-[var(--color-border-subtle)] hidden lg:flex flex-col">
+        <aside className={`w-64 flex-none bg-[var(--color-studio-white)] hidden lg:flex flex-col ${isRTL ? 'border-l' : 'border-r'} border-[var(--color-border-subtle)]`}>
             <div className="p-8">
                 <button
                     onClick={onNewSession}
-                    className="w-full text-left py-2 px-0 border-b border-[var(--color-studio-accent)]/10 hover:border-[var(--color-studio-accent)] transition-all flex items-center justify-between group"
+                    className={`w-full py-2 px-0 border-b border-[var(--color-studio-accent)]/10 hover:border-[var(--color-studio-accent)] transition-all flex items-center justify-between group ${isRTL ? 'text-right' : 'text-left'}`}
                 >
                     <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-text-main)]">
                         {isRTL ? 'محادثة جديدة' : 'New Session'}
                     </span>
-                    <MaterialIcon name="east" className="text-sm group-hover:translate-x-1 transition-transform text-[var(--color-text-main)]" />
+                    <MaterialIcon
+                        name={isRTL ? "west" : "east"}
+                        className={`text-sm transition-transform text-[var(--color-text-main)] ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`}
+                    />
                 </button>
             </div>
 
@@ -277,7 +296,7 @@ function Sidebar({
 }
 
 // ============================================
-// CONTEXTUAL INSIGHTS PANE - Minimal & Animated
+// CONTEXTUAL INSIGHTS PANE - Compact Summary Cards Only
 // ============================================
 
 function ContextualInsights({
@@ -291,12 +310,10 @@ function ContextualInsights({
     visualizations: any[];
     isRTL: boolean;
 }) {
-    const paneRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const { displayedText: typedInsight, isComplete } = useTypewriter(aiInsight || '', 20);
-    const [expandedViz, setExpandedViz] = useState<number | null>(null);
 
-    // Animate on content change with smooth stagger
+    // Animate on content change
     useEffect(() => {
         if (contentRef.current) {
             const items = contentRef.current.querySelectorAll('.insight-item');
@@ -304,37 +321,31 @@ function ContextualInsights({
                 anime({
                     targets: items,
                     opacity: [0, 1],
-                    translateY: [15, 0],
-                    scale: [0.98, 1],
-                    delay: anime.stagger(80, { start: 100 }),
+                    translateX: [isRTL ? 10 : -10, 0],
+                    delay: anime.stagger(60, { start: 80 }),
                     easing: 'easeOutCubic',
-                    duration: 400,
+                    duration: 300,
                 });
             }
         }
-    }, [property, aiInsight, visualizations]);
-
-    // Animate visualization expand/collapse
-    const toggleViz = (idx: number) => {
-        setExpandedViz(expandedViz === idx ? null : idx);
-    };
+    }, [property, aiInsight, visualizations, isRTL]);
 
     const hasContent = property || aiInsight || visualizations.length > 0;
 
     // Get readable visualization name
     const getVizName = (type: string): string => {
         const names: Record<string, string> = {
-            'investment_scorecard': isRTL ? 'بطاقة الاستثمار' : 'Investment Score',
-            'comparison_matrix': isRTL ? 'مقارنة العقارات' : 'Property Comparison',
-            'inflation_killer': isRTL ? 'حماية من التضخم' : 'Inflation Protection',
-            'payment_timeline': isRTL ? 'جدول السداد' : 'Payment Schedule',
-            'market_trend_chart': isRTL ? 'اتجاه السوق' : 'Market Trend',
-            'area_analysis': isRTL ? 'تحليل المنطقة' : 'Area Analysis',
-            'developer_analysis': isRTL ? 'تحليل المطور' : 'Developer Profile',
-            'roi_calculator': isRTL ? 'حاسبة العائد' : 'ROI Calculator',
-            'property_type_analysis': isRTL ? 'أنواع العقارات' : 'Property Types',
-            'payment_plan_analysis': isRTL ? 'خطط السداد' : 'Payment Plans',
-            'resale_vs_developer': isRTL ? 'ريسيل vs مطور' : 'Resale vs Developer',
+            'investment_scorecard': isRTL ? 'بطاقة الاستثمار' : 'Investment',
+            'comparison_matrix': isRTL ? 'مقارنة' : 'Compare',
+            'inflation_killer': isRTL ? 'حماية التضخم' : 'Inflation',
+            'payment_timeline': isRTL ? 'جدول السداد' : 'Payment',
+            'market_trend_chart': isRTL ? 'اتجاه السوق' : 'Trend',
+            'area_analysis': isRTL ? 'تحليل المنطقة' : 'Area',
+            'developer_analysis': isRTL ? 'المطور' : 'Developer',
+            'roi_calculator': isRTL ? 'العائد' : 'ROI',
+            'property_type_analysis': isRTL ? 'أنواع' : 'Types',
+            'payment_plan_analysis': isRTL ? 'السداد' : 'Plans',
+            'resale_vs_developer': isRTL ? 'ريسيل' : 'Resale',
         };
         return names[type] || type?.replace(/_/g, ' ');
     };
@@ -357,132 +368,131 @@ function ContextualInsights({
         return icons[type] || 'auto_awesome';
     };
 
+    // Extract key metric from visualization data
+    const getKeyMetric = (viz: any): string => {
+        const { type, data } = viz;
+        if (!data) return '—';
+        switch (type) {
+            case 'investment_scorecard':
+                return `${data?.analysis?.match_score || data?.property?.wolf_score || '—'}/100`;
+            case 'comparison_matrix':
+                return `${data?.properties?.length || 0} ${isRTL ? 'عقار' : 'props'}`;
+            case 'inflation_killer':
+                return data?.protection_rate ? `+${data.protection_rate}%` : '—';
+            case 'market_trend_chart':
+                return data?.trend || data?.data?.trend || '—';
+            case 'area_analysis': {
+                const price = data?.area?.avg_price_per_sqm || data?.areas?.[0]?.avg_price_per_sqm;
+                return price ? `${Math.round(price/1000)}K` : '—';
+            }
+            case 'developer_analysis':
+                return `${data?.developer?.trust_score || data?.developers?.[0]?.trust_score || '—'}%`;
+            case 'roi_calculator':
+                return `${data?.roi?.annual_return || data?.properties?.[0]?.annual_return || '—'}%`;
+            case 'payment_plan_analysis':
+            case 'payment_plan_comparison':
+                return `${data?.plans?.length || 0} ${isRTL ? 'خطة' : 'plans'}`;
+            case 'resale_vs_developer':
+                return data?.recommendation?.recommendation === 'resale' ? (isRTL ? 'ريسيل' : 'Resale') : (isRTL ? 'مطور' : 'Developer');
+            default:
+                return '—';
+        }
+    };
+
     return (
-        <aside className="w-80 flex-none border-l border-[var(--color-border-subtle)] bg-[var(--color-studio-white)] hidden xl:flex flex-col overflow-hidden">
+        <aside
+            className={`w-72 flex-none bg-[var(--color-studio-white)] hidden xl:flex flex-col overflow-hidden ${isRTL ? 'border-r' : 'border-l'} border-[var(--color-border-subtle)]`}
+            dir={isRTL ? 'rtl' : 'ltr'}
+        >
             {/* Header */}
-            <div className="p-5 border-b border-[var(--color-border-subtle)] flex items-center gap-2">
-                <div className="size-6 rounded-md bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-                    <MaterialIcon name="insights" size="14px" className="text-emerald-600" />
+            <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center gap-2">
+                <div className="size-5 rounded-md bg-emerald-500/10 flex items-center justify-center">
+                    <MaterialIcon name="insights" size="12px" className="text-emerald-600" />
                 </div>
-                <h2 className="text-xs font-semibold text-[var(--color-text-main)]">
-                    {isRTL ? 'رؤى ذكية' : 'Smart Insights'}
+                <h2 className="text-[11px] font-semibold text-[var(--color-text-main)]">
+                    {isRTL ? 'رؤى ذكية' : 'Insights'}
                 </h2>
                 {hasContent && (
-                    <span className="ml-auto text-[9px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full font-medium">
+                    <span className={`${isRTL ? 'mr-auto' : 'ml-auto'} text-[8px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full font-medium`}>
                         Live
                     </span>
                 )}
             </div>
 
             {/* Scrollable Content */}
-            <div ref={paneRef} className="flex-1 overflow-y-auto scrollbar-hide">
-                <div ref={contentRef} className="p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
+                <div ref={contentRef} className="p-3 space-y-2">
                     {hasContent ? (
                         <>
-                            {/* AI Insight - First Priority */}
+                            {/* AI Insight - Compact */}
                             {aiInsight && (
-                                <div className="insight-item p-4 rounded-xl bg-gradient-to-br from-[var(--color-studio-gray)] to-[var(--color-studio-gray)]/50 border border-[var(--color-border-subtle)]">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <div className="size-5 rounded-full bg-[var(--color-studio-accent)] flex items-center justify-center">
-                                            <MaterialIcon name="auto_awesome" size="10px" className="text-white" />
+                                <div className="insight-item p-3 rounded-lg bg-gradient-to-br from-[var(--color-studio-gray)] to-[var(--color-studio-gray)]/50 border border-[var(--color-border-subtle)]">
+                                    <div className="flex items-center gap-1.5 mb-2">
+                                        <div className="size-4 rounded-full bg-[var(--color-studio-accent)] flex items-center justify-center">
+                                            <MaterialIcon name="auto_awesome" size="8px" className="text-white" />
                                         </div>
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-studio-accent)]">
-                                            {isRTL ? 'رؤية AMR' : 'AMR Insight'}
+                                        <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-studio-accent)]">
+                                            AMR
                                         </span>
                                     </div>
-                                    <p className="text-xs leading-relaxed text-[var(--color-text-main)]" dir={isRTL ? 'rtl' : 'ltr'}>
+                                    <p className="text-[11px] leading-relaxed text-[var(--color-text-main)] line-clamp-3">
                                         {typedInsight}
-                                        {!isComplete && <span className="inline-block w-0.5 h-3 bg-emerald-500 ml-0.5 animate-pulse" />}
+                                        {!isComplete && <span className="inline-block w-0.5 h-2.5 bg-emerald-500 mx-0.5 animate-pulse" />}
                                     </p>
                                 </div>
                             )}
 
-                            {/* Property Quick Stats */}
+                            {/* Property Quick Stats - Compact */}
                             {property && (
-                                <div className="insight-item rounded-xl border border-[var(--color-border-subtle)] overflow-hidden">
-                                    <div className="p-3 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 border-b border-[var(--color-border-subtle)]">
-                                        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)]">
-                                            {isRTL ? 'ملخص العقار' : 'Property Summary'}
-                                        </p>
-                                    </div>
-                                    <div className="p-3 grid grid-cols-2 gap-3">
-                                        <div className="text-center p-2 rounded-lg bg-[var(--color-studio-gray)]/50">
-                                            <p className="text-lg font-bold text-[var(--color-text-main)]">
+                                <div className="insight-item p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]">
+                                    <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)] mb-2">
+                                        {isRTL ? 'العقار' : 'Property'}
+                                    </p>
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-[var(--color-text-main)]">
                                                 {property.size_sqm > 0 ? Math.round(property.price / property.size_sqm / 1000) : '—'}K
                                             </p>
-                                            <p className="text-[9px] text-[var(--color-text-muted-studio)] uppercase tracking-wide">
-                                                {isRTL ? 'جنيه/م²' : 'EGP/m²'}
-                                            </p>
+                                            <p className="text-[8px] text-[var(--color-text-muted-studio)]">/m²</p>
                                         </div>
-                                        <div className="text-center p-2 rounded-lg bg-[var(--color-studio-gray)]/50">
-                                            <p className="text-lg font-bold text-emerald-600">
+                                        <div className="h-6 w-px bg-[var(--color-border-subtle)]" />
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-emerald-600">
                                                 {property.wolf_score || '—'}
                                             </p>
-                                            <p className="text-[9px] text-[var(--color-text-muted-studio)] uppercase tracking-wide">
-                                                Wolf Score
+                                            <p className="text-[8px] text-[var(--color-text-muted-studio)]">Score</p>
+                                        </div>
+                                        <div className="h-6 w-px bg-[var(--color-border-subtle)]" />
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-blue-600">
+                                                {property.bedrooms || '—'}
                                             </p>
+                                            <p className="text-[8px] text-[var(--color-text-muted-studio)]">{isRTL ? 'غرف' : 'Beds'}</p>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Analytics Cards - Expandable */}
+                            {/* Analytics Summary Cards - No Expansion */}
                             {visualizations.length > 0 && (
-                                <div className="insight-item space-y-2">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)] px-1">
-                                        {isRTL ? 'تحليلات' : 'Analytics'} ({visualizations.length})
+                                <div className="insight-item space-y-1.5">
+                                    <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)] px-1">
+                                        {isRTL ? 'التحليلات' : 'Analytics'}
                                     </p>
-
-                                    {visualizations.map((viz, idx) => (
+                                    {visualizations.slice(0, 5).map((viz, idx) => (
                                         <div
                                             key={idx}
-                                            className="rounded-xl border border-[var(--color-border-subtle)] overflow-hidden transition-all duration-300"
+                                            className="p-2.5 rounded-lg border border-[var(--color-border-subtle)] flex items-center gap-2 hover:bg-[var(--color-studio-gray)]/30 transition-colors"
                                         >
-                                            {/* Card Header - Clickable */}
-                                            <button
-                                                onClick={() => toggleViz(idx)}
-                                                className="w-full p-3 flex items-center gap-2 hover:bg-[var(--color-studio-gray)]/50 transition-colors"
-                                            >
-                                                <div className={`size-7 rounded-lg flex items-center justify-center transition-colors ${
-                                                    expandedViz === idx
-                                                        ? 'bg-emerald-500/20 text-emerald-600'
-                                                        : 'bg-[var(--color-studio-gray)] text-[var(--color-text-muted-studio)]'
-                                                }`}>
-                                                    <MaterialIcon name={getVizIcon(viz.type)} size="14px" />
-                                                </div>
-                                                <div className="flex-1 text-left">
-                                                    <p className="text-xs font-medium text-[var(--color-text-main)]">
-                                                        {getVizName(viz.type)}
-                                                    </p>
-                                                    {viz.priority >= 9 && (
-                                                        <span className="text-[8px] text-amber-600 font-medium">
-                                                            {isRTL ? 'موصى به' : 'Recommended'}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <MaterialIcon
-                                                    name={expandedViz === idx ? 'expand_less' : 'expand_more'}
-                                                    size="18px"
-                                                    className="text-[var(--color-text-muted-studio)]"
-                                                />
-                                            </button>
-
-                                            {/* Expanded Visualization */}
-                                            <AnimatePresence>
-                                                {expandedViz === idx && (
-                                                    <motion.div
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: 'auto', opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
-                                                        transition={{ duration: 0.2, ease: 'easeInOut' }}
-                                                        className="border-t border-[var(--color-border-subtle)] overflow-hidden"
-                                                    >
-                                                        <div className="max-h-80 overflow-y-auto">
-                                                            <VisualizationRenderer type={viz.type} data={viz.data} />
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                            <div className="size-6 rounded-md bg-[var(--color-studio-gray)] flex items-center justify-center flex-shrink-0">
+                                                <MaterialIcon name={getVizIcon(viz.type)} size="12px" className="text-[var(--color-text-muted-studio)]" />
+                                            </div>
+                                            <span className="text-[11px] font-medium text-[var(--color-text-main)] flex-1 truncate">
+                                                {getVizName(viz.type)}
+                                            </span>
+                                            <span className="text-[11px] font-bold text-emerald-600 flex-shrink-0">
+                                                {getKeyMetric(viz)}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
@@ -490,23 +500,100 @@ function ContextualInsights({
                         </>
                     ) : (
                         /* Empty State */
-                        <div className="flex flex-col items-center justify-center h-64 text-center">
-                            <div className="size-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center mb-3">
-                                <Sparkles size={20} className="text-[var(--color-text-muted-studio)]" />
+                        <div className="flex flex-col items-center justify-center h-48 text-center">
+                            <div className="size-10 rounded-xl bg-[var(--color-studio-gray)] flex items-center justify-center mb-2">
+                                <Sparkles size={16} className="text-[var(--color-text-muted-studio)]" />
                             </div>
-                            <h3 className="text-sm font-medium text-[var(--color-text-main)] mb-1">
-                                {isRTL ? 'ابدأ محادثة' : 'Start a Conversation'}
-                            </h3>
-                            <p className="text-[11px] text-[var(--color-text-muted-studio)] max-w-[160px]">
-                                {isRTL
-                                    ? 'اسأل AMR وسيظهر التحليل هنا'
-                                    : 'Ask AMR and insights appear here'}
+                            <p className="text-[11px] text-[var(--color-text-muted-studio)]">
+                                {isRTL ? 'اسأل AMR للبدء' : 'Ask AMR to start'}
                             </p>
                         </div>
                     )}
                 </div>
             </div>
         </aside>
+    );
+}
+
+// ============================================
+// COMPACT VISUALIZATION WRAPPER FOR CHAT
+// ============================================
+
+function CompactVisualization({ viz, isRTL }: { viz: any; isRTL: boolean }) {
+    const [expanded, setExpanded] = useState(false);
+
+    const getVizName = (type: string): string => {
+        const names: Record<string, string> = {
+            'investment_scorecard': isRTL ? 'بطاقة الاستثمار' : 'Investment Scorecard',
+            'comparison_matrix': isRTL ? 'مقارنة العقارات' : 'Property Comparison',
+            'inflation_killer': isRTL ? 'حماية من التضخم' : 'Inflation Protection',
+            'payment_timeline': isRTL ? 'جدول السداد' : 'Payment Timeline',
+            'market_trend_chart': isRTL ? 'اتجاه السوق' : 'Market Trend',
+            'area_analysis': isRTL ? 'تحليل المنطقة' : 'Area Analysis',
+            'developer_analysis': isRTL ? 'تحليل المطور' : 'Developer Analysis',
+            'roi_calculator': isRTL ? 'حاسبة العائد' : 'ROI Calculator',
+            'property_type_analysis': isRTL ? 'أنواع العقارات' : 'Property Types',
+            'payment_plan_analysis': isRTL ? 'خطط السداد' : 'Payment Plans',
+            'payment_plan_comparison': isRTL ? 'مقارنة خطط السداد' : 'Payment Plan Comparison',
+            'resale_vs_developer': isRTL ? 'ريسيل مقابل المطور' : 'Resale vs Developer',
+        };
+        return names[type] || type?.replace(/_/g, ' ');
+    };
+
+    const getVizIcon = (type: string): string => {
+        const icons: Record<string, string> = {
+            'investment_scorecard': 'analytics',
+            'comparison_matrix': 'compare_arrows',
+            'inflation_killer': 'shield',
+            'payment_timeline': 'event_note',
+            'market_trend_chart': 'show_chart',
+            'area_analysis': 'pin_drop',
+            'developer_analysis': 'domain',
+            'roi_calculator': 'calculate',
+            'property_type_analysis': 'category',
+            'payment_plan_analysis': 'credit_card',
+            'payment_plan_comparison': 'credit_card',
+            'resale_vs_developer': 'swap_horiz',
+        };
+        return icons[type] || 'auto_awesome';
+    };
+
+    return (
+        <div className="rounded-xl border border-[var(--color-border-subtle)] overflow-hidden bg-[var(--color-studio-white)]" dir={isRTL ? 'rtl' : 'ltr'}>
+            {/* Header */}
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 hover:from-slate-100 hover:to-slate-50 dark:hover:from-slate-700/50 dark:hover:to-slate-800/50 transition-colors"
+            >
+                <div className="size-6 sm:size-7 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                    <MaterialIcon name={getVizIcon(viz.type)} size="14px" className="text-emerald-600" />
+                </div>
+                <span className="text-[11px] sm:text-xs font-medium text-[var(--color-text-main)] flex-1 text-start">
+                    {getVizName(viz.type)}
+                </span>
+                <MaterialIcon
+                    name={expanded ? 'expand_less' : 'expand_more'}
+                    size="18px"
+                    className="text-[var(--color-text-muted-studio)] flex-shrink-0"
+                />
+            </button>
+
+            {/* Content - Compact by default, taller when expanded */}
+            <motion.div
+                initial={false}
+                animate={{ height: expanded ? 'auto' : '160px' }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="overflow-hidden relative"
+            >
+                <div className={`${expanded ? '' : 'max-h-40'} overflow-y-auto`}>
+                    <VisualizationRenderer type={viz.type} data={viz.data} />
+                </div>
+                {/* Gradient fade when collapsed */}
+                {!expanded && (
+                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[var(--color-studio-white)] to-transparent pointer-events-none" />
+                )}
+            </motion.div>
+        </div>
     );
 }
 
@@ -741,9 +828,12 @@ export default function ChatInterface() {
     const featuredProperty = latestAiMessage?.properties?.[0] || null;
 
     return (
-        <div className="bg-[var(--color-studio-gray)] text-[var(--color-text-main)] font-sans h-screen flex flex-col overflow-hidden">
-            {/* Glass Header - Mobile Optimized */}
-            <header className="flex-none h-14 sm:h-16 lg:h-20 glass-header border-b border-[var(--color-border-subtle)] flex items-center justify-between px-3 sm:px-6 lg:px-10 z-50">
+        <div
+            className="bg-[var(--color-studio-gray)] text-[var(--color-text-main)] font-sans h-screen flex flex-col overflow-hidden"
+            dir={isRTL ? 'rtl' : 'ltr'}
+        >
+            {/* Glass Header - Mobile Optimized & RTL Aware */}
+            <header className={`flex-none h-14 sm:h-16 lg:h-20 glass-header border-b border-[var(--color-border-subtle)] flex items-center justify-between px-3 sm:px-6 lg:px-10 z-50`}>
                 <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
                     <div className="flex items-center gap-1.5 sm:gap-2">
                         <MaterialIcon name="adjust" className="text-xl sm:text-2xl text-[var(--color-studio-accent)] font-light" />
@@ -797,7 +887,7 @@ export default function ChatInterface() {
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: 10 }}
-                                        className="absolute right-0 mt-2 w-48 sm:w-56 rounded-xl bg-white dark:bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] shadow-xl z-[60]"
+                                        className={`absolute mt-2 w-48 sm:w-56 rounded-xl bg-white dark:bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] shadow-xl z-[60] ${isRTL ? 'left-0' : 'right-0'}`}
                                     >
                                         <div className="p-3 border-b border-[var(--color-border-subtle)]">
                                             <p className="text-sm font-medium text-[var(--color-text-main)]">{user?.full_name || 'User'}</p>
@@ -962,16 +1052,15 @@ export default function ChatInterface() {
                                                                 property={msg.properties[0]}
                                                                 onRequestDetails={() => { }}
                                                                 onBookmark={() => { }}
+                                                                isRTL={isRTL}
                                                             />
                                                         )}
 
-                                                        {/* Inline Visualizations - Mobile Optimized */}
+                                                        {/* Compact Visualizations - Collapsible */}
                                                         {msg.visualizations?.length > 0 && (
-                                                            <div className="space-y-3 sm:space-y-4 -mx-1 sm:mx-0">
+                                                            <div className="space-y-2 sm:space-y-3">
                                                                 {msg.visualizations.map((viz: any, vidx: number) => (
-                                                                    <div key={vidx} className="bg-[var(--color-studio-white)] rounded-lg sm:rounded-xl border border-[var(--color-border-subtle)] overflow-hidden shadow-soft overflow-x-auto">
-                                                                        <VisualizationRenderer type={viz.type} data={viz.data} />
-                                                                    </div>
+                                                                    <CompactVisualization key={vidx} viz={viz} isRTL={isRTL} />
                                                                 ))}
                                                             </div>
                                                         )}
