@@ -142,47 +142,117 @@ export default function VisualizationRenderer({ type, data }: VisualizationRende
             );
 
         // V6: Advanced Analytics visualizations
-        case "area_analysis":
+        // Map backend data structure to component props
+        case "area_analysis": {
+            // Backend sends: { areas: [...], comparison: {...}, price_heatmap: [...] }
+            // Component expects: { area: {...}, comparison: {...}, heatmap: [...] }
+            const areaData = {
+                area: data.areas?.[0] || data.area || null,
+                comparison: data.comparison,
+                heatmap: data.price_heatmap || data.heatmap
+            };
+            if (!areaData.area) {
+                console.warn('VisualizationRenderer: area_analysis missing area data');
+                return null;
+            }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <AreaAnalysis {...data} />
+                    <AreaAnalysis {...areaData} />
                 </Suspense>
             );
+        }
 
-        case "developer_analysis":
+        case "developer_analysis": {
+            // Backend sends: { developers: [...], ranking: {...} }
+            // Component expects: { developer: {...}, rankings: {...} }
+            const devData = {
+                developer: data.developers?.[0] || data.developer || null,
+                rankings: data.ranking || data.rankings
+            };
+            if (!devData.developer) {
+                console.warn('VisualizationRenderer: developer_analysis missing developer data');
+                return null;
+            }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <DeveloperAnalysis {...data} />
+                    <DeveloperAnalysis {...devData} />
                 </Suspense>
             );
+        }
 
-        case "property_type_analysis":
+        case "property_type_analysis": {
+            // Backend sends: { types: [...], recommendation: {...}, price_comparison: [...] }
+            // Component expects: { analysis: {...}, comparison: [...] }
+            const typeData = {
+                analysis: data.types?.[0] || data.analysis || null,
+                comparison: data.price_comparison || data.comparison
+            };
+            if (!typeData.analysis) {
+                console.warn('VisualizationRenderer: property_type_analysis missing analysis data');
+                return null;
+            }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <PropertyTypeAnalysis {...data} />
+                    <PropertyTypeAnalysis {...typeData} />
                 </Suspense>
             );
+        }
 
         case "payment_plan_comparison":
+        case "payment_plan_analysis": {
+            // Backend sends: { plans: [...], best_plans: {...} }
+            const planData = {
+                plans: data.plans || [],
+                best_down_payment: data.best_plans?.lowest_down_payment || data.best_down_payment,
+                longest_installment: data.best_plans?.longest_installment || data.longest_installment,
+                lowest_monthly: data.best_plans?.lowest_monthly || data.lowest_monthly
+            };
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <PaymentPlanComparison {...data} />
+                    <PaymentPlanComparison {...planData} />
                 </Suspense>
             );
+        }
 
-        case "resale_vs_developer":
+        case "resale_vs_developer": {
+            // Backend sends: { resale: {...}, developer: {...}, recommendation: {...} }
+            const resaleData = {
+                recommendation: data.recommendation || { recommendation: data.resale ? 'resale' : 'developer', reason_ar: '', reason_en: '' },
+                resale_discount: data.price_difference_percent || data.resale_discount || 0,
+                comparison: {
+                    resale_count: data.resale?.count || 0,
+                    developer_count: data.developer?.count || 0,
+                    resale_avg_price: data.resale?.avg_price || 0,
+                    developer_avg_price: data.developer?.avg_price || 0,
+                    resale_avg_price_per_sqm: data.resale?.avg_price_per_sqm || 0,
+                    developer_avg_price_per_sqm: data.developer?.avg_price_per_sqm || 0,
+                    resale_ready: data.resale?.pros?.includes('جاهز للتسليم') || true,
+                    developer_payment_plan: data.developer?.pros?.includes('تقسيط طويل') || true
+                }
+            };
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <ResaleVsDeveloper {...data} />
+                    <ResaleVsDeveloper {...resaleData} />
                 </Suspense>
             );
+        }
 
-        case "roi_calculator":
+        case "roi_calculator": {
+            // Backend sends: { properties: [...], market_benchmarks: {...}, comparison: {...} }
+            const roiData = {
+                roi: data.properties?.[0] || data.roi || null,
+                comparisons: data.comparison || data.comparisons
+            };
+            if (!roiData.roi) {
+                console.warn('VisualizationRenderer: roi_calculator missing roi data');
+                return null;
+            }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <ROICalculator {...data} />
+                    <ROICalculator {...roiData} />
                 </Suspense>
             );
+        }
 
         case "price_heatmap":
             return (

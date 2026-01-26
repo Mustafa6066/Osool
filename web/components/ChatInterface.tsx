@@ -277,7 +277,7 @@ function Sidebar({
 }
 
 // ============================================
-// CONTEXTUAL INSIGHTS PANE
+// CONTEXTUAL INSIGHTS PANE - Minimal & Animated
 // ============================================
 
 function ContextualInsights({
@@ -292,191 +292,219 @@ function ContextualInsights({
     isRTL: boolean;
 }) {
     const paneRef = useRef<HTMLDivElement>(null);
-    const { displayedText: typedInsight, isComplete } = useTypewriter(aiInsight || '', 15);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const { displayedText: typedInsight, isComplete } = useTypewriter(aiInsight || '', 20);
+    const [expandedViz, setExpandedViz] = useState<number | null>(null);
 
+    // Animate on content change with smooth stagger
     useEffect(() => {
-        if (paneRef.current && (property || aiInsight || visualizations.length > 0)) {
-            anime({
-                targets: paneRef.current.querySelectorAll('.insight-item'),
-                opacity: [0, 1],
-                translateY: [20, 0],
-                delay: anime.stagger(100, { start: 200 }),
-                easing: 'easeOutExpo',
-                duration: 500,
-            });
+        if (contentRef.current) {
+            const items = contentRef.current.querySelectorAll('.insight-item');
+            if (items.length > 0) {
+                anime({
+                    targets: items,
+                    opacity: [0, 1],
+                    translateY: [15, 0],
+                    scale: [0.98, 1],
+                    delay: anime.stagger(80, { start: 100 }),
+                    easing: 'easeOutCubic',
+                    duration: 400,
+                });
+            }
         }
     }, [property, aiInsight, visualizations]);
 
+    // Animate visualization expand/collapse
+    const toggleViz = (idx: number) => {
+        setExpandedViz(expandedViz === idx ? null : idx);
+    };
+
     const hasContent = property || aiInsight || visualizations.length > 0;
 
+    // Get readable visualization name
+    const getVizName = (type: string): string => {
+        const names: Record<string, string> = {
+            'investment_scorecard': isRTL ? 'بطاقة الاستثمار' : 'Investment Score',
+            'comparison_matrix': isRTL ? 'مقارنة العقارات' : 'Property Comparison',
+            'inflation_killer': isRTL ? 'حماية من التضخم' : 'Inflation Protection',
+            'payment_timeline': isRTL ? 'جدول السداد' : 'Payment Schedule',
+            'market_trend_chart': isRTL ? 'اتجاه السوق' : 'Market Trend',
+            'area_analysis': isRTL ? 'تحليل المنطقة' : 'Area Analysis',
+            'developer_analysis': isRTL ? 'تحليل المطور' : 'Developer Profile',
+            'roi_calculator': isRTL ? 'حاسبة العائد' : 'ROI Calculator',
+            'property_type_analysis': isRTL ? 'أنواع العقارات' : 'Property Types',
+            'payment_plan_analysis': isRTL ? 'خطط السداد' : 'Payment Plans',
+            'resale_vs_developer': isRTL ? 'ريسيل vs مطور' : 'Resale vs Developer',
+        };
+        return names[type] || type?.replace(/_/g, ' ');
+    };
+
+    // Get visualization icon
+    const getVizIcon = (type: string): string => {
+        const icons: Record<string, string> = {
+            'investment_scorecard': 'analytics',
+            'comparison_matrix': 'compare_arrows',
+            'inflation_killer': 'shield',
+            'payment_timeline': 'event_note',
+            'market_trend_chart': 'show_chart',
+            'area_analysis': 'pin_drop',
+            'developer_analysis': 'domain',
+            'roi_calculator': 'calculate',
+            'property_type_analysis': 'category',
+            'payment_plan_analysis': 'credit_card',
+            'resale_vs_developer': 'swap_horiz',
+        };
+        return icons[type] || 'auto_awesome';
+    };
+
     return (
-        <aside className="w-80 flex-none border-l border-[var(--color-border-subtle)] bg-[var(--color-studio-white)] hidden xl:flex flex-col">
-            <div className="p-6 lg:p-8 border-b border-[var(--color-border-subtle)]">
-                <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-main)] flex items-center gap-2">
-                    <MaterialIcon name="location_searching" size="18px" />
-                    {isRTL ? 'رؤى السياق' : 'Contextual Insights'}
+        <aside className="w-80 flex-none border-l border-[var(--color-border-subtle)] bg-[var(--color-studio-white)] hidden xl:flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="p-5 border-b border-[var(--color-border-subtle)] flex items-center gap-2">
+                <div className="size-6 rounded-md bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+                    <MaterialIcon name="insights" size="14px" className="text-emerald-600" />
+                </div>
+                <h2 className="text-xs font-semibold text-[var(--color-text-main)]">
+                    {isRTL ? 'رؤى ذكية' : 'Smart Insights'}
                 </h2>
+                {hasContent && (
+                    <span className="ml-auto text-[9px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full font-medium">
+                        Live
+                    </span>
+                )}
             </div>
 
-            <div ref={paneRef} className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
-                {hasContent ? (
-                    <>
-                        {/* Property Location Map Placeholder */}
-                        {property && (
-                            <div className="insight-item space-y-4" style={{ opacity: 0 }}>
-                                <div className="aspect-square bg-[var(--color-studio-gray)] rounded-sm overflow-hidden relative border border-[var(--color-border-subtle)]">
-                                    <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                                        <div className="text-center">
-                                            <MaterialIcon name="map" className="text-slate-300" size="48px" />
-                                            <p className="text-xs text-slate-400 mt-2">{property.location}</p>
+            {/* Scrollable Content */}
+            <div ref={paneRef} className="flex-1 overflow-y-auto scrollbar-hide">
+                <div ref={contentRef} className="p-4 space-y-4">
+                    {hasContent ? (
+                        <>
+                            {/* AI Insight - First Priority */}
+                            {aiInsight && (
+                                <div className="insight-item p-4 rounded-xl bg-gradient-to-br from-[var(--color-studio-gray)] to-[var(--color-studio-gray)]/50 border border-[var(--color-border-subtle)]">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="size-5 rounded-full bg-[var(--color-studio-accent)] flex items-center justify-center">
+                                            <MaterialIcon name="auto_awesome" size="10px" className="text-white" />
                                         </div>
-                                    </div>
-                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                        <div className="size-3 bg-[var(--color-studio-accent)] rounded-full border-2 border-white shadow-sm"></div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)]">
-                                        {property.location?.split(',')[0] || 'Location'}
-                                    </span>
-                                    <a className="text-[10px] underline uppercase tracking-widest text-[var(--color-text-main)]" href="#">
-                                        {isRTL ? 'عرض الخريطة' : 'Map View'}
-                                    </a>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Market Indicators */}
-                        {property && (
-                            <div className="insight-item space-y-6" style={{ opacity: 0 }}>
-                                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">
-                                    {isRTL ? 'مؤشرات السوق' : 'Market Indicators'}
-                                </h3>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-baseline">
-                                        <span className="text-xs text-[var(--color-text-muted-studio)]">
-                                            {isRTL ? 'السعر / م²' : 'Price / SQM'}
-                                        </span>
-                                        <span className="text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
-                                            {property.size_sqm > 0 ? Math.round(property.price / property.size_sqm).toLocaleString() : '—'}
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-studio-accent)]">
+                                            {isRTL ? 'رؤية AMR' : 'AMR Insight'}
                                         </span>
                                     </div>
-                                    {property.roi && (
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-xs text-[var(--color-text-muted-studio)]">
-                                                {isRTL ? 'العائد المتوقع' : 'Expected ROI'}
-                                            </span>
-                                            <span className="text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
-                                                {property.roi}%
-                                            </span>
-                                        </div>
-                                    )}
-                                    {property.wolf_score && (
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-xs text-[var(--color-text-muted-studio)]">Wolf Score</span>
-                                            <span className="text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
-                                                {property.wolf_score}/100
-                                            </span>
-                                        </div>
-                                    )}
+                                    <p className="text-xs leading-relaxed text-[var(--color-text-main)]" dir={isRTL ? 'rtl' : 'ltr'}>
+                                        {typedInsight}
+                                        {!isComplete && <span className="inline-block w-0.5 h-3 bg-emerald-500 ml-0.5 animate-pulse" />}
+                                    </p>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Smart Analytics from Wolf Brain */}
-                        {visualizations.length > 0 && (
-                            <div className="insight-item space-y-4" style={{ opacity: 0 }}>
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">
-                                        {isRTL ? 'تحليلات ذكية' : 'Smart Analytics'}
-                                    </h3>
-                                    <span className="text-[9px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full font-medium">
-                                        {visualizations.length} {isRTL ? 'تحليل' : 'insights'}
-                                    </span>
+                            {/* Property Quick Stats */}
+                            {property && (
+                                <div className="insight-item rounded-xl border border-[var(--color-border-subtle)] overflow-hidden">
+                                    <div className="p-3 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 border-b border-[var(--color-border-subtle)]">
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)]">
+                                            {isRTL ? 'ملخص العقار' : 'Property Summary'}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 grid grid-cols-2 gap-3">
+                                        <div className="text-center p-2 rounded-lg bg-[var(--color-studio-gray)]/50">
+                                            <p className="text-lg font-bold text-[var(--color-text-main)]">
+                                                {property.size_sqm > 0 ? Math.round(property.price / property.size_sqm / 1000) : '—'}K
+                                            </p>
+                                            <p className="text-[9px] text-[var(--color-text-muted-studio)] uppercase tracking-wide">
+                                                {isRTL ? 'جنيه/م²' : 'EGP/m²'}
+                                            </p>
+                                        </div>
+                                        <div className="text-center p-2 rounded-lg bg-[var(--color-studio-gray)]/50">
+                                            <p className="text-lg font-bold text-emerald-600">
+                                                {property.wolf_score || '—'}
+                                            </p>
+                                            <p className="text-[9px] text-[var(--color-text-muted-studio)] uppercase tracking-wide">
+                                                Wolf Score
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
+                            )}
 
-                                {/* Analytics Summary Cards */}
-                                <div className="space-y-2">
-                                    {visualizations.slice(0, 3).map((viz, idx) => (
+                            {/* Analytics Cards - Expandable */}
+                            {visualizations.length > 0 && (
+                                <div className="insight-item space-y-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)] px-1">
+                                        {isRTL ? 'تحليلات' : 'Analytics'} ({visualizations.length})
+                                    </p>
+
+                                    {visualizations.map((viz, idx) => (
                                         <div
                                             key={idx}
-                                            className="p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-studio-gray)]/50 hover:bg-[var(--color-studio-gray)] transition-colors cursor-pointer"
+                                            className="rounded-xl border border-[var(--color-border-subtle)] overflow-hidden transition-all duration-300"
                                         >
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <div className="size-5 rounded bg-[var(--color-studio-accent)]/10 flex items-center justify-center">
-                                                    <MaterialIcon
-                                                        name={
-                                                            viz.type === 'investment_scorecard' ? 'score' :
-                                                            viz.type === 'comparison_matrix' ? 'compare' :
-                                                            viz.type === 'inflation_killer' ? 'trending_up' :
-                                                            viz.type === 'payment_timeline' ? 'payments' :
-                                                            viz.type === 'market_trend_chart' ? 'analytics' :
-                                                            viz.type === 'area_analysis' ? 'location_on' :
-                                                            viz.type === 'developer_analysis' ? 'business' :
-                                                            viz.type === 'roi_calculator' ? 'calculate' :
-                                                            'insights'
-                                                        }
-                                                        size="12px"
-                                                        className="text-[var(--color-studio-accent)]"
-                                                    />
+                                            {/* Card Header - Clickable */}
+                                            <button
+                                                onClick={() => toggleViz(idx)}
+                                                className="w-full p-3 flex items-center gap-2 hover:bg-[var(--color-studio-gray)]/50 transition-colors"
+                                            >
+                                                <div className={`size-7 rounded-lg flex items-center justify-center transition-colors ${
+                                                    expandedViz === idx
+                                                        ? 'bg-emerald-500/20 text-emerald-600'
+                                                        : 'bg-[var(--color-studio-gray)] text-[var(--color-text-muted-studio)]'
+                                                }`}>
+                                                    <MaterialIcon name={getVizIcon(viz.type)} size="14px" />
                                                 </div>
-                                                <span className="text-[10px] font-semibold text-[var(--color-text-main)] capitalize">
-                                                    {viz.type?.replace(/_/g, ' ')}
-                                                </span>
-                                                {viz.priority >= 9 && (
-                                                    <span className="text-[8px] px-1.5 py-0.5 bg-amber-500/20 text-amber-600 rounded font-bold">
-                                                        TOP
-                                                    </span>
+                                                <div className="flex-1 text-left">
+                                                    <p className="text-xs font-medium text-[var(--color-text-main)]">
+                                                        {getVizName(viz.type)}
+                                                    </p>
+                                                    {viz.priority >= 9 && (
+                                                        <span className="text-[8px] text-amber-600 font-medium">
+                                                            {isRTL ? 'موصى به' : 'Recommended'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <MaterialIcon
+                                                    name={expandedViz === idx ? 'expand_less' : 'expand_more'}
+                                                    size="18px"
+                                                    className="text-[var(--color-text-muted-studio)]"
+                                                />
+                                            </button>
+
+                                            {/* Expanded Visualization */}
+                                            <AnimatePresence>
+                                                {expandedViz === idx && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                                        className="border-t border-[var(--color-border-subtle)] overflow-hidden"
+                                                    >
+                                                        <div className="max-h-80 overflow-y-auto">
+                                                            <VisualizationRenderer type={viz.type} data={viz.data} />
+                                                        </div>
+                                                    </motion.div>
                                                 )}
-                                            </div>
-                                            {viz.trigger_reason && (
-                                                <p className="text-[9px] text-[var(--color-text-muted-studio)] line-clamp-1 mr-7">
-                                                    {viz.trigger_reason.replace('ALWAYS_SHOW: ', '')}
-                                                </p>
-                                            )}
+                                            </AnimatePresence>
                                         </div>
                                     ))}
                                 </div>
-
-                                {/* Full Visualizations (first 2 expanded) */}
-                                <div className="space-y-3 mt-4">
-                                    {visualizations.slice(0, 2).map((viz, idx) => (
-                                        <div key={`viz-${idx}`} className="rounded-lg border border-[var(--color-border-subtle)] overflow-hidden bg-[var(--color-studio-white)]">
-                                            <VisualizationRenderer type={viz.type} data={viz.data} />
-                                        </div>
-                                    ))}
-                                </div>
+                            )}
+                        </>
+                    ) : (
+                        /* Empty State */
+                        <div className="flex flex-col items-center justify-center h-64 text-center">
+                            <div className="size-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center mb-3">
+                                <Sparkles size={20} className="text-[var(--color-text-muted-studio)]" />
                             </div>
-                        )}
-
-                        {/* AI Insight */}
-                        {aiInsight && (
-                            <div className="insight-item p-6 bg-[var(--color-studio-gray)] border border-[var(--color-border-subtle)] space-y-4" style={{ opacity: 0 }}>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-studio-accent)]">
-                                    {isRTL ? 'رؤية الذكاء الاصطناعي' : 'AI Insight'}
-                                </p>
-                                <p className="text-xs leading-relaxed text-[var(--color-text-muted-studio)] font-medium">
-                                    {typedInsight}
-                                    {!isComplete && <span className="inline-block w-0.5 h-3 bg-[var(--color-studio-accent)] ml-0.5 animate-pulse" />}
-                                </p>
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <div className="size-16 rounded-2xl bg-[var(--color-studio-gray)] flex items-center justify-center mb-4">
-                            <Sparkles size={28} className="text-[var(--color-text-muted-studio)]" />
+                            <h3 className="text-sm font-medium text-[var(--color-text-main)] mb-1">
+                                {isRTL ? 'ابدأ محادثة' : 'Start a Conversation'}
+                            </h3>
+                            <p className="text-[11px] text-[var(--color-text-muted-studio)] max-w-[160px]">
+                                {isRTL
+                                    ? 'اسأل AMR وسيظهر التحليل هنا'
+                                    : 'Ask AMR and insights appear here'}
+                            </p>
                         </div>
-                        <h3 className="text-sm font-medium text-[var(--color-text-main)] mb-2">
-                            {isRTL ? 'ابدأ محادثة' : 'Start Chatting'}
-                        </h3>
-                        <p className="text-xs text-[var(--color-text-muted-studio)] max-w-[180px]">
-                            {isRTL
-                                ? 'اسأل عن العقارات وسيظهر التحليل هنا'
-                                : 'Ask about properties and insights will appear here'}
-                        </p>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </aside>
     );
