@@ -193,6 +193,33 @@ body {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
   }
 
+  /* Safe Area for iOS devices */
+  .safe-area-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-area-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  /* Touch-friendly tap targets */
+  @media (pointer: coarse) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* Hide scrollbar on mobile but keep scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Background Grid */
   .bg-grid-light {
     background-image: none;

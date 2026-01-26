@@ -23,6 +23,12 @@ interface InvestmentScorecardProps {
 }
 
 export default function InvestmentScorecard({ property, analysis }: InvestmentScorecardProps) {
+    // Defensive check for required props
+    if (!property || !property.title) {
+        console.warn('InvestmentScorecard: Missing required property data');
+        return null;
+    }
+
     const {
         match_score = 0,
         roi_projection = 0,

@@ -25,6 +25,12 @@ interface ResaleVsDeveloperProps {
 }
 
 export default function ResaleVsDeveloper({ recommendation, resale_discount, comparison }: ResaleVsDeveloperProps) {
+    // Defensive check for required props
+    if (!recommendation || !recommendation.recommendation) {
+        console.warn('ResaleVsDeveloper: Missing required recommendation data');
+        return null;
+    }
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-EG', {
             style: 'currency',

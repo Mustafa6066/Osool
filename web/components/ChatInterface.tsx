@@ -116,12 +116,12 @@ function FeaturedPropertyCard({
     return (
         <motion.div
             ref={cardRef}
-            className="bg-[var(--color-studio-white)] shadow-soft overflow-hidden group transition-all"
+            className="bg-[var(--color-studio-white)] shadow-soft overflow-hidden group transition-all rounded-lg sm:rounded-none"
             style={{ opacity: 0 }}
         >
             <div className="flex flex-col lg:flex-row">
-                {/* Image Section */}
-                <div className="lg:w-3/5 h-[350px] lg:h-[450px] overflow-hidden relative">
+                {/* Image Section - Mobile Optimized */}
+                <div className="lg:w-3/5 h-[200px] sm:h-[280px] lg:h-[400px] overflow-hidden relative">
                     {property.image_url ? (
                         <img
                             alt={property.title}
@@ -130,75 +130,75 @@ function FeaturedPropertyCard({
                         />
                     ) : (
                         <div className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
-                            <MaterialIcon name="apartment" className="text-slate-400" size="64px" />
+                            <MaterialIcon name="apartment" className="text-slate-400" size="48px" />
                         </div>
                     )}
-                    <div className="absolute bottom-0 left-0 p-8 lg:p-10 bg-gradient-to-t from-black/40 to-transparent w-full">
+                    <div className="absolute bottom-0 left-0 p-4 sm:p-6 lg:p-10 bg-gradient-to-t from-black/50 to-transparent w-full">
                         <div className="text-white">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.3em] mb-2 opacity-80">Featured Listing</p>
-                            <h2 className="font-serif text-2xl lg:text-3xl italic">{property.title}</h2>
+                            <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-1 sm:mb-2 opacity-80">Featured</p>
+                            <h2 className="font-serif text-lg sm:text-2xl lg:text-3xl italic line-clamp-2">{property.title}</h2>
                         </div>
                     </div>
                 </div>
 
-                {/* Details Section */}
-                <div className="lg:w-2/5 p-8 lg:p-10 flex flex-col justify-between bg-[var(--color-studio-white)]">
-                    <div className="space-y-6">
+                {/* Details Section - Mobile Optimized */}
+                <div className="lg:w-2/5 p-4 sm:p-6 lg:p-10 flex flex-col justify-between bg-[var(--color-studio-white)]">
+                    <div className="space-y-4 sm:space-y-6">
                         <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-2">Location</p>
-                            <p className="text-sm font-medium text-[var(--color-text-main)]">{property.location}</p>
+                            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1 sm:mb-2">Location</p>
+                            <p className="text-xs sm:text-sm font-medium text-[var(--color-text-main)] line-clamp-1">{property.location}</p>
                         </div>
                         <div className="h-px bg-[var(--color-border-subtle)] w-full"></div>
-                        <div className="grid grid-cols-2 gap-y-6">
+                        <div className="grid grid-cols-2 gap-3 sm:gap-y-6">
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">Asking Price</p>
-                                <p className="text-lg font-semibold tracking-tight text-[var(--color-text-main)]">
-                                    {property.price.toLocaleString()} <span className="text-sm text-[var(--color-text-muted-studio)]">EGP</span>
+                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">Price</p>
+                                <p className="text-sm sm:text-lg font-semibold tracking-tight text-[var(--color-text-main)]">
+                                    {(property.price / 1000000).toFixed(1)}M <span className="text-xs text-[var(--color-text-muted-studio)]">EGP</span>
                                 </p>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">Sq. Footage</p>
-                                <p className="text-lg font-semibold tracking-tight text-[var(--color-text-main)]">{property.size_sqm}</p>
+                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">Size</p>
+                                <p className="text-sm sm:text-lg font-semibold tracking-tight text-[var(--color-text-main)]">{property.size_sqm} m²</p>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">Beds / Baths</p>
-                                <p className="text-lg font-semibold tracking-tight text-[var(--color-text-main)]">
-                                    {property.bedrooms} / {property.bathrooms || 2}
+                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">Beds/Baths</p>
+                                <p className="text-sm sm:text-lg font-semibold tracking-tight text-[var(--color-text-main)]">
+                                    {property.bedrooms}/{property.bathrooms || 2}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">ROI Est.</p>
-                                <p className="text-lg font-semibold tracking-tight text-emerald-600">
+                                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">ROI</p>
+                                <p className="text-sm sm:text-lg font-semibold tracking-tight text-emerald-600">
                                     {projectedGrowth ? `${projectedGrowth}%` : 'N/A'}
                                 </p>
                             </div>
                         </div>
                     </div>
-                    <div className="pt-8 lg:pt-10 flex gap-4">
+                    <div className="pt-4 sm:pt-6 lg:pt-10 flex gap-2 sm:gap-4">
                         <button
                             onClick={onRequestDetails}
-                            className="flex-1 bg-[var(--color-studio-accent)] text-white py-4 text-[11px] font-bold uppercase tracking-widest hover:opacity-90 transition-opacity"
+                            className="flex-1 bg-[var(--color-studio-accent)] text-white py-2.5 sm:py-3 lg:py-4 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider sm:tracking-widest hover:opacity-90 transition-opacity active:scale-[0.98] rounded sm:rounded-none"
                         >
-                            Request Prospectus
+                            Details
                         </button>
                         <button
                             onClick={onBookmark}
-                            className="size-12 border border-[var(--color-border-subtle)] flex items-center justify-center hover:bg-[var(--color-studio-gray)] transition-colors"
+                            className="size-10 sm:size-12 border border-[var(--color-border-subtle)] flex items-center justify-center hover:bg-[var(--color-studio-gray)] transition-colors rounded sm:rounded-none"
                         >
-                            <Bookmark size={20} className="text-[var(--color-text-muted-studio)]" />
+                            <Bookmark size={18} className="text-[var(--color-text-muted-studio)]" />
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Appreciation Chart */}
+            {/* Appreciation Chart - Hidden on very small screens */}
             {projectedGrowth && (
-            <div className="px-8 lg:px-10 py-8 lg:py-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]">
-                <div className="flex justify-between items-center mb-6 lg:mb-8">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">Appreciation Projection (5Y)</p>
-                    <p className="text-[11px] font-medium text-[var(--color-text-main)]">+{projectedGrowth}% Compound Growth</p>
+            <div className="hidden sm:block px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]">
+                <div className="flex justify-between items-center mb-4 sm:mb-6 lg:mb-8">
+                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--color-text-muted-studio)]">5Y Projection</p>
+                    <p className="text-[10px] sm:text-[11px] font-medium text-[var(--color-text-main)]">+{projectedGrowth}%</p>
                 </div>
-                <div className="h-24 lg:h-32 w-full relative">
+                <div className="h-16 sm:h-24 lg:h-32 w-full relative">
                     <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 100">
                         <line stroke="#E9ECEF" strokeWidth="1" x1="0" x2="800" y1="100" y2="100"></line>
                         <path
@@ -212,7 +212,7 @@ function FeaturedPropertyCard({
                         <circle cx="400" cy="60" fill="#2D3436" r="2.5"></circle>
                         <circle cx="800" cy="10" fill="#2D3436" r="3.5"></circle>
                     </svg>
-                    <div className="flex justify-between mt-4 text-[10px] text-[var(--color-text-muted-studio)] font-medium tracking-widest">
+                    <div className="flex justify-between mt-2 sm:mt-4 text-[9px] sm:text-[10px] text-[var(--color-text-muted-studio)] font-medium tracking-wider sm:tracking-widest">
                         <span>2024</span>
                         <span>2026</span>
                         <span>2028</span>
@@ -383,17 +383,69 @@ function ContextualInsights({
                             </div>
                         )}
 
-                        {/* Visualizations from AI */}
+                        {/* Smart Analytics from Wolf Brain */}
                         {visualizations.length > 0 && (
                             <div className="insight-item space-y-4" style={{ opacity: 0 }}>
-                                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">
-                                    {isRTL ? 'التحليلات' : 'Analytics'}
-                                </h3>
-                                {visualizations.slice(0, 2).map((viz, idx) => (
-                                    <div key={idx} className="rounded-lg border border-[var(--color-border-subtle)] overflow-hidden">
-                                        <VisualizationRenderer type={viz.type} data={viz.data} />
-                                    </div>
-                                ))}
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">
+                                        {isRTL ? 'تحليلات ذكية' : 'Smart Analytics'}
+                                    </h3>
+                                    <span className="text-[9px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full font-medium">
+                                        {visualizations.length} {isRTL ? 'تحليل' : 'insights'}
+                                    </span>
+                                </div>
+
+                                {/* Analytics Summary Cards */}
+                                <div className="space-y-2">
+                                    {visualizations.slice(0, 3).map((viz, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-studio-gray)]/50 hover:bg-[var(--color-studio-gray)] transition-colors cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className="size-5 rounded bg-[var(--color-studio-accent)]/10 flex items-center justify-center">
+                                                    <MaterialIcon
+                                                        name={
+                                                            viz.type === 'investment_scorecard' ? 'score' :
+                                                            viz.type === 'comparison_matrix' ? 'compare' :
+                                                            viz.type === 'inflation_killer' ? 'trending_up' :
+                                                            viz.type === 'payment_timeline' ? 'payments' :
+                                                            viz.type === 'market_trend_chart' ? 'analytics' :
+                                                            viz.type === 'area_analysis' ? 'location_on' :
+                                                            viz.type === 'developer_analysis' ? 'business' :
+                                                            viz.type === 'roi_calculator' ? 'calculate' :
+                                                            'insights'
+                                                        }
+                                                        size="12px"
+                                                        className="text-[var(--color-studio-accent)]"
+                                                    />
+                                                </div>
+                                                <span className="text-[10px] font-semibold text-[var(--color-text-main)] capitalize">
+                                                    {viz.type?.replace(/_/g, ' ')}
+                                                </span>
+                                                {viz.priority >= 9 && (
+                                                    <span className="text-[8px] px-1.5 py-0.5 bg-amber-500/20 text-amber-600 rounded font-bold">
+                                                        TOP
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {viz.trigger_reason && (
+                                                <p className="text-[9px] text-[var(--color-text-muted-studio)] line-clamp-1 mr-7">
+                                                    {viz.trigger_reason.replace('ALWAYS_SHOW: ', '')}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Full Visualizations (first 2 expanded) */}
+                                <div className="space-y-3 mt-4">
+                                    {visualizations.slice(0, 2).map((viz, idx) => (
+                                        <div key={`viz-${idx}`} className="rounded-lg border border-[var(--color-border-subtle)] overflow-hidden bg-[var(--color-studio-white)]">
+                                            <VisualizationRenderer type={viz.type} data={viz.data} />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -589,14 +641,28 @@ export default function ChatInterface() {
                         } : m
                     ));
 
-                    // Update contextual pane with AI response data
+                    // ═══════════════════════════════════════════════════════════
+                    // SMART ANALYTICS LAYER - Wolf Brain Integration
+                    // The backend sends prioritized ui_actions (sorted by priority)
+                    // Show the most relevant analytics proactively
+                    // ═══════════════════════════════════════════════════════════
+
+                    // Update contextual pane with top property
                     if (data.properties?.length > 0) {
                         setContextProperty(data.properties[0]);
                     }
+
+                    // Proactively show top analytics from Wolf Brain
+                    // Replace (not append) to show most relevant for current context
                     if (data.ui_actions?.length > 0) {
-                        setContextVisualizations(prev => [...prev, ...data.ui_actions]);
+                        // Take top 3 highest priority analytics
+                        const prioritizedAnalytics = data.ui_actions
+                            .sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0))
+                            .slice(0, 3);
+                        setContextVisualizations(prioritizedAnalytics);
                     }
-                    // Extract insight from response
+
+                    // Extract insight from response for AI summary
                     const insight = extractInsight(fullResponse);
                     if (insight) {
                         setContextInsight(insight);
@@ -648,26 +714,26 @@ export default function ChatInterface() {
 
     return (
         <div className="bg-[var(--color-studio-gray)] text-[var(--color-text-main)] font-sans h-screen flex flex-col overflow-hidden">
-            {/* Glass Header */}
-            <header className="flex-none h-20 glass-header border-b border-[var(--color-border-subtle)] flex items-center justify-between px-6 lg:px-10 z-50">
-                <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2">
-                        <MaterialIcon name="adjust" className="text-2xl text-[var(--color-studio-accent)] font-light" />
-                        <Link href="/" className="text-sm font-semibold tracking-[0.2em] uppercase text-[var(--color-text-main)]">
+            {/* Glass Header - Mobile Optimized */}
+            <header className="flex-none h-14 sm:h-16 lg:h-20 glass-header border-b border-[var(--color-border-subtle)] flex items-center justify-between px-3 sm:px-6 lg:px-10 z-50">
+                <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <MaterialIcon name="adjust" className="text-xl sm:text-2xl text-[var(--color-studio-accent)] font-light" />
+                        <Link href="/" className="text-xs sm:text-sm font-semibold tracking-[0.15em] sm:tracking-[0.2em] uppercase text-[var(--color-text-main)]">
                             Osool <span className="font-light opacity-50">AI</span>
                         </Link>
                     </div>
-                    <div className="h-4 w-px bg-[var(--color-border-subtle)] mx-2 hidden md:block"></div>
-                    <div className="hidden md:flex items-center gap-2">
+                    <div className="h-4 w-px bg-[var(--color-border-subtle)] mx-1 sm:mx-2 hidden sm:block"></div>
+                    <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
                         <div className="size-1.5 rounded-full bg-[var(--color-studio-accent)] animate-pulse"></div>
-                        <span className="text-[11px] font-medium text-[var(--color-text-muted-studio)] tracking-wide uppercase">
-                            {isRTL ? 'محرك الذكاء نشط' : 'AI Engine Active'}
+                        <span className="text-[10px] sm:text-[11px] font-medium text-[var(--color-text-muted-studio)] tracking-wide uppercase">
+                            {isRTL ? 'نشط' : 'Active'}
                         </span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 lg:gap-8">
-                    <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+                <div className="flex items-center gap-2 sm:gap-4 lg:gap-8">
+                    <nav className="hidden md:flex items-center gap-4 lg:gap-8">
                         <Link href="/dashboard" className="text-[11px] font-semibold uppercase tracking-widest hover:text-[var(--color-studio-accent)] transition-colors text-[var(--color-text-muted-studio)] flex items-center gap-2">
                             <History size={14} />
                             {isRTL ? 'السجل' : 'History'}
@@ -676,26 +742,26 @@ export default function ChatInterface() {
 
                     <button
                         onClick={toggleTheme}
-                        className="p-2 rounded-full border border-[var(--color-border-subtle)] hover:bg-[var(--color-studio-white)] transition-colors text-[var(--color-text-muted-studio)]"
+                        className="p-1.5 sm:p-2 rounded-full border border-[var(--color-border-subtle)] hover:bg-[var(--color-studio-white)] transition-colors text-[var(--color-text-muted-studio)]"
                     >
-                        <MaterialIcon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size="18px" />
+                        <MaterialIcon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size="16px" />
                     </button>
 
                     <button
                         onClick={handleNewSession}
-                        className="hidden sm:flex px-4 py-2 rounded-full bg-[var(--color-studio-accent)] text-white text-[11px] font-bold uppercase tracking-widest hover:opacity-90 transition-opacity items-center gap-2"
+                        className="p-1.5 sm:px-4 sm:py-2 rounded-full bg-[var(--color-studio-accent)] text-white text-[10px] sm:text-[11px] font-bold uppercase tracking-widest hover:opacity-90 transition-opacity flex items-center gap-1 sm:gap-2"
                     >
                         <PlusCircle size={14} />
-                        {isRTL ? 'جديد' : 'New'}
+                        <span className="hidden sm:inline">{isRTL ? 'جديد' : 'New'}</span>
                     </button>
 
                     {isAuthenticated && (
                         <div className="relative">
                             <button
                                 onClick={() => setUserMenuOpen(!isUserMenuOpen)}
-                                className="size-10 rounded-full bg-cover bg-center border border-[var(--color-border-subtle)] hover:opacity-80 transition-opacity flex items-center justify-center text-[var(--color-text-muted-studio)]"
+                                className="size-8 sm:size-10 rounded-full bg-cover bg-center border border-[var(--color-border-subtle)] hover:opacity-80 transition-opacity flex items-center justify-center text-[var(--color-text-muted-studio)]"
                             >
-                                <User size={18} />
+                                <User size={16} />
                             </button>
                             <AnimatePresence>
                                 {isUserMenuOpen && (
@@ -703,11 +769,11 @@ export default function ChatInterface() {
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: 10 }}
-                                        className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-[var(--color-border-subtle)] shadow-xl z-[60]"
+                                        className="absolute right-0 mt-2 w-48 sm:w-56 rounded-xl bg-white dark:bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] shadow-xl z-[60]"
                                     >
                                         <div className="p-3 border-b border-[var(--color-border-subtle)]">
                                             <p className="text-sm font-medium text-[var(--color-text-main)]">{user?.full_name || 'User'}</p>
-                                            <p className="text-xs text-[var(--color-text-muted-studio)]">{user?.email}</p>
+                                            <p className="text-xs text-[var(--color-text-muted-studio)] truncate">{user?.email}</p>
                                         </div>
                                         <div className="p-2">
                                             <button
@@ -738,119 +804,120 @@ export default function ChatInterface() {
 
                 {/* Main Chat Area */}
                 <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-studio-gray)] relative">
-                    {/* Empty State - Centered Welcome & Input */}
+                    {/* Empty State - Centered Welcome & Input - Mobile Optimized */}
                     {!hasStartedChat && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center px-3 sm:px-4 py-4 overflow-y-auto">
                             {/* Welcome Section - Animated out on first message */}
                             <div
                                 ref={welcomeRef}
-                                className={`text-center mb-10 transition-opacity ${isTransitioning ? 'pointer-events-none' : ''}`}
+                                className={`text-center mb-6 sm:mb-10 transition-opacity ${isTransitioning ? 'pointer-events-none' : ''}`}
                             >
-                                <div className="size-20 rounded-2xl bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] flex items-center justify-center mb-6 mx-auto shadow-soft">
-                                    <Sparkles size={32} className="text-[var(--color-studio-accent)]" />
+                                <div className="size-14 sm:size-20 rounded-xl sm:rounded-2xl bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] flex items-center justify-center mb-4 sm:mb-6 mx-auto shadow-soft">
+                                    <Sparkles size={24} className="sm:hidden text-[var(--color-studio-accent)]" />
+                                    <Sparkles size={32} className="hidden sm:block text-[var(--color-studio-accent)]" />
                                 </div>
-                                <h2 className="text-xl font-serif italic text-[var(--color-text-main)] mb-3">
+                                <h2 className="text-lg sm:text-xl font-serif italic text-[var(--color-text-main)] mb-2 sm:mb-3">
                                     {isRTL ? 'أهلاً بك في أصول' : 'Welcome to Osool AI'}
                                 </h2>
-                                <p className="text-sm text-[var(--color-text-muted-studio)] max-w-md mb-8 mx-auto">
+                                <p className="text-xs sm:text-sm text-[var(--color-text-muted-studio)] max-w-xs sm:max-w-md mb-6 sm:mb-8 mx-auto px-2">
                                     {isRTL
-                                        ? 'اسأل عن أي منطقة، مطور، أو نوع عقار وسأقدم لك تحليلات شاملة'
-                                        : 'Ask about any area, developer, or property type and I\'ll provide comprehensive analytics'}
+                                        ? 'اسأل عن أي منطقة أو مطور وسأقدم لك تحليلات شاملة'
+                                        : 'Ask about any area, developer, or property type for analytics'}
                                 </p>
-                                <div className="flex flex-wrap justify-center gap-3">
+                                <div className="flex flex-wrap justify-center gap-2 sm:gap-3 px-2">
                                     {[
-                                        { label: isRTL ? 'شقق في التجمع الخامس' : 'Apartments in New Cairo', icon: 'apartment' },
-                                        { label: isRTL ? 'مشاريع طلعت مصطفى' : 'TMG Projects', icon: 'business' },
-                                        { label: isRTL ? 'أفضل عائد استثماري' : 'Best ROI', icon: 'trending_up' },
+                                        { label: isRTL ? 'شقق التجمع' : 'New Cairo', icon: 'apartment' },
+                                        { label: isRTL ? 'طلعت مصطفى' : 'TMG', icon: 'business' },
+                                        { label: isRTL ? 'أفضل عائد' : 'Best ROI', icon: 'trending_up' },
                                     ].map((suggestion) => (
                                         <button
                                             key={suggestion.label}
                                             onClick={() => setInput(suggestion.label)}
-                                            className="px-4 py-2 rounded-full bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] text-sm text-[var(--color-text-muted-studio)] hover:border-[var(--color-studio-accent)] hover:text-[var(--color-text-main)] transition-all flex items-center gap-2 shadow-soft"
+                                            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] text-xs sm:text-sm text-[var(--color-text-muted-studio)] hover:border-[var(--color-studio-accent)] hover:text-[var(--color-text-main)] transition-all flex items-center gap-1.5 sm:gap-2 shadow-soft active:scale-95"
                                         >
-                                            <MaterialIcon name={suggestion.icon} size="16px" />
+                                            <MaterialIcon name={suggestion.icon} size="14px" />
                                             {suggestion.label}
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Centered Input */}
+                            {/* Centered Input - Mobile Optimized */}
                             <div
                                 ref={centeredInputRef}
-                                className={`w-full max-w-2xl glass-input rounded-2xl p-4 shadow-soft ${isTransitioning ? 'opacity-0' : ''}`}
+                                className={`w-full max-w-2xl glass-input rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-soft mx-2 ${isTransitioning ? 'opacity-0' : ''}`}
                             >
-                                <div className="relative flex items-center border-b border-[var(--color-studio-accent)]/20 focus-within:border-[var(--color-studio-accent)] transition-all pb-2 px-1">
-                                    <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
-                                        <Plus size={20} />
+                                <div className="relative flex items-center border-b border-[var(--color-studio-accent)]/20 focus-within:border-[var(--color-studio-accent)] transition-all pb-2 px-0.5 sm:px-1">
+                                    <button className="p-1.5 sm:p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors flex-shrink-0">
+                                        <Plus size={18} />
                                     </button>
                                     <input
                                         value={input}
                                         onChange={e => setInput(e.target.value)}
                                         onKeyDown={handleKeyDown}
-                                        className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-4 placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)]"
-                                        placeholder={isRTL ? 'اسأل عن العقارات أو السوق...' : 'Ask about properties, market trends...'}
+                                        className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-4 placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)]"
+                                        placeholder={isRTL ? 'اسأل عن العقارات...' : 'Ask about properties...'}
                                         disabled={isTyping || isTransitioning}
                                         dir={isRTL ? 'rtl' : 'ltr'}
                                         autoFocus
                                     />
-                                    <div className="flex items-center gap-2">
-                                        <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
-                                            <Mic size={20} />
+                                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                                        <button className="hidden sm:block p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
+                                            <Mic size={18} />
                                         </button>
                                         <button
                                             onClick={handleSend}
                                             disabled={!input.trim() || isTyping || isTransitioning}
-                                            className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors disabled:opacity-50"
+                                            className="p-1.5 sm:p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors disabled:opacity-50"
                                         >
-                                            <Send size={20} />
+                                            <Send size={18} />
                                         </button>
                                     </div>
                                 </div>
-                                <p className="text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.2em] mt-4 opacity-50">
-                                    {isRTL ? 'أصول AI • محرك تحليل العقارات المتقدم' : 'Osool AI • Advanced Real Estate Analytics Engine'}
+                                <p className="text-[8px] sm:text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.15em] sm:tracking-[0.2em] mt-3 sm:mt-4 opacity-50">
+                                    {isRTL ? 'أصول AI • محرك تحليل العقارات' : 'Osool AI • Real Estate Analytics'}
                                 </p>
                             </div>
                         </div>
                     )}
 
-                    {/* Chat Messages Area - Shown after first message */}
-                    <div className={`flex-1 overflow-y-auto px-4 py-8 md:px-12 lg:px-20 space-y-12 ${!hasStartedChat ? 'invisible' : ''}`}>
+                    {/* Chat Messages Area - Mobile Optimized */}
+                    <div className={`flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-8 md:px-8 lg:px-16 xl:px-20 space-y-6 sm:space-y-8 lg:space-y-12 ${!hasStartedChat ? 'invisible' : ''}`}>
                         {messages.length > 0 && (
                             <>
                                 {messages.map((msg, idx) => (
                                     <div key={msg.id || idx}>
                                         {msg.role === 'user' ? (
-                                            /* User Message */
+                                            /* User Message - Mobile Optimized */
                                             <div className="flex justify-end">
-                                                <div className="max-w-[80%] md:max-w-[60%] flex flex-col items-end">
-                                                    <div className="bg-[var(--color-studio-white)] px-6 lg:px-8 py-4 lg:py-5 rounded-2xl border border-[var(--color-border-subtle)] shadow-soft">
-                                                        <p className="text-[14px] leading-relaxed font-normal text-[var(--color-text-main)]" dir={isRTL ? 'rtl' : 'ltr'}>
+                                                <div className="max-w-[90%] sm:max-w-[80%] md:max-w-[70%] lg:max-w-[60%] flex flex-col items-end">
+                                                    <div className="bg-[var(--color-studio-white)] px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 rounded-xl sm:rounded-2xl border border-[var(--color-border-subtle)] shadow-soft">
+                                                        <p className="text-[13px] sm:text-[14px] leading-relaxed font-normal text-[var(--color-text-main)]" dir={isRTL ? 'rtl' : 'ltr'}>
                                                             {msg.content}
                                                         </p>
                                                     </div>
-                                                    <span className="mt-3 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted-studio)] opacity-40">
+                                                    <span className="mt-2 sm:mt-3 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted-studio)] opacity-40">
                                                         {getUserName()} • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
                                                 </div>
                                             </div>
                                         ) : (
-                                            /* AI Message */
-                                            <div className="space-y-6 max-w-4xl">
-                                                <div className="flex gap-4 items-start">
-                                                    <div className="size-6 mt-1 flex-none bg-[var(--color-studio-accent)] flex items-center justify-center rounded-sm">
-                                                        <MaterialIcon name="auto_awesome" className="text-white" size="14px" />
+                                            /* AI Message - Mobile Optimized */
+                                            <div className="space-y-4 sm:space-y-6 max-w-4xl">
+                                                <div className="flex gap-2 sm:gap-4 items-start">
+                                                    <div className="size-5 sm:size-6 mt-0.5 sm:mt-1 flex-none bg-[var(--color-studio-accent)] flex items-center justify-center rounded-sm">
+                                                        <MaterialIcon name="auto_awesome" className="text-white" size="12px" />
                                                     </div>
-                                                    <div className="space-y-6 flex-1">
+                                                    <div className="space-y-4 sm:space-y-6 flex-1 min-w-0">
                                                         <div className="prose prose-sm max-w-none">
                                                             {msg.isTyping && !msg.content ? (
                                                                 <div className="flex items-center gap-2 text-[var(--color-text-muted-studio)]">
-                                                                    <span className="animate-pulse">{isRTL ? 'جاري التحليل...' : 'Analyzing...'}</span>
+                                                                    <span className="animate-pulse text-sm">{isRTL ? 'جاري التحليل...' : 'Analyzing...'}</span>
                                                                 </div>
                                                             ) : (
                                                                 <>
                                                                     <div
-                                                                        className="text-sm lg:text-base leading-relaxed text-[var(--color-text-main)]"
+                                                                        className="text-[13px] sm:text-sm lg:text-base leading-relaxed text-[var(--color-text-main)]"
                                                                         dir={isRTL ? 'rtl' : 'ltr'}
                                                                     >
                                                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -870,11 +937,11 @@ export default function ChatInterface() {
                                                             />
                                                         )}
 
-                                                        {/* Inline Visualizations */}
+                                                        {/* Inline Visualizations - Mobile Optimized */}
                                                         {msg.visualizations?.length > 0 && (
-                                                            <div className="space-y-4">
+                                                            <div className="space-y-3 sm:space-y-4 -mx-1 sm:mx-0">
                                                                 {msg.visualizations.map((viz: any, vidx: number) => (
-                                                                    <div key={vidx} className="bg-[var(--color-studio-white)] rounded-xl border border-[var(--color-border-subtle)] overflow-hidden shadow-soft">
+                                                                    <div key={vidx} className="bg-[var(--color-studio-white)] rounded-lg sm:rounded-xl border border-[var(--color-border-subtle)] overflow-hidden shadow-soft overflow-x-auto">
                                                                         <VisualizationRenderer type={viz.type} data={viz.data} />
                                                                     </div>
                                                                 ))}
@@ -891,39 +958,39 @@ export default function ChatInterface() {
                         )}
                     </div>
 
-                    {/* Input Area - Shown at bottom after first message */}
+                    {/* Input Area - Mobile Optimized */}
                     {hasStartedChat && (
-                        <div className="p-4 lg:p-8 glass-input z-30">
+                        <div className="p-2 sm:p-4 lg:p-6 glass-input z-30 safe-area-bottom">
                             <div className="max-w-3xl mx-auto">
-                                <div className="relative flex items-center border-b border-[var(--color-studio-accent)]/20 focus-within:border-[var(--color-studio-accent)] transition-all pb-2 px-1">
-                                    <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
-                                        <Plus size={20} />
+                                <div className="relative flex items-center border-b border-[var(--color-studio-accent)]/20 focus-within:border-[var(--color-studio-accent)] transition-all pb-1.5 sm:pb-2 px-0.5 sm:px-1">
+                                    <button className="p-1.5 sm:p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors flex-shrink-0">
+                                        <Plus size={18} />
                                     </button>
                                     <input
                                         value={input}
                                         onChange={e => setInput(e.target.value)}
                                         onKeyDown={handleKeyDown}
-                                        className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-4 placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)]"
-                                        placeholder={isRTL ? 'اسأل عن العقارات أو السوق...' : 'Ask about properties, market trends...'}
+                                        className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-2.5 sm:py-3 lg:py-4 placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)]"
+                                        placeholder={isRTL ? 'اسأل عن العقارات...' : 'Ask about properties...'}
                                         disabled={isTyping}
                                         dir={isRTL ? 'rtl' : 'ltr'}
                                         autoFocus
                                     />
-                                    <div className="flex items-center gap-2">
-                                        <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
-                                            <Mic size={20} />
+                                    <div className="flex items-center gap-0.5 sm:gap-2 flex-shrink-0">
+                                        <button className="hidden sm:block p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
+                                            <Mic size={18} />
                                         </button>
                                         <button
                                             onClick={handleSend}
                                             disabled={!input.trim() || isTyping}
-                                            className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors disabled:opacity-50"
+                                            className="p-1.5 sm:p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors disabled:opacity-50 active:scale-95"
                                         >
-                                            <Send size={20} />
+                                            <Send size={18} />
                                         </button>
                                     </div>
                                 </div>
-                                <p className="text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.2em] mt-4 opacity-50">
-                                    {isRTL ? 'أصول AI • محرك تحليل العقارات المتقدم' : 'Osool AI • Advanced Real Estate Analytics Engine'}
+                                <p className="hidden sm:block text-[8px] sm:text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.15em] sm:tracking-[0.2em] mt-2 sm:mt-3 opacity-50">
+                                    {isRTL ? 'أصول AI • محرك تحليل العقارات' : 'Osool AI • Real Estate Analytics'}
                                 </p>
                             </div>
                         </div>

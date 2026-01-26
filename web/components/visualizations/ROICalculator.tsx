@@ -47,6 +47,12 @@ interface ROICalculatorProps {
 }
 
 export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) {
+    // Defensive check for required props
+    if (!roi || !roi.property_title) {
+        console.warn('ROICalculator: Missing required roi data');
+        return null;
+    }
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-EG', {
             style: 'currency',

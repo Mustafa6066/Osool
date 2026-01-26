@@ -27,6 +27,12 @@ interface PropertyTypeAnalysisProps {
 }
 
 export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyTypeAnalysisProps) {
+    // Defensive check for required props
+    if (!analysis || !analysis.type) {
+        console.warn('PropertyTypeAnalysis: Missing required analysis data');
+        return null;
+    }
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-EG', {
             style: 'currency',

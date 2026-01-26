@@ -27,6 +27,12 @@ interface DeveloperAnalysisProps {
 }
 
 export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnalysisProps) {
+    // Defensive check for required props
+    if (!developer || !developer.name) {
+        console.warn('DeveloperAnalysis: Missing required developer data');
+        return null;
+    }
+
     const getScoreColor = (score: number) => {
         if (score >= 90) return 'text-emerald-400';
         if (score >= 80) return 'text-blue-400';

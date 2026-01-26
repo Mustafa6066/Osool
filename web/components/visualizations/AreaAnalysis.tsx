@@ -37,6 +37,12 @@ interface AreaAnalysisProps {
 }
 
 export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysisProps) {
+    // Defensive check for required props
+    if (!area || !area.name) {
+        console.warn('AreaAnalysis: Missing required area data');
+        return null;
+    }
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-EG', {
             style: 'currency',

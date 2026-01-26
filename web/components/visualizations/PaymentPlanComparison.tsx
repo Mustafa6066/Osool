@@ -26,12 +26,18 @@ interface PaymentPlanComparisonProps {
     lowest_monthly?: PaymentPlan;
 }
 
-export default function PaymentPlanComparison({ 
-    plans, 
+export default function PaymentPlanComparison({
+    plans,
     best_down_payment,
     longest_installment,
-    lowest_monthly 
+    lowest_monthly
 }: PaymentPlanComparisonProps) {
+    // Defensive check for required props
+    if (!plans || !Array.isArray(plans)) {
+        console.warn('PaymentPlanComparison: Missing required plans data');
+        return null;
+    }
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-EG', {
             style: 'currency',
