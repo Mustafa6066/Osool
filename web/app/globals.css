@@ -83,6 +83,14 @@
   --chat-border: rgba(255, 255, 255, 0.08);
 
   --color-surface-elevated: #232936;
+
+  /* Studio Theme - Dark Mode Overrides */
+  --color-studio-white: #1a1a1a;
+  --color-studio-gray: #0f0f0f;
+  --color-studio-accent: #E9ECEF;
+  --color-border-subtle: #2a2a2a;
+  --color-text-main: #FDFDFD;
+  --color-text-muted-studio: #9CA3AF;
 }
 
 body {
@@ -151,14 +159,30 @@ body {
     -webkit-backdrop-filter: blur(12px);
   }
 
+  .dark .glass-header,
+  [data-theme="dark"] .glass-header {
+    background: rgba(15, 15, 15, 0.85);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
   .glass-input {
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
 
+  .dark .glass-input,
+  [data-theme="dark"] .glass-input {
+    background: rgba(26, 26, 26, 0.9);
+  }
+
   .shadow-soft {
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+  }
+
+  .dark .shadow-soft,
+  [data-theme="dark"] .shadow-soft {
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
   }
 
   .shadow-soft-glow {

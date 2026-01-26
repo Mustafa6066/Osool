@@ -11,6 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { streamChat } from '@/lib/api';
+import { analyticsEngine, type AnalyticsMatch } from '@/lib/AnalyticsRulesEngine';
+import { emptyChatToActiveTransition } from '@/lib/animations';
 import VisualizationRenderer from './visualizations/VisualizationRenderer';
 import InvitationModal from './InvitationModal';
 import { User, LogOut, Gift, PlusCircle, History, Sparkles, Send, Mic, Plus, Bookmark } from 'lucide-react';
@@ -106,7 +108,7 @@ function FeaturedPropertyCard({
         }
     }, [property]);
 
-    const projectedGrowth = property.roi || 12.4;
+    const projectedGrowth = property.roi;
 
     return (
         <motion.div
@@ -163,7 +165,9 @@ function FeaturedPropertyCard({
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mb-1">ROI Est.</p>
-                                <p className="text-lg font-semibold tracking-tight text-emerald-600">{projectedGrowth}%</p>
+                                <p className="text-lg font-semibold tracking-tight text-emerald-600">
+                                    {projectedGrowth ? `${projectedGrowth}%` : 'N/A'}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -185,6 +189,7 @@ function FeaturedPropertyCard({
             </div>
 
             {/* Appreciation Chart */}
+            {projectedGrowth && (
             <div className="px-8 lg:px-10 py-8 lg:py-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]">
                 <div className="flex justify-between items-center mb-6 lg:mb-8">
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)]">Appreciation Projection (5Y)</p>
@@ -211,6 +216,7 @@ function FeaturedPropertyCard({
                     </div>
                 </div>
             </div>
+            )}
         </motion.div>
     );
 }
@@ -437,12 +443,20 @@ export default function ChatInterface() {
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isInvitationModalOpen, setInvitationModalOpen] = useState(false);
 
+    // First message state - for centered input animation
+    const [hasStartedChat, setHasStartedChat] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+
     // Contextual state - updated from AI responses
     const [contextProperty, setContextProperty] = useState<Property | null>(null);
     const [contextInsight, setContextInsight] = useState<string | null>(null);
     const [contextVisualizations, setContextVisualizations] = useState<any[]>([]);
+    const [detectedAnalytics, setDetectedAnalytics] = useState<AnalyticsMatch[]>([]);
 
+    // Refs for animations
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const welcomeRef = useRef<HTMLDivElement>(null);
+    const centeredInputRef = useRef<HTMLDivElement>(null);
     const isRTL = language === 'ar';
 
     const scrollToBottom = useCallback(() => {
@@ -462,10 +476,68 @@ export default function ChatInterface() {
         return insight?.trim() || null;
     }, []);
 
-    const handleSend = async () => {
-        if (!input.trim() || isTyping) return;
+    // Real-time context extraction from AI response (debounced)
+    const lastContextUpdate = useRef<number>(0);
+    const updateContextFromResponse = useCallback((response: string) => {
+        const now = Date.now();
+        // Debounce to avoid too frequent updates (every 500ms)
+        if (now - lastContextUpdate.current < 500) return;
+        lastContextUpdate.current = now;
 
-        const userMsg = { role: 'user', content: input, id: Date.now().toString() };
+        // Extract areas mentioned
+        const areaKeywords = ['التجمع', 'مدينتي', 'الشيخ زايد', 'العاصمة الإدارية', 'الساحل', 'New Cairo', 'Sheikh Zayed', 'Madinaty'];
+        const mentionedAreas = areaKeywords.filter(area =>
+            response.toLowerCase().includes(area.toLowerCase())
+        );
+
+        // Extract developers mentioned
+        const developerKeywords = ['طلعت مصطفى', 'بالم هيلز', 'سوديك', 'TMG', 'Palm Hills', 'SODIC', 'Mountain View'];
+        const mentionedDevelopers = developerKeywords.filter(dev =>
+            response.toLowerCase().includes(dev.toLowerCase())
+        );
+
+        // If AI mentions specific context, update insight
+        if (mentionedAreas.length > 0 || mentionedDevelopers.length > 0) {
+            const insight = extractInsight(response);
+            if (insight && insight.length > 30) {
+                setContextInsight(insight);
+            }
+        }
+    }, [extractInsight]);
+
+    const handleSend = async () => {
+        if (!input.trim() || isTyping || isTransitioning) return;
+
+        // Detect analytics from user input
+        const analyticsMatches = analyticsEngine.detectAnalytics(input);
+        if (analyticsMatches.length > 0) {
+            setDetectedAnalytics(analyticsMatches);
+        }
+
+        // Trigger animation on first message
+        if (!hasStartedChat) {
+            setIsTransitioning(true);
+
+            // Animate the transition
+            emptyChatToActiveTransition(
+                welcomeRef.current,
+                centeredInputRef.current,
+                () => {
+                    setHasStartedChat(true);
+                    setIsTransitioning(false);
+                }
+            );
+
+            // Small delay to let animation start
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const userMsg = {
+            role: 'user',
+            content: input,
+            id: Date.now().toString(),
+            analytics: analyticsMatches.length > 0 ? analyticsEngine.buildAnalyticsContext(analyticsMatches) : null
+        };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsTyping(true);
@@ -481,6 +553,9 @@ export default function ChatInterface() {
                     setMessages(prev => prev.map(m =>
                         m.id === aiMsgId ? { ...m, content: fullResponse } : m
                     ));
+
+                    // Real-time context extraction during streaming
+                    updateContextFromResponse(fullResponse);
                 },
                 onToolStart: () => { },
                 onToolEnd: () => { },
@@ -500,7 +575,7 @@ export default function ChatInterface() {
                         setContextProperty(data.properties[0]);
                     }
                     if (data.ui_actions?.length > 0) {
-                        setContextVisualizations(data.ui_actions);
+                        setContextVisualizations(prev => [...prev, ...data.ui_actions]);
                     }
                     // Extract insight from response
                     const insight = extractInsight(fullResponse);
@@ -534,8 +609,11 @@ export default function ChatInterface() {
         setContextProperty(null);
         setContextInsight(null);
         setContextVisualizations([]);
+        setDetectedAnalytics([]);
         setInput('');
         setIsTyping(false);
+        setHasStartedChat(false);
+        setIsTransitioning(false);
         setSessionId(`session-${Date.now()}`);
     };
 
@@ -640,18 +718,22 @@ export default function ChatInterface() {
                 <Sidebar onNewSession={handleNewSession} isRTL={isRTL} />
 
                 {/* Main Chat Area */}
-                <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-studio-gray)]">
-                    <div className="flex-1 overflow-y-auto px-4 py-8 md:px-12 lg:px-20 space-y-12">
-                        {messages.length === 0 ? (
-                            /* Empty State */
-                            <div className="flex flex-col items-center justify-center h-full text-center py-20">
-                                <div className="size-20 rounded-2xl bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] flex items-center justify-center mb-6 shadow-soft">
+                <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-studio-gray)] relative">
+                    {/* Empty State - Centered Welcome & Input */}
+                    {!hasStartedChat && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
+                            {/* Welcome Section - Animated out on first message */}
+                            <div
+                                ref={welcomeRef}
+                                className={`text-center mb-10 transition-opacity ${isTransitioning ? 'pointer-events-none' : ''}`}
+                            >
+                                <div className="size-20 rounded-2xl bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] flex items-center justify-center mb-6 mx-auto shadow-soft">
                                     <Sparkles size={32} className="text-[var(--color-studio-accent)]" />
                                 </div>
                                 <h2 className="text-xl font-serif italic text-[var(--color-text-main)] mb-3">
                                     {isRTL ? 'أهلاً بك في أصول' : 'Welcome to Osool AI'}
                                 </h2>
-                                <p className="text-sm text-[var(--color-text-muted-studio)] max-w-md mb-8">
+                                <p className="text-sm text-[var(--color-text-muted-studio)] max-w-md mb-8 mx-auto">
                                     {isRTL
                                         ? 'اسأل عن أي منطقة، مطور، أو نوع عقار وسأقدم لك تحليلات شاملة'
                                         : 'Ask about any area, developer, or property type and I\'ll provide comprehensive analytics'}
@@ -673,7 +755,49 @@ export default function ChatInterface() {
                                     ))}
                                 </div>
                             </div>
-                        ) : (
+
+                            {/* Centered Input */}
+                            <div
+                                ref={centeredInputRef}
+                                className={`w-full max-w-2xl glass-input rounded-2xl p-4 shadow-soft ${isTransitioning ? 'opacity-0' : ''}`}
+                            >
+                                <div className="relative flex items-center border-b border-[var(--color-studio-accent)]/20 focus-within:border-[var(--color-studio-accent)] transition-all pb-2 px-1">
+                                    <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
+                                        <Plus size={20} />
+                                    </button>
+                                    <input
+                                        value={input}
+                                        onChange={e => setInput(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-4 placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)]"
+                                        placeholder={isRTL ? 'اسأل عن العقارات أو السوق...' : 'Ask about properties, market trends...'}
+                                        disabled={isTyping || isTransitioning}
+                                        dir={isRTL ? 'rtl' : 'ltr'}
+                                        autoFocus
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
+                                            <Mic size={20} />
+                                        </button>
+                                        <button
+                                            onClick={handleSend}
+                                            disabled={!input.trim() || isTyping || isTransitioning}
+                                            className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors disabled:opacity-50"
+                                        >
+                                            <Send size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.2em] mt-4 opacity-50">
+                                    {isRTL ? 'أصول AI • محرك تحليل العقارات المتقدم' : 'Osool AI • Advanced Real Estate Analytics Engine'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Chat Messages Area - Shown after first message */}
+                    <div className={`flex-1 overflow-y-auto px-4 py-8 md:px-12 lg:px-20 space-y-12 ${!hasStartedChat ? 'invisible' : ''}`}>
+                        {messages.length > 0 && (
                             <>
                                 {messages.map((msg, idx) => (
                                     <div key={msg.id || idx}>
@@ -748,40 +872,43 @@ export default function ChatInterface() {
                         )}
                     </div>
 
-                    {/* Input Area */}
-                    <div className="p-4 lg:p-8 glass-input z-30">
-                        <div className="max-w-3xl mx-auto">
-                            <div className="relative flex items-center border-b border-[var(--color-studio-accent)]/20 focus-within:border-[var(--color-studio-accent)] transition-all pb-2 px-1">
-                                <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
-                                    <Plus size={20} />
-                                </button>
-                                <input
-                                    value={input}
-                                    onChange={e => setInput(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-4 placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)]"
-                                    placeholder={isRTL ? 'اسأل عن العقارات أو السوق...' : 'Ask about properties, market trends...'}
-                                    disabled={isTyping}
-                                    dir={isRTL ? 'rtl' : 'ltr'}
-                                />
-                                <div className="flex items-center gap-2">
+                    {/* Input Area - Shown at bottom after first message */}
+                    {hasStartedChat && (
+                        <div className="p-4 lg:p-8 glass-input z-30">
+                            <div className="max-w-3xl mx-auto">
+                                <div className="relative flex items-center border-b border-[var(--color-studio-accent)]/20 focus-within:border-[var(--color-studio-accent)] transition-all pb-2 px-1">
                                     <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
-                                        <Mic size={20} />
+                                        <Plus size={20} />
                                     </button>
-                                    <button
-                                        onClick={handleSend}
-                                        disabled={!input.trim() || isTyping}
-                                        className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors disabled:opacity-50"
-                                    >
-                                        <Send size={20} />
-                                    </button>
+                                    <input
+                                        value={input}
+                                        onChange={e => setInput(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-4 placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)]"
+                                        placeholder={isRTL ? 'اسأل عن العقارات أو السوق...' : 'Ask about properties, market trends...'}
+                                        disabled={isTyping}
+                                        dir={isRTL ? 'rtl' : 'ltr'}
+                                        autoFocus
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors">
+                                            <Mic size={20} />
+                                        </button>
+                                        <button
+                                            onClick={handleSend}
+                                            disabled={!input.trim() || isTyping}
+                                            className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--color-studio-accent)] transition-colors disabled:opacity-50"
+                                        >
+                                            <Send size={20} />
+                                        </button>
+                                    </div>
                                 </div>
+                                <p className="text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.2em] mt-4 opacity-50">
+                                    {isRTL ? 'أصول AI • محرك تحليل العقارات المتقدم' : 'Osool AI • Advanced Real Estate Analytics Engine'}
+                                </p>
                             </div>
-                            <p className="text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.2em] mt-4 opacity-50">
-                                {isRTL ? 'أصول AI • محرك تحليل العقارات المتقدم' : 'Osool AI • Advanced Real Estate Analytics Engine'}
-                            </p>
                         </div>
-                    </div>
+                    )}
                 </main>
 
                 {/* Right Contextual Pane */}
