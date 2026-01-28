@@ -12,7 +12,8 @@ interface PriceHeatmapProps {
     title?: string;
 }
 
-export default function PriceHeatmap({ locations, title = "خريطة الأسعار" }: PriceHeatmapProps) {
+export default function PriceHeatmap({ locations = [], title = "خريطة الأسعار" }: PriceHeatmapProps) {
+    if (!locations || locations.length === 0) return null;
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-EG', {
             style: 'currency',

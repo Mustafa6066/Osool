@@ -116,7 +116,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                         <p className="text-sm font-medium text-white">أشهر المشاريع</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {developer.popular_projects.map((project, i) => (
+                        {(developer.popular_projects || []).map((project, i) => (
                             <span key={i} className="px-3 py-1 bg-indigo-500/20 text-indigo-300 text-sm rounded-full">
                                 {project}
                             </span>
@@ -131,7 +131,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                         <p className="text-sm font-medium text-emerald-400">نقاط القوة</p>
                     </div>
                     <ul className="space-y-2">
-                        {developer.strengths.map((strength, i) => (
+                        {(developer.strengths || []).map((strength, i) => (
                             <li key={i} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
                                 <span className="text-emerald-400">✓</span> {strength}
                             </li>
@@ -146,7 +146,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                         <div className="grid grid-cols-3 gap-4 text-sm">
                             <div>
                                 <p className="text-[var(--color-text-secondary)] mb-2 text-xs">بالسمعة</p>
-                                {rankings.by_reputation.slice(0, 3).map((dev, i) => (
+                                {(rankings.by_reputation || []).slice(0, 3).map((dev, i) => (
                                     <p key={i} className={`${i === 0 ? 'text-amber-400' : 'text-[var(--color-text-secondary)]'}`}>
                                         {i + 1}. {dev}
                                     </p>
@@ -154,7 +154,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                             </div>
                             <div>
                                 <p className="text-[var(--color-text-secondary)] mb-2 text-xs">بالقيمة</p>
-                                {rankings.by_value.slice(0, 3).map((dev, i) => (
+                                {(rankings.by_value || []).slice(0, 3).map((dev, i) => (
                                     <p key={i} className={`${i === 0 ? 'text-emerald-400' : 'text-[var(--color-text-secondary)]'}`}>
                                         {i + 1}. {dev}
                                     </p>
@@ -162,7 +162,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                             </div>
                             <div>
                                 <p className="text-[var(--color-text-secondary)] mb-2 text-xs">بالتسليم</p>
-                                {rankings.by_delivery.slice(0, 3).map((dev, i) => (
+                                {(rankings.by_delivery || []).slice(0, 3).map((dev, i) => (
                                     <p key={i} className={`${i === 0 ? 'text-blue-400' : 'text-[var(--color-text-secondary)]'}`}>
                                         {i + 1}. {dev}
                                     </p>

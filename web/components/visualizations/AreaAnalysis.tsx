@@ -98,7 +98,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                         <p className="text-sm font-medium text-white">المنطقة مناسبة لـ</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {area.best_for.map((item, i) => (
+                        {(area.best_for || []).map((item, i) => (
                             <span key={i} className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded-full">
                                 {item}
                             </span>
@@ -113,7 +113,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                         <p className="text-sm font-medium text-white">أبرز المطورين</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {area.top_developers.map((dev, i) => (
+                        {(area.top_developers || []).map((dev, i) => (
                             <span key={i} className="px-3 py-1 bg-indigo-500/20 text-indigo-300 text-sm rounded-full">
                                 {dev}
                             </span>
@@ -129,7 +129,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                             <p className="text-sm font-medium text-green-400">مميزات</p>
                         </div>
                         <ul className="space-y-2">
-                            {area.pros.map((pro, i) => (
+                            {(area.pros || []).map((pro, i) => (
                                 <li key={i} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
                                     <span className="text-green-400">•</span> {pro}
                                 </li>
@@ -142,7 +142,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                             <p className="text-sm font-medium text-red-400">تحديات</p>
                         </div>
                         <ul className="space-y-2">
-                            {area.cons.map((con, i) => (
+                            {(area.cons || []).map((con, i) => (
                                 <li key={i} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
                                     <span className="text-red-400">•</span> {con}
                                 </li>

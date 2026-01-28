@@ -35,7 +35,7 @@ export default function RealityCheck({
     detected,
     message_ar,
     message_en,
-    alternatives,
+    alternatives = [],
 }: RealityCheckProps) {
     return (
         <motion.div

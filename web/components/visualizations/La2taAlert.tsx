@@ -36,7 +36,7 @@ const formatPrice = (price: number): string => {
 };
 
 export default function La2taAlert({
-    properties,
+    properties = [],
     message_ar,
     message_en,
     total_found,
