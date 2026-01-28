@@ -1022,21 +1022,11 @@ body {
 .osool-input-surface {
   position: relative;
   z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 4px;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: var(--radius-input);
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   transition: all 0.3s var(--ease-out-expo);
-}
-
-@media (min-width: 640px) {
-  .osool-input-surface {
-    padding: 4px 6px;
-  }
 }
 
 .osool-input-surface:focus-within {

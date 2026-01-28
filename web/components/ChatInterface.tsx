@@ -1123,25 +1123,33 @@ export default function ChatInterface() {
                                 className={`welcome-input w-full px-4 sm:px-8 md:px-12 lg:px-20 ${isTransitioning ? 'opacity-0' : ''}`}
                             >
                                 <div className="osool-input-glow">
-                                    <div className="osool-input-surface">
-                                        <div className="flex items-end gap-2 p-2 sm:p-3">
-                                            <button className="p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors flex-shrink-0 mb-0.5">
+                                    <div
+                                        className="osool-input-surface cursor-text"
+                                        onClick={() => textareaRef.current?.focus()}
+                                    >
+                                        <div className="relative flex items-center">
+                                            {/* Plus button - absolute left */}
+                                            <button className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10">
                                                 <Plus size={18} />
                                             </button>
+
+                                            {/* Textarea - full width with padding for buttons */}
                                             <textarea
                                                 ref={textareaRef}
                                                 value={input}
                                                 onChange={e => setInput(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 rows={1}
-                                                className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-1.5 sm:py-2 resize-none placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)] max-h-[150px]"
-                                                placeholder={isRTL ? 'اسأل عمرو...' : 'Ask AMR...'}
+                                                className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-4 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px] text-center"
+                                                placeholder={isRTL ? 'اسأل عمرو عن العقارات...' : 'Ask AMR about properties...'}
                                                 disabled={isTyping || isTransitioning}
                                                 dir="auto"
                                                 autoFocus
                                             />
-                                            <div className="flex items-center gap-1 flex-shrink-0 mb-0.5">
-                                                <button className="hidden sm:block p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors">
+
+                                            {/* Right buttons - absolute right */}
+                                            <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
+                                                <button className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors">
                                                     <Mic size={18} />
                                                 </button>
                                                 <button
@@ -1304,25 +1312,32 @@ export default function ChatInterface() {
                         <div className="p-2 sm:p-4 lg:p-6 z-30 safe-area-bottom">
                             <div className="max-w-3xl mx-auto">
                                 <div className="osool-input-glow">
-                                    <div className="osool-input-surface">
-                                        <div className="flex items-end gap-2 p-2 sm:p-3">
-                                            <button className="p-1.5 sm:p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors flex-shrink-0 mb-0.5">
+                                    <div
+                                        className="osool-input-surface cursor-text"
+                                        onClick={() => textareaRef.current?.focus()}
+                                    >
+                                        <div className="relative flex items-center">
+                                            {/* Plus button - absolute left */}
+                                            <button className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10">
                                                 <Plus size={18} />
                                             </button>
+
+                                            {/* Textarea - full width with padding for buttons */}
                                             <textarea
                                                 ref={textareaRef}
                                                 value={input}
                                                 onChange={e => setInput(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 rows={1}
-                                                className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-1.5 sm:py-2 resize-none placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)] max-h-[150px]"
+                                                className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-3.5 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px]"
                                                 placeholder={isRTL ? 'اسأل عمرو...' : 'Ask AMR...'}
                                                 disabled={isTyping}
                                                 dir="auto"
-                                                autoFocus
                                             />
-                                            <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 mb-0.5">
-                                                <button className="hidden sm:block p-2 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors">
+
+                                            {/* Right buttons - absolute right */}
+                                            <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
+                                                <button className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors">
                                                     <Mic size={18} />
                                                 </button>
                                                 <button
