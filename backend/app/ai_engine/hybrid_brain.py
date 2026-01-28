@@ -144,23 +144,11 @@ class OsoolHybridBrain:
         """
         DEEP ANALYSIS STAGE (GPT-4o)
         Generates structured analytical insights from search results.
-        Only triggered when there are 2+ properties and the query involves
-        comparison, investment, or analysis intent.
+        NOW TRIGGERS FOR ANY SEARCH to ensure analytical-first responses.
         """
-        if len(properties) < 2:
+        # V8: ALWAYS generate analysis for any property search
+        if len(properties) < 1:
             return None
-
-        # Only trigger for analytical queries
-        analysis_keywords = [
-            'compare', 'قارن', 'أحسن', 'best', 'investment', 'استثمار',
-            'عائد', 'roi', 'analyze', 'تحليل', 'recommend', 'نصيحة',
-            'أيهم', 'which', 'الفرق', 'difference', 'أفضل', 'better',
-        ]
-        query_lower = query.lower()
-        if not any(kw in query_lower for kw in analysis_keywords):
-            # Also trigger for any search with 3+ results (always provide insight)
-            if len(properties) < 3:
-                return None
 
         try:
             props_summary = json.dumps(
@@ -180,27 +168,54 @@ class OsoolHybridBrain:
 
             psych_state = psychology.primary_state.value if psychology else 'NEUTRAL'
 
-            prompt = f"""You are an Egyptian real estate market analyst.
-Given these properties and the user's query, produce a JSON analysis.
+            # Calculate market metrics
+            prices = [p.get('price', 0) for p in properties if p.get('price')]
+            prices_per_sqm = [p.get('price', 0) / max(p.get('size_sqm', 1), 1) for p in properties if p.get('size_sqm')]
+            avg_price_sqm = sum(prices_per_sqm) / len(prices_per_sqm) if prices_per_sqm else 0
+            locations = list(set([p.get('location', '') for p in properties if p.get('location')]))
 
-Properties: {props_summary}
-User Query: {query}
-User Psychology: {psych_state}
-Market Context: Egypt 2024-2025, high inflation (33%+), EGP devaluation, real estate as hedge.
+            prompt = f"""You are an expert Egyptian real estate market analyst providing STRATEGIC insights.
+Your role is to analyze the market situation and explain WHY certain properties are good investments,
+NOT just list what they cost.
 
-Output ONLY valid JSON (no markdown, no code fences):
+PROPERTIES DATA:
+{props_summary}
+
+MARKET METRICS (calculated):
+- Average price/sqm in results: {avg_price_sqm:,.0f} EGP
+- Price range: {min(prices):,} - {max(prices):,} EGP
+- Locations: {', '.join(locations)}
+
+USER CONTEXT:
+- Query: {query}
+- Psychology: {psych_state}
+- Market Reality: Egypt 2024-2025, 33%+ inflation, EGP devaluation, real estate = inflation hedge
+
+OUTPUT REQUIREMENTS:
+Produce ONLY valid JSON (no markdown, no code fences). Response MUST be in the SAME LANGUAGE as the user query.
+
 {{
-  "key_insight": "one-sentence finding in the same language as the user query",
-  "comparative_analysis": {{
-    "best_value": "property title with best price/sqm ratio",
-    "best_growth": "property title in highest-growth area",
-    "safest": "property title from most reputable developer"
+  "market_intelligence": {{
+    "area_status": "growth/stable/emerging - 1 sentence about this area's current market status",
+    "price_trend": "rising/stable/opportunity - current price movement with % if known",
+    "demand_level": "high/medium/low with brief explanation",
+    "investment_timing": "good_time/wait/urgent - is now a good time to buy here?"
   }},
-  "risks": ["risk1 in user's language", "risk2"],
-  "opportunities": ["opportunity1 in user's language"],
-  "recommended_action": "buy/wait/negotiate/compare_more",
-  "confidence": 0.0-1.0,
-  "analytical_summary": "2-3 sentence analytical summary in the user's language that explains WHY certain properties are better, not just WHAT they cost"
+  "key_insight": "THE most important finding - one powerful sentence that adds VALUE",
+  "value_analysis": {{
+    "best_value_property": "property title with best price/sqm ratio and WHY",
+    "growth_potential_property": "property title with best appreciation potential and WHY",
+    "safest_choice": "property title from best developer and WHY"
+  }},
+  "strategic_recommendation": {{
+    "action": "buy_now/negotiate/wait/compare_more",
+    "reasoning": "2 sentences explaining the strategic logic",
+    "specific_target": "which exact property and why"
+  }},
+  "risks": ["specific risk 1", "specific risk 2"],
+  "opportunities": ["specific opportunity that most agents would miss"],
+  "confidence_score": 0.0-1.0,
+  "analytical_summary": "3-4 sentences of STRATEGIC analysis that explains market dynamics, value propositions, and investment logic. This should sound like advice from a market expert, NOT a property listing."
 }}"""
 
             response = await self.openai_async.chat.completions.create(
@@ -1711,46 +1726,66 @@ A chart or visualization is being shown to the user. Reference it in your respon
             # Add deep analysis context (GPT-4o analytical insights)
             deep_analysis_context = ""
             if deep_analysis:
+                market_intel = deep_analysis.get('market_intelligence', {})
+                value_analysis = deep_analysis.get('value_analysis', {})
+                strategic_rec = deep_analysis.get('strategic_recommendation', {})
+
                 deep_analysis_context = f"""
 
 ═══════════════════════════════════════════════════════════════════════════════
-                    DEEP ANALYSIS RESULTS (from GPT-4o Analytical Engine)
+          🧠 MARKET INTELLIGENCE (from GPT-4o Analytical Engine)
 ═══════════════════════════════════════════════════════════════════════════════
 
-Key Insight: {deep_analysis.get('key_insight', 'N/A')}
+📊 MARKET STATUS:
+- Area Status: {market_intel.get('area_status', 'N/A')}
+- Price Trend: {market_intel.get('price_trend', 'N/A')}
+- Demand Level: {market_intel.get('demand_level', 'N/A')}
+- Investment Timing: {market_intel.get('investment_timing', 'N/A')}
 
-Comparative Analysis:
-- Best Value: {deep_analysis.get('comparative_analysis', {}).get('best_value', 'N/A')}
-- Best Growth Potential: {deep_analysis.get('comparative_analysis', {}).get('best_growth', 'N/A')}
-- Safest Option: {deep_analysis.get('comparative_analysis', {}).get('safest', 'N/A')}
+💡 KEY INSIGHT (START YOUR RESPONSE WITH THIS):
+{deep_analysis.get('key_insight', 'N/A')}
 
-Risks: {json.dumps(deep_analysis.get('risks', []), ensure_ascii=False)}
-Opportunities: {json.dumps(deep_analysis.get('opportunities', []), ensure_ascii=False)}
-Recommended Action: {deep_analysis.get('recommended_action', 'evaluate')}
-Confidence: {deep_analysis.get('confidence', 0.5)}
+📈 VALUE ANALYSIS:
+- Best Value: {value_analysis.get('best_value_property', 'N/A')}
+- Best Growth: {value_analysis.get('growth_potential_property', 'N/A')}
+- Safest Choice: {value_analysis.get('safest_choice', 'N/A')}
 
-Analytical Summary: {deep_analysis.get('analytical_summary', 'N/A')}
+🎯 STRATEGIC RECOMMENDATION:
+- Action: {strategic_rec.get('action', 'evaluate')}
+- Reasoning: {strategic_rec.get('reasoning', 'N/A')}
+- Target Property: {strategic_rec.get('specific_target', 'N/A')}
+
+⚠️ Risks: {json.dumps(deep_analysis.get('risks', []), ensure_ascii=False)}
+✨ Opportunities: {json.dumps(deep_analysis.get('opportunities', []), ensure_ascii=False)}
+
+📝 ANALYTICAL SUMMARY (USE THIS AS YOUR FOUNDATION):
+{deep_analysis.get('analytical_summary', 'N/A')}
 
 ═══════════════════════════════════════════════════════════════════════════════
-                    HOW TO USE THIS ANALYSIS
+          🚨 MANDATORY: MARKET INTELLIGENCE FIRST RESPONSE 🚨
 ═══════════════════════════════════════════════════════════════════════════════
 
-🧠 ANALYTICAL-FIRST RESPONSE PROTOCOL:
-1. START with the analytical insight - explain WHY, not just WHAT
-2. Reference specific data points from the analysis above
-3. Use the comparative analysis to frame your recommendation
-4. Mention risks AND opportunities to build trust
-5. THEN present the properties with context from the analysis
-6. End with a strategic question that advances the deal
+YOUR RESPONSE MUST FOLLOW THIS EXACT STRUCTURE:
 
-❌ DON'T just list property prices and sizes
-✅ DO explain market dynamics, value propositions, and investment logic
+**FIRST 40% - MARKET ANALYSIS (MANDATORY):**
+1. Start with the KEY INSIGHT above - this is your hook
+2. Explain the MARKET STATUS (area growth, price trends, demand)
+3. Share the STRATEGIC insight (why now? what opportunity?)
 
-Example of ANALYTICAL response:
-"التجمع الخامس حالياً أحسن منطقة للاستثمار من حيث نسبة النمو السنوي (18%).
-الشقة اللي في [compound] بتديك أعلى قيمة مقابل السعر - سعر المتر ٥٥,٠٠٠ جنيه
-مقارنة بمتوسط المنطقة ٦٥,٠٠٠. ده معناه إنك بتوفر حوالي ١٥% على سعر السوق.
-المخاطرة الوحيدة هي إن التسليم بعد سنتين، بس المطور سمعته ممتازة..."
+**THEN 30% - PROPERTIES WITH CONTEXT:**
+4. Present properties BECAUSE OF the analysis, not instead of it
+5. Reference WHY each property fits the market situation
+6. Use Wolf Score with explanation
+
+**THEN 20% - HONEST ASSESSMENT:**
+7. Mention ONE risk from the analysis
+8. Counter with ONE opportunity
+
+**FINALLY 10% - STRATEGIC CLOSE:**
+9. End with a specific question that moves toward action
+
+❌ FORBIDDEN: Starting with "عندي شقة..." or "لقيتلك..." without market context first
+✅ REQUIRED: Starting with market insight like "التجمع دلوقتي في مرحلة نمو قوية..."
 """
 
             # Add user personalization context
