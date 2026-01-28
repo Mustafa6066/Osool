@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, ArrowRight, Lightbulb, MapPin, Building2, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowRight, MapPin, Building2, Wallet, TrendingUp } from "lucide-react";
 
 interface Alternative {
     label_ar: string;
@@ -15,20 +15,21 @@ interface RealityCheckProps {
     message_en: string;
     alternatives: Alternative[];
     pivot_action?: string;
+    isRTL?: boolean;
 }
 
 // Map actions to icons
 const getActionIcon = (action: string) => {
-    if (action.includes("october") || action.includes("nearby")) {
-        return <MapPin className="w-4 h-4" />;
+    if (action.includes("october") || action.includes("nearby") || action.includes("area")) {
+        return MapPin;
     }
-    if (action.includes("apt") || action.includes("apartment")) {
-        return <Building2 className="w-4 h-4" />;
+    if (action.includes("apt") || action.includes("apartment") || action.includes("type")) {
+        return Building2;
     }
-    if (action.includes("budget")) {
-        return <Wallet className="w-4 h-4" />;
+    if (action.includes("budget") || action.includes("price")) {
+        return Wallet;
     }
-    return <ArrowRight className="w-4 h-4" />;
+    return TrendingUp;
 };
 
 export default function RealityCheck({
@@ -36,97 +37,81 @@ export default function RealityCheck({
     message_ar,
     message_en,
     alternatives = [],
+    isRTL = true,
 }: RealityCheckProps) {
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-            className="bg-gradient-to-br from-orange-900/30 to-red-900/30 border-2 border-orange-500/50 rounded-2xl p-6 overflow-hidden"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl overflow-hidden bg-gradient-to-br from-orange-950/80 to-red-950/60 border border-orange-500/30"
+            dir={isRTL ? 'rtl' : 'ltr'}
         >
-            {/* Header */}
-            <div className="flex items-start gap-4 mb-5">
-                <motion.div
-                    initial={{ rotate: 0 }}
-                    animate={{ rotate: [0, -5, 5, -5, 0] }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className="bg-orange-500/20 p-2 rounded-xl"
-                >
-                    <AlertCircle className="w-6 h-6 text-orange-400" />
-                </motion.div>
-                <div>
-                    <h3 className="text-lg font-bold text-orange-400 flex items-center gap-2">
-                        Reality Check
-                        <span className="text-xs bg-orange-500/30 px-2 py-0.5 rounded-full text-orange-300">
-                            Wolf&apos;s Advice
+            {/* Compact Header */}
+            <div className="px-4 py-3 bg-gradient-to-r from-orange-500/20 to-transparent flex items-center gap-3">
+                <div className="p-1.5 bg-orange-500/20 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-orange-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="font-bold text-orange-400 text-sm">
+                            {isRTL ? 'تنبيه ذكي' : 'Reality Check'}
                         </span>
-                    </h3>
-                    <p className="text-sm text-gray-400 mt-1">{detected}</p>
+                        <span className="px-1.5 py-0.5 bg-orange-500/20 text-orange-300 text-[9px] font-medium rounded">
+                            {isRTL ? 'نصيحة' : 'Advice'}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            {/* Message */}
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-black/30 rounded-xl p-4 mb-5 border border-orange-500/20"
-            >
-                <p className="text-white text-sm leading-relaxed" dir="rtl">
-                    {message_ar}
+            {/* Message - Compact */}
+            <div className="px-4 py-3">
+                <p className="text-sm text-white/90 leading-relaxed">
+                    {isRTL ? message_ar : message_en}
                 </p>
-                <p className="text-gray-400 text-xs mt-3">{message_en}</p>
-            </motion.div>
+                {detected && (
+                    <p className="text-xs text-orange-300/70 mt-2">
+                        {detected}
+                    </p>
+                )}
+            </div>
 
-            {/* Alternatives */}
+            {/* Alternatives - Compact Pills */}
             {alternatives.length > 0 && (
-                <div>
-                    <div className="flex items-center gap-2 mb-3 text-sm text-gray-300">
-                        <Lightbulb className="w-4 h-4 text-yellow-400" />
-                        <span>Smart Alternatives:</span>
-                    </div>
-                    <div className="space-y-2">
-                        {alternatives.map((alt, idx) => (
-                            <motion.button
-                                key={idx}
-                                initial={{ x: -20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.2 + idx * 0.1 }}
-                                whileHover={{ scale: 1.02, x: 5 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 hover:border-orange-500/50 rounded-xl p-4 text-left transition-all group"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-orange-500/20 p-2 rounded-lg text-orange-400 group-hover:bg-orange-500/30 transition-colors">
-                                            {getActionIcon(alt.action)}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-white" dir="rtl">
-                                                {alt.label_ar}
-                                            </p>
-                                            <p className="text-xs text-gray-500">{alt.label_en}</p>
-                                        </div>
-                                    </div>
-                                    <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-orange-400 group-hover:translate-x-1 transition-all" />
-                                </div>
-                            </motion.button>
-                        ))}
+                <div className="px-4 pb-3">
+                    <div className="flex flex-wrap gap-2">
+                        {alternatives.slice(0, 3).map((alt, idx) => {
+                            const Icon = getActionIcon(alt.action);
+                            return (
+                                <motion.button
+                                    key={idx}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    whileHover={{ scale: 1.03 }}
+                                    whileTap={{ scale: 0.97 }}
+                                    className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/15 border border-white/10 hover:border-orange-500/40 rounded-lg text-xs transition-all group"
+                                >
+                                    <Icon className="w-3.5 h-3.5 text-orange-400" />
+                                    <span className="text-white/90 font-medium">
+                                        {isRTL ? alt.label_ar : alt.label_en}
+                                    </span>
+                                    <ArrowRight className={`w-3 h-3 text-orange-400/50 group-hover:text-orange-400 transition-colors ${isRTL ? 'rotate-180' : ''}`} />
+                                </motion.button>
+                            );
+                        })}
                     </div>
                 </div>
             )}
 
-            {/* Footer */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="mt-5 pt-4 border-t border-white/10 text-center"
-            >
-                <p className="text-xs text-gray-500">
-                    🐺 The Wolf knows the market. These alternatives match your real budget.
+            {/* Persuasive Footer */}
+            <div className="px-4 py-2 bg-gradient-to-r from-white/5 to-transparent border-t border-white/5">
+                <p className="text-[10px] text-center text-white/50">
+                    {isRTL
+                        ? '💡 بدائل ذكية تناسب ميزانيتك الحقيقية'
+                        : '💡 Smart alternatives that match your real budget'
+                    }
                 </p>
-            </motion.div>
+            </div>
         </motion.div>
     );
 }

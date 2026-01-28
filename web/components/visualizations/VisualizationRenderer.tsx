@@ -95,6 +95,7 @@ function VisualizationSkeleton() {
 interface VisualizationRendererProps {
     type: string;
     data: any;
+    isRTL?: boolean;
 }
 
 /**
@@ -103,7 +104,7 @@ interface VisualizationRendererProps {
  * Routes visualization types to their corresponding components.
  * Supports both legacy visualization types and new V4 Wolf Brain types.
  */
-export default function VisualizationRenderer({ type, data }: VisualizationRendererProps) {
+export default function VisualizationRenderer({ type, data, isRTL = true }: VisualizationRendererProps) {
     // Handle null/undefined data gracefully
     if (!data) {
         console.warn(`VisualizationRenderer: No data provided for type "${type}"`);
@@ -121,9 +122,10 @@ export default function VisualizationRenderer({ type, data }: VisualizationRende
             );
 
         case "la2ta_alert":
+        case "لقطة":
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <La2taAlert {...data} />
+                    <La2taAlert {...data} isRTL={isRTL} />
                 </Suspense>
             );
 
@@ -137,7 +139,7 @@ export default function VisualizationRenderer({ type, data }: VisualizationRende
         case "reality_check":
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <RealityCheck {...data} />
+                    <RealityCheck {...data} isRTL={isRTL} />
                 </Suspense>
             );
 

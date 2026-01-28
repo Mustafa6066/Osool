@@ -412,17 +412,19 @@ function ContextualInsights({
 
     const getVizName = (type: string): string => {
         const names: Record<string, string> = {
-            'investment_scorecard': isRTL ? 'بطاقة الاستثمار' : 'Investment',
+            'investment_scorecard': isRTL ? 'تقييم' : 'Investment',
             'comparison_matrix': isRTL ? 'مقارنة' : 'Compare',
-            'inflation_killer': isRTL ? 'حماية التضخم' : 'Inflation',
-            'payment_timeline': isRTL ? 'جدول السداد' : 'Payment',
-            'market_trend_chart': isRTL ? 'اتجاه السوق' : 'Trend',
-            'area_analysis': isRTL ? 'تحليل المنطقة' : 'Area',
+            'inflation_killer': isRTL ? 'حماية' : 'Inflation',
+            'payment_timeline': isRTL ? 'السداد' : 'Payment',
+            'market_trend_chart': isRTL ? 'السوق' : 'Trend',
+            'area_analysis': isRTL ? 'المنطقة' : 'Area',
             'developer_analysis': isRTL ? 'المطور' : 'Developer',
             'roi_calculator': isRTL ? 'العائد' : 'ROI',
             'property_type_analysis': isRTL ? 'أنواع' : 'Types',
             'payment_plan_analysis': isRTL ? 'السداد' : 'Plans',
             'resale_vs_developer': isRTL ? 'ريسيل' : 'Resale',
+            'la2ta_alert': isRTL ? 'لقطة' : 'Deal',
+            'reality_check': isRTL ? 'تنبيه' : 'Alert',
         };
         return names[type] || type?.replace(/_/g, ' ');
     };
@@ -440,6 +442,8 @@ function ContextualInsights({
             'property_type_analysis': 'category',
             'payment_plan_analysis': 'credit_card',
             'resale_vs_developer': 'swap_horiz',
+            'la2ta_alert': 'local_fire_department',
+            'reality_check': 'lightbulb',
         };
         return icons[type] || 'auto_awesome';
     };
@@ -469,6 +473,10 @@ function ContextualInsights({
                 return `${data?.plans?.length || 0} ${isRTL ? 'خطة' : 'plans'}`;
             case 'resale_vs_developer':
                 return data?.recommendation?.recommendation === 'resale' ? (isRTL ? 'ريسيل' : 'Resale') : (isRTL ? 'مطور' : 'Developer');
+            case 'la2ta_alert':
+                return `${data?.properties?.length || 0} ${isRTL ? 'فرصة' : 'deals'}`;
+            case 'reality_check':
+                return `${data?.alternatives?.length || 0} ${isRTL ? 'بديل' : 'options'}`;
             default:
                 return '—';
         }
@@ -599,18 +607,20 @@ function CompactVisualization({ viz, isRTL }: { viz: any; isRTL: boolean }) {
 
     const getVizName = (type: string): string => {
         const names: Record<string, string> = {
-            'investment_scorecard': isRTL ? 'بطاقة الاستثمار' : 'Investment Scorecard',
-            'comparison_matrix': isRTL ? 'مقارنة العقارات' : 'Property Comparison',
-            'inflation_killer': isRTL ? 'حماية من التضخم' : 'Inflation Protection',
-            'payment_timeline': isRTL ? 'جدول السداد' : 'Payment Timeline',
+            'investment_scorecard': isRTL ? 'تقييم الاستثمار' : 'Investment Score',
+            'comparison_matrix': isRTL ? 'مقارنة' : 'Compare',
+            'inflation_killer': isRTL ? 'حماية التضخم' : 'Inflation Shield',
+            'payment_timeline': isRTL ? 'جدول السداد' : 'Payment Plan',
             'market_trend_chart': isRTL ? 'اتجاه السوق' : 'Market Trend',
             'area_analysis': isRTL ? 'تحليل المنطقة' : 'Area Analysis',
-            'developer_analysis': isRTL ? 'تحليل المطور' : 'Developer Analysis',
+            'developer_analysis': isRTL ? 'تحليل المطور' : 'Developer',
             'roi_calculator': isRTL ? 'حاسبة العائد' : 'ROI Calculator',
             'property_type_analysis': isRTL ? 'أنواع العقارات' : 'Property Types',
             'payment_plan_analysis': isRTL ? 'خطط السداد' : 'Payment Plans',
-            'payment_plan_comparison': isRTL ? 'مقارنة خطط السداد' : 'Payment Plan Comparison',
-            'resale_vs_developer': isRTL ? 'ريسيل مقابل المطور' : 'Resale vs Developer',
+            'payment_plan_comparison': isRTL ? 'خطط السداد' : 'Payment Plans',
+            'resale_vs_developer': isRTL ? 'ريسيل vs مطور' : 'Resale vs Developer',
+            'la2ta_alert': isRTL ? 'لقطة!' : 'Hot Deal!',
+            'reality_check': isRTL ? 'تنبيه ذكي' : 'Reality Check',
         };
         return names[type] || type?.replace(/_/g, ' ');
     };
@@ -629,6 +639,8 @@ function CompactVisualization({ viz, isRTL }: { viz: any; isRTL: boolean }) {
             'payment_plan_analysis': 'credit_card',
             'payment_plan_comparison': 'credit_card',
             'resale_vs_developer': 'swap_horiz',
+            'la2ta_alert': 'local_fire_department',
+            'reality_check': 'lightbulb',
         };
         return icons[type] || 'auto_awesome';
     };
@@ -659,7 +671,7 @@ function CompactVisualization({ viz, isRTL }: { viz: any; isRTL: boolean }) {
                 className="overflow-hidden relative"
             >
                 <div className={`${expanded ? '' : 'max-h-40'} overflow-y-auto`}>
-                    <VisualizationRenderer type={viz.type} data={viz.data} />
+                    <VisualizationRenderer type={viz.type} data={viz.data} isRTL={isRTL} />
                 </div>
                 {!expanded && (
                     <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[var(--color-studio-white)] to-transparent pointer-events-none" />
@@ -1092,8 +1104,8 @@ export default function ChatInterface() {
                                                 onChange={e => setInput(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 rows={1}
-                                                className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-2 resize-none placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)] max-h-[150px]"
-                                                placeholder={isRTL ? 'اسأل عمرو عن العقارات...' : 'Ask AMR about properties...'}
+                                                className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-1.5 sm:py-2 resize-none placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)] max-h-[150px]"
+                                                placeholder={isRTL ? 'اسأل عمرو...' : 'Ask AMR...'}
                                                 disabled={isTyping || isTransitioning}
                                                 dir="auto"
                                                 autoFocus
@@ -1273,8 +1285,8 @@ export default function ChatInterface() {
                                                 onChange={e => setInput(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 rows={1}
-                                                className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-2 resize-none placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)] max-h-[150px]"
-                                                placeholder={isRTL ? 'اسأل عمرو عن العقارات...' : 'Ask AMR about properties...'}
+                                                className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-1.5 sm:py-2 resize-none placeholder:text-[var(--color-text-muted-studio)]/50 text-[var(--color-text-main)] max-h-[150px]"
+                                                placeholder={isRTL ? 'اسأل عمرو...' : 'Ask AMR...'}
                                                 disabled={isTyping}
                                                 dir="auto"
                                                 autoFocus
