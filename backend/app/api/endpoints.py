@@ -1166,6 +1166,16 @@ async def chat_stream(
             # Send final response with all metadata
             yield f"data: {json.dumps({'type': 'done', 'properties': search_results, 'ui_actions': ui_actions, 'psychology': psychology})}\n\n"
 
+            # Proactive follow-up: Check if AMR should send a delayed follow-up
+            try:
+                proactive = ai_result.get('proactive_alerts', [])
+                if proactive and len(proactive) > 0:
+                    top_alert = proactive[0]
+                    await asyncio.sleep(2)  # Brief pause before follow-up
+                    yield f"data: {json.dumps({'type': 'follow_up', 'content': top_alert})}\n\n"
+            except Exception:
+                pass  # Non-fatal: follow-up is optional
+
         except Exception as e:
             await db.rollback()
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"

@@ -31,6 +31,8 @@ from app.ai_engine.psychology_layer import (
     PsychologicalState
 )
 from app.ai_engine.proactive_alerts import proactive_alert_engine
+from app.ai_engine.conversation_memory import ConversationMemory
+from app.ai_engine.analytical_actions import generate_analytical_ui_actions
 from app.services.vector_search import search_properties as db_search_properties
 from app.services.market_statistics import get_market_statistics, format_statistics_for_ai
 from app.database import AsyncSessionLocal
@@ -106,9 +108,18 @@ class OsoolHybridBrain:
         """Initialize all AI components."""
         self.openai_async = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.anthropic_async = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        
+
         # Feature flag for rollback safety
         self.enabled = os.getenv("ENABLE_REASONING_LOOP", "true").lower() == "true"
+
+        # Session-scoped conversation memories
+        self._session_memories: Dict[str, ConversationMemory] = {}
+
+    def get_memory(self, session_id: str) -> ConversationMemory:
+        """Get or create conversation memory for a session."""
+        if session_id not in self._session_memories:
+            self._session_memories[session_id] = ConversationMemory()
+        return self._session_memories[session_id]
     
     def _detect_language(self, text: str) -> str:
         """Detect if text is primarily Arabic or English."""
@@ -122,7 +133,92 @@ class OsoolHybridBrain:
             return "en"
         arabic_ratio = arabic_chars / total_chars
         return "ar" if arabic_ratio > 0.3 else "en"
-        
+
+    async def _deep_analysis(
+        self,
+        properties: List[Dict],
+        query: str,
+        psychology: PsychologyProfile,
+        market_stats: Optional[Dict] = None
+    ) -> Optional[Dict]:
+        """
+        DEEP ANALYSIS STAGE (GPT-4o)
+        Generates structured analytical insights from search results.
+        Only triggered when there are 2+ properties and the query involves
+        comparison, investment, or analysis intent.
+        """
+        if len(properties) < 2:
+            return None
+
+        # Only trigger for analytical queries
+        analysis_keywords = [
+            'compare', 'قارن', 'أحسن', 'best', 'investment', 'استثمار',
+            'عائد', 'roi', 'analyze', 'تحليل', 'recommend', 'نصيحة',
+            'أيهم', 'which', 'الفرق', 'difference', 'أفضل', 'better',
+        ]
+        query_lower = query.lower()
+        if not any(kw in query_lower for kw in analysis_keywords):
+            # Also trigger for any search with 3+ results (always provide insight)
+            if len(properties) < 3:
+                return None
+
+        try:
+            props_summary = json.dumps(
+                [{
+                    'title': p.get('title', ''),
+                    'location': p.get('location', ''),
+                    'price': p.get('price', 0),
+                    'size_sqm': p.get('size_sqm', 0),
+                    'bedrooms': p.get('bedrooms', 0),
+                    'developer': p.get('developer', ''),
+                    'wolf_score': p.get('wolf_score', 0),
+                    'roi': self._calculate_roi_projection(p),
+                    'price_per_sqm': round(p.get('price', 0) / max(p.get('size_sqm', 1), 1)),
+                } for p in properties[:5]],
+                ensure_ascii=False
+            )
+
+            psych_state = psychology.primary_state.value if psychology else 'NEUTRAL'
+
+            prompt = f"""You are an Egyptian real estate market analyst.
+Given these properties and the user's query, produce a JSON analysis.
+
+Properties: {props_summary}
+User Query: {query}
+User Psychology: {psych_state}
+Market Context: Egypt 2024-2025, high inflation (33%+), EGP devaluation, real estate as hedge.
+
+Output ONLY valid JSON (no markdown, no code fences):
+{{
+  "key_insight": "one-sentence finding in the same language as the user query",
+  "comparative_analysis": {{
+    "best_value": "property title with best price/sqm ratio",
+    "best_growth": "property title in highest-growth area",
+    "safest": "property title from most reputable developer"
+  }},
+  "risks": ["risk1 in user's language", "risk2"],
+  "opportunities": ["opportunity1 in user's language"],
+  "recommended_action": "buy/wait/negotiate/compare_more",
+  "confidence": 0.0-1.0,
+  "analytical_summary": "2-3 sentence analytical summary in the user's language that explains WHY certain properties are better, not just WHAT they cost"
+}}"""
+
+            response = await self.openai_async.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=800,
+                response_format={"type": "json_object"}
+            )
+
+            result = json.loads(response.choices[0].message.content)
+            logger.info(f"🔬 Deep Analysis: {result.get('key_insight', 'N/A')}")
+            return result
+
+        except Exception as e:
+            logger.warning(f"Deep analysis failed (non-fatal): {e}")
+            return None
+
     async def process_turn(
         self,
         query: str,
@@ -189,7 +285,15 @@ class OsoolHybridBrain:
             strategy = self._determine_strategy(profile, scored_data, intent, psychology)
             logger.info(f"🎯 Strategy: {strategy}")
 
+            # 6.5 DEEP ANALYSIS (GPT-4o): Structured analytical insights
+            deep_analysis = await self._deep_analysis(
+                scored_data, query, psychology
+            )
+            if deep_analysis:
+                logger.info(f"🔬 Deep Analysis complete: {deep_analysis.get('key_insight', 'N/A')[:80]}")
+
             # 7. SPEAK: Generate Response (Claude 3.5 Sonnet)
+            # Now with deep analysis context for analytical-first responses
             response = await self._generate_wolf_narrative(
                 query,
                 scored_data,
@@ -197,11 +301,26 @@ class OsoolHybridBrain:
                 strategy,
                 psychology,
                 language=language,
-                profile=profile
+                profile=profile,
+                deep_analysis=deep_analysis
             )
 
             # 8. UI_TRIGGERS: Determine which visualizations to show
             ui_actions = self._determine_ui_actions(psychology, scored_data, intent, query)
+
+            # 8.5 ANALYTICAL ACTIONS: Add deep-analysis-driven UI actions
+            if deep_analysis:
+                analytical_ui = generate_analytical_ui_actions(
+                    deep_analysis, psychology, scored_data
+                )
+                # Merge: analytical actions take precedence for matching types
+                existing_types = {a['type'] for a in ui_actions}
+                for action in analytical_ui:
+                    if action['type'] not in existing_types:
+                        ui_actions.append(action)
+                # Re-sort and limit
+                ui_actions = sorted(ui_actions, key=lambda x: x.get('priority', 0), reverse=True)[:5]
+
             logger.info(f"🎨 UI Actions: {[a['type'] for a in ui_actions]}")
 
             # 9. PROACTIVE_ALERTS: Scan for opportunities (V2)
@@ -213,12 +332,13 @@ class OsoolHybridBrain:
             )
             logger.info(f"🚨 Proactive Alerts: {len(proactive_alerts)} alerts generated")
 
-            logger.info(f"✅ Wolf Brain V5 complete")
+            logger.info(f"✅ Wolf Brain V6 complete")
             return {
                 "response": response,
                 "properties": scored_data,
                 "ui_actions": ui_actions,
                 "proactive_alerts": proactive_alerts,
+                "deep_analysis": deep_analysis,
                 "psychology": psychology.to_dict(),
                 "agentic_action": None
             }
@@ -1470,7 +1590,8 @@ Examples:
         strategy: str,
         psychology: Optional[PsychologyProfile] = None,
         language: str = "auto",
-        profile: Optional[Dict] = None
+        profile: Optional[Dict] = None,
+        deep_analysis: Optional[Dict] = None
     ) -> str:
         """
         STEP 7: SPEAK (Claude 3.5 Sonnet)
@@ -1587,6 +1708,51 @@ A chart or visualization is being shown to the user. Reference it in your respon
 - "زي ما واضح في الأرقام..." (As shown in the numbers...)
 """
 
+            # Add deep analysis context (GPT-4o analytical insights)
+            deep_analysis_context = ""
+            if deep_analysis:
+                deep_analysis_context = f"""
+
+═══════════════════════════════════════════════════════════════════════════════
+                    DEEP ANALYSIS RESULTS (from GPT-4o Analytical Engine)
+═══════════════════════════════════════════════════════════════════════════════
+
+Key Insight: {deep_analysis.get('key_insight', 'N/A')}
+
+Comparative Analysis:
+- Best Value: {deep_analysis.get('comparative_analysis', {}).get('best_value', 'N/A')}
+- Best Growth Potential: {deep_analysis.get('comparative_analysis', {}).get('best_growth', 'N/A')}
+- Safest Option: {deep_analysis.get('comparative_analysis', {}).get('safest', 'N/A')}
+
+Risks: {json.dumps(deep_analysis.get('risks', []), ensure_ascii=False)}
+Opportunities: {json.dumps(deep_analysis.get('opportunities', []), ensure_ascii=False)}
+Recommended Action: {deep_analysis.get('recommended_action', 'evaluate')}
+Confidence: {deep_analysis.get('confidence', 0.5)}
+
+Analytical Summary: {deep_analysis.get('analytical_summary', 'N/A')}
+
+═══════════════════════════════════════════════════════════════════════════════
+                    HOW TO USE THIS ANALYSIS
+═══════════════════════════════════════════════════════════════════════════════
+
+🧠 ANALYTICAL-FIRST RESPONSE PROTOCOL:
+1. START with the analytical insight - explain WHY, not just WHAT
+2. Reference specific data points from the analysis above
+3. Use the comparative analysis to frame your recommendation
+4. Mention risks AND opportunities to build trust
+5. THEN present the properties with context from the analysis
+6. End with a strategic question that advances the deal
+
+❌ DON'T just list property prices and sizes
+✅ DO explain market dynamics, value propositions, and investment logic
+
+Example of ANALYTICAL response:
+"التجمع الخامس حالياً أحسن منطقة للاستثمار من حيث نسبة النمو السنوي (18%).
+الشقة اللي في [compound] بتديك أعلى قيمة مقابل السعر - سعر المتر ٥٥,٠٠٠ جنيه
+مقارنة بمتوسط المنطقة ٦٥,٠٠٠. ده معناه إنك بتوفر حوالي ١٥% على سعر السوق.
+المخاطرة الوحيدة هي إن التسليم بعد سنتين، بس المطور سمعته ممتازة..."
+"""
+
             # Add user personalization context
             personalization_context = ""
             if user_first_name:
@@ -1599,8 +1765,8 @@ The user's name is "{user_first_name}". Address them by name occasionally to bui
 Do NOT overuse the name - use it 1-2 times per response maximum.
 """
 
-            # Build Claude prompt with psychology
-            system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}" + psychology_context + personalization_context
+            # Build Claude prompt with psychology + deep analysis
+            system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}" + psychology_context + deep_analysis_context + personalization_context
             
             # Add CRITICAL override at the end (Claude pays more attention to end of prompt)
             prices_in_results = [p.get('price', 0) for p in data] if data else [0]

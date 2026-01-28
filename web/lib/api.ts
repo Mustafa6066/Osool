@@ -170,11 +170,11 @@ export const storeAuthTokens = (accessToken: string, refreshToken?: string): voi
 /**
  * V6: Streaming Chat Response Types
  */
-export type StreamEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'error';
+export type StreamEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'follow_up' | 'error';
 
 export interface StreamEvent {
   type: StreamEventType;
-  content?: string;
+  content?: string | Record<string, any>;
   tool?: string;
   properties?: any[];
   ui_actions?: any[];
@@ -187,6 +187,7 @@ export interface StreamChatCallbacks {
   onToolStart: (tool: string) => void;
   onToolEnd: (tool: string) => void;
   onComplete: (data: { properties: any[]; ui_actions: any[]; psychology?: any }) => void;
+  onFollowUp?: (followUp: any) => void;
   onError: (error: string) => void;
 }
 
@@ -258,6 +259,11 @@ export const streamChat = async (
                 ui_actions: data.ui_actions || [],
                 psychology: data.psychology,
               });
+              break;
+            case 'follow_up':
+              if (callbacks.onFollowUp && data.content) {
+                callbacks.onFollowUp(data.content);
+              }
               break;
             case 'error':
               callbacks.onError(data.message || 'Unknown error');
