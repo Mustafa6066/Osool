@@ -107,14 +107,25 @@ interface VisualizationRendererProps {
 export default function VisualizationRenderer({ type, data, isRTL = true }: VisualizationRendererProps) {
     // Handle null/undefined data gracefully
     if (!data) {
-        console.warn(`VisualizationRenderer: No data provided for type "${type}"`);
         return null;
     }
+
+    // Helper to check if data has meaningful content
+    const hasContent = (obj: any, keys: string[]): boolean => {
+        if (!obj) return false;
+        return keys.some(key => {
+            const val = obj[key];
+            if (Array.isArray(val)) return val.length > 0;
+            if (typeof val === 'object' && val !== null) return Object.keys(val).length > 0;
+            return val !== undefined && val !== null && val !== '';
+        });
+    };
 
     // Route to appropriate component based on type
     switch (type) {
         // V4: New Wolf Brain visualizations
         case "inflation_killer":
+            if (!hasContent(data, ['projections', 'data_points', 'summary'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <InflationKillerChart {...data} />
@@ -123,6 +134,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
 
         case "la2ta_alert":
         case "لقطة":
+            if (!hasContent(data, ['properties']) || !data.properties?.length) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <La2taAlert {...data} isRTL={isRTL} />
@@ -130,6 +142,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         case "law_114_guardian":
+            if (!hasContent(data, ['capabilities', 'result', 'trust_badges'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <Law114Guardian {...data} />
@@ -137,6 +150,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         case "reality_check":
+            if (!hasContent(data, ['alternatives', 'message_ar', 'message_en'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <RealityCheck {...data} isRTL={isRTL} />
@@ -146,17 +160,12 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         // V6: Advanced Analytics visualizations
         // Map backend data structure to component props
         case "area_analysis": {
-            // Backend sends: { areas: [...], comparison: {...}, price_heatmap: [...] }
-            // Component expects: { area: {...}, comparison: {...}, heatmap: [...] }
             const areaData = {
                 area: data.areas?.[0] || data.area || null,
                 comparison: data.comparison,
                 heatmap: data.price_heatmap || data.heatmap
             };
-            if (!areaData.area) {
-                console.warn('VisualizationRenderer: area_analysis missing area data');
-                return null;
-            }
+            if (!areaData.area) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <AreaAnalysis {...areaData} />
@@ -165,16 +174,11 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         }
 
         case "developer_analysis": {
-            // Backend sends: { developers: [...], ranking: {...} }
-            // Component expects: { developer: {...}, rankings: {...} }
             const devData = {
                 developer: data.developers?.[0] || data.developer || null,
                 rankings: data.ranking || data.rankings
             };
-            if (!devData.developer) {
-                console.warn('VisualizationRenderer: developer_analysis missing developer data');
-                return null;
-            }
+            if (!devData.developer) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <DeveloperAnalysis {...devData} />
@@ -183,16 +187,11 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         }
 
         case "property_type_analysis": {
-            // Backend sends: { types: [...], recommendation: {...}, price_comparison: [...] }
-            // Component expects: { analysis: {...}, comparison: [...] }
             const typeData = {
                 analysis: data.types?.[0] || data.analysis || null,
                 comparison: data.price_comparison || data.comparison
             };
-            if (!typeData.analysis) {
-                console.warn('VisualizationRenderer: property_type_analysis missing analysis data');
-                return null;
-            }
+            if (!typeData.analysis) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <PropertyTypeAnalysis {...typeData} />
@@ -202,13 +201,13 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
 
         case "payment_plan_comparison":
         case "payment_plan_analysis": {
-            // Backend sends: { plans: [...], best_plans: {...} }
             const planData = {
                 plans: data.plans || [],
                 best_down_payment: data.best_plans?.lowest_down_payment || data.best_down_payment,
                 longest_installment: data.best_plans?.longest_installment || data.longest_installment,
                 lowest_monthly: data.best_plans?.lowest_monthly || data.lowest_monthly
             };
+            if (!planData.plans?.length) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <PaymentPlanComparison {...planData} />
@@ -240,15 +239,11 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         }
 
         case "roi_calculator": {
-            // Backend sends: { properties: [...], market_benchmarks: {...}, comparison: {...} }
             const roiData = {
                 roi: data.properties?.[0] || data.roi || null,
                 comparisons: data.comparison || data.comparisons
             };
-            if (!roiData.roi) {
-                console.warn('VisualizationRenderer: roi_calculator missing roi data');
-                return null;
-            }
+            if (!roiData.roi) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <ROICalculator {...roiData} />
@@ -257,6 +252,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         }
 
         case "price_heatmap":
+            if (!data.locations?.length) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <PriceHeatmap {...data} />
@@ -265,6 +261,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
 
         // Legacy visualization types
         case "investment_scorecard":
+            if (!data.property && !data.analysis) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <InvestmentScorecard
@@ -275,6 +272,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         case "comparison_matrix":
+            if (!data.properties?.length) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <ComparisonMatrix
@@ -286,6 +284,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         case "payment_timeline":
+            if (!data.property && !data.payment) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <PaymentTimeline
@@ -296,6 +295,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         case "market_trend_chart":
+            if (!data.trend_data?.length && !data.price_growth_ytd) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <MarketTrendChart
@@ -303,7 +303,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
                         data={{
                             historical: data.trend_data?.map((d: any) => ({
                                 period: d.month,
-                                avg_price: d.price_index * 1000, // Convert index to approximate price
+                                avg_price: d.price_index * 1000,
                                 volume: d.volume
                             })) || [],
                             current_price: data.trend_data?.[data.trend_data.length - 1]?.price_index * 1000 || 0,
@@ -316,8 +316,6 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         default:
-            // Unknown visualization type - log warning but don't break
-            console.warn(`VisualizationRenderer: Unknown visualization type "${type}"`);
             return null;
     }
 }

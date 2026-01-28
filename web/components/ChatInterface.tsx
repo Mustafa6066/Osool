@@ -12,7 +12,14 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { streamChat } from '@/lib/api';
 import { analyticsEngine, type AnalyticsMatch } from '@/lib/AnalyticsRulesEngine';
-import { emptyChatToActiveTransition } from '@/lib/animations';
+import {
+    emptyChatToActiveTransition,
+    messageBubbleEnter,
+    sendButtonPress,
+    suggestionCardHover,
+    suggestionCardUnhover,
+    quickActionsEnter
+} from '@/lib/animations';
 import VisualizationRenderer from './visualizations/VisualizationRenderer';
 import InvitationModal from './InvitationModal';
 import { User, LogOut, Gift, PlusCircle, History, Send, Mic, Plus, Bookmark, Copy, Check } from 'lucide-react';
@@ -1026,21 +1033,36 @@ export default function ChatInterface() {
                                 className={`text-center mb-6 sm:mb-10 transition-opacity ${isTransitioning ? 'pointer-events-none' : ''}`}
                             >
                                 {/* AMR Avatar - Large */}
-                                <div className="flex justify-center mb-5 sm:mb-6">
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.5 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                                    className="welcome-avatar flex justify-center mb-5 sm:mb-6"
+                                >
                                     <AmrAvatar size="lg" thinking={false} showStatus={true} isRTL={isRTL} />
-                                </div>
+                                </motion.div>
 
                                 {/* Greeting */}
-                                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--color-text-main)] mb-2">
+                                <motion.h2
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                                    className="welcome-title text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--color-text-main)] mb-2"
+                                >
                                     {isRTL ? (
                                         <span style={{ fontFamily: 'Cairo, sans-serif' }}>مرحبا، أنا عمرو</span>
                                     ) : (
                                         <span className="font-serif italic">Hello, I&apos;m AMR</span>
                                     )}
-                                </h2>
-                                <p className="text-sm sm:text-base text-[var(--color-text-muted-studio)] mb-6 sm:mb-8">
+                                </motion.h2>
+                                <motion.p
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                    className="welcome-subtitle text-sm sm:text-base text-[var(--color-text-muted-studio)] mb-6 sm:mb-8"
+                                >
                                     {isRTL ? 'ذكاءك العقاري الشخصي' : 'Your AI Real Estate Intelligence'}
-                                </p>
+                                </motion.p>
 
                                 {/* Decorative Divider */}
                                 <div className="flex items-center justify-center gap-3 mb-6 sm:mb-8 mx-auto max-w-[200px]">
@@ -1067,11 +1089,16 @@ export default function ChatInterface() {
                                             title: isRTL ? 'تقييم المطورين' : 'Developer Insight',
                                             hint: isRTL ? 'طلعت مصطفى مقابل بالم هيلز' : 'TMG vs Palm Hills',
                                         },
-                                    ].map((suggestion) => (
-                                        <button
+                                    ].map((suggestion, idx) => (
+                                        <motion.button
                                             key={suggestion.title}
+                                            initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            transition={{ duration: 0.5, delay: 0.4 + idx * 0.1, ease: [0.16, 1, 0.3, 1] }}
+                                            whileHover={{ scale: 1.05, y: -5, boxShadow: '0 15px 35px rgba(18, 71, 89, 0.12)' }}
+                                            whileTap={{ scale: 0.97 }}
                                             onClick={() => setInput(suggestion.hint)}
-                                            className="group flex flex-col items-center gap-2 p-4 sm:p-5 rounded-2xl bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] hover:border-[var(--osool-deep-teal)]/30 hover:shadow-lg transition-all w-[140px] sm:w-[160px] active:scale-[0.97]"
+                                            className="welcome-suggestion group flex flex-col items-center gap-2 p-4 sm:p-5 rounded-2xl bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] hover:border-[var(--osool-deep-teal)]/30 transition-colors w-[140px] sm:w-[160px]"
                                         >
                                             <div className="size-10 sm:size-12 rounded-xl bg-[var(--osool-deep-teal)]/5 group-hover:bg-[var(--osool-deep-teal)]/10 flex items-center justify-center transition-colors">
                                                 <MaterialIcon name={suggestion.icon} size="20px" className="text-[var(--osool-deep-teal)]" />
@@ -1082,15 +1109,18 @@ export default function ChatInterface() {
                                             <span className="text-[9px] sm:text-[10px] text-[var(--color-text-muted-studio)] leading-tight line-clamp-2">
                                                 {suggestion.hint}
                                             </span>
-                                        </button>
+                                        </motion.button>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Centered Input - Premium Pill */}
-                            <div
+                            {/* Centered Input - Full Width Premium Pill */}
+                            <motion.div
                                 ref={centeredInputRef}
-                                className={`w-full max-w-2xl mx-2 ${isTransitioning ? 'opacity-0' : ''}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                                className={`welcome-input w-full px-4 sm:px-8 md:px-12 lg:px-20 ${isTransitioning ? 'opacity-0' : ''}`}
                             >
                                 <div className="osool-input-glow">
                                     <div className="osool-input-surface">
@@ -1128,7 +1158,7 @@ export default function ChatInterface() {
                                 <p className="text-[8px] sm:text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.15em] sm:tracking-[0.2em] mt-3 sm:mt-4 opacity-50">
                                     {isRTL ? 'أصول AI · مدعوم بعقل الذئب' : 'Osool AI · Powered by Wolf Brain'}
                                 </p>
-                            </div>
+                            </motion.div>
                         </div>
                     )}
 

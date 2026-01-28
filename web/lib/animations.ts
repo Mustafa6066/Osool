@@ -426,3 +426,227 @@ export const stopAnimation = (animation: anime.AnimeInstance) => {
 export const cleanupAnimations = () => {
     anime.remove('*');
 };
+
+// ============================================
+// CHAT ENHANCED ANIMATIONS
+// ============================================
+
+/**
+ * Welcome screen entrance with staggered elements
+ */
+export const welcomeScreenEnter = (container: HTMLElement) => {
+    const avatar = container.querySelector('.welcome-avatar');
+    const title = container.querySelector('.welcome-title');
+    const subtitle = container.querySelector('.welcome-subtitle');
+    const suggestions = container.querySelectorAll('.welcome-suggestion');
+    const input = container.querySelector('.welcome-input');
+
+    const tl = anime.timeline({
+        easing: 'easeOutExpo',
+    });
+
+    if (avatar) {
+        tl.add({
+            targets: avatar,
+            opacity: [0, 1],
+            scale: [0.5, 1],
+            duration: 600,
+        });
+    }
+
+    if (title) {
+        tl.add({
+            targets: title,
+            opacity: [0, 1],
+            translateY: [20, 0],
+            duration: 500,
+        }, '-=300');
+    }
+
+    if (subtitle) {
+        tl.add({
+            targets: subtitle,
+            opacity: [0, 1],
+            translateY: [15, 0],
+            duration: 400,
+        }, '-=200');
+    }
+
+    if (suggestions.length > 0) {
+        tl.add({
+            targets: suggestions,
+            opacity: [0, 1],
+            translateY: [30, 0],
+            scale: [0.9, 1],
+            delay: anime.stagger(100),
+            duration: 500,
+        }, '-=200');
+    }
+
+    if (input) {
+        tl.add({
+            targets: input,
+            opacity: [0, 1],
+            translateY: [20, 0],
+            duration: 400,
+        }, '-=300');
+    }
+
+    return tl;
+};
+
+/**
+ * Input focus glow pulse animation
+ */
+export const inputGlowPulse = (target: HTMLElement) => {
+    return anime({
+        targets: target,
+        boxShadow: [
+            '0 0 0 0 rgba(18, 71, 89, 0)',
+            '0 0 20px 4px rgba(18, 71, 89, 0.15)',
+            '0 0 0 0 rgba(18, 71, 89, 0)'
+        ],
+        easing: 'easeInOutSine',
+        duration: 2000,
+        loop: true,
+    });
+};
+
+/**
+ * Send button press animation
+ */
+export const sendButtonPress = (target: HTMLElement) => {
+    return anime({
+        targets: target,
+        scale: [1, 0.85, 1.1, 1],
+        rotate: [0, -5, 5, 0],
+        duration: 400,
+        easing: 'easeOutElastic(1, .5)',
+    });
+};
+
+/**
+ * Message bubble pop-in animation
+ */
+export const messageBubbleEnter = (target: HTMLElement, isUser: boolean) => {
+    return anime({
+        targets: target,
+        opacity: [0, 1],
+        translateX: isUser ? [40, 0] : [-40, 0],
+        translateY: [10, 0],
+        scale: [0.9, 1],
+        easing: 'spring(1, 80, 10, 0)',
+        duration: 600,
+    });
+};
+
+/**
+ * Typing indicator dots animation
+ */
+export const typingDotsAnimate = (dots: NodeListOf<HTMLElement> | HTMLElement[]) => {
+    return anime({
+        targets: dots,
+        translateY: [-3, 0, -3],
+        opacity: [0.4, 1, 0.4],
+        delay: anime.stagger(150),
+        duration: 600,
+        loop: true,
+        easing: 'easeInOutSine',
+    });
+};
+
+/**
+ * Scroll indicator bounce animation
+ */
+export const scrollIndicatorBounce = (target: HTMLElement) => {
+    return anime({
+        targets: target,
+        translateY: [0, 8, 0],
+        opacity: [0.5, 1, 0.5],
+        duration: 1500,
+        loop: true,
+        easing: 'easeInOutSine',
+    });
+};
+
+/**
+ * Suggestion card hover effect
+ */
+export const suggestionCardHover = (target: HTMLElement) => {
+    return anime({
+        targets: target,
+        scale: 1.05,
+        translateY: -5,
+        boxShadow: '0 15px 35px rgba(18, 71, 89, 0.15)',
+        duration: 300,
+        easing: 'easeOutExpo',
+    });
+};
+
+/**
+ * Suggestion card unhover effect
+ */
+export const suggestionCardUnhover = (target: HTMLElement) => {
+    return anime({
+        targets: target,
+        scale: 1,
+        translateY: 0,
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+        duration: 300,
+        easing: 'easeOutExpo',
+    });
+};
+
+/**
+ * AI thinking shimmer effect
+ */
+export const thinkingShimmer = (target: HTMLElement) => {
+    return anime({
+        targets: target,
+        backgroundPosition: ['200% 0', '-200% 0'],
+        duration: 2000,
+        loop: true,
+        easing: 'linear',
+    });
+};
+
+/**
+ * Quick action buttons stagger entrance
+ */
+export const quickActionsEnter = (targets: NodeListOf<HTMLElement> | HTMLElement[]) => {
+    return anime({
+        targets,
+        opacity: [0, 1],
+        scale: [0.8, 1],
+        translateY: [15, 0],
+        delay: anime.stagger(80),
+        duration: 400,
+        easing: 'easeOutBack',
+    });
+};
+
+/**
+ * Chat header slide down animation
+ */
+export const headerSlideDown = (target: HTMLElement) => {
+    return anime({
+        targets: target,
+        opacity: [0, 1],
+        translateY: [-20, 0],
+        duration: 500,
+        easing: 'easeOutExpo',
+    });
+};
+
+/**
+ * New message notification pop
+ */
+export const notificationPop = (target: HTMLElement) => {
+    return anime({
+        targets: target,
+        scale: [0, 1.2, 1],
+        opacity: [0, 1],
+        duration: 400,
+        easing: 'easeOutBack',
+    });
+};
