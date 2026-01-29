@@ -23,7 +23,7 @@ import {
 import VisualizationRenderer from './visualizations/VisualizationRenderer';
 import UnifiedAnalytics from './visualizations/UnifiedAnalytics';
 import InvitationModal from './InvitationModal';
-import { User, LogOut, Gift, PlusCircle, History, Send, Mic, Plus, Bookmark, Copy, Check } from 'lucide-react';
+import { User, LogOut, Gift, PlusCircle, History, Send, Mic, Plus, Bookmark, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ============================================
 // UTILITY COMPONENTS
@@ -387,16 +387,24 @@ function Sidebar({
 // ============================================
 
 function ContextualInsights({
-    property,
+    properties,
+    currentIndex,
+    onPrev,
+    onNext,
     aiInsight,
     visualizations,
     isRTL
 }: {
-    property: Property | null;
+    properties: Property[];
+    currentIndex: number;
+    onPrev: () => void;
+    onNext: () => void;
     aiInsight: string | null;
     visualizations: any[];
     isRTL: boolean;
 }) {
+    const property = properties[currentIndex] || null;
+    const hasMultipleProperties = properties.length > 1;
     const contentRef = useRef<HTMLDivElement>(null);
     const { displayedText: typedInsight, isComplete } = useTypewriter(aiInsight || '', 20);
 
@@ -416,7 +424,7 @@ function ContextualInsights({
         }
     }, [property, aiInsight, visualizations, isRTL]);
 
-    const hasContent = property || aiInsight || visualizations.length > 0;
+    const hasContent = properties.length > 0 || aiInsight || visualizations.length > 0;
 
     const getVizName = (type: string): string => {
         const names: Record<string, string> = {
@@ -504,9 +512,32 @@ function ContextualInsights({
                     {isRTL ? 'رؤى ذكية' : 'Smart Insights'}
                 </h2>
                 {hasContent && (
-                    <span className={`${isRTL ? 'mr-auto' : 'ml-auto'} text-[8px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full font-bold tracking-wider uppercase`}>
-                        Live
-                    </span>
+                    <>
+                        {hasMultipleProperties && (
+                            <div className={`flex items-center gap-1 ${isRTL ? 'mr-auto' : 'ml-auto'}`}>
+                                <button
+                                    onClick={onPrev}
+                                    disabled={currentIndex === 0}
+                                    className="p-1 rounded hover:bg-[var(--sidebar-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronLeft size={14} className="text-[var(--color-text-muted-studio)]" />
+                                </button>
+                                <span className="text-[10px] font-medium text-[var(--color-text-muted-studio)] min-w-[32px] text-center">
+                                    {currentIndex + 1}/{properties.length}
+                                </span>
+                                <button
+                                    onClick={onNext}
+                                    disabled={currentIndex === properties.length - 1}
+                                    className="p-1 rounded hover:bg-[var(--sidebar-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight size={14} className="text-[var(--color-text-muted-studio)]" />
+                                </button>
+                            </div>
+                        )}
+                        <span className="text-[8px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full font-bold tracking-wider uppercase">
+                            Live
+                        </span>
+                    </>
                 )}
             </div>
 
@@ -757,7 +788,8 @@ export default function ChatInterface() {
     const [isTransitioning, setIsTransitioning] = useState(false);
 
     // Contextual state
-    const [contextProperty, setContextProperty] = useState<Property | null>(null);
+    const [contextProperties, setContextProperties] = useState<Property[]>([]);
+    const [contextPropertyIndex, setContextPropertyIndex] = useState(0);
     const [contextInsight, setContextInsight] = useState<string | null>(null);
     const [contextVisualizations, setContextVisualizations] = useState<any[]>([]);
     const [, setDetectedAnalytics] = useState<AnalyticsMatch[]>([]);
@@ -903,7 +935,8 @@ export default function ChatInterface() {
                     ));
 
                     if (data.properties?.length > 0) {
-                        setContextProperty(data.properties[0]);
+                        setContextProperties(data.properties);
+                        setContextPropertyIndex(0);
                     }
 
                     if (data.ui_actions?.length > 0) {
@@ -958,7 +991,8 @@ export default function ChatInterface() {
 
     const handleNewSession = () => {
         setMessages([]);
-        setContextProperty(null);
+        setContextProperties([]);
+        setContextPropertyIndex(0);
         setContextInsight(null);
         setContextVisualizations([]);
         setDetectedAnalytics([]);
@@ -1229,8 +1263,8 @@ export default function ChatInterface() {
                                                 <div className="max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%] flex flex-col items-end">
                                                     <div
                                                         className={`px-5 sm:px-6 py-3 sm:py-4 shadow-md ${isRTL
-                                                                ? 'rounded-t-[var(--radius-message)] rounded-br-[var(--radius-message)] rounded-bl-[4px]'
-                                                                : 'rounded-t-[var(--radius-message)] rounded-bl-[var(--radius-message)] rounded-br-[4px]'
+                                                            ? 'rounded-t-[var(--radius-message)] rounded-br-[var(--radius-message)] rounded-bl-[4px]'
+                                                            : 'rounded-t-[var(--radius-message)] rounded-bl-[var(--radius-message)] rounded-br-[4px]'
                                                             }`}
                                                         style={{
                                                             background: 'var(--user-surface)',
@@ -1310,21 +1344,30 @@ export default function ChatInterface() {
                                                     </div>
                                                 </div>
 
-                                                {/* Featured Property Card */}
+                                                {/* Featured Property Cards - Show ALL recommended properties */}
                                                 <AnimatePresence>
                                                     {msg.properties?.length > 0 && (
                                                         <motion.div
                                                             initial={{ opacity: 0, height: 0 }}
                                                             animate={{ opacity: 1, height: 'auto' }}
                                                             transition={{ duration: 0.4, ease: 'easeOut' }}
-                                                            className={`mt-3 overflow-hidden ${isRTL ? 'mr-2 sm:mr-10' : 'ml-2 sm:ml-10'}`}
+                                                            className={`mt-3 space-y-3 overflow-hidden ${isRTL ? 'mr-2 sm:mr-10' : 'ml-2 sm:ml-10'}`}
                                                         >
-                                                            <FeaturedPropertyCard
-                                                                property={msg.properties[0]}
-                                                                onRequestDetails={() => { }}
-                                                                onBookmark={() => { }}
-                                                                isRTL={isRTL}
-                                                            />
+                                                            {msg.properties.map((property: any, propIdx: number) => (
+                                                                <motion.div
+                                                                    key={property.id || propIdx}
+                                                                    initial={{ opacity: 0, y: 10 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    transition={{ delay: propIdx * 0.1 }}
+                                                                >
+                                                                    <FeaturedPropertyCard
+                                                                        property={property}
+                                                                        onRequestDetails={() => { }}
+                                                                        onBookmark={() => { }}
+                                                                        isRTL={isRTL}
+                                                                    />
+                                                                </motion.div>
+                                                            ))}
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
@@ -1405,7 +1448,10 @@ export default function ChatInterface() {
 
                 {/* Right Contextual Pane */}
                 <ContextualInsights
-                    property={contextProperty}
+                    properties={contextProperties}
+                    currentIndex={contextPropertyIndex}
+                    onPrev={() => setContextPropertyIndex(Math.max(0, contextPropertyIndex - 1))}
+                    onNext={() => setContextPropertyIndex(Math.min(contextProperties.length - 1, contextPropertyIndex + 1))}
                     aiInsight={contextInsight}
                     visualizations={contextVisualizations}
                     isRTL={isRTL}

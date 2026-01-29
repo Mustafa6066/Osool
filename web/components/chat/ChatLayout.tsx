@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import ChatHeader from './ChatHeader';
 import ChatSidebar from './ChatSidebar';
 import ChatMain from './ChatMain';
@@ -16,7 +18,8 @@ interface RecentSearch {
 
 export default function ChatLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [isContextPaneOpen, setIsContextPaneOpen] = useState(false);
+    // Modal state for property insights
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedProperty, setSelectedProperty] = useState<PropertyContext | null>(null);
     const [activeUIActions, setActiveUIActions] = useState<UIActionData[]>([]);
     const [chatInsight, setChatInsight] = useState<string | null>(null);
@@ -30,16 +33,17 @@ export default function ChatLayout() {
         setSelectedProperty(null);
         setActiveUIActions([]);
         setChatInsight(null);
+        setIsModalOpen(false);
         window.location.reload(); // Simple reset for now
     };
 
-    // Handle property selection from card click
+    // Handle property selection from card click - Opens modal
     const handlePropertySelect = useCallback((property: PropertyContext, uiActions?: UIActionData[]) => {
         setSelectedProperty(property);
         if (uiActions) {
             setActiveUIActions(uiActions);
         }
-        setIsContextPaneOpen(true);
+        setIsModalOpen(true); // Open modal instead of side panel
     }, []);
 
     // Handle context updates from AI chat messages (not card clicks)
@@ -50,7 +54,7 @@ export default function ChatLayout() {
     }) => {
         if (context.property) {
             setSelectedProperty(context.property);
-            setIsContextPaneOpen(true);
+            // Don't auto-open modal - only open when user clicks property card
         }
         if (context.uiActions) {
             setActiveUIActions(context.uiActions);
@@ -79,7 +83,6 @@ export default function ChatLayout() {
         }, ...prev.slice(0, 4)]);
 
         // Trigger message in ChatMain
-        // The ChatMain component will handle this via window event or ref
         window.dispatchEvent(new CustomEvent('triggerChatMessage', { detail: { message: query } }));
     }, []);
 
@@ -87,6 +90,11 @@ export default function ChatLayout() {
     const handleSearchClick = useCallback((search: RecentSearch) => {
         setIsSidebarOpen(false);
         window.dispatchEvent(new CustomEvent('triggerChatMessage', { detail: { message: search.query } }));
+    }, []);
+
+    // Close modal
+    const handleCloseModal = useCallback(() => {
+        setIsModalOpen(false);
     }, []);
 
     return (
@@ -97,14 +105,8 @@ export default function ChatLayout() {
                 showMenuButton={true}
             />
 
-            {/* Main Workspace Layout */}
+            {/* Main Workspace Layout - 2 Panel (Sidebar + Chat) */}
             <div className="flex flex-1 overflow-hidden relative">
-                {/* Decorative Background Elements */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                    <div className="decorative-gradient-1" />
-                    <div className="decorative-gradient-2" />
-                </div>
-
                 {/* Left Sidebar: Navigation & History */}
                 <ChatSidebar
                     isOpen={isSidebarOpen}
@@ -115,22 +117,65 @@ export default function ChatLayout() {
                     onSearchClick={handleSearchClick}
                 />
 
-                {/* Central Chat Area */}
+                {/* Central Chat Area - Full Width */}
                 <ChatMain
                     onNewConversation={handleNewInquiry}
                     onPropertySelect={handlePropertySelect}
                     onChatContextUpdate={handleChatContextUpdate}
                 />
-
-                {/* Right Contextual Pane: Details */}
-                <ContextualPane
-                    isOpen={isContextPaneOpen}
-                    onClose={() => setIsContextPaneOpen(false)}
-                    property={selectedProperty}
-                    uiActions={activeUIActions}
-                    chatInsight={chatInsight}
-                />
             </div>
+
+            {/* Property Insights Modal */}
+            <AnimatePresence>
+                {isModalOpen && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={handleCloseModal}
+                            className="chatgpt-modal-overlay"
+                        />
+
+                        {/* Modal Content */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg md:max-h-[85vh] z-50 flex flex-col"
+                        >
+                            <div className="chatgpt-modal flex-1 flex flex-col overflow-hidden">
+                                {/* Modal Header */}
+                                <div className="chatgpt-modal-header">
+                                    <h3 className="chatgpt-modal-title">
+                                        Property Insights
+                                    </h3>
+                                    <button
+                                        onClick={handleCloseModal}
+                                        className="chatgpt-modal-close"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                {/* Modal Body - ContextualPane Content */}
+                                <div className="chatgpt-modal-body flex-1 overflow-y-auto">
+                                    <ContextualPane
+                                        isOpen={true}
+                                        onClose={handleCloseModal}
+                                        property={selectedProperty}
+                                        uiActions={activeUIActions}
+                                        chatInsight={chatInsight}
+                                        isModal={true}
+                                    />
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

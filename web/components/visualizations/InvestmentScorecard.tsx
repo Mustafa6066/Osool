@@ -220,7 +220,7 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
             <div className="mt-6 pt-4 border-t border-white/10">
                 <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                     <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <span>AI-Powered Analysis by AMR</span>
+                    <span>Osool AI Analysis</span>
                 </div>
             </div>
         </motion.div>

@@ -92,6 +92,17 @@ CHART_REFERENCE_PHRASES = {
         "الـ AI بتاعي حلل العقار ده وديك النتيجة...",
         "شايف الـ Score؟ {score}/100 ده رقم ممتاز!",
         "التحليل ده بيقولك إن ده استثمار ذكي."
+    ],
+    "certificates_vs_property": [
+        "البنك بيديك 27% فوايد، بس التضخم بياكل 33%. يعني بتخسر 6% في السنة!",
+        "شهادة البنك بتدفعلك بعملة بتفقد قوتها. العقار بيدفعلك بقيمة الأصل.",
+        "Bank certificate pays you in a depreciating currency. Property pays you in asset value.",
+        "الشهادة: فايدة 27% - تضخم 33% = -6% صافي خسارة. العقار: ارتفاع 18% + إيجار 6% = +24% ربح!"
+    ],
+    "osool_score": [
+        "الـ Osool Score بتاعنا بيقول {score}/100 - وده قوي جداً!",
+        "التقييم ده مبني على Data مش كلام فاضي.",
+        "Our Osool Score of {score}/100 means this is a solid investment."
     ]
 }
 

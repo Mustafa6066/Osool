@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { TrendingDown, MapPin, Sparkles, ArrowRight, Flame } from "lucide-react";
+import { TrendingDown, MapPin, Sparkles, ArrowRight, Flame, Clock } from "lucide-react";
 
 interface Property {
     id: number;
@@ -12,6 +12,7 @@ interface Property {
     bedrooms?: number;
     la2ta_score?: number;
     savings?: number;
+    market_price?: number;
     valuation?: {
         predicted_price?: number;
         message_ar?: string;
@@ -25,6 +26,7 @@ interface La2taAlertProps {
     message_en: string;
     best_deal?: Property;
     total_found?: number;
+    timer?: string;
     isRTL?: boolean;
 }
 
@@ -38,6 +40,7 @@ const formatPrice = (price: number): string => {
 
 export default function La2taAlert({
     properties = [],
+    timer = "48H",
     isRTL = true,
 }: La2taAlertProps) {
     if (properties.length === 0) return null;
@@ -68,6 +71,11 @@ export default function La2taAlert({
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Countdown Timer Badge */}
+                    <div className="flex items-center gap-1 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-xs font-mono">
+                        <Clock size={12} className="animate-pulse" />
+                        <span>{isRTL ? `ينتهي ${timer}` : `Expires ${timer}`}</span>
+                    </div>
                     <span className="text-xs text-amber-300/70">
                         {isRTL ? `${properties.length} فرصة` : `${properties.length} found`}
                     </span>
@@ -88,11 +96,10 @@ export default function La2taAlert({
                         initial={{ opacity: 0, x: isRTL ? 10 : -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: idx * 0.1 }}
-                        className={`p-3 rounded-lg border transition-all cursor-pointer ${
-                            idx === 0
-                                ? 'bg-amber-500/10 border-amber-500/40 hover:border-amber-400'
-                                : 'bg-black/20 border-white/10 hover:border-white/20'
-                        }`}
+                        className={`p-3 rounded-lg border transition-all cursor-pointer ${idx === 0
+                            ? 'bg-amber-500/10 border-amber-500/40 hover:border-amber-400'
+                            : 'bg-black/20 border-white/10 hover:border-white/20'
+                            }`}
                     >
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex-1 min-w-0">
@@ -114,8 +121,15 @@ export default function La2taAlert({
                             </div>
 
                             <div className="text-end flex-shrink-0">
-                                <div className="text-base font-bold text-white">
-                                    {formatPrice(prop.price)}
+                                <div className="flex items-center gap-1.5 justify-end">
+                                    <span className="text-base font-bold text-white">
+                                        {formatPrice(prop.price)}
+                                    </span>
+                                    {prop.market_price && prop.market_price > prop.price && (
+                                        <span className="text-xs text-gray-500 line-through">
+                                            {formatPrice(prop.market_price)}
+                                        </span>
+                                    )}
                                 </div>
                                 {prop.savings && prop.savings > 0 && (
                                     <div className="text-[10px] text-green-400 font-medium">
