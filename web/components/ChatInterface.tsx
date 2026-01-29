@@ -1338,9 +1338,7 @@ export default function ChatInterface() {
                                                             transition={{ duration: 0.4, ease: 'easeOut', delay: 0.15 }}
                                                             className={`mt-3 space-y-2 sm:space-y-3 overflow-hidden ${isRTL ? 'mr-2 sm:mr-10' : 'ml-2 sm:ml-10'}`}
                                                         >
-                                                            {msg.visualizations.map((viz: any, vidx: number) => (
-                                                                <CompactVisualization key={vidx} viz={viz} isRTL={isRTL} />
-                                                            ))}
+                                                            <UnifiedAnalytics visualizations={msg.visualizations} isRTL={isRTL} />
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
