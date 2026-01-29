@@ -10,6 +10,8 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+from .visualization_helpers import generate_certificates_vs_property_chart
+
 
 def generate_analytical_ui_actions(
     deep_analysis: Dict[str, Any],
@@ -89,28 +91,40 @@ def generate_analytical_ui_actions(
                            'شهادات', 'بنك', 'فوايد', 'فوائد', 'كاش', 'سيولة', 'ادخار']
             
             if any(k in combined_text for k in bank_keywords):
-                # Force inflation killer at HIGHEST priority for bank savers
-                if not any(a['type'] == 'inflation_killer' for a in actions):
+                # Force certificates_vs_property at HIGHEST priority for bank savers
+                if not any(a['type'] == 'certificates_vs_property' for a in actions):
                     investment_amount = 5000000  # Default 5M
                     if properties:
                         investment_amount = properties[0].get('price', 5000000)
                     
+                    # 2024 Market Data
+                    BANK_CD_RATE = 0.27
+                    INFLATION_RATE = 0.33
+                    
+                    real_loss_percent = round((INFLATION_RATE - BANK_CD_RATE) * 100, 1)
+
                     actions.insert(0, {
-                        'type': 'inflation_killer',
-                        'data': {
-                            'initial_investment': investment_amount,
-                            'years': 5,
-                            'cash_erosion': '28%',
-                            'property_growth': '18%',
-                            'message_ar': 'البنك بيديك 27% فوايد، بس التضخم 33%. يعني بتخسر 6% سنوياً! العقار بيحميك.',
-                            'message_en': 'Bank gives 27% interest, but inflation is 33%. You lose 6% yearly! Property protects you.',
-                            'bank_rate': 27,
-                            'real_return': -6,
-                        },
-                        'priority': 12,  # HIGHEST PRIORITY - above all others
-                        'trigger_reason': 'Memory: Bank/Certificate/Cash objection detected in conversation'
+                        'type': 'certificates_vs_property',
+                        'data': generate_certificates_vs_property_chart(
+                            initial_investment=investment_amount,
+                            years=5
+                        ),
+                        'priority': 12,
+                        'trigger_reason': 'Bank/Certificate objection detected - SHOW THE KILLER CHART'
                     })
-                    logger.info(f"WOLF: Triggered inflation_killer for bank objection: {combined_text[:50]}...")
+                    
+                    # Also trigger Inflation Killer as backup/context if needed, but Certificates is specific
+                    if not any(a['type'] == 'inflation_killer' for a in actions):
+                        actions.append({
+                            'type': 'inflation_killer',
+                            'data': {
+                                'initial_investment': investment_amount,
+                                'years': 5
+                            },
+                            'priority': 11
+                        })
+                        
+                    logger.info(f"WOLF: Triggered certificates_vs_property for bank objection: {combined_text[:50]}...")
 
         # 4b. Psychology-driven actions - EGYPTIAN FEAR/GREED OPTIMIZATION
         if psychology:

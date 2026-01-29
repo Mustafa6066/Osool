@@ -45,6 +45,11 @@ const RealityCheck = dynamic(() => import("./RealityCheck"), {
     ssr: false,
 });
 
+const CertificatesVsProperty = dynamic(() => import("./CertificatesVsProperty"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
 // V6: Advanced Analytics Components
 const AreaAnalysis = dynamic(() => import("./AreaAnalysis"), {
     loading: () => <VisualizationSkeleton />,
@@ -154,6 +159,14 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <RealityCheck {...data} isRTL={isRTL} />
+                </Suspense>
+            );
+
+        case "certificates_vs_property":
+            if (!hasContent(data, ['summary', 'data_points', 'verdict'])) return null;
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <CertificatesVsProperty {...data} isRTL={isRTL} />
                 </Suspense>
             );
 
