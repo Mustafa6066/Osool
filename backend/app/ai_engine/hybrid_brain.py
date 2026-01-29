@@ -347,10 +347,20 @@ Produce ONLY valid JSON (no markdown, no code fences). Response MUST be in the S
             )
             logger.info(f"🚨 Proactive Alerts: {len(proactive_alerts)} alerts generated")
 
+            # ═══════════════════════════════════════════════════════════════
+            # PROTOCOL: IMPRESS FIRST (Suppression Logic)
+            # If first message and no specific project requested, suppress property cards
+            # This forces the AI to "Flex" with insights/charts instead of selling immediately
+            # ═══════════════════════════════════════════════════════════════
+            suppress_cards = False
+            if len(history) == 0 and not intent.get('filters', {}).get('keywords'):
+                suppress_cards = True
+                logger.info("🚫 Suppressing property cards for Impress First Protocol (First Turn + No Keyword)")
+
             logger.info(f"✅ Wolf Brain V6 complete")
             return {
                 "response": response,
-                "properties": scored_data,
+                "properties": scored_data if not suppress_cards else [],
                 "ui_actions": ui_actions,
                 "proactive_alerts": proactive_alerts,
                 "deep_analysis": deep_analysis,
