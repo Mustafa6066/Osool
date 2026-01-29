@@ -1631,6 +1631,35 @@ INSTRUCTION: Since no properties were found, you MUST ask clarifying questions:
 
 DO NOT invent any properties. Be charming and helpful while gathering info.
 """
+            elif not data:
+                # Handle follow-up questions when no current property search was done
+                # Fetch market stats for general insights but DON'T invent specific prices
+                market_stats = await get_market_statistics()
+                market_stats_context = format_statistics_for_ai(market_stats, None)
+                
+                context_str = f"""
+═══════════════════════════════════════════════════════════════════════════════
+          FOLLOW-UP RESPONSE MODE (No Property Search This Turn)
+═══════════════════════════════════════════════════════════════════════════════
+
+{market_stats_context}
+
+[CURRENT CONTEXT]: User is asking a follow-up question. No property search was triggered this turn.
+
+🚫 CRITICAL: PRICE HALLUCINATION PREVENTION 🚫
+- You do NOT have specific properties in context right now
+- If you mention prices, ONLY use the MARKET STATISTICS above
+- NEVER say "prices from 0 to 0" or similar placeholder values
+- If referring to a property shown earlier, say "العقار اللي عرضته" (the property I showed)
+- Do NOT invent specific price ranges like "من X مليون لحد Y مليون" unless they match the market stats above
+
+For Wolf Score questions, explain the methodology without inventing numbers:
+- "الـ Wolf Score بيقيس 3 حاجات: القيمة مقابل السعر، فرص النمو، وقوة المطور"
+- "كل ما السكور أعلى، كل ما الفرصة أحسن"
+- Refer to "العقار اللي عرضته قبل كده" (the property I showed before) instead of inventing details
+
+STRATEGY: {strategy}
+"""
             else:
                 # Fetch pre-computed market statistics for accurate data
                 market_stats = await get_market_statistics()
