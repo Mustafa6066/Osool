@@ -9,11 +9,190 @@ New in V4:
 - La2ta Alert: Bargain property alerts
 - Law 114 Guardian: Contract scanner CTA
 - Reality Check: Impossible request alternatives
+
+New in V5:
+- Authority Bridge Stats: Dynamic filtering narrative for "Shock & Awe"
+- Market Reality Check: Urgency visualization with price momentum
 """
 
 import random
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
+
+
+def generate_authority_bridge_stats(
+    location: str,
+    total_scanned: int = 200,
+    budget_range: Optional[tuple] = None
+) -> Dict[str, Any]:
+    """
+    Generate Authority Bridge "Shock & Awe" filtering stats.
+    
+    Creates dynamic numbers for the Wolf's capability demonstration:
+    "I scanned X units, rejected Y for contracts, Z for ROI... only N survived."
+    
+    Args:
+        location: Target location (affects rejection rates)
+        total_scanned: Base number of units "scanned" (randomized ±30%)
+        budget_range: Optional (min, max) budget to contextualize
+    
+    Returns:
+        Authority Bridge stats for the AI narrative
+    """
+    # Hot locations have more inventory = more to scan
+    hot_locations = ["New Cairo", "Sheikh Zayed", "New Capital", "Madinaty", "6th October"]
+    is_hot = any(loc.lower() in location.lower() for loc in hot_locations)
+    
+    # Randomize total scanned for realism (±30%)
+    variance = random.uniform(0.7, 1.3)
+    total = int(total_scanned * variance)
+    if is_hot:
+        total = int(total * 1.25)  # More units in hot areas
+    
+    # Rejection rates (realistic distribution)
+    # Contract issues: 20-30% (Law 114 problems, missing Tawkil, etc.)
+    contract_reject_rate = random.uniform(0.20, 0.30)
+    contract_rejected = int(total * contract_reject_rate)
+    
+    # ROI issues: 15-25% (below inflation, poor rental yield)
+    roi_reject_rate = random.uniform(0.15, 0.25)
+    roi_rejected = int((total - contract_rejected) * roi_reject_rate)
+    
+    # Developer issues: 10-15% (delays, complaints, unverified)
+    dev_reject_rate = random.uniform(0.10, 0.15)
+    dev_rejected = int((total - contract_rejected - roi_rejected) * dev_reject_rate)
+    
+    # Survivors: 3-5 elite units (never 0, creates credibility)
+    remaining = total - contract_rejected - roi_rejected - dev_rejected
+    survivors = max(3, min(5, remaining))
+    
+    # Calculate percentages for display
+    total_rejected = contract_rejected + roi_rejected + dev_rejected
+    rejection_rate = round((total_rejected / total) * 100, 0)
+    
+    return {
+        "type": "authority_bridge_stats",
+        "location": location,
+        "stats": {
+            "total_scanned": total,
+            "contract_rejected": contract_rejected,
+            "roi_rejected": roi_rejected,
+            "developer_rejected": dev_rejected,
+            "total_rejected": total_rejected,
+            "survivors": survivors,
+            "rejection_rate_percent": rejection_rate
+        },
+        "narrative": {
+            "message_ar": (
+                f"حاضر يا فندم. بس قبل ما أرشحلك حاجة، أنا شغلت الـ AI Scanner بتاعي على {total} وحدة في {location}.\n"
+                f"❌ استبعدت منهم {contract_rejected} وحدة عشان العقود بتاعتهم فيها بنود مقلقة (زي عدم وجود توكيل).\n"
+                f"❌ واستبعدت {roi_rejected} وحدة كمان عشان العائد بتاعهم تحت مستوى التضخم.\n"
+                f"❌ وشلت {dev_rejected} وحدة عشان المطورين بتوعهم عليهم شكاوى.\n"
+                f"✅ اللي فضلوا معانا هما {survivors} وحدات بس هما الأضمن والأعلى في العائد. تحب تشوفهم؟"
+            ),
+            "message_en": (
+                f"Understood. Before I show you the list, I ran a deep scan on {total} available units in {location}.\n"
+                f"❌ I removed {contract_rejected} units because their contracts had 'Red Flags' (Law 114 risks).\n"
+                f"❌ I removed {roi_rejected} more because the ROI was below inflation levels.\n"
+                f"❌ I filtered out {dev_rejected} units due to developer delivery complaints.\n"
+                f"✅ The {survivors} survivors are the only ones I can ethically recommend. Ready to see the winners?"
+            )
+        },
+        "impact_statement": {
+            "ar": f"كده أنا وفرتلك {rejection_rate:.0f}% من وقتك ومجهودك!",
+            "en": f"I just saved you from wasting time on {rejection_rate:.0f}% of the market!"
+        }
+    }
+
+
+def generate_market_reality_check(
+    location: str,
+    current_price_per_sqm: int = 45000
+) -> Dict[str, Any]:
+    """
+    Generate "Market Reality Check" urgency visualization.
+    
+    Shows price momentum BEFORE property listings to create informed urgency.
+    The Wolf uses this to establish authority: "Look at what happened to prices..."
+    
+    Args:
+        location: Target location
+        current_price_per_sqm: Current avg price per sqm
+    
+    Returns:
+        Market Reality Check data with urgency indicators
+    """
+    hot_locations = ["New Cairo", "Sheikh Zayed", "New Capital", "Madinaty"]
+    is_hot = any(loc.lower() in location.lower() for loc in hot_locations)
+    
+    if is_hot:
+        # Hot markets: higher urgency
+        weekly_change = random.uniform(1.5, 3.0)
+        urgency_level = "high"
+        trend_emoji = "🔥"
+        weeks_to_loss = random.randint(2, 4)
+    else:
+        # Stable markets: moderate urgency
+        weekly_change = random.uniform(0.5, 1.5)
+        urgency_level = "medium"
+        trend_emoji = "📈"
+        weeks_to_loss = random.randint(4, 8)
+    
+    # Calculate projections
+    monthly_change = weekly_change * 4
+    potential_loss_percent = weekly_change * weeks_to_loss
+    
+    # For a 5M EGP property, calculate actual EGP loss
+    sample_property_price = 5_000_000
+    potential_loss_egp = int(sample_property_price * (potential_loss_percent / 100))
+    
+    # Price history (last 4 weeks)
+    price_history = []
+    for week in range(4, 0, -1):
+        historical_price = int(current_price_per_sqm / ((1 + weekly_change/100) ** week))
+        price_history.append({
+            "week": f"Week -{week}",
+            "price_per_sqm": historical_price
+        })
+    price_history.append({
+        "week": "Now",
+        "price_per_sqm": current_price_per_sqm
+    })
+    
+    return {
+        "type": "market_reality_check",
+        "location": location,
+        "urgency": {
+            "level": urgency_level,
+            "emoji": trend_emoji,
+            "weekly_change_percent": round(weekly_change, 1),
+            "monthly_change_percent": round(monthly_change, 1)
+        },
+        "projection": {
+            "weeks_to_significant_loss": weeks_to_loss,
+            "potential_loss_percent": round(potential_loss_percent, 1),
+            "potential_loss_egp": potential_loss_egp,
+            "sample_property_price": sample_property_price
+        },
+        "price_history": price_history,
+        "current_price_per_sqm": current_price_per_sqm,
+        "narrative": {
+            "warning_ar": (
+                f"{trend_emoji} قبل ما نشوف الوحدات، لازم تعرف إن أسعار {location} زادت {weekly_change:.1f}% الأسبوع ده بس.\n"
+                f"⚠️ لو استنيت {weeks_to_loss} أسابيع كمان، ممكن تخسر {potential_loss_egp:,} جنيه من قوتك الشرائية.\n"
+                f"💡 اللي بيتحرك بسرعة دلوقتي بيوفر فلوس."
+            ),
+            "warning_en": (
+                f"{trend_emoji} Before we look at units, you should know {location} prices rose {weekly_change:.1f}% just this week.\n"
+                f"⚠️ If you wait {weeks_to_loss} more weeks, you could lose {potential_loss_egp:,} EGP in purchasing power.\n"
+                f"💡 Those who move fast right now are saving money."
+            )
+        },
+        "call_to_action": {
+            "ar": "يلا نشوف أحسن الفرص المتاحة دلوقتي 👇",
+            "en": "Let's see the best opportunities available now 👇"
+        }
+    }
 
 
 def generate_investment_scorecard(

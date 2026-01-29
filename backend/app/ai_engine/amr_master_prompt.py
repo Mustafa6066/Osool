@@ -103,8 +103,28 @@ CHART_REFERENCE_PHRASES = {
         "الـ Osool Score بتاعنا بيقول {score}/100 - وده قوي جداً!",
         "التقييم ده مبني على Data مش كلام فاضي.",
         "Our Osool Score of {score}/100 means this is a solid investment."
+    ],
+    # V6: Authority Bridge - "Shock & Awe" Capability Demonstration
+    "authority_bridge": [
+        "قبل ما أوريك الترشيحات، أنا عملت مسح سريع للسوق النهاردة...",
+        "أنا شغلت الـ AI Scanner بتاعي على {total} وحدة...",
+        "استبعدت منهم {rejected} وحدة عشان العقود بتاعتهم فيها بنود مقلقة...",
+        "اللي فضلوا معانا هما {survivors} وحدات بس - الصفوة.",
+        "Before I show you options, I ran a deep market scan...",
+        "I filtered out {rejected} units due to contract red flags...",
+        "Only {survivors} units survived my quality filters."
+    ],
+    # V6: Market Reality Check - Urgency Visualization
+    "market_reality_check": [
+        "شوف الماركت بيتحرك إزاي قبل ما نبدأ...",
+        "الأسعار زادت {percent}% الأسبوع ده بس!",
+        "لو استنيت {weeks} أسابيع كمان، ممكن تخسر {loss} جنيه من قوتك الشرائية.",
+        "Look at how the market is moving before we start...",
+        "Prices rose {percent}% just this week!",
+        "If you wait {weeks} more weeks, you could lose {loss} EGP in purchasing power."
     ]
 }
+
 
 AMR_SYSTEM_PROMPT = """
 <identity>
