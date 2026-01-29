@@ -1,24 +1,22 @@
 "use client";
 
-import ChatInterface from "@/components/ChatInterface";
+import AgentInterface from "@/components/AgentInterface";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 /**
  * Chat Page - Protected Route
  * ----------------------------
- * Only authenticated users can access the chat with AMR.
- * Unauthenticated users are redirected to /login.
- *
- * New Agentic Workspace UI with:
- * - Dark theme with glass morphism
- * - Animated background blobs
- * - 3-column layout (sidebar, chat, contextual pane)
- * - Property cards with appreciation charts
+ * Modern ChatGPT/Gemini-inspired interface with:
+ * - Clean, content-focused dark theme
+ * - Centralized chat stream with max reading width
+ * - Floating pill-shaped "Omnibar" input
+ * - Minimalist message styling (no heavy containers)
+ * - Right pane "Canvas" for property deep dives
  */
 export default function ChatPage() {
     return (
         <ProtectedRoute>
-            <ChatInterface />
+            <AgentInterface />
         </ProtectedRoute>
     );
 }
