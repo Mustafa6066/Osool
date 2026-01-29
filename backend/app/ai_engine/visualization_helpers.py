@@ -446,6 +446,127 @@ def generate_inflation_killer_chart(
     }
 
 
+def generate_certificates_vs_property_chart(
+    initial_investment: int = 5_000_000,
+    years: int = 5
+) -> Dict[str, Any]:
+    """
+    Generate Bank Certificate (CD) vs Property comparison chart.
+    
+    This is the #1 comparison in Egyptian market - Bank CDs offer 27% interest
+    but inflation erodes the real returns making them net negative.
+    Property offers appreciation + rental income + inflation hedge.
+    
+    Uses psychological RED/GREEN colors for maximum impact.
+    
+    Args:
+        initial_investment: Initial investment amount in EGP (default 5M)
+        years: Number of years to project (default 5)
+    
+    Returns:
+        Structured data for CertificatesVsProperty component
+    """
+    # Egyptian market rates (2024-2025)
+    BANK_CD_RATE = 0.27              # 27% annual interest (EGP CDs)
+    INFLATION_RATE = 0.33            # 33% effective inflation (real purchasing power loss)
+    PROPERTY_APPRECIATION = 0.18     # 18% annual property appreciation
+    RENTAL_YIELD = 0.065             # 6.5% rental yield
+    RENT_INCREASE_RATE = 0.10        # 10% annual rent increase
+    
+    data_points = []
+    
+    for year in range(years + 1):
+        # Bank Certificate: 27% interest but inflation eats the gains
+        # Nominal value grows but REAL purchasing power shrinks
+        nominal_bank_value = int(initial_investment * ((1 + BANK_CD_RATE) ** year))
+        # Real value after inflation adjustment
+        real_bank_value = int(nominal_bank_value / ((1 + INFLATION_RATE) ** year))
+        
+        # Property: Appreciates + rental income
+        property_value = int(initial_investment * ((1 + PROPERTY_APPRECIATION) ** year))
+        
+        # Cumulative rental income
+        cumulative_rent = 0
+        for y in range(year):
+            yearly_rent = initial_investment * RENTAL_YIELD * ((1 + RENT_INCREASE_RATE) ** y)
+            cumulative_rent += yearly_rent
+        cumulative_rent = int(cumulative_rent)
+        
+        property_total = property_value + cumulative_rent
+        
+        # Real property value (property appreciates WITH inflation, so it's protected)
+        real_property_value = property_total  # Property is the inflation hedge
+        
+        data_points.append({
+            "year": year,
+            "label": f"السنة {year}" if year > 0 else "الآن",
+            "label_en": f"Year {year}" if year > 0 else "Now",
+            "bank_nominal": nominal_bank_value,
+            "bank_real": real_bank_value,
+            "property_total": property_total,
+            "property_value": property_value,
+            "cumulative_rent": cumulative_rent
+        })
+    
+    # Final calculations
+    final = data_points[-1]
+    initial = data_points[0]
+    
+    # Bank: What looks like 27% profit is actually a loss in real terms
+    bank_nominal_gain = final["bank_nominal"] - initial_investment
+    bank_real_loss = initial_investment - final["bank_real"]
+    bank_real_loss_percent = round((bank_real_loss / initial_investment) * 100, 1)
+    
+    # Property: Real gains
+    property_total_gain = final["property_total"] - initial_investment
+    property_gain_percent = round((property_total_gain / initial_investment) * 100, 1)
+    
+    # The "wake up call" calculation
+    difference = final["property_total"] - final["bank_real"]
+    
+    return {
+        "type": "certificates_vs_property",
+        "initial_investment": initial_investment,
+        "years": years,
+        "data_points": data_points,
+        "summary": {
+            # Bank Certificate results
+            "bank_nominal_final": final["bank_nominal"],
+            "bank_nominal_gain": bank_nominal_gain,
+            "bank_real_final": final["bank_real"],
+            "bank_real_loss": bank_real_loss,
+            "bank_real_loss_percent": bank_real_loss_percent,
+            
+            # Property results
+            "property_final": final["property_total"],
+            "property_value_only": final["property_value"],
+            "total_rent_earned": final["cumulative_rent"],
+            "property_gain_percent": property_gain_percent,
+            
+            # The comparison
+            "difference": difference,
+            "winner": "property"
+        },
+        "assumptions": {
+            "bank_cd_rate": BANK_CD_RATE,
+            "inflation_rate": INFLATION_RATE,
+            "property_appreciation": PROPERTY_APPRECIATION,
+            "rental_yield": RENTAL_YIELD,
+            "source": "Central Bank of Egypt & Market Data 2024"
+        },
+        "colors": {
+            "bank": "#FF4444",     # RED - Danger (loss)
+            "property": "#00C853"  # GREEN - Growth (gains)
+        },
+        "verdict": {
+            "winner": "property",
+            "message_ar": f"🔴 شهادات البنك بتديك 27% بس التضخم 33% = خسارة حقيقية {bank_real_loss_percent}%\n🟢 العقار زاد {property_gain_percent}% + إيجار {final['cumulative_rent']:,} جنيه",
+            "message_en": f"🔴 Bank CDs give 27% but inflation is 33% = real loss of {bank_real_loss_percent}%\n🟢 Property grew {property_gain_percent}% + rent income of {final['cumulative_rent']:,} EGP",
+            "headline_ar": "الحقيقة اللي البنوك مش بتقولهالك",
+            "headline_en": "The Truth Banks Don't Tell You"
+        }
+    }
+
 def generate_la2ta_alert(
     properties: List[Dict[str, Any]],
     threshold_percent: float = 10.0

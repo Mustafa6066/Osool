@@ -90,20 +90,27 @@ PSYCHOLOGY_PATTERNS = {
         "keywords_ar": [
             "خايف", "مخاطر", "أمان", "ضمان", "موثوق", "تسليم",
             "مضمون", "نصب", "احتيال", "مشاكل", "قانوني", "عقد",
-            "قلقان", "متردد", "مش متأكد", "أضمن", "المادة 114"
+            "قلقان", "متردد", "مش متأكد", "أضمن", "المادة 114",
+            # Bank Certificate comparison keywords (key Egyptian market signal)
+            "شهادة", "شهادات", "البنك", "فايدة", "فوائد", "ودايع",
+            "أحسن من البنك", "البنك ولا عقار", "فلوسي في البنك"
         ],
         "keywords_en": [
             "safe", "secure", "guarantee", "trusted", "delivery",
             "scam", "fraud", "legal", "contract", "worried",
-            "concerned", "protection", "risk", "reliable"
+            "concerned", "protection", "risk", "reliable",
+            # Bank Certificate comparison keywords
+            "certificate", "bank interest", "deposit", "CD rate",
+            "better than bank", "bank vs property", "27%", "interest rate"
         ],
         "signals": [
             "asking_about_developer_reputation",
             "mentioning_scams",
             "asking_for_proof",
-            "legal_questions"
+            "legal_questions",
+            "comparing_to_bank_deposits"  # New signal
         ],
-        "recommended_tactics": ["authority", "legal_protection"],
+        "recommended_tactics": ["authority", "legal_protection", "inflation_comparison"],
         "weight": 1.0
     },
     PsychologicalState.GREED_DRIVEN: {

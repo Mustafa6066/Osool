@@ -77,45 +77,70 @@ def generate_analytical_ui_actions(
                 'trigger_reason': 'Deep analysis found opportunities'
             })
 
-        # 4. Psychology-driven actions
+        # 4. Psychology-driven actions - EGYPTIAN FEAR/GREED OPTIMIZATION
         if psychology:
             psych_state = getattr(psychology, 'primary_state', None)
             psych_value = psych_state.value if psych_state else ''
+            detected_triggers = getattr(psychology, 'detected_triggers', [])
 
-            if psych_value == 'GREED_DRIVEN':
-                actions.append({
-                    'type': 'roi_calculator',
-                    'data': {
-                        'properties': properties[:3],
-                        'deep_analysis_roi': deep_analysis.get('comparative_analysis', {}).get('best_growth'),
-                        'recommended_action': deep_analysis.get('recommended_action', 'evaluate'),
-                    },
-                    'priority': 9,
-                    'trigger_reason': 'Psychology: GREED_DRIVEN + deep analysis'
-                })
-
-            elif psych_value == 'RISK_AVERSE':
-                actions.append({
-                    'type': 'law_114_guardian',
-                    'data': {
-                        'risks': risks,
-                        'safest_option': comparative.get('safest'),
-                        'confidence': deep_analysis.get('confidence', 0.7),
-                    },
-                    'priority': 8,
-                    'trigger_reason': 'Psychology: RISK_AVERSE + risk analysis'
-                })
-
-            elif psych_value == 'FOMO':
+            # THE INFLATION KILLER (For the "Hesitant Saver")
+            # In Egypt, everyone is afraid their cash is burning due to devaluation
+            if psych_value in ['RISK_AVERSE', 'ANALYSIS_PARALYSIS']:
                 actions.append({
                     'type': 'inflation_killer',
                     'data': {
-                        'opportunities': opportunities,
-                        'urgency': 'high',
-                        'recommended_action': deep_analysis.get('recommended_action'),
+                        'cash_erosion': '28%',  # Egyptian inflation assumption
+                        'property_growth': '18%',
+                        'initial_investment': properties[0].get('price', 5000000) if properties else 5000000,
+                        'years': 5,
+                        'message_ar': 'شوف إيه هيحصل لـ 1 مليون في البنك vs. العقار ده على 5 سنين.',
+                        'message_en': 'See what happens to 1M EGP in the bank vs. this property over 5 years.',
+                        'bank_rate': 27,  # Current Egyptian bank CD rate
+                        'real_return': -6,  # 27% interest - 33% inflation = -6% real return
                     },
-                    'priority': 10,
-                    'trigger_reason': 'Psychology: FOMO + opportunity detected'
+                    'priority': 10,  # TOP PRIORITY for hesitant users
+                    'trigger_reason': 'Psychology: User scared of losing money (risk_averse/analysis_paralysis)'
+                })
+
+            # THE "LA2TA" ALERT (For the "Greed Driven" or FOMO users)
+            if psych_value == 'GREED_DRIVEN' or 'FOMO' in str(detected_triggers):
+                # Find the property with highest ROI or wolf_score
+                if properties:
+                    best_deal = max(properties, key=lambda x: x.get('wolf_score', 0) or x.get('roi', 0))
+                    actions.append({
+                        'type': 'la2ta_alert',
+                        'data': {
+                            'properties': [best_deal],
+                            'discount_badge': 'UNDER_MARKET_PRICE',
+                            'timer': '48H',  # Artificial urgency (typical Egyptian sales tactic)
+                            'wolf_score': best_deal.get('wolf_score', 85),
+                            'savings': best_deal.get('savings', 250000),
+                            'urgency_level': 'high',
+                            'message_ar': f'🐺 لقطة! الوحدة دي تحت السوق - فاضل 48 ساعة بس',
+                            'message_en': f'🐺 CATCH! This unit is below market - 48 hours only',
+                        },
+                        'priority': 10,  # TOP PRIORITY for greedy users
+                        'trigger_reason': 'Psychology: FOMO/GREED detected - show urgency'
+                    })
+
+            # THE LAW 114 GUARDIAN (For the "Trust Deficit" users)
+            if psych_value == 'TRUST_DEFICIT':
+                actions.append({
+                    'type': 'law_114_guardian',
+                    'data': {
+                        'status': 'ready',
+                        'cta_text_ar': 'ارفع أي عقد وأنا هلاقي البنود المخفية.',
+                        'cta_text_en': 'Upload any draft contract. I will find the hidden fees.',
+                        'capabilities': [
+                            'كشف البنود المخفية (Hidden Clause Detection)',
+                            'التحقق من مخالفات قانون 114',
+                            'مراجعة شروط الجزاءات',
+                            'تحليل جدول السداد'
+                        ],
+                        'trust_badges': ['AI-Powered', 'Law 114 Compliant', 'Bank-Grade Security'],
+                    },
+                    'priority': 11,  # HIGHEST PRIORITY to build trust first
+                    'trigger_reason': 'Psychology: TRUST_DEFICIT - show legal protection'
                 })
 
         # 5. Memory-driven actions
