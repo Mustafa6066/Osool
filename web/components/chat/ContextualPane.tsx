@@ -5,11 +5,13 @@ import {
     BarChart2, TrendingUp, X, Sparkles, MapPin, Home, DollarSign, Target, Zap, Activity,
     PieChart, Building2, Calendar, ArrowUpRight, ArrowDownRight, Layers, Navigation,
     Phone, MessageCircle, Percent, Square, Footprints, Star, ExternalLink,
-    Calculator, Map, Users, FileText, Clock, Shield, Landmark
+    Calculator, Map, Users, FileText, Clock, Shield, Landmark, Bed, Bath, Ruler
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import anime from 'animejs';
 import VisualizationRenderer from '../visualizations/VisualizationRenderer';
+import MetricsGrid, { MetricItem, metricIcons } from '../insights/MetricsGrid';
+import EmbeddedChart, { generateProjectionData } from '../insights/EmbeddedChart';
 
 // UI Action data type from backend
 export interface UIActionData {
@@ -734,6 +736,69 @@ export default function ContextualPane({
                             </div>
                         )}
 
+                        {/* Property Details Metrics Grid (moved from card) */}
+                        {property?.metrics && (property.metrics.bedrooms || property.metrics.size) && (
+                            <div>
+                                <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-3">
+                                    {isRTL ? 'تفاصيل العقار' : 'Property Details'}
+                                </h3>
+                                <MetricsGrid
+                                    metrics={[
+                                        ...(property.metrics.bedrooms ? [{
+                                            id: 'bedrooms',
+                                            label: isRTL ? 'غرف النوم' : 'Bedrooms',
+                                            value: property.metrics.bedrooms,
+                                            icon: <Bed size={16} />
+                                        }] : []),
+                                        ...(property.metrics.size ? [{
+                                            id: 'size',
+                                            label: isRTL ? 'المساحة' : 'Size',
+                                            value: property.metrics.size.toLocaleString(),
+                                            suffix: isRTL ? 'م²' : 'sqm',
+                                            icon: <Ruler size={16} />
+                                        }] : []),
+                                        ...(pricePerSqm ? [{
+                                            id: 'price_per_sqm',
+                                            label: isRTL ? 'السعر/م²' : 'Price/sqm',
+                                            value: `${(pricePerSqm / 1000).toFixed(1)}K`,
+                                            icon: <DollarSign size={16} />
+                                        }] : []),
+                                        ...(riskLevel ? [{
+                                            id: 'risk',
+                                            label: isRTL ? 'المخاطر' : 'Risk',
+                                            value: isRTL ?
+                                                { 'Low': 'منخفض', 'Medium': 'متوسط', 'High': 'مرتفع' }[riskLevel] || riskLevel :
+                                                riskLevel,
+                                            highlight: riskLevel === 'Low' ? 'success' as const : riskLevel === 'High' ? 'danger' as const : 'warning' as const
+                                        }] : []),
+                                    ] as MetricItem[]}
+                                    columns={2}
+                                    isRTL={isRTL}
+                                />
+                            </div>
+                        )}
+
+                        {/* Embedded Price Projection Chart */}
+                        {property && pricePerSqm && (
+                            <div>
+                                <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-3">
+                                    {isRTL ? 'توقع السعر' : 'Price Projection'}
+                                </h3>
+                                <EmbeddedChart
+                                    data={property.priceHistory || generateProjectionData(
+                                        pricePerSqm * (property.metrics?.size || 100),
+                                        5,
+                                        roi ? roi / 100 : 0.08
+                                    )}
+                                    title={isRTL ? 'التوقع لـ 5 سنوات' : '5Y Projection'}
+                                    subtitle={isRTL ? 'بناءً على اتجاه السوق الحالي' : 'Based on current market trend'}
+                                    height={160}
+                                    isRTL={isRTL}
+                                    enableDrawAnimation={true}
+                                />
+                            </div>
+                        )}
+
                         {/* Map Module */}
                         {property && (
                             <MapModule address={property.address} isRTL={isRTL} />
@@ -807,11 +872,11 @@ export default function ContextualPane({
                         />
 
                         <motion.aside
-                            initial={{ x: isRTL ? -340 : 340 }}
+                            initial={{ x: isRTL ? -360 : 360 }}
                             animate={{ x: 0 }}
-                            exit={{ x: isRTL ? -340 : 340 }}
+                            exit={{ x: isRTL ? -360 : 360 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 bottom-0 w-[340px] bg-[var(--color-surface)] backdrop-blur-xl flex flex-col z-50 xl:hidden border-l border-[var(--color-border)]`}
+                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 bottom-0 w-[var(--panel-width,360px)] bg-[var(--color-surface)] backdrop-blur-xl flex flex-col z-50 xl:hidden border-l border-[var(--color-border)]`}
                         >
                             {sidebarContent}
                         </motion.aside>

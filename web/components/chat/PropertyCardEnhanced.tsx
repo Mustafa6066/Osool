@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Bed, Bath, Ruler, MapPin, Bookmark, TrendingUp, Star } from 'lucide-react';
+import { MapPin, TrendingUp, TrendingDown, Star, ArrowUpRight } from 'lucide-react';
 import anime from 'animejs';
 
 interface PropertyData {
@@ -21,90 +21,24 @@ interface PropertyData {
     wolfScore?: number;
     isTopPick?: boolean;
     developer?: string;
+    // Key metric for simplified display
+    keyMetric?: {
+        label: string;
+        value: string;
+        trend?: 'up' | 'down' | 'stable';
+    };
 }
 
 interface PropertyCardEnhancedProps {
     property: PropertyData;
-    showChart?: boolean;
     onViewDetails?: (id: string) => void;
-    onBookmark?: (id: string) => void;
     onSelect?: (property: PropertyData) => void;
     isRTL?: boolean;
 }
 
-// Inline Sparkline Chart Component
-function SparklineChart({
-    projectedGrowth,
-    isRTL = false
-}: {
-    projectedGrowth?: string;
-    isRTL?: boolean;
-}) {
-    const pathRef = useRef<SVGPathElement>(null);
-
-    useEffect(() => {
-        if (pathRef.current) {
-            const pathLength = pathRef.current.getTotalLength();
-            pathRef.current.style.strokeDasharray = `${pathLength}`;
-            pathRef.current.style.strokeDashoffset = `${pathLength}`;
-            
-            anime({
-                targets: pathRef.current,
-                strokeDashoffset: [pathLength, 0],
-                easing: 'easeOutExpo',
-                duration: 1200,
-                delay: 400,
-            });
-        }
-    }, []);
-
-    if (!projectedGrowth) return null;
-
-    return (
-        <div className="card-chart-inline">
-            <div className="flex items-center justify-between mb-2">
-                <span className="chart-label">
-                    {isRTL ? 'توقع 5 سنوات' : '5Y Projection'}
-                </span>
-                <span className="chart-value flex items-center gap-1">
-                    <TrendingUp size={10} />
-                    +{projectedGrowth}
-                </span>
-            </div>
-            <svg viewBox="0 0 200 40" preserveAspectRatio="none" className="overflow-visible">
-                {/* Gradient Definition */}
-                <defs>
-                    <linearGradient id="sparklineGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--chart-line-color)" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="var(--chart-line-color)" stopOpacity="0" />
-                    </linearGradient>
-                </defs>
-                
-                {/* Area fill */}
-                <path
-                    d="M0,35 C20,33 40,30 60,27 C100,20 140,12 180,6 L200,4 V40 H0 Z"
-                    className="sparkline-area"
-                />
-                
-                {/* Line */}
-                <path
-                    ref={pathRef}
-                    d="M0,35 C20,33 40,30 60,27 C100,20 140,12 180,6 L200,4"
-                    className="sparkline"
-                />
-                
-                {/* End point */}
-                <circle cx="200" cy="4" r="3" fill="var(--chart-line-color)" />
-            </svg>
-        </div>
-    );
-}
-
 export default function PropertyCardEnhanced({
     property,
-    showChart = true,
     onViewDetails,
-    onBookmark,
     onSelect,
     isRTL = false,
 }: PropertyCardEnhancedProps) {
@@ -125,7 +59,13 @@ export default function PropertyCardEnhanced({
 
     // Calculate if this is a top pick based on wolf score
     const isTopPick = property.isTopPick || (property.wolfScore && property.wolfScore >= 85);
-    const hasGrowthData = property.projectedGrowth || property.projectedPrice;
+
+    // Generate default key metric from projectedGrowth if not provided
+    const keyMetric = property.keyMetric || (property.projectedGrowth ? {
+        label: isRTL ? 'العائد المتوقع' : 'Projected ROI',
+        value: `+${property.projectedGrowth}`,
+        trend: 'up' as const
+    } : null);
 
     const handleCardClick = () => {
         onSelect?.(property);
@@ -135,12 +75,16 @@ export default function PropertyCardEnhanced({
         <div
             ref={cardRef}
             className="premium-card max-w-md cursor-pointer"
-            style={{ opacity: 0 }}
+            style={{
+                opacity: 0,
+                minWidth: 'var(--card-min-width, 280px)',
+                maxWidth: 'var(--card-max-width, 400px)'
+            }}
             onClick={handleCardClick}
             dir={isRTL ? 'rtl' : 'ltr'}
         >
-            {/* Image Section */}
-            <div className="premium-card-image h-44 sm:h-52">
+            {/* Image Section - 16:9 ratio */}
+            <div className="premium-card-image h-44 sm:h-52 relative">
                 {property.image ? (
                     <img
                         src={property.image}
@@ -152,7 +96,7 @@ export default function PropertyCardEnhanced({
                         <span className="text-4xl opacity-30">🏠</span>
                     </div>
                 )}
-                
+
                 {/* Overlay Badges */}
                 <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} z-10 flex flex-col gap-1.5`}>
                     {isTopPick && (
@@ -173,8 +117,8 @@ export default function PropertyCardEnhanced({
                     )}
                 </div>
 
-                {/* Title Overlay */}
-                <div className={`absolute bottom-0 ${isRTL ? 'right-0' : 'left-0'} p-4 z-10`}>
+                {/* Title Overlay with gradient */}
+                <div className={`absolute bottom-0 left-0 right-0 p-4 z-10 bg-gradient-to-t from-black/70 via-black/40 to-transparent`}>
                     <h3 className="text-white font-bold text-base sm:text-lg leading-tight line-clamp-2 drop-shadow-md">
                         {property.title}
                     </h3>
@@ -186,19 +130,19 @@ export default function PropertyCardEnhanced({
             </div>
 
             {/* Data Ribbon - Price & Wolf Score */}
-            <div className="data-ribbon">
+            <div className="data-ribbon" style={{ padding: 'var(--space-4, 16px)' }}>
                 <div className="data-ribbon-item">
                     <span className="data-ribbon-value">{property.price}</span>
                     <span className="data-ribbon-label">{isRTL ? 'السعر' : 'Price'}</span>
                 </div>
-                
+
                 {property.wolfScore && (
                     <div className="wolf-score-badge">
                         <span>🐺</span>
                         <span>{property.wolfScore}/100</span>
                     </div>
                 )}
-                
+
                 {property.rating && !property.wolfScore && (
                     <div className="wolf-score-badge">
                         <Star size={14} className="fill-current" />
@@ -207,49 +151,40 @@ export default function PropertyCardEnhanced({
                 )}
             </div>
 
-            {/* Property Stats */}
-            <div className="property-stats-row">
-                <div className="property-stat">
-                    <Bed size={14} />
-                    <span>{property.bedrooms} {isRTL ? 'غرف' : 'Bed'}</span>
+            {/* Key Metric Highlight (replaces detailed stats) */}
+            {keyMetric && (
+                <div
+                    className="flex items-center justify-between px-4 py-3 bg-[var(--semantic-surface-elevated,#F9FAFB)] dark:bg-[var(--semantic-surface-elevated,#374151)] border-t border-[var(--semantic-border,#E5E7EB)] dark:border-[var(--semantic-border,#374151)]"
+                    style={{ padding: 'var(--space-3, 12px) var(--space-4, 16px)' }}
+                >
+                    <span className="text-xs text-[var(--semantic-text-muted,#6B7280)] dark:text-[var(--semantic-text-muted,#9CA3AF)]">
+                        {keyMetric.label}
+                    </span>
+                    <span className={`text-sm font-semibold flex items-center gap-1 ${
+                        keyMetric.trend === 'up'
+                            ? 'text-[var(--semantic-success,#059669)] dark:text-[var(--semantic-success,#34D399)]'
+                            : keyMetric.trend === 'down'
+                            ? 'text-[var(--semantic-danger,#B91C1C)] dark:text-[var(--semantic-danger,#F87171)]'
+                            : 'text-[var(--semantic-text-primary,#1F2937)] dark:text-[var(--semantic-text-primary,#F9FAFB)]'
+                    }`}>
+                        {keyMetric.trend === 'up' && <TrendingUp size={14} />}
+                        {keyMetric.trend === 'down' && <TrendingDown size={14} />}
+                        {keyMetric.value}
+                    </span>
                 </div>
-                <div className="property-stat">
-                    <Bath size={14} />
-                    <span>{property.bathrooms} {isRTL ? 'حمام' : 'Bath'}</span>
-                </div>
-                <div className="property-stat">
-                    <Ruler size={14} />
-                    <span>{property.sqft.toLocaleString()} {isRTL ? 'م²' : 'sqm'}</span>
-                </div>
-            </div>
-
-            {/* Inline Sparkline Chart */}
-            {showChart && hasGrowthData && (
-                <SparklineChart
-                    projectedGrowth={property.projectedGrowth}
-                    isRTL={isRTL}
-                />
             )}
 
-            {/* Action Buttons */}
-            <div className="premium-card-actions">
+            {/* Full-width View Details Button */}
+            <div className="p-4" style={{ padding: 'var(--space-4, 16px)' }}>
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         onViewDetails?.(property.id);
                     }}
-                    className="premium-card-btn-primary"
+                    className="w-full premium-card-btn-primary flex items-center justify-center gap-2"
                 >
                     {isRTL ? 'عرض التفاصيل' : 'View Details'}
-                </button>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onBookmark?.(property.id);
-                    }}
-                    className="premium-card-btn-secondary"
-                >
-                    <Bookmark size={16} />
+                    <ArrowUpRight size={16} />
                 </button>
             </div>
         </div>
