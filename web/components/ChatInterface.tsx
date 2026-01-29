@@ -21,6 +21,7 @@ import {
     quickActionsEnter
 } from '@/lib/animations';
 import VisualizationRenderer from './visualizations/VisualizationRenderer';
+import UnifiedAnalytics from './visualizations/UnifiedAnalytics';
 import InvitationModal from './InvitationModal';
 import { User, LogOut, Gift, PlusCircle, History, Send, Mic, Plus, Bookmark, Copy, Check } from 'lucide-react';
 
@@ -245,34 +246,34 @@ function FeaturedPropertyCard({
 
             {/* Appreciation Chart */}
             {projectedGrowth && (
-            <div className="hidden sm:block px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]" dir={isRTL ? 'rtl' : 'ltr'}>
-                <div className="flex justify-between items-center mb-4 sm:mb-6 lg:mb-8">
-                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--color-text-muted-studio)]">
-                        {isRTL ? 'توقعات 5 سنوات' : '5Y Projection'}
-                    </p>
-                    <p className="text-[10px] sm:text-[11px] font-medium text-[var(--color-text-main)]">+{projectedGrowth}%</p>
-                </div>
-                <div className="h-16 sm:h-24 lg:h-32 w-full relative">
-                    <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 100">
-                        <line stroke="#E9ECEF" strokeWidth="1" x1="0" x2="800" y1="100" y2="100"></line>
-                        <path
-                            d="M0,90 C150,85 250,70 400,60 C550,50 650,20 800,10"
-                            fill="none"
-                            stroke="#2D3436"
-                            strokeLinecap="round"
-                            strokeWidth="1.5"
-                        ></path>
-                        <circle cx="0" cy="90" fill="#2D3436" r="2.5"></circle>
-                        <circle cx="400" cy="60" fill="#2D3436" r="2.5"></circle>
-                        <circle cx="800" cy="10" fill="#2D3436" r="3.5"></circle>
-                    </svg>
-                    <div className="flex justify-between mt-2 sm:mt-4 text-[9px] sm:text-[10px] text-[var(--color-text-muted-studio)] font-medium tracking-wider sm:tracking-widest">
-                        <span>2024</span>
-                        <span>2026</span>
-                        <span>2028</span>
+                <div className="hidden sm:block px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]" dir={isRTL ? 'rtl' : 'ltr'}>
+                    <div className="flex justify-between items-center mb-4 sm:mb-6 lg:mb-8">
+                        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--color-text-muted-studio)]">
+                            {isRTL ? 'توقعات 5 سنوات' : '5Y Projection'}
+                        </p>
+                        <p className="text-[10px] sm:text-[11px] font-medium text-[var(--color-text-main)]">+{projectedGrowth}%</p>
+                    </div>
+                    <div className="h-16 sm:h-24 lg:h-32 w-full relative">
+                        <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 100">
+                            <line stroke="#E9ECEF" strokeWidth="1" x1="0" x2="800" y1="100" y2="100"></line>
+                            <path
+                                d="M0,90 C150,85 250,70 400,60 C550,50 650,20 800,10"
+                                fill="none"
+                                stroke="#2D3436"
+                                strokeLinecap="round"
+                                strokeWidth="1.5"
+                            ></path>
+                            <circle cx="0" cy="90" fill="#2D3436" r="2.5"></circle>
+                            <circle cx="400" cy="60" fill="#2D3436" r="2.5"></circle>
+                            <circle cx="800" cy="10" fill="#2D3436" r="3.5"></circle>
+                        </svg>
+                        <div className="flex justify-between mt-2 sm:mt-4 text-[9px] sm:text-[10px] text-[var(--color-text-muted-studio)] font-medium tracking-wider sm:tracking-widest">
+                            <span>2024</span>
+                            <span>2026</span>
+                            <span>2028</span>
+                        </div>
                     </div>
                 </div>
-            </div>
             )}
         </motion.div>
     );
@@ -469,7 +470,7 @@ function ContextualInsights({
                 return data?.trend || data?.data?.trend || '—';
             case 'area_analysis': {
                 const price = data?.area?.avg_price_per_sqm || data?.areas?.[0]?.avg_price_per_sqm;
-                return price ? `${Math.round(price/1000)}K` : '—';
+                return price ? `${Math.round(price / 1000)}K` : '—';
             }
             case 'developer_analysis':
                 return `${data?.developer?.trust_score || data?.developers?.[0]?.trust_score || '—'}%`;
@@ -530,22 +531,68 @@ function ContextualInsights({
                                 </div>
                             )}
 
-                            {/* Property Metrics Grid */}
+                            {/* Property Thumbnail + Enhanced Metrics */}
                             {property && (
-                                <div className="insight-item p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-studio-white)]">
-                                    <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-muted-studio)] mb-2.5">
-                                        {isRTL ? 'مقاييس العقار' : 'Property Metrics'}
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-2">
+                                <div className="insight-item space-y-2">
+                                    {/* Property Thumbnail Header */}
+                                    <div className="insight-property-thumb">
+                                        {property.image_url ? (
+                                            <img
+                                                src={property.image_url}
+                                                alt={property.title}
+                                            />
+                                        ) : (
+                                            <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-lg">
+                                                🏠
+                                            </div>
+                                        )}
+                                        <div className="insight-property-thumb-info">
+                                            <p className="insight-property-thumb-title">{property.title}</p>
+                                            <p className="insight-property-thumb-price">
+                                                {(property.price / 1000000).toFixed(1)}M {isRTL ? 'ج.م' : 'EGP'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* 6-Metric Grid */}
+                                    <div className="insight-metrics-grid">
                                         {[
-                                            { label: isRTL ? 'سعر/م²' : 'Price/m²', value: property.size_sqm > 0 ? `${Math.round(property.price / property.size_sqm / 1000)}K` : '—', color: 'text-[var(--color-text-main)]' },
-                                            { label: isRTL ? 'تقييم' : 'Wolf Score', value: property.wolf_score || '—', color: 'text-emerald-600' },
-                                            { label: isRTL ? 'غرف' : 'Bedrooms', value: property.bedrooms || '—', color: 'text-blue-600' },
-                                            { label: isRTL ? 'العائد' : 'ROI', value: property.roi ? `${property.roi}%` : '—', color: 'text-amber-600' },
+                                            {
+                                                label: isRTL ? 'سعر/م²' : 'Price/m²',
+                                                value: property.size_sqm > 0 ? `${Math.round(property.price / property.size_sqm / 1000)}K` : '—',
+                                                highlight: false
+                                            },
+                                            {
+                                                label: isRTL ? 'تقييم' : 'Wolf',
+                                                value: property.wolf_score || '—',
+                                                highlight: property.wolf_score && property.wolf_score >= 80
+                                            },
+                                            {
+                                                label: isRTL ? 'العائد' : 'ROI',
+                                                value: property.roi ? `${property.roi}%` : '—',
+                                                highlight: property.roi && property.roi > 10
+                                            },
+                                            {
+                                                label: isRTL ? 'غرف' : 'Beds',
+                                                value: property.bedrooms || '—',
+                                                highlight: false
+                                            },
+                                            {
+                                                label: isRTL ? 'المساحة' : 'Size',
+                                                value: property.size_sqm ? `${property.size_sqm}m²` : '—',
+                                                highlight: false
+                                            },
+                                            {
+                                                label: isRTL ? 'المطور' : 'Dev',
+                                                value: property.developer ? property.developer.split(' ')[0] : '—',
+                                                highlight: false
+                                            },
                                         ].map((metric) => (
-                                            <div key={metric.label} className="p-2 rounded-lg bg-[var(--color-studio-gray)] text-center">
-                                                <p className={`text-sm font-bold ${metric.color}`}>{metric.value}</p>
-                                                <p className="text-[8px] text-[var(--color-text-muted-studio)] mt-0.5">{metric.label}</p>
+                                            <div key={metric.label} className="insight-metric-card">
+                                                <p className={`insight-metric-value ${metric.highlight ? 'highlight' : ''}`}>
+                                                    {metric.value}
+                                                </p>
+                                                <p className="insight-metric-label">{metric.label}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -1181,11 +1228,10 @@ export default function ChatInterface() {
                                             <div className="flex justify-end">
                                                 <div className="max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%] flex flex-col items-end">
                                                     <div
-                                                        className={`px-5 sm:px-6 py-3 sm:py-4 shadow-md ${
-                                                            isRTL
+                                                        className={`px-5 sm:px-6 py-3 sm:py-4 shadow-md ${isRTL
                                                                 ? 'rounded-t-[var(--radius-message)] rounded-br-[var(--radius-message)] rounded-bl-[4px]'
                                                                 : 'rounded-t-[var(--radius-message)] rounded-bl-[var(--radius-message)] rounded-br-[4px]'
-                                                        }`}
+                                                            }`}
                                                         style={{
                                                             background: 'var(--user-surface)',
                                                             color: 'var(--user-surface-text)',
