@@ -118,7 +118,7 @@ export default function AgentInterface() {
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     // Get user's display name
-    const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Investor';
+    const userName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
 
     // Auto-resize input
     useEffect(() => {
@@ -152,9 +152,15 @@ export default function AgentInterface() {
         setIsTyping(true);
 
         try {
-            // Call the real API
-            const response = await api.post('/api/chat', { message: content });
+            // Call the real API (session_id required by backend)
+            const sessionId = `session_${Date.now()}`;
+            const response = await api.post('/api/chat', {
+                message: content,
+                session_id: sessionId,
+                language: 'auto'
+            });
             const data = response.data;
+            console.log('[AMR] API Response:', data);
 
             // Extract property artifacts from response
             let artifacts: Artifacts | null = null;
@@ -197,12 +203,18 @@ export default function AgentInterface() {
                 setActiveContext(aiMsg.artifacts);
                 setContextPaneOpen(true);
             }
-        } catch (error) {
-            // Error response
+        } catch (error: any) {
+            // Log real error for debugging
+            console.error('[AMR] API Error:', error?.response?.data || error?.message || error);
+
+            // Try to extract error message from backend
+            const errorMsg = error?.response?.data?.detail || error?.response?.data?.error ||
+                "I'm AMR (Automated Market Researcher). I can access the Osool liquidity engine, analyze market data, and audit real estate assets. How can I assist with your portfolio today?";
+
             const aiMsg: Message = {
                 id: Date.now() + 1,
                 role: 'agent',
-                content: "I'm AMR (Automated Market Researcher). I can access the Osool liquidity engine, analyze market data, and audit real estate assets. How can I assist with your portfolio today?",
+                content: errorMsg,
                 artifacts: null
             };
             setMessages(prev => [...prev, aiMsg]);
@@ -472,8 +484,8 @@ export default function AgentInterface() {
 
                 {/* BOTTOM INPUT BAR (OMNIBAR) - Centered when empty, bottom when chatting */}
                 <div className={`absolute left-0 right-0 z-40 transition-all duration-700 ${!hasStarted
-                        ? 'top-[50%] -translate-y-1/2 p-4'
-                        : 'bottom-0 p-6'
+                    ? 'top-[50%] -translate-y-1/2 p-4'
+                    : 'bottom-0 p-6'
                     }`}
                     style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)' }}
                 >
