@@ -61,6 +61,7 @@ interface ContextualPaneProps {
     uiActions?: UIActionData[];
     chatInsight?: string | null;
     isRTL?: boolean;
+    isModal?: boolean; // When true, renders content only without wrapper
 }
 
 // Typewriter Hook with anime.js
@@ -320,8 +321,8 @@ function KeyMetricsGrid({
                         </div>
                         <p className="text-[10px] text-[var(--color-text-muted)] mt-2 text-right">
                             {metrics.walkScore >= 90 ? (isRTL ? '"موقع ممتاز"' : '"Walker\'s Paradise"') :
-                             metrics.walkScore >= 70 ? (isRTL ? '"موقع جيد جداً"' : '"Very Walkable"') :
-                             (isRTL ? '"موقع جيد"' : '"Somewhat Walkable"')}
+                                metrics.walkScore >= 70 ? (isRTL ? '"موقع جيد جداً"' : '"Very Walkable"') :
+                                    (isRTL ? '"موقع جيد"' : '"Somewhat Walkable"')}
                         </p>
                     </div>
                 )}
@@ -563,6 +564,7 @@ export default function ContextualPane({
     uiActions = [],
     chatInsight = null,
     isRTL = false,
+    isModal = false,
 }: ContextualPaneProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [animationKey, setAnimationKey] = useState(0);
@@ -614,8 +616,8 @@ export default function ContextualPane({
 
         if (wolfScore && wolfScore >= 85) {
             return isRTL
-                ? `🐺 فرصة ممتازة! الـ Wolf Score عالي (${wolfScore}/100). العقار ده تحت سعر السوق وفي منطقة نمو.${roi ? ` العائد المتوقع ${roi}% سنوياً - أحسن من الودائع البنكية!` : ''}`
-                : `🐺 Excellent opportunity! High Wolf Score (${wolfScore}/100). This property is below market price in a growth area.${roi ? ` Expected ROI of ${roi}% annually - better than bank deposits!` : ''}`;
+                ? `🏢 فرصة ممتازة! الـ Osool Score عالي (${wolfScore}/100). العقار ده تحت سعر السوق وفي منطقة نمو.${roi ? ` العائد المتوقع ${roi}% سنوياً - أحسن من الودائع البنكية!` : ''}`
+                : `🏢 Excellent opportunity! High Osool Score (${wolfScore}/100). This property is below market price in a growth area.${roi ? ` Expected ROI of ${roi}% annually - better than bank deposits!` : ''}`;
         } else if (wolfScore && wolfScore >= 70) {
             return isRTL
                 ? `📊 عقار جيد للاستثمار.${pricePerSqm ? ` السعر للمتر ${pricePerSqm.toLocaleString()} جنيه.` : ''}${roi ? ` العائد المتوقع ${roi}% سنوياً.` : ''}`
@@ -712,7 +714,7 @@ export default function ContextualPane({
                                         <div className="flex items-center gap-1.5 mb-1">
                                             <Target size={12} className="text-[var(--color-primary)]" />
                                             <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)]">
-                                                Wolf Score
+                                                Osool Score
                                             </span>
                                         </div>
                                         <span className="text-xl font-bold text-[var(--color-teal-accent)]">
@@ -852,6 +854,126 @@ export default function ContextualPane({
         </div>
     );
 
+    // Modal mode - render content only without wrapper
+    if (isModal) {
+        return (
+            <div className="space-y-6">
+                {hasData ? (
+                    <>
+                        {/* Property Info */}
+                        {property && (
+                            <div className="pb-4 border-b border-[var(--color-border)]">
+                                <div className="flex items-start gap-2 mb-3">
+                                    <Home size={16} className="text-[var(--color-primary)] mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-bold text-[var(--color-text-primary)] leading-tight">
+                                            {property.title}
+                                        </h4>
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <MapPin size={12} className="text-[var(--color-text-muted)]" />
+                                            <span className="text-[11px] text-[var(--color-text-muted)] truncate">{property.address}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-bold text-[var(--color-text-primary)]">{property.price}</span>
+                                    {priceVerdict === 'BARGAIN' && (
+                                        <span className="badge-high-growth">{isRTL ? 'صفقة!' : 'Bargain!'}</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Wolf Score & ROI Summary */}
+                        {(wolfScore !== undefined || roi !== undefined) && (
+                            <div className="grid grid-cols-2 gap-3">
+                                {wolfScore !== undefined && (
+                                    <div className="p-3 rounded-xl bg-gradient-to-br from-[var(--color-primary)]/10 to-transparent border border-[var(--color-primary)]/20">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <Target size={12} className="text-[var(--color-primary)]" />
+                                            <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)]">
+                                                Osool Score
+                                            </span>
+                                        </div>
+                                        <span className="text-xl font-bold text-[var(--color-teal-accent)]">
+                                            {wolfScore}/100
+                                        </span>
+                                    </div>
+                                )}
+                                {roi !== undefined && (
+                                    <div className="p-3 rounded-xl bg-gradient-to-br from-[var(--color-teal-accent)]/10 to-transparent border border-[var(--color-teal-accent)]/20">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <TrendingUp size={12} className="text-[var(--color-teal-accent)]" />
+                                            <span className="text-[10px] font-bold uppercase text-[var(--color-text-muted)]">
+                                                {isRTL ? 'العائد' : 'ROI'}
+                                            </span>
+                                        </div>
+                                        <span className="text-xl font-bold text-[var(--color-primary)]">
+                                            {roi}%
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Property Details */}
+                        {property?.metrics && (property.metrics.bedrooms || property.metrics.size) && (
+                            <div>
+                                <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-3">
+                                    {isRTL ? 'تفاصيل العقار' : 'Property Details'}
+                                </h3>
+                                <MetricsGrid
+                                    metrics={[
+                                        ...(property.metrics.bedrooms ? [{
+                                            id: 'bedrooms',
+                                            label: isRTL ? 'غرف النوم' : 'Bedrooms',
+                                            value: property.metrics.bedrooms,
+                                            icon: <Bed size={16} />
+                                        }] : []),
+                                        ...(property.metrics.size ? [{
+                                            id: 'size',
+                                            label: isRTL ? 'المساحة' : 'Size',
+                                            value: property.metrics.size.toLocaleString(),
+                                            suffix: isRTL ? 'م²' : 'sqm',
+                                            icon: <Ruler size={16} />
+                                        }] : []),
+                                        ...(pricePerSqm ? [{
+                                            id: 'price_per_sqm',
+                                            label: isRTL ? 'السعر/م²' : 'Price/sqm',
+                                            value: `${(pricePerSqm / 1000).toFixed(1)}K`,
+                                            icon: <DollarSign size={16} />
+                                        }] : []),
+                                    ] as MetricItem[]}
+                                    columns={2}
+                                    isRTL={isRTL}
+                                />
+                            </div>
+                        )}
+
+                        {/* Visualizations */}
+                        {uiActions.length > 0 && (
+                            <VisualizationSection uiActions={uiActions} isRTL={isRTL} />
+                        )}
+
+                        {/* AI Recommendation */}
+                        <AIRecommendationWidget
+                            insight={generateInsight()}
+                            tags={tags}
+                            isRTL={isRTL}
+                        />
+                    </>
+                ) : (
+                    <div className="text-center py-8">
+                        <p className="text-sm text-[var(--color-text-muted)]">
+                            {isRTL ? 'لا توجد بيانات متاحة' : 'No data available'}
+                        </p>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Original sidebar/panel mode
     return (
         <>
             {/* Desktop Pane - Fixed Sidebar */}

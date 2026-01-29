@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, Mic, BarChart3, TrendingUp } from 'lucide-react';
-import anime from 'animejs';
-import AnimatedBlobs from './AnimatedBlobs';
+import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, Mic, BarChart3, TrendingUp, RotateCcw, User } from 'lucide-react';
 import PropertyCardEnhanced from './PropertyCardEnhanced';
 import { PropertyContext, UIActionData } from './ContextualPane';
 import api from '@/lib/api';
@@ -47,53 +45,6 @@ function isArabic(text: string): boolean {
     return arabicPattern.test(text);
 }
 
-// Typewriter Hook
-function useTypewriter(text: string, baseSpeed: number = 12, enabled: boolean = true) {
-    const [displayedText, setDisplayedText] = useState('');
-    const [isComplete, setIsComplete] = useState(false);
-
-    useEffect(() => {
-        if (!enabled) {
-            setDisplayedText(text);
-            setIsComplete(true);
-            return;
-        }
-
-        setDisplayedText('');
-        setIsComplete(false);
-        let index = 0;
-        let timeoutId: NodeJS.Timeout;
-
-        const typeNext = () => {
-            if (index < text.length) {
-                const char = text[index];
-                setDisplayedText(text.slice(0, index + 1));
-                index++;
-
-                let delay = baseSpeed;
-                if (['.', '!', '?', '،', '؟'].includes(char)) {
-                    delay = baseSpeed * 6;
-                } else if ([',', ':', ';', '-'].includes(char)) {
-                    delay = baseSpeed * 3;
-                } else if (char === ' ') {
-                    delay = baseSpeed * 1.3;
-                } else if (/[\u0600-\u06FF]/.test(char)) {
-                    delay = baseSpeed * 0.9;
-                }
-
-                timeoutId = setTimeout(typeNext, delay);
-            } else {
-                setIsComplete(true);
-            }
-        };
-
-        timeoutId = setTimeout(typeNext, 50);
-        return () => clearTimeout(timeoutId);
-    }, [text, baseSpeed, enabled]);
-
-    return { displayedText, isComplete };
-}
-
 // Format price
 const formatPrice = (price: number): string => {
     if (price >= 1_000_000) {
@@ -102,53 +53,34 @@ const formatPrice = (price: number): string => {
     return `${(price / 1_000).toFixed(0)}K EGP`;
 };
 
-// User Message Component with anime.js
+// User Message Component - ChatGPT Style (clean, no bubble)
 function UserMessage({ content, timestamp, isRTL }: { content: string; timestamp?: Date; isRTL: boolean }) {
     const messageIsArabic = isArabic(content);
-    const messageRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (messageRef.current) {
-            anime({
-                targets: messageRef.current,
-                opacity: [0, 1],
-                translateY: [20, 0],
-                easing: 'easeOutExpo',
-                duration: 500,
-            });
-        }
-    }, []);
 
     return (
-        <div 
-            ref={messageRef}
-            className={`flex ${messageIsArabic ? 'justify-start' : 'justify-end'}`}
-            style={{ opacity: 0 }}
-        >
-            <div className={`flex flex-col ${messageIsArabic ? 'items-start' : 'items-end'} gap-1 max-w-[85%] md:max-w-[70%] lg:max-w-[60%]`}>
-                <div
-                    className="chat-message-user px-6 py-4 shadow-lg shadow-[var(--color-primary)]/10"
-                    dir={messageIsArabic ? 'rtl' : 'ltr'}
-                >
-                    <p className="leading-relaxed text-[15px] font-medium">{content}</p>
+        <div className="chatgpt-message chatgpt-message-user">
+            <div className="chatgpt-message-layout chatgpt-container">
+                <div className="chatgpt-avatar chatgpt-avatar-user">
+                    <User size={16} />
                 </div>
-                <span className={`text-[11px] font-medium text-[var(--color-text-muted)] ${messageIsArabic ? 'ml-2' : 'mr-2'}`}>
-                    {isRTL ? 'أنت' : 'You'} {timestamp && `• ${timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                </span>
+                <div className="chatgpt-message-content" dir={messageIsArabic ? 'rtl' : 'ltr'}>
+                    <p>{content}</p>
+                </div>
             </div>
         </div>
     );
 }
 
-// AI Message Component with anime.js
+// AI Message Component - ChatGPT Style (subtle bg, avatar)
 function AIMessage({
     content,
     properties,
     visualizations,
     timestamp,
-    enableTypewriter = true,
+    isStreaming = false,
     onCopy,
     copied,
+    onRegenerate,
     isRTL,
     onPropertySelect
 }: {
@@ -156,216 +88,133 @@ function AIMessage({
     properties?: Property[];
     visualizations?: UIAction[];
     timestamp?: Date;
-    enableTypewriter?: boolean;
+    isStreaming?: boolean;
     onCopy?: () => void;
     copied?: boolean;
+    onRegenerate?: () => void;
     isRTL: boolean;
     onPropertySelect?: (property: Property, uiActions?: UIAction[]) => void;
 }) {
-    const { displayedText, isComplete } = useTypewriter(content, 12, enableTypewriter);
     const messageIsArabic = isArabic(content);
-    const messageRef = useRef<HTMLDivElement>(null);
-    const visualsRef = useRef<HTMLDivElement>(null);
-    const cardsRef = useRef<HTMLDivElement>(null);
-
-    // Entrance animation for message
-    useEffect(() => {
-        if (messageRef.current) {
-            anime({
-                targets: messageRef.current,
-                opacity: [0, 1],
-                translateY: [30, 0],
-                easing: 'easeOutExpo',
-                duration: 600,
-            });
-        }
-    }, []);
-
-    // Stagger animation for visualizations
-    useEffect(() => {
-        if (visualsRef.current && isComplete && visualizations?.length) {
-            anime({
-                targets: visualsRef.current.querySelectorAll('.viz-card'),
-                opacity: [0, 1],
-                translateY: [20, 0],
-                scale: [0.95, 1],
-                delay: anime.stagger(150, { start: 200 }),
-                easing: 'easeOutExpo',
-                duration: 500,
-            });
-        }
-    }, [isComplete, visualizations]);
-
-    // Stagger animation for property cards
-    useEffect(() => {
-        if (cardsRef.current && isComplete && properties?.length) {
-            anime({
-                targets: cardsRef.current.querySelectorAll('.property-card'),
-                opacity: [0, 1],
-                translateX: [30, 0],
-                delay: anime.stagger(100, { start: 300 }),
-                easing: 'easeOutExpo',
-                duration: 500,
-            });
-        }
-    }, [isComplete, properties]);
 
     return (
-        <div 
-            ref={messageRef}
-            className={`flex gap-5 max-w-full md:max-w-[90%] ${messageIsArabic ? 'flex-row-reverse' : ''}`}
-            style={{ opacity: 0 }}
-        >
-            <div className="flex-none flex flex-col items-center gap-2">
-                <div className="size-10 rounded-xl bg-gradient-to-br from-[var(--color-teal-accent)] to-[var(--color-primary)] flex items-center justify-center shadow-lg shadow-[var(--color-primary)]/20">
-                    <Sparkles size={20} className="text-white" />
+        <div className="chatgpt-message chatgpt-message-ai">
+            <div className="chatgpt-message-layout chatgpt-container">
+                <div className="chatgpt-avatar chatgpt-avatar-ai">
+                    <Sparkles size={16} />
                 </div>
-            </div>
-            <div className={`flex flex-col gap-4 flex-1 min-w-0 ${messageIsArabic ? 'items-end' : 'items-start'}`}>
-                <div>
-                    <div className={`flex items-baseline gap-2 mb-1 ${messageIsArabic ? 'flex-row-reverse' : ''}`}>
-                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{isRTL ? 'عمرو' : 'AMR AI'}</span>
-                        <span className="text-[11px] text-[var(--color-text-muted)]">
-                            {timestamp?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    </div>
-                    <div
-                        className="chat-message-ai px-6 py-4 shadow-sm inline-block relative group"
-                        dir={messageIsArabic ? 'rtl' : 'ltr'}
-                    >
-                        <p className="leading-relaxed text-[15px] text-[var(--color-text-primary)]">
-                            {enableTypewriter ? displayedText : content}
-                            {enableTypewriter && !isComplete && (
-                                <span className="inline-block w-0.5 h-4 bg-[var(--color-teal-accent)] ml-1 animate-pulse" />
-                            )}
+                <div className="flex-1 min-w-0">
+                    <div className="chatgpt-message-content" dir={messageIsArabic ? 'rtl' : 'ltr'}>
+                        <p>
+                            {content}
+                            {isStreaming && <span className="chatgpt-cursor" />}
                         </p>
-                        {isComplete && onCopy && (
-                            <button
-                                onClick={onCopy}
-                                className={`absolute top-2 ${messageIsArabic ? 'left-2' : 'right-2'} p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--color-surface-hover)] hover:bg-[var(--color-border)]`}
-                            >
-                                {copied ? <Check size={14} className="text-[var(--color-teal-accent)]" /> : <Copy size={14} className="text-[var(--color-text-muted)]" />}
-                            </button>
-                        )}
                     </div>
-                </div>
 
-                {/* 📊 VISUALIZATIONS - Show analytics and charts */}
-                {visualizations && visualizations.length > 0 && isComplete && (
-                    <div 
-                        ref={visualsRef}
-                        className="w-full space-y-4"
-                    >
-                        {/* Analytics Header */}
-                        <div className={`flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] ${messageIsArabic ? 'flex-row-reverse' : ''}`}>
-                            <BarChart3 size={16} />
-                            <span>{isRTL ? '📊 التحليلات والرسوم البيانية' : '📊 Analytics & Charts'}</span>
-                        </div>
-                        
-                        {/* Render each visualization */}
-                        <div className="grid gap-4">
-                            {visualizations.map((viz, index) => (
-                                <div
-                                    key={`${viz.type}-${index}`}
-                                    className="viz-card rounded-2xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg"
-                                    style={{ opacity: 0 }}
-                                >
-                                    {/* Visualization Header */}
-                                    {viz.chart_reference && (
-                                        <div className={`px-4 py-2 bg-gradient-to-r from-[var(--color-primary)]/10 to-transparent border-b border-[var(--color-border)] ${messageIsArabic ? 'text-right' : 'text-left'}`}>
-                                            <p className="text-xs text-[var(--color-primary)] font-medium flex items-center gap-2">
-                                                <TrendingUp size={12} />
-                                                {viz.chart_reference}
-                                            </p>
+                    {/* Visualizations */}
+                    {visualizations && visualizations.length > 0 && !isStreaming && (
+                        <div className="mt-4 space-y-4">
+                            <div className={`flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)] ${messageIsArabic ? 'flex-row-reverse' : ''}`}>
+                                <BarChart3 size={16} />
+                                <span>{isRTL ? 'التحليلات' : 'Analytics'}</span>
+                            </div>
+                            <div className="grid gap-3">
+                                {visualizations.map((viz, index) => (
+                                    <div
+                                        key={`${viz.type}-${index}`}
+                                        className="rounded-xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)]"
+                                    >
+                                        {viz.chart_reference && (
+                                            <div className={`px-4 py-2 bg-[var(--chatgpt-hover-bg)] border-b border-[var(--color-border)] ${messageIsArabic ? 'text-right' : 'text-left'}`}>
+                                                <p className="text-xs text-[var(--color-text-muted)] font-medium flex items-center gap-2">
+                                                    <TrendingUp size={12} />
+                                                    {viz.chart_reference}
+                                                </p>
+                                            </div>
+                                        )}
+                                        <div className="p-2">
+                                            <VisualizationRenderer
+                                                type={viz.type}
+                                                data={viz.data}
+                                            />
                                         </div>
-                                    )}
-                                    
-                                    {/* Visualization Content */}
-                                    <div className="p-2">
-                                        <VisualizationRenderer 
-                                            type={viz.type} 
-                                            data={viz.data} 
-                                        />
                                     </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Property Cards */}
+                    {properties && properties.length > 0 && !isStreaming && (
+                        <div className="mt-4 space-y-3">
+                            {properties.map((prop) => (
+                                <div
+                                    key={prop.id}
+                                    onClick={() => onPropertySelect?.(prop, visualizations)}
+                                    className="cursor-pointer"
+                                >
+                                    <PropertyCardEnhanced
+                                        property={{
+                                            id: String(prop.id),
+                                            title: prop.title,
+                                            address: prop.location,
+                                            price: formatPrice(prop.price),
+                                            bedrooms: prop.bedrooms,
+                                            bathrooms: 2,
+                                            sqft: prop.size_sqm,
+                                            rating: prop.wolf_score ? prop.wolf_score / 10 : undefined,
+                                            badge: prop.developer,
+                                            growthBadge: prop.wolf_score && prop.wolf_score >= 80 ? (isRTL ? 'نمو مرتفع' : 'High Growth') : undefined,
+                                        }}
+                                        showChart={false}
+                                    />
                                 </div>
                             ))}
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Property Cards - Only show real data from AI */}
-                {properties && properties.length > 0 && isComplete && (
-                    <div ref={cardsRef} className="space-y-4 w-full">
-                        {properties.map((prop) => (
-                            <div 
-                                key={prop.id} 
-                                onClick={() => onPropertySelect?.(prop, visualizations)} 
-                                className="property-card cursor-pointer"
-                                style={{ opacity: 0 }}
-                            >
-                                <PropertyCardEnhanced
-                                    property={{
-                                        id: String(prop.id),
-                                        title: prop.title,
-                                        address: prop.location,
-                                        price: formatPrice(prop.price),
-                                        bedrooms: prop.bedrooms,
-                                        bathrooms: 2,
-                                        sqft: prop.size_sqm,
-                                        rating: prop.wolf_score ? prop.wolf_score / 10 : undefined,
-                                        badge: prop.developer,
-                                        growthBadge: prop.wolf_score && prop.wolf_score >= 80 ? (isRTL ? 'نمو مرتفع' : 'High Growth') : undefined,
-                                    }}
-                                    showChart={false}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                )}
+                    {/* Message Actions */}
+                    {!isStreaming && (
+                        <div className="chatgpt-message-actions">
+                            {onCopy && (
+                                <button onClick={onCopy} className="chatgpt-action-btn">
+                                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                                    <span>{copied ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}</span>
+                                </button>
+                            )}
+                            {onRegenerate && (
+                                <button onClick={onRegenerate} className="chatgpt-action-btn">
+                                    <RotateCcw size={14} />
+                                    <span>{isRTL ? 'إعادة التوليد' : 'Regenerate'}</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
 }
 
-// Typing Indicator with anime.js
+// Typing Indicator - Simple dots
 function TypingIndicator({ isRTL }: { isRTL: boolean }) {
-    const dotsRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (dotsRef.current) {
-            const dots = dotsRef.current.querySelectorAll('.typing-dot');
-            anime({
-                targets: dots,
-                translateY: [-6, 0],
-                opacity: [0.5, 1],
-                delay: anime.stagger(150),
-                loop: true,
-                direction: 'alternate',
-                easing: 'easeInOutSine',
-                duration: 400,
-            });
-        }
-    }, []);
-
     return (
-        <div className={`flex gap-5 max-w-full md:max-w-[90%] ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <div className="flex-none">
-                <div className="size-10 rounded-xl bg-gradient-to-br from-[var(--color-teal-accent)] to-[var(--color-primary)] flex items-center justify-center shadow-lg">
-                    <Sparkles size={20} className="text-white animate-pulse" />
+        <div className="chatgpt-message chatgpt-message-ai">
+            <div className="chatgpt-message-layout chatgpt-container">
+                <div className="chatgpt-avatar chatgpt-avatar-ai">
+                    <Sparkles size={16} className="animate-pulse" />
                 </div>
-            </div>
-            <div className="chat-message-ai px-6 py-4 shadow-sm">
-                <div ref={dotsRef} className="flex items-center gap-1.5">
-                    <span className="typing-dot w-2 h-2 bg-[var(--color-teal-accent)] rounded-full" />
-                    <span className="typing-dot w-2 h-2 bg-[var(--color-teal-accent)] rounded-full" />
-                    <span className="typing-dot w-2 h-2 bg-[var(--color-teal-accent)] rounded-full" />
+                <div className="flex items-center gap-1 py-2">
+                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
             </div>
         </div>
     );
 }
 
-// Chat Input Component
+// Chat Input Component - ChatGPT Style (clean, no glow)
 function ChatInput({
     value,
     onChange,
@@ -373,7 +222,6 @@ function ChatInput({
     onKeyDown,
     isTyping,
     inputRef,
-    isCentered,
     isRTL
 }: {
     value: string;
@@ -382,55 +230,80 @@ function ChatInput({
     onKeyDown: (e: React.KeyboardEvent) => void;
     isTyping: boolean;
     inputRef: React.RefObject<HTMLTextAreaElement | null>;
-    isCentered: boolean;
     isRTL: boolean;
 }) {
     return (
-        <div className={`${isCentered ? 'w-full max-w-2xl' : 'max-w-4xl'} mx-auto chat-input-container`}>
-            {/* Glow Effect */}
-            <div className="chat-input-glow" />
-
-            <div className={`chat-input flex items-center p-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <button
-                    className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
-                    title={isRTL ? 'إرفاق ملف' : 'Attach file'}
-                >
-                    <Plus size={24} />
-                </button>
-                <textarea
-                    ref={inputRef}
-                    value={value}
-                    onChange={onChange}
-                    onKeyDown={onKeyDown}
-                    placeholder={isRTL ? 'اسأل عن العقارات، اتجاهات السوق، حسابات العائد...' : 'Ask about properties, market trends, ROI calculations...'}
-                    rows={1}
-                    className="flex-1 bg-transparent border-none focus:ring-0 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] px-3 py-3 text-base resize-none max-h-[150px] focus:outline-none"
-                    dir="auto"
-                />
-                <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className="chatgpt-input-area">
+            <div className="chatgpt-input-wrapper">
+                <div className={`chatgpt-input ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <button
-                        className="p-3 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+                        className="chatgpt-input-btn"
+                        title={isRTL ? 'إرفاق ملف' : 'Attach file'}
+                    >
+                        <Plus size={20} />
+                    </button>
+                    <textarea
+                        ref={inputRef}
+                        value={value}
+                        onChange={onChange}
+                        onKeyDown={onKeyDown}
+                        placeholder={isRTL ? 'اسأل عن العقارات، اتجاهات السوق، حسابات العائد...' : 'Ask about properties, market trends, ROI calculations...'}
+                        rows={1}
+                        dir="auto"
+                    />
+                    <button
+                        className="chatgpt-input-btn"
                         title={isRTL ? 'إدخال صوتي' : 'Voice Input'}
                     >
-                        <Mic size={24} />
+                        <Mic size={20} />
                     </button>
                     <button
                         onClick={onSend}
                         disabled={!value.trim() || isTyping}
-                        className={`chat-send-button ${isRTL ? 'mr-1' : 'ml-1'} flex items-center justify-center aspect-square disabled:opacity-50 disabled:cursor-not-allowed`}
+                        className="chatgpt-send-btn"
                     >
                         {isTyping ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className={isRTL ? 'rotate-180' : ''} />}
                     </button>
                 </div>
-            </div>
-            <div className="text-center mt-3">
-                <p className="text-[10px] font-medium text-[var(--color-text-muted)]">
+                <p className="chatgpt-disclaimer">
                     {isRTL ? 'الذكاء الاصطناعي يمكنه تقديم رؤى. تحقق من البيانات المالية بشكل مستقل.' : 'AI can generate insights. Verify financial data independently.'}
                 </p>
             </div>
         </div>
     );
 }
+
+// Suggestion Cards
+const suggestions = [
+    {
+        titleEn: 'Market Analysis',
+        titleAr: 'تحليل السوق',
+        descEn: 'Get insights on current market trends',
+        descAr: 'احصل على رؤى حول اتجاهات السوق',
+        query: 'Show me the current market analysis for New Cairo'
+    },
+    {
+        titleEn: 'ROI Calculator',
+        titleAr: 'حاسبة العائد',
+        descEn: 'Calculate potential returns',
+        descAr: 'احسب العوائد المحتملة',
+        query: 'Calculate ROI for a 2M EGP investment'
+    },
+    {
+        titleEn: 'Top Properties',
+        titleAr: 'أفضل العقارات',
+        descEn: 'Discover high-performing listings',
+        descAr: 'اكتشف أفضل العقارات',
+        query: 'Show me top investment properties'
+    },
+    {
+        titleEn: 'Area Comparison',
+        titleAr: 'مقارنة المناطق',
+        descEn: 'Compare different locations',
+        descAr: 'قارن بين المناطق المختلفة',
+        query: 'Compare New Cairo vs Sheikh Zayed'
+    }
+];
 
 interface ChatMainProps {
     onNewConversation?: () => void;
@@ -502,13 +375,11 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
 
     const handlePropertySelect = (property: Property, uiActions?: UIAction[]) => {
         if (onPropertySelect) {
-            // Extract additional analytics from UI actions if available
             let wolfScore = property.wolf_score || 75;
             let roi = 12.5;
             let marketTrend = 'Growing 📊';
             let priceVerdict = 'Fair';
-            
-            // Look for investment scorecard in ui_actions for richer data
+
             if (uiActions) {
                 const scorecard = uiActions.find(a => a.type === 'investment_scorecard');
                 if (scorecard?.data?.analysis) {
@@ -533,8 +404,8 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                     priceVerdict: priceVerdict,
                 },
                 tags: property.developer ? [property.developer] : [],
-                aiRecommendation: property.wolf_score && property.wolf_score >= 80 
-                    ? 'High investment potential based on Wolf Score analysis'
+                aiRecommendation: property.wolf_score && property.wolf_score >= 80
+                    ? 'High investment potential based on Osool Score analysis'
                     : undefined,
             });
         }
@@ -544,7 +415,6 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         const messageText = text || input.trim();
         if (!messageText || isTyping) return;
 
-        // Detect language direction
         if (isArabic(messageText)) {
             setDetectedRTL(true);
         }
@@ -578,26 +448,21 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
 
             setMessages(prev => [...prev, amrMessage]);
 
-            // Auto-select first property for contextual pane with full analytics
             if (data.properties && data.properties.length > 0) {
                 handlePropertySelect(data.properties[0], data.ui_actions);
             }
-            
-            // Also update chat context for real-time pane updates from AI response
+
             if (onChatContextUpdate) {
-                // Extract insights from UI actions
                 const scorecard = data.ui_actions?.find((a: UIAction) => a.type === 'investment_scorecard');
-                const marketTrend = data.ui_actions?.find((a: UIAction) => a.type === 'market_trend_chart');
-                const roiCalc = data.ui_actions?.find((a: UIAction) => a.type === 'roi_calculator');
-                
+
                 let insight = '';
                 if (scorecard?.data?.analysis) {
                     const analysis = scorecard.data.analysis;
-                    insight = detectedRTL 
-                        ? `🐺 Wolf Score: ${analysis.match_score}/100 | العائد: ${analysis.roi_projection}% | ${analysis.market_trend}`
-                        : `🐺 Wolf Score: ${analysis.match_score}/100 | ROI: ${analysis.roi_projection}% | ${analysis.market_trend}`;
+                    insight = detectedRTL
+                        ? `🏢 Osool Score: ${analysis.match_score}/100 | العائد: ${analysis.roi_projection}% | ${analysis.market_trend}`
+                        : `🏢 Osool Score: ${analysis.match_score}/100 | ROI: ${analysis.roi_projection}% | ${analysis.market_trend}`;
                 }
-                
+
                 onChatContextUpdate({
                     property: data.properties?.[0] ? {
                         title: data.properties[0].title,
@@ -643,54 +508,54 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setInput(e.target.value);
         e.target.style.height = 'auto';
-        e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
+        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
     };
 
-    // Effective RTL state
     const effectiveRTL = isRTL || detectedRTL;
 
     return (
-        <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-surface)]/50 relative" dir={effectiveRTL ? 'rtl' : 'ltr'}>
-            {/* Animated Background Blobs */}
-            <AnimatedBlobs />
-
-            {/* Empty State with Centered Input */}
+        <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-background)] relative" dir={effectiveRTL ? 'rtl' : 'ltr'}>
+            {/* Empty State */}
             {!hasMessages ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 z-10 relative">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center mb-8"
-                    >
-                        <div className="size-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[var(--color-teal-accent)] to-[var(--color-primary)] flex items-center justify-center shadow-2xl">
-                            <Sparkles size={40} className="text-white" />
+                <div className="flex-1 flex flex-col">
+                    <div className="chatgpt-empty-state">
+                        <div className="chatgpt-empty-logo">
+                            <Sparkles size={24} />
                         </div>
-                        <h2 className="text-2xl font-bold text-[var(--color-text-primary)] mb-2">
+                        <h2 className="chatgpt-empty-title">
                             {effectiveRTL ? 'مرحباً بك في عمرو' : 'Welcome to AMR AI'}
                         </h2>
-                        <p className="text-[var(--color-text-muted)]">
+                        <p className="chatgpt-empty-subtitle">
                             {effectiveRTL ? 'مساعدك العقاري الذكي' : 'Your intelligent real estate assistant'}
                         </p>
-                    </motion.div>
 
-                    {/* Centered Input */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="w-full px-4"
-                    >
-                        <ChatInput
-                            value={input}
-                            onChange={handleInputChange}
-                            onSend={() => handleSend()}
-                            onKeyDown={handleKeyDown}
-                            isTyping={isTyping}
-                            inputRef={inputRef}
-                            isCentered={true}
-                            isRTL={effectiveRTL}
-                        />
-                    </motion.div>
+                        <div className="chatgpt-suggestions">
+                            {suggestions.map((suggestion, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleSend(suggestion.query)}
+                                    className="chatgpt-suggestion"
+                                >
+                                    <p className="chatgpt-suggestion-title">
+                                        {effectiveRTL ? suggestion.titleAr : suggestion.titleEn}
+                                    </p>
+                                    <p className="chatgpt-suggestion-desc">
+                                        {effectiveRTL ? suggestion.descAr : suggestion.descEn}
+                                    </p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <ChatInput
+                        value={input}
+                        onChange={handleInputChange}
+                        onSend={() => handleSend()}
+                        onKeyDown={handleKeyDown}
+                        isTyping={isTyping}
+                        inputRef={inputRef}
+                        isRTL={effectiveRTL}
+                    />
                 </div>
             ) : (
                 <>
@@ -698,34 +563,38 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                     <div
                         ref={scrollRef}
                         onScroll={handleScroll}
-                        className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10 z-10 relative scroll-smooth chat-scrollbar"
+                        className="flex-1 overflow-y-auto chatgpt-scrollbar"
                     >
-                        {messages.map((message, index) => (
-                            message.role === 'user' ? (
-                                <UserMessage
-                                    key={message.id}
-                                    content={message.content}
-                                    timestamp={message.timestamp}
-                                    isRTL={effectiveRTL}
-                                />
-                            ) : (
-                                <AIMessage
-                                    key={message.id}
-                                    content={message.content}
-                                    properties={message.properties}
-                                    visualizations={message.visualizations}
-                                    timestamp={message.timestamp}
-                                    enableTypewriter={index === messages.length - 1}
-                                    onCopy={() => handleCopy(message.id)}
-                                    copied={message.copied}
-                                    isRTL={effectiveRTL}
-                                    onPropertySelect={handlePropertySelect}
-                                />
-                            )
-                        ))}
+                        <div className="chatgpt-thread">
+                            {messages.map((message, index) => (
+                                message.role === 'user' ? (
+                                    <UserMessage
+                                        key={message.id}
+                                        content={message.content}
+                                        timestamp={message.timestamp}
+                                        isRTL={effectiveRTL}
+                                    />
+                                ) : (
+                                    <AIMessage
+                                        key={message.id}
+                                        content={message.content}
+                                        properties={message.properties}
+                                        visualizations={message.visualizations}
+                                        timestamp={message.timestamp}
+                                        isStreaming={index === messages.length - 1 && isTyping}
+                                        onCopy={() => handleCopy(message.id)}
+                                        copied={message.copied}
+                                        isRTL={effectiveRTL}
+                                        onPropertySelect={handlePropertySelect}
+                                    />
+                                )
+                            ))}
 
-                        {isTyping && <TypingIndicator isRTL={effectiveRTL} />}
-                        <div className="h-6" /> {/* Spacer */}
+                            {isTyping && messages[messages.length - 1]?.role === 'user' && (
+                                <TypingIndicator isRTL={effectiveRTL} />
+                            )}
+                        </div>
+                        <div className="h-4" />
                     </div>
 
                     {/* Scroll to Bottom Button */}
@@ -736,7 +605,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 20 }}
                                 onClick={scrollToBottom}
-                                className={`absolute bottom-32 ${effectiveRTL ? 'left-8' : 'right-8'} z-20 p-3 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg hover:shadow-xl transition-all`}
+                                className={`absolute bottom-28 ${effectiveRTL ? 'left-4' : 'right-4'} z-20 p-2 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] shadow-md hover:shadow-lg transition-shadow`}
                             >
                                 <ChevronDown size={20} className="text-[var(--color-text-muted)]" />
                             </motion.button>
@@ -744,18 +613,15 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                     </AnimatePresence>
 
                     {/* Bottom Input Area */}
-                    <div className="p-4 md:p-6 bg-gradient-to-t from-[var(--color-surface)] via-[var(--color-surface)] to-transparent z-20">
-                        <ChatInput
-                            value={input}
-                            onChange={handleInputChange}
-                            onSend={() => handleSend()}
-                            onKeyDown={handleKeyDown}
-                            isTyping={isTyping}
-                            inputRef={inputRef}
-                            isCentered={false}
-                            isRTL={effectiveRTL}
-                        />
-                    </div>
+                    <ChatInput
+                        value={input}
+                        onChange={handleInputChange}
+                        onSend={() => handleSend()}
+                        onKeyDown={handleKeyDown}
+                        isTyping={isTyping}
+                        inputRef={inputRef}
+                        isRTL={effectiveRTL}
+                    />
                 </>
             )}
         </main>

@@ -581,7 +581,7 @@ export default function AgentInterface() {
                             </div>
                             <div className="flex items-center gap-2 mb-4 relative z-10">
                                 <Sparkles className="w-5 h-5 text-teal-400" />
-                                <h3 className="font-medium text-[#e3e3e3]">Wolf Score Analysis</h3>
+                                <h3 className="font-medium text-[#e3e3e3]">Osool Score Analysis</h3>
                             </div>
                             <div className="space-y-5 relative z-10">
                                 <p className="text-[15px] text-[#c4c7c5] leading-relaxed" dir="auto">
@@ -589,7 +589,7 @@ export default function AgentInterface() {
                                 </p>
                                 <div className="flex gap-6 pt-2">
                                     <div>
-                                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Wolf Score</div>
+                                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Osool Score</div>
                                         <div className="text-3xl font-medium text-teal-400">
                                             {activeContext.property.metrics.wolf_score}
                                             <span className="text-sm text-teal-600/70">/100</span>
