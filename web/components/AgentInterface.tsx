@@ -401,7 +401,7 @@ export default function AgentInterface() {
                                                     </div>
                                                 ) : (
                                                     <div
-                                                        className="text-[16px] leading-8 text-[#e3e3e3] font-light tracking-wide"
+                                                        className="text-[16px] leading-8 text-[#e3e3e3] font-light tracking-wide whitespace-pre-wrap"
                                                         dir="auto"
                                                     >
                                                         <Typewriter text={msg.content} />
