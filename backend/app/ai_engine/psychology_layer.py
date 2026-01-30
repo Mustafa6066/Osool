@@ -411,12 +411,136 @@ def get_psychology_analyzer():
     return analyze_psychology
 
 
+class Strategy(Enum):
+    """Sales strategy based on psychological state."""
+    TRUST_BUILDING = "trust_building"    # Focus on Law 114, Developer Reputation
+    ROI_FOCUSED = "roi_focused"          # Focus on 25% annual gain, inflation hedge
+    SCARCITY_PITCH = "scarcity_pitch"    # Focus on "Last unit", "Price increase tomorrow"
+    CONSULTATIVE = "consultative"        # Educational, guiding approach
+    CLOSE_FAST = "close_fast"            # Reduce friction, move to action
+    SIMPLIFY = "simplify"                # Cut options, make recommendation
+
+
+def determine_strategy(
+    psychology: PsychologyProfile,
+    has_properties: bool = True,
+    top_property_verdict: str = "FAIR"
+) -> Dict[str, Any]:
+    """
+    Determine the optimal sales strategy based on psychology and data.
+    
+    This is the core "Wolf" strategy selector that maps emotional
+    state to persuasion angle.
+    
+    Args:
+        psychology: The detected psychology profile
+        has_properties: Whether we have properties to show
+        top_property_verdict: Best property verdict (BARGAIN/FAIR/PREMIUM)
+    
+    Returns:
+        Strategy dict with angle and talking points
+    """
+    state = psychology.primary_state
+    urgency = psychology.urgency_level
+    
+    # Map psychology to strategy
+    if state == PsychologicalState.RISK_AVERSE:
+        strategy = Strategy.TRUST_BUILDING
+        angle = "trust"
+        talking_points = [
+            "المطور ده من أكبر المطورين في مصر",
+            "العقد مطابق للمادة 114 - ملكية مسجلة",
+            "تسليم في الموعد بنسبة 95%",
+            "أقدر أوريك عقود عملاء سابقين",
+        ]
+        
+    elif state == PsychologicalState.GREED_DRIVEN:
+        strategy = Strategy.ROI_FOCUSED
+        angle = "profit"
+        talking_points = [
+            "العائد السنوي المتوقع 22-25%",
+            "العقار بيحميك من التضخم - الكاش بيخسر 33% سنوياً",
+            "شهادات البنك 27% بس التضخم 33% = خسارة حقيقية",
+            "الإيجار هيغطي الأقساط + ربح إضافي",
+        ]
+        
+    elif state == PsychologicalState.FOMO:
+        strategy = Strategy.SCARCITY_PITCH
+        angle = "scarcity"
+        talking_points = [
+            "الوحدة دي عليها 3 ناس تانيين مهتمين",
+            "السعر هيزيد الشهر الجاي بنسبة 10%",
+            "فاضل 2 وحدات بس في المرحلة دي",
+            "لو مش النهارده، الفرصة دي هتروح",
+        ]
+        
+    elif state == PsychologicalState.ANALYSIS_PARALYSIS:
+        strategy = Strategy.SIMPLIFY
+        angle = "decision"
+        talking_points = [
+            "خليني أسهلها عليك - ده الخيار الأفضل ليك",
+            "من كل اللي شوفته، الوحدة دي أحسن match",
+            "لو أنا مكانك، هختار دي",
+            "متشتتش نفسك - ركز على دي",
+        ]
+        
+    elif state == PsychologicalState.IMPULSE_BUYER:
+        strategy = Strategy.CLOSE_FAST
+        angle = "action"
+        talking_points = [
+            "خلينا نحجز دلوقتي بمقدم قليل",
+            "أنا هعملك رابط الحجز حالاً",
+            "امضي وخلص الموضوع",
+            "الخطوة الجاية سهلة - بس هنحتاج...",
+        ]
+        
+    elif state == PsychologicalState.TRUST_DEFICIT:
+        strategy = Strategy.TRUST_BUILDING
+        angle = "proof"
+        talking_points = [
+            "السيستم بتاعي بيجيب البيانات من السوق مباشرة",
+            "أقدر أوريك تقييم من مصادر تانية",
+            "المطور ده عنده track record - أقدر أوريك",
+            "أنا مش سمسار، أنا AI بيحللك البيانات",
+        ]
+        
+    else:  # NEUTRAL
+        strategy = Strategy.CONSULTATIVE
+        angle = "guide"
+        talking_points = [
+            "خليني أفهم احتياجاتك الأول",
+            "إيه أهم حاجة ليك - الموقع ولا السعر؟",
+            "هل بتشتري للسكن ولا للاستثمار؟",
+            "أنا هنا أساعدك تختار صح",
+        ]
+    
+    # Modify based on urgency
+    if urgency in [UrgencyLevel.URGENT, UrgencyLevel.READY_TO_ACT]:
+        talking_points.append("خلينا نتحرك دلوقتي")
+    
+    # Modify based on data quality
+    if top_property_verdict == "BARGAIN" and has_properties:
+        talking_points.insert(0, "🔥 لقيتلك لقطة - تحت سعر السوق")
+    
+    return {
+        "strategy": strategy.value,
+        "angle": angle,
+        "talking_points": talking_points,
+        "psychology_state": state.value,
+        "urgency": urgency.value,
+        "primary_message": talking_points[0] if talking_points else "",
+    }
+
+
 # Export
 __all__ = [
     "PsychologicalState",
     "UrgencyLevel",
     "PsychologyProfile",
+    "Strategy",
     "analyze_psychology",
+    "determine_strategy",
     "get_psychology_context_for_prompt",
     "PSYCHOLOGY_PATTERNS"
 ]
+

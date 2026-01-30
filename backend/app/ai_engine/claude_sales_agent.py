@@ -444,8 +444,8 @@ class ClaudeSalesAgent:
 
         try:
             if REASONING_LOOP_ENABLED:
-                # NEW ARCHITECTURE: Reasoning Loop V4 (Hunt → Analyze → Psychology → Speak → UI)
-                from app.ai_engine.hybrid_brain import hybrid_brain
+                # NEW ARCHITECTURE: Reasoning Loop V5 Wolf Brain (Route → Perceive → Hunt → Analyze → UI → Strategy → Speak)
+                from app.ai_engine.wolf_orchestrator import wolf_brain as hybrid_brain
 
                 # Convert chat history to simple dict format
                 history_for_loop = []
