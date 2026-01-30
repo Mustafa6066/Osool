@@ -118,9 +118,9 @@ class WolfBrain:
             logger.info(f"🎯 Intent: {intent.action}, Filters: {intent.filters}")
             self.stats["gpt_calls"] += 1
             
-            # Auto-detect language if needed
+            # Default to Egyptian Arabic - this is our primary audience
             if language == "auto":
-                language = intent.language
+                language = "ar"  # Always Egyptian Arabic first
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 3: DISCOVERY CHECK (Are we ready to show properties?)
@@ -553,16 +553,43 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
     ) -> List[Dict]:
         """
         Determine which UI visualizations to trigger.
+        ALWAYS include market analytics from the first answer.
         """
         ui_actions = []
         query_lower = query.lower()
         
-        # Check for investment/inflation triggers
-        investment_keywords = ["استثمار", "عائد", "roi", "بنك", "شهادة", "تضخم", "inflation", "invest"]
-        if any(kw in query_lower for kw in investment_keywords) or \
-           psychology.primary_state == PsychologicalState.GREED_DRIVEN:
+        # ═══════════════════════════════════════════════════════════════
+        # ALWAYS SHOW: Market Analytics (FROM FIRST ANSWER)
+        # ═══════════════════════════════════════════════════════════════
+        location = intent.filters.get('location', '')
+        if location:
+            # Get market segment data for the location
+            market_segment = market_intelligence.get_market_segment(location)
+            area_context = market_intelligence.get_area_context(location)
             
-            # Add inflation comparison chart
+            if market_segment.get('found') or area_context.get('found'):
+                ui_actions.append({
+                    "type": "market_benchmark",
+                    "priority": "high",
+                    "title": f"📊 أسعار السوق في {market_segment.get('name_ar', location)}",
+                    "title_en": f"📊 Market Prices in {location}",
+                    "data": {
+                        "market_segment": market_segment,
+                        "area_context": area_context,
+                        "avg_price_sqm": area_context.get('avg_price_sqm', 0),
+                        "rental_yield": area_context.get('rental_yield', 0.065),
+                        "growth_rate": area_context.get('growth_rate', 0.12),
+                    }
+                })
+        
+        # ═══════════════════════════════════════════════════════════════
+        # ALWAYS SHOW: Investment Comparison (Bank vs Property)
+        # Show on ANY property-related query
+        # ═══════════════════════════════════════════════════════════════
+        property_keywords = ["شقة", "فيلا", "عقار", "apartment", "villa", "property", "بيت", "unit"]
+        has_property_intent = any(kw in query_lower for kw in property_keywords) or intent.action in ["search", "price_check", "investment"]
+        
+        if has_property_intent:
             investment_amount = 5_000_000  # Default 5M
             if properties:
                 investment_amount = properties[0].get('price', 5_000_000)
@@ -572,12 +599,12 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
             ui_actions.append({
                 "type": "certificates_vs_property",
                 "priority": "high",
-                "title": "الحقيقة: العقار vs شهادات البنك",
-                "title_en": "Truth: Property vs Bank CDs",
+                "title": "العقار vs شهادات البنك (27% فايدة)",
+                "title_en": "Property vs Bank CDs (27% Interest)",
                 "data": inflation_data
             })
         
-        # Check for bank comparison triggers
+        # Check for explicit bank comparison triggers
         bank_keywords = ["bank", "بنك", "فايدة", "27%", "شهادات", "certificates"]
         if any(kw in query_lower for kw in bank_keywords):
             investment_amount = 5_000_000
