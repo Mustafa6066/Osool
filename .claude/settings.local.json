@@ -30,7 +30,10 @@
       "Bash(wc:*)",
       "Bash(findstr:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(python3:*)",
+      "Bash(powershell -NoProfile -Command \"Set-Content -Path ''d:\\\\Osool\\\\backend\\\\app\\\\ai_engine\\\\_write.py'' -Value @''\nimport base64, sys\nb = sys.stdin.buffer.read\\(\\)\nwith open\\(r''d:\\\\Osool\\\\backend\\\\app\\\\ai_engine\\\\conversation_memory.py'', ''wb''\\) as f:\n    f.write\\(base64.b64decode\\(b\\)\\)\nprint\\(''Done''\\)\n''@ -Encoding utf8\")",
+      "Bash(git diff:*)"
     ]
   }
 }
