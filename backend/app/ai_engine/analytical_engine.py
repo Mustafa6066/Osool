@@ -147,6 +147,103 @@ AREA_BENCHMARKS = {
     },
 }
 
+# ═══════════════════════════════════════════════════════════════
+# MARKET SEGMENTS - Class A vs Class B Developer Segmentation
+# For the "Market Education" consultation flow
+# ═══════════════════════════════════════════════════════════════
+MARKET_SEGMENTS = {
+    "new_cairo": {
+        "name_ar": "التجمع",
+        "name_en": "New Cairo",
+        "class_a": {
+            "name_ar": "مطورين الفئة الأولى (Class A)",
+            "developers": ["إعمار (Emaar)", "سوديك (Sodic)", "مراكز (Marakez)", "هايد بارك (Hyde Park)"],
+            "developers_ar": ["إعمار", "سوديك", "مراكز", "هايد بارك"],
+            "price_range_ar": "١٢,٠٠٠,٠٠٠ - ١٨,٠٠٠,٠٠٠",
+            "price_range_en": "12,000,000 - 18,000,000",
+            "avg_price": 15_000_000,
+            "avg_price_ar": "١٥ مليون",
+            "min_price": 12_000_000,
+            "max_price": 18_000_000,
+        },
+        "class_b": {
+            "name_ar": "مطورين الفئة الثانية (Class B)",
+            "developers": ["ماونتن فيو (Mountain View)", "بالم هيلز (Palm Hills)", "صبور (Sabbour)"],
+            "developers_ar": ["ماونتن فيو", "بالم هيلز", "صبور"],
+            "price_range_ar": "٧,٠٠٠,٠٠٠ - ١٠,٠٠٠,٠٠٠",
+            "price_range_en": "7,000,000 - 10,000,000",
+            "avg_price": 8_500_000,
+            "avg_price_ar": "٨.٥ مليون",
+            "min_price": 7_000_000,
+            "max_price": 10_000_000,
+        },
+        "market_floor": 6_000_000,
+        "market_floor_ar": "٦ مليون",
+        "market_ceiling": 18_000_000,
+        "market_ceiling_ar": "١٨ مليون",
+    },
+    "sheikh_zayed": {
+        "name_ar": "الشيخ زايد",
+        "name_en": "Sheikh Zayed",
+        "class_a": {
+            "name_ar": "مطورين الفئة الأولى (Class A)",
+            "developers": ["أورا (Ora)", "سوديك (Sodic)", "إعمار (Belle Vie)"],
+            "developers_ar": ["أورا", "سوديك", "إعمار"],
+            "price_range_ar": "١٥,٠٠٠,٠٠٠ - ٢٢,٠٠٠,٠٠٠",
+            "price_range_en": "15,000,000 - 22,000,000",
+            "avg_price": 18_000_000,
+            "avg_price_ar": "١٨ مليون",
+            "min_price": 15_000_000,
+            "max_price": 22_000_000,
+        },
+        "class_b": {
+            "name_ar": "مطورين الفئة الثانية (Class B)",
+            "developers": ["درة (Dorra)", "كونتيننتال (Continental)", "بدر الدين"],
+            "developers_ar": ["درة", "كونتيننتال", "بدر الدين"],
+            "price_range_ar": "٩,٠٠٠,٠٠٠ - ١٣,٠٠٠,٠٠٠",
+            "price_range_en": "9,000,000 - 13,000,000",
+            "avg_price": 11_000_000,
+            "avg_price_ar": "١١ مليون",
+            "min_price": 9_000_000,
+            "max_price": 13_000_000,
+        },
+        "market_floor": 8_000_000,
+        "market_floor_ar": "٨ مليون",
+        "market_ceiling": 22_000_000,
+        "market_ceiling_ar": "٢٢ مليون",
+    },
+    "new_capital": {
+        "name_ar": "العاصمة الإدارية",
+        "name_en": "New Capital",
+        "class_a": {
+            "name_ar": "مطورين الفئة الأولى (Class A)",
+            "developers": ["المقاولون العرب", "المراسم", "سيتي إيدج"],
+            "developers_ar": ["المقاولون العرب", "المراسم", "سيتي إيدج"],
+            "price_range_ar": "٤,٠٠٠,٠٠٠ - ٧,٠٠٠,٠٠٠",
+            "price_range_en": "4,000,000 - 7,000,000",
+            "avg_price": 5_500_000,
+            "avg_price_ar": "٥.٥ مليون",
+            "min_price": 4_000_000,
+            "max_price": 7_000_000,
+        },
+        "class_b": {
+            "name_ar": "مطورين الفئة الثانية (Class B)",
+            "developers": ["مصر إيطاليا", "بيتر هوم", "كابيتال جروب"],
+            "developers_ar": ["مصر إيطاليا", "بيتر هوم", "كابيتال جروب"],
+            "price_range_ar": "١,٨٠٠,٠٠٠ - ٣,٥٠٠,٠٠٠",
+            "price_range_en": "1,800,000 - 3,500,000",
+            "avg_price": 2_500_000,
+            "avg_price_ar": "٢.٥ مليون",
+            "min_price": 1_800_000,
+            "max_price": 3_500_000,
+        },
+        "market_floor": 1_800_000,
+        "market_floor_ar": "١.٨ مليون",
+        "market_ceiling": 7_000_000,
+        "market_ceiling_ar": "٧ مليون",
+    },
+}
+
 # Property type mappings (Arabic to English)
 PROPERTY_TYPE_MAP = {
     "شقة": "apartment",
@@ -790,6 +887,47 @@ Let me show you alternatives within your budget."""
             "price_context_en": f"Average: {avg_sqm:,} EGP/sqm"
         }
     
+    def get_market_segment(self, location: str) -> Dict:
+        """
+        Get market segment data (Class A vs Class B developers).
+        
+        For the Market Education consultation flow - educates users
+        on price ranges before asking for budget.
+        
+        Args:
+            location: Requested area (e.g., "new cairo", "التجمع")
+            
+        Returns:
+            Dict with Class A and Class B developer segmentation
+        """
+        location_key = self._normalize_location(location)
+        
+        # Map to MARKET_SEGMENTS key format
+        segment_key_map = {
+            "new cairo": "new_cairo",
+            "sheikh zayed": "sheikh_zayed", 
+            "new capital": "new_capital",
+            "6th october": "new_cairo",  # Fallback to new_cairo
+            "north coast": "new_cairo",   # Fallback
+            "maadi": "new_cairo",         # Fallback
+        }
+        
+        segment_key = segment_key_map.get(location_key, "new_cairo")
+        segment_data = MARKET_SEGMENTS.get(segment_key, MARKET_SEGMENTS["new_cairo"])
+        
+        return {
+            "found": True,
+            "location_key": segment_key,
+            "name_ar": segment_data.get("name_ar", location),
+            "name_en": segment_data.get("name_en", location),
+            "class_a": segment_data.get("class_a", {}),
+            "class_b": segment_data.get("class_b", {}),
+            "market_floor": segment_data.get("market_floor", 0),
+            "market_floor_ar": segment_data.get("market_floor_ar", ""),
+            "market_ceiling": segment_data.get("market_ceiling", 0),
+            "market_ceiling_ar": segment_data.get("market_ceiling_ar", ""),
+        }
+    
     def _normalize_location(self, location: str) -> str:
         """Normalize location to benchmark key."""
         loc_lower = location.lower().strip()
@@ -903,5 +1041,6 @@ __all__ = [
     "MARKET_DATA",
     "AREA_PRICES",
     "AREA_GROWTH",
-    "AREA_BENCHMARKS"
+    "AREA_BENCHMARKS",
+    "MARKET_SEGMENTS",
 ]

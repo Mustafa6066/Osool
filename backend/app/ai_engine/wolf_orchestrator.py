@@ -32,7 +32,7 @@ from .psychology_layer import (
     PsychologyProfile,
     PsychologicalState
 )
-from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS
+from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS
 from .analytical_actions import generate_analytical_ui_actions
 from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT
 from .conversation_memory import ConversationMemory
@@ -506,65 +506,77 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
             if is_discovery:
                 location = intent.filters.get('location', '') if intent else ''
                 
-                # Get real market data for the location
-                area_context = market_intelligence.get_area_context(location) if location else {}
+                # Get market segment data (Class A vs Class B)
+                segment_data = market_intelligence.get_market_segment(location) if location else None
                 
-                if area_context.get('found'):
-                    ar_name = area_context.get('ar_name', location)
-                    apt_start = area_context.get('apartment_start', 3_500_000)
-                    villa_start = area_context.get('villa_start', 12_000_000)
-                    tier1_devs = area_context.get('tier1_developers', [])
-                    tier2_devs = area_context.get('tier2_developers', [])
-                    avg_sqm = area_context.get('avg_price_sqm', 65000)
+                if segment_data and segment_data.get('found'):
+                    ar_name = segment_data.get('name_ar', location)
                     
-                    # Format prices
-                    apt_start_m = apt_start / 1_000_000
-                    villa_start_m = villa_start / 1_000_000
+                    # Class A developer data
+                    class_a = segment_data.get('class_a', {})
+                    class_a_devs = class_a.get('developers_ar', [])
+                    class_a_avg = class_a.get('avg_price', 0) / 1_000_000
+                    class_a_min = class_a.get('min_price', 0) / 1_000_000
+                    class_a_max = class_a.get('max_price', 0) / 1_000_000
                     
-                    # Calculate tier price ranges (estimates based on area data)
-                    tier1_min = apt_start * 1.8  # Premium is ~80% more
-                    tier1_max = apt_start * 3.5
-                    tier2_min = apt_start * 1.2
-                    tier2_max = apt_start * 2.0
-                    tier3_min = apt_start
-                    tier3_max = apt_start * 1.5
+                    # Class B developer data
+                    class_b = segment_data.get('class_b', {})
+                    class_b_devs = class_b.get('developers_ar', [])
+                    class_b_min = class_b.get('min_price', 0) / 1_000_000
+                    class_b_max = class_b.get('max_price', 0) / 1_000_000
+                    
+                    # Market floor/ceiling
+                    market_floor = segment_data.get('market_floor', 0) / 1_000_000
+                    market_ceiling = segment_data.get('market_ceiling', 0) / 1_000_000
+                    
+                    # Format developer lists
+                    class_a_devs_str = '، '.join(class_a_devs[:3]) if class_a_devs else 'إعمار، سوديك، مراكز'
+                    class_b_devs_str = '، '.join(class_b_devs[:3]) if class_b_devs else 'ماونتن فيو، بالم هيلز، صبور'
                     
                     context_parts.append(f"""
-[DISCOVERY_PHASE - REAL MARKET DATA]
+[MARKET_EDUCATION_PROTOCOL]
 The user asked about: {ar_name}
 
-⚠️ CRITICAL: START YOUR RESPONSE EXACTLY WITH:
-"اهلا بيك! {ar_name} منطقة مميزة جداً..."
+DO NOT ask for budget yet. EDUCATE them first using this EXACT script:
 
-DO NOT use "أهلاً" or "أنا بيحب" - use EXACTLY "اهلا بيك"
+══════════════════════════════════════════════════════
+ARABIC SCRIPT (USE THIS EXACT FORMAT):
+══════════════════════════════════════════════════════
 
-THEN PROVIDE THIS SPECIFIC DATA:
+"اهلا بيك في اصول!
 
-2. PRICE RANGES (USE THESE EXACT NUMBERS):
-   - متوسط سعر المتر: {avg_sqm:,} جنيه/متر
-   - الشقق (2 غرفة + صالة): من {apt_start_m:.1f} مليون لـ {apt_start_m * 3:.1f} مليون
-   - الفلل: تبدأ من {villa_start_m:.1f} مليون
+متوسط أسعار الشقق في {ar_name} للغرفتين والصالة من أول {market_floor:.0f} مليون إلى {market_ceiling:.0f} مليون.
+وده بيختلف حسب المطور والموقع:
 
-3. DEVELOPER TIERS (WITH PRICE RANGES):
-   
-   🏆 المطورين الفئة الأولى (Premium):
-   {', '.join(tier1_devs) if tier1_devs else 'اعمار، سوديك، ماونتن ڤيو، بالم هيلز'}
-   الشقة: من {tier1_min/1_000_000:.1f} مليون لـ {tier1_max/1_000_000:.1f} مليون
-   
-   ⭐ المطورين الفئة الثانية (Mid-tier):
-   {', '.join(tier2_devs) if tier2_devs else 'لافيستا، هايد بارك، تطوير مصر'}
-   الشقة: من {tier2_min/1_000_000:.1f} مليون لـ {tier2_max/1_000_000:.1f} مليون
-   
-   💰 الفئة الثالثة (Value):
-   كابيتال جروب، السعودية المصرية
-   الشقة: من {tier3_min/1_000_000:.1f} مليون لـ {tier3_max/1_000_000:.1f} مليون
+1️⃣ **مطورين الفئة الأولى (Class A)** زي {class_a_devs_str}...
+الشقة دي بتوصل لـ {class_a_avg:.0f} مليون.
 
-4. END WITH ONE QUESTION (choose based on context):
-   - "تحب تشوف شقه في متوسط معين ولا لمطور معين؟"
-   - "ميزانيتك حوالي كام عشان أوريك الأنسب؟"
+2️⃣ **مطورين الفئة الثانية (Class B)** زي {class_b_devs_str}...
+والسعر بيبدأ من {class_b_min:.0f} مليون لغاية {class_b_max:.0f} مليون.
 
-IMPORTANT: Use the ACTUAL numbers above, don't make up prices!
-DO NOT show property cards yet - just provide this market context.
+تحب نشوف شقة في متوسط معين ولا لمطور معين؟"
+
+══════════════════════════════════════════════════════
+ENGLISH SCRIPT (if user speaks English):
+══════════════════════════════════════════════════════
+
+"Welcome to Osool!
+
+Average 2-bedroom apartments in {segment_data.get('name_en', location)} range from {market_floor:.0f}M to {market_ceiling:.0f}M EGP.
+This varies by developer and location:
+
+1️⃣ **Tier 1 Developers** ({class_a_devs_str}) - apartments reach {class_a_avg:.0f}M.
+2️⃣ **Tier 2 Developers** ({class_b_devs_str}) - prices from {class_b_min:.0f}M to {class_b_max:.0f}M.
+
+Would you like to explore a specific price range or a specific developer?"
+
+══════════════════════════════════════════════════════
+CRITICAL RULES:
+1. DO NOT ask "what's your budget?" directly - the education REPLACES that question
+2. The question at the end forces them to self-categorize
+3. Use ONLY the numbers provided above - no made-up prices
+4. DO NOT show property cards yet
+══════════════════════════════════════════════════════
 """)
                 else:
                     # Generic discovery for unknown area
@@ -698,14 +710,10 @@ DO NOT mention any prices outside this range.
             # For discovery phase, prefill the greeting to ensure correct format
             prefill = ""
             if is_discovery and intent and intent.filters.get('location'):
-                ar_name = ""
                 location = intent.filters.get('location', '')
-                area_context = market_intelligence.get_area_context(location)
-                if area_context.get('found'):
-                    ar_name = area_context.get('ar_name', location)
-                else:
-                    ar_name = location
-                prefill = f"اهلا بيك! {ar_name} منطقة مميزة جداً"
+                segment_data = market_intelligence.get_market_segment(location)
+                ar_name = segment_data.get('name_ar', location) if segment_data else location
+                prefill = f"اهلا بيك في اصول!\n\nمتوسط أسعار الشقق في {ar_name}"
                 messages.append({"role": "assistant", "content": prefill})
             
             # Call Claude
