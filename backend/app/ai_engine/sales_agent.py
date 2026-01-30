@@ -691,7 +691,7 @@ def detect_language(text: str) -> str:
 @tool
 def get_location_market_insights(location: str) -> str:
     """
-    Returns insider trends and data for the 'Flex' and 'Market Context' sections.
+    Returns structured market data for the 'Market Snapshot' protocol (Tiers & Numbers).
     """
     if not location:
         return json.dumps({
@@ -699,43 +699,100 @@ def get_location_market_insights(location: str) -> str:
             "message": "Please specify a location (e.g., 'New Cairo', 'Sheikh Zayed')"
         })
 
-    # Get location insights from Egyptian market psychology module
+    # 1. Get base insights
     insights = get_location_insights(location)
+    
+    # 2. Hardcoded Tier Data (Enrichment Layer) - In production this would be from DB
+    tier_data = {
+        "New Cairo": {
+            "avg_meter": "65,000",
+            "apt_range": "3.5M - 10.5M",
+            "villa_range": "Starts from 12M",
+            "tiers": {
+                "premium": {"names": "Emaar, SODIC, Palm Hills, Hyde Park", "price": "6.3M - 12.2M"},
+                "mid": {"names": "Mountain View, Tatweer Misr, LMD", "price": "4.2M - 7.0M"},
+                "value": {"names": "Capital Group, Saudi Egyptian", "price": "3.5M - 5.2M"}
+            }
+        },
+        "Sheikh Zayed": {
+            "avg_meter": "72,000",
+            "apt_range": "4.5M - 12.0M",
+            "villa_range": "Starts from 15M",
+            "tiers": {
+                "premium": {"names": "Emaar (Cairo Gate), SODIC, Ora", "price": "8.5M - 16.0M"},
+                "mid": {"names": "Dorra, Landmark, Iwan", "price": "5.5M - 9.0M"},
+                "value": {"names": "Zayed Dunes, Seid", "price": "4.5M - 6.0M"}
+            }
+        },
+        "New Capital": {
+            "avg_meter": "35,000",
+            "apt_range": "2.8M - 7.0M",
+            "villa_range": "Starts from 9M",
+            "tiers": {
+                "premium": {"names": "City Edge, Saudi Egyptian (Nile)", "price": "4.5M - 8.0M"},
+                "mid": {"names": "Better Home, Gates, Misr Italia", "price": "3.2M - 5.0M"},
+                "value": {"names": "Local Developers", "price": "2.5M - 3.5M"}
+            }
+        },
+        "Red Sea / Sokhna": {
+            "avg_meter": "55,000",
+            "apt_range": "3.5M - 8.0M",
+            "villa_range": "Starts from 10M",
+            "tiers": {
+                "premium": {"names": "Il Monte Galala, Telal", "price": "6.0M - 12.0M"},
+                "mid": {"names": "La Vista, Mountain View", "price": "4.5M - 8.0M"},
+                "value": {"names": "Blue Blue, Lasirena", "price": "3.0M - 4.5M"}
+            }
+        },
+        "North Coast": {
+            "avg_meter": "90,000",
+            "apt_range": "6.0M - 15.0M",
+            "villa_range": "Starts from 20M",
+            "tiers": {
+                "premium": {"names": "Emaar (Marassi), Ora (Silversands)", "price": "15M - 40M"},
+                "mid": {"names": "Mountain View, Palm Hills (Hacienda)", "price": "8M - 20M"},
+                "value": {"names": "City Edge, Hyde Park", "price": "6M - 12M"}
+            }
+        }
+    }
 
-    if not insights or "buyer_motivation" not in insights:
-        return json.dumps({
-            "status": "no_data",
-            "message": f"I don't have specific market psychology data for {location} yet.",
-            "location": location,
-            "flex_insight": f"{location} is currently seeing high demand due to recent infrastructure updates.",
-            "market_data": "Prices have increased by ~12% in the last quarter.",
-            "buyer_psychology": "Buyers are looking for ROI and community stability."
-        })
+    # Normalize location for lookup
+    loc_key = None
+    for key in tier_data:
+        if key.lower() in location.lower() or location.lower() in key.lower():
+            loc_key = key
+            break
+            
+    snapshot = tier_data.get(loc_key)
+    
+    if not snapshot:
+        # Fallback Generator if location not in manual tier list
+        snapshot = {
+            "avg_meter": "Market Rate",
+            "apt_range": "Varies",
+            "villa_range": "Varies",
+            "tiers": {
+                "premium": {"names": "Top Tier Developers", "price": "High End"},
+                "mid": {"names": "Mid-Market Developers", "price": "Mid Range"},
+                "value": {"names": "Value Developers", "price": "Entry Level"}
+            }
+        }
 
-    # Prepare Flex and Market Data from insights
+    # Prepare Flex (Intro)
     selling_points = insights.get("selling_points", [])
-    hot_compounds = insights.get("hot_compounds", [])
-    growth = insights.get("growth_trend", "growing demand")
-    price = insights.get("price_range", "market rates")
-    
-    # Generate dynamic flex based on available data
-    # Create valid sentence components
-    loc_name = location or "This area"
-    highlight = selling_points[0] if selling_points else "new developments"
-    
-    flex_insight = f"{loc_name} right now is witnessing {growth}, especially near {highlight}."
-    
-    # Generate market context
-    market_data = f"Market data shows {growth} with prices ranging {price}. Demand is high for {', '.join(hot_compounds[:2]) if hot_compounds else 'premium compounds'}."
+    growth = insights.get("growth_trend", "High demand")
+    intro = f"{location} is a distinct area witnessing {growth} recently."
 
     return json.dumps({
         "location": location,
-        "flex_insight": flex_insight,
-        "market_data": market_data,
+        "intro_highlight": intro,
+        "market_snapshot": {
+            "avg_meter": snapshot["avg_meter"],
+            "apt_range": snapshot["apt_range"],
+            "villa_range": snapshot["villa_range"]
+        },
+        "developer_tiers": snapshot["tiers"],
         "buyer_psychology": insights.get("buyer_motivation"),
-        "selling_points": selling_points,
-        "objections": insights.get("objections", {}),
-        "typical_buyer": insights.get("typical_buyer"),
         "raw_insights": insights
     })
 
