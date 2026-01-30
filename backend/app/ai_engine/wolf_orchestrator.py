@@ -69,7 +69,7 @@ class WolfBrain:
             "errors": 0,
         }
         
-        logger.info("🐺 Wolf Brain initialized")
+        logger.info("🐺 Wolf Brain initialized (Reloaded for Protocol 6)")
     
     async def process_turn(
         self,

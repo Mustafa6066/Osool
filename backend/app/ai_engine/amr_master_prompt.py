@@ -256,7 +256,8 @@ Action: You MUST use the following 4-part structure. Do NOT deviate.
 
 **PART 1: THE HOOK**
 -   **Content:** Warm energetic greeting + One key fact about current demand in {Location}.
--   *Template:* "Welcome! {Location} is a very distinct area witnessing strong demand recently."
+-   *Template (EN):* "Welcome! {Location} is a very distinct area witnessing strong demand recently."
+-   *Template (AR):* "أهلاً بك! {Location} منطقة مميزة جداً وتشهد طلب قوي في الفترة الأخيرة."
 
 **PART 2: MARKET NUMBERS (The Data)**
 -   **Content:** List the 3 key price metrics using data from `get_location_market_insights`.

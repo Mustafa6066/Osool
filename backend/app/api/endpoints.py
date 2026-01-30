@@ -1140,7 +1140,7 @@ async def chat_stream(
             yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'search_properties'})}\n\n"
 
             # Extract response components
-            response_text = ai_result.get("response", "")
+            response_text = ai_result.get("response", "").strip()
             search_results = ai_result.get("properties", [])
             ui_actions = ai_result.get("ui_actions", [])
             psychology = ai_result.get("psychology")
