@@ -32,7 +32,7 @@ from .psychology_layer import (
     PsychologyProfile,
     PsychologicalState
 )
-from .analytical_engine import analytical_engine, OsoolScore
+from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS
 from .analytical_actions import generate_analytical_ui_actions
 from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT
 from .conversation_memory import ConversationMemory
@@ -130,7 +130,25 @@ class WolfBrain:
             logger.info(f"🧠 Psychology: {psychology.primary_state.value}")
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 5: HUNT (Search database for properties - only if discovery complete)
+            # STEP 5: FEASIBILITY SCREEN (The Gatekeeper)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            feasibility = None
+            if is_discovery_complete and intent.filters.get('budget_max'):
+                location = intent.filters.get('location', 'new cairo')
+                property_type = intent.filters.get('property_type', 'apartment')
+                budget = intent.filters.get('budget_max', 10_000_000)
+                
+                feasibility = market_intelligence.screen_feasibility(
+                    location=location,
+                    property_type=property_type,
+                    budget=budget
+                )
+                
+                if not feasibility.is_feasible:
+                    logger.info(f"🛑 Feasibility FAILED: {property_type} in {location} needs {budget + feasibility.budget_gap}")
+            
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 6: HUNT (Search database for properties)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             properties = []
             if is_discovery_complete and intent.action in ["search", "comparison", "valuation", "investment"]:
@@ -141,19 +159,26 @@ class WolfBrain:
                 logger.info("⏸️ Skipping property search - discovery not complete")
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 6: ANALYZE (Score with Osool Score)
+            # STEP 7: ANALYZE (Score with Osool Score + Wolf Benchmarking)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             scored_properties = analytical_engine.score_properties(properties)
             
-            # Add ROI analysis to each property
+            # Add ROI analysis AND wolf benchmarking to each property
             for prop in scored_properties:
+                # ROI Analysis
                 roi = analytical_engine.calculate_true_roi(prop)
                 prop["roi_analysis"] = roi.to_dict()
+                
+                # Wolf Benchmarking (Value Anchor)
+                benchmark = market_intelligence.benchmark_property(prop)
+                prop["wolf_analysis"] = benchmark.wolf_analysis
+                prop["wolf_benchmark"] = benchmark.to_dict()
             
             top_verdict = scored_properties[0].get("verdict", "FAIR") if scored_properties else "FAIR"
+            top_wolf_analysis = scored_properties[0].get("wolf_analysis", "FAIR_VALUE") if scored_properties else "FAIR_VALUE"
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 7: UI ACTIONS (Determine visualizations - skip cards if discovery incomplete)
+            # STEP 8: UI ACTIONS (Determine visualizations - skip cards if discovery incomplete)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             ui_actions = self._determine_ui_actions(
                 psychology, 
@@ -163,7 +188,7 @@ class WolfBrain:
             )
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 8: STRATEGY (Psychology-aware pitch selection)
+            # STEP 9: STRATEGY (Psychology-aware pitch selection)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             strategy = determine_strategy(
                 psychology,
@@ -173,7 +198,7 @@ class WolfBrain:
             logger.info(f"🎭 Strategy: {strategy['strategy']}")
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 9: SPEAK (Claude narrative generation)
+            # STEP 10: SPEAK (Claude narrative generation)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             response_text = await self._generate_wolf_narrative(
                 query=query,
@@ -185,7 +210,8 @@ class WolfBrain:
                 language=language,
                 profile=profile,
                 is_discovery=not is_discovery_complete,
-                intent=intent
+                intent=intent,
+                feasibility=feasibility
             )
             self.stats["claude_calls"] += 1
             
@@ -203,6 +229,8 @@ class WolfBrain:
                 "processing_time_ms": int(elapsed * 1000),
                 "model_used": "wolf_brain_v5",
                 "discovery_complete": is_discovery_complete,
+                "feasibility": feasibility.to_dict() if feasibility else None,
+                "top_wolf_analysis": top_wolf_analysis,
             }
             
         except Exception as e:
@@ -461,7 +489,8 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
         language: str,
         profile: Optional[Dict] = None,
         is_discovery: bool = False,
-        intent: Optional[Intent] = None
+        intent: Optional[Intent] = None,
+        feasibility: Optional[Any] = None
     ) -> str:
         """
         Generate the final narrative using Claude 3.5 Sonnet.
@@ -499,9 +528,52 @@ DO NOT show specific property recommendations yet.
 Build rapport and understand their needs first.
 """)
             
-            # Property context (only when not in discovery)
+            # Feasibility context (Reality Check - if request is not feasible)
+            if feasibility and not feasibility.is_feasible:
+                context_parts.append(f"""
+[REALITY_CHECK - CRITICAL]
+The user's request is NOT FEASIBLE given market realities!
+
+{feasibility.message_ar}
+
+ALTERNATIVES TO OFFER:
+{chr(10).join('- ' + alt.get('message_ar', '') for alt in feasibility.alternatives[:3])}
+
+YOUR APPROACH:
+1. Be TRANSPARENT but TACTFUL: "خليني أكون صريح معاك..."
+2. Show you are PROTECTING them from wasted time
+3. Pivot to realistic alternatives they CAN afford
+4. Frame it as insider knowledge: "السوق دلوقتي الشقق في..."
+""")
+            
+            # Property context with wolf benchmarking (only when not in discovery)
             if properties:
                 context_parts.append(self._format_property_context(properties))
+                
+                # Add wolf analysis for each property
+                wolf_verdicts = []
+                for i, prop in enumerate(properties[:5]):
+                    benchmark = prop.get("wolf_benchmark", {})
+                    wolf_analysis = prop.get("wolf_analysis", "FAIR_VALUE")
+                    verdict = benchmark.get("verdict_ar", "")
+                    
+                    if wolf_analysis == "BARGAIN_DEAL":
+                        wolf_verdicts.append(f"🔥 العقار #{i+1}: {verdict}")
+                    elif wolf_analysis == "PREMIUM":
+                        wolf_verdicts.append(f"💎 العقار #{i+1}: {verdict}")
+                    elif wolf_analysis == "OVERPRICED":
+                        wolf_verdicts.append(f"⚠️ العقار #{i+1}: {verdict}")
+                
+                if wolf_verdicts:
+                    context_parts.append(f"""
+[WOLF_VALUE_ANCHORING]
+For each property, you MUST mention its value vs market:
+{chr(10).join(wolf_verdicts)}
+
+Use phrases like:
+- "ده أقل من السوق بـ X%" (This is X% below market)
+- "ده Premium بس المكان يستاهل" (Premium but location justifies)
+""")
             
             # Psychology context
             context_parts.append(get_psychology_context_for_prompt(psychology))
