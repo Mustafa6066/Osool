@@ -695,6 +695,19 @@ DO NOT mention any prices outside this range.
                     messages.append(msg)
             messages.append({"role": "user", "content": query})
             
+            # For discovery phase, prefill the greeting to ensure correct format
+            prefill = ""
+            if is_discovery and intent and intent.filters.get('location'):
+                ar_name = ""
+                location = intent.filters.get('location', '')
+                area_context = market_intelligence.get_area_context(location)
+                if area_context.get('found'):
+                    ar_name = area_context.get('ar_name', location)
+                else:
+                    ar_name = location
+                prefill = f"اهلا بيك! {ar_name} منطقة مميزة جداً"
+                messages.append({"role": "assistant", "content": prefill})
+            
             # Call Claude
             claude_model = os.getenv("CLAUDE_MODEL", "claude-3-haiku-20240307")
             
@@ -706,7 +719,9 @@ DO NOT mention any prices outside this range.
                 messages=messages
             )
             
-            return response.content[0].text
+            # Combine prefill with response
+            full_response = prefill + response.content[0].text if prefill else response.content[0].text
+            return full_response
             
         except Exception as e:
             logger.error(f"Narrative generation failed: {e}", exc_info=True)
