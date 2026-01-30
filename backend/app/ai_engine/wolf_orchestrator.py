@@ -480,7 +480,7 @@ DO NOT mention any prices outside this range.
             messages.append({"role": "user", "content": query})
             
             # Call Claude
-            claude_model = os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
+            claude_model = os.getenv("CLAUDE_MODEL", "claude-3-haiku-20240307")
             
             response = await self.anthropic.messages.create(
                 model=claude_model,
