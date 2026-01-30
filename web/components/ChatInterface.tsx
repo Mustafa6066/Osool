@@ -82,22 +82,23 @@ function AmrAvatar({
 function useTypewriter(text: string, speed: number = 25) {
     const [displayedText, setDisplayedText] = useState('');
     const [isComplete, setIsComplete] = useState(false);
+    const index = useRef(0);
+    const previousText = useRef('');
 
     useEffect(() => {
-        if (!text) {
+        // Reset only if text is completely new (not an append/stream update)
+        if (!text.startsWith(previousText.current) && previousText.current !== '' && text.length < previousText.current.length) {
+            index.current = 0;
             setDisplayedText('');
-            setIsComplete(true);
-            return;
+            setIsComplete(false);
         }
+        previousText.current = text;
 
-        setDisplayedText('');
-        setIsComplete(false);
-
-        let index = 0;
         const interval = setInterval(() => {
-            if (index < text.length) {
-                setDisplayedText(text.slice(0, index + 1));
-                index++;
+            if (index.current < text.length) {
+                index.current++;
+                setDisplayedText(text.slice(0, index.current));
+                setIsComplete(false);
             } else {
                 setIsComplete(true);
                 clearInterval(interval);
