@@ -33,12 +33,12 @@ from .psychology_layer import (
     PsychologicalState
 )
 from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS
-from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS
 from .analytical_actions import generate_analytical_ui_actions
-from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT
+from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT, is_discount_request, FRAME_CONTROL_EXAMPLES
 from .hybrid_brain_prod import hybrid_brain_prod  # The Specialist Tools
 from .conversation_memory import ConversationMemory
 from .lead_scoring import score_lead, LeadTemperature, BehaviorSignal
+from .wolf_checklist import validate_checklist, WolfChecklistResult
 
 
 # Database
@@ -286,9 +286,8 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 7: PRICE DEFENSE PROTOCOL ("No Discount")
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # Check if user asked for discount/negotiation
-            negotiation_keywords = ["discount", "offer", "best price", "خصم", "نهائي", "تفاوض", "اخر كلام", "negotiate"]
-            is_negotiating = any(k in query.lower() for k in negotiation_keywords)
+            # Check if user asked for discount/negotiation using centralized function
+            is_negotiating = is_discount_request(query)
             no_discount_mode = False
             top_wolf_analysis = "FAIR_VALUE"
 
@@ -345,6 +344,18 @@ class WolfBrain:
             )
             self.stats["claude_calls"] += 1
             
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 11: WOLF CHECKLIST VALIDATION (Quality Gate)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            checklist_context = {
+                "budget_known": is_discovery_complete,
+                "intent_known": is_discovery_complete,
+                "discount_requested": is_negotiating,
+                "current_property": scored_properties[0] if scored_properties else None
+            }
+            checklist_result = validate_checklist(response_text, checklist_context, history)
+            logger.info(f"📋 Wolf Checklist: {checklist_result.score}/4 (passed={checklist_result.passed})")
+            
             # Calculate processing time
             elapsed = (datetime.now() - start_time).total_seconds()
             
@@ -357,10 +368,11 @@ class WolfBrain:
                 "intent": intent.to_dict(),
                 "route": route.to_dict(),
                 "processing_time_ms": int(elapsed * 1000),
-                "model_used": "wolf_brain_v5",
+                "model_used": "wolf_brain_v6",
                 "discovery_complete": is_discovery_complete,
                 "feasibility": feasibility.to_dict() if feasibility else None,
                 "top_wolf_analysis": top_wolf_analysis,
+                "wolf_checklist": checklist_result.to_dict(),
             }
             
         except Exception as e:
