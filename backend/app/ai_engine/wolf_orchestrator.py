@@ -118,22 +118,30 @@ class WolfBrain:
                 language = intent.language
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 3: PSYCHOLOGY (Detect emotional state)
+            # STEP 3: DISCOVERY CHECK (Are we ready to show properties?)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            is_discovery_complete = self._is_discovery_complete(intent.filters, history)
+            logger.info(f"📋 Discovery complete: {is_discovery_complete}")
+            
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 4: PSYCHOLOGY (Detect emotional state)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             psychology = analyze_psychology(query, history, intent.to_dict())
             logger.info(f"🧠 Psychology: {psychology.primary_state.value}")
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 4: HUNT (Search database for properties)
+            # STEP 5: HUNT (Search database for properties - only if discovery complete)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             properties = []
-            if intent.action in ["search", "comparison", "valuation", "investment"]:
+            if is_discovery_complete and intent.action in ["search", "comparison", "valuation", "investment"]:
                 properties = await self._search_database(intent.filters)
                 self.stats["searches"] += 1
                 logger.info(f"🏠 Found {len(properties)} properties")
+            elif not is_discovery_complete:
+                logger.info("⏸️ Skipping property search - discovery not complete")
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 5: ANALYZE (Score with Osool Score)
+            # STEP 6: ANALYZE (Score with Osool Score)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             scored_properties = analytical_engine.score_properties(properties)
             
@@ -145,27 +153,27 @@ class WolfBrain:
             top_verdict = scored_properties[0].get("verdict", "FAIR") if scored_properties else "FAIR"
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 6: UI ACTIONS (Determine visualizations)
+            # STEP 7: UI ACTIONS (Determine visualizations - skip cards if discovery incomplete)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             ui_actions = self._determine_ui_actions(
                 psychology, 
-                scored_properties, 
+                scored_properties if is_discovery_complete else [],  # No cards during discovery
                 intent,
                 query
             )
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 7: STRATEGY (Psychology-aware pitch selection)
+            # STEP 8: STRATEGY (Psychology-aware pitch selection)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             strategy = determine_strategy(
                 psychology,
-                has_properties=len(scored_properties) > 0,
+                has_properties=len(scored_properties) > 0 and is_discovery_complete,
                 top_property_verdict=top_verdict
             )
             logger.info(f"🎭 Strategy: {strategy['strategy']}")
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 8: SPEAK (Claude narrative generation)
+            # STEP 9: SPEAK (Claude narrative generation)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             response_text = await self._generate_wolf_narrative(
                 query=query,
@@ -175,7 +183,9 @@ class WolfBrain:
                 ui_actions=ui_actions,
                 history=history,
                 language=language,
-                profile=profile
+                profile=profile,
+                is_discovery=not is_discovery_complete,
+                intent=intent
             )
             self.stats["claude_calls"] += 1
             
@@ -184,7 +194,7 @@ class WolfBrain:
             
             return {
                 "response": response_text,
-                "properties": scored_properties[:5],  # Top 5
+                "properties": scored_properties[:5] if is_discovery_complete else [],  # Only show after discovery
                 "ui_actions": ui_actions,
                 "psychology": psychology.to_dict(),
                 "strategy": strategy,
@@ -192,6 +202,7 @@ class WolfBrain:
                 "route": route.to_dict(),
                 "processing_time_ms": int(elapsed * 1000),
                 "model_used": "wolf_brain_v5",
+                "discovery_complete": is_discovery_complete,
             }
             
         except Exception as e:
@@ -310,6 +321,59 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
             logger.error(f"Database search failed: {e}", exc_info=True)
             return []
     
+    def _is_discovery_complete(self, filters: Dict, history: List[Dict]) -> bool:
+        """
+        Check if discovery phase is complete.
+        
+        Discovery is complete when we have at least:
+        1. Budget information (budget_min or budget_max), OR
+        2. Purpose/intent is clear from history
+        
+        This ensures we don't show properties until we understand what the user wants.
+        """
+        # Check if we have budget info
+        has_budget = bool(filters.get('budget_max') or filters.get('budget_min'))
+        
+        # Check history length - if we've had a few exchanges, can proceed
+        has_context = len(history) >= 4  # At least 2 back-and-forth
+        
+        # Check if purpose was mentioned in current filters or history
+        purpose_keywords = [
+            "سكن", "استثمار", "invest", "live", "rental", "rent", "ايجار",
+            "تجاري", "commercial", "سياحي", "vacation", "تمليك", "buy"
+        ]
+        
+        has_purpose = False
+        
+        # Check in recent history
+        for msg in history[-6:]:
+            content = msg.get('content', '').lower() if isinstance(msg, dict) else ''
+            if any(kw in content for kw in purpose_keywords):
+                has_purpose = True
+                break
+        
+        # Discovery is complete if:
+        # 1. We have budget info, OR
+        # 2. We have both context history AND purpose mentioned
+        # 3. User has provided location + budget combo
+        has_location = bool(filters.get('location'))
+        
+        # Complete if: (budget) OR (context + purpose) OR (location + budget) OR (location + purpose)
+        if has_budget:
+            logger.debug("Discovery complete: Has budget info")
+            return True
+        
+        if has_context and has_purpose:
+            logger.debug("Discovery complete: Has context + purpose")
+            return True
+        
+        if has_location and has_purpose:
+            logger.debug("Discovery complete: Has location + purpose")
+            return True
+        
+        logger.debug(f"Discovery incomplete: budget={has_budget}, context={has_context}, purpose={has_purpose}, location={has_location}")
+        return False
+    
     def _determine_ui_actions(
         self,
         psychology: PsychologyProfile,
@@ -395,7 +459,9 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
         ui_actions: List[Dict],
         history: List[Dict],
         language: str,
-        profile: Optional[Dict] = None
+        profile: Optional[Dict] = None,
+        is_discovery: bool = False,
+        intent: Optional[Intent] = None
     ) -> str:
         """
         Generate the final narrative using Claude 3.5 Sonnet.
@@ -407,7 +473,33 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
             # Build context for Claude
             context_parts = []
             
-            # Property context
+            # Discovery phase context - provide market insights
+            if is_discovery:
+                location = intent.filters.get('location', '') if intent else ''
+                context_parts.append(f"""
+[DISCOVERY_PHASE]
+The user has NOT provided complete requirements yet. 
+Requested location: {location if location else 'not specified'}
+
+DO THIS:
+1. Greet warmly: "أهلاً بيك..." or "تمام يا فندم..."
+2. Provide MARKET CONTEXT for their requested area:
+   - Average price ranges for 2-bedroom apartments
+   - Price differences by developer tier:
+     * Tier 1 (Premium): اعمار، سوديك، ماونتن ڤيو، إل بوسكو، بالم هيلز
+     * Tier 2 (Mid-tier): لافيستا، هايد بارك، تطوير مصر
+     * Tier 3 (Value): كابيتال جروب، السعودية المصرية
+   - General: "متوسط الاسعار في المنطقة دي من ... لـ ..."
+3. Ask strategic discovery questions:
+   - "عايز سكن ولا استثمار؟" (Residence or investment?)
+   - "متوسط ميزانيتك قد ايه؟" (What's your budget range?)
+   - "تحب مطور معين ولا نشوف كل الخيارات؟" (Specific developer or all options?)
+
+DO NOT show specific property recommendations yet.
+Build rapport and understand their needs first.
+""")
+            
+            # Property context (only when not in discovery)
             if properties:
                 context_parts.append(self._format_property_context(properties))
             
