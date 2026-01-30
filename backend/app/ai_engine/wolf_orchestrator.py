@@ -533,10 +533,12 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
 [DISCOVERY_PHASE - REAL MARKET DATA]
 The user asked about: {ar_name}
 
-YOU MUST PROVIDE THIS SPECIFIC DATA:
+⚠️ CRITICAL: START YOUR RESPONSE EXACTLY WITH:
+"اهلا بيك! {ar_name} منطقة مميزة جداً..."
 
-1. GREETING + AREA CONTEXT:
-   "اهلا بيك! {ar_name} منطقة مميزة جداً..."
+DO NOT use "أهلاً" or "أنا بيحب" - use EXACTLY "اهلا بيك"
+
+THEN PROVIDE THIS SPECIFIC DATA:
 
 2. PRICE RANGES (USE THESE EXACT NUMBERS):
    - متوسط سعر المتر: {avg_sqm:,} جنيه/متر
