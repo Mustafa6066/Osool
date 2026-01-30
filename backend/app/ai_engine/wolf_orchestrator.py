@@ -536,7 +536,7 @@ The user asked about: {ar_name}
 YOU MUST PROVIDE THIS SPECIFIC DATA:
 
 1. GREETING + AREA CONTEXT:
-   "أهلاً بيك! {ar_name} منطقة مميزة جداً..."
+   "اهلا بيك! {ar_name} منطقة مميزة جداً..."
 
 2. PRICE RANGES (USE THESE EXACT NUMBERS):
    - متوسط سعر المتر: {avg_sqm:,} جنيه/متر
@@ -559,7 +559,7 @@ YOU MUST PROVIDE THIS SPECIFIC DATA:
 
 4. END WITH ONE QUESTION (choose based on context):
    - "تحب تشوف شقه في متوسط معين ولا لمطور معين؟"
-   - "ميزانيتك حوالين كام عشان أوريك الأنسب؟"
+   - "ميزانيتك حوالي كام عشان أوريك الأنسب؟"
 
 IMPORTANT: Use the ACTUAL numbers above, don't make up prices!
 DO NOT show property cards yet - just provide this market context.
@@ -575,7 +575,7 @@ Provide general market context and ask:
 2. Budget range
 3. Residence or investment purpose
 
-Be welcoming: "أهلاً بيك! خليني أفهم احتياجاتك..."
+Be welcoming: "اهلا بيك! خليني أفهم احتياجاتك..."
 """)
             
             # Feasibility context (Reality Check - if request is not feasible)
