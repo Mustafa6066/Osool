@@ -502,30 +502,80 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
             # Build context for Claude
             context_parts = []
             
-            # Discovery phase context - provide market insights
+            # Discovery phase context - provide market insights with REAL DATA
             if is_discovery:
                 location = intent.filters.get('location', '') if intent else ''
-                context_parts.append(f"""
+                
+                # Get real market data for the location
+                area_context = market_intelligence.get_area_context(location) if location else {}
+                
+                if area_context.get('found'):
+                    ar_name = area_context.get('ar_name', location)
+                    apt_start = area_context.get('apartment_start', 3_500_000)
+                    villa_start = area_context.get('villa_start', 12_000_000)
+                    tier1_devs = area_context.get('tier1_developers', [])
+                    tier2_devs = area_context.get('tier2_developers', [])
+                    avg_sqm = area_context.get('avg_price_sqm', 65000)
+                    
+                    # Format prices
+                    apt_start_m = apt_start / 1_000_000
+                    villa_start_m = villa_start / 1_000_000
+                    
+                    # Calculate tier price ranges (estimates based on area data)
+                    tier1_min = apt_start * 1.8  # Premium is ~80% more
+                    tier1_max = apt_start * 3.5
+                    tier2_min = apt_start * 1.2
+                    tier2_max = apt_start * 2.0
+                    tier3_min = apt_start
+                    tier3_max = apt_start * 1.5
+                    
+                    context_parts.append(f"""
+[DISCOVERY_PHASE - REAL MARKET DATA]
+The user asked about: {ar_name}
+
+YOU MUST PROVIDE THIS SPECIFIC DATA:
+
+1. GREETING + AREA CONTEXT:
+   "أهلاً بيك! {ar_name} منطقة مميزة جداً..."
+
+2. PRICE RANGES (USE THESE EXACT NUMBERS):
+   - متوسط سعر المتر: {avg_sqm:,} جنيه/متر
+   - الشقق (2 غرفة + صالة): من {apt_start_m:.1f} مليون لـ {apt_start_m * 3:.1f} مليون
+   - الفلل: تبدأ من {villa_start_m:.1f} مليون
+
+3. DEVELOPER TIERS (WITH PRICE RANGES):
+   
+   🏆 المطورين الفئة الأولى (Premium):
+   {', '.join(tier1_devs) if tier1_devs else 'اعمار، سوديك، ماونتن ڤيو، بالم هيلز'}
+   الشقة: من {tier1_min/1_000_000:.1f} مليون لـ {tier1_max/1_000_000:.1f} مليون
+   
+   ⭐ المطورين الفئة الثانية (Mid-tier):
+   {', '.join(tier2_devs) if tier2_devs else 'لافيستا، هايد بارك، تطوير مصر'}
+   الشقة: من {tier2_min/1_000_000:.1f} مليون لـ {tier2_max/1_000_000:.1f} مليون
+   
+   💰 الفئة الثالثة (Value):
+   كابيتال جروب، السعودية المصرية
+   الشقة: من {tier3_min/1_000_000:.1f} مليون لـ {tier3_max/1_000_000:.1f} مليون
+
+4. END WITH ONE QUESTION (choose based on context):
+   - "تحب تشوف شقه في متوسط معين ولا لمطور معين؟"
+   - "ميزانيتك حوالين كام عشان أوريك الأنسب؟"
+
+IMPORTANT: Use the ACTUAL numbers above, don't make up prices!
+DO NOT show property cards yet - just provide this market context.
+""")
+                else:
+                    # Generic discovery for unknown area
+                    context_parts.append(f"""
 [DISCOVERY_PHASE]
-The user has NOT provided complete requirements yet. 
-Requested location: {location if location else 'not specified'}
+The user asked about: {location if location else 'unspecified area'}
 
-DO THIS:
-1. Greet warmly: "أهلاً بيك..." or "تمام يا فندم..."
-2. Provide MARKET CONTEXT for their requested area:
-   - Average price ranges for 2-bedroom apartments
-   - Price differences by developer tier:
-     * Tier 1 (Premium): اعمار، سوديك، ماونتن ڤيو، إل بوسكو، بالم هيلز
-     * Tier 2 (Mid-tier): لافيستا، هايد بارك، تطوير مصر
-     * Tier 3 (Value): كابيتال جروب، السعودية المصرية
-   - General: "متوسط الاسعار في المنطقة دي من ... لـ ..."
-3. Ask strategic discovery questions:
-   - "عايز سكن ولا استثمار؟" (Residence or investment?)
-   - "متوسط ميزانيتك قد ايه؟" (What's your budget range?)
-   - "تحب مطور معين ولا نشوف كل الخيارات؟" (Specific developer or all options?)
+Provide general market context and ask:
+1. Which specific area interests them
+2. Budget range
+3. Residence or investment purpose
 
-DO NOT show specific property recommendations yet.
-Build rapport and understand their needs first.
+Be welcoming: "أهلاً بيك! خليني أفهم احتياجاتك..."
 """)
             
             # Feasibility context (Reality Check - if request is not feasible)
