@@ -174,11 +174,9 @@ class WolfBrain:
                 
                 # The "Velvet Rope" Response
                 gating_response = (
-                    "عشان أكون صريح معاك، أنا عندي 3 وحدات مميزة جداً بتطابق طلبك، "
-                    "بس دي وحدات 'لقطة' ومحتاجة جدية.\n\n"
-                    "عشان أفلتر السوق صح ومضيعش وقتك، محتاج أعرف الأول:\n"
-                    "1. بتشتري سكن ولا استثمار؟\n"
-                    "2. ميزانيتك (الكاش) في حدود كام؟"
+                    "Before I give you a price that might not fit your goals, I need to know: "
+                    "Are you buying for **Rental Income** or **Capital Appreciation** (Resale)? "
+                    "The best unit for one is the worst for the other."
                 )
                 
                 return {
@@ -247,9 +245,10 @@ class WolfBrain:
             if psychology.primary_state == PsychologicalState.TRUST_DEFICIT:
                  return {
                     "response": (
-                        "أنا ملاحظ إنك قلقان، وده حقك تماماً في سوق زي ده.\n"
-                        "أنا مش بس ببيع وحدات، أنا بقيم عقود. لو عندك أي عقد (حتى لو مش من عندي)، "
-                        "ابعتهولي وهعملك فحص قانوني شامل (Law 114 Audit) مجاناً دلوقتي حالاً عشان تتطمن."
+                        "I hear your concern. Forget my units for a second. "
+                        "Send me the contract you are looking at from *any* developer. "
+                        "I will run it through my **Law 114 Scanner** to check for ownership chain and penalty clauses. "
+                        "I want you safe, even if you don't buy from me."
                     ),
                     "properties": [],
                     "ui_actions": [{"type": "upload_contract_trigger"}],
