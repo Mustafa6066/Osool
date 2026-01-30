@@ -33,8 +33,10 @@ from .psychology_layer import (
     PsychologicalState
 )
 from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS
+from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS
 from .analytical_actions import generate_analytical_ui_actions
 from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT
+from .hybrid_brain_prod import hybrid_brain_prod  # The Specialist Tools
 from .conversation_memory import ConversationMemory
 from .lead_scoring import score_lead, LeadTemperature, BehaviorSignal
 
@@ -163,10 +165,11 @@ class WolfBrain:
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 5b: THE VELVET ROPE (Gating Logic)
+            # STEP 5b: THE VELVET ROPE (Legacy Gate - Now moved to Step 5 Intelligent Screening)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Keeping strictly for safety, but logic is mostly handled above now.
             # If lead is COLD (< 20) and trying to see specific units -> BLOCK THEM
-            if lead_score < 20 and intent.action in ["search", "price_check"] and not is_discovery_complete:
+            if lead_score < 10 and intent.action in ["search", "price_check"] and not is_discovery_complete:
                 logger.info("🛑 VELVET ROPE: Blocking low-score lead from specific units.")
                 
                 # The "Velvet Rope" Response
@@ -190,6 +193,36 @@ class WolfBrain:
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 5: INTELLIGENT SCREENING (The "Give-to-Get" Gate)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Instead of just blocking low scores, trade value for info.
+            if lead_score < 20 and intent.action in ["search", "price_check"]:
+                # If they want price but we don't know who they are, give them a "Market Pulse" first
+                # to establish authority before asking for budget.
+                location_filter = intent.filters.get('location', 'new cairo')
+                market_segment = market_intelligence.get_market_segment(location_filter)
+                
+                if market_segment['found']:
+                    # The "Give-to-Get" Response
+                    response_text = (
+                        f"قبل ما نتكلم في الأسعار، لازم تعرف إن السوق في {market_segment['name_ar']} مقسوم نصين:\n\n"
+                        f"1️⃣ **فئة أولى (Class A):** بتبدأ من {market_segment['class_a']['min_price']/1e6:.1f} مليون (زي {market_segment['class_a']['developers_ar'][0]}).\n"
+                        f"2️⃣ **فئة تانية (Class B):** بتبدأ من {market_segment['class_b']['min_price']/1e6:.1f} مليون.\n\n"
+                        "عشان أرشحلك الأنسب لاستثمارك، حضرتك بتستهدف أي فئة فيهم؟"
+                    )
+                    
+                    return {
+                        "response": response_text,
+                        "properties": [],
+                        "ui_actions": [],
+                        "psychology": psychology.to_dict(),
+                        "strategy": {"strategy": "benchmarking_gate"},
+                        "intent": intent.to_dict(),
+                        "route": route.to_dict(),
+                        "model_used": "wolf_educator"
+                    }
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 5c: FEASIBILITY SCREEN (The Standard Gatekeeper)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             feasibility = None
@@ -208,8 +241,22 @@ class WolfBrain:
                     logger.info(f"🛑 Feasibility FAILED: {property_type} in {location} needs {budget + feasibility.budget_gap}")
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 6: HUNT (Search database for properties)
+            # STEP 6: HUNT & CONFIDENCE CHECK
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # If user has TRUST_DEFICIT, don't sell. Offer capability proof.
+            if psychology.primary_state == PsychologicalState.TRUST_DEFICIT:
+                 return {
+                    "response": (
+                        "أنا ملاحظ إنك قلقان، وده حقك تماماً في سوق زي ده.\n"
+                        "أنا مش بس ببيع وحدات، أنا بقيم عقود. لو عندك أي عقد (حتى لو مش من عندي)، "
+                        "ابعتهولي وهعملك فحص قانوني شامل (Law 114 Audit) مجاناً دلوقتي حالاً عشان تتطمن."
+                    ),
+                    "properties": [],
+                    "ui_actions": [{"type": "upload_contract_trigger"}],
+                    "psychology": psychology.to_dict(),
+                    "strategy": {"strategy": "confidence_building"},
+                    "route": route.to_dict()
+                }
             properties = []
             if is_discovery_complete and intent.action in ["search", "comparison", "valuation", "investment"]:
                 properties = await self._search_database(intent.filters)
@@ -237,6 +284,28 @@ class WolfBrain:
             top_verdict = scored_properties[0].get("verdict", "FAIR") if scored_properties else "FAIR"
             top_wolf_analysis = scored_properties[0].get("wolf_analysis", "FAIR_VALUE") if scored_properties else "FAIR_VALUE"
             
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 7: PRICE DEFENSE PROTOCOL ("No Discount")
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Check if user asked for discount/negotiation
+            negotiation_keywords = ["discount", "offer", "best price", "خصم", "نهائي", "تفاوض", "اخر كلام", "negotiate"]
+            is_negotiating = any(k in query.lower() for k in negotiation_keywords)
+            no_discount_mode = False
+            top_wolf_analysis = "FAIR_VALUE"
+
+            if is_negotiating and properties:
+                # TRIGGER PRICE DEFENSE - Do not lower price. Stack Value.
+                # Compare specifically against the "Market Floor" to show they are already winning.
+                top_prop = properties[0]
+                benchmark = market_intelligence.benchmark_property(top_prop)
+                top_wolf_analysis = benchmark.wolf_analysis
+                
+                # If the property is already Fair or Bargain, defend it aggressively
+                if benchmark.wolf_analysis in ["FAIR_VALUE", "BARGAIN_DEAL", "BELOW_COST"]:
+                    no_discount_mode = True
+                    # Let the narrative generator handle the "No" with the Protocol
+                    logger.info("🛡️ Price Defense Activated: No Discount Mode")
+
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 8: UI ACTIONS (Determine visualizations - skip cards if discovery incomplete)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -271,7 +340,9 @@ class WolfBrain:
                 profile=profile,
                 is_discovery=not is_discovery_complete,
                 intent=intent,
-                feasibility=feasibility
+
+                feasibility=feasibility,
+                no_discount_mode=no_discount_mode
             )
             self.stats["claude_calls"] += 1
             
@@ -550,7 +621,9 @@ Keep responses SHORT and friendly. Max 2-3 sentences."""
         profile: Optional[Dict] = None,
         is_discovery: bool = False,
         intent: Optional[Intent] = None,
-        feasibility: Optional[Any] = None
+
+        feasibility: Optional[Any] = None,
+        no_discount_mode: bool = False
     ) -> str:
         """
         Generate the final narrative using Claude 3.5 Sonnet.
@@ -745,8 +818,20 @@ Name: {user_name}
 Address them occasionally: "يا {user_name}" or "{user_name}، خليني أقولك..."
 """)
             
+            # No Discount Protocol Injection
+            if no_discount_mode:
+                context_parts.append("""
+[PRICE_INTEGRITY_PROTOCOL - CRITICAL]
+The user may be fishing for a discount or negotiation.
+RULE 1: NEVER offer a discount.
+RULE 2: NEVER apologize for the price.
+RULE 3: Pivot to the "Takeaway Close":
+   "This unit is priced for value. If this budget is tight, we can look at a smaller unit or a different location (downgrade), but I cannot touch the price of THIS asset."
+RULE 4: Anchor the price to the ROI: "You are not spending X, you are securing an asset that grows Y% annually."
+""")
+
             # Build system prompt
-            system_prompt = AMR_SYSTEM_PROMPT + "\n\n" + "\n".join(context_parts)
+            system_prompt = get_wolf_system_prompt() + "\n\n" + "\n".join(context_parts)
             
             # Price validation override
             if properties:

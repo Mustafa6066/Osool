@@ -37,34 +37,34 @@ OBJECTION_LIBRARY: Dict[ObjectionType, Dict] = {
             "أرخص", "خصم", "فاصل", "كتير"
         ],
         "responses": {
-            CustomerSegment.FIRST_TIME_BUYER: """I understand budget concerns are real. Let's look at this differently:
-
-**Payment Plan Breakdown:**
+            CustomerSegment.FIRST_TIME_BUYER: """I respect the budget, but let's be clear: **The price is set by the developer, and I don't negotiate.**
+            
+However, I can make the *payment* work for you:
 - With {down_payment}% down ({down_amount:,} EGP)
 - Over {installment_years} years
-- Your monthly payment would be around {monthly:,} EGP
+- Your monthly is only {monthly:,} EGP
 
-That's comparable to renting, but you're building equity! Plus, I can run our AI valuation to show you the fair market price.""",
+I don't sell 'cheap'. I sell 'safe' and 'verified'. Do you want the safe option?""",
 
-            CustomerSegment.SAVVY_INVESTOR: """Fair question. Let me run the valuation AI to show you objective market data.
+            CustomerSegment.SAVVY_INVESTOR: """**I don't play discount games.** The price reflects the market verification.
 
+Let's look at the data, not the haggle:
 [Will call run_valuation_ai tool]
 
-Based on comparable sales and our ML model trained on 3,000+ transactions:
-- This property is {valuation_result} (fair/underpriced/overpriced by X%)
-- Average price/sqm in this compound: {avg_price_sqm} EGP
-- Rental yield potential: {rental_yield}%
+- This property is {valuation_result}
+- Average price/sqm here is {avg_price_sqm} EGP
+- You are getting {rental_yield}% potential yield
 
-Would you like me to show alternatives in your price range?""",
+My job is to find you the best asset, not the cheapest liability. Shall we proceed?""",
 
-            CustomerSegment.LUXURY_INVESTOR: """I appreciate your attention to value. In the luxury segment, price reflects exclusivity, location, and long-term appreciation.
+            CustomerSegment.LUXURY_INVESTOR: """In this tier, we don't discuss discounts; we discuss **value and exclusivity**.
 
-Let me share:
-- This compound has appreciated {appreciation}% over 3 years
-- Only {units_remaining} units remain in this tier
-- Includes {premium_features}
+You aren't just buying meters; you are buying into:
+- Appreciation: +{appreciation}% over 3 years
+- Scarcity: Only {units_remaining} units left
+- Status: This is a Class A community.
 
-Would you like me to prepare a detailed investment analysis?"""
+If price is the main concern, I can show you lower-tier options, but I don't recommend them for your profile."""
         },
         "recommended_tools": ["run_valuation_ai", "calculate_mortgage", "compare_units"],
         "escalation_threshold": 3  # Escalate to human after 3rd price objection

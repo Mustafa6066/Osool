@@ -506,10 +506,9 @@ def determine_strategy(
         strategy = Strategy.TRUST_BUILDING
         angle = "proof"
         talking_points = [
-            "I understand the hesitation. Ignore my opinion; look at this chart of actual sales transactions.",
-            "I don't sell. I audit. And the data says this is a safe entry.",
-            "My numbers come from actual transaction ledgers, not brochures.",
-            "Let's look at the facts. Numbers don't lie.",
+            "Before we talk prices, I want to show you the transaction history.",
+            "I don't want you to trust me. I want you to trust the data. Here is the Blockchain Verification link for the last unit we sold...",
+            "Send me any contract you have—I'll run my Law 114 Scanner on it for free."
         ]
         
     else:  # NEUTRAL

@@ -802,53 +802,61 @@ Let me show you alternatives within your budget."""
         property_data: Dict
     ) -> PropertyBenchmark:
         """
-        Benchmark a property against market averages.
+        Compare property price against market averages AND replacement cost.
         
-        The Value Anchor: A price means nothing without context.
-        
-        Args:
-            property_data: Property with price, size_sqm, location
-            
-        Returns:
-            PropertyBenchmark with wolf_analysis tag
+        The "Smart" Benchmark:
+        1. Market Comparison: Is it cheaper than area average?
+        2. Replacement Cost: Is it cheaper than building it today?
         """
         price = property_data.get("price", 0)
         size_sqm = property_data.get("size_sqm", 1) or 1
         location = property_data.get("location", "")
         
-        actual_price_sqm = int(price / size_sqm)
+        price_per_sqm = price / size_sqm
+        market_avg = self._get_area_avg_price(location)
         
-        # Get market average
-        location_key = self._normalize_location(location)
-        area_data = AREA_BENCHMARKS.get(location_key, {})
-        market_price_sqm = area_data.get("avg_price_sqm", AREA_PRICES.get("New Cairo", 50000))
+        # 1. Market Comparison
+        if market_avg > 0:
+            diff_percent = ((market_avg - price_per_sqm) / market_avg) * 100
+        else:
+            diff_percent = 0
+            
+        # 2. Replacement Cost Calculation (2025 Estimates)
+        # Construction Cost: ~25,000 EGP/sqm (High-end)
+        # Land Share: ~20,000 EGP/sqm (New Cairo/Zayed average)
+        construction_cost_sqm = 25000 
+        land_share_cost_sqm = 20000   
+        min_replacement_cost = construction_cost_sqm + land_share_cost_sqm
         
-        # Calculate difference
-        diff_percent = ((actual_price_sqm - market_price_sqm) / market_price_sqm) * 100
-        
-        # Determine wolf analysis tag
-        if diff_percent <= -10:
+        is_below_cost = price_per_sqm < min_replacement_cost
+            
+        # Determine Wolf Analysis
+        if is_below_cost and diff_percent > 0:
+             wolf_analysis = "BELOW_COST"
+             verdict_ar = "السعر ده تحت تكلفة البنا والأرض! دي فرصة مش هتتكرر."
+             verdict_en = "Price is below replacement cost! Rare opportunity."
+        elif diff_percent >= 15:
             wolf_analysis = "BARGAIN_DEAL"
-            verdict_ar = f"🔥 **لقطة!** أقل من السوق بـ {abs(diff_percent):.0f}%"
-            verdict_en = f"🔥 **Bargain!** {abs(diff_percent):.0f}% below market"
-        elif diff_percent <= 5:
+            verdict_ar = f"أقل من سعر السوق بـ {diff_percent:.0f}% (لقطة)."
+            verdict_en = f"{diff_percent:.0f}% Below Market Price (Bargain)."
+        elif diff_percent >= -5:
             wolf_analysis = "FAIR_VALUE"
-            verdict_ar = "✅ سعر عادل - متوافق مع السوق"
-            verdict_en = "✅ Fair value - aligned with market"
-        elif diff_percent <= 15:
+            verdict_ar = "سعر عادل جداً مقارنة بالسوق."
+            verdict_en = "Fair market value."
+        elif diff_percent >= -15:
             wolf_analysis = "PREMIUM"
-            verdict_ar = f"💎 Premium - أعلى من السوق بـ {diff_percent:.0f}% (مبرر لو الموقع مميز)"
-            verdict_en = f"💎 Premium - {diff_percent:.0f}% above market (justified if prime location)"
+            verdict_ar = "سعر بريميوم (غالباً بسبب الموقع أو التشطيب)."
+            verdict_en = "Premium pricing (Location/Finishing)."
         else:
             wolf_analysis = "OVERPRICED"
-            verdict_ar = f"⚠️ أعلى من السوق بـ {diff_percent:.0f}% - تفاوض!"
-            verdict_en = f"⚠️ {diff_percent:.0f}% above market - negotiate!"
-        
+            verdict_ar = "السعر مبالغ فيه مقارنة بالمنطقة."
+            verdict_en = "Overpriced compared to area average."
+            
         return PropertyBenchmark(
             wolf_analysis=wolf_analysis,
             price_vs_market_percent=round(diff_percent, 1),
-            market_price_sqm=market_price_sqm,
-            actual_price_sqm=actual_price_sqm,
+            market_price_sqm=market_avg,
+            actual_price_sqm=int(price_per_sqm),
             verdict_ar=verdict_ar,
             verdict_en=verdict_en
         )
@@ -1023,6 +1031,34 @@ Let me show you alternatives within your budget."""
                     })
         
         return alternatives[:3]  # Max 3 alternatives
+
+    def _normalize_location(self, location: str) -> str:
+        """Normalize location string to key."""
+        loc_lower = location.lower()
+        if "zayed" in loc_lower: return "sheikh zayed"
+        if "tagamo" in loc_lower or "cairo" in loc_lower or "تجمع" in loc_lower: return "new cairo"
+        if "capital" in loc_lower or "administrative" in loc_lower or "عاصمة" in loc_lower: return "new capital"
+        if "october" in loc_lower or "أكتوبر" in loc_lower: return "6th october"
+        if "coast" in loc_lower or "sahel" in loc_lower or "ساحل" in loc_lower: return "north coast"
+        if "maadi" in loc_lower or "معادي" in loc_lower: return "maadi"
+        return "new cairo" # Default
+
+    def _normalize_property_type(self, ptype: str) -> str:
+        """Normalize property type."""
+        ptype = ptype.lower()
+        if "villa" in ptype or "فيلا" in ptype: return "villa"
+        if "town" in ptype or "تاون" in ptype: return "townhouse"
+        if "duplex" in ptype or "دوبلكس" in ptype: return "duplex"
+        if "chalet" in ptype or "شاليه" in ptype: return "chalet"
+        return "apartment"
+
+    def _get_area_avg_price(self, location: str) -> int:
+        """Get average price per sqm for location."""
+        # Use simple lookup first
+        for area, price in AREA_PRICES.items():
+            if area.lower() in location.lower() or location.lower() in area.lower():
+                return price
+        return 50000
 
 
 # Singleton instances

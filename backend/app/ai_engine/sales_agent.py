@@ -294,15 +294,14 @@ async def search_properties(query: str, session_id: str = "default") -> str:
         
         # If score is low (Cold Lead) and query asks for specifics
         if cached_score < 20 and "bypass" not in query.lower():
-            # Return the "Velvet Rope" refusal
             return json.dumps({
                 "status": "gated",
                 "message": (
-                    "I have 3 verified units that match this, but they are exclusive opportunities. "
-                    "To filter out the bad deals and ensure you are ready, I need your numbers first: "
-                    "Investment or Living? And what is your liquidity ceiling?"
+                    "I see 3 units matching this, but one of them is an 'Off-Market' opportunity. "
+                    "To unlock the specific pricing for that one, I need to know: "
+                    "Are you buying for *Capital Appreciation* (Resale) or *Rental Income*?"
                 ),
-                "action": "ask_qualification"
+                "action": "force_qualification"
             })
     except Exception as e:
         print(f"⚠️ Gating check warning: {e}")

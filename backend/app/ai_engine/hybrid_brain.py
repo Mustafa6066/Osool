@@ -151,6 +151,12 @@ class OsoolHybridBrain:
             return None
 
         try:
+            # Calculate market metrics
+            prices = [p.get('price', 0) for p in properties if p.get('price')]
+            prices_per_sqm = [p.get('price', 0) / max(p.get('size_sqm', 1), 1) for p in properties if p.get('size_sqm')]
+            avg_price_sqm = sum(prices_per_sqm) / len(prices_per_sqm) if prices_per_sqm else 0
+            locations = list(set([p.get('location', '') for p in properties if p.get('location')]))
+
             props_summary = json.dumps(
                 [{
                     'title': p.get('title', ''),
@@ -162,17 +168,12 @@ class OsoolHybridBrain:
                     'wolf_score': p.get('wolf_score', 0),
                     'roi': self._calculate_roi_projection(p),
                     'price_per_sqm': round(p.get('price', 0) / max(p.get('size_sqm', 1), 1)),
+                    'discount_vs_market': f"{round((1 - (p.get('price', 0) / max(p.get('size_sqm', 1), 1)) / avg_price_sqm) * 100, 1)}%" if avg_price_sqm > 0 else "N/A"
                 } for p in properties[:5]],
                 ensure_ascii=False
             )
 
             psych_state = psychology.primary_state.value if psychology else 'NEUTRAL'
-
-            # Calculate market metrics
-            prices = [p.get('price', 0) for p in properties if p.get('price')]
-            prices_per_sqm = [p.get('price', 0) / max(p.get('size_sqm', 1), 1) for p in properties if p.get('size_sqm')]
-            avg_price_sqm = sum(prices_per_sqm) / len(prices_per_sqm) if prices_per_sqm else 0
-            locations = list(set([p.get('location', '') for p in properties if p.get('location')]))
 
             prompt = f"""You are an expert Egyptian real estate market analyst providing STRATEGIC insights.
 Your role is to analyze the market situation and explain WHY certain properties are good investments,
@@ -208,7 +209,7 @@ Produce ONLY valid JSON (no markdown, no code fences). Response MUST be in the S
     "safest_choice": "property title from best developer and WHY"
   }},
   "strategic_recommendation": {{
-    "action": "buy_now/negotiate/wait/compare_more",
+    "action": "buy_now/secure_unit/wait/compare_more",
     "reasoning": "2 sentences explaining the strategic logic",
     "specific_target": "which exact property and why"
   }},
