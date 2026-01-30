@@ -456,30 +456,30 @@ def determine_strategy(
         strategy = Strategy.TRUST_BUILDING
         angle = "trust"
         talking_points = [
-            "المطور ده من أكبر المطورين في مصر",
-            "العقد مطابق للمادة 114 - ملكية مسجلة",
-            "تسليم في الموعد بنسبة 95%",
-            "أقدر أوريك عقود عملاء سابقين",
+            "Don't sign anything yet. Send me the contract first; I'll run my Legal Scanner on it.",
+            "I utilize a Law 114 Legal Scanner to detect contract loopholes.",
+            "This developer has a 95% on-time delivery record. Zero legal violations.",
+            "My protocol requires verification on Polygon before I recommend this.",
         ]
         
     elif state == PsychologicalState.GREED_DRIVEN:
         strategy = Strategy.ROI_FOCUSED
         angle = "profit"
         talking_points = [
-            "العائد السنوي المتوقع 22-25%",
-            "العقار بيحميك من التضخم - الكاش بيخسر 33% سنوياً",
-            "شهادات البنك 27% بس التضخم 33% = خسارة حقيقية",
-            "الإيجار هيغطي الأقساط + ربح إضافي",
+            "This unit is an 'Inflation Killer'. It generates 2x the return of a bank deposit.",
+            "Inflation is 35%. Bank CDs are 27%. You are losing 8% annually. This property stops the bleeding.",
+            "Projected ROI is 25% conservative. Including rental yield, you beat Gold.",
+            "This is a 'Catch' - math proves it.",
         ]
         
     elif state == PsychologicalState.FOMO:
         strategy = Strategy.SCARCITY_PITCH
         angle = "scarcity"
         talking_points = [
-            "الوحدة دي عليها 3 ناس تانيين مهتمين",
-            "السعر هيزيد الشهر الجاي بنسبة 10%",
-            "فاضل 2 وحدات بس في المرحلة دي",
-            "لو مش النهارده، الفرصة دي هتروح",
+            "There are only 2 units left with this view. The developer raises prices on Sunday.",
+            "This price is valid for 48 hours. I've seen the developer's internal memo.",
+            "Demand in this zone is up 40%. Waiting = Paying more.",
+            "I have 3 other investors looking at this same unit right now.",
         ]
         
     elif state == PsychologicalState.ANALYSIS_PARALYSIS:
@@ -506,10 +506,10 @@ def determine_strategy(
         strategy = Strategy.TRUST_BUILDING
         angle = "proof"
         talking_points = [
-            "السيستم بتاعي بيجيب البيانات من السوق مباشرة",
-            "أقدر أوريك تقييم من مصادر تانية",
-            "المطور ده عنده track record - أقدر أوريك",
-            "أنا مش سمسار، أنا AI بيحللك البيانات",
+            "I understand the hesitation. Ignore my opinion; look at this chart of actual sales transactions.",
+            "I don't sell. I audit. And the data says this is a safe entry.",
+            "My numbers come from actual transaction ledgers, not brochures.",
+            "Let's look at the facts. Numbers don't lie.",
         ]
         
     else:  # NEUTRAL

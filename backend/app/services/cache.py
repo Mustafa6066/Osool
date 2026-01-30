@@ -52,5 +52,16 @@ class RedisClient:
         data = self.get_json(key)
         return data.get("results", []) if data else []
 
+    def set_lead_score(self, session_id: str, score: int, ttl: int = 3600):
+        """Stores lead score for session."""
+        key = f"score:{session_id}"
+        self.set_json(key, {"score": score}, ttl=ttl)
+
+    def get_lead_score(self, session_id: str) -> int:
+        """Retrieves lead score for session."""
+        key = f"score:{session_id}"
+        data = self.get_json(key)
+        return data.get("score") if data else None
+
 # Singleton
 cache = RedisClient()

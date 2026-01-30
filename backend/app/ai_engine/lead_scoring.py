@@ -136,6 +136,22 @@ def score_lead(
     ]
     full_text = " ".join(user_messages).lower()
 
+    # HUMAN HANDOFF: Complex Query Detection
+    # If user asks about offshore, corporate structures, or complex financing
+    complex_triggers = ["offshore", "corporate ownership", "legal structure", "international transfer", "complex financing", "multi-partner", "syndicate"]
+    if any(trigger in full_text for trigger in complex_triggers):
+        return {
+            "score": 0,
+            "temperature": LeadTemperature.COLD.value,
+            "signals": ["complex_query_detected"],
+            "confidence": 1.0,
+            "recommended_action": "ESCALATE_IMMEDIATELY",
+            "priority_level": 5,
+            "reason": "Complex legal/financing structure requested",
+            "detected_behaviors": [],
+            "session_summary": {}
+        }
+    
     # NEW: Detect "The Loop Trap" (Human Handoff Protocol)
     # Check if user asked the same question twice in last 3 turns
     last_3_user_msgs = [msg.get('content', '') for msg in conversation_history[-6:] if msg.get('role') == 'user']

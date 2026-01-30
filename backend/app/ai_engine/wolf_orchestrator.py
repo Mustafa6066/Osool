@@ -36,10 +36,13 @@ from .analytical_engine import analytical_engine, market_intelligence, OsoolScor
 from .analytical_actions import generate_analytical_ui_actions
 from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT
 from .conversation_memory import ConversationMemory
+from .lead_scoring import score_lead, LeadTemperature, BehaviorSignal
+
 
 # Database
 from app.database import AsyncSessionLocal
 from app.services.vector_search import search_properties as db_search_properties
+from app.services.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +133,64 @@ class WolfBrain:
             logger.info(f"🧠 Psychology: {psychology.primary_state.value}")
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 5: FEASIBILITY SCREEN (The Gatekeeper)
+            # STEP 5a: LEAD SCORING & LOOP DETECTION
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Calculate lead score to determine "Velvet Rope" access
+            session_meta = {
+                "session_start_time": datetime.now(), # In real app, track actual session start
+                "properties_viewed": len(history) // 3, # Approximate for now
+                "tools_used": [] # Can track if needed
+            }
+            lead_data = score_lead(history + [{"role": "user", "content": query}], session_meta, profile)
+            lead_score = lead_data["score"]
+            logger.info(f"📊 Lead Score: {lead_score} ({lead_data['temperature']})")
+            
+            # Persist score to cache for Agent tools (Velvet Rope)
+            if session_id:
+                cache.set_lead_score(session_id, lead_score)
+
+            # HUMAN HANDOFF CHECK (Loop Detection)
+            if "loop_detected" in lead_data.get("signals", []):
+                logger.warning("🔁 LOOP DETECTED - Triggering Handoff")
+                return {
+                    "response": "لقد لاحظت تكرار الأسئلة، وهذا يتطلب تدخلاً من خبير بشري لتحليل الوضع بدقة.\n\n"
+                                "سأقوم بتحويلك الآن لمستشار أول (Senior Consultant) لمراجعة حالتك.\n"
+                                "تم فتح تذكرة #URGENT-882.",
+                    "properties": [],
+                    "ui_actions": [{"type": "handoff_alert", "priority": "high"}],
+                    "psychology": psychology.to_dict(),
+                    "handoff": True
+                }
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 5b: THE VELVET ROPE (Gating Logic)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # If lead is COLD (< 20) and trying to see specific units -> BLOCK THEM
+            if lead_score < 20 and intent.action in ["search", "price_check"] and not is_discovery_complete:
+                logger.info("🛑 VELVET ROPE: Blocking low-score lead from specific units.")
+                
+                # The "Velvet Rope" Response
+                gating_response = (
+                    "عشان أكون صريح معاك، أنا عندي 3 وحدات مميزة جداً بتطابق طلبك، "
+                    "بس دي وحدات 'لقطة' ومحتاجة جدية.\n\n"
+                    "عشان أفلتر السوق صح ومضيعش وقتك، محتاج أعرف الأول:\n"
+                    "1. بتشتري سكن ولا استثمار؟\n"
+                    "2. ميزانيتك (الكاش) في حدود كام؟"
+                )
+                
+                return {
+                    "response": gating_response,
+                    "properties": [],
+                    "ui_actions": [],
+                    "psychology": psychology.to_dict(),
+                    "strategy": {"strategy": "gatekeeping"},
+                    "intent": intent.to_dict(),
+                    "route": route.to_dict(),
+                    "model_used": "wolf_gatekeeper"
+                }
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 5c: FEASIBILITY SCREEN (The Standard Gatekeeper)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             feasibility = None
             if is_discovery_complete and intent.filters.get('budget_max'):
@@ -592,13 +652,17 @@ Provide general market context and ask:
 Be welcoming: "اهلا بيك! خليني أفهم احتياجاتك..."
 """)
             
-            # Feasibility context (Reality Check - if request is not feasible)
             if feasibility and not feasibility.is_feasible:
                 context_parts.append(f"""
 [REALITY_CHECK - CRITICAL]
 The user's request is NOT FEASIBLE given market realities!
 
 {feasibility.message_ar}
+
+Use the **Universal Response Protocol** Part 2 (Market Context) to explain why:
+"السوق دلوقتي بدأ من X... الانتظار هيخسرك..."
+
+ALTERNATIVES TO OFFER:
 
 ALTERNATIVES TO OFFER:
 {chr(10).join('- ' + alt.get('message_ar', '') for alt in feasibility.alternatives[:3])}

@@ -39,6 +39,10 @@ if SENTRY_DSN:
 else:
     print("⚠️ Sentry DSN not configured - error tracking disabled")
 
+print("🐺 WOLF OF OSOOL: PROTOCOL 6 ACTIVATED (New Version Loaded)")
+print("✅ Velvet Rope Gating: ENABLED")
+print("✅ Market Intel Injection: ENABLED")
+
 # Import routers
 from app.api.endpoints import router as api_router
 from app.api.auth_endpoints import router as auth_router
