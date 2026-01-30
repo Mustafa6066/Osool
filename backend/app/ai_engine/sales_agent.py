@@ -207,7 +207,7 @@ async def search_properties(query: str, session_id: str = "default") -> str:
                 db,
                 query,
                 limit=5,
-                similarity_threshold=0.7  # STRICT: 70% minimum relevance
+                similarity_threshold=0.75  # STRICT: 75% minimum relevance
             )
 
             if properties:
@@ -408,6 +408,42 @@ def check_real_time_status(property_id: int) -> str:
             return f"❌ Urgent: Unit {property_id} is marked SOLD or RESERVED on the blockchain."
     except Exception as e:
         return f"Blockchain Connection Error: {e}"
+
+@tool
+def get_market_benchmark(location: str, unit_price_sqm: int) -> str:
+    """
+    Compares a specific unit's price against the 'Live Market Pulse'.
+    Use this to justify pricing (Premium vs Undervalued).
+    """
+    try:
+        # Mock data - in production, fetch from analytics DB or MarketIntelligence
+        from app.ai_engine.analytical_engine import AREA_PRICES, MARKET_DATA
+        
+        # Determine market average based on location string
+        market_avg = 60000  # Default fallback
+        for area, price in AREA_PRICES.items():
+            if area.lower() in location.lower():
+                market_avg = price
+                break
+                
+        inflation_rate = int(MARKET_DATA.get("inflation_rate", 0.33) * 100)
+        bank_cert_rate = int(MARKET_DATA.get("bank_cd_rate", 0.27) * 100)
+        
+        diff = ((unit_price_sqm - market_avg) / market_avg) * 100
+        
+        if unit_price_sqm < market_avg:
+            verdict = f"🟢 **UNDERVALUED:** This unit is {abs(diff):.1f}% below the area average ({market_avg:,} EGP/m)."
+        else:
+            verdict = f"🟡 **PREMIUM:** This unit is priced {diff:.1f}% above average, justified only by finishing/view."
+            
+        return json.dumps({
+            "verdict": verdict,
+            "inflation_context": f"Real Estate grew ~40% last year vs Inflation {inflation_rate}%.",
+            "opportunity_cost": f"Better than Bank Certificates ({bank_cert_rate}%) by estimated 12% net value.",
+            "market_average": f"{market_avg:,} EGP/sqm"
+        })
+    except Exception as e:
+        return json.dumps({"error": f"Benchmark failed: {e}"})
 
 @tool
 def run_valuation_ai(location: str, size_sqm: int, finishing: int = 1) -> str:
@@ -940,6 +976,20 @@ When users mention Nawy, Aqarmap, or Property Finder:
 
 **TONE:** confident, protective, data-driven ("Wolf" persona).
 """
+
+        # NEW: The Screening Gate (Velvet Rope Protocol)
+        current_score = self.lead_score['score'] if self.lead_score else 0
+        if self.customer_segment == CustomerSegment.UNKNOWN or current_score < 20:
+            gating_instruction = """
+            
+🚨 **SCREENING MODE ACTIVE (VELVET ROPE PROTOCOL)** 🚨
+The user has NOT yet qualified (Lead Score < 20).
+1. DO NOT show specific unit names or exact prices yet.
+2. If they ask for "apartments in New Cairo", give **Market Averages** first using `get_market_benchmark` or general knowledge.
+3. You MUST ask for their **Budget Ceiling** and **Investment Purpose** before revealing specific inventory.
+4. Use the 'Authority Bridge': "Before I show you the premium units, I need to know your liquidity range to filter out bad investments."
+"""
+            base_prompt += gating_instruction
 
         # Add customer segment personality if classified
         if self.customer_segment != CustomerSegment.UNKNOWN:

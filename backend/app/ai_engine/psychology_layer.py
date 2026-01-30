@@ -288,6 +288,14 @@ def analyze_psychology(
         tactics.extend(PSYCHOLOGY_PATTERNS.get(secondary_state, {}).get("recommended_tactics", []))
     tactics = list(set(tactics))  # Remove duplicates
 
+    # NEW: Sarcasm Detector (The "Human Touch" Framework)
+    sarcasm_triggers = ["sure you are", "yeah right", "tell me another one", "obvious", "robot", "lies", "joke"]
+    if any(x in query.lower() for x in sarcasm_triggers):
+        primary_state = PsychologicalState.TRUST_DEFICIT
+        confidence = 0.0 # Force low confidence to trigger cautious response
+        tactics = ["humility", "proof_only", "acknowledge_skepticism"]
+        all_triggers.append("detected_sarcasm")
+
     profile = PsychologyProfile(
         primary_state=primary_state,
         secondary_state=secondary_state,

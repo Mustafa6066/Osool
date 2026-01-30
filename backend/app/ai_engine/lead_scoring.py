@@ -136,6 +136,22 @@ def score_lead(
     ]
     full_text = " ".join(user_messages).lower()
 
+    # NEW: Detect "The Loop Trap" (Human Handoff Protocol)
+    # Check if user asked the same question twice in last 3 turns
+    last_3_user_msgs = [msg.get('content', '') for msg in conversation_history[-6:] if msg.get('role') == 'user']
+    if len(last_3_user_msgs) >= 2 and len(set(last_3_user_msgs)) < len(last_3_user_msgs): # Duplicate detected
+        return {
+            "score": 0,
+            "temperature": LeadTemperature.COLD.value,
+            "signals": ["loop_detected"],
+            "confidence": 0.0,
+            "recommended_action": "ESCALATE_IMMEDIATELY",
+            "priority_level": 5,
+            "reason": "Loop detected - User repeating questions",
+            "detected_behaviors": [],
+            "session_summary": {}
+        }
+
     # === SIGNAL DETECTION FROM CONVERSATION ===
     for signal, config in SIGNAL_PATTERNS.items():
         keywords = config["keywords"]
