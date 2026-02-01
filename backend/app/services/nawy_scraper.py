@@ -2,9 +2,8 @@ import re
 import asyncio
 from datetime import datetime
 from playwright.async_api import async_playwright
-from app.database import SessionLocal
 from app.models import Property
-from sqlalchemy.orm import Session
+
 
 # Target URLs (Compounds)
 TARGET_URLS = [
@@ -21,8 +20,14 @@ def clean_price(price_str: str) -> float:
 
 from app.services.cache import cache
 import requests
-from bs4 import BeautifulSoup
 import os
+
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
+
 
 async def fetch_nawy_data_async():
     """
@@ -40,6 +45,9 @@ async def fetch_nawy_data_async():
     
     # 2. Try Requests + BeautifulSoup (Fast & Static)
     try:
+        if not HAS_BS4:
+            raise ImportError("BS4 not installed")
+
         print("   |-- Attempting Fast Scrape (Requests)...")
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
         
@@ -71,6 +79,7 @@ async def fetch_nawy_data_async():
             cache.set("nawy_last_update", str(datetime.now().isoformat()), ttl=86400)
             return scraped_properties
             
+                
     except Exception as e:
         print(f"⚠️ Fast Scrape Failed: {e}. Switching to Browser...")
 
@@ -148,62 +157,73 @@ class ScrapedPropertySchema(BaseModel):
     bedrooms: int
     developer: str = "Unknown"
 
-def ingest_nawy_data():
+from app.database import AsyncSessionLocal
+from sqlalchemy import select
+
+async def ingest_nawy_data_async():
     """
-    Sync wrapper for Async Scraper.
+    Async wrapper for Data Ingestion Pipeline.
     Robustness: Logs to Mock Sentry and ensures schema validity.
     """
-    print("🔄 Starting Data Ingestion Pipeline...")
+    print("🔄 Starting Data Ingestion Pipeline (Async)...")
     try:
-        data = asyncio.run(fetch_nawy_data_async())
+        data = await fetch_nawy_data_async()
         
-        db: Session = SessionLocal()
-        count = 0
-        skipped = 0
-        
-        for item in data:
-            # 1. Validate Schema (Strict Mapping)
-            try:
-                # Ensure fields exist and are correct types
-                valid_item = ScrapedPropertySchema(**item)
-            except ValidationError as ve:
-                print(f"⚠️ [SENTRY ERROR] Schema Validation Failed for item '{item.get('title', 'Unknown')}': {ve}")
-                skipped += 1
-                continue
+        async with AsyncSessionLocal() as db:
+            count = 0
+            skipped = 0
             
-            # 2. Upsert
-            try:
-                existing = db.query(Property).filter(
-                    Property.title == valid_item.title,
-                    Property.price == valid_item.price
-                ).first()
+            for item in data:
+                # 1. Validate Schema (Strict Mapping)
+                try:
+                    # Ensure fields exist and are correct types
+                    valid_item = ScrapedPropertySchema(**item)
+                except ValidationError as ve:
+                    print(f"⚠️ [SENTRY ERROR] Schema Validation Failed for item '{item.get('title', 'Unknown')}': {ve}")
+                    skipped += 1
+                    continue
                 
-                if not existing:
-                    new_prop = Property(
-                        title=valid_item.title,
-                        description=f"Luxury unit by {valid_item.developer}. Market Data.",
-                        location=valid_item.location,
-                        price=valid_item.price,
-                        size_sqm=valid_item.size,
-                        bedrooms=valid_item.bedrooms,
-                        finishing="Core & Shell",
-                        is_available=True
-                    )
-                    db.add(new_prop)
-                    count += 1
-            except Exception as db_err:
-                 print(f"⚠️ [SENTRY ERROR] Database Insert Error: {db_err}")
-                 skipped += 1
-        
-        db.commit()
-        db.close()
-        
-        summary = f"✅ Ingestion Complete. Added: {count}, Skipped: {skipped}"
-        print(summary)
-        return summary
+                # 2. Upsert
+                try:
+                    # Check existence
+                    result = await db.execute(select(Property).filter(
+                        Property.title == valid_item.title,
+                        Property.price == valid_item.price
+                    ))
+                    existing = result.scalar_one_or_none()
+                    
+                    if not existing:
+                        new_prop = Property(
+                            title=valid_item.title,
+                            description=f"Luxury unit by {valid_item.developer}. Market Data.",
+                            location=valid_item.location,
+                            price=valid_item.price,
+                            size_sqm=valid_item.size,
+                            bedrooms=valid_item.bedrooms,
+                            finishing="Core & Shell",
+                            is_available=True
+                        )
+                        db.add(new_prop)
+                        count += 1
+                except Exception as db_err:
+                     print(f"⚠️ [SENTRY ERROR] Database Insert Error: {db_err}")
+                     skipped += 1
+            
+            await db.commit()
+            
+            summary = f"✅ Ingestion Complete. Added: {count}, Skipped: {skipped}"
+            print(summary)
+            return summary
         
     except Exception as e:
         # Mock Sentry Log
         error_msg = f"❌ [SENTRY CRITICAL] Scraper Pipeline Crashed: {e}"
         print(error_msg)
         return "Cached Data Preserved (Pipeline Failed)"
+
+def ingest_nawy_data():
+    """Sync entry point for backwards compatibility."""
+    asyncio.run(ingest_nawy_data_async())
+
+if __name__ == "__main__":
+    asyncio.run(ingest_nawy_data_async())

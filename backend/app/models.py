@@ -77,11 +77,11 @@ class Property(Base):
     developer: Mapped[str] = mapped_column(String, nullable=True)
 
     # Pricing
-    price: Mapped[float] = mapped_column(Float)
+    price: Mapped[float] = mapped_column(Float, index=True)
     price_per_sqm: Mapped[float] = mapped_column(Float, nullable=True)
 
     # Size & Layout
-    size_sqm: Mapped[int] = mapped_column(Integer)
+    size_sqm: Mapped[int] = mapped_column(Integer, index=True)
     bedrooms: Mapped[int] = mapped_column(Integer)
     bathrooms: Mapped[int] = mapped_column(Integer, nullable=True)
     finishing: Mapped[str] = mapped_column(String, nullable=True) # e.g., "Fully Finished"
@@ -249,6 +249,20 @@ class LiquidityPosition(Base):
 
     user = relationship("User")
     pool = relationship("LiquidityPool")
+
+
+
+class MarketIndicator(Base):
+    """
+    Dynamic Economic Indicators
+    Stores key market rates like inflation, bank interest, gold appreciation, etc.
+    Updated via Admin Dashboard or Cron Job.
+    """
+    __tablename__ = "market_indicators"
+
+    key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[float] = mapped_column(Float)
+    last_updated: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class ConversationAnalytics(Base):

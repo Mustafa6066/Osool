@@ -8,11 +8,14 @@ Async implementation using SQLAlchemy >= 1.4 (2.0 style).
 """
 import logging
 from typing import Dict, List, Any, Optional
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select, text
 from app.models import Property
 
 logger = logging.getLogger(__name__)
+
+from app.services.cache import cache
 
 class MarketAnalyticsLayer:
     def __init__(self, db: AsyncSession):
@@ -22,15 +25,21 @@ class MarketAnalyticsLayer:
         """
         Queries the DB to find the ACTUAL average price and inventory count
         for a specific location right now.
+        
+        Cached for 10 minutes to reduce DB load.
         """
         try:
+            # 1. Check Cache
+            cache_key = f"market_pulse:{location.lower().strip()}"
+            cached_data = cache.get_json(cache_key)
+            if cached_data:
+                return cached_data
+
             # Normalize location string for search (e.g., "New Cairo" -> "%New Cairo%")
-            # Simple sanitization
             location_clean = location.replace("%", "")
             search_term = f"%{location_clean}%"
 
-            # 1. Aggregation Query
-            # Calculate Average Price/Sqm, Inventory, Min Price, Max Price
+            # 2. Aggregation Query
             stmt = select(
                 func.avg(Property.price / Property.size_sqm).label('avg_price_sqm'),
                 func.count(Property.id).label('inventory_count'),
@@ -38,7 +47,7 @@ class MarketAnalyticsLayer:
                 func.max(Property.price).label('ceiling_price')
             ).where(
                 Property.location.ilike(search_term),
-                Property.price > 0,
+                Property.price.between(1_000_000, 500_000_000), # Filter out outliers (1M - 500M)
                 Property.size_sqm > 0
             )
 
@@ -48,25 +57,27 @@ class MarketAnalyticsLayer:
             if not stats or not stats.avg_price_sqm:
                 return None
 
-            # 2. Calculate "Market Heat" (New listings in last 30 days)
-            # Using PostgreSQL interval syntax. For SQLite fallback compatibility we might need logic check
-            # but sticking to Postgres standard as per user request.
-            heat_stmt = select(func.count(Property.id)).where(
-                Property.location.ilike(search_term),
-                Property.created_at >= func.now() - text("INTERVAL '30 days'")
-            )
-            heat_result = await self.db.execute(heat_stmt)
-            recent_listings = heat_result.scalar() or 0
+            # 3. Calculate Market Heat (Mock logic based on inventory for now)
+            # Low inventory + High price = High Heat
+            # High inventory = Saturated
+            inventory = stats.inventory_count
+            heat_index = "HIGH" if inventory < 50 else "MODERATE" if inventory < 200 else "COOL"
 
-            return {
-                "location": location,
+            data = {
+                "location": location_clean,
                 "avg_price_sqm": int(stats.avg_price_sqm),
-                "inventory_count": stats.inventory_count,
-                "entry_level_price": int(stats.entry_price),
+                "inventory_count": inventory,
+                "entry_price": int(stats.entry_price),
                 "ceiling_price": int(stats.ceiling_price),
-                "market_heat_index": "High" if recent_listings > 10 else "Stable",
-                "last_updated": "Live from Database"
+                "market_heat_index": heat_index,
+                "timestamp": datetime.now().isoformat()
             }
+            
+            # 4. Set Cache (10 Minutes)
+            cache.set_json(cache_key, data, ttl=600)
+            
+            return data
+
         except Exception as e:
             logger.error(f"Market Analytics Error for {location}: {e}")
             return None

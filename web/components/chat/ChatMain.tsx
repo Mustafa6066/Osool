@@ -426,7 +426,17 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
             timestamp: new Date()
         };
 
-        setMessages(prev => [...prev, userMessage]);
+        const tempAiId = `amr-${Date.now()}`;
+        const initialAiMessage: Message = {
+            id: tempAiId,
+            role: 'amr',
+            content: '',
+            timestamp: new Date(),
+            visualizations: [],
+            properties: []
+        };
+
+        setMessages(prev => [...prev, userMessage, initialAiMessage]);
         setInput('');
         setIsTyping(true);
 
@@ -435,55 +445,108 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         }
 
         try {
-            const { data } = await api.post('/api/chat', { message: messageText });
+            // Use native fetch for streaming
+            const response = await fetch('/api/chat/stream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Add auth headers if needed, assuming cookie-based or handled by middleware proxy
+                },
+                body: JSON.stringify({
+                    message: messageText,
+                    session_id: 'default', // In prod, manage session IDs
+                    language: 'auto'
+                })
+            });
 
-            const amrMessage: Message = {
-                id: `amr-${Date.now()}`,
-                role: 'amr',
-                content: data.response || data.message || (detectedRTL ? "عذراً، حدثت مشكلة. حاول مرة أخرى." : "Sorry, there was an issue. Please try again."),
-                visualizations: data.ui_actions || [],
-                properties: data.properties || [],
-                timestamp: new Date()
-            };
+            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.body) throw new Error('No response body');
 
-            setMessages(prev => [...prev, amrMessage]);
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedText = '';
+            let buffer = '';
 
-            if (data.properties && data.properties.length > 0) {
-                handlePropertySelect(data.properties[0], data.ui_actions);
-            }
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            if (onChatContextUpdate) {
-                const scorecard = data.ui_actions?.find((a: UIAction) => a.type === 'investment_scorecard');
+                const chunk = decoder.decode(value, { stream: true });
+                buffer += chunk;
+                const lines = buffer.split('\n');
 
-                let insight = '';
-                if (scorecard?.data?.analysis) {
-                    const analysis = scorecard.data.analysis;
-                    insight = detectedRTL
-                        ? `🏢 Osool Score: ${analysis.match_score}/100 | العائد: ${analysis.roi_projection}% | ${analysis.market_trend}`
-                        : `🏢 Osool Score: ${analysis.match_score}/100 | ROI: ${analysis.roi_projection}% | ${analysis.market_trend}`;
+                // Process all complete lines
+                buffer = lines.pop() || ''; // Keep the last partial line
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const jsonStr = line.slice(6);
+                            if (jsonStr === '[DONE]') continue;
+
+                            const data = JSON.parse(jsonStr);
+
+                            if (data.type === 'token') {
+                                accumulatedText += data.content;
+                                setMessages(prev => prev.map(m =>
+                                    m.id === tempAiId ? { ...m, content: accumulatedText } : m
+                                ));
+                            } else if (data.type === 'tool_start') {
+                                // Optional: Show tool status
+                            } else if (data.type === 'done') {
+                                // Final update with full metadata
+                                setMessages(prev => prev.map(m =>
+                                    m.id === tempAiId ? {
+                                        ...m,
+                                        visualizations: data.ui_actions,
+                                        properties: data.properties
+                                    } : m
+                                ));
+
+                                if (data.properties && data.properties.length > 0) {
+                                    handlePropertySelect(data.properties[0], data.ui_actions);
+                                }
+
+                                if (onChatContextUpdate) {
+                                    // Context update logic (same as before)
+                                    const scorecard = data.ui_actions?.find((a: UIAction) => a.type === 'investment_scorecard');
+                                    let insight = '';
+                                    if (scorecard?.data?.analysis) {
+                                        const analysis = scorecard.data.analysis;
+                                        insight = detectedRTL
+                                            ? `🏢 Osool Score: ${analysis.match_score}/100 | العائد: ${analysis.roi_projection}% | ${analysis.market_trend}`
+                                            : `🏢 Osool Score: ${analysis.match_score}/100 | ROI: ${analysis.roi_projection}% | ${analysis.market_trend}`;
+                                    }
+
+                                    onChatContextUpdate({
+                                        property: data.properties?.[0] ? {
+                                            title: data.properties[0].title,
+                                            address: data.properties[0].location,
+                                            price: formatPrice(data.properties[0].price),
+                                            metrics: {
+                                                wolfScore: scorecard?.data?.analysis?.match_score || data.properties[0].wolf_score || 75,
+                                                roi: scorecard?.data?.analysis?.roi_projection || 12.5,
+                                                marketTrend: scorecard?.data?.analysis?.market_trend || 'Growing 📊',
+                                                priceVerdict: scorecard?.data?.analysis?.price_verdict || 'Fair',
+                                                pricePerSqm: Math.round(data.properties[0].price / data.properties[0].size_sqm),
+                                                areaAvgPrice: scorecard?.data?.analysis?.area_avg_price_per_sqm || 50000,
+                                                size: data.properties[0].size_sqm,
+                                                bedrooms: data.properties[0].bedrooms,
+                                            },
+                                            tags: data.properties[0].developer ? [data.properties[0].developer] : [],
+                                        } : undefined,
+                                        uiActions: data.ui_actions || [],
+                                        insight: insight || accumulatedText.slice(0, 150),
+                                    });
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing SSE:', e);
+                        }
+                    }
                 }
-
-                onChatContextUpdate({
-                    property: data.properties?.[0] ? {
-                        title: data.properties[0].title,
-                        address: data.properties[0].location,
-                        price: formatPrice(data.properties[0].price),
-                        metrics: {
-                            wolfScore: scorecard?.data?.analysis?.match_score || data.properties[0].wolf_score || 75,
-                            roi: scorecard?.data?.analysis?.roi_projection || 12.5,
-                            marketTrend: scorecard?.data?.analysis?.market_trend || 'Growing 📊',
-                            priceVerdict: scorecard?.data?.analysis?.price_verdict || 'Fair',
-                            pricePerSqm: Math.round(data.properties[0].price / data.properties[0].size_sqm),
-                            areaAvgPrice: scorecard?.data?.analysis?.area_avg_price_per_sqm || 50000,
-                            size: data.properties[0].size_sqm,
-                            bedrooms: data.properties[0].bedrooms,
-                        },
-                        tags: data.properties[0].developer ? [data.properties[0].developer] : [],
-                    } : undefined,
-                    uiActions: data.ui_actions || [],
-                    insight: insight || data.response?.slice(0, 150),
-                });
             }
+
         } catch (error) {
             console.error("Chat error:", error);
             const errorMessage: Message = {
