@@ -347,20 +347,22 @@ class WolfBrain:
                     logger.info(f"🧱 GIVE-TO-GET: Screening user for {location}")
                     
                     if language == "ar":
-                         resp = (
-                            f"استنى لحظة، قبل ما نتكلم في أرقام ووحدات في {market_segment.get('name_ar', location)}، لازم تفهم السوق هناك ماشي ازاي عشان متدفعش زيادة.\n\n"
-                            f"السوق هناك مقسوم نوعين:\n\n"
-                            f"🏆 **الفئة الأولى (Premium)**: بتبدأ من {market_segment['class_a']['min_price']/1000000:.1f} مليون (مطورين زي {', '.join(market_segment['class_a']['developers_ar'][:2])}).\n"
-                            f"⭐ **الفئة الثانية (Value)**: بتبدأ من {market_segment['class_b']['min_price']/1000000:.1f} مليون.\n\n"
-                            "عشان أرشحلك صح: **حضرتك بتدور على استثمار (ROI) ولا سكن فاخر؟**"
+                        # UPDATED PROFESSIONAL SCRIPT (Markt Insider)
+                        resp = (
+                            f"قبل ما ندخل في تفاصيل الأسعار، خليني أوضحلك 'خريطة السوق' الحقيقية في {market_segment.get('name_ar', location)} عشان تضمن إنك بتشتري بالقيمة العادلة.\n\n"
+                            f"البيانات بتقول إن المنطقة دي فيها مستويين:\n\n"
+                            f"🏆 **المستوى الأول (Premium)**: متوسط {market_segment['class_a']['min_price']/1000000:.1f} مليون (مطورين زي {', '.join(market_segment['class_a']['developers_ar'][:2])}).\n"
+                            f"⭐ **المستوى الثاني (Value)**: فرص بتبدأ من {market_segment['class_b']['min_price']/1000000:.1f} مليون.\n\n"
+                            "عشان أوجهك للفرصة الأنسب: **هل هدفك الأساسي تعظيم العائد (ROI) ولا السكن الفاخر؟**"
                         )
                     else:
+                        # Improved English Script
                         resp = (
-                            f"Wait, before we talk specific units in {location}, you need to know the market reality:\n\n"
-                            f"The market there is split into two tiers:\n"
-                            f"🏆 **Tier 1 (Premium):** Starts from {market_segment['class_a']['min_price']/1000000:.1f}M (Developers like {market_segment['class_a']['developers'][0]}).\n"
-                            f"⭐ **Tier 2 (Value):** Starts from {market_segment['class_b']['min_price']/1000000:.1f}M.\n\n"
-                            "To give you the right recommendation: **Are you looking for High ROI (Investment) or Luxury Living?**"
+                            f"Before we dive into prices, let me clarify the 'Market Map' in {location} to ensure you get fair value.\n\n"
+                            f"The data shows two distinct tiers here:\n"
+                            f"🏆 **Tier 1 (Premium):** Avg {market_segment['class_a']['min_price']/1000000:.1f}M (Developers like {market_segment['class_a']['developers'][0]}).\n"
+                            f"⭐ **Tier 2 (Value):** Opportunities starting from {market_segment['class_b']['min_price']/1000000:.1f}M.\n\n"
+                            "To guide you correctly: **Is your primary goal High ROI or Luxury Living?**"
                         )
 
                     return {
