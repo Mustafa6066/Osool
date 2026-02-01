@@ -1351,9 +1351,15 @@ export default function ChatInterface() {
                                                         </div>
                                                     ) : (
                                                         /* AI Message - Tinted surface with accent border */
-                                                        <div className="max-w-4xl flex flex-col w-full gap-2 relative z-10">
-                                                            {/* AMR header - Force row flex to contain items specifically */}
-                                                            <div className={`flex items-center gap-2.5 w-full ${isMsgRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                        <div
+                                                            className="max-w-4xl w-full relative z-10 ai-message-container"
+                                                            style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                                                        >
+                                                            {/* AMR header */}
+                                                            <div
+                                                                className={`flex items-center gap-2.5 w-full ${isMsgRtl ? 'flex-row-reverse' : 'flex-row'}`}
+                                                                style={{ minHeight: '24px' }}
+                                                            >
                                                                 <AmrAvatar size="sm" thinking={msg.isTyping} showStatus={false} />
                                                                 <span className="text-[12px] font-bold text-[var(--osool-deep-teal)] select-none">
                                                                     {isMsgRtl ? 'عمرو' : 'AMR'}
