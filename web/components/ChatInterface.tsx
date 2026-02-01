@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import DOMPurify from 'dompurify';
@@ -1315,8 +1314,8 @@ export default function ChatInterface() {
                                 {messages.map((msg, idx) => (
                                     <div key={msg.id || idx} className={msg.role === 'user' ? 'animate-msg-user' : 'animate-msg-ai'}>
                                         {(() => {
-                                            // 1. Detect language direction per-message to ensure consistent UI
-                                            const isArabicContent = /[\u0600-\u06FF]/.test(msg.content || '');
+                                            // 1. Detect language direction per-message (Basic + Extended + Presentation forms)
+                                            const isArabicContent = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(msg.content || '');
                                             // The message is RTL if global app is RTL OR if the content itself is Arabic
                                             const isMsgRtl = isRTL || isArabicContent;
 
@@ -1352,14 +1351,14 @@ export default function ChatInterface() {
                                                         </div>
                                                     ) : (
                                                         /* AI Message - Tinted surface with accent border */
-                                                        <div className="max-w-4xl flex flex-col w-full">
+                                                        <div className="max-w-4xl flex flex-col w-full gap-2 relative z-10">
                                                             {/* AMR header - Force row flex to contain items specifically */}
-                                                            <div className={`flex items-center gap-2.5 mb-2 w-full ${isMsgRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                            <div className={`flex items-center gap-2.5 w-full ${isMsgRtl ? 'flex-row-reverse' : 'flex-row'}`}>
                                                                 <AmrAvatar size="sm" thinking={msg.isTyping} showStatus={false} />
-                                                                <span className="text-[12px] font-bold text-[var(--osool-deep-teal)]">
+                                                                <span className="text-[12px] font-bold text-[var(--osool-deep-teal)] select-none">
                                                                     {isMsgRtl ? 'عمرو' : 'AMR'}
                                                                 </span>
-                                                                <span className="text-[9px] text-[var(--color-text-muted-studio)] opacity-50">
+                                                                <span className="text-[9px] text-[var(--color-text-muted-studio)] opacity-50 select-none">
                                                                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                 </span>
                                                             </div>
