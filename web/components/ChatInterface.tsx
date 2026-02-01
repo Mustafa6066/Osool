@@ -1353,7 +1353,9 @@ export default function ChatInterface() {
                                                         /* AI Message - Tinted surface with accent border */
                                                         <div
                                                             className="max-w-4xl w-full relative z-10 ai-message-container"
-                                                            style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                                                            style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: '8px' }}
+                                                            data-is-rtl={String(isMsgRtl)}
+                                                            data-has-arabic={String(isArabicContent)}
                                                         >
                                                             {/* AMR header */}
                                                             <div
@@ -1367,6 +1369,8 @@ export default function ChatInterface() {
                                                                 <span className="text-[9px] text-[var(--color-text-muted-studio)] opacity-50 select-none">
                                                                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                 </span>
+                                                                {/* Debug Dot (Dev Only - invisible to user unless inspected, but helpful if styling breaks) */}
+                                                                <span className="sr-only">Lang: {isMsgRtl ? 'RTL' : 'LTR'}</span>
                                                             </div>
 
                                                             {/* Message body */}
