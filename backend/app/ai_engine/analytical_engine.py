@@ -849,8 +849,8 @@ Let me show you alternatives within your budget."""
             verdict_en = "Premium pricing (Location/Finishing)."
         else:
             wolf_analysis = "OVERPRICED"
-            verdict_ar = "السعر مبالغ فيه مقارنة بالمنطقة."
-            verdict_en = "Overpriced compared to area average."
+            verdict_ar = "السعر مبالغ فيه جداً (Overpriced)."
+            verdict_en = "Significantly overpriced."
             
         return PropertyBenchmark(
             wolf_analysis=wolf_analysis,
@@ -860,6 +860,33 @@ Let me show you alternatives within your budget."""
             verdict_ar=verdict_ar,
             verdict_en=verdict_en
         )
+
+    def get_market_segment(self, location: str) -> Dict[str, Any]:
+        """
+        Get market segmentation data for the 'Give-to-Get' protocol.
+        Returns Tier 1 / Tier 2 breakdowns.
+        """
+        normalized_loc = location.lower().replace(" ", "_").replace("6th", "6th") # simplistic fallback
+        
+        # Try exact match first
+        if normalized_loc in MARKET_SEGMENTS:
+            data = MARKET_SEGMENTS[normalized_loc]
+            data["found"] = True
+            return data
+            
+        # Try partial match
+        for key, data in MARKET_SEGMENTS.items():
+            if key.replace("_", " ") in location.lower() or location.lower() in key.replace("_", " "):
+                data_copy = data.copy()
+                data_copy["found"] = True
+                return data_copy
+                
+        return {"found": False}
+
+    def get_avg_price_per_sqm(self, location: str) -> int:
+        """Expose average price per sqm publically."""
+        return self._get_area_avg_price(location)
+
     
     def get_area_context(self, location: str) -> Dict:
         """

@@ -194,24 +194,94 @@ class WolfBrain:
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 4: CONFIDENCE CHECK (The "No-Sell" Zone)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if psychology.primary_state == PsychologicalState.TRUST_DEFICIT:
+                logger.info("🛑 TRUST DEFICIT: Halting sales to run Law 114 Scan")
+                
+                if language == "ar":
+                    resp = (
+                        "أنا حاسس إنك قلقان من وضع السوق، وعندك حق. مشاريع كتير بتتأخر في التسليم.\n\n"
+                        "عشان كدة أنا مش هرشحلك أي حاجة دلوقتي.\n"
+                        "أنا هشغل **فحص قانوني (Law 114)** على أي مطور بتفكر فيه عشان نضمن تسلسل الملكية.\n\n"
+                        "قولي، مين المطور اللي قلقان منه؟"
+                    )
+                else:
+                    resp = (
+                        "I sense you are worried about the market risks, and you are right. "
+                        "Many projects are delayed. Forget about buying for a moment.\n\n"
+                        "I want to run a **Legal Scan** on any developer you are considering. "
+                        "I use a Law 114 Checklist to ensure ownership chains are clean. "
+                        "What developer are you worried about?"
+                    )
+
+                return {
+                    "response": resp,
+                    "ui_actions": [{
+                        "type": "law_114_guardian", # Triggers a cool "Scanning..." UI animation
+                        "status": "active"
+                    }],
+                    "strategy": {"strategy": "confidence_building", "route": "legal"},
+                    "psychology": psychology.to_dict()
+                }
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 4: DISCOVERY CHECK
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             is_discovery_complete = self._is_discovery_complete(intent.filters, history)
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 5: THE HUNT (Database Search)
+            # STEP 5: INTELLIGENT SCREENING (The "Give-to-Get" Protocol)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # If user wants price/search but we don't know their budget/purpose yet
+            if intent.action in ["search", "price_check"] and not is_discovery_complete:
+                
+                # 1. Identify the Area they asked about (e.g., New Cairo)
+                location = intent.filters.get('location') or "New Cairo" # Default to New Cairo if unclear
+                
+                # 2. Get Market Intelligence (The "Value" we give)
+                market_segment = market_intelligence.get_market_segment(location)
+                
+                if market_segment.get("found"):
+                    logger.info(f"🧱 GIVE-TO-GET: Screening user for {location}")
+                    
+                    if language == "ar":
+                         resp = (
+                            f"استنى لحظة، قبل ما نتكلم في أرقام ووحدات في {market_segment.get('name_ar', location)}، لازم تفهم السوق هناك ماشي ازاي عشان متدفعش زيادة.\n\n"
+                            f"السوق هناك مقسوم نوعين:\n"
+                            f"🏆 **الفئة الأولى (Premium):** بتبدأ من {market_segment['class_a']['min_price']/1000000:.1f} مليون (مطورين زي {', '.join(market_segment['class_a']['developers_ar'][:2])}).\n"
+                            f"⭐ **الفئة الثانية (Value):** بتبدأ من {market_segment['class_b']['min_price']/1000000:.1f} مليون.\n\n"
+                            "عشان أرشحلك صح: **حضرتك بتدور على استثمار (ROI) ولا سكن فاخر؟**"
+                        )
+                    else:
+                        resp = (
+                            f"Wait, before we talk specific units in {location}, you need to know the market reality:\n\n"
+                            f"The market there is split into two tiers:\n"
+                            f"🏆 **Tier 1 (Premium):** Starts from {market_segment['class_a']['min_price']/1000000:.1f}M (Developers like {market_segment['class_a']['developers'][0]}).\n"
+                            f"⭐ **Tier 2 (Value):** Starts from {market_segment['class_b']['min_price']/1000000:.1f}M.\n\n"
+                            "To give you the right recommendation: **Are you looking for High ROI (Investment) or Luxury Living?**"
+                        )
+
+                    return {
+                        "response": resp,
+                        "properties": [], # Don't show properties yet
+                        "ui_actions": [{"type": "market_trend_chart", "data": market_segment}], # Show a chart to look smart
+                        "strategy": {"strategy": "screening_gate", "market_segment": market_segment},
+                        "psychology": psychology.to_dict()
+                    }
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 6: THE HUNT (Database Search)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             properties = []
+            # Only search if we passed the gate or it's a specific keyword search
             if intent.action in ["search", "comparison", "valuation", "investment"] or (not is_discovery_complete and intent.filters.get("location")):
-                # Even if discovery incomplete, if they gave location, we might want to peek 
-                # but we usually hide results.
-                # User plan: "Only search if intent is valid". 
                 if is_discovery_complete or intent.filters.get("keywords"):
                      properties = await self._search_database(intent.filters)
                      self.stats["searches"] += 1
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 6: BENCHMARKING & SCORING
+            # STEP 7: BENCHMARKING & SCORING
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             scored_properties = analytical_engine.score_properties(properties)
             
@@ -266,8 +336,9 @@ class WolfBrain:
                 profile=profile,
                 is_discovery=not is_discovery_complete,
                 intent=intent,
-                feasibility=None, # Re-add feasibility check if needed, simplified here
-                no_discount_mode=no_discount_mode
+                feasibility=None, 
+                no_discount_mode=no_discount_mode,
+                market_segment=strategy.get("market_segment") # Pass market segment if used
             )
             self.stats["claude_calls"] += 1
 
@@ -601,7 +672,8 @@ class WolfBrain:
         intent: Optional[Intent] = None,
 
         feasibility: Optional[Any] = None,
-        no_discount_mode: bool = False
+        no_discount_mode: bool = False,
+        market_segment: Optional[Dict] = None
     ) -> str:
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
@@ -618,10 +690,27 @@ class WolfBrain:
                 top_prop = properties[0]
                 wolf_score = top_prop.get('wolf_score', 0)
                 price_sqm = top_prop.get('price_per_sqm', 0)
+                location = top_prop.get('location', '')
                 
-                # Logic to force the AI to be "Remarkable"
+                # Fetch Real Market Average (The "Price Sandwich" Anchor)
+                area_avg = analytical_engine.get_avg_price_per_sqm(location)
+                if area_avg == 0:
+                     area_avg = top_prop.get('wolf_benchmark', {}).get('market_avg', 0)
+
+                # Inject Benchmarking Protocol (The Sandwich)
+                wolf_insight_instruction += f"""
+[BENCHMARKING_PROTOCOL]
+- The Market Average Price in {location} is: **{area_avg:,.0f} EGP/sqm**
+- The Property you are recommending is: **{price_sqm:,.0f} EGP/sqm**
+
+MANDATORY INSTRUCTION:
+You MUST compare these two numbers to justify the value.
+- If property < market: "This is entering at {price_sqm:,.0f} vs market average of {area_avg:,.0f}. That is instant equity."
+- If property > market: "It is above market average ({area_avg:,.0f}) because it is a Premium Class A asset."
+"""
+                
+                # Logic to force the AI to be "Remarkable" (Market Anomaly)
                 if wolf_score > 85:
-                    area_avg = top_prop.get('wolf_benchmark', {}).get('market_avg', 0)
                     
                     if language == 'ar':
                          wolf_insight_instruction = f"""
