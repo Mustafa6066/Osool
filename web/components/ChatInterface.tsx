@@ -3,7 +3,9 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import DOMPurify from 'dompurify';
 import Link from 'next/link';
 import anime from 'animejs';
@@ -1368,54 +1370,64 @@ export default function ChatInterface() {
                                                                 </span>
                                                             </div>
                                                         ) : (
-                                                            <>
-                                                                <div
-                                                                    className="ai-message-content text-[13px] sm:text-sm leading-relaxed text-[var(--color-text-main)] prose prose-sm max-w-none prose-headings:text-[var(--osool-deep-teal)] prose-strong:text-[var(--osool-deep-teal)] prose-code:bg-[var(--osool-deep-teal)]/5 prose-code:text-[var(--osool-deep-teal)] prose-code:rounded prose-code:px-1.5 prose-code:py-0.5"
-                                                                    dir="auto"
-                                                                >
-                                                                    <ReactMarkdown
-                                                                        remarkPlugins={[remarkGfm]}
-                                                                        components={{
-                                                                            p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'} {...props} />,
-                                                                            strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
-                                                                            ul: ({ node, ...props }) => <ul className={`list-disc ${isRTL ? 'mr-5 text-right' : 'ml-5 text-left'} mb-3`} dir={isRTL ? 'rtl' : 'ltr'} {...props} />,
-                                                                            li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                                                                            code: ({ node, inline, className, children, ...props }: any) => {
-                                                                                const match = /language-(\w+)/.exec(className || '');
-                                                                                return !inline && match ? (
-                                                                                    <CodeBlock language={match[1]} value={String(children).replace(/\n$/, '')} />
-                                                                                ) : (
-                                                                                    <code className="bg-[var(--osool-deep-teal)]/10 text-[var(--osool-deep-teal)] px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
-                                                                                        {children}
-                                                                                    </code>
-                                                                                );
-                                                                            },
-                                                                            blockquote: ({ node, ...props }) => (
-                                                                                <blockquote className={`border-${isRTL ? 'r' : 'l'}-4 border-[var(--osool-deep-teal)] ${isRTL ? 'pr-4' : 'pl-4'} my-4 italic bg-[var(--ai-surface)] p-3 rounded-${isRTL ? 'l' : 'r'}`} dir={isRTL ? 'rtl' : 'ltr'} {...props} />
-                                                                            )
-                                                                        }}
-                                                                    >
-                                                                        {msg.content}
-                                                                    </ReactMarkdown>
-                                                                </div>
+                                                            (() => {
+                                                                // Dynamic Arabic detection per message content
+                                                                const isArabicContent = /[\u0600-\u06FF]/.test(msg.content || '');
+                                                                const alignClass = isArabicContent || isRTL ? 'text-right' : 'text-left';
+                                                                const dirAttr = isArabicContent || isRTL ? 'rtl' : 'ltr';
 
-                                                                {/* Action bar */}
-                                                                {!msg.isTyping && msg.content && (
-                                                                    <div className="ai-message-actions mt-3 pt-3 border-t border-[var(--ai-surface-border)]">
-                                                                        <button
-                                                                            onClick={() => handleCopyMessage(msg.id, msg.content)}
-                                                                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors"
+                                                                return (
+                                                                    <>
+                                                                        <div
+                                                                            className={`ai-message-content text-[13px] sm:text-sm leading-relaxed text-[var(--color-text-main)] prose prose-sm max-w-none prose-headings:text-[var(--osool-deep-teal)] prose-strong:text-[var(--osool-deep-teal)] prose-code:bg-[var(--osool-deep-teal)]/5 prose-code:text-[var(--osool-deep-teal)] prose-code:rounded prose-code:px-1.5 prose-code:py-0.5`}
+                                                                            dir={dirAttr}
                                                                         >
-                                                                            {copiedMsgId === msg.id ? <Check size={12} /> : <Copy size={12} />}
-                                                                            {copiedMsgId === msg.id ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}
-                                                                        </button>
-                                                                        <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors">
-                                                                            <Bookmark size={12} />
-                                                                            {isRTL ? 'حفظ' : 'Save'}
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </>
+                                                                            <ReactMarkdown
+                                                                                remarkPlugins={[remarkGfm]}
+                                                                                rehypePlugins={[rehypeRaw]}
+                                                                                components={{
+                                                                                    p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${alignClass}`} {...props} />,
+                                                                                    strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
+                                                                                    ul: ({ node, ...props }) => <ul className={`list-disc ${isArabicContent || isRTL ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
+                                                                                    li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                                                                                    code: ({ node, inline, className, children, ...props }: any) => {
+                                                                                        const match = /language-(\w+)/.exec(className || '');
+                                                                                        return !inline && match ? (
+                                                                                            <CodeBlock language={match[1]} value={String(children).replace(/\n$/, '')} />
+                                                                                        ) : (
+                                                                                            <code className="bg-[var(--osool-deep-teal)]/10 text-[var(--osool-deep-teal)] px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
+                                                                                                {children}
+                                                                                            </code>
+                                                                                        );
+                                                                                    },
+                                                                                    blockquote: ({ node, ...props }) => (
+                                                                                        <blockquote className={`border-${isArabicContent || isRTL ? 'r' : 'l'}-4 border-[var(--osool-deep-teal)] ${isArabicContent || isRTL ? 'pr-4' : 'pl-4'} my-4 italic bg-[var(--ai-surface)] p-3 rounded-${isArabicContent || isRTL ? 'l' : 'r'}`} {...props} />
+                                                                                    )
+                                                                                }}
+                                                                            >
+                                                                                {msg.content}
+                                                                            </ReactMarkdown>
+                                                                        </div>
+
+                                                                        {/* Action bar */}
+                                                                        {!msg.isTyping && msg.content && (
+                                                                            <div className="ai-message-actions mt-3 pt-3 border-t border-[var(--ai-surface-border)]">
+                                                                                <button
+                                                                                    onClick={() => handleCopyMessage(msg.id, msg.content)}
+                                                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors"
+                                                                                >
+                                                                                    {copiedMsgId === msg.id ? <Check size={12} /> : <Copy size={12} />}
+                                                                                    {copiedMsgId === msg.id ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}
+                                                                                </button>
+                                                                                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors">
+                                                                                    <Bookmark size={12} />
+                                                                                    {isRTL ? 'حفظ' : 'Save'}
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                );
+                                                            })()
                                                         )}
                                                     </div>
                                                 </div>
