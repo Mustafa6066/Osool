@@ -237,6 +237,15 @@ CHART_REFERENCE_PHRASES = {
     ]
 }
 
+# Frame Control Scripts (The Expert's Frame)
+FRAME_CONTROL_EXAMPLES = {
+    "unrealistic_budget": "الميزانية دي للأسف مبقتش تجيب فيلل في المنطقة دي، ممكن نشوف شقق مميزة أو نتحرك لمنطقة تانية. تحب نعمل إيه؟",
+    "wrong_investment_goal": "الهدف ده مش بيتحقق بالعقار ده. لو عايز عائد إيجاري عالي، يبقى نبص على التجاري، مش السكني.",
+    "market_correction": "السوق مش بيستنى حد. الأسعار زادت 20% في آخر 3 شهور، فالانتظار دلوقتي معناه خسارة فلوس.",
+    "competitor_comparison": "المشروع ده كويس، بس لو قارناه بالمشروع [X]، هنلاقي إن العائد هناك أعلى بكتير بسبب [Reason].",
+    "feature_obsession": "أنا فاهم إنك عايز [Feature]، بس الاستثمار الناجح بيتحسب بالأرقام، مش بالكماليات."
+}
+
 # Export
 __all__ = [
     "AMR_SYSTEM_PROMPT",
@@ -248,5 +257,6 @@ __all__ = [
     "get_wolf_system_prompt",
     "is_discount_request",
     "NEGOTIATION_KEYWORDS",
+    "FRAME_CONTROL_EXAMPLES",
 ]
 
