@@ -457,12 +457,20 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         }
 
         try {
-            // Use native fetch for streaming
-            const response = await fetch('/api/chat/stream', {
+            // Get auth token for direct backend call
+            const accessToken = typeof window !== 'undefined'
+                ? localStorage.getItem('access_token')
+                : null;
+
+            // Use direct backend URL to avoid Next.js proxy UTF-8 encoding issues
+            const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+            // Use native fetch for streaming with direct backend connection
+            const response = await fetch(`${backendUrl}/api/chat/stream`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Add auth headers if needed, assuming cookie-based or handled by middleware proxy
+                    ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
                 },
                 body: JSON.stringify({
                     message: messageText,
