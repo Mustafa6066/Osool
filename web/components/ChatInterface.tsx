@@ -1357,184 +1357,184 @@ export default function ChatInterface() {
                                                     <div className={`p-4 sm:p-5 ${isRTL ? 'pr-5 sm:pr-6' : 'pl-5 sm:pl-6'}`}>
                                                         {msg.isTyping && !msg.content ? (
                                                             /* Typing Indicator (Bar) */
-                                                            { isTyping && (
+                                                            <div className="flex flex-col gap-2">
                                                                 <div className="flex justify-start px-4">
                                                                     <div className="bg-[var(--ai-surface)] p-3 rounded-2xl rounded-tl-none border border-[var(--ai-surface-border)] shadow-sm">
                                                                         <div className="typing-bar" />
                                                                     </div>
                                                                 </div>
-                                                            )}                                <span className="text-[12px] text-[var(--color-text-muted-studio)]">
-                                                            {isRTL ? 'جاري التحليل...' : 'Analyzing...'}
-                                                        </span>
-                                                    </div>
-                                                    ) : (
-                                                    <>
-                                                        <div
-                                                            className="ai-message-content text-[13px] sm:text-sm leading-relaxed text-[var(--color-text-main)] prose prose-sm max-w-none prose-headings:text-[var(--osool-deep-teal)] prose-strong:text-[var(--osool-deep-teal)] prose-code:bg-[var(--osool-deep-teal)]/5 prose-code:text-[var(--osool-deep-teal)] prose-code:rounded prose-code:px-1.5 prose-code:py-0.5"
-                                                            dir="auto"
-                                                        >
-                                                            <ReactMarkdown
-                                                                remarkPlugins={[remarkGfm]}
-                                                                components={{
-                                                                    p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-right" dir="rtl" {...props} />,
-                                                                    strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
-                                                                    ul: ({ node, ...props }) => <ul className="list-disc mr-5 mb-3 text-right" dir="rtl" {...props} />,
-                                                                    li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                                                                    code: ({ node, inline, className, children, ...props }: any) => {
-                                                                        const match = /language-(\w+)/.exec(className || '');
-                                                                        return !inline && match ? (
-                                                                            <CodeBlock language={match[1]} value={String(children).replace(/\n$/, '')} />
-                                                                        ) : (
-                                                                            <code className="bg-[var(--osool-deep-teal)]/10 text-[var(--osool-deep-teal)] px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
-                                                                                {children}
-                                                                            </code>
-                                                                        );
-                                                                    },
-                                                                    blockquote: ({ node, ...props }) => (
-                                                                        <blockquote className="border-r-4 border-[var(--osool-deep-teal)] pr-4 my-4 italic bg-[var(--ai-surface)] p-3 rounded-l" dir="rtl" {...props} />
-                                                                    )
-                                                                }}
-                                                            >
-                                                                {sanitizeContent(msg.content)}
-                                                            </ReactMarkdown>
-                                                        </div>
-
-                                                        {/* Action bar */}
-                                                        {!msg.isTyping && msg.content && (
-                                                            <div className="ai-message-actions mt-3 pt-3 border-t border-[var(--ai-surface-border)]">
-                                                                <button
-                                                                    onClick={() => handleCopyMessage(msg.id, msg.content)}
-                                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors"
-                                                                >
-                                                                    {copiedMsgId === msg.id ? <Check size={12} /> : <Copy size={12} />}
-                                                                    {copiedMsgId === msg.id ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}
-                                                                </button>
-                                                                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors">
-                                                                    <Bookmark size={12} />
-                                                                    {isRTL ? 'حفظ' : 'Save'}
-                                                                </button>
+                                                                <span className="text-[12px] text-[var(--color-text-muted-studio)] px-4">
+                                                                    {isRTL ? 'جاري التحليل...' : 'Analyzing...'}
+                                                                </span>
                                                             </div>
+                                                        ) : (
+                                                            <>
+                                                                <div
+                                                                    className="ai-message-content text-[13px] sm:text-sm leading-relaxed text-[var(--color-text-main)] prose prose-sm max-w-none prose-headings:text-[var(--osool-deep-teal)] prose-strong:text-[var(--osool-deep-teal)] prose-code:bg-[var(--osool-deep-teal)]/5 prose-code:text-[var(--osool-deep-teal)] prose-code:rounded prose-code:px-1.5 prose-code:py-0.5"
+                                                                    dir="auto"
+                                                                >
+                                                                    <ReactMarkdown
+                                                                        remarkPlugins={[remarkGfm]}
+                                                                        components={{
+                                                                            p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'} {...props} />,
+                                                                            strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
+                                                                            ul: ({ node, ...props }) => <ul className={`list-disc ${isRTL ? 'mr-5 text-right' : 'ml-5 text-left'} mb-3`} dir={isRTL ? 'rtl' : 'ltr'} {...props} />,
+                                                                            li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                                                                            code: ({ node, inline, className, children, ...props }: any) => {
+                                                                                const match = /language-(\w+)/.exec(className || '');
+                                                                                return !inline && match ? (
+                                                                                    <CodeBlock language={match[1]} value={String(children).replace(/\n$/, '')} />
+                                                                                ) : (
+                                                                                    <code className="bg-[var(--osool-deep-teal)]/10 text-[var(--osool-deep-teal)] px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
+                                                                                        {children}
+                                                                                    </code>
+                                                                                );
+                                                                            },
+                                                                            blockquote: ({ node, ...props }) => (
+                                                                                <blockquote className={`border-${isRTL ? 'r' : 'l'}-4 border-[var(--osool-deep-teal)] ${isRTL ? 'pr-4' : 'pl-4'} my-4 italic bg-[var(--ai-surface)] p-3 rounded-${isRTL ? 'l' : 'r'}`} dir={isRTL ? 'rtl' : 'ltr'} {...props} />
+                                                                            )
+                                                                        }}
+                                                                    >
+                                                                        {msg.content}
+                                                                    </ReactMarkdown>
+                                                                </div>
+
+                                                                {/* Action bar */}
+                                                                {!msg.isTyping && msg.content && (
+                                                                    <div className="ai-message-actions mt-3 pt-3 border-t border-[var(--ai-surface-border)]">
+                                                                        <button
+                                                                            onClick={() => handleCopyMessage(msg.id, msg.content)}
+                                                                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors"
+                                                                        >
+                                                                            {copiedMsgId === msg.id ? <Check size={12} /> : <Copy size={12} />}
+                                                                            {copiedMsgId === msg.id ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}
+                                                                        </button>
+                                                                        <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors">
+                                                                            <Bookmark size={12} />
+                                                                            {isRTL ? 'حفظ' : 'Save'}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </>
                                                         )}
-                                                    </>
-                                                )}
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                        {/* Featured Property Cards - Show ALL recommended properties */}
-                                        <AnimatePresence>
-                                            {msg.properties?.length > 0 && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    transition={{ duration: 0.4, ease: 'easeOut' }}
-                                                    className={`mt-3 space-y-3 overflow-hidden ${isRTL ? 'mr-2 sm:mr-10' : 'ml-2 sm:ml-10'}`}
-                                                >
-                                                    {msg.properties.map((property: any, propIdx: number) => (
+                                                {/* Featured Property Cards - Show ALL recommended properties */}
+                                                <AnimatePresence>
+                                                    {msg.properties?.length > 0 && (
                                                         <motion.div
-                                                            key={property.id || propIdx}
-                                                            initial={{ opacity: 0, y: 10 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            transition={{ delay: propIdx * 0.1 }}
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: 'auto' }}
+                                                            transition={{ duration: 0.4, ease: 'easeOut' }}
+                                                            className={`mt-3 space-y-3 overflow-hidden ${isRTL ? 'mr-2 sm:mr-10' : 'ml-2 sm:ml-10'}`}
                                                         >
-                                                            <FeaturedPropertyCard
-                                                                property={property}
-                                                                onRequestDetails={() => { }}
-                                                                onBookmark={() => { }}
-                                                                isRTL={isRTL}
-                                                            />
+                                                            {msg.properties.map((property: any, propIdx: number) => (
+                                                                <motion.div
+                                                                    key={property.id || propIdx}
+                                                                    initial={{ opacity: 0, y: 10 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    transition={{ delay: propIdx * 0.1 }}
+                                                                >
+                                                                    <FeaturedPropertyCard
+                                                                        property={property}
+                                                                        onRequestDetails={() => { }}
+                                                                        onBookmark={() => { }}
+                                                                        isRTL={isRTL}
+                                                                    />
+                                                                </motion.div>
+                                                            ))}
                                                         </motion.div>
-                                                    ))}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
+                                                    )}
+                                                </AnimatePresence>
 
-                                        {/* Compact Visualizations */}
-                                        <AnimatePresence>
-                                            {msg.visualizations?.length > 0 && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    transition={{ duration: 0.4, ease: 'easeOut', delay: 0.15 }}
-                                                    className={`mt-3 space-y-2 sm:space-y-3 overflow-hidden ${isRTL ? 'mr-2 sm:mr-10' : 'ml-2 sm:ml-10'}`}
-                                                >
-                                                    <UnifiedAnalytics visualizations={msg.visualizations} isRTL={isRTL} />
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
+                                                {/* Compact Visualizations */}
+                                                <AnimatePresence>
+                                                    {msg.visualizations?.length > 0 && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: 'auto' }}
+                                                            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.15 }}
+                                                            className={`mt-3 space-y-2 sm:space-y-3 overflow-hidden ${isRTL ? 'mr-2 sm:mr-10' : 'ml-2 sm:ml-10'}`}
+                                                        >
+                                                            <UnifiedAnalytics visualizations={msg.visualizations} isRTL={isRTL} />
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
                                 ))}
-                        <div ref={messagesEndRef} />
-                    </>
+                                <div ref={messagesEndRef} />
+                            </>
                         )}
-            </div>
+                    </div>
 
-            {/* Bottom Input Area - Premium Pill */}
-            {hasStartedChat && (
-                <div className="p-2 sm:p-4 lg:p-6 z-30 safe-area-bottom">
-                    <div className="max-w-3xl mx-auto">
-                        <div className="osool-input-glow">
-                            <div
-                                className="osool-input-surface cursor-text"
-                                onClick={() => textareaRef.current?.focus()}
-                            >
-                                <div className="relative flex items-center">
-                                    {/* Plus button - absolute left */}
-                                    <button className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10">
-                                        <Plus size={18} />
-                                    </button>
+                    {/* Bottom Input Area - Premium Pill */}
+                    {hasStartedChat && (
+                        <div className="p-2 sm:p-4 lg:p-6 z-30 safe-area-bottom">
+                            <div className="max-w-3xl mx-auto">
+                                <div className="osool-input-glow">
+                                    <div
+                                        className="osool-input-surface cursor-text"
+                                        onClick={() => textareaRef.current?.focus()}
+                                    >
+                                        <div className="relative flex items-center">
+                                            {/* Plus button - absolute left */}
+                                            <button className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10">
+                                                <Plus size={18} />
+                                            </button>
 
-                                    {/* Textarea - full width with padding for buttons */}
-                                    <textarea
-                                        ref={textareaRef}
-                                        value={input}
-                                        onChange={e => setInput(e.target.value)}
-                                        onKeyDown={handleKeyDown}
-                                        rows={1}
-                                        className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-3.5 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px]"
-                                        placeholder={isRTL ? 'اسأل عمرو...' : 'Ask AMR...'}
-                                        disabled={isTyping}
-                                        dir="auto"
-                                    />
+                                            {/* Textarea - full width with padding for buttons */}
+                                            <textarea
+                                                ref={textareaRef}
+                                                value={input}
+                                                onChange={e => setInput(e.target.value)}
+                                                onKeyDown={handleKeyDown}
+                                                rows={1}
+                                                className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-3.5 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px]"
+                                                placeholder={isRTL ? 'اسأل عمرو...' : 'Ask AMR...'}
+                                                disabled={isTyping}
+                                                dir="auto"
+                                            />
 
-                                    {/* Right buttons - absolute right */}
-                                    <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
-                                        <button className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors">
-                                            <Mic size={18} />
-                                        </button>
-                                        <button
-                                            onClick={handleSend}
-                                            disabled={!input.trim() || isTyping}
-                                            className="osool-send-btn"
-                                        >
-                                            <Send size={16} />
-                                        </button>
+                                            {/* Right buttons - absolute right */}
+                                            <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
+                                                <button className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors">
+                                                    <Mic size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={handleSend}
+                                                    disabled={!input.trim() || isTyping}
+                                                    className="osool-send-btn"
+                                                >
+                                                    <Send size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                                <p className="hidden sm:block text-[8px] sm:text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.15em] sm:tracking-[0.2em] mt-2 sm:mt-3 opacity-50">
+                                    {isRTL ? 'أصول AI · مدعوم بعقل الذئب' : 'Osool AI · Powered by Wolf Brain'}
+                                </p>
                             </div>
                         </div>
-                        <p className="hidden sm:block text-[8px] sm:text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.15em] sm:tracking-[0.2em] mt-2 sm:mt-3 opacity-50">
-                            {isRTL ? 'أصول AI · مدعوم بعقل الذئب' : 'Osool AI · Powered by Wolf Brain'}
-                        </p>
-                    </div>
-                </div>
-            )}
-        </main>
+                    )}
+                </main>
 
-                {/* Right Contextual Pane */ }
-    <ContextualInsights
-        properties={contextProperties}
-        currentIndex={contextPropertyIndex}
-        onPrev={() => setContextPropertyIndex(Math.max(0, contextPropertyIndex - 1))}
-        onNext={() => setContextPropertyIndex(Math.min(contextProperties.length - 1, contextPropertyIndex + 1))}
-        aiInsight={contextInsight}
-        visualizations={contextVisualizations}
-        isRTL={isRTL}
-    />
+                {/* Right Contextual Pane */}
+                <ContextualInsights
+                    properties={contextProperties}
+                    currentIndex={contextPropertyIndex}
+                    onPrev={() => setContextPropertyIndex(Math.max(0, contextPropertyIndex - 1))}
+                    onNext={() => setContextPropertyIndex(Math.min(contextProperties.length - 1, contextPropertyIndex + 1))}
+                    aiInsight={contextInsight}
+                    visualizations={contextVisualizations}
+                    isRTL={isRTL}
+                />
             </div >
 
-        <InvitationModal isOpen={isInvitationModalOpen} onClose={() => setInvitationModalOpen(false)} />
+            <InvitationModal isOpen={isInvitationModalOpen} onClose={() => setInvitationModalOpen(false)} />
         </div >
     );
 }
