@@ -182,3 +182,35 @@ class ConversationMemory:
             'timeline': self.timeline,
             'investment_vs_living': self.investment_vs_living,
         }
+
+    def check_repetitive_loop(self, history: List[Dict], current_response: str) -> bool:
+        """
+        Check if the AI is stuck in a loop repeating the same content (Loop Trap Fix).
+        Returns True if the response is dangerously similar to the last AI message.
+        """
+        if not history:
+            return False
+            
+        last_ai_msg = next((m for m in reversed(history) if m.get("role") == "assistant"), None)
+        if not last_ai_msg:
+            return False
+            
+        last_content = last_ai_msg.get("content", "").strip().lower()
+        current_content = current_response.strip().lower()
+        
+        if not last_content or not current_content:
+            return False
+            
+        # 1. Exact match check
+        if last_content == current_content:
+            return True
+            
+        # 2. Sequence Matcher for similarity
+        from difflib import SequenceMatcher
+        similarity = SequenceMatcher(None, last_content, current_content).ratio()
+        
+        # If > 85% similarity, it's a loop
+        if similarity > 0.85:
+            return True
+            
+        return False

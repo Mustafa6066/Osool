@@ -341,3 +341,34 @@ if __name__ == "__main__":
     # Test budget extraction
     budget = extract_budget_from_conversation(conv1)
     print(f"Extracted budget: {budget:,} EGP")
+
+
+def mock_crm_lookup(phone_number: str) -> Optional[Dict]:
+    """
+    Simulate a CRM lookup to find existing customers.
+    In production, this would call Hubspot/Salesforce API.
+    """
+    mock_db = {
+        "+201000000001": {"name": "Ahmed", "last_seen": "2 days ago", "interest": "New Cairo Villas", "status": "bouncing"},
+        "+201222222222": {"name": "Sarah", "last_seen": "1 week ago", "interest": "Zayed Apartments", "status": "warm"},
+        "+201111111111": {"name": "Dr. Mohamed", "last_seen": "3 months ago", "interest": "Investment", "status": "churned"},
+    }
+    return mock_db.get(phone_number)
+
+
+def get_personalized_welcome(phone_number: Optional[str]) -> str:
+    """
+    Generate a hyper-personalized welcome message if user is known.
+    """
+    if not phone_number:
+        return ""
+        
+    crm_data = mock_crm_lookup(phone_number)
+    if not crm_data:
+        return ""
+        
+    name = crm_data.get("name")
+    last_interest = crm_data.get("interest")
+    
+    # "Welcome Back" pattern
+    return f"Welcome back, {name}! 👋 I was just looking at some new {last_interest} that match what we discussed last time. Ready to see them?"

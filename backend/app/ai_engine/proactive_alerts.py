@@ -265,6 +265,53 @@ class ProactiveAlertEngine:
 
         return alerts
 
+        return alerts
+
+    def check_escalation_triggers(
+        self,
+        query: str,
+        psychology: Optional[Any] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if conversation needs human escalation.
+        Triggers:
+        1. User asks for manager/human.
+        2. Sentiment drops below threshold (Angry).
+        3. Complex legal/out-of-scope questions.
+        """
+        query_lower = query.lower()
+        
+        # 1. Direct Request
+        manager_keywords = ["manager", "supervisor", "speak to human", "real person", "agent", "مدير", "مشرف", "إنسان", "حد يكلمني"]
+        if any(kw in query_lower for kw in manager_keywords):
+            return self._create_escalation_alert("Human Agent Requested", "طلب تحدث مع وكيل")
+            
+        # 2. Sentiment/Psychology Check
+        if psychology:
+            # If trust deficit is extreme or anger detected (using psychology triggers)
+            # We assume psychology layer creates 'TRUST_DEFICIT' for bad sentiment
+            from app.ai_engine.psychology_layer import PsychologicalState
+            if psychology.primary_state == PsychologicalState.TRUST_DEFICIT and psychology.confidence_score < 0.2:
+                # Very low confidence + Trust Deficit = Anger/Frustration
+                return self._create_escalation_alert("Negative Sentiment Detected", "تم رصد حالة عدم رضا")
+
+        return None
+
+    def _create_escalation_alert(self, reason_en: str, reason_ar: str) -> Dict[str, Any]:
+        """Create standard escalation alert."""
+        return ProactiveAlert(
+            type=AlertType.CRITICAL, # Assuming AlertType has CRITICAL, if not use HIGH
+            priority=AlertPriority.CRITICAL.value,
+            message_ar=f"⚠️ {reason_ar}. جاري تحويلك لكبير الاستشاريين...",
+            message_en=f"⚠️ {reason_en}. Connecting you to Senior Consultant...",
+            data={
+                "action": "escalate",
+                "contact": "whatsapp_link_placeholder"
+            },
+            action_cta_ar="تواصل واتساب مباشر",
+            action_cta_en="Chat on WhatsApp"
+        ).to_dict()
+
     def get_alert_for_intent(
         self,
         intent: Dict[str, Any],

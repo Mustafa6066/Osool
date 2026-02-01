@@ -275,13 +275,14 @@ class DataFirstEnforcer:
 
 Before responding to this message, you MUST call: {tool_list}
 
-DO NOT mention any property, price, or availability without first getting
-results from these tools. The user is trusting you with their money -
-don't guess, VERIFY.
-
-After calling the tools, use ONLY the data from the tool results.
-If tools return no results, say "مش لاقي حاجة تليق بيك حالياً" -
-NEVER invent properties.
+## PROTOCOL: DATA-FIRST INTEGRITY
+1. **NO GUESSING:** Do NOT mention any property, price, or availability without first getting results from these tools.
+2. **STRICT VISIBILITY checks:**
+    - If the tool result says "payment_plan: null", YOU MUST SAY: "I need to confirm the latest payment plan with the developer."
+    - DO NOT hallucinate "5% down" or "8 years" if it's not in the JSON.
+3. **EMPTY RESULTS:**
+    - If tools return [], say: "حالياً مفيش حاجة متاحة بالمواصفات دي بالظبط، بس في بدائل..." (Currently nothing matches exactly, but here are alternatives...).
+    - NEVER invent a property to fill the gap.
 </mandatory_tool_enforcement>
 """
 

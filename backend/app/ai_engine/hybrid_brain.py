@@ -22,7 +22,7 @@ from enum import Enum
 from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
 
-from app.ai_engine.amr_master_prompt import AMR_SYSTEM_PROMPT
+from app.ai_engine.amr_master_prompt import AMR_SYSTEM_PROMPT, get_master_system_prompt
 from app.ai_engine.xgboost_predictor import xgboost_predictor
 from app.ai_engine.psychology_layer import (
     analyze_psychology,
@@ -98,22 +98,185 @@ IMPOSSIBLE_COMBINATIONS = [
 ]
 
 
+from app.ai_engine.customer_profiles import get_personalized_welcome
+from app.ai_engine.analytics import ConversationAnalyticsService
+import random
+
 class OsoolHybridBrain:
     """
     The Reasoning Loop Orchestrator.
     Forces: Hunt (Data) → Analyze (Math) → Speak (Charisma)
     """
-    
+
     def __init__(self):
         """Initialize all AI components."""
         self.openai_async = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.anthropic_async = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        self.analytics = ConversationAnalyticsService() # Initialize Analytics
 
         # Feature flag for rollback safety
         self.enabled = os.getenv("ENABLE_REASONING_LOOP", "true").lower() == "true"
 
         # Session-scoped conversation memories
         self._session_memories: Dict[str, ConversationMemory] = {}
+
+    # ...
+
+    async def process_turn(
+        self,
+        query: str,
+        history: List[Dict],
+        profile: Optional[Dict] = None,
+        language: str = "auto"
+    ) -> Dict[str, Any]:
+        """
+        The Main Thinking Loop - V4 with Psychology & UI Actions.
+        """
+        try:
+            logger.info(f"🧠 Wolf Brain V4: Processing query: {query[:100]}...")
+
+            # 0. HYPER-PERSONALIZATION (Welcome Back)
+            welcome_msg = ""
+            if len(history) == 0 and profile and profile.get("phone_number"):
+                welcome_msg = get_personalized_welcome(profile.get("phone_number"))
+                if welcome_msg:
+                    logger.info(f"🤝 CRM Match: Welcome back message generated")
+
+            # 1. SPECIAL: SPECULATIVE EXECUTION (Superhuman Speed)
+            speculative_task = None
+            if self.enabled: 
+                if any(w in query.lower() for w in ["search", "find", "show", "apartment", "villa", "price", "شقة", "فيلا", "سعر"]):
+                    speculative_task = self._search_database({"keywords": query, "limit": 5})
+            
+            # 1b. PERCEPTION: Analyze Intent & Extract Filters (GPT-4o)
+            intent = await self._analyze_intent(query, history)
+            logger.info(f"📊 Intent extracted: {intent}")
+
+            # 2. PROTOCOL: THE VELVET ROPE (Screening Gate)
+            screening_intercept = self._apply_screening_gate(intent, history, language)
+            if screening_intercept:
+                logger.info(f"🛡️ VELVET ROPE: Screening Intercept Triggered")
+                return {
+                    "response": screening_intercept,
+                    "properties": [],
+                    "ui_actions": [],
+                    "psychology": None,
+                    "agentic_action": "SCREENING_INTERCEPT"
+                }
+
+            # 2b. PSYCHOLOGY: Detect emotional state
+            psychology = analyze_psychology(query, history, intent)
+            logger.info(f"🧠 Psychology: {psychology.primary_state.value}, Urgency: {psychology.urgency_level.value}")
+
+            # 3. PIVOT CHECK: Detect impossible requests
+            reality_check = self._detect_impossible_request(intent, query)
+            if reality_check:
+                logger.info(f"🚨 REALITY_CHECK_PIVOT: {reality_check['detected']}")
+                return {
+                    "response": reality_check['message_ar'] if language == 'ar' else reality_check['message_en'],
+                    "properties": [],
+                    "ui_actions": [{
+                        "type": UIActionType.REALITY_CHECK.value,
+                        "priority": 10,
+                        "data": reality_check
+                    }],
+                    "psychology": psychology.to_dict(),
+                    "agentic_action": "REALITY_CHECK_PIVOT"
+                }
+
+            # 4. HUNT: Data Retrieval
+            market_data = []
+            if intent.get('action') == 'search':
+                # Note: Logic to use speculative_task would go here, for now strictly calling search
+                market_data = await self._search_database(intent.get('filters', {}))
+                logger.info(f"🔍 Found {len(market_data)} properties")
+
+            # 5. ANALYZE: Deal Scoring (XGBoost)
+            scored_data = self._apply_wolf_analytics(market_data, intent)
+            logger.info(f"📈 Scored and ranked {len(scored_data)} properties")
+
+            # 6. STRATEGY: Determine Pitch Angle (Psychology-Aware)
+            strategy = self._determine_strategy(profile, scored_data, intent, psychology)
+            logger.info(f"🎯 Strategy: {strategy}")
+            
+            # 6.5. A/B TESTING: Randomize Closing Hook
+            ab_variants = ["standard", "assumptive", "fear_of_loss"]
+            selected_variant = random.choice(ab_variants)
+            logger.info(f"🧪 A/B Test: Selected '{selected_variant}' for closing hook")
+
+            # 6.5b DEEP ANALYSIS (GPT-4o)
+            deep_analysis = await self._deep_analysis(scored_data, query, psychology)
+            if deep_analysis:
+                logger.info(f"🔬 Deep Analysis complete: {deep_analysis.get('key_insight', 'N/A')[:80]}")
+
+            # 7. SPECIAL: CONTEXT SUMMARY INJECTION
+            context_summary = ""
+            if len(history) > 0 and len(history) % 5 == 0:
+                 try:
+                     memory = self.get_memory('session_default')
+                     context_summary = memory.get_context_summary() if hasattr(memory, 'get_context_summary') else ""
+                 except:
+                     pass
+
+            # 8. SPEAK: Generate Response (Claude 3.5 Sonnet)
+            response = await self._generate_wolf_narrative(
+                query,
+                scored_data,
+                history,
+                strategy,
+                psychology,
+                language=language,
+                profile=profile,
+                deep_analysis=deep_analysis,
+                extra_context=context_summary,
+                closing_hook_variant=selected_variant
+            )
+            
+            if welcome_msg and len(history) == 0:
+                response = f"{welcome_msg}\n\n{response}"
+
+            # 9. UI_TRIGGERS
+            ui_actions = self._determine_ui_actions(psychology, scored_data, intent, query)
+            
+            # 9.5 ANALYTICAL ACTIONS
+            if deep_analysis:
+                analytical_ui = generate_analytical_ui_actions(deep_analysis, psychology, scored_data)
+                existing_types = {a['type'] for a in ui_actions}
+                for action in analytical_ui:
+                    if action['type'] not in existing_types:
+                        ui_actions.append(action)
+                ui_actions = sorted(ui_actions, key=lambda x: x.get('priority', 0), reverse=True)[:5]
+
+            logger.info(f"🎨 UI Actions: {[a['type'] for a in ui_actions]}")
+
+            # 10. PROACTIVE_ALERTS
+            proactive_alerts = proactive_alert_engine.scan_for_opportunities(
+                user_preferences=intent.get('filters', {}),
+                market_data=scored_data,
+                psychology=psychology,
+                intent=intent
+            )
+            logger.info(f"🚨 Proactive Alerts: {len(proactive_alerts)} alerts generated")
+
+            # IMPRESS FIRST Protocol
+            suppress_cards = False
+            if len(history) == 0 and not intent.get('filters', {}).get('keywords'):
+                suppress_cards = True
+                logger.info("🚫 Suppressing property cards for Impress First Protocol")
+
+            return {
+                "response": response,
+                "properties": scored_data if not suppress_cards else [],
+                "ui_actions": ui_actions,
+                "proactive_alerts": proactive_alerts,
+                "deep_analysis": deep_analysis,
+                "psychology": psychology.to_dict(),
+                "agentic_action": None
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Wolf Brain failed: {e}", exc_info=True)
+            raise
 
     def get_memory(self, session_id: str) -> ConversationMemory:
         """Get or create conversation memory for a session."""
@@ -235,143 +398,6 @@ Produce ONLY valid JSON (no markdown, no code fences). Response MUST be in the S
             logger.warning(f"Deep analysis failed (non-fatal): {e}")
             return None
 
-    async def process_turn(
-        self,
-        query: str,
-        history: List[Dict],
-        profile: Optional[Dict] = None,
-        language: str = "auto"
-    ) -> Dict[str, Any]:
-        """
-        The Main Thinking Loop - V4 with Psychology & UI Actions.
-
-        Args:
-            query: User's natural language query
-            history: Conversation history as list of dicts with 'role' and 'content'
-            profile: User profile dict (optional)
-            language: Preferred language ('ar', 'en', 'auto')
-
-        Returns:
-            Dict with 'response', 'properties', 'ui_actions', 'psychology'
-        """
-        try:
-            logger.info(f"🧠 Wolf Brain V4: Processing query: {query[:100]}...")
-
-            # 0. SETUP: Detect Language (if auto)
-            if language == "auto":
-                language = self._detect_language(query)
-            logger.info(f"🌐 Language set to: {language}")
-
-            # 1. PERCEPTION: Analyze Intent & Extract Filters (GPT-4o)
-            intent = await self._analyze_intent(query, history)
-            logger.info(f"📊 Intent extracted: {intent}")
-
-            # 2. PSYCHOLOGY: Detect emotional state
-            psychology = analyze_psychology(query, history, intent)
-            logger.info(f"🧠 Psychology: {psychology.primary_state.value}, Urgency: {psychology.urgency_level.value}")
-
-            # 3. PIVOT CHECK: Detect impossible requests
-            reality_check = self._detect_impossible_request(intent, query)
-            if reality_check:
-                logger.info(f"🚨 REALITY_CHECK_PIVOT: {reality_check['detected']}")
-                # Return pivot response with alternatives
-                return {
-                    "response": reality_check['message_ar'],
-                    "properties": [],
-                    "ui_actions": [{
-                        "type": UIActionType.REALITY_CHECK.value,
-                        "priority": 10,
-                        "data": reality_check
-                    }],
-                    "psychology": psychology.to_dict(),
-                    "agentic_action": "REALITY_CHECK_PIVOT"
-                }
-
-            # 4. HUNT: Data Retrieval (PostgreSQL + Vector Search)
-            market_data = []
-            if intent.get('action') == 'search':
-                market_data = await self._search_database(intent.get('filters', {}))
-                logger.info(f"🔍 Found {len(market_data)} properties")
-
-            # 5. ANALYZE: Deal Scoring (XGBoost)
-            scored_data = self._apply_wolf_analytics(market_data, intent)
-            logger.info(f"📈 Scored and ranked {len(scored_data)} properties")
-
-            # 6. STRATEGY: Determine Pitch Angle (Psychology-Aware)
-            strategy = self._determine_strategy(profile, scored_data, intent, psychology)
-            logger.info(f"🎯 Strategy: {strategy}")
-
-            # 6.5 DEEP ANALYSIS (GPT-4o): Structured analytical insights
-            deep_analysis = await self._deep_analysis(
-                scored_data, query, psychology
-            )
-            if deep_analysis:
-                logger.info(f"🔬 Deep Analysis complete: {deep_analysis.get('key_insight', 'N/A')[:80]}")
-
-            # 7. SPEAK: Generate Response (Claude 3.5 Sonnet)
-            # Now with deep analysis context for analytical-first responses
-            response = await self._generate_wolf_narrative(
-                query,
-                scored_data,
-                history,
-                strategy,
-                psychology,
-                language=language,
-                profile=profile,
-                deep_analysis=deep_analysis
-            )
-
-            # 8. UI_TRIGGERS: Determine which visualizations to show
-            ui_actions = self._determine_ui_actions(psychology, scored_data, intent, query)
-
-            # 8.5 ANALYTICAL ACTIONS: Add deep-analysis-driven UI actions
-            if deep_analysis:
-                analytical_ui = generate_analytical_ui_actions(
-                    deep_analysis, psychology, scored_data
-                )
-                # Merge: analytical actions take precedence for matching types
-                existing_types = {a['type'] for a in ui_actions}
-                for action in analytical_ui:
-                    if action['type'] not in existing_types:
-                        ui_actions.append(action)
-                # Re-sort and limit
-                ui_actions = sorted(ui_actions, key=lambda x: x.get('priority', 0), reverse=True)[:5]
-
-            logger.info(f"🎨 UI Actions: {[a['type'] for a in ui_actions]}")
-
-            # 9. PROACTIVE_ALERTS: Scan for opportunities (V2)
-            proactive_alerts = proactive_alert_engine.scan_for_opportunities(
-                user_preferences=intent.get('filters', {}),
-                market_data=scored_data,
-                psychology=psychology,
-                intent=intent
-            )
-            logger.info(f"🚨 Proactive Alerts: {len(proactive_alerts)} alerts generated")
-
-            # ═══════════════════════════════════════════════════════════════
-            # PROTOCOL: IMPRESS FIRST (Suppression Logic)
-            # If first message and no specific project requested, suppress property cards
-            # This forces the AI to "Flex" with insights/charts instead of selling immediately
-            # ═══════════════════════════════════════════════════════════════
-            suppress_cards = False
-            if len(history) == 0 and not intent.get('filters', {}).get('keywords'):
-                suppress_cards = True
-                logger.info("🚫 Suppressing property cards for Impress First Protocol (First Turn + No Keyword)")
-
-            logger.info(f"✅ Wolf Brain V6 complete")
-            return {
-                "response": response,
-                "properties": scored_data if not suppress_cards else [],
-                "ui_actions": ui_actions,
-                "proactive_alerts": proactive_alerts,
-                "deep_analysis": deep_analysis,
-                "psychology": psychology.to_dict(),
-                "agentic_action": None
-            }
-
-        except Exception as e:
-            logger.error(f"❌ Wolf Brain failed: {e}", exc_info=True)
-            raise  # Let caller handle fallback
 
     def _detect_impossible_request(self, intent: Dict, query: str) -> Optional[Dict]:
         """
@@ -415,6 +441,68 @@ Produce ONLY valid JSON (no markdown, no code fences). Response MUST be in the S
                     "pivot_action": "REALITY_CHECK_PIVOT"
                 }
 
+        return None
+
+    def _apply_screening_gate(self, intent: Dict, history: List[Dict], language: str = "ar") -> Optional[str]:
+        """
+        Protocol 1: THE VELVET ROPE.
+        If user asks for price/search but hasn't defined Goal or Budget, FORCE screening.
+        
+        Args:
+            intent: Parsed user intent
+            history: Conversation history
+            language: 'ar' or 'en'
+            
+        Returns:
+            Screening message (str) if intercepted, None if allowed to pass
+        """
+        # 1. Trigger only on 'search' or 'valuation' (Asking for price/units)
+        if intent.get('action') not in ["search", "valuation"]:
+            return None
+            
+        # 2. Check for "Impulse/Hot" signals (Skip screening for urgent buyers)
+        raw_query = intent.get('raw_query', '').lower()
+        urgent_keywords = ["cash", "now", "ready", "كاش", "جاهز", "معايا", "budget"]
+        if any(w in raw_query for w in urgent_keywords):
+            return None
+        
+        # 3. Check Context from History & Filters
+        filters = intent.get('filters', {})
+        
+        # Check Budget
+        has_budget = 'budget_max' in filters or 'budget_min' in filters
+        if not has_budget:
+            # Deep check in history
+            has_budget = any("budget" in str(msg).lower() or "price" in str(msg).lower() for msg in history)
+            
+        # Check Purpose (Investment vs Living)
+        # We check for keywords in history
+        history_text = " ".join([str(msg) for msg in history]).lower()
+        purpose_keywords = ["invest", "live", "rent", "sakan", "istithmar", "سكن", "استثمار", "resale", "ريسيل"]
+        has_purpose = any(w in history_text for w in purpose_keywords)
+        
+        # 4. VELVET ROPE LOGIC: If missing BOTH Budget AND Purpose -> INTERCEPT
+        # (We allow if at least one is present to avoid being too annoying)
+        if not (has_budget or has_purpose):
+            logger.info("🛑 Velvet Rope Triggered: User asking for price without Context")
+            
+            if language == 'ar':
+                return (
+                    "قبل ما أرشحلك أي حاجة وأقولك أرقام، لازم نتفق على الأساس عشان فلوسك متضيعش.\n\n"
+                    "السوق دلوقتي فيه اتجاهين:\n"
+                    "1️⃣ **استثمار (Growth):** بتدور على أعلى عائد وريسيل سريع.\n"
+                    "2️⃣ **سكن (Lifestyle):** بتدور على راحة وخدمات واستلام قريب.\n\n"
+                    "حضرتك بتستهدف إيه فيهم؟ وميزانيتك (مقدم + أقساط) في حدود كام؟"
+                )
+            else:
+                return (
+                    "Before I quote any prices or recommend units, we need to define your goal to protect your capital.\n\n"
+                    "The market has two distinct paths:\n"
+                    "1️⃣ **Investment (Growth):** Targeting highest ROI and resale value.\n"
+                    "2️⃣ **Living (Lifestyle):** Targeting comfort, delivery, and amenities.\n\n"
+                    "Which path are you on? And what is your approximate budget range?"
+                )
+                
         return None
 
     def _determine_ui_actions(
@@ -1617,7 +1705,9 @@ Examples:
         psychology: Optional[PsychologyProfile] = None,
         language: str = "auto",
         profile: Optional[Dict] = None,
-        deep_analysis: Optional[Dict] = None
+        deep_analysis: Optional[Dict] = None,
+        extra_context: str = "",
+        closing_hook_variant: str = "standard"
     ) -> str:
         """
         STEP 7: SPEAK (Claude 3.5 Sonnet)
@@ -1840,8 +1930,20 @@ The user's name is "{user_first_name}". Address them by name occasionally to bui
 Do NOT overuse the name - use it 1-2 times per response maximum.
 """
 
-            # Build Claude prompt with psychology + deep analysis
-            system_prompt = AMR_SYSTEM_PROMPT + f"\n\n{context_str}" + psychology_context + deep_analysis_context + personalization_context
+            # Build Dynamic System Prompt with A/B Testing
+            tone_modifier = "default"
+            if strategy in ["FAST_CLOSE_PITCH", "SCARCITY_PITCH", "AGGRESSIVE_BARGAIN_PITCH"]:
+                tone_modifier = "closer"
+            elif strategy in ["TRUST_BUILDING_PITCH", "PROOF_AND_AUTHORITY_PITCH", "TRUST_DEFICIT"]:
+                tone_modifier = "consultant"
+
+            system_prompt = get_master_system_prompt(
+                language="ar" if language == "ar" else "en", 
+                psychology_profile=psychology.primary_state.value if psychology else "NEUTRAL",
+                benchmarking_context=context_str + psychology_context + deep_analysis_context + (personalization_context if 'personalization_context' in locals() else ""),
+                tone_modifier=tone_modifier,
+                closing_hook_variant=closing_hook_variant
+            )
             
             # Add CRITICAL override at the end (Claude pays more attention to end of prompt)
             prices_in_results = [p.get('price', 0) for p in data] if data else [0]

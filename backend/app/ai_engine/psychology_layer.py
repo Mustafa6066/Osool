@@ -289,12 +289,20 @@ def analyze_psychology(
     tactics = list(set(tactics))  # Remove duplicates
 
     # NEW: Sarcasm Detector (The "Human Touch" Framework)
-    sarcasm_triggers = ["sure you are", "yeah right", "tell me another one", "obvious", "robot", "lies", "joke"]
-    if any(x in query.lower() for x in sarcasm_triggers):
+    # 1. Direct verbal signals
+    sarcasm_triggers = ["sure you are", "yeah right", "tell me another one", "obvious", "robot", "lies", "joke", "funny", "نكتة", "بتهزر", "مصدقك", "اكيد طبعا"]
+    is_sarcastic = any(x in query.lower() for x in sarcasm_triggers)
+    
+    # 2. Contextual Sarcasm (Price Sensitivity)
+    if not is_sarcastic:
+        is_sarcastic = _detect_contextual_sarcasm(query, history)
+
+    if is_sarcastic:
         primary_state = PsychologicalState.TRUST_DEFICIT
         confidence = 0.0 # Force low confidence to trigger cautious response
         tactics = ["humility", "proof_only", "acknowledge_skepticism"]
         all_triggers.append("detected_sarcasm")
+        logger.info("🎭 Sarcasm Detected: Overriding state to TRUST_DEFICIT")
 
     profile = PsychologyProfile(
         primary_state=primary_state,
@@ -308,6 +316,40 @@ def analyze_psychology(
     logger.info(f"🧠 Psychology: {primary_state.value} (conf: {confidence:.2f}), Urgency: {urgency.value}")
 
     return profile
+
+
+def _detect_contextual_sarcasm(query: str, history: List[Dict]) -> bool:
+    """
+    Detect if user is being sarcastic based on context.
+    Example: High price in history + User says "Cheap/Deal".
+    """
+    if not history:
+        return False
+        
+    last_ai_msg = next((m for m in reversed(history) if m["role"] == "assistant"), None)
+    if not last_ai_msg:
+        return False
+        
+    last_content = last_ai_msg.get("content", "").lower()
+    query_lower = query.lower()
+    
+    # Check if last message had high price (e.g. > 10M or mention of millions)
+    has_high_price = "million" in last_content or "مليون" in last_content
+    
+    # Check if user response is suspiciously positive/dismissive
+    positive_words_ar = ["رخيص", "بلاش", "لقطة", "تحفة", "بسيط"]
+    positive_words_en = ["cheap", "steal", "nothing", "pennies", "pocket change"]
+    
+    is_positive = any(w in query_lower for w in positive_words_ar + positive_words_en)
+    
+    # Heuristic: High Price + "Cheap" = Sarcasm
+    if has_high_price and is_positive:
+        # Check against negation (e.g. "not cheap")
+        if "not" in query_lower or "مش" in query_lower:
+            return False
+        return True
+        
+    return False
 
 
 def _detect_urgency(query: str, history: List[Dict]) -> UrgencyLevel:

@@ -30,6 +30,7 @@ class Intent:
     language: str = "ar"  # ar or en
     confidence: float = 0.9
     raw_query: str = ""
+    intent_bucket: str = "window_shopper" # window_shopper, serious_buyer, objection_mode
     
     def to_dict(self) -> Dict:
         return {
@@ -37,7 +38,8 @@ class Intent:
             "filters": self.filters,
             "language": self.language,
             "confidence": self.confidence,
-            "raw_query": self.raw_query
+            "raw_query": self.raw_query,
+            "intent_bucket": self.intent_bucket
         }
 
 
@@ -84,6 +86,10 @@ LOCATION_ALIASES = {
     
     # Maadi variants
     "المعادي": "Maadi",
+    "madinaty": "Madinaty",
+    
+    # Maadi variants
+    "المعادي": "Maadi",
     "معادي": "Maadi",
     "maadi": "Maadi",
     
@@ -91,6 +97,7 @@ LOCATION_ALIASES = {
     "الرحاب": "Rehab",
     "رحاب": "Rehab",
     "rehab": "Rehab",
+    
 }
 
 # Property type normalization
@@ -192,7 +199,8 @@ class PerceptionLayer:
                 filters=intent_data.get("filters", {}),
                 language=language,
                 confidence=0.9,
-                raw_query=query
+                raw_query=query,
+                intent_bucket=intent_data.get("intent_bucket", "window_shopper")
             )
             
         except Exception as e:
@@ -208,7 +216,8 @@ class PerceptionLayer:
                 filters=intent_data.get("filters", {}),
                 language=language,
                 confidence=0.7,
-                raw_query=query
+                raw_query=query,
+                intent_bucket="window_shopper" # Default fallback
             )
     
     async def _extract_with_llm(
@@ -224,7 +233,11 @@ Extract structured intent from the user's query. Return ONLY valid JSON (no mark
 
 Extract:
 1. action: One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation
-2. filters: Object with these optional fields:
+2. intent_bucket: One of:
+    - "window_shopper": Casual browsing, broad questions
+    - "serious_buyer": Specific budget, timeline, ready to book
+    - "objection_mode": Complaining, debating price, skeptical
+3. filters: Object with these optional fields:
    - location: Area name (New Cairo, Sheikh Zayed, New Capital, 6th October, North Coast, etc.)
    - budget_min: Minimum budget in EGP (convert millions: 5M = 5000000)
    - budget_max: Maximum budget in EGP
@@ -240,6 +253,7 @@ Example query: "عايز شقة 3 غرف في التجمع تحت 5 مليون"
 Example response:
 {
   "action": "search",
+  "intent_bucket": "serious_buyer",
   "filters": {
     "location": "New Cairo",
     "bedrooms": 3,
@@ -252,6 +266,7 @@ Example query: "ده سعر غالي ولا لأ؟"
 Example response:
 {
   "action": "valuation",
+  "intent_bucket": "objection_mode",
   "filters": {}
 }
 
