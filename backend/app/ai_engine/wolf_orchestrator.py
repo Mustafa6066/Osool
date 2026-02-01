@@ -1081,6 +1081,8 @@ Use phrases like:
             context_parts.append(f"""
 [STRATEGY: {strategy['strategy'].upper()}]
 Angle: {strategy['angle']}
+Momentum: {strategy.get('emotional_momentum', 'static')}
+Objection: {strategy.get('specific_objection', 'none')}
 Primary Message: {strategy['primary_message']}
 Key Points: {', '.join(strategy['talking_points'][:3])}
 """)
