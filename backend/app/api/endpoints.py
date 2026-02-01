@@ -1124,7 +1124,7 @@ async def chat_stream(
             }
 
             # Send initial tool indication
-            yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'search_properties'})}\n\n"
+            yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'search_properties'}, ensure_ascii=False)}\n\n"
             await asyncio.sleep(0.1)
 
             # Get AI response (non-streaming for now, will be enhanced later)
@@ -1137,7 +1137,7 @@ async def chat_stream(
                 language=req.language  # Pass user's language preference (ar/en/auto)
             )
 
-            yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'search_properties'})}\n\n"
+            yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'search_properties'}, ensure_ascii=False)}\n\n"
 
             # Extract response components
             response_text = ai_result.get("response", "").strip()
@@ -1149,7 +1149,7 @@ async def chat_stream(
             words = response_text.split(' ')
             for i, word in enumerate(words):
                 token = word + (' ' if i < len(words) - 1 else '')
-                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': token}, ensure_ascii=False)}\n\n"
                 await asyncio.sleep(0.02)  # 20ms delay between words
 
             # Save AI response to database (linked to authenticated user)
@@ -1158,13 +1158,13 @@ async def chat_stream(
                 user_id=user.id,  # Link message to authenticated user
                 role="assistant",
                 content=response_text,
-                properties_json=json.dumps(search_results) if search_results else None
+                properties_json=json.dumps(search_results, ensure_ascii=False) if search_results else None
             )
             db.add(ai_message)
             await db.commit()
 
             # Send final response with all metadata
-            yield f"data: {json.dumps({'type': 'done', 'properties': search_results, 'ui_actions': ui_actions, 'psychology': psychology})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'properties': search_results, 'ui_actions': ui_actions, 'psychology': psychology}, ensure_ascii=False)}\n\n"
 
             # Proactive follow-up: Check if AMR should send a delayed follow-up
             try:
@@ -1172,13 +1172,13 @@ async def chat_stream(
                 if proactive and len(proactive) > 0:
                     top_alert = proactive[0]
                     await asyncio.sleep(2)  # Brief pause before follow-up
-                    yield f"data: {json.dumps({'type': 'follow_up', 'content': top_alert})}\n\n"
+                    yield f"data: {json.dumps({'type': 'follow_up', 'content': top_alert}, ensure_ascii=False)}\n\n"
             except Exception:
                 pass  # Non-fatal: follow-up is optional
 
         except Exception as e:
             await db.rollback()
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         generate(),
