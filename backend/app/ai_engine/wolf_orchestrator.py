@@ -248,6 +248,90 @@ class WolfBrain:
             is_discovery_complete = self._is_discovery_complete(intent.filters, history)
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 4B: DEEP ANALYSIS TRIGGER (Market Context Queries)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # If user asks "How is the market in X?" without wanting to search,
+            # trigger analytical_engine.get_area_context() to show benchmark data
+            market_context_keywords = [
+                "السوق", "متوسط", "أسعار", "market", "average", "prices", 
+                "benchmark", "ماشي ازاي", "الأسعار", "سعر المتر", "كام المتر"
+            ]
+            
+            is_market_context_query = (
+                intent.action == "general" and 
+                intent.filters.get("location") and
+                any(kw in query.lower() for kw in market_context_keywords)
+            )
+            
+            if is_market_context_query:
+                location = intent.filters.get("location")
+                logger.info(f"📊 DEEP ANALYSIS: Triggered for market context query about {location}")
+                
+                # Get comprehensive area context from analytical engine (unified truth)
+                area_context = market_intelligence.get_area_context(location)
+                market_segment = market_intelligence.get_market_segment(location)
+                
+                if area_context.get("found"):
+                    avg_price_sqm = area_context.get("avg_price_sqm", 50000)
+                    growth_rate = area_context.get("growth_rate", 0.12)
+                    rental_yield = area_context.get("rental_yield", 0.065)
+                    
+                    if language == "ar":
+                        resp = (
+                            f"📊 **تحليل السوق في {area_context.get('ar_name', location)}:**\n\n"
+                            f"• **متوسط سعر المتر:** {avg_price_sqm:,} جنيه/متر\n"
+                            f"• **نمو سنوي:** {int(growth_rate * 100)}%\n"
+                            f"• **عائد إيجاري:** {rental_yield * 100:.1f}%\n\n"
+                        )
+                        
+                        if market_segment.get("found"):
+                            class_a = market_segment.get("class_a", {})
+                            class_b = market_segment.get("class_b", {})
+                            resp += (
+                                f"**تقسيم السوق:**\n"
+                                f"🏆 **الفئة الأولى:** {class_a.get('price_range_ar', 'غير محدد')}\n"
+                                f"⭐ **الفئة الثانية:** {class_b.get('price_range_ar', 'غير محدد')}\n\n"
+                                "لو عايز تشوف وحدات معينة، قولي ميزانيتك وأنا أرشحلك الأنسب."
+                            )
+                    else:
+                        resp = (
+                            f"📊 **Market Analysis for {location}:**\n\n"
+                            f"• **Avg Price/sqm:** {avg_price_sqm:,} EGP\n"
+                            f"• **Annual Growth:** {int(growth_rate * 100)}%\n"
+                            f"• **Rental Yield:** {rental_yield * 100:.1f}%\n\n"
+                        )
+                        
+                        if market_segment.get("found"):
+                            class_a = market_segment.get("class_a", {})
+                            class_b = market_segment.get("class_b", {})
+                            resp += (
+                                f"**Market Tiers:**\n"
+                                f"🏆 **Tier 1 (Premium):** {class_a.get('price_range_en', 'N/A')}\n"
+                                f"⭐ **Tier 2 (Value):** {class_b.get('price_range_en', 'N/A')}\n\n"
+                                "If you'd like to see specific units, let me know your budget."
+                            )
+                    
+                    return {
+                        "response": resp,
+                        "properties": [],
+                        "ui_actions": [{
+                            "type": "market_benchmark",
+                            "priority": "high",
+                            "title": f"📊 أسعار السوق في {area_context.get('ar_name', location)}",
+                            "title_en": f"📊 Market Prices in {location}",
+                            "data": {
+                                "market_segment": market_segment,
+                                "area_context": area_context,
+                                "avg_price_sqm": avg_price_sqm,
+                                "rental_yield": rental_yield,
+                                "growth_rate": growth_rate,
+                            }
+                        }],
+                        "strategy": {"strategy": "market_education", "area": location},
+                        "psychology": psychology.to_dict()
+                    }
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 5: INTELLIGENT SCREENING (The "Give-to-Get" Protocol)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # If user wants price/search but we don't know their budget/purpose yet
@@ -307,9 +391,13 @@ class WolfBrain:
             if properties:
                 scored_properties = await analytical_engine.score_properties(properties, session=session)
             
+            # 7b. Fetch Dynamic Economic Data (Inflation, Bank Rates)
+            market_economic_data = await analytical_engine.get_live_market_data(session)
+
             # Augment with Wolf Analysis
             for prop in scored_properties:
-                roi = analytical_engine.calculate_true_roi(prop)
+                # Pass dynamic market data for accurate/live ROI
+                roi = analytical_engine.calculate_true_roi(prop, market_data=market_economic_data)
                 prop["roi_analysis"] = roi.to_dict()
                 benchmark = market_intelligence.benchmark_property(prop)
                 prop["wolf_analysis"] = benchmark.wolf_analysis

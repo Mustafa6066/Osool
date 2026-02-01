@@ -105,26 +105,44 @@ Start every interaction by assessing the user's intent and adopting this persona
 def build_benchmarking_context(location: str) -> str:
     """
     Constructs the 'Price Sandwich' context (Protocol D).
-    In a real app, this fetches from the DB/stat service.
+    
+    UNIFIED TRUTH: Uses AREA_PRICES and AREA_GROWTH from analytical_engine.py
+    to avoid conflicting hardcoded values (e.g., 65k vs 50k for New Cairo).
     """
-    # Mock data for now (Pre-POC) - In Real integration, call MarketService
-    market_data = {
-        "new cairo": {"avg": 65000, "growth": 15},
-        "sheikh zayed": {"avg": 70000, "growth": 12},
-        "new capital": {"avg": 55000, "growth": 18},
-        "north coast": {"avg": 120000, "growth": 25},
-        "التجمع": {"avg": 65000, "growth": 15},
-        "زايد": {"avg": 70000, "growth": 12},
-        "العاصمة": {"avg": 55000, "growth": 18}
+    # Import from the single source of truth
+    from .analytical_engine import AREA_PRICES, AREA_GROWTH
+    
+    # Normalize location for matching
+    loc_key = location.lower().strip()
+    
+    # Find matching area
+    stats = None
+    for area_name, avg_price in AREA_PRICES.items():
+        if area_name.lower() in loc_key or loc_key in area_name.lower():
+            growth = AREA_GROWTH.get(area_name, 0.12)  # Default 12% growth
+            stats = {"avg": avg_price, "growth": int(growth * 100)}
+            break
+    
+    # Also check Arabic location names
+    arabic_map = {
+        "التجمع": "New Cairo",
+        "القاهرة الجديدة": "New Cairo",
+        "زايد": "Sheikh Zayed",
+        "الشيخ زايد": "Sheikh Zayed",
+        "العاصمة": "New Capital",
+        "اكتوبر": "6th October",
+        "الساحل": "North Coast",
+        "المعادي": "Maadi",
     }
     
-    loc_key = location.lower().strip()
-    stats = None
-    for key, val in market_data.items():
-        if key in loc_key:
-            stats = val
-            break
-            
+    if not stats:
+        for ar_name, en_name in arabic_map.items():
+            if ar_name in location:
+                avg_price = AREA_PRICES.get(en_name, 50000)
+                growth = AREA_GROWTH.get(en_name, 0.12)
+                stats = {"avg": avg_price, "growth": int(growth * 100)}
+                break
+    
     if not stats:
         return ""
         
