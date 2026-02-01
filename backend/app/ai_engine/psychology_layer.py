@@ -30,7 +30,19 @@ class PsychologicalState(Enum):
     ANALYSIS_PARALYSIS = "analysis_paralysis"  # Overthinking
     IMPULSE_BUYER = "impulse_buyer"      # Quick decisions
     TRUST_DEFICIT = "trust_deficit"      # Skeptical
+    SKEPTICISM = "skepticism"            # Questions market data validity
     NEUTRAL = "neutral"                  # No clear signal
+
+
+class ObjectionType(Enum):
+    """V2: Granular objection classification for specific responses."""
+    FINANCIAL = "financial"       # "Can I afford the installments?"
+    TRUST = "trust"               # "Will the developer deliver?"
+    MARKET = "market"             # "Will the bubble burst?"
+    TIMING = "timing"             # "Is now a good time?"
+    LOCATION = "location"         # "Is this area good?"
+    LEGAL = "legal"               # "Are the papers clean?"
+    NONE = "none"                 # No specific objection
 
 
 class UrgencyLevel(Enum):
@@ -44,13 +56,25 @@ class UrgencyLevel(Enum):
 
 @dataclass
 class PsychologyProfile:
-    """Complete psychological profile for a user session."""
+    """
+    V2: Enhanced psychological profile with emotional trajectory.
+    
+    Upgrades:
+    - dominant_trait: Session-wide personality (not just current message)
+    - emotional_momentum: Tracks if user is warming up or cooling down
+    - specific_objection: Granular objection type for targeted responses
+    """
     primary_state: PsychologicalState
     secondary_state: Optional[PsychologicalState] = None
     urgency_level: UrgencyLevel = UrgencyLevel.EXPLORING
     confidence_score: float = 0.5  # 0-1
     detected_triggers: List[str] = field(default_factory=list)
     recommended_tactics: List[str] = field(default_factory=list)
+    
+    # V2 Superhuman Upgrades
+    dominant_trait: Optional[PsychologicalState] = None  # Session personality
+    emotional_momentum: str = "static"  # "warming_up", "cooling_down", "static"
+    specific_objection: ObjectionType = ObjectionType.NONE  # Granular objection
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""
@@ -60,7 +84,11 @@ class PsychologyProfile:
             "urgency_level": self.urgency_level.value,
             "confidence_score": round(self.confidence_score, 2),
             "detected_triggers": self.detected_triggers,
-            "recommended_tactics": self.recommended_tactics
+            "recommended_tactics": self.recommended_tactics,
+            # V2 fields
+            "dominant_trait": self.dominant_trait.value if self.dominant_trait else None,
+            "emotional_momentum": self.emotional_momentum,
+            "specific_objection": self.specific_objection.value
         }
 
 
@@ -214,6 +242,244 @@ URGENCY_PATTERNS = {
     }
 }
 
+# V2: OBJECTION PATTERNS for granular classification
+OBJECTION_PATTERNS = {
+    ObjectionType.FINANCIAL: {
+        "keywords_ar": [
+            "أقسط", "أقدر أدفع", "الأقساط", "مقدم", "كاش", "فلوس", "ميزانية",
+            "غالي", "رخيص", "السعر عالي", "مش قادر", "الدفع", "التمويل"
+        ],
+        "keywords_en": [
+            "afford", "installments", "down payment", "budget", "expensive",
+            "financing", "payment plan", "cash", "price too high", "can't pay"
+        ]
+    },
+    ObjectionType.TRUST: {
+        "keywords_ar": [
+            "المطور", "تسليم", "تأخير", "نصب", "سمعة", "موثوق",
+            "ناس اتنصبت", "هيسلم", "ضمان التسليم"
+        ],
+        "keywords_en": [
+            "developer", "delivery", "delay", "scam", "reputation", "reliable",
+            "will they deliver", "track record", "guarantee delivery"
+        ]
+    },
+    ObjectionType.MARKET: {
+        "keywords_ar": [
+            "الفقاعة", "هينزل", "السوق هيقع", "الأسعار هتنزل", "مستقر",
+            "وقت مناسب", "التضخم", "الاقتصاد"
+        ],
+        "keywords_en": [
+            "bubble", "crash", "prices will drop", "market stable", "good time",
+            "inflation", "economy", "will prices fall"
+        ]
+    },
+    ObjectionType.TIMING: {
+        "keywords_ar": [
+            "أستنى", "بعدين", "مش الوقت", "السنة الجاية", "لسه بدري",
+            "مش مستعجل"
+        ],
+        "keywords_en": [
+            "wait", "later", "not the right time", "next year", "too early",
+            "not in a hurry"
+        ]
+    },
+    ObjectionType.LOCATION: {
+        "keywords_ar": [
+            "المنطقة", "الجيران", "الخدمات", "قريب من", "بعيد عن",
+            "الموقع ده", "فين بالظبط"
+        ],
+        "keywords_en": [
+            "area", "neighborhood", "services", "close to", "far from",
+            "location", "where exactly"
+        ]
+    },
+    ObjectionType.LEGAL: {
+        "keywords_ar": [
+            "العقد", "الأوراق", "قانوني", "تسجيل", "ملكية", "114",
+            "تسلسل الملكية", "رخصة"
+        ],
+        "keywords_en": [
+            "contract", "papers", "legal", "registration", "ownership",
+            "law 114", "chain of title", "permit"
+        ]
+    }
+}
+
+
+def _detect_objection_type(query: str, triggers: List[str]) -> ObjectionType:
+    """
+    V2: Detect specific objection type for granular response.
+    This enables different responses for financial vs trust vs market concerns.
+    """
+    query_lower = query.lower()
+    
+    # Score each objection type
+    scores = {}
+    for objection_type, patterns in OBJECTION_PATTERNS.items():
+        score = 0
+        for keyword in patterns.get("keywords_ar", []):
+            if keyword in query_lower:
+                score += 1
+        for keyword in patterns.get("keywords_en", []):
+            if keyword in query_lower:
+                score += 1
+        scores[objection_type] = score
+    
+    # Find highest scoring objection
+    best_objection = max(scores, key=scores.get)
+    if scores[best_objection] > 0:
+        return best_objection
+    
+    return ObjectionType.NONE
+
+
+def _calculate_emotional_momentum(history: List[Dict]) -> str:
+    """
+    V2: Track if user is warming up or cooling down over conversation.
+    
+    Analyzes state progression across recent messages:
+    - warming_up: Moving from skeptical -> engaged
+    - cooling_down: Moving from engaged -> skeptical
+    - static: No clear trajectory
+    """
+    if len(history) < 4:
+        return "static"
+    
+    # Positive signals (warming up)
+    positive_signals = [
+        "عايز", "جاهز", "موافق", "حلو", "تمام", "كويس", "ممتاز",
+        "interested", "ready", "sounds good", "okay", "let's", "show me more"
+    ]
+    
+    # Negative signals (cooling down)
+    negative_signals = [
+        "مش متأكد", "بعدين", "محتاج أفكر", "غالي", "مش مقتنع",
+        "not sure", "later", "need to think", "expensive", "not convinced"
+    ]
+    
+    # Count signals in first half vs second half
+    recent_history = history[-6:]
+    first_half = recent_history[:3]
+    second_half = recent_history[3:]
+    
+    def count_signals(msgs, signals):
+        count = 0
+        for msg in msgs:
+            if msg.get("role") == "user":
+                content = msg.get("content", "").lower()
+                count += sum(1 for s in signals if s in content)
+        return count
+    
+    first_positive = count_signals(first_half, positive_signals)
+    first_negative = count_signals(first_half, negative_signals)
+    second_positive = count_signals(second_half, positive_signals)
+    second_negative = count_signals(second_half, negative_signals)
+    
+    # Determine trajectory
+    if second_positive > first_positive and second_negative <= first_negative:
+        return "warming_up"
+    elif second_negative > first_negative and second_positive <= first_positive:
+        return "cooling_down"
+    
+    return "static"
+
+
+def _calculate_dominant_trait(history: List[Dict]) -> Optional[PsychologicalState]:
+    """
+    V2: Calculate user's dominant personality trait across entire session.
+    
+    This is different from primary_state (current message) - it tracks
+    the overall pattern across all messages.
+    """
+    if len(history) < 3:
+        return None
+    
+    # Count state occurrences across history
+    state_counts = {state: 0 for state in PsychologicalState}
+    
+    for msg in history:
+        if msg.get("role") == "user":
+            content = msg.get("content", "").lower()
+            
+            # Simple keyword matching for each state
+            for state, patterns in PSYCHOLOGY_PATTERNS.items():
+                for keyword in patterns.get("keywords_ar", []) + patterns.get("keywords_en", []):
+                    if keyword in content:
+                        state_counts[state] += 1
+    
+    # Find most common state
+    if max(state_counts.values()) > 0:
+        dominant = max(state_counts, key=state_counts.get)
+        if state_counts[dominant] >= 2:  # Minimum threshold
+            return dominant
+    
+    return None
+
+
+async def semantic_classify_emotion(query: str, history_context: str = "") -> Tuple[PsychologicalState, float]:
+    """
+    V2: Semantic fallback using LLM when keyword matching returns NEUTRAL/low confidence.
+    
+    This catches nuanced expressions like:
+    - "I'm not sure if I want to commit my life savings to a hole in the ground"
+    (Should be RISK_AVERSE, but no keywords match)
+    
+    Uses Claude Haiku for speed and cost efficiency.
+    """
+    try:
+        from langchain_anthropic import ChatAnthropic
+        
+        classifier = ChatAnthropic(
+            model="claude-3-haiku-20240307",
+            temperature=0,
+            max_tokens=100
+        )
+        
+        classification_prompt = f"""Classify this Egyptian real estate buyer's emotional state.
+
+User message: "{query}"
+Recent context: {history_context[:500] if history_context else "None"}
+
+Classify into ONE of these states:
+- FOMO: Fear of missing out, wants to act fast
+- RISK_AVERSE: Worried about safety, scams, delivery
+- GREED_DRIVEN: Focused on ROI, profit, investment returns
+- ANALYSIS_PARALYSIS: Overthinking, can't decide
+- IMPULSE_BUYER: Ready to act immediately
+- TRUST_DEFICIT: Skeptical of claims, needs proof
+- SKEPTICISM: Questions market data validity
+- NEUTRAL: No clear emotional driver
+
+Respond with ONLY:
+{{"state": "STATE_NAME", "confidence": 0.X}}"""
+
+        response = await classifier.ainvoke(classification_prompt)
+        
+        # Parse response
+        import json
+        result = json.loads(response.content)
+        state_name = result.get("state", "NEUTRAL").upper()
+        confidence = float(result.get("confidence", 0.5))
+        
+        # Map to enum
+        state_map = {
+            "FOMO": PsychologicalState.FOMO,
+            "RISK_AVERSE": PsychologicalState.RISK_AVERSE,
+            "GREED_DRIVEN": PsychologicalState.GREED_DRIVEN,
+            "ANALYSIS_PARALYSIS": PsychologicalState.ANALYSIS_PARALYSIS,
+            "IMPULSE_BUYER": PsychologicalState.IMPULSE_BUYER,
+            "TRUST_DEFICIT": PsychologicalState.TRUST_DEFICIT,
+            "SKEPTICISM": PsychologicalState.SKEPTICISM,
+            "NEUTRAL": PsychologicalState.NEUTRAL
+        }
+        
+        return state_map.get(state_name, PsychologicalState.NEUTRAL), confidence
+        
+    except Exception as e:
+        logger.warning(f"Semantic classification failed: {e}")
+        return PsychologicalState.NEUTRAL, 0.3
+
 
 def analyze_psychology(
     query: str,
@@ -304,13 +570,32 @@ def analyze_psychology(
         all_triggers.append("detected_sarcasm")
         logger.info("🎭 Sarcasm Detected: Overriding state to TRUST_DEFICIT")
 
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # V2 SUPERHUMAN UPGRADES
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    # 1. Calculate Dominant Trait (session-wide personality)
+    dominant_trait = _calculate_dominant_trait(history)
+    
+    # 2. Calculate Emotional Momentum (warming up vs cooling down)
+    emotional_momentum = _calculate_emotional_momentum(history)
+    
+    # 3. Detect Specific Objection Type (granular risk classification)
+    specific_objection = _detect_objection_type(query, all_triggers)
+    
+    logger.info(f"🧠 V2 Psychology: dominant={dominant_trait}, momentum={emotional_momentum}, objection={specific_objection.value}")
+
     profile = PsychologyProfile(
         primary_state=primary_state,
         secondary_state=secondary_state,
         urgency_level=urgency,
         confidence_score=confidence,
         detected_triggers=all_triggers[:5],  # Limit to top 5 triggers
-        recommended_tactics=tactics
+        recommended_tactics=tactics,
+        # V2 fields
+        dominant_trait=dominant_trait,
+        emotional_momentum=emotional_momentum,
+        specific_objection=specific_objection
     )
 
     logger.info(f"🧠 Psychology: {primary_state.value} (conf: {confidence:.2f}), Urgency: {urgency.value}")
@@ -469,6 +754,10 @@ class Strategy(Enum):
     CONSULTATIVE = "consultative"        # Educational, guiding approach
     CLOSE_FAST = "close_fast"            # Reduce friction, move to action
     SIMPLIFY = "simplify"                # Cut options, make recommendation
+    # V2 Granular Strategies
+    FINANCIAL_REASSURANCE = "financial_reassurance"  # Payment plan, affordability
+    MARKET_ANCHORING = "market_anchoring"            # Inflation data, market proof
+    LOCATION_EDUCATION = "location_education"        # Area value, development plans
 
 
 def determine_strategy(
@@ -477,10 +766,10 @@ def determine_strategy(
     top_property_verdict: str = "FAIR"
 ) -> Dict[str, Any]:
     """
-    Determine the optimal sales strategy based on psychology and data.
+    V2: Enhanced strategy selector with granular objection handling.
     
     This is the core "Wolf" strategy selector that maps emotional
-    state to persuasion angle.
+    state + specific objection to the optimal persuasion angle.
     
     Args:
         psychology: The detected psychology profile
@@ -492,16 +781,85 @@ def determine_strategy(
     """
     state = psychology.primary_state
     urgency = psychology.urgency_level
+    objection = psychology.specific_objection  # V2: Granular objection
+    momentum = psychology.emotional_momentum   # V2: Emotional trajectory
     
-    # Map psychology to strategy
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # V2: GRANULAR OBJECTION HANDLING
+    # Different responses for financial vs trust vs market concerns
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
     if state == PsychologicalState.RISK_AVERSE:
-        strategy = Strategy.TRUST_BUILDING
-        angle = "trust"
+        # V2: Check SPECIFIC type of risk
+        if objection == ObjectionType.FINANCIAL:
+            strategy = Strategy.FINANCIAL_REASSURANCE
+            angle = "affordability"
+            talking_points = [
+                "خليني أوريك خطة السداد بالتفصيل - ممكن تبدأ بمقدم 10% بس.",
+                "الأقساط على 8 سنين، يعني الشهري أقل من إيجار شقة في نفس المنطقة.",
+                "حاسبلك: القسط الشهري هيكون حوالي [X] جنيه. ده في حدود ميزانيتك؟",
+                "فيه تمويل بنكي كمان لو محتاج - أنا بساعدك في الورق."
+            ]
+        elif objection == ObjectionType.LEGAL:
+            strategy = Strategy.TRUST_BUILDING
+            angle = "legal_protection"
+            talking_points = [
+                "سؤال ممتاز. ابعتلي كود الوحدة أو العقد، وأنا هشغل عليه فحص قانون 114.",
+                "بتأكد من: تسلسل الملكية، رخصة البناء، وشروط التسليم.",
+                "مش بنمضي حاجة غير لما الورق يطلع نضيف 100%.",
+                "Law 114 Scanner بيكشف 47 نوع مشكلة قانونية - مجاناً ليك."
+            ]
+        elif objection == ObjectionType.TRUST:
+            strategy = Strategy.TRUST_BUILDING
+            angle = "developer_track_record"
+            talking_points = [
+                "المطور ده عنده track record: 95% تسليم في الوقت، 0 قضايا.",
+                "أنا بحط سمعتي على المحك - مش هرشحلك حاجة مش مضمونة.",
+                "تحب أوريك مشاريعهم اللي اتسلمت؟ عندي صور وتقييمات من سكان.",
+                "ده من قايمة Class A developers - الكبار بس."
+            ]
+        else:
+            # Default RISK_AVERSE handling
+            strategy = Strategy.TRUST_BUILDING
+            angle = "trust"
+            talking_points = [
+                "Don't sign anything yet. Send me the contract first; I'll run my Legal Scanner on it.",
+                "I utilize a Law 114 Legal Scanner to detect contract loopholes.",
+                "This developer has a 95% on-time delivery record. Zero legal violations.",
+                "My protocol requires verification on Polygon before I recommend this.",
+            ]
+            
+    elif objection == ObjectionType.MARKET:
+        # V2: Market doubt objection (regardless of state)
+        strategy = Strategy.MARKET_ANCHORING
+        angle = "inflation_proof"
         talking_points = [
-            "Don't sign anything yet. Send me the contract first; I'll run my Legal Scanner on it.",
-            "I utilize a Law 114 Legal Scanner to detect contract loopholes.",
-            "This developer has a 95% on-time delivery record. Zero legal violations.",
-            "My protocol requires verification on Polygon before I recommend this.",
+            "سؤال ذكي. خليني أوريك الأرقام الحقيقية.",
+            "التضخم 33%، الشهادات 27%. يعني الكاش بيخسر 6% سنوياً.",
+            "العقار في المنطقة دي زايد 18% السنة اللي فاتت - ده مش كلام، ده data.",
+            "تحب أوريك رسم الـ Inflation Killer؟ بيوضح الفرق بالأرقام."
+        ]
+        
+    elif objection == ObjectionType.TIMING:
+        # V2: Timing concern handling
+        strategy = Strategy.SCARCITY_PITCH
+        angle = "timing_urgency"
+        talking_points = [
+            "أفهم اللي بتقوله. بس الأرقام بتقول حاجة تانية.",
+            "الأسعار زادت 20% في آخر 6 شهور. الاستنى = دفع أكتر.",
+            "السيستم بتاعي بيقولي إن المطور هيرفع الأسعار الأسبوع الجاي.",
+            "لو مش النهاردة، على الأقل حدد تاريخ نتكلم فيه تاني."
+        ]
+        
+    elif objection == ObjectionType.LOCATION:
+        # V2: Location concern handling
+        strategy = Strategy.LOCATION_EDUCATION
+        angle = "area_value"
+        talking_points = [
+            "خليني أفهمك المنطقة دي كويس:",
+            "الخدمات: مدارس، مستشفيات، مولات - كله في 10 دقايق.",
+            "خطة التطوير الجاية هتزود القيمة 15-20% خلال 3 سنين.",
+            "الجيران هناك professionals و عائلات - community كويسة."
         ]
         
     elif state == PsychologicalState.GREED_DRIVEN:
@@ -553,6 +911,17 @@ def determine_strategy(
             "Send me any contract you have—I'll run my Law 114 Scanner on it for free."
         ]
         
+    elif state == PsychologicalState.SKEPTICISM:
+        # V2: New SKEPTICISM state handling
+        strategy = Strategy.MARKET_ANCHORING
+        angle = "data_proof"
+        talking_points = [
+            "سؤال ممتاز. سيبك من كلام البيع وخلينا نتكلم بالأرقام.",
+            "Live Market Pulse: التضخم 33%، البنك 27%، يعني خسارة 6% سنوياً للكاش.",
+            "العقار في المنطقة دي زايد [GROWTH_RATE]% - ده data مش رأي.",
+            "تحب أوريك الرسم البياني؟"
+        ]
+        
     else:  # NEUTRAL
         strategy = Strategy.CONSULTATIVE
         angle = "guide"
@@ -562,6 +931,17 @@ def determine_strategy(
             "هل بتشتري للسكن ولا للاستثمار؟",
             "أنا هنا أساعدك تختار صح",
         ]
+    
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # V2: MOMENTUM-BASED ADJUSTMENTS
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    if momentum == "cooling_down":
+        # User is losing interest - need to re-engage
+        talking_points.insert(0, "🔄 حاسس إنك محتاج معلومة معينة؟ قولي بالظبط اللي ناقصك.")
+    elif momentum == "warming_up":
+        # User is getting interested - push towards close
+        talking_points.append("🎯 أنا شايف إنك مهتم - نعمل الخطوة الجاية؟")
     
     # Modify based on urgency
     if urgency in [UrgencyLevel.URGENT, UrgencyLevel.READY_TO_ACT]:
@@ -578,18 +958,24 @@ def determine_strategy(
         "psychology_state": state.value,
         "urgency": urgency.value,
         "primary_message": talking_points[0] if talking_points else "",
+        # V2 added fields
+        "specific_objection": objection.value,
+        "emotional_momentum": momentum,
     }
 
 
 # Export
 __all__ = [
     "PsychologicalState",
+    "ObjectionType",  # V2: Granular objection classification
     "UrgencyLevel",
     "PsychologyProfile",
     "Strategy",
     "analyze_psychology",
+    "semantic_classify_emotion",  # V2: LLM fallback classifier
     "determine_strategy",
     "get_psychology_context_for_prompt",
-    "PSYCHOLOGY_PATTERNS"
+    "PSYCHOLOGY_PATTERNS",
+    "OBJECTION_PATTERNS"  # V2: Objection patterns
 ]
 
