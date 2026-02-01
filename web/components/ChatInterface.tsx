@@ -24,6 +24,7 @@ import VisualizationRenderer from './visualizations/VisualizationRenderer';
 import UnifiedAnalytics from './visualizations/UnifiedAnalytics';
 import InvitationModal from './InvitationModal';
 import { User, LogOut, Gift, PlusCircle, History, Send, Mic, Plus, Bookmark, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { translations } from '@/lib/translations';
 
 // ============================================
 // UTILITY COMPONENTS
@@ -220,7 +221,7 @@ function FeaturedPropertyCard({
                             </div>
                             <div>
                                 <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-muted-studio)] mb-0.5 sm:mb-1">
-                                    {isRTL ? 'العائد' : 'ROI'}
+                                    {isRTL ? 'العائد على الاستثمار' : 'ROI'}
                                 </p>
                                 <p className="text-sm sm:text-lg font-semibold tracking-tight text-emerald-600">
                                     {projectedGrowth ? `${projectedGrowth}%` : 'N/A'}
@@ -1132,9 +1133,9 @@ export default function ChatInterface() {
                                     className="welcome-title text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--color-text-main)] mb-2"
                                 >
                                     {isRTL ? (
-                                        <span style={{ fontFamily: 'Cairo, sans-serif' }}>مرحبا، أنا عمرو</span>
+                                        <span style={{ fontFamily: 'Cairo, sans-serif' }}>{translations.ar.chatInterface.welcomeTitle}</span>
                                     ) : (
-                                        <span className="font-serif italic">Hello, I&apos;m AMR</span>
+                                        <span className="font-serif italic">{translations.en.chatInterface.welcomeTitle}</span>
                                     )}
                                 </motion.h2>
                                 <motion.p
@@ -1143,7 +1144,7 @@ export default function ChatInterface() {
                                     transition={{ duration: 0.4, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
                                     className="welcome-subtitle text-sm sm:text-base text-[var(--color-text-muted-studio)] mb-6 sm:mb-8"
                                 >
-                                    {isRTL ? 'ذكاءك العقاري الشخصي' : 'Your AI Real Estate Intelligence'}
+                                    {isRTL ? translations.ar.chatInterface.welcomeSubtitle : translations.en.chatInterface.welcomeSubtitle}
                                 </motion.p>
 
                                 {/* Decorative Divider */}
@@ -1319,7 +1320,15 @@ export default function ChatInterface() {
                                                                     className="ai-message-content text-[13px] sm:text-sm leading-relaxed text-[var(--color-text-main)] prose prose-sm max-w-none prose-headings:text-[var(--osool-deep-teal)] prose-strong:text-[var(--osool-deep-teal)] prose-code:bg-[var(--osool-deep-teal)]/5 prose-code:text-[var(--osool-deep-teal)] prose-code:rounded prose-code:px-1.5 prose-code:py-0.5"
                                                                     dir="auto"
                                                                 >
-                                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                    <ReactMarkdown
+                                                                        remarkPlugins={[remarkGfm]}
+                                                                        components={{
+                                                                            p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed text-right" dir="rtl" {...props} />,
+                                                                            strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
+                                                                            ul: ({ node, ...props }) => <ul className="list-disc mr-5 mb-3 text-right" dir="rtl" {...props} />,
+                                                                            li: ({ node, ...props }) => <li className="mb-1" {...props} />
+                                                                        }}
+                                                                    >
                                                                         {sanitizeContent(msg.content)}
                                                                     </ReactMarkdown>
                                                                 </div>

@@ -2215,3 +2215,17 @@ body {
 .chatgpt-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
+
+/* Added by User Request for Arabic readability */
+.ai-message-content {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: plaintext;
+  line-height: 1.8;
+  font-family: "Cairo", sans-serif;
+}
+
+.amr-avatar-status.rtl {
+  right: auto;
+  left: 0;
+}
