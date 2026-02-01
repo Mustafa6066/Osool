@@ -34,6 +34,7 @@ from .psychology_layer import (
     PsychologicalState
 )
 from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS
+from .market_analytics_layer import MarketAnalyticsLayer
 from .analytical_actions import generate_analytical_ui_actions
 from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT, is_discount_request, FRAME_CONTROL_EXAMPLES
 from .hybrid_brain_prod import hybrid_brain_prod  # The Specialist Tools
@@ -44,6 +45,7 @@ from .wolf_checklist import validate_checklist, WolfChecklistResult
 
 # Database
 from app.database import AsyncSessionLocal
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.vector_search import search_properties as db_search_properties
 from app.services.cache import cache
 
@@ -86,17 +88,29 @@ class WolfBrain:
         session_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        The Main Thinking Loop - Wolf Brain V5.
-        
-        Args:
-            query: User's natural language query
-            history: Conversation history
-            profile: User profile dict (optional)
-            language: Preferred language ('ar', 'en', 'auto')
-            session_id: Session identifier for memory
-            
-        Returns:
-            Dict with response, ui_actions, properties, psychology, etc.
+        The Main Thinking Loop - Wrapper for Session Management.
+        """
+        async with AsyncSessionLocal() as session:
+            return await self._process_turn_logic(
+                query=query,
+                history=history,
+                session=session,
+                profile=profile,
+                language=language,
+                session_id=session_id
+            )
+
+    async def _process_turn_logic(
+        self,
+        query: str,
+        history: List[Dict],
+        session: AsyncSession,
+        profile: Optional[Dict] = None,
+        language: str = "auto",
+        session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        The Core Thinking Loop.
         """
         start_time = datetime.now()
         self.stats["turns_processed"] += 1
@@ -114,7 +128,10 @@ class WolfBrain:
                 language = language if language != "auto" else "ar"
             
             logger.info(f"🗣️ Language: {language} (detected from: '{query[:20]}...')")
-
+            
+            # Initialize Market Analytics Layer (Session Scope)
+            market_layer = MarketAnalyticsLayer(session)
+            
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 1: FAST ROUTE (Regex Gate - 0ms Latency)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -247,10 +264,10 @@ class WolfBrain:
                     
                     if language == "ar":
                          resp = (
-                            f"✋ **لحظة واحدة**، قبل ما نتكلم في أرقام ووحدات في {market_segment.get('name_ar', location)}، لازم تفهم السوق هناك ماشي ازاي عشان متدفعش زيادة.\n\n"
+                            f"استنى لحظة، قبل ما نتكلم في أرقام ووحدات في {market_segment.get('name_ar', location)}، لازم تفهم السوق هناك ماشي ازاي عشان متدفعش زيادة.\n\n"
                             f"السوق هناك مقسوم نوعين:\n\n"
-                            f"- 🏆 **الفئة الأولى (Premium)** : بتبدأ من {market_segment['class_a']['min_price']/1000000:.1f} مليون (مطورين زي {', '.join(market_segment['class_a']['developers_ar'][:2])}).\n"
-                            f"- ⭐ **الفئة الثانية (Value)** : بتبدأ من {market_segment['class_b']['min_price']/1000000:.1f} مليون.\n\n"
+                            f"🏆 **الفئة الأولى (Premium)**: بتبدأ من {market_segment['class_a']['min_price']/1000000:.1f} مليون (مطورين زي {', '.join(market_segment['class_a']['developers_ar'][:2])}).\n"
+                            f"⭐ **الفئة الثانية (Value)**: بتبدأ من {market_segment['class_b']['min_price']/1000000:.1f} مليون.\n\n"
                             "عشان أرشحلك صح: **حضرتك بتدور على استثمار (ROI) ولا سكن فاخر؟**"
                         )
                     else:
@@ -274,16 +291,21 @@ class WolfBrain:
             # STEP 6: THE HUNT (Database Search)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             properties = []
+            scored_properties = []
+            
             # Only search if we passed the gate or it's a specific keyword search
             if intent.action in ["search", "comparison", "valuation", "investment"] or (not is_discovery_complete and intent.filters.get("location")):
                 if is_discovery_complete or intent.filters.get("keywords"):
-                     properties = await self._search_database(intent.filters)
-                     self.stats["searches"] += 1
-            
+                    # Pass session to reuse connection
+                    properties = await self._search_database(intent.filters, db_session=session)
+                    self.stats["searches"] += 1
+        
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 7: BENCHMARKING & SCORING
+            # STEP 7: BENCHMARKING & SCORING (Async with DB)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            scored_properties = analytical_engine.score_properties(properties)
+            # Pass session for real-time benchmarking
+            if properties:
+                scored_properties = await analytical_engine.score_properties(properties, session=session)
             
             # Augment with Wolf Analysis
             for prop in scored_properties:
@@ -323,6 +345,14 @@ class WolfBrain:
             logger.info(f"🎭 Strategy: {strategy['strategy']}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # FETCH REAL-TIME MARKET PULSE
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            market_pulse = None
+            if intent.filters.get("location"):
+                # Fetch live stats for the requested location
+                market_pulse = await market_layer.get_real_time_market_pulse(intent.filters.get("location"))
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 8: SPEAK (Narrative Generation)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             response_text = await self._generate_wolf_narrative(
@@ -338,7 +368,8 @@ class WolfBrain:
                 intent=intent,
                 feasibility=None, 
                 no_discount_mode=no_discount_mode,
-                market_segment=strategy.get("market_segment") # Pass market segment if used
+                market_segment=strategy.get("market_segment"), # Pass market segment if used
+                market_pulse=market_pulse  # Inject live DB stats
             )
             self.stats["claude_calls"] += 1
 
@@ -450,57 +481,67 @@ class WolfBrain:
              pass
         return {} # Placeholder if called
 
-    async def _search_database(self, filters: Dict) -> List[Dict]:
+    async def _search_database(self, filters: Dict, db_session: Optional[AsyncSession] = None) -> List[Dict]:
         """
         Search database for properties matching filters.
         """
         try:
+            # Use passed session or create new one context
+            if db_session:
+                return await self._execute_search_query(filters, db_session)
+            
             async with AsyncSessionLocal() as db:
-                # Build query text
-                query_parts = []
-                if 'location' in filters:
-                    query_parts.append(filters['location'])
-                if 'bedrooms' in filters:
-                    query_parts.append(f"{filters['bedrooms']} bedrooms")
-                if 'property_type' in filters:
-                    query_parts.append(filters['property_type'])
-                if 'keywords' in filters:
-                    query_parts.append(filters['keywords'])
-                if 'budget_max' in filters and filters['budget_max']:
-                    budget_mil = filters['budget_max'] / 1_000_000
-                    query_parts.append(f"under {budget_mil} million")
-                
-                query_text = " ".join(query_parts) if query_parts else "property"
-                
-                # Vector search
-                results = await db_search_properties(
-                    db=db,
-                    query_text=query_text,
-                    limit=50,
-                    similarity_threshold=0.50,
-                    price_min=filters.get('budget_min'),
-                    price_max=filters.get('budget_max')
-                )
-                
-                # Apply additional filters
-                if 'budget_max' in filters and filters['budget_max']:
-                    results = [r for r in results if r.get('price', 0) <= filters['budget_max']]
-                
-                if 'budget_min' in filters and filters['budget_min']:
-                    results = [r for r in results if r.get('price', 0) >= filters['budget_min']]
-                
-                if 'bedrooms' in filters and filters['bedrooms']:
-                    results = [r for r in results if r.get('bedrooms', 0) >= filters['bedrooms']]
-                
-                if 'property_type' in filters and filters['property_type']:
-                    ptype = filters['property_type'].lower()
-                    results = [r for r in results if ptype in r.get('type', '').lower()]
-                
-                return results[:10]  # Top 10
-                
+                return await self._execute_search_query(filters, db)
         except Exception as e:
             logger.error(f"Database search failed: {e}", exc_info=True)
             return []
+
+    async def _execute_search_query(self, filters: Dict, db: AsyncSession) -> List[Dict]:
+        """Execute the actual search logic."""
+        # Build query text
+        query_parts = []
+        if 'location' in filters:
+            query_parts.append(filters['location'])
+        if 'bedrooms' in filters:
+            query_parts.append(f"{filters['bedrooms']} bedrooms")
+        if 'property_type' in filters:
+            query_parts.append(filters['property_type'])
+        if 'keywords' in filters:
+            query_parts.append(filters['keywords'])
+        if 'budget_max' in filters and filters['budget_max']:
+            budget_mil = filters['budget_max'] / 1_000_000
+            query_parts.append(f"under {budget_mil} million")
+            
+        query_text = " ".join(query_parts) if query_parts else "property"
+        
+        # Vector search
+        results = await db_search_properties(
+            db=db,
+            query_text=query_text,
+            limit=50,
+            similarity_threshold=0.50,
+            price_min=filters.get('budget_min'),
+            price_max=filters.get('budget_max')
+        )
+        
+        # Apply additional filters
+        if 'budget_max' in filters and filters['budget_max']:
+            results = [r for r in results if r.get('price', 0) <= filters['budget_max']]
+        
+        if 'budget_min' in filters and filters['budget_min']:
+            results = [r for r in results if r.get('price', 0) >= filters['budget_min']]
+        
+        if 'bedrooms' in filters and filters['bedrooms']:
+            results = [r for r in results if r.get('bedrooms', 0) >= filters['bedrooms']]
+        
+        if 'property_type' in filters and filters['property_type']:
+            ptype = filters['property_type'].lower()
+            results = [r for r in results if ptype in r.get('type', '').lower()]
+        
+        return results[:10]  # Top 10
+
+                
+
     
     def _is_discovery_complete(self, filters: Dict, history: List[Dict]) -> bool:
         """
@@ -673,7 +714,8 @@ class WolfBrain:
 
         feasibility: Optional[Any] = None,
         no_discount_mode: bool = False,
-        market_segment: Optional[Dict] = None
+        market_segment: Optional[Dict] = None,
+        market_pulse: Optional[Dict] = None
     ) -> str:
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
@@ -686,6 +728,17 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             wolf_insight_instruction = ""
             
+            # 1. Inject Live Market Pulse (Real-Time DB Data)
+            # This overrides hardcoded assumptions with fresh data
+            if market_pulse:
+                wolf_insight_instruction += f"""
+[LIVE MARKET DATA - FROM DATABASE]
+- Location: {market_pulse['location']}
+- Real Average Price: {market_pulse['avg_price_sqm']:,} EGP/sqm
+- Active Inventory: {market_pulse['inventory_count']} listings
+- Market Heat: {market_pulse['market_heat_index']}
+"""
+
             if properties and len(properties) > 0:
                 top_prop = properties[0]
                 wolf_score = top_prop.get('wolf_score', 0)
@@ -693,7 +746,8 @@ class WolfBrain:
                 location = top_prop.get('location', '')
                 
                 # Fetch Real Market Average (The "Price Sandwich" Anchor)
-                area_avg = analytical_engine.get_avg_price_per_sqm(location)
+                # Ensure we use the Live DB average if available, otherwise fallback
+                area_avg = market_pulse['avg_price_sqm'] if market_pulse else analytical_engine.get_avg_price_per_sqm(location)
                 if area_avg == 0:
                      area_avg = top_prop.get('wolf_benchmark', {}).get('market_avg', 0)
 
