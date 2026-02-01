@@ -30,10 +30,11 @@ MARKET_DATA = {
     "gold_appreciation": 0.25,         # 25% annual gold appreciation
 }
 
-# Area price data (EGP per sqm, 2024)
+# Area price data (EGP per sqm, 2024-2025)
+# NOTE: Adjusted to reflect actual seed data averages to avoid "bargain bias"
 AREA_PRICES = {
-    "New Cairo": 65000,
-    "Sheikh Zayed": 60000,
+    "New Cairo": 50000,      # Was 65k - lowered to match seed data avg (~45-50k)
+    "Sheikh Zayed": 55000,   # Was 60k - adjusted for stricter deal scoring
     "New Capital": 45000,
     "6th October": 35000,
     "North Coast": 80000,
@@ -60,7 +61,7 @@ AREA_GROWTH = {
 AREA_BENCHMARKS = {
     "new cairo": {
         "ar_name": "التجمع الخامس",
-        "avg_price_sqm": 65000,
+        "avg_price_sqm": 50000,  # Adjusted from 65k to match seed data avg
         "rental_yield": 0.065,
         "growth_rate": 0.15,
         "property_minimums": {
@@ -157,25 +158,25 @@ MARKET_SEGMENTS = {
         "name_en": "New Cairo",
         "class_a": {
             "name_ar": "مطورين الفئة الأولى (Class A)",
-            "developers": ["إعمار (Emaar)", "سوديك (Sodic)", "مراكز (Marakez)", "هايد بارك (Hyde Park)"],
-            "developers_ar": ["إعمار", "سوديك", "مراكز", "هايد بارك"],
-            "price_range_ar": "١٢,٠٠٠,٠٠٠ - ١٨,٠٠٠,٠٠٠",
-            "price_range_en": "12,000,000 - 18,000,000",
-            "avg_price": 15_000_000,
-            "avg_price_ar": "١٥ مليون",
-            "min_price": 12_000_000,
-            "max_price": 18_000_000,
+            "developers": ["إعمار (Emaar)", "سوديك (Sodic)", "مراكز (Marakez)", "المراسم (Al Marasem)", "ماونتن فيو (Mountain View)", "بالم هيلز (Palm Hills)"],
+            "developers_ar": ["إعمار", "سوديك", "مراكز", "المراسم", "ماونتن فيو", "بالم هيلز"],
+            "price_range_ar": "١٣,٥٠٠,٠٠٠ - ٦٠,٠٠٠,٠٠٠",
+            "price_range_en": "13,500,000 - 60,000,000",
+            "avg_price": 32_000_000,
+            "avg_price_ar": "٣٢ مليون",
+            "min_price": 13_500_000,
+            "max_price": 60_000_000,
         },
         "class_b": {
             "name_ar": "مطورين الفئة الثانية (Class B)",
-            "developers": ["ماونتن فيو (Mountain View)", "بالم هيلز (Palm Hills)", "صبور (Sabbour)"],
-            "developers_ar": ["ماونتن فيو", "بالم هيلز", "صبور"],
-            "price_range_ar": "٧,٠٠٠,٠٠٠ - ١٠,٠٠٠,٠٠٠",
-            "price_range_en": "7,000,000 - 10,000,000",
-            "avg_price": 8_500_000,
-            "avg_price_ar": "٨.٥ مليون",
-            "min_price": 7_000_000,
-            "max_price": 10_000_000,
+            "developers": ["هايد بارك (Hyde Park)", "صبور (Sabbour)", "تطوير مصر (Tatweer Misr)"],
+            "developers_ar": ["هايد بارك", "صبور", "تطوير مصر"],
+            "price_range_ar": "١٠,٠٠٠,٠٠٠ - ٣٠,٠٠٠,٠٠٠",
+            "price_range_en": "10,000,000 - 30,000,000",
+            "avg_price": 26_000_000,
+            "avg_price_ar": "٢٦ مليون",
+            "min_price": 12_000_000,
+            "max_price": 30_000_000,
         },
         "market_floor": 6_000_000,
         "market_floor_ar": "٦ مليون",
@@ -187,25 +188,25 @@ MARKET_SEGMENTS = {
         "name_en": "Sheikh Zayed",
         "class_a": {
             "name_ar": "مطورين الفئة الأولى (Class A)",
-            "developers": ["أورا (Ora)", "سوديك (Sodic)", "إعمار (Belle Vie)"],
-            "developers_ar": ["أورا", "سوديك", "إعمار"],
-            "price_range_ar": "١٥,٠٠٠,٠٠٠ - ٢٢,٠٠٠,٠٠٠",
-            "price_range_en": "15,000,000 - 22,000,000",
-            "avg_price": 18_000_000,
-            "avg_price_ar": "١٨ مليون",
+            "developers": ["أورا (Ora)", "سوديك (Sodic)", "إعمار (Belle Vie)", "ماونتن فيو (Mountain View)", "بالم هيلز (Palm Hills)", "مراكز (Marakez)"],
+            "developers_ar": ["أورا", "سوديك", "إعمار", "ماونتن فيو", "بالم هيلز", "مراكز"],
+            "price_range_ar": "١٥,٠٠٠,٠٠٠ - ٣٠,٠٠٠,٠٠٠",
+            "price_range_en": "15,000,000 - 30,000,000",
+            "avg_price": 20_000_000,
+            "avg_price_ar": "٢٠ مليون",
             "min_price": 15_000_000,
-            "max_price": 22_000_000,
+            "max_price": 30_000_000,
         },
         "class_b": {
             "name_ar": "مطورين الفئة الثانية (Class B)",
-            "developers": ["درة (Dorra)", "كونتيننتال (Continental)", "بدر الدين"],
-            "developers_ar": ["درة", "كونتيننتال", "بدر الدين"],
-            "price_range_ar": "٩,٠٠٠,٠٠٠ - ١٣,٠٠٠,٠٠٠",
-            "price_range_en": "9,000,000 - 13,000,000",
-            "avg_price": 11_000_000,
-            "avg_price_ar": "١١ مليون",
+            "developers": ["درة (Dorra)", "كونتيننتال (Continental)", "بدر الدين (Badr Eldin)", "ايوان (Iwan)"],
+            "developers_ar": ["درة", "كونتيننتال", "بدر الدين", "ايوان"],
+            "price_range_ar": "٩,٠٠٠,٠٠٠ - ١٤,٠٠٠,٠٠٠",
+            "price_range_en": "9,000,000 - 14,000,000",
+            "avg_price": 11_500_000,
+            "avg_price_ar": "١١.٥ مليون",
             "min_price": 9_000_000,
-            "max_price": 13_000_000,
+            "max_price": 14_000_000,
         },
         "market_floor": 8_000_000,
         "market_floor_ar": "٨ مليون",
@@ -258,12 +259,13 @@ PROPERTY_TYPE_MAP = {
 
 # Developer tiers
 TIER1_DEVELOPERS = [
-    "tmg", "talaat moustafa", "emaar", "sodic", "mountain view", 
-    "palm hills", "ora", "city edge", "المراسم", "إعمار", "سوديك"
+    "al marasem", "marakez", "sodic", "emaar", "emmar", "mountain view", 
+    "lake view", "lakeview", "palm hills", "ora", "la vista", "lavista",
+    "المراسم", "مراكز", "سوديك", "إعمار", "ماونتن فيو", "ليك فيو", "بالم هيلز", "أورا", "لافيستا"
 ]
 TIER2_DEVELOPERS = [
     "hyde park", "hydepark", "tatweer misr", "misr italia", 
-    "better home", "gates", "iq", "حسن علام"
+    "better home", "gates", "iq", "حسن علام", "درة", "dorra"
 ]
 
 
@@ -319,10 +321,30 @@ class AnalyticalEngine:
     Refactored for Async & Real-time DB (Protocol 7).
     """
     
-    def calculate_true_roi(self, property_data: Dict) -> ROIAnalysis:
+    async def get_live_market_data(self, session: AsyncSession) -> Dict[str, float]:
+        """Fetch live economic indicators from DB (Inflation, Rates)."""
+        try:
+            from app.models import MarketIndicator
+            result = await session.execute(select(MarketIndicator.key, MarketIndicator.value))
+            db_data = {row[0]: row[1] for row in result.all()}
+            
+            # Merge with defaults (DB overrides constants)
+            live_data = MARKET_DATA.copy()
+            live_data.update(db_data)
+            return live_data
+        except Exception as e:
+            logger.error(f"Failed to fetch market indicators: {e}")
+            return MARKET_DATA
+
+    def calculate_true_roi(self, property_data: Dict, market_data: Optional[Dict] = None) -> ROIAnalysis:
         """
         Calculate true ROI for a property. (Sync - Math only)
+        Args:
+            property_data: Property dict
+            market_data: Optional dict of rates (inflation, appreciation, etc.)
         """
+        rates = market_data or MARKET_DATA # Use provided dynamic rates or fallback
+
         price = property_data.get("price", 0)
         location = property_data.get("location", "")
         # ... logic remains same ...

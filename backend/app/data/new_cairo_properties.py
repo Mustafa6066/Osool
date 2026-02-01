@@ -414,51 +414,8 @@ NEW_CAIRO_PROPERTIES: List[Dict[str, Any]] = [
         "roi_percentage": 11.2
     },
 
-    # CITY EDGE Properties
-    {
-        "title": "City Edge Etapa - 2BR Affordable Apartment",
-        "description": "Affordable apartment in Etapa compound. Great entry point for first-time buyers.",
-        "type": "Apartment",
-        "location": "New Cairo - Etapa",
-        "compound": "Etapa",
-        "developer": "City Edge",
-        "price": 3800000,
-        "price_per_sqm": 25000,
-        "size_sqm": 152,
-        "bedrooms": 2,
-        "bathrooms": 1,
-        "finishing": "Semi-Finished",
-        "delivery_date": "2026",
-        "down_payment": 10,
-        "installment_years": 8,
-        "monthly_installment": 35600,
-        "image_url": "https://images.unsplash.com/photo-1600047509782-20d39509f26d",
-        "sale_type": "Developer",
-        "wolf_score": 75,
-        "roi_percentage": 10.5
-    },
-    {
-        "title": "City Edge Etapa - 3BR Value Apartment",
-        "description": "Value-oriented 3BR apartment in Etapa. Best price per sqm in New Cairo.",
-        "type": "Apartment",
-        "location": "New Cairo - Etapa",
-        "compound": "Etapa",
-        "developer": "City Edge",
-        "price": 4200000,
-        "price_per_sqm": 24000,
-        "size_sqm": 175,
-        "bedrooms": 3,
-        "bathrooms": 2,
-        "finishing": "Semi-Finished",
-        "delivery_date": "2026",
-        "down_payment": 10,
-        "installment_years": 8,
-        "monthly_installment": 39000,
-        "image_url": "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea",
-        "sale_type": "Developer",
-        "wolf_score": 76,
-        "roi_percentage": 10.8
-    },
+    # NOTE: City Edge Etapa properties have been moved to sheikh_zayed_properties.py
+    # Etapa compound is located in Sheikh Zayed, not New Cairo
 ]
 
 # Market Statistics for New Cairo (2024-2025)
