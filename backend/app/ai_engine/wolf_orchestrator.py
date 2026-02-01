@@ -879,6 +879,53 @@ Start with: "أنا عملت فحص (Law 114) على المطور ده. معند
 Start with: "I've run the Law 114 check on this developer. They have 0 recorded delivery delays in the last 5 years."
 """
 
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # PROTOCOL E: SKEPTICISM DESTROYER (Data Anchoring)
+            # When user doubts "Is this real?" or "Is it a good time?"
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            skepticism_keywords = [
+                "حقيقي", "ده صحيح", "هل ده", "وقت مناسب", "أصدق", "مضمون",
+                "is this real", "good time to buy", "are these numbers real", 
+                "can i trust", "is it safe", "should i believe"
+            ]
+            is_skeptical = any(kw in query.lower() for kw in skepticism_keywords)
+            
+            if is_skeptical or psychology.primary_state == PsychologicalState.SKEPTICISM:
+                # Get area-specific growth rate from market pulse or default
+                growth_rate = 18  # Default: New Cairo average
+                if market_pulse:
+                    growth_rate = market_pulse.get('growth_rate', 18)
+                elif intent and intent.filters.get('location'):
+                    # Try to get from AREA_GROWTH
+                    location = intent.filters.get('location', '')
+                    from .analytical_engine import AREA_GROWTH
+                    for area, rate in AREA_GROWTH.items():
+                        if area.lower() in location.lower() or location.lower() in area.lower():
+                            growth_rate = int(rate * 100)
+                            break
+                
+                # Economic constants (Egyptian market 2024)
+                inflation_rate = 33  # Real inflation
+                bank_rate = 27       # Best CD rate
+                negative_yield = inflation_rate - bank_rate  # 6% loss
+                
+                wolf_insight_instruction += f"""
+[PROTOCOL_E_SKEPTICISM_DESTROYER_ACTIVATED]
+The user is questioning the market data. You MUST:
+1. DROP the sales pitch immediately
+2. Switch to "auditor" mode
+3. Use these EXACT numbers:
+   - GROWTH_RATE: {growth_rate}%
+   - INFLATION_RATE: {inflation_rate}%
+   - BANK_RATE: {bank_rate}%
+   - NEGATIVE_YIELD: {negative_yield}%
+
+MANDATORY RESPONSE PATTERN:
+Start with: "سؤال ممتاز. سيبك من كلام البيع وخلينا نتكلم بالأرقام..."
+Then use the Inflation vs Bank equation to prove your point.
+End with: "تحب أوريك الرسم البياني للمقارنة دي؟"
+"""
+
             # Build context for Claude
             context_parts = []
             
