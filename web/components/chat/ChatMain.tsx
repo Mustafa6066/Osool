@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, Mic, BarChart3, TrendingUp, RotateCcw, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import PropertyCardEnhanced from './PropertyCardEnhanced';
 import { PropertyContext, UIActionData } from './ContextualPane';
 import api from '@/lib/api';
@@ -104,11 +105,22 @@ function AIMessage({
                     <Sparkles size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="chatgpt-message-content" dir={messageIsArabic ? 'rtl' : 'ltr'}>
-                        <p>
+                    <div className="chatgpt-message-content markdown-content" dir={messageIsArabic ? 'rtl' : 'ltr'}>
+                        <ReactMarkdown
+                            components={{
+                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                strong: ({ children }) => <strong className="font-semibold text-[var(--color-text)]">{children}</strong>,
+                                ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                li: ({ children }) => <li className="text-[var(--color-text-secondary)]">{children}</li>,
+                                h1: ({ children }) => <h1 className="text-xl font-bold mb-2">{children}</h1>,
+                                h2: ({ children }) => <h2 className="text-lg font-bold mb-2">{children}</h2>,
+                                h3: ({ children }) => <h3 className="text-base font-semibold mb-1">{children}</h3>,
+                            }}
+                        >
                             {content}
-                            {isStreaming && <span className="chatgpt-cursor" />}
-                        </p>
+                        </ReactMarkdown>
+                        {isStreaming && <span className="chatgpt-cursor" />}
                     </div>
 
                     {/* Visualizations */}
