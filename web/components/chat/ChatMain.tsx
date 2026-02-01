@@ -1,8 +1,221 @@
+'use client';
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, ChevronDown, Sparkles, Plus, Mic } from 'lucide-react';
-import { UserMessage, AIMessage, Message, Property, UIAction, formatPrice, isArabic } from './ChatMessage';
+import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, Mic, BarChart3, TrendingUp, RotateCcw, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown'; //
+import remarkGfm from 'remark-gfm'; //
+import rehypeRaw from 'rehype-raw'; //
+import PropertyCardEnhanced from './PropertyCardEnhanced';
 import { PropertyContext, UIActionData } from './ContextualPane';
+import api from '@/lib/api';
+import VisualizationRenderer from '../visualizations/VisualizationRenderer';
+
+// Types
+type UIAction = {
+    type: string;
+    priority: number;
+    data: any;
+    trigger_reason?: string;
+    chart_reference?: string;
+};
+
+type Property = {
+    id: number;
+    title: string;
+    price: number;
+    location: string;
+    size_sqm: number;
+    bedrooms: number;
+    wolf_score?: number;
+    developer?: string;
+    [key: string]: any;
+};
+
+type Message = {
+    id: string;
+    role: 'user' | 'amr';
+    content: string;
+    visualizations?: UIAction[];
+    properties?: Property[];
+    timestamp?: Date;
+    copied?: boolean;
+};
+
+// Detect if text is Arabic
+function isArabic(text: string): boolean {
+    const arabicPattern = /[\u0600-\u06FF\u0750-\u077F]/;
+    return arabicPattern.test(text);
+}
+
+// Format price
+const formatPrice = (price: number): string => {
+    if (price >= 1_000_000) {
+        return `${(price / 1_000_000).toFixed(1)}M EGP`;
+    }
+    return `${(price / 1_000).toFixed(0)}K EGP`;
+};
+
+// User Message Component - ChatGPT Style (clean, no bubble)
+function UserMessage({ content, timestamp, isRTL }: { content: string; timestamp?: Date; isRTL: boolean }) {
+    const messageIsArabic = isArabic(content);
+
+    return (
+        <div className="chatgpt-message chatgpt-message-user">
+            <div className="chatgpt-message-layout chatgpt-container">
+                <div className="chatgpt-avatar chatgpt-avatar-user">
+                    <User size={16} />
+                </div>
+                <div className="chatgpt-message-content" dir={messageIsArabic ? 'rtl' : 'ltr'}>
+                    <p>{content}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// AI Message Component - ChatGPT Style (subtle bg, avatar)
+function AIMessage({
+    content,
+    properties,
+    visualizations,
+    timestamp,
+    isStreaming = false,
+    onCopy,
+    copied,
+    onRegenerate,
+    isRTL,
+    onPropertySelect
+}: {
+    content: string;
+    properties?: Property[];
+    visualizations?: UIAction[];
+    timestamp?: Date;
+    isStreaming?: boolean;
+    onCopy?: () => void;
+    copied?: boolean;
+    onRegenerate?: () => void;
+    isRTL: boolean;
+    onPropertySelect?: (property: Property, uiActions?: UIAction[]) => void;
+}) {
+    const messageIsArabic = isArabic(content);
+
+    return (
+        <div className="chatgpt-message chatgpt-message-ai">
+            <div className="chatgpt-message-layout chatgpt-container">
+                <div className="chatgpt-avatar chatgpt-avatar-ai">
+                    <Sparkles size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="chatgpt-message-content prose dark:prose-invert max-w-none" dir={messageIsArabic ? 'rtl' : 'ltr'}>
+                        {/* Markdown Rendering Implementation */}
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeRaw]}
+                            components={{
+                                p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+                                ul: ({ node, ...props }) => <ul className={`list-disc mb-3 ${messageIsArabic ? 'mr-5' : 'ml-5'}`} {...props} />,
+                                ol: ({ node, ...props }) => <ol className={`list-decimal mb-3 ${messageIsArabic ? 'mr-5' : 'ml-5'}`} {...props} />,
+                                li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                                strong: ({ node, ...props }) => <span className="font-bold text-[var(--color-primary)]" {...props} />,
+                                h1: ({ node, ...props }) => <h1 className="text-xl font-bold mb-2 mt-4" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-lg font-bold mb-2 mt-3" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-md font-bold mb-1 mt-2" {...props} />,
+                                blockquote: ({ node, ...props }) => (
+                                    <blockquote className="border-l-4 border-[var(--color-primary)] pl-4 py-1 my-2 bg-[var(--color-surface-hover)] rounded-r" {...props} />
+                                ),
+                                a: ({ node, ...props }) => <a className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                            }}
+                        >
+                            {content}
+                        </ReactMarkdown>
+                        {isStreaming && <span className="chatgpt-cursor" />}
+                    </div>
+
+                    {/* Visualizations */}
+                    {visualizations && visualizations.length > 0 && !isStreaming && (
+                        <div className="mt-4 space-y-4">
+                            <div className={`flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)] ${messageIsArabic ? 'flex-row-reverse' : ''}`}>
+                                <BarChart3 size={16} />
+                                <span>{isRTL ? 'التحليلات' : 'Analytics'}</span>
+                            </div>
+                            <div className="grid gap-3">
+                                {visualizations.map((viz, index) => (
+                                    <div
+                                        key={`${viz.type}-${index}`}
+                                        className="rounded-xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)]"
+                                    >
+                                        {viz.chart_reference && (
+                                            <div className={`px-4 py-2 bg-[var(--chatgpt-hover-bg)] border-b border-[var(--color-border)] ${messageIsArabic ? 'text-right' : 'text-left'}`}>
+                                                <p className="text-xs text-[var(--color-text-muted)] font-medium flex items-center gap-2">
+                                                    <TrendingUp size={12} />
+                                                    {viz.chart_reference}
+                                                </p>
+                                            </div>
+                                        )}
+                                        <div className="p-2">
+                                            <VisualizationRenderer
+                                                type={viz.type}
+                                                data={viz.data}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Property Cards */}
+                    {properties && properties.length > 0 && !isStreaming && (
+                        <div className="mt-4 space-y-3">
+                            {properties.map((prop) => (
+                                <div
+                                    key={prop.id}
+                                    onClick={() => onPropertySelect?.(prop, visualizations)}
+                                    className="cursor-pointer"
+                                >
+                                    <PropertyCardEnhanced
+                                        property={{
+                                            id: String(prop.id),
+                                            title: prop.title,
+                                            address: prop.location,
+                                            price: formatPrice(prop.price),
+                                            bedrooms: prop.bedrooms,
+                                            bathrooms: 2,
+                                            sqft: prop.size_sqm,
+                                            rating: prop.wolf_score ? prop.wolf_score / 10 : undefined,
+                                            badge: prop.developer,
+                                            growthBadge: prop.wolf_score && prop.wolf_score >= 80 ? (isRTL ? 'نمو مرتفع' : 'High Growth') : undefined,
+                                        }}
+                                        showChart={false}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Message Actions */}
+                    {!isStreaming && (
+                        <div className="chatgpt-message-actions">
+                            {onCopy && (
+                                <button onClick={onCopy} className="chatgpt-action-btn">
+                                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                                    <span>{copied ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}</span>
+                                </button>
+                            )}
+                            {onRegenerate && (
+                                <button onClick={onRegenerate} className="chatgpt-action-btn">
+                                    <RotateCcw size={14} />
+                                    <span>{isRTL ? 'إعادة التوليد' : 'Regenerate'}</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 // Typing Indicator - Simple dots
 function TypingIndicator({ isRTL }: { isRTL: boolean }) {
@@ -234,17 +447,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
             timestamp: new Date()
         };
 
-        const tempAiId = `amr-${Date.now()}`;
-        const initialAiMessage: Message = {
-            id: tempAiId,
-            role: 'amr',
-            content: '',
-            timestamp: new Date(),
-            visualizations: [],
-            properties: []
-        };
-
-        setMessages(prev => [...prev, userMessage, initialAiMessage]);
+        setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsTyping(true);
 
@@ -253,116 +456,55 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         }
 
         try {
-            // Get auth token for direct backend call
-            const accessToken = typeof window !== 'undefined'
-                ? localStorage.getItem('access_token')
-                : null;
+            const { data } = await api.post('/api/chat', { message: messageText });
 
-            // Use direct backend URL to avoid Next.js proxy UTF-8 encoding issues
-            const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const amrMessage: Message = {
+                id: `amr-${Date.now()}`,
+                role: 'amr',
+                content: data.response || data.message || (detectedRTL ? "عذراً، حدثت مشكلة. حاول مرة أخرى." : "Sorry, there was an issue. Please try again."),
+                visualizations: data.ui_actions || [],
+                properties: data.properties || [],
+                timestamp: new Date()
+            };
 
-            // Use native fetch for streaming with direct backend connection
-            const response = await fetch(`${backendUrl}/api/chat/stream`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
-                },
-                body: JSON.stringify({
-                    message: messageText,
-                    session_id: 'default', // In prod, manage session IDs
-                    language: 'auto'
-                })
-            });
+            setMessages(prev => [...prev, amrMessage]);
 
-            if (!response.ok) throw new Error('Network response was not ok');
-            if (!response.body) throw new Error('No response body');
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedText = '';
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value, { stream: true });
-                buffer += chunk;
-                const lines = buffer.split('\n');
-
-                // Process all complete lines
-                buffer = lines.pop() || ''; // Keep the last partial line
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const jsonStr = line.slice(6);
-                            if (jsonStr === '[DONE]') continue;
-
-                            const data = JSON.parse(jsonStr);
-
-                            if (data.type === 'token') {
-                                accumulatedText += data.content;
-                                setMessages(prev => prev.map(m =>
-                                    m.id === tempAiId ? { ...m, content: accumulatedText } : m
-                                ));
-                            } else if (data.type === 'tool_start') {
-                                // Optional: Show tool status
-                            } else if (data.type === 'done') {
-                                // Final update with full metadata
-                                setMessages(prev => prev.map(m =>
-                                    m.id === tempAiId ? {
-                                        ...m,
-                                        visualizations: data.ui_actions,
-                                        properties: data.properties
-                                    } : m
-                                ));
-
-                                if (data.properties && data.properties.length > 0) {
-                                    handlePropertySelect(data.properties[0], data.ui_actions);
-                                }
-
-                                if (onChatContextUpdate) {
-                                    // Context update logic (same as before)
-                                    const scorecard = data.ui_actions?.find((a: UIAction) => a.type === 'investment_scorecard');
-                                    let insight = '';
-                                    if (scorecard?.data?.analysis) {
-                                        const analysis = scorecard.data.analysis;
-                                        insight = detectedRTL
-                                            ? `🏢 Osool Score: ${analysis.match_score}/100 | العائد: ${analysis.roi_projection}% | ${analysis.market_trend}`
-                                            : `🏢 Osool Score: ${analysis.match_score}/100 | ROI: ${analysis.roi_projection}% | ${analysis.market_trend}`;
-                                    }
-
-                                    onChatContextUpdate({
-                                        property: data.properties?.[0] ? {
-                                            title: data.properties[0].title,
-                                            address: data.properties[0].location,
-                                            price: formatPrice(data.properties[0].price),
-                                            metrics: {
-                                                wolfScore: scorecard?.data?.analysis?.match_score || data.properties[0].wolf_score || 75,
-                                                roi: scorecard?.data?.analysis?.roi_projection || 12.5,
-                                                marketTrend: scorecard?.data?.analysis?.market_trend || 'Growing 📊',
-                                                priceVerdict: scorecard?.data?.analysis?.price_verdict || 'Fair',
-                                                pricePerSqm: Math.round(data.properties[0].price / data.properties[0].size_sqm),
-                                                areaAvgPrice: scorecard?.data?.analysis?.area_avg_price_per_sqm || 50000,
-                                                size: data.properties[0].size_sqm,
-                                                bedrooms: data.properties[0].bedrooms,
-                                            },
-                                            tags: data.properties[0].developer ? [data.properties[0].developer] : [],
-                                        } : undefined,
-                                        uiActions: data.ui_actions || [],
-                                        insight: insight || accumulatedText.slice(0, 150),
-                                    });
-                                }
-                            }
-                        } catch (e) {
-                            console.error('Error parsing SSE:', e);
-                        }
-                    }
-                }
+            if (data.properties && data.properties.length > 0) {
+                handlePropertySelect(data.properties[0], data.ui_actions);
             }
 
+            if (onChatContextUpdate) {
+                const scorecard = data.ui_actions?.find((a: UIAction) => a.type === 'investment_scorecard');
+
+                let insight = '';
+                if (scorecard?.data?.analysis) {
+                    const analysis = scorecard.data.analysis;
+                    insight = detectedRTL
+                        ? `🏢 Osool Score: ${analysis.match_score}/100 | العائد: ${analysis.roi_projection}% | ${analysis.market_trend}`
+                        : `🏢 Osool Score: ${analysis.match_score}/100 | ROI: ${analysis.roi_projection}% | ${analysis.market_trend}`;
+                }
+
+                onChatContextUpdate({
+                    property: data.properties?.[0] ? {
+                        title: data.properties[0].title,
+                        address: data.properties[0].location,
+                        price: formatPrice(data.properties[0].price),
+                        metrics: {
+                            wolfScore: scorecard?.data?.analysis?.match_score || data.properties[0].wolf_score || 75,
+                            roi: scorecard?.data?.analysis?.roi_projection || 12.5,
+                            marketTrend: scorecard?.data?.analysis?.market_trend || 'Growing 📊',
+                            priceVerdict: scorecard?.data?.analysis?.price_verdict || 'Fair',
+                            pricePerSqm: Math.round(data.properties[0].price / data.properties[0].size_sqm),
+                            areaAvgPrice: scorecard?.data?.analysis?.area_avg_price_per_sqm || 50000,
+                            size: data.properties[0].size_sqm,
+                            bedrooms: data.properties[0].bedrooms,
+                        },
+                        tags: data.properties[0].developer ? [data.properties[0].developer] : [],
+                    } : undefined,
+                    uiActions: data.ui_actions || [],
+                    insight: insight || data.response?.slice(0, 150),
+                });
+            }
         } catch (error) {
             console.error("Chat error:", error);
             const errorMessage: Message = {
