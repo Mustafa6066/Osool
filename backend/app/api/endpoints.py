@@ -901,7 +901,7 @@ async def chat_with_agent(
             select(ChatMessage)
             .filter(ChatMessage.session_id == req.session_id)
             .order_by(ChatMessage.created_at.desc())
-            .limit(20)
+            .limit(60)  # Increased from 20 to ensure memory engine has enough conversation context
         )
         messages = result.scalars().all()
 
@@ -1094,7 +1094,7 @@ async def chat_stream(
                 select(ChatMessage)
                 .filter(ChatMessage.session_id == req.session_id)
                 .order_by(ChatMessage.created_at.desc())
-                .limit(20)
+                .limit(60)  # Increased from 20 to ensure memory engine has enough context
             )
             messages = result.scalars().all()
 

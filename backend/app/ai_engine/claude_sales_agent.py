@@ -32,6 +32,7 @@ from .customer_profiles import (
 )
 from .lead_scoring import score_lead
 from .analytics import ConversationAnalyticsService
+from .conversation_memory import ConversationMemory
 
 # Phase 4: Data-First Protocol and Parallel Brain
 from .data_first_enforcer import data_first_enforcer
@@ -356,8 +357,26 @@ class ClaudeSalesAgent:
         arabic_ratio = arabic_chars / total_chars
         return "ar" if arabic_ratio > 0.3 else "en"
 
-    def build_system_prompt(self, user_input: str = "") -> str:
-        """Build the 'Wolf of Cairo' System Prompt using the new prompt system."""
+    def build_system_prompt(self, user_input: str = "", chat_history: list = None) -> str:
+        """Build the 'Wolf of Cairo' System Prompt with Memory Injection."""
+
+        # --- MEMORY EXTRACTION ---
+        memory = ConversationMemory()
+
+        # Rebuild memory from chat history
+        if chat_history:
+            for msg in chat_history:
+                # Handle both LangChain objects and dicts
+                content = msg.content if hasattr(msg, "content") else str(msg)
+                memory.extract_from_message(content)
+
+        # Extract from current input
+        if user_input:
+            memory.extract_from_message(user_input)
+
+        # Get the memory context summary (e.g., "Budget: 5M, Location: Zayed")
+        memory_context = memory.get_context_summary()
+        # --- END MEMORY EXTRACTION ---
 
         # Detect language from user input
         detected_language = self.detect_language(user_input) if user_input else "ar"
@@ -383,13 +402,17 @@ class ClaudeSalesAgent:
             conversation_phase="qualification"
         )
 
+        # --- INJECT MEMORY INTO PROMPT ---
+        # Prepend the memory context so the AI sees the user profile FIRST
+        enhanced_prompt = f"{base_prompt}\n\n{memory_context}"
+
         # Add tool enforcement if needed based on user input
         required_tools = data_first_enforcer.get_required_tools(user_input)
         if required_tools:
             tool_enforcement = data_first_enforcer.get_tool_enforcement_prompt(required_tools)
-            base_prompt = tool_enforcement + "\n" + base_prompt
+            enhanced_prompt = tool_enforcement + "\n" + enhanced_prompt
 
-        return base_prompt
+        return enhanced_prompt
 
     async def chat(
         self,
@@ -561,8 +584,8 @@ class ClaudeSalesAgent:
             user_profile=user
         )
 
-        # Build system prompt with user input for language detection
-        system_prompt = self.build_system_prompt(user_input)
+        # Build system prompt with user input for language detection AND memory injection
+        system_prompt = self.build_system_prompt(user_input, chat_history)
 
         # Convert chat history to Claude format
         claude_messages = []

@@ -374,17 +374,28 @@ class WolfBrain:
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 6: THE HUNT (Database Search)
+            # STEP 6: THE SMART HUNT (Tiered Database Search)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             properties = []
             scored_properties = []
             
-            # Only search if we passed the gate or it's a specific keyword search
-            if intent.action in ["search", "comparison", "valuation", "investment"] or (not is_discovery_complete and intent.filters.get("location")):
-                if is_discovery_complete or intent.filters.get("keywords"):
-                    # Pass session to reuse connection
-                    properties = await self._search_database(intent.filters, db_session=session)
-                    self.stats["searches"] += 1
+            # Determine "Smart Display" Strategy
+            showing_strategy = self._determine_showing_strategy(intent, psychology, is_discovery_complete)
+            logger.info(f"👁️ Visual Strategy: {showing_strategy}")
+
+            # Only search if strategy is TEASER or FULL_LIST
+            if showing_strategy in ['TEASER', 'FULL_LIST']:
+                # Pass session to reuse connection
+                properties = await self._search_database(intent.filters, db_session=session)
+                self.stats["searches"] += 1
+                
+                # If TEASER mode, only keep the "Median" property to anchor expectations
+                if showing_strategy == 'TEASER' and properties:
+                    # Sort by price and pick the middle one (the "anchor")
+                    properties.sort(key=lambda x: x.get('price', 0))
+                    mid_index = len(properties) // 2
+                    properties = [properties[mid_index]]  # Keep only one anchor property
+                    logger.info(f"🎯 TEASER: Showing 1 anchor property at index {mid_index}")
         
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 7: BENCHMARKING & SCORING (Async with DB)
@@ -412,9 +423,10 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             ui_actions = self._determine_ui_actions(
                 psychology, 
-                scored_properties if is_discovery_complete else [], 
+                scored_properties,  # Pass all scored properties, strategy controls display
                 intent, 
-                query
+                query,
+                showing_strategy  # NEW: Pass the Smart Display strategy
             )
             
             strategy = determine_strategy(
@@ -459,7 +471,8 @@ class WolfBrain:
                 feasibility=None, 
                 no_discount_mode=no_discount_mode,
                 market_segment=strategy.get("market_segment"), # Pass market segment if used
-                market_pulse=market_pulse  # Inject live DB stats
+                market_pulse=market_pulse,  # Inject live DB stats
+                showing_strategy=showing_strategy  # NEW: Inject Smart Display strategy
             )
             self.stats["claude_calls"] += 1
 
@@ -468,13 +481,14 @@ class WolfBrain:
             
             return {
                 "response": response_text,
-                "properties": scored_properties[:5] if is_discovery_complete else [],
+                "properties": scored_properties[:5] if showing_strategy == 'FULL_LIST' else (scored_properties[:1] if showing_strategy == 'TEASER' else []),
                 "ui_actions": ui_actions,
                 "psychology": psychology.to_dict(),
                 "strategy": strategy,
                 "intent": intent.to_dict(),
                 "processing_time_ms": int(elapsed * 1000),
                 "model_used": "wolf_brain_v6_turbo",
+                "showing_strategy": showing_strategy,  # NEW: Include strategy in response
             }
             
         except Exception as e:
@@ -686,16 +700,62 @@ class WolfBrain:
         logger.debug(f"Discovery incomplete: budget={has_budget}, context={has_context}, purpose={has_purpose}, location={has_location}")
         return False
     
+    def _determine_showing_strategy(self, intent: Intent, psychology: PsychologyProfile, is_discovery_complete: bool) -> str:
+        """
+        Smart Display Protocol: Decides HOW to show properties based on User Intent & Psychology.
+        
+        Returns: 'NONE', 'TEASER', 'FULL_LIST'
+        
+        Tiers:
+        - NONE: Window shoppers, educational queries → Charts only
+        - TEASER: Location but no budget → 1 anchor property to test price sensitivity
+        - FULL_LIST: Qualified user (budget + location) → 3-5 targeted properties
+        """
+        # 1. Block if Trust Deficit (Psychology Rule)
+        if psychology.primary_state == PsychologicalState.TRUST_DEFICIT:
+            logger.info("👁️ Strategy: NONE (Trust Deficit - build confidence first)")
+            return 'NONE'
+
+        # 2. Block if purely educational query (e.g. "What is ROI?")
+        if intent.action in ["investment", "general", "legal"] and not intent.filters.get("location"):
+            logger.info("👁️ Strategy: NONE (Educational query without location)")
+            return 'NONE'
+
+        # 3. FULL LIST: If Discovery Complete OR Explicit show keywords
+        show_keywords = ["show", "أوريني", "ورجيني", "best", "أفضل", "options", "خيارات"]
+        has_show_keyword = any(kw in intent.raw_query.lower() for kw in show_keywords)
+        
+        if is_discovery_complete or has_show_keyword:
+            logger.info("👁️ Strategy: FULL_LIST (Qualified or explicit request)")
+            return 'FULL_LIST'
+
+        # 4. TEASER: If we have Location but NO Budget (The "Anchor" Strategy)
+        # We show 1 property to force them to react to the price.
+        if intent.filters.get("location") and not intent.filters.get("budget_max"):
+            logger.info("👁️ Strategy: TEASER (Location without budget - anchor mode)")
+            return 'TEASER'
+
+        # 5. Default: Window shopper - don't show yet
+        if intent.intent_bucket == "window_shopper":
+            logger.info("👁️ Strategy: NONE (Window shopper)")
+            return 'NONE'
+
+        logger.info("👁️ Strategy: NONE (Default fallback)")
+        return 'NONE'
+    
+
     def _determine_ui_actions(
         self,
         psychology: PsychologyProfile,
         properties: List[Dict],
         intent: Intent,
-        query: str
+        query: str,
+        showing_strategy: str = 'NONE'  # NEW: Smart Display strategy
     ) -> List[Dict]:
         """
         Determine which UI visualizations to trigger.
         ALWAYS include market analytics from the first answer.
+        Uses showing_strategy to control property display.
         """
         ui_actions = []
         query_lower = query.lower()
@@ -762,12 +822,25 @@ class WolfBrain:
                 "data": bank_data
             })
         
-        # Property cards for search results
-        if properties and intent.action == "search":
+        # Property cards for search results (Strategy-aware)
+        if properties and showing_strategy in ['TEASER', 'FULL_LIST']:
+            # Determine card title based on strategy
+            if showing_strategy == 'TEASER':
+                card_title_ar = "💡 مثال من السوق (متوسط الأسعار)"
+                card_title_en = "💡 Market Example (Average Pricing)"
+                display_properties = properties[:1]  # Only 1 anchor
+            else:
+                card_title_ar = "🏠 وحدات تناسب احتياجاتك"
+                card_title_en = "🏠 Units Matching Your Criteria"
+                display_properties = properties[:5]  # Full list
+            
             ui_actions.append({
                 "type": "property_cards",
-                "priority": "medium",
-                "properties": properties[:5]
+                "priority": "medium" if showing_strategy == 'FULL_LIST' else "low",
+                "title": card_title_ar,
+                "title_en": card_title_en,
+                "properties": display_properties,
+                "is_teaser": showing_strategy == 'TEASER'  # Flag for frontend styling
             })
         
         # Bargain alert if found
@@ -805,18 +878,57 @@ class WolfBrain:
         feasibility: Optional[Any] = None,
         no_discount_mode: bool = False,
         market_segment: Optional[Dict] = None,
-        market_pulse: Optional[Dict] = None
+        market_pulse: Optional[Dict] = None,
+        showing_strategy: str = 'NONE'  # NEW: Smart Display strategy
     ) -> str:
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
         Generate the Wolf's response using ONLY verified data.
-        Now with psychology-aware context injection and language control.
+        Now with psychology-aware context injection and Smart Display strategy.
         """
         try:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # INSIGHT INJECTION (The "Wolf" Edge)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             wolf_insight_instruction = ""
+            
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # SMART DISPLAY STRATEGY CONTEXT
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if properties and showing_strategy == 'TEASER':
+                # TEASER MODE: Show 1 anchor property to test price sensitivity
+                anchor_price = properties[0].get('price', 0)
+                anchor_location = properties[0].get('location', 'المنطقة')
+                if language == 'ar':
+                    wolf_insight_instruction += f"""
+[STRATEGY: TEASER_ANCHOR]
+أنت بتعرض وحدة واحدة بس كـ "مثال من السوق" لاختبار الميزانية.
+لا تبيع الوحدة دي دلوقتي. استخدمها لتثبيت السعر.
+قول: "مثلاً، ده متوسط سعر الوحدات في {anchor_location} ({anchor_price:,.0f} جنيه). ده في نطاق ميزانيتك؟"
+بعد كده اسأل عن الميزانية المحددة عشان تقدر ترشح بدقة.
+"""
+                else:
+                    wolf_insight_instruction += f"""
+[STRATEGY: TEASER_ANCHOR]
+You are showing ONLY ONE property as a "Market Example" to test their budget.
+DO NOT sell this specific unit yet. Use it to anchor the price.
+Say: "For example, this is what the average unit in {anchor_location} costs ({anchor_price:,.0f} EGP). Is this within your comfort zone?"
+Then ask for their specific budget so you can recommend precisely.
+"""
+            elif properties and showing_strategy == 'FULL_LIST':
+                # FULL MODE: Show best matches and sell hard
+                if language == 'ar':
+                    wolf_insight_instruction += """
+[STRATEGY: FULL_INVENTORY]
+أنت بتعرض أفضل الخيارات المتاحة. اختار الأفضل واشرح ليه هي لقطة.
+ركز على ROI والقيمة مقارنة بالسوق.
+"""
+                else:
+                    wolf_insight_instruction += """
+[STRATEGY: FULL_INVENTORY]
+You are showing the best matches. Pick the top winner and sell its ROI hard.
+Focus on value compared to market average.
+"""
             
             # 1. Inject Live Market Pulse (Real-Time DB Data)
             # This overrides hardcoded assumptions with fresh data
