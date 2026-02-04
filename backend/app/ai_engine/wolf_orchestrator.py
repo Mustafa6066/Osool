@@ -374,10 +374,12 @@ class WolfBrain:
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # STEP 6: THE SMART HUNT (Tiered Database Search)
+            # STEP 6: THE SMART HUNT (Agentic Search with Reflexion)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             properties = []
             scored_properties = []
+            hunt_strategy = "none"
+            pivot_message = None
             
             # Determine "Smart Display" Strategy
             showing_strategy = self._determine_showing_strategy(intent, psychology, is_discovery_complete)
@@ -385,8 +387,10 @@ class WolfBrain:
 
             # Only search if strategy is TEASER or FULL_LIST
             if showing_strategy in ['TEASER', 'FULL_LIST']:
-                # Pass session to reuse connection
-                properties = await self._search_database(intent.filters, db_session=session)
+                # Use SMART HUNT with Reflexion (auto-pivot on failure)
+                properties, hunt_strategy, pivot_message = await self._smart_hunt(
+                    intent, session, language
+                )
                 self.stats["searches"] += 1
                 
                 # If TEASER mode, only keep the "Median" property to anchor expectations
@@ -396,6 +400,8 @@ class WolfBrain:
                     mid_index = len(properties) // 2
                     properties = [properties[mid_index]]  # Keep only one anchor property
                     logger.info(f"🎯 TEASER: Showing 1 anchor property at index {mid_index}")
+            
+            logger.info(f"🎯 Hunt Strategy: {hunt_strategy}, Pivot: {pivot_message is not None}")
         
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 7: BENCHMARKING & SCORING (Async with DB)
@@ -472,7 +478,9 @@ class WolfBrain:
                 no_discount_mode=no_discount_mode,
                 market_segment=strategy.get("market_segment"), # Pass market segment if used
                 market_pulse=market_pulse,  # Inject live DB stats
-                showing_strategy=showing_strategy  # NEW: Inject Smart Display strategy
+                showing_strategy=showing_strategy,  # Smart Display strategy
+                pivot_message=pivot_message,  # NEW: Reflexion pivot explanation
+                hunt_strategy=hunt_strategy  # NEW: Reflexion hunt strategy used
             )
             self.stats["claude_calls"] += 1
 
@@ -487,8 +495,9 @@ class WolfBrain:
                 "strategy": strategy,
                 "intent": intent.to_dict(),
                 "processing_time_ms": int(elapsed * 1000),
-                "model_used": "wolf_brain_v6_turbo",
-                "showing_strategy": showing_strategy,  # NEW: Include strategy in response
+                "model_used": "wolf_brain_v7_reflexion",
+                "showing_strategy": showing_strategy,
+                "hunt_strategy": hunt_strategy,  # NEW: Reflexion strategy used
             }
             
         except Exception as e:
@@ -644,9 +653,117 @@ class WolfBrain:
         
         return results[:10]  # Top 10
 
-                
+    async def _smart_hunt(
+        self, 
+        intent: Intent, 
+        session: AsyncSession,
+        language: str = "ar"
+    ) -> tuple[List[Dict], str, Optional[str]]:
+        """
+        SOTA: Agentic Search with Reflexion (Fallback Strategies)
+        
+        Instead of returning empty results, this method automatically pivots:
+        1. Location Pivot: Zayed → 6th October (cheaper neighbor)
+        2. Type Pivot: Villa → Townhouse (downgrade type)
+        
+        Returns: (properties, strategy_used, pivot_message)
+        - strategy_used: 'direct_match', 'location_pivot', 'type_pivot', 'budget_pivot', 'failed'
+        - pivot_message: Explanation for the user about the pivot (None if direct match)
+        """
+        filters = intent.filters
+        
+        # 1. Primary Search
+        results = await self._search_database(filters, db_session=session)
+        if results:
+            logger.info(f"🎯 SMART HUNT: Direct match found ({len(results)} results)")
+            return results, "direct_match", None
 
-    
+        logger.info("🔄 SMART HUNT: No direct match, entering Reflexion mode...")
+        
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # REFLEXION: Location Pivot (Keep budget, move to cheaper area)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        location = filters.get("location", "").lower()
+        location_pivots = {
+            "sheikh zayed": ("6th October", "أكتوبر", "زايد"),
+            "zayed": ("6th October", "أكتوبر", "زايد"),
+            "الشيخ زايد": ("6th October", "أكتوبر", "زايد"),
+            "new cairo": ("Mostakbal City", "المستقبل", "التجمع"),
+            "التجمع": ("Mostakbal City", "المستقبل", "التجمع"),
+            "التجمع الخامس": ("Mostakbal City", "المستقبل", "التجمع"),
+            "madinaty": ("Mostakbal City", "المستقبل", "مدينتي"),
+            "مدينتي": ("Mostakbal City", "المستقبل", "مدينتي"),
+        }
+        
+        for loc_key, (new_loc, new_loc_ar, old_loc_ar) in location_pivots.items():
+            if loc_key in location:
+                new_filters = filters.copy()
+                new_filters["location"] = new_loc
+                alternatives = await self._search_database(new_filters, db_session=session)
+                
+                if alternatives:
+                    logger.info(f"🔄 SMART HUNT: Location pivot success ({loc_key} → {new_loc})")
+                    if language == "ar":
+                        pivot_msg = f"مفيش نتائج في {old_loc_ar}، بس لقيت فرص في {new_loc_ar} بنفس الميزانية."
+                    else:
+                        pivot_msg = f"No exact match in {loc_key.title()}, but I found options in {new_loc} within your budget."
+                    return alternatives, "location_pivot", pivot_msg
+        
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # REFLEXION: Type Pivot (Keep location, downgrade property type)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        property_type = filters.get("property_type", "").lower()
+        type_pivots = {
+            "villa": ("townhouse", "تاون هاوس", "فيلا"),
+            "فيلا": ("townhouse", "تاون هاوس", "فيلا"),
+            "standalone": ("twin house", "توين هاوس", "ستاند الون"),
+            "twin house": ("townhouse", "تاون هاوس", "توين هاوس"),
+            "townhouse": ("apartment", "شقة", "تاون هاوس"),
+            "duplex": ("apartment", "شقة", "دوبلكس"),
+        }
+        
+        for type_key, (new_type, new_type_ar, old_type_ar) in type_pivots.items():
+            if type_key in property_type:
+                new_filters = filters.copy()
+                new_filters["property_type"] = new_type
+                alternatives = await self._search_database(new_filters, db_session=session)
+                
+                if alternatives:
+                    logger.info(f"🔄 SMART HUNT: Type pivot success ({type_key} → {new_type})")
+                    if language == "ar":
+                        pivot_msg = f"الـ{old_type_ar} بالميزانية دي صعب، بس لقيت {new_type_ar} ممتاز في نفس المنطقة."
+                    else:
+                        pivot_msg = f"A {type_key} at this budget is tough, but I found an excellent {new_type} in the same area."
+                    return alternatives, "type_pivot", pivot_msg
+        
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # REFLEXION: Budget Pivot (Increase budget by 20% if too low)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        budget_max = filters.get("budget_max")
+        if budget_max and budget_max > 0:
+            new_filters = filters.copy()
+            new_budget = int(budget_max * 1.25)  # 25% increase
+            new_filters["budget_max"] = new_budget
+            alternatives = await self._search_database(new_filters, db_session=session)
+            
+            if alternatives:
+                budget_diff = (new_budget - budget_max) / 1_000_000
+                logger.info(f"🔄 SMART HUNT: Budget pivot success ({budget_max/1e6:.1f}M → {new_budget/1e6:.1f}M)")
+                if language == "ar":
+                    pivot_msg = f"بزيادة بسيطة ({budget_diff:.1f} مليون)، لقيت خيارات ممتازة."
+                else:
+                    pivot_msg = f"With a small stretch (+{budget_diff:.1f}M), I found excellent options."
+                return alternatives, "budget_pivot", pivot_msg
+        
+        # All strategies failed
+        logger.info("❌ SMART HUNT: All reflexion strategies failed")
+        if language == "ar":
+            pivot_msg = "للأسف مفيش وحدات متاحة بالمواصفات دي. ممكن نعدل المعايير؟"
+        else:
+            pivot_msg = "Unfortunately, no units match these exact criteria. Shall we adjust the search?"
+        return [], "failed", pivot_msg
+
+                    
     def _is_discovery_complete(self, filters: Dict, history: List[Dict]) -> bool:
         """
         Check if discovery phase is complete.
@@ -879,7 +996,9 @@ class WolfBrain:
         no_discount_mode: bool = False,
         market_segment: Optional[Dict] = None,
         market_pulse: Optional[Dict] = None,
-        showing_strategy: str = 'NONE'  # NEW: Smart Display strategy
+        showing_strategy: str = 'NONE',
+        pivot_message: Optional[str] = None,  # NEW: Reflexion pivot explanation
+        hunt_strategy: str = 'none'  # NEW: Reflexion hunt strategy used
     ) -> str:
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
@@ -891,6 +1010,27 @@ class WolfBrain:
             # INSIGHT INJECTION (The "Wolf" Edge)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             wolf_insight_instruction = ""
+            
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # REFLEXION CONTEXT (Search Pivot Explanation)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if hunt_strategy != 'direct_match' and pivot_message:
+                # We had to pivot the search - inject explanation
+                pivot_type_names = {
+                    'location_pivot': 'Location Alternative',
+                    'type_pivot': 'Property Type Alternative',
+                    'budget_pivot': 'Budget Stretch',
+                    'failed': 'No Match Found'
+                }
+                pivot_type = pivot_type_names.get(hunt_strategy, 'Alternative')
+                
+                wolf_insight_instruction += f"""
+[REFLEXION: {pivot_type.upper()}]
+IMPORTANT: The user's EXACT criteria returned zero results.
+I used intelligent reasoning to find alternatives.
+START your response with this explanation: "{pivot_message}"
+Then present the alternatives as helpful suggestions, NOT as the user's original request.
+"""
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # SMART DISPLAY STRATEGY CONTEXT

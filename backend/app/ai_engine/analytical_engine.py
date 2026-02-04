@@ -268,6 +268,121 @@ TIER2_DEVELOPERS = [
     "better home", "gates", "iq", "حسن علام", "درة", "dorra"
 ]
 
+# ═══════════════════════════════════════════════════════════════
+# DEVELOPER KNOWLEDGE GRAPH (The Wolf's Reputation Ledger)
+# For relationship-aware insights: "Why is Emaar expensive?"
+# ═══════════════════════════════════════════════════════════════
+DEVELOPER_GRAPH = {
+    "emaar": {
+        "tier": 1,
+        "name_ar": "إعمار",
+        "name_en": "Emaar",
+        "competitors": ["sodic", "palm hills", "mountain view"],
+        "strength": "Highest Resale Value",
+        "strength_ar": "أعلى قيمة إعادة بيع في السوق",
+        "delivery_reliability": 95,  # 95% on-time delivery
+        "resale_premium": 20,  # 20% above competitors
+        "avg_price_sqm": 85000,
+        "flagship_projects": ["Mivida", "Uptown Cairo", "Belle Vie"],
+    },
+    "sodic": {
+        "tier": 1,
+        "name_ar": "سوديك",
+        "name_en": "SODIC",
+        "competitors": ["emaar", "ora", "palm hills"],
+        "strength": "Community Management & Lifestyle",
+        "strength_ar": "إدارة المجتمع والـ Lifestyle",
+        "delivery_reliability": 90,
+        "resale_premium": 15,
+        "avg_price_sqm": 75000,
+        "flagship_projects": ["Allegria", "Eastown", "Villette", "The Estates"],
+    },
+    "palm hills": {
+        "tier": 1,
+        "name_ar": "بالم هيلز",
+        "name_en": "Palm Hills",
+        "competitors": ["emaar", "sodic", "mountain view"],
+        "strength": "Large Master-Planned Communities",
+        "strength_ar": "مشاريع ضخمة متكاملة",
+        "delivery_reliability": 88,
+        "resale_premium": 12,
+        "avg_price_sqm": 68000,
+        "flagship_projects": ["Palm Hills October", "Palm Hills New Cairo", "Badya"],
+    },
+    "ora": {
+        "tier": 1,
+        "name_ar": "أورا",
+        "name_en": "Ora Developers",
+        "competitors": ["sodic", "emaar"],
+        "strength": "Premium Design & Finishing",
+        "strength_ar": "تصميم وتشطيب بريميوم",
+        "delivery_reliability": 92,
+        "resale_premium": 18,
+        "avg_price_sqm": 90000,
+        "flagship_projects": ["ZED East", "ZED West", "Silversands"],
+    },
+    "mountain view": {
+        "tier": 1,
+        "name_ar": "ماونتن ڤيو",
+        "name_en": "Mountain View",
+        "competitors": ["emaar", "palm hills", "hyde park"],
+        "strength": "Community Premium & Landscaping",
+        "strength_ar": "بريميوم المجتمع والمساحات الخضراء",
+        "delivery_reliability": 85,
+        "resale_premium": 15,
+        "avg_price_sqm": 72000,
+        "flagship_projects": ["iCity", "Mountain View Ras El Hikma", "Lagoon Beach Park"],
+    },
+    "hyde park": {
+        "tier": 2,
+        "name_ar": "هايد بارك",
+        "name_en": "Hyde Park Developments",
+        "competitors": ["mountain view", "tatweer misr", "lmd"],
+        "strength": "Value for Money",
+        "strength_ar": "قيمة مقابل السعر",
+        "delivery_reliability": 82,
+        "resale_premium": 8,
+        "avg_price_sqm": 55000,
+        "flagship_projects": ["Hyde Park New Cairo", "Coast 82"],
+    },
+    "tatweer misr": {
+        "tier": 2,
+        "name_ar": "تطوير مصر",
+        "name_en": "Tatweer Misr",
+        "competitors": ["hyde park", "lmd", "better home"],
+        "strength": "Flexible Payment Plans",
+        "strength_ar": "خطط سداد مرنة",
+        "delivery_reliability": 78,
+        "resale_premium": 5,
+        "avg_price_sqm": 48000,
+        "flagship_projects": ["Il Monte Galala", "Fouka Bay", "D-Bay"],
+    },
+    "city edge": {
+        "tier": 2,
+        "name_ar": "سيتي إيدج",
+        "name_en": "City Edge Developments",
+        "competitors": ["tatweer misr", "al marasem"],
+        "strength": "Government-Backed Reliability",
+        "strength_ar": "شركة حكومية = ضمان التسليم",
+        "delivery_reliability": 95,
+        "resale_premium": 10,
+        "avg_price_sqm": 52000,
+        "flagship_projects": ["Etapa", "North Edge", "Mazarine"],
+    },
+    "taj misr": {
+        "tier": 3,
+        "name_ar": "تاج مصر",
+        "name_en": "Taj Misr",
+        "competitors": ["better home", "capital group"],
+        "strength": "Budget-Friendly Options",
+        "strength_ar": "أسعار اقتصادية",
+        "delivery_reliability": 70,
+        "resale_premium": 0,
+        "avg_price_sqm": 35000,
+        "flagship_projects": ["Taj City", "De Joya"],
+    },
+}
+
 
 @dataclass
 class ROIAnalysis:
@@ -534,6 +649,95 @@ class AnalyticalEngine:
                 return 0.05
         
         return 0.065
+
+    def get_developer_insight(self, developer_name: str, language: str = "ar") -> Optional[Dict[str, Any]]:
+        """
+        Developer Knowledge Graph: Get relationship-aware insights about a developer.
+        
+        Answers questions like: "Why is Emaar expensive?" or "Compare Sodic to Palm Hills"
+        
+        Returns:
+            Dict with insight text and data, or None if developer not found
+        """
+        # Normalize developer name
+        dev_key = developer_name.lower().strip()
+        
+        # Try exact match first
+        dev_data = DEVELOPER_GRAPH.get(dev_key)
+        
+        # Try partial match if not found
+        if not dev_data:
+            for key, data in DEVELOPER_GRAPH.items():
+                if key in dev_key or dev_key in key:
+                    dev_data = data
+                    dev_key = key
+                    break
+                # Check Arabic name
+                if data.get("name_ar") and data["name_ar"] in developer_name:
+                    dev_data = data
+                    dev_key = key
+                    break
+        
+        if not dev_data:
+            return None
+        
+        # Get competitor info
+        competitors = dev_data.get("competitors", [])
+        competitor_insights = []
+        for comp in competitors[:3]:  # Top 3 competitors
+            comp_data = DEVELOPER_GRAPH.get(comp)
+            if comp_data:
+                competitor_insights.append({
+                    "name": comp_data.get("name_en"),
+                    "name_ar": comp_data.get("name_ar"),
+                    "avg_price_sqm": comp_data.get("avg_price_sqm", 0),
+                    "resale_premium": comp_data.get("resale_premium", 0),
+                })
+        
+        # Generate insight text
+        tier_labels = {1: "Tier 1 (Class A)", 2: "Tier 2 (Class B)", 3: "Tier 3 (Budget)"}
+        tier_labels_ar = {1: "الفئة الأولى (Class A)", 2: "الفئة الثانية (Class B)", 3: "الفئة الثالثة (اقتصادي)"}
+        
+        tier = dev_data.get("tier", 2)
+        
+        if language == "ar":
+            insight_text = f"""
+{dev_data.get('name_ar')} من {tier_labels_ar.get(tier, 'الفئة الثانية')}.
+قوتهم الأساسية: {dev_data.get('strength_ar', '')}
+نسبة التسليم في الوقت: {dev_data.get('delivery_reliability', 0)}%
+بريميوم إعادة البيع: +{dev_data.get('resale_premium', 0)}% فوق المنافسين
+متوسط سعر المتر: {dev_data.get('avg_price_sqm', 0):,} جنيه
+"""
+            if competitor_insights:
+                comp_names = [c['name_ar'] for c in competitor_insights if c.get('name_ar')]
+                insight_text += f"المنافسين الرئيسيين: {', '.join(comp_names)}"
+        else:
+            insight_text = f"""
+{dev_data.get('name_en')} is {tier_labels.get(tier, 'Tier 2')}.
+Key Strength: {dev_data.get('strength', '')}
+On-Time Delivery: {dev_data.get('delivery_reliability', 0)}%
+Resale Premium: +{dev_data.get('resale_premium', 0)}% above competitors
+Avg Price/sqm: {dev_data.get('avg_price_sqm', 0):,} EGP
+"""
+            if competitor_insights:
+                comp_names = [c['name'] for c in competitor_insights if c.get('name')]
+                insight_text += f"Main Competitors: {', '.join(comp_names)}"
+        
+        return {
+            "developer": dev_data.get("name_en"),
+            "developer_ar": dev_data.get("name_ar"),
+            "tier": tier,
+            "tier_label": tier_labels.get(tier),
+            "tier_label_ar": tier_labels_ar.get(tier),
+            "strength": dev_data.get("strength"),
+            "strength_ar": dev_data.get("strength_ar"),
+            "delivery_reliability": dev_data.get("delivery_reliability", 0),
+            "resale_premium": dev_data.get("resale_premium", 0),
+            "avg_price_sqm": dev_data.get("avg_price_sqm", 0),
+            "flagship_projects": dev_data.get("flagship_projects", []),
+            "competitors": competitor_insights,
+            "insight_text": insight_text.strip(),
+        }
 
 
 # ═══════════════════════════════════════════════════════════════
