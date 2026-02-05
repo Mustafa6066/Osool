@@ -880,9 +880,9 @@ async def chat_with_agent(
     Frontend can render property cards from the `properties` array.
     """
     try:
-        from app.ai_engine.claude_sales_agent import claude_sales_agent, get_last_search_results
+        from app.agent.amr import amr_agent  # Wolf Brain V7
     except Exception as e:
-        print(f"❌ Critical Error: Failed to load AI Agent. details: {e}")
+        print(f"❌ Critical Error: Failed to load Wolf Brain. details: {e}")
         # Phase 5: Graceful degradation
         import traceback
         traceback.print_exc()
@@ -895,17 +895,17 @@ async def chat_with_agent(
     import json
 
     try:
-        # Phase 3: Load last 20 messages from database for this session
+        # Phase 3: Load last 60 messages from database for this session
         chat_history = []
         result = await db.execute(
             select(ChatMessage)
             .filter(ChatMessage.session_id == req.session_id)
             .order_by(ChatMessage.created_at.desc())
-            .limit(60)  # Increased from 20 to ensure memory engine has enough conversation context
+            .limit(60)  # Sufficient for Wolf Brain memory
         )
         messages = result.scalars().all()
 
-        # Convert to Claude-compatible message format
+        # Convert to LangChain message format for amr_agent
         for msg in reversed(messages):
             if msg.role == "user":
                 from langchain_core.messages import HumanMessage
@@ -924,35 +924,19 @@ async def chat_with_agent(
         db.add(user_message)
         await db.commit()
 
-        # Get AI response from Claude agent (supports Arabic automatically)
-        # Create a clean user dict (avoid SQLAlchemy internals)
-        user_dict = None
-        if user:
-            user_dict = {
-                "id": user.id,
-                "email": getattr(user, "email", None),
-                "name": getattr(user, "name", None),
-                "phone_verified": getattr(user, "phone_verified", False),
-                "kyc_status": getattr(user, "kyc_status", None),
-                "properties_owned": getattr(user, "properties_owned", 0),
-            }
-
-        # V4: Use chat_with_context to get full response including UI actions
-        # Pass language preference for proper response localization
-        ai_result = await claude_sales_agent.chat_with_context(
+        # V7: Use Wolf Brain via amr_agent.process_message
+        ai_result = await amr_agent.process_message(
             user_input=req.message,
             session_id=req.session_id,
-            chat_history=chat_history,
-            user=user_dict,
-            language=req.language  # Pass user's language preference (ar/en/auto)
+            history=chat_history
         )
 
         # Extract components from result
         response_text = ai_result.get("response", "")
         search_results = ai_result.get("properties", [])
-        ui_actions = ai_result.get("ui_actions", [])
+        ui_actions = ai_result.get("charts", [])  # Wolf Brain returns 'charts'
         psychology = ai_result.get("psychology")
-        agentic_action = ai_result.get("agentic_action")
+        agentic_action = ai_result.get("hunt_strategy")  # Reflexion strategy
 
         # Save AI response to database (linked to authenticated user)
         ai_message = ChatMessage(
