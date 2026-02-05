@@ -248,7 +248,7 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 4: DISCOVERY CHECK
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            is_discovery_complete = self._is_discovery_complete(intent.filters, history)
+            is_discovery_complete = self._is_discovery_complete(intent.filters, history, query)
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 4B: DEEP ANALYSIS TRIGGER (Market Context Queries)
@@ -767,44 +767,65 @@ class WolfBrain:
         return [], "failed", pivot_msg
 
                     
-    def _is_discovery_complete(self, filters: Dict, history: List[Dict]) -> bool:
+    def _is_discovery_complete(self, filters: Dict, history: List[Dict], message: str = "") -> bool:
         """
         Check if discovery phase is complete.
         
         Discovery is complete when we have at least:
         1. Budget information (budget_min or budget_max), OR
-        2. Purpose/intent is clear from history
+        2. Purpose/intent is clear from history OR current message
         
+        CRITICAL FIX: We must check the CURRENT message combined with history.
         This ensures we don't show properties until we understand what the user wants.
         """
-        # Check if we have budget info
+        # 1. Combine history + current message for analysis
+        full_context = ""
+        for h in history:
+            user_msg = h.get('user', h.get('content', '')) if isinstance(h, dict) else ''
+            ai_msg = h.get('ai', h.get('response', '')) if isinstance(h, dict) else ''
+            full_context += f"{user_msg} {ai_msg} "
+        
+        # Add the CURRENT message (critical fix - this was missing)
+        full_context += f" {message}"
+        full_context = full_context.lower()
+        
+        # Check if we have budget info from filters
         has_budget = bool(filters.get('budget_max') or filters.get('budget_min'))
         
         # Check history length - if we've had a few exchanges, can proceed
         has_context = len(history) >= 4  # At least 2 back-and-forth
         
-        # Check if purpose was mentioned in current filters or history
+        # 2. Check for Investment vs Living (Primary Gate)
+        # If we don't know WHY they are buying, we cannot sell.
         purpose_keywords = [
-            "سكن", "استثمار", "invest", "live", "rental", "rent", "ايجار",
-            "تجاري", "commercial", "سياحي", "vacation", "تمليك", "buy"
+            "سكن", "استثمار", "invest", "live", "living", "rental", "rent", "ايجار",
+            "تجاري", "commercial", "سياحي", "vacation", "تمليك", "buy",
+            "stay", "home", "بيت", "منزل"
         ]
         
-        has_purpose = False
+        has_purpose = any(kw in full_context for kw in purpose_keywords)
         
-        # Check in recent history
-        for msg in history[-6:]:
-            content = msg.get('content', '').lower() if isinstance(msg, dict) else ''
-            if any(kw in content for kw in purpose_keywords):
-                has_purpose = True
-                break
+        # 3. Check for Location
+        has_location = bool(filters.get('location'))
+        
+        # Also check for location keywords in context
+        location_keywords = [
+            "new cairo", "zayed", "october", "capital", "shorouk", "future city", 
+            "coastal", "التجمع", "زايد", "اكتوبر", "العاصمة", "الشروق"
+        ]
+        if not has_location:
+            has_location = any(kw in full_context for kw in location_keywords)
+        
+        # 4. Check for Budget in context (numbers or explicit mentions)
+        if not has_budget:
+            has_budget = any(char.isdigit() for char in full_context) or "budget" in full_context or "ميزانية" in full_context
         
         # Discovery is complete if:
         # 1. We have budget info, OR
         # 2. We have both context history AND purpose mentioned
         # 3. User has provided location + budget combo
-        has_location = bool(filters.get('location'))
+        # 4. User has purpose + (location OR budget) - they're engaged
         
-        # Complete if: (budget) OR (context + purpose) OR (location + budget) OR (location + purpose)
         if has_budget:
             logger.debug("Discovery complete: Has budget info")
             return True
@@ -815,6 +836,11 @@ class WolfBrain:
         
         if has_location and has_purpose:
             logger.debug("Discovery complete: Has location + purpose")
+            return True
+        
+        # NEW: If purpose is clear from current message AND we have location/budget
+        if has_purpose and (has_location or has_budget):
+            logger.debug("Discovery complete: Has purpose + (location or budget)")
             return True
         
         logger.debug(f"Discovery incomplete: budget={has_budget}, context={has_context}, purpose={has_purpose}, location={has_location}")
