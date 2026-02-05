@@ -113,6 +113,9 @@ class WolfBrain:
         The Core Thinking Loop.
         """
         start_time = datetime.now()
+        
+        # === CRITICAL DEBUG (Remove after fixing session issue) ===
+        logger.info(f"🐺 WOLF BRAIN START: session={session_id}, history_len={len(history)}, query={query[:50]}...")
         self.stats["turns_processed"] += 1
         
         try:
