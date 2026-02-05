@@ -342,6 +342,18 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    // Generate a stable session ID for this conversation
+    const [sessionId] = useState(() => {
+        if (typeof window !== 'undefined') {
+            // Check for existing session or create new one
+            const existingSession = sessionStorage.getItem('osool_chat_session');
+            if (existingSession) return existingSession;
+            const newSession = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            sessionStorage.setItem('osool_chat_session', newSession);
+            return newSession;
+        }
+        return `session_${Date.now()}`;
+    });
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -456,7 +468,11 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         }
 
         try {
-            const { data } = await api.post('/api/chat', { message: messageText });
+            // Pass session_id for conversation memory
+            const { data } = await api.post('/api/chat', {
+                message: messageText,
+                session_id: sessionId
+            });
 
             const amrMessage: Message = {
                 id: `amr-${Date.now()}`,
