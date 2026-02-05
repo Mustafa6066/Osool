@@ -241,6 +241,7 @@ Extract:
    - location: Area name (New Cairo, Sheikh Zayed, New Capital, 6th October, North Coast, etc.)
    - budget_min: Minimum budget in EGP (convert millions: 5M = 5000000)
    - budget_max: Maximum budget in EGP
+   - purpose: "living" OR "investment" OR "commercial" (CRITICAL: Infer from context!)
    - bedrooms: Number of bedrooms (integer)
    - property_type: apartment, villa, townhouse, twinhouse, penthouse, duplex, studio
    - size_min: Minimum size in sqm
@@ -248,6 +249,11 @@ Extract:
    - developer: Developer name if mentioned
    - keywords: Any specific compound/project names mentioned
    - finishing: core, semi, finished, lux
+
+CONTEXT RULES FOR 'purpose' (CRITICAL - infer meaning, not just keywords):
+- If user says: "home", "family", "kids", "stay", "live", "marriage", "private", "wife", "children", "سكن", "عيلة", "اولاد", "اعيش", "منزل" -> purpose: "living"
+- If user says: "ROI", "rent", "income", "profit", "business", "yield", "return", "flip", "resale", "استثمار", "عائد", "ايجار", "ارباح" -> purpose: "investment"
+- If user says: "office", "shop", "clinic", "commercial", "مكتب", "محل", "عيادة", "تجاري" -> purpose: "commercial"
 
 Example query: "عايز شقة 3 غرف في التجمع تحت 5 مليون"
 Example response:
@@ -259,6 +265,17 @@ Example response:
     "bedrooms": 3,
     "budget_max": 5000000,
     "property_type": "apartment"
+  }
+}
+
+Example query: "I want a place for my kids"
+Example response:
+{
+  "action": "search",
+  "intent_bucket": "serious_buyer",
+  "filters": {
+    "purpose": "living",
+    "keywords": "kids"
   }
 }
 
@@ -274,6 +291,7 @@ IMPORTANT:
 - Convert Arabic numbers to integers
 - Convert "مليون" (million) to actual number (5 مليون = 5000000)
 - Normalize locations to English names
+- INFER purpose from context even if not explicitly stated
 - Return ONLY the JSON object, nothing else"""
 
         messages = []

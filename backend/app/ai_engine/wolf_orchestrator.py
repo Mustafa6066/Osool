@@ -770,28 +770,23 @@ class WolfBrain:
     def _is_discovery_complete(self, filters: Dict, history: List[Dict], query: str = "") -> bool:
         """
         Check if discovery phase is complete.
-        FIXED: Now checks 'query' (current input) and has expanded keywords.
+        Uses AI-extracted context to break the loop.
         """
-        # 1. Check if LLM extracted budget
+        # 1. Check if AI successfully extracted the Purpose context
+        #    This solves the "exact match" issue. If GPT says purpose is "living", we trust it.
+        ai_extracted_purpose = filters.get('purpose')
+        if ai_extracted_purpose in ['living', 'investment', 'commercial']:
+            logger.debug(f"Discovery complete: AI extracted purpose '{ai_extracted_purpose}'")
+            return True
+
+        # 2. Check for Budget (AI extraction or manual check)
         has_budget = bool(filters.get('budget_max') or filters.get('budget_min'))
         
-        # 2. Check history length
-        has_context = len(history) >= 4
+        # 3. Check history length
+        has_context = len(history) >= 2
         
-        # 3. EXPANDED Purpose Keywords (So user doesn't have to guess exact words)
-        purpose_keywords = [
-            # English
-            "invest", "live", "rental", "rent", "buy", "roi", "yield", 
-            "return", "profit", "gain", "capital", "living", "stay", "home", 
-            "house", "resale", "flip", "long term", "short term",
-            # Arabic
-            "سكن", "استثمار", "ايجار", "تجاري", "سياحي", "تمليك", 
-            "عائد", "ارباح", "مكسب", "بيت", "منزل", "شقة", "فيلا", 
-            "اسكن", "اعيش", "استثمر", "أجر", "تأجير"
-        ]
-        
-        # 4. Combine history AND current query for analysis
-        # This ensures we see the answer the user JUST gave
+        # 4. Fallback: Manual Keyword Check (Safety Net)
+        #    Only needed if the AI failed to extract the purpose
         history_text = " ".join([
             msg.get('content', '').lower() 
             for msg in history[-6:] 
@@ -799,13 +794,20 @@ class WolfBrain:
         ])
         full_text = f"{history_text} {query.lower()}"
         
-        has_purpose = any(kw in full_text for kw in purpose_keywords)
+        manual_purpose_keywords = [
+            # English
+            "invest", "live", "rent", "buy", "roi", "yield", "profit", 
+            "home", "house", "family", "kids", "resale", "flip", "living",
+            "stay", "return", "capital", "income",
+            # Arabic
+            "سكن", "استثمار", "ايجار", "عائد", "ارباح", "بيت", "اسكن",
+            "عيلة", "اولاد", "منزل", "اعيش", "شقة", "فيلا"
+        ]
+        has_manual_purpose = any(kw in full_text for kw in manual_purpose_keywords)
         
         # 5. SAFETY NET: Check for manual budget in query 
-        # (If user said "5 million" but AI didn't categorize it)
         budget_keywords = ["million", "mil", "k", "000", "مليون", "الف", "ألف", "مليار"]
         has_manual_budget = any(kw in query.lower() for kw in budget_keywords) and any(c.isdigit() for c in query)
-        
         has_budget = has_budget or has_manual_budget
         
         # Check for location
@@ -820,17 +822,17 @@ class WolfBrain:
         if not has_location:
             has_location = any(kw in full_text for kw in location_keywords)
 
-        # Decision Logic
+        # 6. Decision Logic
         if has_budget:
             logger.debug("Discovery complete: Has budget info")
             return True
         
-        if has_context and has_purpose:
-            logger.debug("Discovery complete: Has context + purpose")
+        if has_context and has_manual_purpose:
+            logger.debug("Discovery complete: Has context + manual purpose")
             return True
         
-        if has_location and has_purpose:
-            logger.debug("Discovery complete: Has location + purpose")
+        if has_location and has_manual_purpose:
+            logger.debug("Discovery complete: Has location + manual purpose")
             return True
             
         # If user explicitly asks to SEE something, assume discovery is done
@@ -839,7 +841,7 @@ class WolfBrain:
             logger.debug("Discovery complete: User explicitly asked to see properties")
             return True
         
-        logger.debug(f"Discovery incomplete: budget={has_budget}, context={has_context}, purpose={has_purpose}, location={has_location}")
+        logger.debug(f"Discovery incomplete: budget={has_budget}, context={has_context}, purpose={has_manual_purpose}, location={has_location}")
         return False
     
     def _determine_showing_strategy(self, intent: Intent, psychology: PsychologyProfile, is_discovery_complete: bool) -> str:
