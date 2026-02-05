@@ -767,65 +767,60 @@ class WolfBrain:
         return [], "failed", pivot_msg
 
                     
-    def _is_discovery_complete(self, filters: Dict, history: List[Dict], message: str = "") -> bool:
+    def _is_discovery_complete(self, filters: Dict, history: List[Dict], query: str = "") -> bool:
         """
         Check if discovery phase is complete.
-        
-        Discovery is complete when we have at least:
-        1. Budget information (budget_min or budget_max), OR
-        2. Purpose/intent is clear from history OR current message
-        
-        CRITICAL FIX: We must check the CURRENT message combined with history.
-        This ensures we don't show properties until we understand what the user wants.
+        FIXED: Now checks 'query' (current input) and has expanded keywords.
         """
-        # 1. Combine history + current message for analysis
-        full_context = ""
-        for h in history:
-            user_msg = h.get('user', h.get('content', '')) if isinstance(h, dict) else ''
-            ai_msg = h.get('ai', h.get('response', '')) if isinstance(h, dict) else ''
-            full_context += f"{user_msg} {ai_msg} "
-        
-        # Add the CURRENT message (critical fix - this was missing)
-        full_context += f" {message}"
-        full_context = full_context.lower()
-        
-        # Check if we have budget info from filters
+        # 1. Check if LLM extracted budget
         has_budget = bool(filters.get('budget_max') or filters.get('budget_min'))
         
-        # Check history length - if we've had a few exchanges, can proceed
-        has_context = len(history) >= 4  # At least 2 back-and-forth
+        # 2. Check history length
+        has_context = len(history) >= 4
         
-        # 2. Check for Investment vs Living (Primary Gate)
-        # If we don't know WHY they are buying, we cannot sell.
+        # 3. EXPANDED Purpose Keywords (So user doesn't have to guess exact words)
         purpose_keywords = [
-            "سكن", "استثمار", "invest", "live", "living", "rental", "rent", "ايجار",
-            "تجاري", "commercial", "سياحي", "vacation", "تمليك", "buy",
-            "stay", "home", "بيت", "منزل"
+            # English
+            "invest", "live", "rental", "rent", "buy", "roi", "yield", 
+            "return", "profit", "gain", "capital", "living", "stay", "home", 
+            "house", "resale", "flip", "long term", "short term",
+            # Arabic
+            "سكن", "استثمار", "ايجار", "تجاري", "سياحي", "تمليك", 
+            "عائد", "ارباح", "مكسب", "بيت", "منزل", "شقة", "فيلا", 
+            "اسكن", "اعيش", "استثمر", "أجر", "تأجير"
         ]
         
-        has_purpose = any(kw in full_context for kw in purpose_keywords)
+        # 4. Combine history AND current query for analysis
+        # This ensures we see the answer the user JUST gave
+        history_text = " ".join([
+            msg.get('content', '').lower() 
+            for msg in history[-6:] 
+            if isinstance(msg, dict)
+        ])
+        full_text = f"{history_text} {query.lower()}"
         
-        # 3. Check for Location
+        has_purpose = any(kw in full_text for kw in purpose_keywords)
+        
+        # 5. SAFETY NET: Check for manual budget in query 
+        # (If user said "5 million" but AI didn't categorize it)
+        budget_keywords = ["million", "mil", "k", "000", "مليون", "الف", "ألف", "مليار"]
+        has_manual_budget = any(kw in query.lower() for kw in budget_keywords) and any(c.isdigit() for c in query)
+        
+        has_budget = has_budget or has_manual_budget
+        
+        # Check for location
         has_location = bool(filters.get('location'))
         
         # Also check for location keywords in context
         location_keywords = [
             "new cairo", "zayed", "october", "capital", "shorouk", "future city", 
-            "coastal", "التجمع", "زايد", "اكتوبر", "العاصمة", "الشروق"
+            "coastal", "التجمع", "زايد", "اكتوبر", "العاصمة", "الشروق", "مدينتي",
+            "6 october", "6th october", "الساحل", "north coast"
         ]
         if not has_location:
-            has_location = any(kw in full_context for kw in location_keywords)
-        
-        # 4. Check for Budget in context (numbers or explicit mentions)
-        if not has_budget:
-            has_budget = any(char.isdigit() for char in full_context) or "budget" in full_context or "ميزانية" in full_context
-        
-        # Discovery is complete if:
-        # 1. We have budget info, OR
-        # 2. We have both context history AND purpose mentioned
-        # 3. User has provided location + budget combo
-        # 4. User has purpose + (location OR budget) - they're engaged
-        
+            has_location = any(kw in full_text for kw in location_keywords)
+
+        # Decision Logic
         if has_budget:
             logger.debug("Discovery complete: Has budget info")
             return True
@@ -837,10 +832,11 @@ class WolfBrain:
         if has_location and has_purpose:
             logger.debug("Discovery complete: Has location + purpose")
             return True
-        
-        # NEW: If purpose is clear from current message AND we have location/budget
-        if has_purpose and (has_location or has_budget):
-            logger.debug("Discovery complete: Has purpose + (location or budget)")
+            
+        # If user explicitly asks to SEE something, assume discovery is done
+        show_keywords = ["show", "see", "list", "what do you have", "وريني", "عايز اشوف", "ايه المتاح", "ورجيني", "اعرض"]
+        if any(kw in query.lower() for kw in show_keywords):
+            logger.debug("Discovery complete: User explicitly asked to see properties")
             return True
         
         logger.debug(f"Discovery incomplete: budget={has_budget}, context={has_context}, purpose={has_purpose}, location={has_location}")
