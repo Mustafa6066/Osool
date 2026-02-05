@@ -65,6 +65,9 @@ class DataFirstEnforcer:
             r"(كام|سعر|بكام|ثمن|price|cost|how much)",
             r"(غالي|رخيص|expensive|cheap|affordable)",
             r"(ميزانية|budget|range)",
+            # Franco-Arabic patterns (Latin transliteration of Egyptian Arabic)
+            r"\b(kam|bekam|be kam|b kam|sa3r|se3r)\b",
+            r"\b(ghaly|r5ees|re5ees)\b",
         ],
         "availability_check": [
             r"(متاح|موجود|available|in stock)",

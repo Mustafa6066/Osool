@@ -107,22 +107,22 @@ function AIMessage({
                     <Sparkles size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="chatgpt-message-content prose dark:prose-invert max-w-none" dir={messageIsArabic ? 'rtl' : 'ltr'}>
+                    <div className={`chatgpt-message-content prose dark:prose-invert max-w-none ${messageIsArabic ? 'prose-rtl text-right' : 'text-left'}`} dir={messageIsArabic ? 'rtl' : 'ltr'}>
                         {/* Markdown Rendering Implementation */}
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeRaw]}
                             components={{
-                                p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
-                                ul: ({ node, ...props }) => <ul className={`list-disc mb-3 ${messageIsArabic ? 'mr-5' : 'ml-5'}`} {...props} />,
-                                ol: ({ node, ...props }) => <ol className={`list-decimal mb-3 ${messageIsArabic ? 'mr-5' : 'ml-5'}`} {...props} />,
+                                p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
+                                ul: ({ node, ...props }) => <ul className={`list-disc mb-3 ${messageIsArabic ? 'pr-6' : 'pl-6'}`} {...props} />,
+                                ol: ({ node, ...props }) => <ol className={`list-decimal mb-3 ${messageIsArabic ? 'pr-6' : 'pl-6'}`} {...props} />,
                                 li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                                strong: ({ node, ...props }) => <span className="font-bold text-[var(--color-primary)]" {...props} />,
-                                h1: ({ node, ...props }) => <h1 className="text-xl font-bold mb-2 mt-4" {...props} />,
-                                h2: ({ node, ...props }) => <h2 className="text-lg font-bold mb-2 mt-3" {...props} />,
-                                h3: ({ node, ...props }) => <h3 className="text-md font-bold mb-1 mt-2" {...props} />,
+                                strong: ({ node, ...props }) => <strong className="font-bold text-[var(--color-primary)] dark:text-[var(--color-teal-accent)]" {...props} />,
+                                h1: ({ node, ...props }) => <h1 className={`text-xl font-bold mb-2 mt-4 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
+                                h2: ({ node, ...props }) => <h2 className={`text-lg font-bold mb-2 mt-3 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
+                                h3: ({ node, ...props }) => <h3 className={`text-md font-bold mb-1 mt-2 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
                                 blockquote: ({ node, ...props }) => (
-                                    <blockquote className="border-l-4 border-[var(--color-primary)] pl-4 py-1 my-2 bg-[var(--color-surface-hover)] rounded-r" {...props} />
+                                    <blockquote className={`${messageIsArabic ? 'border-r-4 pr-4 rounded-l' : 'border-l-4 pl-4 rounded-r'} border-[var(--color-primary)] py-1 my-2 bg-[var(--color-surface-hover)]`} {...props} />
                                 ),
                                 a: ({ node, ...props }) => <a className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                             }}
@@ -187,7 +187,6 @@ function AIMessage({
                                             badge: prop.developer,
                                             growthBadge: prop.wolf_score && prop.wolf_score >= 80 ? (isRTL ? 'نمو مرتفع' : 'High Growth') : undefined,
                                         }}
-                                        showChart={false}
                                     />
                                 </div>
                             ))}
