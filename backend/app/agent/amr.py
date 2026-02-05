@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 # Import the unified Wolf Brain
 from app.ai_engine.wolf_orchestrator import wolf_brain
+# Import ConversationMemory for loop detection
+from app.ai_engine.conversation_memory import ConversationMemory
 
 # Load environment variables
 load_dotenv()
@@ -29,6 +31,7 @@ class AmrAgent:
         # WolfBrain initializes its own clients (Anthropic/OpenAI) internally
         # We just act as the API wrapper here.
         logger.info("🚀 AmrAgent initialized with Wolf Brain V7")
+        self.memory_utils = ConversationMemory()  # Utility for loop detection
 
     async def process_message(self, user_input: str, session_id: str, history: List[BaseMessage] = []) -> Dict[str, Any]:
         """
@@ -54,11 +57,29 @@ class AmrAgent:
                 language="auto"  # Wolf Brain has internal strict detection
             )
 
+            # --- LOOP DETECTION FIX ---
+            # Check if the response is identical or highly similar to the last AI message
+            response_text = result.get("response", "")
+            if self.memory_utils.check_repetitive_loop(chat_history_dicts, response_text):
+                logger.warning(f"🔄 Loop detected for session {session_id}. Applying pivot strategy.")
+                
+                # Heuristic: Check language to append appropriate pivot message
+                is_arabic = any("\u0600" <= char <= "\u06FF" for char in response_text)
+                
+                if is_arabic:
+                    pivot = "\n\n(يبدو أننا نكرر نفس النقاط. هل هناك تفاصيل محددة بخصوص الموقع أو الميزانية تود تغييرها؟)"
+                else:
+                    pivot = "\n\n(It seems we are going in circles. Is there a specific detail regarding location or budget you'd like to adjust?)"
+                
+                # Append pivot to break the user out of the loop
+                result["response"] = response_text + pivot
+            # --------------------------
+
             # 3. Map result to API response structure
             # We map 'ui_actions' to 'charts' to maintain frontend compatibility
             # while delivering the richer Wolf visualizations.
             return {
-                "response": result.get("response", ""),
+                "response": result.get("response", ""), # Now potentially modified
                 "source_model": result.get("model_used", "Wolf Brain V7"),
                 "charts": result.get("ui_actions", []),
                 "properties": result.get("properties", []),
