@@ -86,9 +86,14 @@ class AmrAgent:
             elif isinstance(msg, AIMessage):
                 converted.append({"role": "assistant", "content": msg.content})
             elif isinstance(msg, SystemMessage):
-                # We generally skip system messages as Wolf Brain sets its own context,
-                # but can keep them if needed for specific overrides.
-                pass 
+                # Skip system messages as Wolf Brain sets its own context
+                pass
+            else:
+                # Handle dict format passed directly
+                if isinstance(msg, dict) and "role" in msg and "content" in msg:
+                    converted.append(msg)
+        
+        logger.info(f"📋 Converted {len(history)} messages -> {len(converted)} dicts for Wolf Brain")
         return converted
 
 

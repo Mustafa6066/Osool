@@ -904,6 +904,8 @@ async def chat_with_agent(
             .limit(60)  # Sufficient for Wolf Brain memory
         )
         messages = result.scalars().all()
+        
+        print(f"📜 Loaded {len(messages)} messages from DB for session {req.session_id}")
 
         # Convert to LangChain message format for amr_agent
         for msg in reversed(messages):
@@ -924,12 +926,16 @@ async def chat_with_agent(
         db.add(user_message)
         await db.commit()
 
+        print(f"📤 Sending {len(chat_history)} history items to Wolf Brain")
+        
         # V7: Use Wolf Brain via amr_agent.process_message
         ai_result = await amr_agent.process_message(
             user_input=req.message,
             session_id=req.session_id,
             history=chat_history
         )
+        
+        print(f"📥 Wolf Brain returned response: {len(ai_result.get('response', ''))} chars")
 
         # Extract components from result
         response_text = ai_result.get("response", "")
@@ -949,15 +955,14 @@ async def chat_with_agent(
         db.add(ai_message)
         await db.commit()
 
-        # Phase 1: Track analytics (for future dashboard integration)
-        lead_score_dict = claude_sales_agent.lead_score if isinstance(claude_sales_agent.lead_score, dict) else {}
+        # Phase 1: Track analytics (simplified after Wolf Brain migration)
         analytics_data = {
-            "customer_segment": claude_sales_agent.customer_segment.value if claude_sales_agent.customer_segment else "unknown",
-            "lead_temperature": lead_score_dict.get("temperature", "cold"),
-            "lead_score": lead_score_dict.get("score", 0),
+            "customer_segment": psychology.get("primary_state", "unknown") if psychology else "unknown",
+            "lead_temperature": "warm",
+            "lead_score": 50,
             "properties_viewed": len(search_results) if search_results else 0,
-            "message_count": len(chat_history) + 2,  # +2 for current exchange
-            "psychology": psychology  # V4: Include psychology in analytics
+            "message_count": len(chat_history) + 2,
+            "psychology": psychology
         }
 
         # V4: Generate inflation killer chart data if triggered by ui_actions
