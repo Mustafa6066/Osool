@@ -9,11 +9,15 @@ Segments:
 - Savvy Investor: Experienced investors focused on ROI
 
 Phase 3: AI Personality Enhancement
+Phase 4: ELEPHANT MEMORY - Long-term user fact tracking
 """
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from pydantic import BaseModel, Field
 import re
+import json
+
 
 
 class CustomerSegment(Enum):
@@ -372,3 +376,167 @@ def get_personalized_welcome(phone_number: Optional[str]) -> str:
     
     # "Welcome Back" pattern
     return f"Welcome back, {name}! 👋 I was just looking at some new {last_interest} that match what we discussed last time. Ready to see them?"
+
+
+# ==============================================================================
+# ELEPHANT MEMORY - Long-Term User Fact Tracker (Phase 4)
+# ==============================================================================
+
+class UserProfile(BaseModel):
+    """
+    The Long-Term Memory of the User (The Elephant).
+    Stores persistent facts extracted from conversations.
+    """
+    name: Optional[str] = None
+    risk_appetite: str = "Unknown"  # Conservative, Aggressive, Balanced
+    hard_constraints: List[str] = Field(default_factory=list)  # "Max budget 5M", "Must be Zayed"
+    soft_preferences: List[str] = Field(default_factory=list)  # "Hates ground floor", "Likes modern"
+    wolf_status: str = "Cold Lead"   # Cold Lead, Warm Prospect, Hot Deal, Client
+    key_facts: List[str] = Field(default_factory=list)  # "Buying for daughter", "Works at Vodafone"
+    budget_extracted: Optional[int] = None  # Budget in EGP if explicitly mentioned
+    purpose: Optional[str] = None  # "investment" or "living"
+    preferred_locations: List[str] = Field(default_factory=list)
+    deal_breakers: List[str] = Field(default_factory=list)  # Things user absolutely won't accept
+
+
+async def extract_user_facts(
+    current_profile: Dict[str, Any], 
+    recent_history: List[Dict[str, str]], 
+    openai_client
+) -> Dict[str, Any]:
+    """
+    Uses GPT-4o to extract persistent facts from the conversation.
+    This runs silently in the background to update the user's dossier.
+    
+    Args:
+        current_profile: Existing user profile dict (may be empty)
+        recent_history: Recent conversation messages (last 3-5 turns)
+        openai_client: AsyncOpenAI client instance
+        
+    Returns:
+        Updated user profile dict with newly extracted facts merged in
+    """
+    if not recent_history:
+        return current_profile
+    
+    # Convert last 5 turns to text
+    chat_text = "\n".join([
+        f"{m.get('role', 'user')}: {m.get('content', '')}" 
+        for m in recent_history[-5:]
+    ])
+    
+    system_prompt = """You are a CRM Data Extraction Specialist for an Egyptian real estate consultancy.
+Analyze the conversation and extract/update the user's profile.
+
+CURRENT PROFILE:
+{current_profile}
+
+EXTRACTION RULES:
+1. HARD CONSTRAINTS (Non-negotiable): Budget limits, required locations, delivery dates, must-have features
+2. SOFT PREFERENCES (Nice to have): Style preferences, amenities, view preferences
+3. PERSONAL FACTS: Name, job, family situation, reason for buying
+4. RISK PROFILE: Conservative (first-timer, safety-focused) vs Aggressive (investor, ROI-focused)
+5. WOLF STATUS: 
+   - "Cold Lead" = Just browsing, no commitment signals
+   - "Warm Prospect" = Shared budget/location, showing interest
+   - "Hot Deal" = Ready to buy, asking about contracts/next steps
+   - "Client" = Has already purchased
+
+IMPORTANT:
+- Extract ONLY facts explicitly stated or strongly implied
+- Do NOT guess or assume
+- Preserve existing facts unless explicitly contradicted
+- For Arabic names, keep them in Arabic script
+
+Output ONLY valid JSON (no markdown, no explanation):
+{{
+    "name": "string or null",
+    "risk_appetite": "Unknown|Conservative|Aggressive|Balanced",
+    "hard_constraints": ["list of non-negotiable requirements"],
+    "soft_preferences": ["list of preferences"],
+    "wolf_status": "Cold Lead|Warm Prospect|Hot Deal|Client",
+    "key_facts": ["personal facts for rapport"],
+    "budget_extracted": number or null (in EGP),
+    "purpose": "investment|living|null",
+    "preferred_locations": ["list of locations"],
+    "deal_breakers": ["things user won't accept"]
+}}"""
+    
+    try:
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt.format(current_profile=json.dumps(current_profile, ensure_ascii=False))},
+                {"role": "user", "content": f"Extract user facts from this conversation:\n\n{chat_text}"}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+            max_tokens=500
+        )
+        
+        extracted = json.loads(response.choices[0].message.content)
+        
+        # Merge with existing profile (new facts override old, but preserve non-null values)
+        merged = {**current_profile}
+        for key, value in extracted.items():
+            if value is not None and value != "" and value != []:
+                if isinstance(value, list) and key in merged and isinstance(merged[key], list):
+                    # Merge lists, avoiding duplicates
+                    existing = set(merged[key])
+                    merged[key] = merged[key] + [v for v in value if v not in existing]
+                else:
+                    merged[key] = value
+        
+        return merged
+        
+    except Exception as e:
+        print(f"⚠️ Elephant Memory extraction failed (non-fatal): {e}")
+        return current_profile
+
+
+def profile_to_context_string(profile: Dict[str, Any]) -> str:
+    """
+    Convert a user profile dict to a human-readable context string
+    for injection into the AI prompt.
+    """
+    if not profile:
+        return ""
+    
+    parts = []
+    
+    if profile.get('name'):
+        parts.append(f"اسم العميل: {profile['name']}")
+    
+    if profile.get('wolf_status') and profile['wolf_status'] != 'Cold Lead':
+        status_ar = {
+            'Warm Prospect': 'مهتم',
+            'Hot Deal': 'جاهز للشراء',
+            'Client': 'عميل حالي'
+        }.get(profile['wolf_status'], profile['wolf_status'])
+        parts.append(f"الحالة: {status_ar}")
+    
+    if profile.get('budget_extracted'):
+        budget_m = profile['budget_extracted'] / 1_000_000
+        parts.append(f"الميزانية: {budget_m:.1f} مليون جنيه")
+    
+    if profile.get('purpose'):
+        purpose_ar = "استثمار" if profile['purpose'] == 'investment' else "سكن"
+        parts.append(f"الهدف: {purpose_ar}")
+    
+    if profile.get('preferred_locations'):
+        parts.append(f"المناطق المفضلة: {', '.join(profile['preferred_locations'])}")
+    
+    if profile.get('hard_constraints'):
+        parts.append(f"شروط أساسية: {', '.join(profile['hard_constraints'])}")
+    
+    if profile.get('soft_preferences'):
+        parts.append(f"تفضيلات: {', '.join(profile['soft_preferences'])}")
+    
+    if profile.get('key_facts'):
+        parts.append(f"معلومات شخصية: {', '.join(profile['key_facts'])}")
+    
+    if profile.get('deal_breakers'):
+        parts.append(f"⛔ يرفض: {', '.join(profile['deal_breakers'])}")
+    
+    return "\n".join(parts) if parts else ""
+

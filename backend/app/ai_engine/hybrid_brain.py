@@ -122,6 +122,59 @@ class OsoolHybridBrain:
 
     # ...
 
+    async def _generate_reasoning_trace(
+        self, 
+        query: str, 
+        intent: Dict, 
+        profile: Dict, 
+        market_data: List[Dict]
+    ) -> str:
+        """
+        The 'Brain' before the 'Mouth'.
+        Decides the STRATEGIC ANGLE before generating the narrative.
+        """
+        try:
+            # Format minimal profile for reasoning
+            profile_summary = {
+                k: v for k, v in profile.items() 
+                if v and k in ['risk_appetite', 'hard_constraints', 'wolf_status', 'budget_extracted']
+            }
+            
+            system_prompt = """You are the STRATEGIC BRAIN of a Real Estate Agent.
+Do NOT generate the response. Generate the THINKING PROCESS (Chain of Thought).
+
+INPUTS:
+- User Query: {query}
+- User Profile: {profile}
+- Market Data Found: {count} units
+- Intent: {intent_action}
+
+OUTPUT format:
+1. OBSERVATION: (e.g., "User asking for X but budget is Y")
+2. DIAGNOSIS: (e.g., "Unrealistic expectation" OR "Good match")
+3. STRATEGY: (e.g., "Pivot to 'Garden Apartments'" OR "Close deal now")
+4. TACTIC: (e.g., "Use 'Price Sandwich' protocol" OR "Fear of Loss")
+
+Keep it concise (max 4 lines)."""
+            
+            prompt = system_prompt.format(
+                query=query, 
+                profile=json.dumps(profile_summary, ensure_ascii=False), 
+                count=len(market_data),
+                intent_action=intent.get('action', 'unknown')
+            )
+            
+            response = await self.openai_async.chat.completions.create(
+                model="gpt-4o", 
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=200,
+                temperature=0.5
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Reasoning trace failed: {e}")
+            return "Strategy: Proceed with standard helpful response."
+
     async def process_turn(
         self,
         query: str,
@@ -130,17 +183,36 @@ class OsoolHybridBrain:
         language: str = "auto"
     ) -> Dict[str, Any]:
         """
-        The Main Thinking Loop - V4 with Psychology & UI Actions.
+        The Main Thinking Loop - V5 (Intelligence Upgrade).
+        Flow: Memory -> Perception -> Hunt -> Analyze -> REASON -> Speak
         """
         try:
-            logger.info(f"🧠 Wolf Brain V4: Processing query: {query[:100]}...")
+            logger.info(f"🧠 Wolf Brain V5: Processing query: {query[:100]}...")
 
-            # 0. HYPER-PERSONALIZATION (Welcome Back)
+            # 0. MEMORY UPDATE (The Elephant)
+            # Extract new facts from this turn relative to the existing profile
+            # We use the raw profile dict passed from the backend
+            from app.ai_engine.customer_profiles import extract_user_facts
+            current_user_profile = profile if profile else {}
+            
+            # Run extraction in background (fire & forget logic effectively, but awaited here for safety)
+            # In production, this should be a background task to lower latency
+            updated_profile = await extract_user_facts(
+                current_user_profile, 
+                history + [{"role": "user", "content": query}], 
+                self.openai_async
+            )
+            
+            if updated_profile != current_user_profile:
+                logger.info(f"🐘 Elephant Memory: Profile updated for {updated_profile.get('name', 'User')}")
+
+            # 0.5 HYPER-PERSONALIZATION (Welcome Back)
             welcome_msg = ""
-            if len(history) == 0 and profile and profile.get("phone_number"):
-                welcome_msg = get_personalized_welcome(profile.get("phone_number"))
-                if welcome_msg:
-                    logger.info(f"🤝 CRM Match: Welcome back message generated")
+            if len(history) == 0 and updated_profile.get("name"):
+                # Use updated profile for welcome
+                welcome_msg = f"Welcome back, {updated_profile['name']}! Ready to find the next opportunity?"
+                if language == 'ar':
+                    welcome_msg = f"أهلاً بيك يا {updated_profile['name']} مرة تانية! جاهز نشوف الفرص الجديدة؟"
 
             # 1. SPECIAL: SPECULATIVE EXECUTION (Superhuman Speed)
             speculative_task = None
@@ -153,6 +225,7 @@ class OsoolHybridBrain:
             logger.info(f"📊 Intent extracted: {intent}")
 
             # 2. PROTOCOL: THE VELVET ROPE (Screening Gate)
+            # Pass updated profile to screening gate (future optimization)
             screening_intercept = self._apply_screening_gate(intent, history, language)
             if screening_intercept:
                 logger.info(f"🛡️ VELVET ROPE: Screening Intercept Triggered")
@@ -161,7 +234,8 @@ class OsoolHybridBrain:
                     "properties": [],
                     "ui_actions": [],
                     "psychology": None,
-                    "agentic_action": "SCREENING_INTERCEPT"
+                    "agentic_action": "SCREENING_INTERCEPT",
+                    "updated_profile": updated_profile
                 }
 
             # 2b. PSYCHOLOGY: Detect emotional state
@@ -181,13 +255,13 @@ class OsoolHybridBrain:
                         "data": reality_check
                     }],
                     "psychology": psychology.to_dict(),
-                    "agentic_action": "REALITY_CHECK_PIVOT"
+                    "agentic_action": "REALITY_CHECK_PIVOT",
+                    "updated_profile": updated_profile
                 }
 
             # 4. HUNT: Data Retrieval
             market_data = []
             if intent.get('action') == 'search':
-                # Note: Logic to use speculative_task would go here, for now strictly calling search
                 market_data = await self._search_database(intent.get('filters', {}))
                 logger.info(f"🔍 Found {len(market_data)} properties")
 
@@ -195,21 +269,28 @@ class OsoolHybridBrain:
             scored_data = self._apply_wolf_analytics(market_data, intent)
             logger.info(f"📈 Scored and ranked {len(scored_data)} properties")
 
-            # 6. STRATEGY: Determine Pitch Angle (Psychology-Aware)
-            strategy = self._determine_strategy(profile, scored_data, intent, psychology)
+            # 6. === NEW STEP: REASONING TRACE (Chain of Thought) ===
+            # Before we speak, we THINK.
+            reasoning_trace = await self._generate_reasoning_trace(
+                query, intent, updated_profile, scored_data
+            )
+            logger.info(f"💭 Reasoning Trace: {reasoning_trace}")
+
+            # 7. STRATEGY: Determine Pitch Angle (Psychology-Aware)
+            strategy = self._determine_strategy(updated_profile, scored_data, intent, psychology)
             logger.info(f"🎯 Strategy: {strategy}")
             
-            # 6.5. A/B TESTING: Randomize Closing Hook
+            # 7.5. A/B TESTING: Randomize Closing Hook
             ab_variants = ["standard", "assumptive", "fear_of_loss"]
             selected_variant = random.choice(ab_variants)
             logger.info(f"🧪 A/B Test: Selected '{selected_variant}' for closing hook")
 
-            # 6.5b DEEP ANALYSIS (GPT-4o)
+            # 7.5b DEEP ANALYSIS (GPT-4o)
             deep_analysis = await self._deep_analysis(scored_data, query, psychology)
             if deep_analysis:
                 logger.info(f"🔬 Deep Analysis complete: {deep_analysis.get('key_insight', 'N/A')[:80]}")
 
-            # 7. SPECIAL: CONTEXT SUMMARY INJECTION
+            # 8. SPECIAL: CONTEXT SUMMARY INJECTION
             context_summary = ""
             if len(history) > 0 and len(history) % 5 == 0:
                  try:
@@ -218,7 +299,11 @@ class OsoolHybridBrain:
                  except:
                      pass
 
-            # 8. SPEAK: Generate Response (Claude 3.5 Sonnet)
+            # 8b. Add Reasoning Trace to Context
+            strategic_context = f"\n[STRATEGIC PLAN - FOLLOW THIS]:\n{reasoning_trace}\n{context_summary}"
+
+            # 9. SPEAK: Generate Response (Claude 3.5 Sonnet)
+            # Now passing 'updated_profile' for Context Injection
             response = await self._generate_wolf_narrative(
                 query,
                 scored_data,
@@ -226,19 +311,19 @@ class OsoolHybridBrain:
                 strategy,
                 psychology,
                 language=language,
-                profile=profile,
+                profile=updated_profile,  # INJECTED HERE
                 deep_analysis=deep_analysis,
-                extra_context=context_summary,
+                extra_context=strategic_context, # REASONING TRACE INJECTED HERE
                 closing_hook_variant=selected_variant
             )
             
             if welcome_msg and len(history) == 0:
                 response = f"{welcome_msg}\n\n{response}"
 
-            # 9. UI_TRIGGERS
+            # 10. UI_TRIGGERS
             ui_actions = self._determine_ui_actions(psychology, scored_data, intent, query)
             
-            # 9.5 ANALYTICAL ACTIONS
+            # 10.5 ANALYTICAL ACTIONS
             if deep_analysis:
                 analytical_ui = generate_analytical_ui_actions(deep_analysis, psychology, scored_data)
                 existing_types = {a['type'] for a in ui_actions}
@@ -249,7 +334,7 @@ class OsoolHybridBrain:
 
             logger.info(f"🎨 UI Actions: {[a['type'] for a in ui_actions]}")
 
-            # 10. PROACTIVE_ALERTS
+            # 11. PROACTIVE_ALERTS
             proactive_alerts = proactive_alert_engine.scan_for_opportunities(
                 user_preferences=intent.get('filters', {}),
                 market_data=scored_data,
@@ -271,7 +356,9 @@ class OsoolHybridBrain:
                 "proactive_alerts": proactive_alerts,
                 "deep_analysis": deep_analysis,
                 "psychology": psychology.to_dict(),
-                "agentic_action": None
+                "agentic_action": None,
+                "updated_profile": updated_profile, # RETURN FOR PERSISTENCE
+                "reasoning_trace": reasoning_trace
             }
 
         except Exception as e:

@@ -258,11 +258,12 @@ def get_master_system_prompt(
     psychology_profile: str = "NEUTRAL",
     benchmarking_context: str = "",
     tone_modifier: str = "default",
-    closing_hook_variant: str = "standard"  # standard, assumptive, fear_of_loss
+    closing_hook_variant: str = "standard",  # standard, assumptive, fear_of_loss
+    user_profile_data: Optional[dict] = None  # NEW: User Intelligence (Elephant Memory)
 ) -> str:
     """
     Dynamic System Prompt builder.
-    Injects context, psychology strategy, and tone adjustments.
+    Injects context, psychology strategy, tone adjustments, AND User Intelligence.
     """
     base_prompt = AMR_SYSTEM_PROMPT
     
@@ -280,10 +281,74 @@ def get_master_system_prompt(
     elif closing_hook_variant == "fear_of_loss":
         closing_instruction = "\n**CLOSING STRATEGY (Test B):** Use Fear Of Loss. Emphasize scarcity. 'Only 1 unit left', 'Price increases tomorrow'."
 
-    # 3. Add Dynamic Sections
+    # 3. NEW: Build User Intelligence Section (The Dossier)
+    user_intel_section = ""
+    if user_profile_data and any(user_profile_data.get(k) for k in ['name', 'hard_constraints', 'soft_preferences', 'key_facts', 'budget_extracted']):
+        # Extract data safely
+        name = user_profile_data.get('name', 'عميل محترم')
+        wolf_status = user_profile_data.get('wolf_status', 'Prospect')
+        risk_appetite = user_profile_data.get('risk_appetite', 'Unknown')
+        
+        constraints = user_profile_data.get('hard_constraints', [])
+        constraints_text = "\n- ".join(constraints) if constraints else "لم تُحدد بعد"
+        
+        prefs = user_profile_data.get('soft_preferences', [])
+        prefs_text = "\n- ".join(prefs) if prefs else "لم تُحدد بعد"
+        
+        facts = user_profile_data.get('key_facts', [])
+        facts_text = "\n- ".join(facts) if facts else "لا توجد معلومات شخصية"
+        
+        budget = user_profile_data.get('budget_extracted')
+        budget_text = f"{budget / 1_000_000:.1f} مليون جنيه" if budget else "لم تُحدد بعد"
+        
+        purpose = user_profile_data.get('purpose')
+        purpose_text = {"investment": "استثمار", "living": "سكن"}.get(purpose, "لم يُحدد")
+        
+        locations = user_profile_data.get('preferred_locations', [])
+        locations_text = ", ".join(locations) if locations else "لم تُحدد"
+        
+        deal_breakers = user_profile_data.get('deal_breakers', [])
+        deal_breakers_text = "\n- ".join(deal_breakers) if deal_breakers else "لا يوجد"
+        
+        user_intel_section = f"""
+
+═══════════════════════════════════════════════════════════════════════════════
+🕵️‍♂️ USER INTELLIGENCE (THE DOSSIER) - استخدم هذه المعلومات للتخصيص
+═══════════════════════════════════════════════════════════════════════════════
+👤 العميل: {name}
+📊 الحالة: {wolf_status}
+🎯 نوع المستثمر: {risk_appetite}
+
+💰 الميزانية: {budget_text}
+🏠 الهدف: {purpose_text}
+📍 المناطق المفضلة: {locations_text}
+
+📌 شروط أساسية (لا تخالفها):
+- {constraints_text}
+
+❤️ تفضيلات (حاول تحقيقها):
+- {prefs_text}
+
+📝 معلومات شخصية (استخدمها للتقارب):
+- {facts_text}
+
+⛔ يرفض تماماً:
+- {deal_breakers_text}
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 تعليمات الاستخدام:
+- خاطبه باسمه لو معروف
+- لا تسأل عن شيء ذكره سابقاً (الميزانية، الهدف، المنطقة)
+- استخدم المعلومات الشخصية لبناء الثقة
+- لا تقترح شيء يخالف الشروط الأساسية أو ما يرفضه
+═══════════════════════════════════════════════════════════════════════════════
+"""
+
+    # 4. Add Dynamic Sections
     dynamic_section = f"""
 {tone_instruction}
 {closing_instruction}
+{user_intel_section}
 
 # CURRENT CONTEXT
 - User Language: {language}
