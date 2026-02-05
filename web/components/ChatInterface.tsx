@@ -1322,7 +1322,7 @@ export default function ChatInterface() {
                                             // 2. Formatting constants
                                             const alignClass = isMsgRtl ? 'text-right' : 'text-left';
                                             const dirAttr = isMsgRtl ? 'rtl' : 'ltr';
-                                            const marginClass = isMsgRtl ? 'mr-2 sm:mr-10' : 'ml-2 sm:ml-10';
+                                            const marginClass = isMsgRtl ? 'mr-0' : 'ml-0';
 
                                             return (
                                                 <>
@@ -1350,162 +1350,168 @@ export default function ChatInterface() {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        /* AI Message - Tinted surface with accent border */
+                                                        /* AI Message - Sidebar Layout */
                                                         <div
-                                                            className="max-w-4xl w-full relative z-10 ai-message-container"
-                                                            style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: '8px' }}
-                                                            data-is-rtl={String(isMsgRtl)}
-                                                            data-has-arabic={String(isArabicContent)}
+                                                            className={`max-w-4xl w-full flex items-start gap-3 sm:gap-4 relative z-10 ${isMsgRtl ? 'flex-row-reverse' : 'flex-row'}`}
                                                         >
-                                                            {/* AMR header */}
-                                                            <div
-                                                                className={`flex items-center gap-2.5 w-full ${isMsgRtl ? 'flex-row-reverse' : 'flex-row'}`}
-                                                                style={{ minHeight: '24px' }}
-                                                            >
+                                                            {/* 1. Avatar Column (Sidebar) */}
+                                                            <div className="flex-shrink-0 mt-1">
                                                                 <AmrAvatar size="sm" thinking={msg.isTyping} showStatus={false} />
-                                                                <span className="text-[12px] font-bold text-[var(--osool-deep-teal)] select-none">
-                                                                    {isMsgRtl ? 'عمرو' : 'AMR'}
-                                                                </span>
-                                                                <span className="text-[9px] text-[var(--color-text-muted-studio)] opacity-50 select-none">
-                                                                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                </span>
-                                                                {/* Debug Dot (Dev Only - invisible to user unless inspected, but helpful if styling breaks) */}
-                                                                <span className="sr-only">Lang: {isMsgRtl ? 'RTL' : 'LTR'}</span>
                                                             </div>
 
-                                                            {/* Message body */}
-                                                            <div
-                                                                className={`ai-message-body w-full ${msg.isTyping && !msg.content ? 'streaming' : ''} ${marginClass}`}
-                                                                // Force border radius logic inline to override global CSS dependence on [dir]
-                                                                style={{
-                                                                    borderTopLeftRadius: isMsgRtl ? 'var(--radius-message)' : '4px',
-                                                                    borderTopRightRadius: isMsgRtl ? '4px' : 'var(--radius-message)'
-                                                                }}
-                                                            >
-                                                                {/* Accent border - positioned based on direction */}
-                                                                <div
-                                                                    className="ai-accent-border"
-                                                                    style={{
-                                                                        left: isMsgRtl ? 'auto' : 0,
-                                                                        right: isMsgRtl ? 0 : 'auto',
-                                                                        borderRadius: isMsgRtl ? '0 3px 3px 0' : '3px 0 0 3px'
-                                                                    }}
-                                                                />
+                                                            {/* 2. Content Stack (Name + Bubble) */}
+                                                            <div className={`flex flex-col flex-1 min-w-0 ${isMsgRtl ? 'items-end' : 'items-start'}`}>
 
-                                                                <div className={`p-4 sm:p-5 ${isMsgRtl ? 'pr-5 sm:pr-6' : 'pl-5 sm:pl-6'}`}>
-                                                                    {msg.isTyping && !msg.content ? (
-                                                                        /* Typing Indicator (Bar) */
-                                                                        <div className="flex flex-col gap-2">
-                                                                            <div className={`flex ${isMsgRtl ? 'justify-end' : 'justify-start'} px-4`}>
-                                                                                <div className="bg-[var(--ai-surface)] p-3 rounded-2xl rounded-tl-none border border-[var(--ai-surface-border)] shadow-sm">
-                                                                                    <div className="typing-bar" />
-                                                                                </div>
-                                                                            </div>
-                                                                            <span className="text-[12px] text-[var(--color-text-muted-studio)] px-4">
-                                                                                {isMsgRtl ? 'جاري التحليل...' : 'Analyzing...'}
-                                                                            </span>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <>
-                                                                            <div
-                                                                                className={`ai-message-content text-[13px] sm:text-sm leading-relaxed text-[var(--color-text-main)] prose prose-sm max-w-none prose-headings:text-[var(--osool-deep-teal)] prose-strong:text-[var(--osool-deep-teal)] prose-code:bg-[var(--osool-deep-teal)]/5 prose-code:text-[var(--osool-deep-teal)] prose-code:rounded prose-code:px-1.5 prose-code:py-0.5`}
-                                                                                dir={dirAttr}
-                                                                            >
-                                                                                <ReactMarkdown
-                                                                                    remarkPlugins={[remarkGfm]}
-                                                                                    rehypePlugins={[rehypeRaw]}
-                                                                                    components={{
-                                                                                        p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${alignClass}`} {...props} />,
-                                                                                        strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
-                                                                                        ul: ({ node, ...props }) => <ul className={`list-disc ${isMsgRtl ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
-                                                                                        li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                                                                                        code: ({ node, inline, className, children, ...props }: any) => {
-                                                                                            const match = /language-(\w+)/.exec(className || '');
-                                                                                            return !inline && match ? (
-                                                                                                <CodeBlock language={match[1]} value={String(children).replace(/\n$/, '')} />
-                                                                                            ) : (
-                                                                                                <code className="bg-[var(--osool-deep-teal)]/10 text-[var(--osool-deep-teal)] px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
-                                                                                                    {children}
-                                                                                                </code>
-                                                                                            );
-                                                                                        },
-                                                                                        blockquote: ({ node, ...props }) => (
-                                                                                            <blockquote className={`border-${isMsgRtl ? 'r' : 'l'}-4 border-[var(--osool-deep-teal)] ${isMsgRtl ? 'pr-4' : 'pl-4'} my-4 italic bg-[var(--ai-surface)] p-3 rounded-${isMsgRtl ? 'l' : 'r'}`} {...props} />
-                                                                                        )
-                                                                                    }}
-                                                                                >
-                                                                                    {msg.content}
-                                                                                </ReactMarkdown>
-                                                                            </div>
-
-                                                                            {/* Action bar */}
-                                                                            {!msg.isTyping && msg.content && (
-                                                                                <div className="ai-message-actions mt-3 pt-3 border-t border-[var(--ai-surface-border)]">
-                                                                                    <button
-                                                                                        onClick={() => handleCopyMessage(msg.id, msg.content)}
-                                                                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors"
-                                                                                    >
-                                                                                        {copiedMsgId === msg.id ? <Check size={12} /> : <Copy size={12} />}
-                                                                                        {copiedMsgId === msg.id ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}
-                                                                                    </button>
-                                                                                    <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors">
-                                                                                        <Bookmark size={12} />
-                                                                                        {isRTL ? 'حفظ' : 'Save'}
-                                                                                    </button>
-                                                                                </div>
-                                                                            )}
-                                                                        </>
-                                                                    )}
+                                                                {/* Name Row */}
+                                                                <div className={`flex items-center gap-2 mb-1 ${isMsgRtl ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                                    <span className="text-[12px] font-bold text-[var(--osool-deep-teal)] select-none">
+                                                                        {isMsgRtl ? 'عمرو' : 'AMR'}
+                                                                    </span>
+                                                                    <span className="text-[9px] text-[var(--color-text-muted-studio)] opacity-50 select-none">
+                                                                        {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
                                                                 </div>
+
+                                                                {/* Message body */}
+                                                                <div
+                                                                    className={`ai-message-body w-full ${msg.isTyping && !msg.content ? 'streaming' : ''} ${marginClass}`}
+                                                                    // Force border radius logic inline to override global CSS dependence on [dir]
+                                                                    style={{
+                                                                        borderTopLeftRadius: isMsgRtl ? 'var(--radius-message)' : '4px',
+                                                                        borderTopRightRadius: isMsgRtl ? '4px' : 'var(--radius-message)'
+                                                                    }}
+                                                                >
+                                                                    {/* Accent border - positioned based on direction */}
+                                                                    <div
+                                                                        className="ai-accent-border"
+                                                                        style={{
+                                                                            left: isMsgRtl ? 'auto' : 0,
+                                                                            right: isMsgRtl ? 0 : 'auto',
+                                                                            borderRadius: isMsgRtl ? '0 3px 3px 0' : '3px 0 0 3px'
+                                                                        }}
+                                                                    />
+
+                                                                    <div className={`p-4 sm:p-5 ${isMsgRtl ? 'pr-5 sm:pr-6' : 'pl-5 sm:pl-6'}`}>
+                                                                        {msg.isTyping && !msg.content ? (
+                                                                            /* Typing Indicator (Bar) */
+                                                                            <div className="flex flex-col gap-2">
+                                                                                <div className={`flex ${isMsgRtl ? 'justify-end' : 'justify-start'} px-4`}>
+                                                                                    <div className="bg-[var(--ai-surface)] p-3 rounded-2xl rounded-tl-none border border-[var(--ai-surface-border)] shadow-sm">
+                                                                                        <div className="typing-bar" />
+                                                                                    </div>
+                                                                                </div>
+                                                                                <span className="text-[12px] text-[var(--color-text-muted-studio)] px-4">
+                                                                                    {isMsgRtl ? 'جاري التحليل...' : 'Analyzing...'}
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <>
+                                                                                <div
+                                                                                    className={`ai-message-content text-[13px] sm:text-sm leading-relaxed text-[var(--color-text-main)] prose prose-sm dark:prose-invert max-w-none prose-headings:text-[var(--osool-deep-teal)] prose-strong:text-[var(--osool-deep-teal)] prose-code:bg-[var(--osool-deep-teal)]/5 prose-code:text-[var(--osool-deep-teal)] prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-table:border-collapse prose-th:border prose-th:border-[var(--color-border-subtle)] prose-th:p-2 prose-td:border prose-td:border-[var(--color-border-subtle)] prose-td:p-2`}
+                                                                                    dir={dirAttr}
+                                                                                >
+                                                                                    <ReactMarkdown
+                                                                                        remarkPlugins={[remarkGfm]}
+                                                                                        rehypePlugins={[rehypeRaw]}
+                                                                                        components={{
+                                                                                            p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${alignClass}`} {...props} />,
+                                                                                            strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
+                                                                                            ul: ({ node, ...props }) => <ul className={`list-disc ${isMsgRtl ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
+                                                                                            ol: ({ node, ...props }) => <ol className={`list-decimal ${isMsgRtl ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
+                                                                                            li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                                                                                            h2: ({ node, ...props }) => <h2 className={`text-lg font-bold text-[var(--osool-deep-teal)] mt-4 mb-2 ${alignClass}`} {...props} />,
+                                                                                            h3: ({ node, ...props }) => <h3 className={`text-base font-bold text-[var(--osool-deep-teal)] mt-3 mb-2 ${alignClass}`} {...props} />,
+                                                                                            table: ({ node, ...props }) => <table className={`w-full border-collapse my-4 text-sm ${alignClass}`} {...props} />,
+                                                                                            th: ({ node, ...props }) => <th className={`border border-[var(--color-border-subtle)] p-2 bg-[var(--ai-surface)] font-bold ${alignClass}`} {...props} />,
+                                                                                            td: ({ node, ...props }) => <td className={`border border-[var(--color-border-subtle)] p-2 ${alignClass}`} {...props} />,
+                                                                                            code: ({ node, inline, className, children, ...props }: any) => {
+                                                                                                const match = /language-(\w+)/.exec(className || '');
+                                                                                                return !inline && match ? (
+                                                                                                    <CodeBlock language={match[1]} value={String(children).replace(/\n$/, '')} />
+                                                                                                ) : (
+                                                                                                    <code className="bg-[var(--osool-deep-teal)]/10 text-[var(--osool-deep-teal)] px-1.5 py-0.5 rounded font-mono text-sm" {...props}>
+                                                                                                        {children}
+                                                                                                    </code>
+                                                                                                );
+                                                                                            },
+                                                                                            blockquote: ({ node, ...props }) => (
+                                                                                                <blockquote className={`border-${isMsgRtl ? 'r' : 'l'}-4 border-[var(--osool-deep-teal)] ${isMsgRtl ? 'pr-4' : 'pl-4'} my-4 italic bg-[var(--ai-surface)] p-3 rounded-${isMsgRtl ? 'l' : 'r'}`} {...props} />
+                                                                                            )
+                                                                                        }}
+                                                                                    >
+                                                                                        {msg.content}
+                                                                                    </ReactMarkdown>
+                                                                                </div>
+
+                                                                                {/* Action bar */}
+                                                                                {!msg.isTyping && msg.content && (
+                                                                                    <div className="ai-message-actions mt-3 pt-3 border-t border-[var(--ai-surface-border)]">
+                                                                                        <button
+                                                                                            onClick={() => handleCopyMessage(msg.id, msg.content)}
+                                                                                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors"
+                                                                                        >
+                                                                                            {copiedMsgId === msg.id ? <Check size={12} /> : <Copy size={12} />}
+                                                                                            {copiedMsgId === msg.id ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}
+                                                                                        </button>
+                                                                                        <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--color-studio-gray)] hover:text-[var(--color-text-main)] transition-colors">
+                                                                                            <Bookmark size={12} />
+                                                                                            {isRTL ? 'حفظ' : 'Save'}
+                                                                                        </button>
+                                                                                    </div>
+                                                                                )}
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Featured Property Cards - Show ALL recommended properties */}
+                                                                <AnimatePresence>
+                                                                    {msg.properties?.length > 0 && (
+                                                                        <motion.div
+                                                                            initial={{ opacity: 0, height: 0 }}
+                                                                            animate={{ opacity: 1, height: 'auto' }}
+                                                                            transition={{ duration: 0.4, ease: 'easeOut' }}
+                                                                            className={`mt-3 space-y-3 overflow-hidden ${marginClass}`}
+                                                                        >
+                                                                            {msg.properties.map((property: any, propIdx: number) => (
+                                                                                <motion.div
+                                                                                    key={property.id || propIdx}
+                                                                                    initial={{ opacity: 0, y: 10 }}
+                                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                                    transition={{ delay: propIdx * 0.1 }}
+                                                                                >
+                                                                                    <FeaturedPropertyCard
+                                                                                        property={property}
+                                                                                        onRequestDetails={() => { }}
+                                                                                        onBookmark={() => { }}
+                                                                                        isRTL={isMsgRtl}
+                                                                                    />
+                                                                                </motion.div>
+                                                                            ))}
+                                                                        </motion.div>
+                                                                    )}
+                                                                </AnimatePresence>
+
+                                                                {/* Compact Visualizations */}
+                                                                <AnimatePresence>
+                                                                    {msg.visualizations?.length > 0 && (
+                                                                        <motion.div
+                                                                            initial={{ opacity: 0, height: 0 }}
+                                                                            animate={{ opacity: 1, height: 'auto' }}
+                                                                            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.15 }}
+                                                                            className={`mt-3 space-y-2 sm:space-y-3 overflow-hidden ${marginClass}`}
+                                                                        >
+                                                                            <UnifiedAnalytics visualizations={msg.visualizations} isRTL={isMsgRtl} />
+                                                                        </motion.div>
+                                                                    )}
+                                                                </AnimatePresence>
                                                             </div>
-
-                                                            {/* Featured Property Cards - Show ALL recommended properties */}
-                                                            <AnimatePresence>
-                                                                {msg.properties?.length > 0 && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                                        transition={{ duration: 0.4, ease: 'easeOut' }}
-                                                                        className={`mt-3 space-y-3 overflow-hidden ${marginClass}`}
-                                                                    >
-                                                                        {msg.properties.map((property: any, propIdx: number) => (
-                                                                            <motion.div
-                                                                                key={property.id || propIdx}
-                                                                                initial={{ opacity: 0, y: 10 }}
-                                                                                animate={{ opacity: 1, y: 0 }}
-                                                                                transition={{ delay: propIdx * 0.1 }}
-                                                                            >
-                                                                                <FeaturedPropertyCard
-                                                                                    property={property}
-                                                                                    onRequestDetails={() => { }}
-                                                                                    onBookmark={() => { }}
-                                                                                    isRTL={isMsgRtl}
-                                                                                />
-                                                                            </motion.div>
-                                                                        ))}
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-
-                                                            {/* Compact Visualizations */}
-                                                            <AnimatePresence>
-                                                                {msg.visualizations?.length > 0 && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                                        transition={{ duration: 0.4, ease: 'easeOut', delay: 0.15 }}
-                                                                        className={`mt-3 space-y-2 sm:space-y-3 overflow-hidden ${marginClass}`}
-                                                                    >
-                                                                        <UnifiedAnalytics visualizations={msg.visualizations} isRTL={isMsgRtl} />
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
                                                         </div>
                                                     )}
                                                 </>
                                             );
                                         })()}
-                                    </div>
+                                    </div >
                                 ))}
                                 <div ref={messagesEndRef} />
                             </>

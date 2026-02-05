@@ -20,9 +20,10 @@ interface InvestmentScorecardProps {
         annual_return?: number;
         break_even_years?: number;
     };
+    isRTL?: boolean;
 }
 
-export default function InvestmentScorecard({ property, analysis }: InvestmentScorecardProps) {
+export default function InvestmentScorecard({ property, analysis, isRTL = false }: InvestmentScorecardProps) {
     // Defensive check for required props
     if (!property || !property.title) {
         console.warn('InvestmentScorecard: Missing required property data');
@@ -39,6 +40,34 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
         annual_return = 0,
         break_even_years = 0
     } = analysis;
+
+    // i18n labels
+    const labels = {
+        matchScore: isRTL ? 'درجة التوافق' : 'Match Score',
+        roiProjection: isRTL ? 'العائد على الاستثمار' : 'ROI Projection',
+        annual: isRTL ? '% سنوياً' : '% annual',
+        riskLevel: isRTL ? 'مستوى المخاطرة' : 'Risk Level',
+        marketTrend: isRTL ? 'اتجاه السوق' : 'Market Trend',
+        locationQuality: isRTL ? 'جودة الموقع' : 'Location Quality',
+        breakEven: isRTL ? 'نقطة التعادل:' : 'Break-even:',
+        years: isRTL ? 'سنة' : 'years',
+        strongGrowth: isRTL ? 'نمو قوي' : 'Strong growth',
+        declining: isRTL ? 'هبوط' : 'Declining',
+        steadyMarket: isRTL ? 'سوق مستقر' : 'Steady market',
+        locationDesc: isRTL ? 'بناءً على البنية التحتية والمدارس والمستشفيات وإمكانية الوصول' : 'Based on infrastructure, schools, hospitals, and accessibility',
+        aiAnalysis: isRTL ? 'تحليل أصول الذكي' : 'Osool AI Analysis',
+        currency: isRTL ? 'ج.م' : 'EGP',
+        riskLabels: {
+            Low: isRTL ? 'منخفض' : 'Low',
+            Medium: isRTL ? 'متوسط' : 'Medium',
+            High: isRTL ? 'مرتفع' : 'High'
+        },
+        trendLabels: {
+            Bullish: isRTL ? 'صاعد' : 'Bullish',
+            Bearish: isRTL ? 'هابط' : 'Bearish',
+            Stable: isRTL ? 'مستقر' : 'Stable'
+        }
+    };
 
     // Color coding
     const riskColors = {
@@ -65,6 +94,7 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="bg-gradient-to-br from-[#1a1c2e] to-[#2d3748] rounded-2xl p-6 border border-white/10 shadow-2xl"
+            dir={isRTL ? 'rtl' : 'ltr'}
         >
             {/* Header */}
             <div className="mb-6">
@@ -72,7 +102,7 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
                 <p className="text-gray-400 text-sm">{property.location}</p>
                 <div className="mt-2 flex items-center gap-2">
                     <span className="text-2xl font-bold text-blue-400">
-                        {(property.price / 1000000).toFixed(1)}M EGP
+                        {(property.price / 1000000).toFixed(1)}M {labels.currency}
                     </span>
                     <span className="text-xs text-gray-500 px-2 py-1 bg-white/5 rounded">
                         {price_verdict}
@@ -90,7 +120,7 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
                     className="bg-white/5 rounded-xl p-4 border border-white/10"
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-400 text-xs">Match Score</span>
+                        <span className="text-gray-400 text-xs">{labels.matchScore}</span>
                         <CheckCircle2 className="w-4 h-4 text-blue-400" />
                     </div>
                     <div className="flex items-end gap-2">
@@ -115,16 +145,16 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
                     className="bg-white/5 rounded-xl p-4 border border-white/10"
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-400 text-xs">ROI Projection</span>
+                        <span className="text-gray-400 text-xs">{labels.roiProjection}</span>
                         <TrendingUp className="w-4 h-4 text-green-400" />
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-3xl font-bold text-green-400">{roi_projection.toFixed(1)}</span>
-                        <span className="text-gray-500 text-sm mb-1">% annual</span>
+                        <span className="text-gray-500 text-sm mb-1">{labels.annual}</span>
                     </div>
                     {annual_return > 0 && (
                         <p className="text-xs text-gray-400 mt-2">
-                            ~{(annual_return / 1000).toFixed(0)}K EGP/year
+                            ~{(annual_return / 1000).toFixed(0)}K {labels.currency}/{isRTL ? 'سنة' : 'year'}
                         </p>
                     )}
                 </motion.div>
@@ -137,15 +167,15 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
                     className={`rounded-xl p-4 border ${riskColors[risk_level]}`}
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-400 text-xs">Risk Level</span>
+                        <span className="text-gray-400 text-xs">{labels.riskLevel}</span>
                         <AlertTriangle className={`w-4 h-4 ${risk_level === "Low" ? "text-green-400" : risk_level === "High" ? "text-red-400" : "text-yellow-400"}`} />
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold">{risk_level}</span>
+                        <span className="text-2xl font-bold">{labels.riskLabels[risk_level]}</span>
                     </div>
                     {break_even_years > 0 && (
                         <p className="text-xs mt-2 opacity-80">
-                            Break-even: {break_even_years} years
+                            {labels.breakEven} {break_even_years} {labels.years}
                         </p>
                     )}
                 </motion.div>
@@ -158,29 +188,29 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
                     className={`rounded-xl p-4 border border-white/10 ${trendColors[market_trend]}`}
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-400 text-xs">Market Trend</span>
+                        <span className="text-gray-400 text-xs">{labels.marketTrend}</span>
                         {trendIcons[market_trend]}
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold">{market_trend}</span>
+                        <span className="text-2xl font-bold">{labels.trendLabels[market_trend]}</span>
                     </div>
                     <div className="flex items-center gap-1 mt-2">
                         {market_trend === "Bullish" && (
                             <>
                                 <TrendingUp className="w-3 h-3 text-green-400" />
-                                <span className="text-xs text-green-400">Strong growth</span>
+                                <span className="text-xs text-green-400">{labels.strongGrowth}</span>
                             </>
                         )}
                         {market_trend === "Bearish" && (
                             <>
                                 <TrendingDown className="w-3 h-3 text-red-400" />
-                                <span className="text-xs text-red-400">Declining</span>
+                                <span className="text-xs text-red-400">{labels.declining}</span>
                             </>
                         )}
                         {market_trend === "Stable" && (
                             <>
                                 <Activity className="w-3 h-3 text-blue-400" />
-                                <span className="text-xs text-blue-400">Steady market</span>
+                                <span className="text-xs text-blue-400">{labels.steadyMarket}</span>
                             </>
                         )}
                     </div>
@@ -196,7 +226,7 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
                     className="bg-white/5 rounded-xl p-4 border border-white/10"
                 >
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-gray-400 text-sm">Location Quality</span>
+                        <span className="text-gray-400 text-sm">{labels.locationQuality}</span>
                         <span className="text-yellow-400 text-lg font-bold">{location_quality.toFixed(1)} ⭐</span>
                     </div>
                     <div className="flex gap-1">
@@ -211,7 +241,7 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
                         ))}
                     </div>
                     <p className="text-xs text-gray-400 mt-2">
-                        Based on infrastructure, schools, hospitals, and accessibility
+                        {labels.locationDesc}
                     </p>
                 </motion.div>
             )}
@@ -220,9 +250,10 @@ export default function InvestmentScorecard({ property, analysis }: InvestmentSc
             <div className="mt-6 pt-4 border-t border-white/10">
                 <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                     <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <span>Osool AI Analysis</span>
+                    <span>{labels.aiAnalysis}</span>
                 </div>
             </div>
         </motion.div>
     );
 }
+

@@ -23,10 +23,63 @@ interface MarketTrendChartProps {
         yoy_change?: number;
         momentum?: string;
     };
+    isRTL?: boolean;
 }
 
-export default function MarketTrendChart({ location, data }: MarketTrendChartProps) {
+export default function MarketTrendChart({ location, data, isRTL = false }: MarketTrendChartProps) {
     const { historical = [], forecast = [], current_price, trend, yoy_change = 0, momentum = "" } = data;
+
+    // i18n labels
+    const labels = {
+        marketTrends: isRTL ? 'اتجاهات السوق' : 'Market Trends',
+        currentAvgPrice: isRTL ? 'متوسط السعر الحالي' : 'Current Avg Price',
+        sqm: isRTL ? 'ج.م/م²' : 'EGP/sqm',
+        yoyChange: isRTL ? 'التغير السنوي' : 'YoY Change',
+        vsLastYear: isRTL ? 'مقارنة بالعام الماضي' : 'vs last year',
+        priceMovement: isRTL ? 'حركة الأسعار' : 'Price Movement',
+        historical: isRTL ? 'تاريخي' : 'Historical',
+        forecast: isRTL ? 'متوقع' : 'Forecast',
+        marketInsights: isRTL ? 'رؤى السوق' : 'Market Insights',
+        aiPowered: isRTL ? 'تحليل مدعوم بـ AMR باستخدام 3,000+ معاملة' : 'Analysis powered by AMR using 3,000+ transactions',
+        trendLabels: {
+            Bullish: isRTL ? 'صاعد' : 'Bullish',
+            Bearish: isRTL ? 'هابط' : 'Bearish',
+            Stable: isRTL ? 'مستقر' : 'Stable'
+        },
+        bullishInsights: isRTL ? [
+            `• ${location} تشهد نمواً قوياً في الأسعار (${yoy_change > 0 ? `+${yoy_change.toFixed(1)}%` : ""} سنوياً)`,
+            '• طلب مرتفع ومعروض محدود يرفعان الأسعار',
+            '• يُنصح بالشراء الآن قبل ارتفاع إضافي',
+            '• من المتوقع استمرار الاتجاه الصاعد خلال 12-24 شهر'
+        ] : [
+            `• ${location} is experiencing strong price growth (${yoy_change > 0 ? `+${yoy_change.toFixed(1)}%` : ""} YoY)`,
+            '• High demand and limited supply driving prices up',
+            '• Consider buying now before further appreciation',
+            '• Expected to continue upward trend in next 12-24 months'
+        ],
+        bearishInsights: isRTL ? [
+            `• ${location} تُظهر انخفاضاً في الأسعار (${yoy_change < 0 ? `${yoy_change.toFixed(1)}%` : ""} سنوياً)`,
+            '• فرصة شراء محتملة إذا كانت الأساسيات قوية',
+            '• فكر في التفاوض للحصول على أسعار أفضل',
+            '• راقب السوق لإشارات الاستقرار'
+        ] : [
+            `• ${location} showing declining prices (${yoy_change < 0 ? `${yoy_change.toFixed(1)}%` : ""} YoY)`,
+            '• Potential buying opportunity if fundamentals are strong',
+            '• Consider negotiating for better prices',
+            '• Monitor market for stabilization signals'
+        ],
+        stableInsights: isRTL ? [
+            `• سوق ${location} مستقر بأسعار ثابتة`,
+            '• وقت مناسب للاستثمار طويل الأجل',
+            '• عوائد متوقعة مع تقلبات أقل',
+            '• ركز على العائد الإيجاري وجودة الموقع'
+        ] : [
+            `• ${location} market is stable with steady prices`,
+            '• Good time for long-term investment',
+            '• Predictable returns with lower volatility',
+            '• Focus on rental yield and location quality'
+        ]
+    };
 
     // Combine historical and forecast data
     const combinedData = [
@@ -80,13 +133,14 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-surface-elevated)] rounded-2xl p-6 border border-[var(--color-border)] shadow-2xl"
+                dir={isRTL ? 'rtl' : 'ltr'}
             >
                 {/* Header */}
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2">
                             <Activity className="w-5 h-5 text-blue-400" />
-                            Market Trends
+                            {labels.marketTrends}
                         </h3>
                         <motion.div
                             initial={{ scale: 0 }}
@@ -95,7 +149,7 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${config.bg} border ${config.border}`}
                         >
                             {config.icon}
-                            <span className={`font-semibold text-sm ${config.text}`}>{trend}</span>
+                            <span className={`font-semibold text-sm ${config.text}`}>{labels.trendLabels[trend]}</span>
                         </motion.div>
                     </div>
                     <p className="text-[var(--color-text-secondary)] text-sm">{location}</p>
@@ -110,11 +164,11 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                         transition={{ delay: 0.1 }}
                         className="bg-[var(--color-surface-elevated)] rounded-xl p-4 border border-[var(--color-border)]"
                     >
-                        <div className="text-xs text-[var(--color-text-muted)] mb-1">Current Avg Price</div>
+                        <div className="text-xs text-[var(--color-text-muted)] mb-1">{labels.currentAvgPrice}</div>
                         <div className="text-2xl font-bold text-[var(--color-text-primary)]">
                             {(current_price / 1000).toFixed(0)}K
                         </div>
-                        <div className="text-xs text-[var(--color-text-muted)] mt-1">EGP/sqm</div>
+                        <div className="text-xs text-[var(--color-text-muted)] mt-1">{labels.sqm}</div>
                     </motion.div>
 
                     {/* YoY Change */}
@@ -125,7 +179,7 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                             transition={{ delay: 0.2 }}
                             className={`rounded-xl p-4 border ${config.bg} ${config.border}`}
                         >
-                            <div className="text-xs text-[var(--color-text-muted)] mb-1">YoY Change</div>
+                            <div className="text-xs text-[var(--color-text-muted)] mb-1">{labels.yoyChange}</div>
                             <div className={`text-2xl font-bold ${config.text} flex items-center gap-1`}>
                                 {yoy_change > 0 ? "+" : ""}{yoy_change.toFixed(1)}%
                                 {yoy_change > 0 ? (
@@ -134,7 +188,7 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                                     <TrendingDown className="w-4 h-4" />
                                 )}
                             </div>
-                            <div className="text-xs text-[var(--color-text-muted)] mt-1">vs last year</div>
+                            <div className="text-xs text-[var(--color-text-muted)] mt-1">{labels.vsLastYear}</div>
                         </motion.div>
                     )}
 
@@ -162,7 +216,7 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                         transition={{ delay: 0.4 }}
                         className="bg-[var(--color-surface-elevated)] rounded-xl p-4 border border-[var(--color-border)] mb-6"
                     >
-                        <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-4">Price Movement</h4>
+                        <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-4">{labels.priceMovement}</h4>
                         <ResponsiveContainer width="100%" height={250}>
                             <AreaChart data={combinedData}>
                                 <defs>
@@ -190,8 +244,8 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                                         color: "#fff"
                                     }}
                                     formatter={(value: number, name: string) => [
-                                        `${(value / 1000).toFixed(1)}K EGP/sqm`,
-                                        name === "price" ? "Price" : name
+                                        `${(value / 1000).toFixed(1)}K ${isRTL ? 'ج.م/م²' : 'EGP/sqm'}`,
+                                        name === "price" ? (isRTL ? "السعر" : "Price") : name
                                     ]}
                                 />
                                 <Area
@@ -209,12 +263,12 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                         <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-400">
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: config.color }} />
-                                <span>Historical</span>
+                                <span>{labels.historical}</span>
                             </div>
                             {forecast.length > 0 && (
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full border-2" style={{ borderColor: config.color }} />
-                                    <span>Forecast</span>
+                                    <span>{labels.forecast}</span>
                                 </div>
                             )}
                         </div>
@@ -231,32 +285,17 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                     <div className="flex items-start gap-3">
                         <AlertCircle className={`w-5 h-5 ${config.text} flex-shrink-0 mt-0.5`} />
                         <div>
-                            <h5 className={`text-sm font-semibold ${config.text} mb-2`}>Market Insights</h5>
+                            <h5 className={`text-sm font-semibold ${config.text} mb-2`}>{labels.marketInsights}</h5>
                             <div className="space-y-2 text-xs text-[var(--color-text-muted)]">
-                                {trend === "Bullish" && (
-                                    <>
-                                        <p>• {location} is experiencing strong price growth ({yoy_change > 0 ? `+${yoy_change.toFixed(1)}%` : ""} YoY)</p>
-                                        <p>• High demand and limited supply driving prices up</p>
-                                        <p>• Consider buying now before further appreciation</p>
-                                        <p>• Expected to continue upward trend in next 12-24 months</p>
-                                    </>
-                                )}
-                                {trend === "Bearish" && (
-                                    <>
-                                        <p>• {location} showing declining prices ({yoy_change < 0 ? `${yoy_change.toFixed(1)}%` : ""} YoY)</p>
-                                        <p>• Potential buying opportunity if fundamentals are strong</p>
-                                        <p>• Consider negotiating for better prices</p>
-                                        <p>• Monitor market for stabilization signals</p>
-                                    </>
-                                )}
-                                {trend === "Stable" && (
-                                    <>
-                                        <p>• {location} market is stable with steady prices</p>
-                                        <p>• Good time for long-term investment</p>
-                                        <p>• Predictable returns with lower volatility</p>
-                                        <p>• Focus on rental yield and location quality</p>
-                                    </>
-                                )}
+                                {trend === "Bullish" && labels.bullishInsights.map((insight, i) => (
+                                    <p key={i}>{insight}</p>
+                                ))}
+                                {trend === "Bearish" && labels.bearishInsights.map((insight, i) => (
+                                    <p key={i}>{insight}</p>
+                                ))}
+                                {trend === "Stable" && labels.stableInsights.map((insight, i) => (
+                                    <p key={i}>{insight}</p>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -266,10 +305,11 @@ export default function MarketTrendChart({ location, data }: MarketTrendChartPro
                 <div className="mt-6 pt-4 border-t border-white/10">
                     <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                         <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                        <span>Analysis powered by AMR using 3,000+ transactions</span>
+                        <span>{labels.aiPowered}</span>
                     </div>
                 </div>
             </motion.div>
         </ClientOnly>
     );
 }
+
