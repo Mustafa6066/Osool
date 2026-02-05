@@ -801,9 +801,8 @@ class OsoolAgent:
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
 
         # Phase 3: Customer Intelligence Tracking
-        self.customer_segment = CustomerSegment.UNKNOWN
-        self.lead_score = None
-        self.objection_count = {}  # Track objections by type
+        # REMOVED: self.customer_segment, self.lead_score (now calculated per-request to fix state bug)
+        self.objection_count = {}  # Track objections by type - per session
         self.session_start_time = datetime.now()
         self.properties_viewed_count = 0
         self.tools_used_list = []
@@ -969,9 +968,10 @@ Remember: You're building long-term relationships. A client who trusts you bring
         self.agent = create_openai_tools_agent(self.llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(agent=self.agent, tools=self.tools, verbose=True)
 
-    def _build_dynamic_system_prompt(self, conversation_history: List[BaseMessage], user: Optional[dict] = None) -> str:
+    def _build_dynamic_system_prompt(self, conversation_history: List[BaseMessage], lead_score: dict, customer_segment: CustomerSegment, user: Optional[dict] = None) -> str:
         """
-        Build personalized system prompt based on customer segment and lead score.
+        Build personalized system prompt based on calculated score and segment.
+        NOTE: lead_score and customer_segment are now passed as parameters (calculated per-request).
         """
         
         # User Gating status
@@ -979,11 +979,19 @@ Remember: You're building long-term relationships. A client who trusts you bring
         if user:
             user_context = f"VERIFIED USER: {user.full_name} ({user.email or user.wallet_address})"
 
+        # Check if conversation is active (avoid repetitive intros)
+        is_conversation_active = len(conversation_history) > 2
+
         base_prompt = f"""You are **Amr**, the "Wolf of Osool" - Egypt's Most Trusted Real Estate Consultant at Osool.
 
 **CURRENT USER STATUS: {user_context}**
 
 **YOUR MISSION:** Guide investors to make profitable, blockchain-verified real estate decisions.
+
+**CORE BEHAVIOR:**
+1. Acknowledge what the user just said. NEVER ignore their input.
+2. If they answered your question (e.g., they said "Housing" or "Sakan"), move to the NEXT step (Budget).
+3. Do NOT repeat the "Velvet Rope" introduction if you have already said it.
 
 **GATING RULES (CRITICAL):**
 1. IF USER IS GUEST:
@@ -1015,9 +1023,11 @@ Do this BEFORE showing a property.
 **TONE:** confident, protective, data-driven ("Wolf" persona).
 """
 
-        # NEW: The Screening Gate (Velvet Rope Protocol)
-        current_score = self.lead_score['score'] if self.lead_score else 0
-        if self.customer_segment == CustomerSegment.UNKNOWN or current_score < 20:
+        # THE VELVET ROPE (Screening Logic) - Fixed to check conversation activity
+        current_score = lead_score['score'] if lead_score else 0
+        
+        # Logic Fix: Only trigger strict gating if score is low AND conversation is just starting
+        if (customer_segment == CustomerSegment.UNKNOWN or current_score < 20) and not is_conversation_active:
             gating_instruction = """
             
 🚨 **SCREENING MODE ACTIVE (VELVET ROPE PROTOCOL)** 🚨
@@ -1028,14 +1038,25 @@ The user has NOT yet qualified (Lead Score < 20).
 4. Use the 'Authority Bridge': "Before I show you the premium units, I need to know your liquidity range to filter out bad investments."
 """
             base_prompt += gating_instruction
+            
+        elif (customer_segment == CustomerSegment.UNKNOWN) and is_conversation_active:
+            # Logic Fix: If conversation is active but still unknown segment, ask specifically for missing info
+            base_prompt += """
+
+**QUALIFICATION UPDATE:**
+The user has engaged, but we still need their **Budget** to give specific recommendations.
+- Acknowledge their last response (e.g., "Great choice for housing" or "ممتاز للسكن").
+- Ask specifically for the budget range now.
+- DO NOT repeat the "Before I show you prices" intro.
+"""
 
         # Add customer segment personality if classified
-        if self.customer_segment != CustomerSegment.UNKNOWN:
-            persona = get_persona_config(self.customer_segment)
+        if customer_segment != CustomerSegment.UNKNOWN:
+            persona = get_persona_config(customer_segment)
 
             segment_enhancement = f"""
 
-**CUSTOMER PROFILE: {self.customer_segment.value.upper()}**
+**CUSTOMER PROFILE: {customer_segment.value.upper()}**
 - Tone: {persona["tone"]}
 - Language Style: {persona["language_style"]}
 - Focus Areas: {", ".join(persona["focus"])}
@@ -1046,17 +1067,17 @@ The user has NOT yet qualified (Lead Score < 20).
             base_prompt += segment_enhancement
 
         # Add lead temperature strategy if scored
-        if self.lead_score:
-            temp = self.lead_score["temperature"]
-            score = self.lead_score["score"]
-            action = self.lead_score["recommended_action"]
+        if lead_score:
+            temp = lead_score["temperature"]
+            score = lead_score["score"]
+            action = lead_score["recommended_action"]
 
             lead_strategy = f"""
 
 **LEAD TEMPERATURE: {temp.upper()} (Score: {score}/100)**
 - Priority Level: {"🔥 HIGH" if temp == "hot" else "⚡ MEDIUM" if temp == "warm" else "❄️ LOW"}
 - Recommended Action: {action}
-- Signals Detected: {", ".join(self.lead_score.get("signals", []))}
+- Signals Detected: {", ".join(lead_score.get("signals", []))}
 
 **Conversation Strategy for {temp.upper()} Lead:**
 """
@@ -1181,18 +1202,19 @@ Remember: You're building long-term relationships. A client who trusts you bring
                 self.chat_histories[session_id] = []
             self.chat_histories[session_id] = chat_history
 
-            # Phase 3: Classify customer segment if not yet classified
-            if self.customer_segment == CustomerSegment.UNKNOWN and len(chat_history) >= 2:
-                # Extract budget from conversation
-                conversation_list = [
-                    {"role": msg.type, "content": msg.content}
-                    for msg in chat_history
-                ]
-                budget = extract_budget_from_conversation(conversation_list)
+            # Phase 3: Classify customer segment PER REQUEST (fixes singleton state bug)
+            # Convert chat history to conversation list format
+            conversation_list = [
+                {"role": msg.type, "content": msg.content}
+                for msg in chat_history
+            ]
+            
+            # Extract budget from conversation
+            budget = extract_budget_from_conversation(conversation_list)
 
-                # Classify customer
-                self.customer_segment = classify_customer(budget, conversation_list)
-                print(f"🎯 Customer classified as: {self.customer_segment.value}")
+            # Classify customer per-request
+            current_customer_segment = classify_customer(budget, conversation_list)
+            print(f"🎯 Customer classified as: {current_customer_segment.value}")
 
             # Phase 3: Detect objections
             objection = detect_objection(user_input)
@@ -1215,15 +1237,17 @@ Remember: You're building long-term relationships. A client who trusts you bring
                 "duration_minutes": (datetime.now() - self.session_start_time).total_seconds() / 60
             }
 
-            conversation_list_for_scoring = [
-                {"role": msg.type, "content": msg.content}
-                for msg in chat_history
-            ]
-            self.lead_score = score_lead(conversation_list_for_scoring, session_metadata)
-            print(f"📊 Lead Score: {self.lead_score['score']} ({self.lead_score['temperature']})")
+            # Calculate lead score per-request (fixes singleton state bug)
+            current_lead_score = score_lead(conversation_list, session_metadata)
+            print(f"📊 Lead Score: {current_lead_score['score']} ({current_lead_score['temperature']})")
 
-            # Phase 3: Build dynamic system prompt
-            dynamic_prompt_text = self._build_dynamic_system_prompt(chat_history, user)
+            # Phase 3: Build dynamic system prompt with local state
+            dynamic_prompt_text = self._build_dynamic_system_prompt(
+                chat_history, 
+                current_lead_score, 
+                current_customer_segment, 
+                user
+            )
 
             # Create dynamic prompt template
             dynamic_prompt = ChatPromptTemplate.from_messages([
