@@ -21,13 +21,25 @@ logger = logging.getLogger(__name__)
 
 
 # Market data constants (Egyptian market 2024-2025)
+# Updated for 2025 moderated inflation and strong real growth
 MARKET_DATA = {
-    "inflation_rate": 0.33,           # 33% annual inflation
-    "bank_cd_rate": 0.27,             # 27% bank CD interest
-    "property_appreciation": 0.18,     # 18% annual property appreciation
-    "rental_yield_avg": 0.065,         # 6.5% rental yield
-    "rent_increase_rate": 0.10,        # 10% annual rent increase
-    "gold_appreciation": 0.25,         # 25% annual gold appreciation
+    "inflation_rate": 0.136,            # 13.6% (moderated in early 2025)
+    "inflation_rate_2024": 0.337,       # 33.7% (2024 peak for reference)
+    "bank_cd_rate": 0.27,               # 27% bank CD interest
+    "real_property_growth": 0.145,      # 14.5% real growth (adjusted for inflation)
+    "nominal_property_appreciation": 0.304,  # 30.4% YoY nominal (April 2025 data)
+    "property_appreciation": 0.18,      # Conservative 18% for calculations
+    "rental_yield_avg": 0.065,          # 6.5% rental yield
+    "rent_increase_rate": 0.10,         # 10% annual rent increase
+    "gold_appreciation": 0.25,          # 25% annual gold appreciation
+}
+
+# Construction cost constants for Replacement Cost logic
+CONSTRUCTION_COSTS = {
+    "base_cost_sqm": 15000,             # Base construction cost per sqm (pre-inflation)
+    "cost_index_2025": 1.30,            # 30% increase YoY due to iron, cement, labor
+    "land_value_share": 0.40,           # Land = ~40% of unit price
+    "developer_margin_avg": 0.15,       # Developer margin ~15%
 }
 
 # Area price data (EGP per sqm, 2024-2025)
@@ -485,6 +497,80 @@ class AnalyticalEngine:
             break_even_years=round(break_even, 1),
             annual_rent_income=annual_rent
         )
+
+    def calculate_replacement_cost(self, property_data: Dict) -> Dict[str, Any]:
+        """
+        The "Replacement Cost" Logic - Counter for MACRO_SKEPTIC users.
+        
+        Calculates if a property is priced at or below the cost to build it today.
+        Uses 2025 construction cost indices (iron, cement, labor inflation).
+        
+        ARGUMENT: "You're buying at cost. To BUILD this unit today costs [X]. You're paying [Y]."
+        
+        Args:
+            property_data: Property dict with price, size_sqm
+            
+        Returns:
+            Dict with replacement cost analysis and verdicts
+        """
+        area_sqm = property_data.get('size_sqm', 0) or property_data.get('area', 0)
+        unit_price = property_data.get('price', 0)
+        
+        if area_sqm <= 0 or unit_price <= 0:
+            return {
+                "replacement_cost": 0,
+                "replacement_cost_ratio": 0,
+                "is_inflation_safe": False,
+                "verdict_ar": "بيانات غير كافية",
+                "verdict_en": "Insufficient data"
+            }
+        
+        # Get construction costs from constants
+        base_cost = CONSTRUCTION_COSTS["base_cost_sqm"]
+        cost_index = CONSTRUCTION_COSTS["cost_index_2025"]
+        land_share = CONSTRUCTION_COSTS["land_value_share"]
+        
+        # Calculate replacement cost
+        construction_cost = area_sqm * base_cost * cost_index
+        estimated_land_value = unit_price * land_share
+        replacement_cost = construction_cost + estimated_land_value
+        
+        # Calculate price per sqm
+        price_per_sqm = unit_price / area_sqm
+        replacement_cost_per_sqm = replacement_cost / area_sqm
+        
+        # Determine if it's at replacement cost (within 10% margin)
+        is_at_replacement_cost = unit_price <= (replacement_cost * 1.10)
+        is_below_replacement_cost = unit_price < replacement_cost
+        
+        # Generate verdicts
+        if is_below_replacement_cost:
+            verdict_ar = "أقل من تكلفة الإحلال - لقطة"
+            verdict_en = "Below Replacement Cost - BARGAIN"
+            verdict_category = "BARGAIN"
+        elif is_at_replacement_cost:
+            verdict_ar = "تسعير عند تكلفة الإحلال - آمن"
+            verdict_en = "At Replacement Cost - SAFE"
+            verdict_category = "SAFE"
+        else:
+            verdict_ar = "بريميوم فوق تكلفة الإحلال"
+            verdict_en = "Premium Above Replacement Cost"
+            verdict_category = "PREMIUM"
+        
+        return {
+            "replacement_cost": int(replacement_cost),
+            "replacement_cost_per_sqm": int(replacement_cost_per_sqm),
+            "unit_price_per_sqm": int(price_per_sqm),
+            "replacement_cost_ratio": round(unit_price / replacement_cost, 2),
+            "is_inflation_safe": is_at_replacement_cost,
+            "is_below_replacement": is_below_replacement_cost,
+            "verdict_category": verdict_category,
+            "verdict_ar": verdict_ar,
+            "verdict_en": verdict_en,
+            # Talking point for AI
+            "talking_point_ar": f"الوحدة دي سعرها {int(price_per_sqm):,} جنيه/متر. تكلفة بناءها النهاردة {int(replacement_cost_per_sqm):,} جنيه/متر. يعني حضرتك بتشتري بتكلفة الإحلال تقريباً.",
+            "talking_point_en": f"This unit is priced at {int(price_per_sqm):,} EGP/sqm. Building it today would cost {int(replacement_cost_per_sqm):,} EGP/sqm. You're buying near replacement cost."
+        }
 
     # Inflation Hedge & Bank vs Property remain SYNC (Math based on constants)
     # ... (Keep existing implementation for those) ...

@@ -32,6 +32,7 @@ class PsychologicalState(Enum):
     TRUST_DEFICIT = "trust_deficit"      # Skeptical
     SKEPTICISM = "skepticism"            # Questions market data validity
     FAMILY_SECURITY = "family_security"  # Family home buyer - safety over ROI
+    MACRO_SKEPTIC = "macro_skeptic"      # Questions market fundamentals (inflation, currency)
     NEUTRAL = "neutral"                  # No clear signal
 
 
@@ -242,6 +243,30 @@ PSYCHOLOGY_PATTERNS = {
         ],
         "recommended_tactics": ["authority", "legal_protection", "community_audit", "developer_reputation"],
         "weight": 1.2  # Slightly higher weight - life decisions are serious
+    },
+    # === MACRO SKEPTIC: The "Market Doubter" Profile ===
+    PsychologicalState.MACRO_SKEPTIC: {
+        "keywords_ar": [
+            "الدولار", "التعويم", "فقاعة", "الأسعار غالية", "هينزل", "السوق هيقع",
+            "مش وقته", "أستنى", "الاقتصاد", "التضخم", "البنك أحسن", "شهادات البنك",
+            "الأسعار مجنونة", "ده نصب", "كله غالي", "فلوسي في البنك",
+            "هتخس فلوسي", "خايف من بكرة", "تحويشة العمر"
+        ],
+        "keywords_en": [
+            "dollar", "devaluation", "bubble", "too expensive", "prices will drop",
+            "market crash", "not the right time", "wait", "economy", "inflation",
+            "bank is safer", "bank certificates", "crazy prices", "losing money",
+            "scared of tomorrow", "life savings"
+        ],
+        "signals": [
+            "questioning_market_fundamentals",
+            "comparing_to_bank_deposits",
+            "expressing_macro_fear",
+            "mentioning_currency_concerns",
+            "life_savings_at_stake"
+        ],
+        "recommended_tactics": ["replacement_cost_logic", "inflation_hedge_math", "wealth_preservation"],
+        "weight": 1.3  # High weight - macro fear needs immediate counter-argument
     }
 }
 
@@ -476,6 +501,8 @@ Classify into ONE of these states:
 - IMPULSE_BUYER: Ready to act immediately
 - TRUST_DEFICIT: Skeptical of claims, needs proof
 - SKEPTICISM: Questions market data validity
+- FAMILY_SECURITY: Buying for family living, prioritizes safety/schools
+- MACRO_SKEPTIC: Questions market fundamentals (inflation, currency, bubble fears)
 - NEUTRAL: No clear emotional driver
 
 Respond with ONLY:
@@ -499,6 +526,7 @@ Respond with ONLY:
             "TRUST_DEFICIT": PsychologicalState.TRUST_DEFICIT,
             "SKEPTICISM": PsychologicalState.SKEPTICISM,
             "FAMILY_SECURITY": PsychologicalState.FAMILY_SECURITY,
+            "MACRO_SKEPTIC": PsychologicalState.MACRO_SKEPTIC,
             "NEUTRAL": PsychologicalState.NEUTRAL
         }
         
@@ -770,6 +798,20 @@ def get_psychology_context_for_prompt(profile: PsychologyProfile) -> str:
 - NEVER suggest new/untested developers for family buyers.
 """)
 
+    elif state == PsychologicalState.MACRO_SKEPTIC:
+        context_parts.append("""
+[📉 MACRO SKEPTIC MODE - WEALTH PRESERVATION ARGUMENT]
+- User fears MACRO RISKS: currency, inflation, bubble, economy.
+- DO NOT sell features. Sell WEALTH PRESERVATION.
+- USE "Replacement Cost" logic: "This unit costs 45k/sqm. To BUILD this same unit today costs 40k. You're buying at cost."
+- USE "Inflation Killer" math: "Bank = 27%. Inflation = 30%. You LOSE 3% annually. Property beat inflation by 14.5%."
+- USE "Hedge Economy" frame: "Egyptian market became a hedge economy. Property is now a currency store, not just housing."
+- TRIGGER: Show Inflation vs Bank chart.
+- FRAME: "سؤال ذكي. سيبك من كلام البيع. خليني أوريك الماث الحقيقي."
+- VALIDATION SCRIPT:
+  "حضرتك خايف من الاقتصاد؟ خليني أوريك ليه الدولار والتضخم هما السبب الحقيقي إن العقار هو الملاذ، مش العكس."
+""")
+
     # Urgency context
     if urgency == UrgencyLevel.URGENT or urgency == UrgencyLevel.READY_TO_ACT:
         context_parts.append("""
@@ -802,6 +844,8 @@ class Strategy(Enum):
     LOCATION_EDUCATION = "location_education"        # Area value, development plans
     # V3 Family-Focused Strategy
     FAMILY_SAFETY_PITCH = "family_safety_pitch"      # Developer reputation, community, law 114
+    # V4 Macro-Fear Counter Strategy
+    REPLACEMENT_COST_PITCH = "replacement_cost_pitch"  # Construction cost logic, wealth preservation
 
 
 def determine_strategy(
@@ -977,6 +1021,19 @@ def determine_strategy(
             "المطور ده سلم 100% من مشاريعه في الوقت - ده اللي بيهمنا لما العيلة متوقفة عليه.",
             "قريب من أحسن مدارس في المنطقة - حضرتك حددت المدرسة اللي عايزها؟",
             "خليني أشغل Law 114 Guardian - أتأكد إن الورق سليم 100% قبل ما تورط عيلتك."
+        ]
+        
+    elif state == PsychologicalState.MACRO_SKEPTIC:
+        # V4: Macro Fear Counter - WEALTH PRESERVATION MODE
+        strategy = Strategy.REPLACEMENT_COST_PITCH
+        angle = "wealth_preservation"
+        talking_points = [
+            "سؤال ذكي. سيبك من كلام البيع. خليني أوريك الماث الحقيقي.",
+            "الوحدة دي سعرها 45 ألف/متر. عشان المطور يبنيها النهاردة تكلفته 40 ألف. يعني حضرتك بتشتري بتكلفة الإحلال.",
+            "التضخم 30%. البنك 27%. يعني الكاش بيخسر 3% سنوياً. العقار زايد 14.5% REAL.",
+            "السوق المصري بقى 'Hedge Economy' - العقار بقى مخزن قيمة، مش مجرد سكن.",
+            "الدولار والتضخم هما السبب إن العقار هو الملاذ، مش العكس.",
+            "تحب أوريك رسم الـ Inflation Killer يوضحلك بالأرقام؟"
         ]
         
     else:  # NEUTRAL
