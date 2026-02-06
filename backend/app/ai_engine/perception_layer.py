@@ -251,9 +251,16 @@ Extract:
    - finishing: core, semi, finished, lux
 
 CONTEXT RULES FOR 'purpose' (CRITICAL - infer meaning, not just keywords):
-- If user says: "home", "family", "kids", "stay", "live", "marriage", "private", "wife", "children", "سكن", "عيلة", "اولاد", "اعيش", "منزل" -> purpose: "living"
-- If user says: "ROI", "rent", "income", "profit", "business", "yield", "return", "flip", "resale", "استثمار", "عائد", "ايجار", "ارباح" -> purpose: "investment"
-- If user says: "office", "shop", "clinic", "commercial", "مكتب", "محل", "عيادة", "تجاري" -> purpose: "commercial"
+- FAMILY LIVING (purpose: "living"): "سكن عائلي", "بيت العيلة", "بيت للعيلة", "استقرار", "مدارس", "سكن", "عيلة", "اولاد", "اعيش", "منزل", "home", "family", "kids", "children", "stay", "live", "marriage", "private", "wife"
+- INVESTMENT (purpose: "investment"): "ROI", "rent", "income", "profit", "business", "yield", "return", "flip", "resale", "استثمار", "عائد", "ايجار", "ارباح"
+- COMMERCIAL (purpose: "commercial"): "office", "shop", "clinic", "commercial", "مكتب", "محل", "عيادة", "تجاري"
+- CAPITAL PRESERVATION: "فلوس البنك", "تحويشة العمر", "حفظ قيمة" -> purpose: "investment" (sub-type: preservation)
+
+INTENT BUCKET RULES (CRITICAL):
+- "serious_buyer": If user mentions FAMILY, CHILDREN, MARRIAGE, LIVING, or specific BUDGET + LOCATION = This is a LIFE DECISION MAKER, not a window shopper.
+- "serious_buyer": budget OR delivery timeline OR specific location = Serious
+- "window_shopper": Generic questions like "show me everything" or "how is the market"
+- "objection_mode": Complaining, debating price, skeptical language
 
 Example query: "عايز شقة 3 غرف في التجمع تحت 5 مليون"
 Example response:
@@ -268,14 +275,25 @@ Example response:
   }
 }
 
-Example query: "I want a place for my kids"
+Example query: "بدور على سكن عائلي قريب من مدارس"
 Example response:
 {
   "action": "search",
   "intent_bucket": "serious_buyer",
   "filters": {
     "purpose": "living",
-    "keywords": "kids"
+    "keywords": "family, schools, community"
+  }
+}
+
+Example query: "I want a place for my kids near schools"
+Example response:
+{
+  "action": "search",
+  "intent_bucket": "serious_buyer",
+  "filters": {
+    "purpose": "living",
+    "keywords": "kids, schools"
   }
 }
 
@@ -292,6 +310,7 @@ IMPORTANT:
 - Convert "مليون" (million) to actual number (5 مليون = 5000000)
 - Normalize locations to English names
 - INFER purpose from context even if not explicitly stated
+- "سكن عائلي" = purpose: "living" + intent_bucket: "serious_buyer"
 - Return ONLY the JSON object, nothing else"""
 
         messages = []

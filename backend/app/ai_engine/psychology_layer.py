@@ -31,6 +31,7 @@ class PsychologicalState(Enum):
     IMPULSE_BUYER = "impulse_buyer"      # Quick decisions
     TRUST_DEFICIT = "trust_deficit"      # Skeptical
     SKEPTICISM = "skepticism"            # Questions market data validity
+    FAMILY_SECURITY = "family_security"  # Family home buyer - safety over ROI
     NEUTRAL = "neutral"                  # No clear signal
 
 
@@ -215,6 +216,32 @@ PSYCHOLOGY_PATTERNS = {
         ],
         "recommended_tactics": ["authority", "proof", "testimonials"],
         "weight": 1.0
+    },
+    # === FAMILY SECURITY: The "Life Decision Maker" Profile ===
+    PsychologicalState.FAMILY_SECURITY: {
+        "keywords_ar": [
+            "سكن عائلي", "بيت العيلة", "بيت للعيلة", "منزل العائلة",
+            "مدارس", "قريب من مدرسة", "المدارس", "أولاد", "اولادي", "الأطفال",
+            "أمان", "أمن", "خصوصية", "جيران", "مجتمع", "كمباوند",
+            "هادي", "هدوء", "مستقر", "استقرار", "سكن", "عيشة",
+            "مجمع مغلق", "سيكيوريتي", "حراسة", "أمان للأولاد",
+            "بنتي", "ابني", "زوجتي", "عروسة", "جواز", "الجواز"
+        ],
+        "keywords_en": [
+            "family home", "family living", "kids", "children", "schools",
+            "near school", "safety", "secure", "privacy", "neighbors",
+            "community", "compound", "gated", "quiet", "peaceful",
+            "settle down", "daughter", "son", "wife", "marriage", "wedding"
+        ],
+        "signals": [
+            "asking_about_schools",
+            "asking_about_community",
+            "mentioning_children",
+            "mentioning_family_needs",
+            "life_decision_language"
+        ],
+        "recommended_tactics": ["authority", "legal_protection", "community_audit", "developer_reputation"],
+        "weight": 1.2  # Slightly higher weight - life decisions are serious
     }
 }
 
@@ -471,6 +498,7 @@ Respond with ONLY:
             "IMPULSE_BUYER": PsychologicalState.IMPULSE_BUYER,
             "TRUST_DEFICIT": PsychologicalState.TRUST_DEFICIT,
             "SKEPTICISM": PsychologicalState.SKEPTICISM,
+            "FAMILY_SECURITY": PsychologicalState.FAMILY_SECURITY,
             "NEUTRAL": PsychologicalState.NEUTRAL
         }
         
@@ -728,6 +756,20 @@ def get_psychology_context_for_prompt(profile: PsychologyProfile) -> str:
 - Don't push hard, build trust first
 """)
 
+    elif state == PsychologicalState.FAMILY_SECURITY:
+        context_parts.append("""
+[🏠 FAMILY SECURITY MODE - LIFE DECISION BUYER]
+- User is buying for FAMILY. This is NOT a financial transaction - it's a LIFE DECISION.
+- DISCARD units with poor developer reputation, even if they have high ROI.
+- PRIORITIZE: Gated communities, schools nearby, established neighborhoods.
+- HIGHLIGHT: Community quality, security, delivery track record.
+- TRIGGER: "Law 114 Guardian" analysis to build legal confidence.
+- FRAME: "Since you mentioned a family home (سكن عائلي), I've filtered for developer reputation over ROI."
+- QUALIFICATION SCRIPT:
+  "'سكن عائلي' كلمة كبيرة عندي. حضرتك بتدور على 'مجمع مغلق' عشان أمان الأولاد؟ ولا 'حفظ قيمة' في منطقة راقية؟"
+- NEVER suggest new/untested developers for family buyers.
+""")
+
     # Urgency context
     if urgency == UrgencyLevel.URGENT or urgency == UrgencyLevel.READY_TO_ACT:
         context_parts.append("""
@@ -758,6 +800,8 @@ class Strategy(Enum):
     FINANCIAL_REASSURANCE = "financial_reassurance"  # Payment plan, affordability
     MARKET_ANCHORING = "market_anchoring"            # Inflation data, market proof
     LOCATION_EDUCATION = "location_education"        # Area value, development plans
+    # V3 Family-Focused Strategy
+    FAMILY_SAFETY_PITCH = "family_safety_pitch"      # Developer reputation, community, law 114
 
 
 def determine_strategy(
@@ -920,6 +964,19 @@ def determine_strategy(
             "Live Market Pulse: التضخم 33%، البنك 27%، يعني خسارة 6% سنوياً للكاش.",
             "العقار في المنطقة دي زايد [GROWTH_RATE]% - ده data مش رأي.",
             "تحب أوريك الرسم البياني؟"
+        ]
+        
+    elif state == PsychologicalState.FAMILY_SECURITY:
+        # V3: Family Home Buyer - LIFE DECISION MODE
+        strategy = Strategy.FAMILY_SAFETY_PITCH
+        angle = "family_safety"
+        talking_points = [
+            "'سكن عائلي' كلمة كبيرة عندي - ده مش استثمار، ده قرار حياة.",
+            "خليني أفلتر العروض على أساس سمعة المطور وجودة المجتمع - مش ROI.",
+            "الوحدات اللي هوريهالك كلها في كمباوندات مغلقة مع سيكيوريتي 24 ساعة.",
+            "المطور ده سلم 100% من مشاريعه في الوقت - ده اللي بيهمنا لما العيلة متوقفة عليه.",
+            "قريب من أحسن مدارس في المنطقة - حضرتك حددت المدرسة اللي عايزها؟",
+            "خليني أشغل Law 114 Guardian - أتأكد إن الورق سليم 100% قبل ما تورط عيلتك."
         ]
         
     else:  # NEUTRAL

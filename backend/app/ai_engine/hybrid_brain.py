@@ -132,13 +132,18 @@ class OsoolHybridBrain:
         """
         The 'Brain' before the 'Mouth'.
         Decides the STRATEGIC ANGLE before generating the narrative.
+        Now includes FAMILY SECURITY context awareness.
         """
         try:
             # Format minimal profile for reasoning
             profile_summary = {
                 k: v for k, v in profile.items() 
-                if v and k in ['risk_appetite', 'hard_constraints', 'wolf_status', 'budget_extracted']
+                if v and k in ['risk_appetite', 'hard_constraints', 'wolf_status', 'budget_extracted', 'purpose']
             }
+            
+            # Extract purpose from intent for context
+            purpose = intent.get('filters', {}).get('purpose', 'unknown')
+            intent_bucket = intent.get('intent_bucket', 'unknown')
             
             system_prompt = """You are the STRATEGIC BRAIN of a Real Estate Agent.
 Do NOT generate the response. Generate the THINKING PROCESS (Chain of Thought).
@@ -148,12 +153,22 @@ INPUTS:
 - User Profile: {profile}
 - Market Data Found: {count} units
 - Intent: {intent_action}
+- Purpose: {purpose}
+- Intent Bucket: {intent_bucket}
+
+CRITICAL FAMILY CONTEXT RULES:
+If purpose = "living" OR user mentions "سكن عائلي" / "family home" / "children" / "schools":
+→ This is a LIFE DECISION, not an investment.
+→ DISCARD high-ROI units with poor developer reputation.
+→ PRIORITIZE: Gated communities, schools nearby, established neighborhoods.
+→ STRATEGY: "Family Safety Pitch" over "ROI Pitch".
+→ TRIGGER: Suggest "Law 114 Guardian" for legal protection.
 
 OUTPUT format:
-1. OBSERVATION: (e.g., "User asking for X but budget is Y")
-2. DIAGNOSIS: (e.g., "Unrealistic expectation" OR "Good match")
-3. STRATEGY: (e.g., "Pivot to 'Garden Apartments'" OR "Close deal now")
-4. TACTIC: (e.g., "Use 'Price Sandwich' protocol" OR "Fear of Loss")
+1. OBSERVATION: (e.g., "User asking for family home - LIFE DECISION MODE")
+2. DIAGNOSIS: (e.g., "Risk profile = Family Security, not Investor")
+3. STRATEGY: (e.g., "Family Safety Pitch - prioritize developer reputation")
+4. TACTIC: (e.g., "Trigger Law 114 Guardian, highlight community quality")
 
 Keep it concise (max 4 lines)."""
             
@@ -161,7 +176,9 @@ Keep it concise (max 4 lines)."""
                 query=query, 
                 profile=json.dumps(profile_summary, ensure_ascii=False), 
                 count=len(market_data),
-                intent_action=intent.get('action', 'unknown')
+                intent_action=intent.get('action', 'unknown'),
+                purpose=purpose,
+                intent_bucket=intent_bucket
             )
             
             response = await self.openai_async.chat.completions.create(
