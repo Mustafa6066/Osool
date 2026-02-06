@@ -136,6 +136,19 @@ PROPERTY_TYPE_ALIASES = {
     "مكتب": "office",
     "اوفيس": "office",
     "office": "office",
+    
+    # Sakan A'eli (Investment Product)
+    "سكن عائلي": "residential_building",
+    "عمارة": "residential_building",
+    "بيت": "residential_building",
+    "بيت عيلة": "residential_building",
+    "building": "residential_building",
+    
+    # Land/Plots
+    "ارض": "plot",
+    "اراضي": "plot",
+    "plot": "plot",
+    "land": "plot",
 }
 
 
@@ -250,17 +263,40 @@ Extract:
    - keywords: Any specific compound/project names mentioned
    - finishing: core, semi, finished, lux
 
-CONTEXT RULES FOR 'purpose' (CRITICAL - infer meaning, not just keywords):
-- FAMILY LIVING (purpose: "living"): "سكن عائلي", "بيت العيلة", "بيت للعيلة", "استقرار", "مدارس", "سكن", "عيلة", "اولاد", "اعيش", "منزل", "home", "family", "kids", "children", "stay", "live", "marriage", "private", "wife"
-- INVESTMENT (purpose: "investment"): "ROI", "rent", "income", "profit", "business", "yield", "return", "flip", "resale", "استثمار", "عائد", "ايجار", "ارباح"
-- COMMERCIAL (purpose: "commercial"): "office", "shop", "clinic", "commercial", "مكتب", "محل", "عيادة", "تجاري"
-- CAPITAL PRESERVATION: "فلوس البنك", "تحويشة العمر", "حفظ قيمة" -> purpose: "investment" (sub-type: preservation)
+CONTEXT RULES FOR 'purpose' (CRITICAL - Distinguish Intent vs Product):
+
+FAMILY LIVING (Intent - Lifestyle): 
+- Signals: "بيت العيلة", "استقرار", "مدارس", "marriage", "kids", "اعيش", "منزل".
+- purpose: "living"
+- User wants a UNIT in a COMPOUND for family safety and lifestyle.
+
+FAMILY INVESTMENT (Product - "سكن عائلي" / B+G+3 Building):
+- CRITICAL: "سكن عائلي" in Egypt is often a PRODUCT (Private B+G+3 Residential Building/Plot).
+- Signals: "سكن عائلي" + "بناء", "عمارة", "أرض", "بيت كامل", "ارض سكن عائلي".
+- If user mentions "building" (بناء/عمارة) or "wealth preservation" -> purpose: "investment".
+- If user mentions "living with kids" + "compound" -> purpose: "living".
+- property_type: "residential_building" for standalone buildings or plots outside compounds.
+
+INVESTMENT (purpose: "investment"): 
+- Signals: "ROI", "rent", "income", "profit", "business", "yield", "return", "استثمار", "عائد", "ايجار", "ارباح"
+
+COMMERCIAL (purpose: "commercial"): 
+- Signals: "office", "shop", "clinic", "مكتب", "محل", "عيادة", "تجاري"
+
+CAPITAL PRESERVATION: 
+- Signals: "فلوس البنك", "تحويشة العمر", "حفظ قيمة" 
+- purpose: "investment" (sub-type: preservation)
 
 INTENT BUCKET RULES (CRITICAL):
 - "serious_buyer": If user mentions FAMILY, CHILDREN, MARRIAGE, LIVING, or specific BUDGET + LOCATION = This is a LIFE DECISION MAKER, not a window shopper.
 - "serious_buyer": budget OR delivery timeline OR specific location = Serious
 - "window_shopper": Generic questions like "show me everything" or "how is the market"
 - "objection_mode": Complaining, debating price, skeptical language
+
+property_type VALUES (include):
+- apartment, villa, townhouse, duplex, chalet
+- residential_building: For "سكن عائلي" buildings, "عمارة", "بيت كامل" (B+G+3 style)
+- plot: For "ارض سكن عائلي", land plots
 
 Example query: "عايز شقة 3 غرف في التجمع تحت 5 مليون"
 Example response:
@@ -275,25 +311,27 @@ Example response:
   }
 }
 
-Example query: "بدور على سكن عائلي قريب من مدارس"
+Example query: "بدور على سكن عائلي قريب من مدارس في كمباوند"
 Example response:
 {
   "action": "search",
   "intent_bucket": "serious_buyer",
   "filters": {
     "purpose": "living",
-    "keywords": "family, schools, community"
+    "property_type": "villa",
+    "keywords": "family, schools, compound, gated"
   }
 }
 
-Example query: "I want a place for my kids near schools"
+Example query: "بدور على ارض سكن عائلي استثمار للعيلة"
 Example response:
 {
   "action": "search",
   "intent_bucket": "serious_buyer",
   "filters": {
-    "purpose": "living",
-    "keywords": "kids, schools"
+    "purpose": "investment",
+    "property_type": "residential_building",
+    "keywords": "سكن عائلي, building, land, legacy"
   }
 }
 

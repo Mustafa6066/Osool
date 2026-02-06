@@ -786,16 +786,15 @@ def get_psychology_context_for_prompt(profile: PsychologyProfile) -> str:
 
     elif state == PsychologicalState.FAMILY_SECURITY:
         context_parts.append("""
-[🏠 FAMILY SECURITY MODE - LIFE DECISION BUYER]
-- User is buying for FAMILY. This is NOT a financial transaction - it's a LIFE DECISION.
-- DISCARD units with poor developer reputation, even if they have high ROI.
-- PRIORITIZE: Gated communities, schools nearby, established neighborhoods.
-- HIGHLIGHT: Community quality, security, delivery track record.
-- TRIGGER: "Law 114 Guardian" analysis to build legal confidence.
-- FRAME: "Since you mentioned a family home (سكن عائلي), I've filtered for developer reputation over ROI."
+[🏠 FAMILY SECURITY & WEALTH MODE - LIFE DECISION]
+- User is buying for FAMILY. This can mean two things in Egypt:
+  1. LIFESTYLE: Wants a safe compound (Sodic, Emaar). Prioritize security/amenities.
+  2. LEGACY/INVESTMENT (Sakan A'eli): Wants a private building (B+G+3). Prioritize land value and building permits.
+- If they ask for "سكن عائلي" outside a compound, DO NOT discard based on "Class A Developer" status.
+- HIGHLIGHT: Land appreciation and "Wealth for the next generation" (بيت العيلة).
 - QUALIFICATION SCRIPT:
-  "'سكن عائلي' كلمة كبيرة عندي. حضرتك بتدور على 'مجمع مغلق' عشان أمان الأولاد؟ ولا 'حفظ قيمة' في منطقة راقية؟"
-- NEVER suggest new/untested developers for family buyers.
+  "'سكن عائلي' كلمة كبيرة. حضرتك بتدور على 'كمباوند' عشان الخصوصية والأمان؟ ولا 'عمارة سكن عائلي' كاستثمار وبيت للعيلة كلها؟"
+- NEVER suggest new/untested developers for family buyers unless it's a "Building/Land" request.
 """)
 
     elif state == PsychologicalState.MACRO_SKEPTIC:
