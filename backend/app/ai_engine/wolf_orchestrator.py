@@ -437,21 +437,22 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 7: STRATEGY & UI
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            ui_actions = self._determine_ui_actions(
-                psychology, 
-                scored_properties,  # Pass all scored properties, strategy controls display
-                intent, 
-                query,
-                showing_strategy  # NEW: Pass the Smart Display strategy
-            )
-            
+            # 1. Determine Verbal Strategy FIRST (so UI can match it)
             strategy = determine_strategy(
                 psychology,
                 has_properties=len(scored_properties) > 0 and is_discovery_complete,
                 top_property_verdict=top_verdict
             )
             
-            # PRICE DEFENSE (The "Wolf" Logic)
+            # 2. Determine UI Actions (Charts must back up the strategy)
+            ui_actions = self._determine_ui_actions(
+                psychology, 
+                scored_properties, 
+                intent, 
+                query,
+                showing_strategy,
+                wolf_strategy=strategy # Pass the strategy to force matching charts
+            )# PRICE DEFENSE (The "Wolf" Logic)
             no_discount_mode = False
             top_wolf_analysis = "FAIR_VALUE"
             if is_discount_request(query):
@@ -901,12 +902,14 @@ class WolfBrain:
         properties: List[Dict],
         intent: Intent,
         query: str,
-        showing_strategy: str = 'NONE'  # NEW: Smart Display strategy
+        showing_strategy: str = 'NONE',
+        wolf_strategy: Optional[Dict] = None  # NEW: Pass chosen verbal strategy
     ) -> List[Dict]:
         """
         Determine which UI visualizations to trigger.
         ALWAYS include market analytics from the first answer.
         Uses showing_strategy to control property display.
+        Uses wolf_strategy to ensure charts match the script (e.g. "Look at the chart").
         """
         ui_actions = []
         query_lower = query.lower()
@@ -936,13 +939,18 @@ class WolfBrain:
                 })
         
         # ═══════════════════════════════════════════════════════════════
-        # ALWAYS SHOW: Investment Comparison (Bank vs Property)
-        # Show on ANY property-related query
+        # STRATEGY-DRIVEN CHARTS (Must match script)
         # ═══════════════════════════════════════════════════════════════
-        property_keywords = ["شقة", "فيلا", "عقار", "apartment", "villa", "property", "بيت", "unit"]
+        strategy_name = wolf_strategy.get("strategy", "") if wolf_strategy else ""
+        
+        # 1. Inflation Hedge Chart (Certificates vs Property)
+        # Triggered by: Investment intent OR Specific Strategies (Family Safety, Liquidity Shift)
+        force_inflation_chart = strategy_name in ["FAMILY_SAFETY_PITCH", "LIQUIDITY_SHIFT", "TRUST_BUILDING"]
+        
+        property_keywords = ["شقة", "فيلا", "عقار", "apartment", "villa", "property", "بيت", "unit", "سكن"] # Added "سكن"
         has_property_intent = any(kw in query_lower for kw in property_keywords) or intent.action in ["search", "price_check", "investment"]
         
-        if has_property_intent:
+        if has_property_intent or force_inflation_chart:
             investment_amount = 5_000_000  # Default 5M
             if properties:
                 investment_amount = properties[0].get('price', 5_000_000)
@@ -952,14 +960,17 @@ class WolfBrain:
             ui_actions.append({
                 "type": "certificates_vs_property",
                 "priority": "high",
-                "title": "العقار vs شهادات البنك (27% فايدة)",
-                "title_en": "Property vs Bank CDs (27% Interest)",
+                "title": "العقار vs شهادات البنك (22% فايدة)", # Updated to 22%
+                "title_en": "Property vs Bank CDs (22% Interest)",
                 "data": inflation_data
             })
         
-        # Check for explicit bank comparison triggers
-        bank_keywords = ["bank", "بنك", "فايدة", "27%", "شهادات", "certificates"]
-        if any(kw in query_lower for kw in bank_keywords):
+        # 2. Bank Comparison Chart (The Truth)
+        # Triggered by: Bank keywords OR Macro Skeptic strategy
+        force_bank_chart = strategy_name in ["MACRO_SKEPTIC", "FEAR_OF_LOSS"]
+        
+        bank_keywords = ["bank", "بنك", "فايدة", "22%", "27%", "شهادات", "certificates"]
+        if any(kw in query_lower for kw in bank_keywords) or force_bank_chart:
             investment_amount = 5_000_000
             if properties:
                 investment_amount = properties[0].get('price', 5_000_000)
