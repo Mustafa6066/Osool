@@ -338,13 +338,20 @@ class WolfBrain:
             # STEP 5: INTELLIGENT SCREENING (The "Give-to-Get" Protocol)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # If user wants price/search but we don't know their budget/purpose yet
-            if intent.action in ["search", "price_check"] and not is_discovery_complete:
+            # CRITICAL FIX: Don't show this if user ALREADY stated Purpose (e.g. "Sakan A'eli" -> Living)
+            p_val = intent.filters.get("purpose") or intent.filters.get("intended_use") or ""
+            has_explicit_purpose = str(p_val).lower() in ["living", "investment"]
+            
+            if intent.action in ["search", "price_check"] and not is_discovery_complete and not has_explicit_purpose:
                 
-                # 1. Identify the Area they asked about (e.g., New Cairo)
-                location = intent.filters.get('location') or "New Cairo" # Default to New Cairo if unclear
+                # 1. Identify the Area they asked about
+                # FIX: Do NOT default to New Cairo. If unknown, skip.
+                location = intent.filters.get('location')
                 
-                # 2. Get Market Intelligence (The "Value" we give)
-                market_segment = market_intelligence.get_market_segment(location)
+                # 2. Get Market Intelligence safely (The "Value" we give)
+                market_segment = {}
+                if location:
+                    market_segment = market_intelligence.get_market_segment(location)
                 
                 if market_segment.get("found"):
                     logger.info(f"🧱 GIVE-TO-GET: Screening user for {location}")
