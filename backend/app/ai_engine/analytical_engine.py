@@ -22,16 +22,19 @@ logger = logging.getLogger(__name__)
 
 # Market data constants (Egyptian market 2024-2025)
 # Updated for 2025 moderated inflation and strong real growth
+# Market data constants (Egyptian market 2025-2026 Strategy)
+# SOURCE: Regional Market Research (Feb 2026)
+# "Liquidity Shift" Era: Real Estate > Bank Certificates
 MARKET_DATA = {
-    "inflation_rate": 0.136,            # 13.6% (moderated in early 2025)
-    "inflation_rate_2024": 0.337,       # 33.7% (2024 peak for reference)
-    "bank_cd_rate": 0.27,               # 27% bank CD interest
-    "real_property_growth": 0.145,      # 14.5% real growth (adjusted for inflation)
-    "nominal_property_appreciation": 0.304,  # 30.4% YoY nominal (April 2025 data)
-    "property_appreciation": 0.18,      # Conservative 18% for calculations
-    "rental_yield_avg": 0.065,          # 6.5% rental yield
-    "rent_increase_rate": 0.10,         # 10% annual rent increase
-    "gold_appreciation": 0.25,          # 25% annual gold appreciation
+    "inflation_rate": 0.136,            # 13.6% (2026 Mid-Year Forecast vs 30%+ Peak)
+    "inflation_rate_2024": 0.337,       # Historical context
+    "bank_cd_rate": 0.22,               # 22% (Decreased from 27.25% Peak)
+    "real_property_growth": 0.145,      # 14.5% Real Growth (Demand-Driven)
+    "nominal_property_appreciation": 0.304, # 30.4% YoY Aggregated
+    "property_appreciation": 0.20,      # Conservative 20% for future projections
+    "rental_yield_avg": 0.075,          # 7.5% Blended Avg (up from 6.5%)
+    "rent_increase_rate": 0.12,         # 12% annual rent increase (High demand)
+    "gold_appreciation": 0.15,          # 15% (Stabilized vs Bricks)
 }
 
 # Construction cost constants for Replacement Cost logic
@@ -42,29 +45,32 @@ CONSTRUCTION_COSTS = {
     "developer_margin_avg": 0.15,       # Developer margin ~15%
 }
 
-# Area price data (EGP per sqm, 2024-2025)
-# NOTE: Adjusted to reflect actual seed data averages to avoid "bargain bias"
+# Area price data (EGP per sqm, Dec 2025 Research)
+# "Cost-Push" Pricing Floor in effect
 AREA_PRICES = {
-    "New Cairo": 50000,      # Was 65k - lowered to match seed data avg (~45-50k)
-    "Sheikh Zayed": 55000,   # Was 60k - adjusted for stricter deal scoring
-    "New Capital": 45000,
-    "6th October": 35000,
-    "North Coast": 80000,
-    "Maadi": 70000,
+    "New Cairo": 61550,      # Research: +157.3% Growth
+    "Sheikh Zayed": 64050,   # Research: +185.3% Growth
+    "New Capital": 45000,    # R7/R8 Resale avg
+    "6th October": 47000,    # Research: +153.7%
+    "North Coast": 76150,    # Research: +209% YoY
+    "Maadi": 26950,         # Research: Stable/Mature
+    "Zamalek": 64400,       # Comparison Benchmark
+    "Ain Sokhna": 91200,    # Usage-based premium
     "Madinaty": 55000,
     "Rehab": 50000,
 }
 
-# Area growth rates
+# Area growth rates (Historical YoY 2025)
+# Used for "Why Buy Here?" argumentation
 AREA_GROWTH = {
-    "New Cairo": 0.15,
-    "Sheikh Zayed": 0.12,
-    "New Capital": 0.25,
-    "6th October": 0.10,
-    "North Coast": 0.20,
-    "Maadi": 0.08,
-    "Madinaty": 0.12,
-    "Rehab": 0.10,
+    "New Cairo": 1.57,      # +157%
+    "Sheikh Zayed": 1.85,   # +185%
+    "New Capital": 0.25,    # Stabilized
+    "6th October": 1.53,    # +153%
+    "North Coast": 2.09,    # +209%
+    "Maadi": 0.39,          # +39%
+    "Ain Sokhna": 2.83,     # +283%
+    "Madinaty": 0.20,
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -73,14 +79,14 @@ AREA_GROWTH = {
 AREA_BENCHMARKS = {
     "new cairo": {
         "ar_name": "التجمع الخامس",
-        "avg_price_sqm": 50000,  # Adjusted from 65k to match seed data avg
-        "rental_yield": 0.065,
-        "growth_rate": 0.15,
+        "avg_price_sqm": 61550, 
+        "rental_yield": 0.0775, # 7.75% Research
+        "growth_rate": 1.57,    # 157% YoY
         "property_minimums": {
-            "apartment": 3_500_000,
-            "villa": 12_000_000,
-            "townhouse": 8_000_000,
-            "duplex": 5_500_000,
+            "apartment": 5_000_000, # Market floor raised
+            "villa": 15_000_000,
+            "townhouse": 9_000_000,
+            "duplex": 7_000_000,
         },
         "tier1_developers": ["اعمار", "سوديك", "ماونتن ڤيو", "بالم هيلز", "هايد بارك"],
         "tier2_developers": ["لافيستا", "تطوير مصر", "المقاصد"],
@@ -88,14 +94,14 @@ AREA_BENCHMARKS = {
     },
     "sheikh zayed": {
         "ar_name": "الشيخ زايد",
-        "avg_price_sqm": 72000,
-        "rental_yield": 0.06,
-        "growth_rate": 0.12,
+        "avg_price_sqm": 64050,
+        "rental_yield": 0.0687, # 6.87% Research
+        "growth_rate": 1.85,    # 185% YoY
         "property_minimums": {
-            "apartment": 4_000_000,
-            "villa": 15_000_000,
-            "townhouse": 9_000_000,
-            "duplex": 6_000_000,
+            "apartment": 6_000_000,
+            "villa": 18_000_000,
+            "townhouse": 12_000_000,
+            "duplex": 8_000_000,
         },
         "tier1_developers": ["سوديك", "أورا", "بالم هيلز", "إعمار"],
         "tier2_developers": ["زيد ويست", "O ويست"],
@@ -107,10 +113,10 @@ AREA_BENCHMARKS = {
         "rental_yield": 0.05,
         "growth_rate": 0.25,
         "property_minimums": {
-            "apartment": 1_800_000,
-            "villa": 6_000_000,
-            "townhouse": 4_000_000,
-            "duplex": 3_000_000,
+            "apartment": 2_500_000, # R7 entry
+            "villa": 8_000_000,
+            "townhouse": 5_000_000,
+            "duplex": 4_000_000,
         },
         "tier1_developers": ["المقاولون العرب", "المراسم"],
         "tier2_developers": ["مصر إيطاليا", "بيتر هوم"],
@@ -118,14 +124,14 @@ AREA_BENCHMARKS = {
     },
     "6th october": {
         "ar_name": "السادس من أكتوبر",
-        "avg_price_sqm": 35000,
-        "rental_yield": 0.075,
-        "growth_rate": 0.10,
+        "avg_price_sqm": 47000, # Updated
+        "rental_yield": 0.0607, # 6.07% Research
+        "growth_rate": 1.53,    # 153% YoY
         "property_minimums": {
-            "apartment": 1_500_000,
-            "villa": 5_000_000,
-            "townhouse": 3_500_000,
-            "duplex": 2_500_000,
+            "apartment": 2_000_000,
+            "villa": 6_000_000,
+            "townhouse": 4_000_000,
+            "duplex": 3_500_000,
         },
         "tier1_developers": ["بالم هيلز"],
         "tier2_developers": ["دريم لاند"],
@@ -133,13 +139,13 @@ AREA_BENCHMARKS = {
     },
     "north coast": {
         "ar_name": "الساحل الشمالي",
-        "avg_price_sqm": 80000,
-        "rental_yield": 0.04,
-        "growth_rate": 0.20,
+        "avg_price_sqm": 76150, # Updated
+        "rental_yield": 0.10,   # High seasonal yield
+        "growth_rate": 2.09,    # 209% YoY
         "property_minimums": {
-            "chalet": 4_000_000,
-            "villa": 20_000_000,
-            "townhouse": 12_000_000,
+            "chalet": 7_000_000,
+            "villa": 25_000_000,
+            "townhouse": 15_000_000,
         },
         "tier1_developers": ["اعمار", "سوديك", "ماونتن ڤيو", "سيتي إيدج"],
         "tier2_developers": ["لافيستا", "تطوير مصر"],

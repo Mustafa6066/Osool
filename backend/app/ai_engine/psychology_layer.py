@@ -29,10 +29,12 @@ class PsychologicalState(Enum):
     GREED_DRIVEN = "greed_driven"        # ROI-focused
     ANALYSIS_PARALYSIS = "analysis_paralysis"  # Overthinking
     IMPULSE_BUYER = "impulse_buyer"      # Quick decisions
-    TRUST_DEFICIT = "trust_deficit"      # Skeptical
+    TRUST_DEFICIT = "trust_deficit"      # Skeptical - needs proof/verification
     SKEPTICISM = "skepticism"            # Questions market data validity
     FAMILY_SECURITY = "family_security"  # Family home buyer - safety over ROI
     MACRO_SKEPTIC = "macro_skeptic"      # Questions market fundamentals (inflation, currency)
+    LEGAL_ANXIETY = "legal_anxiety"      # Fear of contracts/registration status
+    LIQUIDITY_SHIFT = "liquidity_shift"  # Moving money from Bank -> Real Estate
     NEUTRAL = "neutral"                  # No clear signal
 
 
@@ -267,6 +269,34 @@ PSYCHOLOGY_PATTERNS = {
         ],
         "recommended_tactics": ["replacement_cost_logic", "inflation_hedge_math", "wealth_preservation"],
         "weight": 1.3  # High weight - macro fear needs immediate counter-argument
+    },
+    # === LEGAL ANXIETY: The "Urfi Contract" Fear ===
+    PsychologicalState.LEGAL_ANXIETY: {
+        "keywords_ar": [
+            "عقد", "مسجل", "شهر عقاري", "تراخيص", "ورق", "محامي", "ملكية", 
+            "عقد ابتدائي", "تسجيل", "مخالفات", "توكيل", "صحة توقيع"
+        ],
+        "keywords_en": [
+            "contract", "registered", "registration", "license", "permits", 
+            "lawyer", "ownership", "title", "legal", "preliminary contract"
+        ],
+        "signals": ["asking_for_legal_docs", "fear_of_scams", "mentioning_lawyer"],
+        "recommended_tactics": ["law_114_guardian", "legal_audit", "transparency"],
+        "weight": 1.4 # Critical trust blocker
+    },
+    # === LIQUIDITY SHIFT: The "Bank Exodous" Investor ===
+    PsychologicalState.LIQUIDITY_SHIFT: {
+        "keywords_ar": [
+            "شهادات", "البنك", "فايدة", "وديعة", "فك الشهادة", "البنك المركزي",
+            "سعر الفايدة", "عائد شهري", "تحويشة", "معاش", "فلوس البنك"
+        ],
+        "keywords_en": [
+            "certificates", "bank", "interest rate", "deposit", "cd", 
+            "maturity", "central bank", "monthly income"
+        ],
+        "signals": ["comparing_real_estate_to_bank", "seeking_monthly_income"],
+        "recommended_tactics": ["inflation_hedge_math", "ready_to_move_priority", "rental_yield_focus"],
+        "weight": 1.3
     }
 }
 
@@ -803,12 +833,35 @@ def get_psychology_context_for_prompt(profile: PsychologyProfile) -> str:
 - User fears MACRO RISKS: currency, inflation, bubble, economy.
 - DO NOT sell features. Sell WEALTH PRESERVATION.
 - USE "Replacement Cost" logic: "This unit costs 45k/sqm. To BUILD this same unit today costs 40k. You're buying at cost."
-- USE "Inflation Killer" math: "Bank = 27%. Inflation = 30%. You LOSE 3% annually. Property beat inflation by 14.5%."
-- USE "Hedge Economy" frame: "Egyptian market became a hedge economy. Property is now a currency store, not just housing."
+- USE "Inflation Killer" math: "Bank = 22%. Inflation = 13.6%. Real rates are positive but property beats it by 14.5% REAL growth."
+- USE "Hedge Economy" frame: "Egyptian market became a hedge economy. Property is now a currency store."
 - TRIGGER: Show Inflation vs Bank chart.
 - FRAME: "سؤال ذكي. سيبك من كلام البيع. خليني أوريك الماث الحقيقي."
 - VALIDATION SCRIPT:
-  "حضرتك خايف من الاقتصاد؟ خليني أوريك ليه الدولار والتضخم هما السبب الحقيقي إن العقار هو الملاذ، مش العكس."
+  "حضرتك خايف من الاقتصاد؟ خليني أوريك ليه الدولار والتضخم هما السبب الحقيقي إن العقار هو الملاذ."
+""")
+
+    elif state == PsychologicalState.LEGAL_ANXIETY:
+        context_parts.append("""
+[⚖️ LEGAL ANXIETY MODE - THE GUARDIAN]
+- User is afraid of "Urfi Contracts" and scams.
+- IGNORE ROI/Price for now. Focus 100% on SAFETY.
+- TRIGGER: "Law 114 Guardian" protocol.
+- EXPLAIN: "Primary Contract" vs "Final Registration" (Shahra El Akari).
+- OFFER: "I will not let you sign until I see the land license myself."
+- SCRIPT:
+  "حقك تقلق. السوق مليان عقود مضروبة. خليني أشغل 'Law 114 Guardian' على الورق قبل ما تدفع جنيه."
+""")
+
+    elif state == PsychologicalState.LIQUIDITY_SHIFT:
+        context_parts.append("""
+[💸 LIQUIDITY SHIFT MODE - BANK EXODUS]
+- User is moving money from Bank CDs (27% expired) to Real Estate.
+- COMPETITOR is NOT other developers. COMPETITOR is THE BANK (22%).
+- EMPHASIZE: "Recall of Capital" + "Monthly Income".
+- PRIORITIZE: Ready-to-move / Immediate Delivery units (to start rent immediately).
+- SCRIPT:
+  "الشهادات بتخسر قيمتها الشرائية. العقار بيزيد 30% سنوياً + 7% إيجار. دي المعادلة الوحيدة اللي بتحفظ فلوسك."
 """)
 
     # Urgency context
@@ -1004,9 +1057,31 @@ def determine_strategy(
         angle = "data_proof"
         talking_points = [
             "سؤال ممتاز. سيبك من كلام البيع وخلينا نتكلم بالأرقام.",
-            "Live Market Pulse: التضخم 33%، البنك 27%، يعني خسارة 6% سنوياً للكاش.",
+            "Live Market Pulse: التضخم 13.6%، البنك 22%. العقار بيعمل 30% نمو.",
             "العقار في المنطقة دي زايد [GROWTH_RATE]% - ده data مش رأي.",
             "تحب أوريك الرسم البياني؟"
+        ]
+        
+    elif state == PsychologicalState.LEGAL_ANXIETY:
+        # V3: Legal Anxiety - "Law 114 Guardian"
+        strategy = Strategy.TRUST_BUILDING
+        angle = "legal_guardian"
+        talking_points = [
+            "حقك تقلق، السوق فيه عقود كتير 'عرفي' مش بتحميك.",
+            "أنا مش بس ببيعلك، أنا 'بفلتر' المخاطر ليك.",
+            "أي وحدة بنرشحها لازم تكون عدت على Law 114 Check: رخصة، أرض، تسلسل ملكية.",
+            "لو الورق مش سليم 100%، أنا اللي هقولك 'ماتشتريش'."
+        ]
+
+    elif state == PsychologicalState.LIQUIDITY_SHIFT:
+        # V3: Bank Exodus - "Money Migration"
+        strategy = Strategy.ROI_FOCUSED
+        angle = "bank_comparison"
+        talking_points = [
+            "الشهادات كانت حل كويس زمان، بس دلوقتي الفايدة 22% والتضخم بياكلها.",
+            "العقار هنا بيديك حاجتين: أصل سعره بيزيد 30% + إيجار 7% بيسدد أقساطك.",
+            "دي مش بس 'شقة'، دي 'محفظة مالية' بتحميك من تآكل العملة.",
+            "خلينا نركز على استلام فوري عشان نبدأ نأجر علطول ونشغل الفلوس."
         ]
         
     elif state == PsychologicalState.FAMILY_SECURITY:
