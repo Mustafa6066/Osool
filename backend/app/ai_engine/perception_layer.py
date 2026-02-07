@@ -137,11 +137,9 @@ PROPERTY_TYPE_ALIASES = {
     "اوفيس": "office",
     "office": "office",
     
-    # Sakan A'eli (Investment Product)
-    "سكن عائلي": "residential_building",
+    # Sakan A'eli (Investment Product) - ONLY Explicit Types
     "عمارة": "residential_building",
-    "بيت": "residential_building",
-    "بيت عيلة": "residential_building",
+    "بيت كامل": "residential_building",
     "building": "residential_building",
     
     # Land/Plots
@@ -271,11 +269,9 @@ FAMILY LIVING (Intent - Lifestyle):
 - User wants a UNIT in a COMPOUND for family safety and lifestyle.
 
 FAMILY INVESTMENT (Product - "سكن عائلي" / B+G+3 Building):
-- CRITICAL: "سكن عائلي" in Egypt is often a PRODUCT (Private B+G+3 Residential Building/Plot).
-- Signals: "سكن عائلي" + "بناء", "عمارة", "أرض", "بيت كامل", "ارض سكن عائلي".
-- If user mentions "building" (بناء/عمارة) or "wealth preservation" -> purpose: "investment".
-- If user mentions "living with kids" + "compound" -> purpose: "living".
-- property_type: "residential_building" for standalone buildings or plots outside compounds.
+- CRITICAL: Only use `property_type: "residential_building"` if user EXPLICITLY mentions "building", "structure", "land", "plot", "عمارة", "أرض".
+- For generic "سكن عائلي" (Family Home), default to `property_type: ["apartment", "villa", "duplex"]`.
+- Signals: "بناء", "عمارة كاملة", "أرض مباني".
 
 INVESTMENT (purpose: "investment"): 
 - Signals: "ROI", "rent", "income", "profit", "business", "yield", "return", "استثمار", "عائد", "ايجار", "ارباح"
@@ -295,7 +291,7 @@ INTENT BUCKET RULES (CRITICAL):
 
 property_type VALUES (include):
 - apartment, villa, townhouse, duplex, chalet
-- residential_building: For "سكن عائلي" buildings, "عمارة", "بيت كامل" (B+G+3 style)
+- residential_building: ONLY for explicit requests for buildings/lands ("عمارة", "أرض")
 - plot: For "ارض سكن عائلي", land plots
 
 Example query: "عايز شقة 3 غرف في التجمع تحت 5 مليون"

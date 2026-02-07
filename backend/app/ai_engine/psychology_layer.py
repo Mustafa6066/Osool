@@ -975,8 +975,8 @@ def determine_strategy(
         angle = "inflation_proof"
         talking_points = [
             "سؤال ذكي. خليني أوريك الأرقام الحقيقية.",
-            "التضخم 33%، الشهادات 27%. يعني الكاش بيخسر 6% سنوياً.",
-            "العقار في المنطقة دي زايد 18% السنة اللي فاتت - ده مش كلام، ده data.",
+            "التضخم 13.6%، الشهادات 22%. يعني الكاش بيخسر قيمته، بس العقار لسه بيزيد.",
+            "العقار في المنطقة دي زايد 30% السنة اللي فاتت - ده data مش رأي.",
             "تحب أوريك رسم الـ Inflation Killer؟ بيوضح الفرق بالأرقام."
         ]
         
@@ -1007,8 +1007,8 @@ def determine_strategy(
         angle = "profit"
         talking_points = [
             "This unit is an 'Inflation Killer'. It generates 2x the return of a bank deposit.",
-            "Inflation is 35%. Bank CDs are 27%. You are losing 8% annually. This property stops the bleeding.",
-            "Projected ROI is 25% conservative. Including rental yield, you beat Gold.",
+            "Inflation is 13.6%. Bank CDs are 22%. Property beats both with 30% growth.",
+            "Projected ROI is 37% (Growth + Rent). You beat Gold and the Bank.",
             "This is a 'Catch' - math proves it.",
         ]
         
@@ -1089,12 +1089,11 @@ def determine_strategy(
         strategy = Strategy.FAMILY_SAFETY_PITCH
         angle = "family_safety"
         talking_points = [
-            "'سكن عائلي' كلمة كبيرة عندي - ده مش استثمار، ده قرار حياة.",
-            "خليني أفلتر العروض على أساس سمعة المطور وجودة المجتمع - مش ROI.",
-            "الوحدات اللي هوريهالك كلها في كمباوندات مغلقة مع سيكيوريتي 24 ساعة.",
-            "المطور ده سلم 100% من مشاريعه في الوقت - ده اللي بيهمنا لما العيلة متوقفة عليه.",
-            "قريب من أحسن مدارس في المنطقة - حضرتك حددت المدرسة اللي عايزها؟",
-            "خليني أشغل Law 114 Guardian - أتأكد إن الورق سليم 100% قبل ما تورط عيلتك."
+            "'سكن عائلي' ده قرار حياة. قولي الأول: بتدور على أمان الكمباوند ولا استثمار في عمارة خاصة؟",
+            "لو كمباوند، أنا بفلتر العروض على أساس 'الجيران' و'وسمعة المطور' قبل العائد.",
+            "مشاريعنا كلها فيها سيكيوريتي 24 ساعة ومجتمعات مقفولة.",
+            "المطور ده سلم 100% من مشاريعه - ده اللي يهمنا عشان العيلة.",
+            "خليني أشغل Law 114 Guardian - نتأكد من الورق قبل أي خطوة."
         ]
         
     elif state == PsychologicalState.MACRO_SKEPTIC:
