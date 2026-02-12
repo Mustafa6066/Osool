@@ -1,11 +1,11 @@
-"""Enhance market_indicators table and seed initial data
+"""Create market_indicators table and seed initial data
 
 Revision ID: 007_enhance_market_indicators
 Revises: 006_add_invitation_system
 Create Date: 2026-02-12
 
 Adds:
-- source column to market_indicators table
+- Creates market_indicators table (if not exists)
 - Seeds initial Egyptian market economic indicators
 """
 from alembic import op
@@ -21,13 +21,19 @@ depends_on = None
 
 def upgrade() -> None:
     """
-    Enhance market_indicators:
-    1. Add source column for data provenance tracking
+    Create market_indicators table and seed initial data:
+    1. Create table if not exists
     2. Seed initial Egyptian market indicators
     """
 
-    # Add source column to market_indicators table
-    op.add_column('market_indicators', sa.Column('source', sa.String(200), nullable=True))
+    # Create market_indicators table
+    op.create_table(
+        'market_indicators',
+        sa.Column('key', sa.String(100), primary_key=True),
+        sa.Column('value', sa.Float(), nullable=False),
+        sa.Column('source', sa.String(200), nullable=True),
+        sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True)
+    )
 
     # Seed initial market indicators for Egyptian real estate market
     # Using raw SQL for data insertion
@@ -49,17 +55,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """
-    Remove enhancements from market_indicators.
-    WARNING: This will delete seeded data!
+    Remove market_indicators table.
+    WARNING: This will delete all market indicator data!
     """
-    # Delete seeded data
-    op.execute("""
-        DELETE FROM market_indicators WHERE key IN (
-            'inflation_rate', 'bank_cd_rate', 'property_appreciation',
-            'rental_yield_avg', 'gold_appreciation', 'usd_egp_rate',
-            'mortgage_rate', 'rent_increase_rate'
-        )
-    """)
-
-    # Remove source column
-    op.drop_column('market_indicators', 'source')
+    op.drop_table('market_indicators')
