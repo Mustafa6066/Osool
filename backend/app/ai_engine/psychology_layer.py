@@ -35,6 +35,13 @@ class PsychologicalState(Enum):
     MACRO_SKEPTIC = "macro_skeptic"      # Questions market fundamentals (inflation, currency)
     LEGAL_ANXIETY = "legal_anxiety"      # Fear of contracts/registration status
     LIQUIDITY_SHIFT = "liquidity_shift"  # Moving money from Bank -> Real Estate
+
+    # Egyptian Market-Specific States (2025-2026)
+    INSTALLMENT_ANXIETY = "installment_anxiety"  # Fear of long-term payment commitments
+    DELIVERY_FEAR = "delivery_fear"              # Fear of delayed delivery (post-2023 market trauma)
+    CURRENCY_HEDGER = "currency_hedger"          # Actively moving USD/EGP to real estate as store of value
+    INFLATION_REFUGEE = "inflation_refugee"      # Escaping currency devaluation to real assets
+
     NEUTRAL = "neutral"                  # No clear signal
 
 
@@ -291,11 +298,108 @@ PSYCHOLOGY_PATTERNS = {
             "سعر الفايدة", "عائد شهري", "تحويشة", "معاش", "فلوس البنك"
         ],
         "keywords_en": [
-            "certificates", "bank", "interest rate", "deposit", "cd", 
+            "certificates", "bank", "interest rate", "deposit", "cd",
             "maturity", "central bank", "monthly income"
         ],
         "signals": ["comparing_real_estate_to_bank", "seeking_monthly_income"],
         "recommended_tactics": ["inflation_hedge_math", "ready_to_move_priority", "rental_yield_focus"],
+        "weight": 1.3
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # EGYPTIAN MARKET-SPECIFIC STATES (2025-2026)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # === INSTALLMENT ANXIETY: Fear of Long-Term Payment Commitments ===
+    PsychologicalState.INSTALLMENT_ANXIETY: {
+        "keywords_ar": [
+            "أقساط طويلة", "قسط شهري", "هأقدر أدفع", "مدة السداد", "فايدة",
+            "تمويل", "قرض", "سنين كتير", "8 سنين", "10 سنين", "التزام",
+            "الالتزام", "مش هقدر", "القسط كبير", "لو اتغيرت الظروف",
+            "لو فقدت شغلي", "لو حصل حاجة", "ظروف صعبة"
+        ],
+        "keywords_en": [
+            "installment", "monthly payment", "afford", "payment period", "interest",
+            "financing", "loan", "many years", "commitment", "can't afford",
+            "too much", "circumstances change", "lose job", "what if"
+        ],
+        "signals": [
+            "asking_about_installment_details",
+            "expressing_payment_concerns",
+            "asking_about_flexible_plans",
+            "long_term_commitment_fear"
+        ],
+        "recommended_tactics": ["payment_plan_analysis", "affordability_calculator", "compare_to_rent"],
+        "weight": 1.2
+    },
+
+    # === DELIVERY FEAR: Post-2023 Market Trauma (Developer Trust Issues) ===
+    PsychologicalState.DELIVERY_FEAR: {
+        "keywords_ar": [
+            "تسليم", "هيسلم امتى", "اتأخر", "تأخير", "مسلموش", "استلام",
+            "معاد التسليم", "التزام المطور", "مشاريع متأخرة", "ناس مستلمتش",
+            "سنين بتستنى", "المواعيد", "وعود", "وعدوني", "قالوا هيسلموا",
+            "المشروع واقف", "تجميد", "إفلاس", "المطور وقع"
+        ],
+        "keywords_en": [
+            "delivery", "when delivered", "delayed", "delay", "not delivered",
+            "handover", "delivery date", "developer commitment", "delayed projects",
+            "people waiting", "years waiting", "promises", "promised",
+            "project stopped", "frozen", "bankruptcy", "developer failed"
+        ],
+        "signals": [
+            "asking_about_delivery_timeline",
+            "mentioning_delayed_projects",
+            "asking_about_developer_track_record",
+            "expressing_delivery_skepticism"
+        ],
+        "recommended_tactics": ["developer_track_record", "delivery_timeline_show", "escrow_protection", "law_114_guardian"],
+        "weight": 1.4  # High weight - major Egyptian market trauma
+    },
+
+    # === CURRENCY HEDGER: Moving Money to Real Estate as Store of Value ===
+    PsychologicalState.CURRENCY_HEDGER: {
+        "keywords_ar": [
+            "الدولار", "سعر الصرف", "الجنيه بينزل", "العملة", "تحويشة بالدولار",
+            "فلوسي بره", "التحويل", "القيمة الشرائية", "الجنيه هيفضل",
+            "أحافظ على فلوسي", "تخزين القيمة", "بدل ما تقل قيمتها"
+        ],
+        "keywords_en": [
+            "dollar", "exchange rate", "currency devaluation", "currency",
+            "savings abroad", "convert", "purchasing power", "pound will",
+            "preserve money", "store of value", "before it loses value"
+        ],
+        "signals": [
+            "mentioning_currency_concerns",
+            "comparing_currencies",
+            "asking_about_dollar_pricing",
+            "wealth_preservation_intent"
+        ],
+        "recommended_tactics": ["wealth_preservation", "usd_pricing_option", "historical_appreciation"],
+        "weight": 1.3
+    },
+
+    # === INFLATION REFUGEE: Escaping Currency Devaluation to Real Assets ===
+    PsychologicalState.INFLATION_REFUGEE: {
+        "keywords_ar": [
+            "التضخم", "الأسعار بتزيد", "كل حاجة غليت", "فلوسي بتقل",
+            "القوة الشرائية", "معدل التضخم", "13%", "20%", "30%",
+            "الفلوس مش بتجيب حاجة", "قيمة الفلوس", "البنك مش كفاية",
+            "الفايدة مش بتغطي", "التضخم أعلى من الفايدة"
+        ],
+        "keywords_en": [
+            "inflation", "prices rising", "everything expensive", "money losing value",
+            "purchasing power", "inflation rate", "money doesn't buy",
+            "value of money", "bank not enough", "interest doesn't cover",
+            "inflation higher than interest"
+        ],
+        "signals": [
+            "mentioning_inflation_concerns",
+            "comparing_inflation_to_returns",
+            "expressing_value_erosion_fear",
+            "seeking_inflation_hedge"
+        ],
+        "recommended_tactics": ["inflation_killer_chart", "real_returns_calculation", "asset_appreciation_history"],
         "weight": 1.3
     }
 }

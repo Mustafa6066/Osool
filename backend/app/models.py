@@ -257,11 +257,19 @@ class MarketIndicator(Base):
     Dynamic Economic Indicators
     Stores key market rates like inflation, bank interest, gold appreciation, etc.
     Updated via Admin Dashboard or Cron Job.
+
+    Key indicators:
+    - inflation_rate: Egyptian inflation rate (e.g., 0.136 for 13.6%)
+    - bank_cd_rate: Bank certificate of deposit rate (e.g., 0.22 for 22%)
+    - property_appreciation: Real estate appreciation rate (e.g., 0.145 for 14.5%)
+    - rental_yield_avg: Average rental yield (e.g., 0.075 for 7.5%)
+    - gold_appreciation: Gold price appreciation rate
     """
     __tablename__ = "market_indicators"
 
-    key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[float] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(200), nullable=True)  # Data source (e.g., "Central Bank of Egypt")
     last_updated: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

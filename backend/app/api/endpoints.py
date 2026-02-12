@@ -32,6 +32,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+# Text processing utilities
+from app.utils.text_processing import clean_response_text
+
 router = APIRouter(prefix="/api", tags=["Osool API"])
 limiter = Limiter(key_func=get_remote_address)
 
@@ -938,7 +941,7 @@ async def chat_with_agent(
         print(f"📥 Wolf Brain returned response: {len(ai_result.get('response', ''))} chars")
 
         # Extract components from result
-        response_text = ai_result.get("response", "")
+        response_text = clean_response_text(ai_result.get("response", ""))
         search_results = ai_result.get("properties", [])
         ui_actions = ai_result.get("charts", [])  # Wolf Brain returns 'charts'
         psychology = ai_result.get("psychology")
@@ -1129,7 +1132,7 @@ async def chat_stream(
             yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'search_properties'}, ensure_ascii=False)}\n\n"
 
             # Extract response components
-            response_text = ai_result.get("response", "").strip()
+            response_text = clean_response_text(ai_result.get("response", ""))
             search_results = ai_result.get("properties", [])
             ui_actions = ai_result.get("ui_actions", [])
             psychology = ai_result.get("psychology")
@@ -1719,6 +1722,53 @@ async def get_market_statistics_endpoint(
     except Exception as e:
         logger.error(f"Market statistics error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch market statistics: {str(e)}")
+
+
+@router.get("/market/detailed-stats")
+async def get_detailed_qa_statistics(
+    db: AsyncSession = Depends(get_db),
+    area: Optional[str] = None,
+    developer: Optional[str] = None,
+    bedrooms: Optional[int] = None
+):
+    """
+    📊 30 Q&A Statistics Endpoint for AI Brain Consumption
+
+    Provides comprehensive market statistics including:
+    - Meter price breakdowns (min/avg/max) per area, developer, type
+    - Room-based statistics (count, avg price, avg size per bedroom count)
+    - Developer price comparison by location
+    - Best deals per category
+
+    Query Parameters:
+    - area: Filter by location (optional)
+    - developer: Filter by developer name (optional)
+    - bedrooms: Filter by bedroom count (optional)
+
+    Returns detailed statistics dictionary for AI consumption.
+    """
+    from app.services.market_statistics import compute_detailed_qa_statistics
+
+    try:
+        stats = await compute_detailed_qa_statistics(
+            db=db,
+            area=area,
+            developer=developer,
+            bedrooms=bedrooms
+        )
+
+        return {
+            "success": True,
+            "data": stats,
+            "filters_applied": {
+                "area": area,
+                "developer": developer,
+                "bedrooms": bedrooms
+            }
+        }
+    except Exception as e:
+        logger.error(f"Detailed QA statistics error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch detailed statistics: {str(e)}")
 
 
 @router.get("/market/location/{location}")

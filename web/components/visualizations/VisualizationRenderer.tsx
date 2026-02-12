@@ -130,7 +130,9 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
     switch (type) {
         // V4: New Wolf Brain visualizations
         case "inflation_killer":
-            if (!hasContent(data, ['projections', 'data_points', 'summary'])) return null;
+        case "certificates_vs_property":  // Backend may send this type name
+            // Accept multiple valid data keys from backend
+            if (!hasContent(data, ['projections', 'data_points', 'summary', 'summary_cards', 'initial_investment', 'property_value', 'years'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <InflationKillerChart {...data} />
@@ -147,7 +149,8 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         case "law_114_guardian":
-            if (!hasContent(data, ['capabilities', 'result', 'trust_badges'])) return null;
+            // Accept status key from backend (used when guardian is activated)
+            if (!hasContent(data, ['capabilities', 'result', 'trust_badges', 'status', 'cta'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <Law114Guardian {...data} />
@@ -323,6 +326,33 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
                             trend: data.price_growth_ytd > 15 ? "Bullish" : data.price_growth_ytd > 8 ? "Stable" : "Bearish",
                             yoy_change: data.price_growth_ytd || 0,
                             momentum: data.demand_index || "Medium"
+                        }}
+                    />
+                </Suspense>
+            );
+
+        // Bank vs Property comparison (alias for certificates_vs_property)
+        case "bank_vs_property":
+            if (!hasContent(data, ['projections', 'data_points', 'summary', 'summary_cards', 'bank_value', 'property_value'])) return null;
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <CertificatesVsProperty {...data} isRTL={isRTL} />
+                </Suspense>
+            );
+
+        // Market benchmark visualization (shows market segment data)
+        case "market_benchmark":
+            if (!hasContent(data, ['market_segment', 'area_context', 'avg_price_sqm'])) return null;
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <MarketTrendChart
+                        location={data.market_segment?.name_en || data.area_context?.name || "Market"}
+                        data={{
+                            historical: [],
+                            current_price: data.avg_price_sqm || 0,
+                            trend: data.growth_rate > 0.15 ? "Bullish" : data.growth_rate > 0.08 ? "Stable" : "Bearish",
+                            yoy_change: (data.growth_rate || 0.12) * 100,
+                            momentum: "Medium"
                         }}
                     />
                 </Suspense>

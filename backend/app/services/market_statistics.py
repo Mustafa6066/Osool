@@ -235,14 +235,263 @@ async def get_location_price_range(location: str) -> Dict:
     """
     stats = await get_market_statistics()
     loc_stats = stats.get("location_stats", {})
-    
+
     # Try exact match first
     if location in loc_stats:
         return loc_stats[location]
-    
+
     # Try case-insensitive match
     for loc, data in loc_stats.items():
         if location.lower() in loc.lower() or loc.lower() in location.lower():
             return data
-    
+
     return None
+
+
+async def compute_detailed_qa_statistics(
+    db: AsyncSession,
+    area: str = None,
+    developer: str = None,
+    bedrooms: int = None
+) -> Dict:
+    """
+    30 Q&A Statistics for AI consumption.
+
+    Provides comprehensive market statistics including:
+    - Meter price breakdowns (min/avg/max) per area, developer, type
+    - Room-based statistics (count, avg price, avg size per bedroom count)
+    - Developer price comparison by location
+    - Property type analysis
+    - Best deals per category
+
+    Args:
+        db: Database session
+        area: Optional filter by location
+        developer: Optional filter by developer
+        bedrooms: Optional filter by bedroom count
+
+    Returns:
+        Dictionary with detailed statistics for AI consumption
+    """
+    try:
+        stats = {
+            "meter_price_by_area": {},
+            "meter_price_by_developer": {},
+            "meter_price_by_type": {},
+            "room_statistics": {},
+            "developer_by_location": {},
+            "best_price_per_area": {},
+            "best_price_per_developer": {},
+            "best_price_per_type": {},
+            "summary": {}
+        }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 1. METER PRICE BY AREA (min/avg/max)
+        # ═══════════════════════════════════════════════════════════════
+        area_query = select(
+            Property.location,
+            func.min(Property.price_per_sqm).label('min_meter'),
+            func.avg(Property.price_per_sqm).label('avg_meter'),
+            func.max(Property.price_per_sqm).label('max_meter'),
+            func.count(Property.id).label('count')
+        ).filter(
+            Property.is_available == True,
+            Property.price_per_sqm > 0
+        ).group_by(Property.location)
+
+        if area:
+            area_query = area_query.filter(Property.location.ilike(f"%{area}%"))
+
+        area_result = await db.execute(area_query)
+        for row in area_result.all():
+            if row.location:
+                stats["meter_price_by_area"][row.location] = {
+                    "min_meter": round(float(row.min_meter or 0), 0),
+                    "avg_meter": round(float(row.avg_meter or 0), 0),
+                    "max_meter": round(float(row.max_meter or 0), 0),
+                    "count": row.count
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 2. METER PRICE BY DEVELOPER
+        # ═══════════════════════════════════════════════════════════════
+        dev_query = select(
+            Property.developer,
+            func.min(Property.price_per_sqm).label('min_meter'),
+            func.avg(Property.price_per_sqm).label('avg_meter'),
+            func.max(Property.price_per_sqm).label('max_meter'),
+            func.count(Property.id).label('count')
+        ).filter(
+            Property.is_available == True,
+            Property.price_per_sqm > 0,
+            Property.developer != None
+        ).group_by(Property.developer)
+
+        if developer:
+            dev_query = dev_query.filter(Property.developer.ilike(f"%{developer}%"))
+
+        dev_result = await db.execute(dev_query)
+        for row in dev_result.all():
+            if row.developer:
+                stats["meter_price_by_developer"][row.developer] = {
+                    "min_meter": round(float(row.min_meter or 0), 0),
+                    "avg_meter": round(float(row.avg_meter or 0), 0),
+                    "max_meter": round(float(row.max_meter or 0), 0),
+                    "count": row.count
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 3. METER PRICE BY PROPERTY TYPE
+        # ═══════════════════════════════════════════════════════════════
+        type_query = select(
+            Property.type,
+            func.min(Property.price_per_sqm).label('min_meter'),
+            func.avg(Property.price_per_sqm).label('avg_meter'),
+            func.max(Property.price_per_sqm).label('max_meter'),
+            func.count(Property.id).label('count')
+        ).filter(
+            Property.is_available == True,
+            Property.price_per_sqm > 0,
+            Property.type != None
+        ).group_by(Property.type)
+
+        type_result = await db.execute(type_query)
+        for row in type_result.all():
+            if row.type:
+                stats["meter_price_by_type"][row.type] = {
+                    "min_meter": round(float(row.min_meter or 0), 0),
+                    "avg_meter": round(float(row.avg_meter or 0), 0),
+                    "max_meter": round(float(row.max_meter or 0), 0),
+                    "count": row.count
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 4. ROOM STATISTICS (by bedroom count)
+        # ═══════════════════════════════════════════════════════════════
+        room_query = select(
+            Property.bedrooms,
+            func.count(Property.id).label('count'),
+            func.avg(Property.price).label('avg_price'),
+            func.min(Property.price).label('min_price'),
+            func.max(Property.price).label('max_price'),
+            func.avg(Property.size_sqm).label('avg_size'),
+            func.avg(Property.price_per_sqm).label('avg_meter')
+        ).filter(
+            Property.is_available == True,
+            Property.bedrooms != None
+        ).group_by(Property.bedrooms).order_by(Property.bedrooms)
+
+        if bedrooms:
+            room_query = room_query.filter(Property.bedrooms == bedrooms)
+
+        room_result = await db.execute(room_query)
+        for row in room_result.all():
+            if row.bedrooms is not None:
+                stats["room_statistics"][str(row.bedrooms)] = {
+                    "count": row.count,
+                    "avg_price": round(float(row.avg_price or 0), 0),
+                    "min_price": round(float(row.min_price or 0), 0),
+                    "max_price": round(float(row.max_price or 0), 0),
+                    "avg_size_sqm": round(float(row.avg_size or 0), 0),
+                    "avg_meter": round(float(row.avg_meter or 0), 0)
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 5. DEVELOPER BY LOCATION (cross-analysis)
+        # ═══════════════════════════════════════════════════════════════
+        dev_loc_query = select(
+            Property.developer,
+            Property.location,
+            func.avg(Property.price_per_sqm).label('avg_meter'),
+            func.count(Property.id).label('count')
+        ).filter(
+            Property.is_available == True,
+            Property.developer != None,
+            Property.price_per_sqm > 0
+        ).group_by(
+            Property.developer,
+            Property.location
+        ).having(func.count(Property.id) >= 2)  # At least 2 units for valid comparison
+
+        dev_loc_result = await db.execute(dev_loc_query)
+        for row in dev_loc_result.all():
+            if row.developer and row.location:
+                key = f"{row.developer}|{row.location}"
+                stats["developer_by_location"][key] = {
+                    "developer": row.developer,
+                    "location": row.location,
+                    "avg_meter": round(float(row.avg_meter or 0), 0),
+                    "count": row.count
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 6. BEST PRICE PER AREA (lowest meter price)
+        # ═══════════════════════════════════════════════════════════════
+        for loc, data in stats["meter_price_by_area"].items():
+            # Find the property with lowest meter price in this area
+            best_query = select(
+                Property.id,
+                Property.title,
+                Property.price,
+                Property.price_per_sqm,
+                Property.developer,
+                Property.compound
+            ).filter(
+                Property.is_available == True,
+                Property.location == loc,
+                Property.price_per_sqm > 0
+            ).order_by(Property.price_per_sqm.asc()).limit(1)
+
+            best_result = await db.execute(best_query)
+            best_row = best_result.first()
+            if best_row:
+                stats["best_price_per_area"][loc] = {
+                    "property_id": best_row.id,
+                    "title": best_row.title,
+                    "price": float(best_row.price),
+                    "price_per_sqm": float(best_row.price_per_sqm),
+                    "developer": best_row.developer,
+                    "compound": best_row.compound
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 7. SUMMARY STATISTICS
+        # ═══════════════════════════════════════════════════════════════
+        summary_query = select(
+            func.count(Property.id).label('total_properties'),
+            func.avg(Property.price).label('avg_price'),
+            func.avg(Property.price_per_sqm).label('avg_meter'),
+            func.min(Property.price_per_sqm).label('min_meter'),
+            func.max(Property.price_per_sqm).label('max_meter')
+        ).filter(Property.is_available == True)
+
+        summary_result = await db.execute(summary_query)
+        summary_row = summary_result.first()
+        stats["summary"] = {
+            "total_properties": summary_row.total_properties or 0,
+            "avg_price": round(float(summary_row.avg_price or 0), 0),
+            "avg_meter": round(float(summary_row.avg_meter or 0), 0),
+            "min_meter": round(float(summary_row.min_meter or 0), 0),
+            "max_meter": round(float(summary_row.max_meter or 0), 0),
+            "areas_count": len(stats["meter_price_by_area"]),
+            "developers_count": len(stats["meter_price_by_developer"]),
+            "types_count": len(stats["meter_price_by_type"])
+        }
+
+        logger.info(f"✅ Computed detailed QA statistics: {stats['summary']['total_properties']} properties")
+        return stats
+
+    except Exception as e:
+        logger.error(f"Failed to compute detailed QA statistics: {e}", exc_info=True)
+        return {
+            "meter_price_by_area": {},
+            "meter_price_by_developer": {},
+            "meter_price_by_type": {},
+            "room_statistics": {},
+            "developer_by_location": {},
+            "best_price_per_area": {},
+            "best_price_per_developer": {},
+            "best_price_per_type": {},
+            "summary": {"total_properties": 0, "error": str(e)}
+        }
