@@ -578,18 +578,166 @@ class AnalyticalEngine:
             "talking_point_en": f"This unit is priced at {int(price_per_sqm):,} EGP/sqm. Building it today would cost {int(replacement_cost_per_sqm):,} EGP/sqm. You're buying near replacement cost."
         }
 
-    # Inflation Hedge & Bank vs Property remain SYNC (Math based on constants)
-    # ... (Keep existing implementation for those) ...
+    # Inflation Hedge & Bank vs Property (Math based on constants)
     def calculate_inflation_hedge(
         self,
         initial_investment: int,
         years: int = 5
     ) -> Dict[str, Any]:
-         # (Previous implementation copied via overwrite, or left if not editing those lines)
-         # I will use multi_replace if I need to skip lines, but I am editing the class def.
-         # Actually, calculate_inflation_hedge and calculate_bank_vs_property depend on constants, 
-         # so they can stay as is.
-         pass 
+        """
+        Calculate inflation hedge comparison: Property vs Cash vs Bank CDs.
+
+        Shows how real estate protects against inflation compared to alternatives.
+        Egyptian market context: High inflation (13.6%), high bank rates (22%),
+        but property appreciation (20%+) + rental yield (7.5%) beats both.
+        """
+        try:
+            inflation_rate = MARKET_DATA.get("inflation_rate", 0.136)
+            bank_rate = MARKET_DATA.get("bank_cd_rate", 0.22)
+            property_appreciation = MARKET_DATA.get("property_appreciation", 0.20)
+            rental_yield = MARKET_DATA.get("rental_yield_avg", 0.075)
+
+            projections = []
+            cash_value = initial_investment
+            bank_value = initial_investment
+            property_value = initial_investment
+
+            for year in range(1, years + 1):
+                # Cash loses to inflation
+                cash_value = cash_value * (1 - inflation_rate)
+
+                # Bank CD grows but taxed against inflation
+                bank_nominal = bank_value * (1 + bank_rate)
+                bank_real = bank_nominal * (1 - inflation_rate)
+                bank_value = bank_nominal  # Track nominal for display
+
+                # Property grows + generates rental income
+                property_value = property_value * (1 + property_appreciation)
+                rental_income = initial_investment * rental_yield * year
+
+                projections.append({
+                    "year": year,
+                    "cash_value": int(cash_value),
+                    "bank_value": int(bank_value),
+                    "bank_real_value": int(bank_real),
+                    "property_value": int(property_value),
+                    "property_with_rent": int(property_value + rental_income),
+                    "rental_income_cumulative": int(rental_income)
+                })
+
+            final = projections[-1]
+            total_property_return = final["property_with_rent"] - initial_investment
+            total_bank_return = final["bank_value"] - initial_investment
+
+            return {
+                "initial_investment": initial_investment,
+                "years": years,
+                "projections": projections,
+                "summary": {
+                    "final_property_value": final["property_with_rent"],
+                    "final_bank_value": final["bank_value"],
+                    "final_cash_value": final["cash_value"],
+                    "property_gain": total_property_return,
+                    "bank_gain": total_bank_return,
+                    "property_vs_bank_advantage": total_property_return - total_bank_return,
+                    "property_beats_bank": total_property_return > total_bank_return
+                },
+                "rates_used": {
+                    "inflation": inflation_rate,
+                    "bank_cd": bank_rate,
+                    "property_growth": property_appreciation,
+                    "rental_yield": rental_yield
+                },
+                "verdict_ar": "العقار بيحميك من التضخم + بيجيبلك إيجار",
+                "verdict_en": "Property hedges inflation + generates rental income"
+            }
+        except Exception as e:
+            logger.error(f"Failed to calculate inflation hedge: {e}")
+            return {
+                "initial_investment": initial_investment,
+                "years": years,
+                "projections": [],
+                "summary": {},
+                "error": str(e)
+            }
+
+    def calculate_bank_vs_property(
+        self,
+        initial_investment: int,
+        years: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Compare Bank CD investment vs Property investment.
+
+        Egyptian market context (2025-2026):
+        - Bank CDs: 22% nominal return
+        - Property: 20% appreciation + 7.5% rental yield = ~27.5% effective return
+        - After inflation adjustment, property wins
+        """
+        try:
+            bank_rate = MARKET_DATA.get("bank_cd_rate", 0.22)
+            property_appreciation = MARKET_DATA.get("property_appreciation", 0.20)
+            rental_yield = MARKET_DATA.get("rental_yield_avg", 0.075)
+            inflation_rate = MARKET_DATA.get("inflation_rate", 0.136)
+
+            data_points = []
+            bank_value = initial_investment
+            property_value = initial_investment
+            cumulative_rent = 0
+
+            for year in range(1, years + 1):
+                # Bank grows at CD rate
+                bank_value = bank_value * (1 + bank_rate)
+
+                # Property appreciates + generates rent
+                property_value = property_value * (1 + property_appreciation)
+                yearly_rent = initial_investment * rental_yield
+                cumulative_rent += yearly_rent
+
+                data_points.append({
+                    "year": year,
+                    "bank_value": int(bank_value),
+                    "property_value": int(property_value),
+                    "cumulative_rent": int(cumulative_rent),
+                    "property_total": int(property_value + cumulative_rent)
+                })
+
+            final = data_points[-1]
+            bank_total_return = ((final["bank_value"] - initial_investment) / initial_investment) * 100
+            property_total_return = ((final["property_total"] - initial_investment) / initial_investment) * 100
+
+            winner = "property" if final["property_total"] > final["bank_value"] else "bank"
+
+            return {
+                "initial_investment": initial_investment,
+                "years": years,
+                "data_points": data_points,
+                "summary": {
+                    "final_bank_value": final["bank_value"],
+                    "final_property_total": final["property_total"],
+                    "bank_return_percent": round(bank_total_return, 1),
+                    "property_return_percent": round(property_total_return, 1),
+                    "winner": winner,
+                    "advantage_amount": abs(final["property_total"] - final["bank_value"])
+                },
+                "rates_used": {
+                    "bank_cd": bank_rate,
+                    "property_growth": property_appreciation,
+                    "rental_yield": rental_yield,
+                    "inflation": inflation_rate
+                },
+                "verdict_ar": f"العقار بيكسب {round(property_total_return - bank_total_return, 1)}% أكتر من البنك",
+                "verdict_en": f"Property beats bank by {round(property_total_return - bank_total_return, 1)}%"
+            }
+        except Exception as e:
+            logger.error(f"Failed to calculate bank vs property: {e}")
+            return {
+                "initial_investment": initial_investment,
+                "years": years,
+                "data_points": [],
+                "summary": {},
+                "error": str(e)
+            }
 
     async def score_property(
         self, 

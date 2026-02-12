@@ -945,17 +945,18 @@ class WolfBrain:
         if psychology.primary_state == PsychologicalState.FAMILY_SECURITY:
             investment_amount = properties[0].get('price', 5_000_000) if properties else 5_000_000
             inflation_data = analytical_engine.calculate_inflation_hedge(investment_amount, years=5)
-            ui_actions.append({
-                "type": "inflation_killer",
-                "priority": 8,
-                "title": "حماية العيلة من التضخم",
-                "title_en": "Family Inflation Protection",
-                "data": {
-                    **inflation_data,
-                    "initial_investment": investment_amount,
-                    "years": 5
-                }
-            })
+            if inflation_data:  # Only add if calculation succeeded
+                ui_actions.append({
+                    "type": "inflation_killer",
+                    "priority": 8,
+                    "title": "حماية العيلة من التضخم",
+                    "title_en": "Family Inflation Protection",
+                    "data": {
+                        **inflation_data,
+                        "initial_investment": investment_amount,
+                        "years": 5
+                    }
+                })
 
         # LEGAL_ANXIETY -> Always show Law 114 Guardian
         if psychology.primary_state == PsychologicalState.LEGAL_ANXIETY:
@@ -993,20 +994,20 @@ class WolfBrain:
             investment_amount = 5_000_000  # Default 5M
             if properties:
                 investment_amount = properties[0].get('price', 5_000_000)
-            
+
             inflation_data = analytical_engine.calculate_inflation_hedge(investment_amount, years=5)
-            
-            ui_actions.append({
-                "type": "inflation_killer",  # Use consistent type for frontend
-                "priority": "high",
-                "title": "العقار vs شهادات البنك (22% فايدة)",
-                "title_en": "Property vs Bank CDs (22% Interest)",
-                "data": {
-                    **inflation_data,
-                    "initial_investment": investment_amount,
-                    "years": 5
-                }
-            })
+            if inflation_data:  # Only add if calculation succeeded
+                ui_actions.append({
+                    "type": "inflation_killer",  # Use consistent type for frontend
+                    "priority": "high",
+                    "title": "العقار vs شهادات البنك (22% فايدة)",
+                    "title_en": "Property vs Bank CDs (22% Interest)",
+                    "data": {
+                        **inflation_data,
+                        "initial_investment": investment_amount,
+                        "years": 5
+                    }
+                })
         
         # 2. Bank Comparison Chart (The Truth)
         # Triggered by: Bank keywords OR Macro Skeptic strategy
@@ -1019,17 +1020,18 @@ class WolfBrain:
                 investment_amount = properties[0].get('price', 5_000_000)
 
             bank_data = analytical_engine.calculate_bank_vs_property(investment_amount, years=5)
-            ui_actions.append({
-                "type": "certificates_vs_property",  # Use type that frontend supports
-                "priority": "high",
-                "title": "شهادات البنك vs العقار (الحقيقة)",
-                "title_en": "Bank CDs vs Property (The Truth)",
-                "data": {
-                    **bank_data,
-                    "initial_investment": investment_amount,
-                    "years": 5
-                }
-            })
+            if bank_data:  # Only add if calculation succeeded
+                ui_actions.append({
+                    "type": "certificates_vs_property",  # Use type that frontend supports
+                    "priority": "high",
+                    "title": "شهادات البنك vs العقار (الحقيقة)",
+                    "title_en": "Bank CDs vs Property (The Truth)",
+                    "data": {
+                        **bank_data,
+                        "initial_investment": investment_amount,
+                        "years": 5
+                    }
+                })
         
         # Property cards for search results (Strategy-aware)
         if properties and showing_strategy in ['TEASER', 'FULL_LIST']:
