@@ -95,6 +95,13 @@ const isArabic = (text: string): boolean => {
 const MarkdownMessage = ({ content }: { content: string }) => {
     const msgIsArabic = isArabic(content);
 
+    // Normalize newlines: backend sends single \n but Markdown needs \n\n for paragraphs.
+    // Convert single newlines to double (but don't quadruple existing double newlines).
+    const normalized = content
+        .replace(/\r\n/g, '\n')           // Normalize CRLF → LF
+        .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to 2
+        .replace(/(?<!\n)\n(?!\n)/g, '\n\n'); // Single \n → double \n\n
+
     return (
         <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-right' : 'text-left'}>
             <ReactMarkdown
@@ -162,7 +169,7 @@ const MarkdownMessage = ({ content }: { content: string }) => {
                     ),
                 }}
             >
-                {content}
+                {normalized}
             </ReactMarkdown>
         </div>
     );
