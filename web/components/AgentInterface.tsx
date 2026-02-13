@@ -9,6 +9,8 @@ import {
     History, MoreHorizontal, ArrowUp,
     RefreshCw, Maximize2, ExternalLink, Wallet, Search
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -77,27 +79,93 @@ const AgentAvatar = ({ thinking = false }: { thinking?: boolean }) => {
 };
 
 /**
- * COMPONENT: TYPEWRITER EFFECT
+ * Detect if text is primarily Arabic
  */
-const Typewriter = ({ text, onComplete }: { text: string; onComplete?: () => void }) => {
-    const [displayed, setDisplayed] = useState('');
+const isArabic = (text: string): boolean => {
+    if (!text) return false;
+    const arabicChars = text.match(/[\u0600-\u06FF]/g);
+    return !!arabicChars && arabicChars.length > text.length * 0.3;
+};
 
-    useEffect(() => {
-        setDisplayed('');
-        let i = 0;
-        const timer = setInterval(() => {
-            if (i < text.length) {
-                setDisplayed(prev => prev + text.charAt(i));
-                i++;
-            } else {
-                clearInterval(timer);
-                if (onComplete) onComplete();
-            }
-        }, 5);
-        return () => clearInterval(timer);
-    }, [text, onComplete]);
+/**
+ * COMPONENT: MARKDOWN MESSAGE RENDERER
+ * Replaces the old Typewriter — renders AI responses as proper Markdown
+ * with Arabic RTL support and styled components.
+ */
+const MarkdownMessage = ({ content }: { content: string }) => {
+    const msgIsArabic = isArabic(content);
 
-    return <span>{displayed}</span>;
+    return (
+        <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-right' : 'text-left'}>
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    p: ({ node, ...props }) => (
+                        <p className={`mb-3 last:mb-0 leading-relaxed ${msgIsArabic ? 'text-right' : 'text-left'}`} {...props} />
+                    ),
+                    ul: ({ node, ...props }) => (
+                        <ul className={`list-disc mb-3 space-y-1 ${msgIsArabic ? 'pr-5' : 'pl-5'}`} {...props} />
+                    ),
+                    ol: ({ node, ...props }) => (
+                        <ol className={`list-decimal mb-3 space-y-1 ${msgIsArabic ? 'pr-5' : 'pl-5'}`} {...props} />
+                    ),
+                    li: ({ node, ...props }) => (
+                        <li className="mb-1" {...props} />
+                    ),
+                    strong: ({ node, ...props }) => (
+                        <strong className="font-bold text-teal-400" {...props} />
+                    ),
+                    em: ({ node, ...props }) => (
+                        <em className="italic text-gray-300" {...props} />
+                    ),
+                    h1: ({ node, ...props }) => (
+                        <h1 className="text-xl font-bold mb-3 mt-4 text-white" {...props} />
+                    ),
+                    h2: ({ node, ...props }) => (
+                        <h2 className="text-lg font-bold mb-2 mt-3 text-white" {...props} />
+                    ),
+                    h3: ({ node, ...props }) => (
+                        <h3 className="text-base font-semibold mb-2 mt-2 text-white" {...props} />
+                    ),
+                    blockquote: ({ node, ...props }) => (
+                        <blockquote
+                            className={`${msgIsArabic ? 'border-r-4 pr-4' : 'border-l-4 pl-4'} border-teal-500 py-1 my-2 bg-[#252627] rounded`}
+                            {...props}
+                        />
+                    ),
+                    a: ({ node, ...props }) => (
+                        <a className="text-teal-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
+                    ),
+                    code: ({ node, className, children, ...props }) => {
+                        const isInline = !className;
+                        return isInline ? (
+                            <code className="bg-[#252627] text-teal-300 px-1.5 py-0.5 rounded text-sm" {...props}>{children}</code>
+                        ) : (
+                            <pre className="bg-[#1a1a1b] border border-[#3d3d3d] rounded-lg p-4 my-3 overflow-x-auto">
+                                <code className="text-sm text-gray-300" {...props}>{children}</code>
+                            </pre>
+                        );
+                    },
+                    hr: ({ node, ...props }) => (
+                        <hr className="border-[#3d3d3d] my-4" {...props} />
+                    ),
+                    table: ({ node, ...props }) => (
+                        <div className="overflow-x-auto my-3">
+                            <table className="w-full border-collapse border border-[#3d3d3d] text-sm" {...props} />
+                        </div>
+                    ),
+                    th: ({ node, ...props }) => (
+                        <th className="border border-[#3d3d3d] bg-[#252627] px-3 py-2 text-teal-400 font-semibold" {...props} />
+                    ),
+                    td: ({ node, ...props }) => (
+                        <td className="border border-[#3d3d3d] px-3 py-2" {...props} />
+                    ),
+                }}
+            >
+                {content}
+            </ReactMarkdown>
+        </div>
+    );
 };
 
 /**
@@ -116,6 +184,8 @@ export default function AgentInterface() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    // Stable session ID per conversation — so backend can load history
+    const sessionIdRef = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
 
     // Get user's display name
     const userName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
@@ -153,10 +223,9 @@ export default function AgentInterface() {
 
         try {
             // Call the real API (session_id required by backend)
-            const sessionId = `session_${Date.now()}`;
             const response = await api.post('/api/chat', {
                 message: content,
-                session_id: sessionId,
+                session_id: sessionIdRef.current,
                 language: 'auto'
             });
             const data = response.data;
@@ -236,6 +305,8 @@ export default function AgentInterface() {
         setActiveContext(null);
         setInputValue('');
         setSidebarOpen(false);
+        // New conversation = new session ID
+        sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     };
 
     const copyToClipboard = (text: string) => {
@@ -401,10 +472,10 @@ export default function AgentInterface() {
                                                     </div>
                                                 ) : (
                                                     <div
-                                                        className="text-[16px] leading-8 text-[#e3e3e3] font-light tracking-wide whitespace-pre-wrap"
+                                                        className="text-[16px] leading-8 text-[#e3e3e3] font-light tracking-wide"
                                                         dir="auto"
                                                     >
-                                                        <Typewriter text={msg.content} />
+                                                        <MarkdownMessage content={msg.content} />
 
                                                         {/* Rich Artifacts - Linked to Context Pane */}
                                                         {msg.artifacts?.property && (
