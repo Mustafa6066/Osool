@@ -457,7 +457,7 @@ class WolfBrain:
             )
             
             # 2. Determine UI Actions (Charts must back up the strategy)
-            ui_actions = self._determine_ui_actions(
+            ui_actions = await self._determine_ui_actions(
                 psychology, 
                 scored_properties, 
                 intent, 
@@ -966,7 +966,7 @@ class WolfBrain:
         return 'NONE'
     
 
-    def _determine_ui_actions(
+    async def _determine_ui_actions(
         self,
         psychology: PsychologyProfile,
         properties: List[Dict],
@@ -1126,7 +1126,7 @@ class WolfBrain:
         
         # Bargain alert if found
         if properties:
-            bargains = analytical_engine.detect_bargains(properties, threshold_percent=10)
+            bargains = await analytical_engine.detect_bargains(properties, threshold_percent=10)
             if bargains:
                 ui_actions.append({
                     "type": "la2ta_alert",
