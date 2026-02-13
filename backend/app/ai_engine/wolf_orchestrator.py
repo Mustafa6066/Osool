@@ -34,6 +34,7 @@ from .psychology_layer import (
     PsychologicalState
 )
 from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS
+from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
 from .analytical_actions import generate_analytical_ui_actions
 from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT, is_discount_request, FRAME_CONTROL_EXAMPLES
@@ -1635,7 +1636,7 @@ DO NOT mention any prices outside this range.
                 messages.append({"role": "assistant", "content": prefill})
             
             # Call Claude
-            claude_model = settings.CLAUDE_MODEL
+            claude_model = config.CLAUDE_MODEL
             
             response = await self.anthropic.messages.create(
                 model=claude_model,
