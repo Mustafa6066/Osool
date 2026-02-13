@@ -200,6 +200,17 @@ class WolfBrain:
                 cache.set_lead_score(session_id, lead_score)
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # MEMORY: Hydrate ConversationMemory from history + current query
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            memory = ConversationMemory()
+            for msg in history:
+                if msg.get("role") == "user":
+                    memory.extract_from_message(msg.get("content", ""))
+            # Extract from current query with AI-detected filters
+            memory.extract_from_message(query, {"filters": intent.filters})
+            logger.info(f"🧠 Memory: {memory.to_dict()}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 3: LOGIC GATES (Loop Detection & Feasibility)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # HUMAN HANDOFF CHECK
@@ -492,7 +503,8 @@ class WolfBrain:
                 market_pulse=market_pulse,  # Inject live DB stats
                 showing_strategy=showing_strategy,  # Smart Display strategy
                 pivot_message=pivot_message,  # NEW: Reflexion pivot explanation
-                hunt_strategy=hunt_strategy  # NEW: Reflexion hunt strategy used
+                hunt_strategy=hunt_strategy,  # NEW: Reflexion hunt strategy used
+                memory=memory  # Conversation memory for context injection
             )
             self.stats["claude_calls"] += 1
 
@@ -1150,7 +1162,8 @@ class WolfBrain:
         market_pulse: Optional[Dict] = None,
         showing_strategy: str = 'NONE',
         pivot_message: Optional[str] = None,  # NEW: Reflexion pivot explanation
-        hunt_strategy: str = 'none'  # NEW: Reflexion hunt strategy used
+        hunt_strategy: str = 'none',  # NEW: Reflexion hunt strategy used
+        memory: Optional[Any] = None  # Conversation memory for context injection
     ) -> str:
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
@@ -1600,6 +1613,12 @@ RULE 3: Pivot to the "Takeaway Close":
 RULE 4: Anchor the price to the ROI: "You are not spending X, you are securing an asset that grows Y% annually."
 """)
 
+            # Inject conversation memory summary (budget, areas, purpose, objections)
+            if memory:
+                memory_summary = memory.get_context_summary()
+                if memory_summary:
+                    context_parts.append(f"\n{memory_summary}\n")
+
             # Build system prompt
             system_prompt = get_wolf_system_prompt() + "\n\n" + "\n".join(context_parts)
             
@@ -1621,7 +1640,7 @@ DO NOT mention any prices outside this range.
             
             # Convert history
             messages = []
-            for msg in history[-10:]:
+            for msg in history[-30:]:
                 if isinstance(msg, dict):
                     messages.append(msg)
             messages.append({"role": "user", "content": query})
