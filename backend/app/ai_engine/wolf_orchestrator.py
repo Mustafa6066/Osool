@@ -33,7 +33,7 @@ from .psychology_layer import (
     PsychologyProfile,
     PsychologicalState
 )
-from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS
+from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS, DEVELOPER_GRAPH
 from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
 from .analytical_actions import generate_analytical_ui_actions
@@ -46,9 +46,11 @@ from .wolf_checklist import validate_checklist, WolfChecklistResult
 
 # Database
 from app.database import AsyncSessionLocal
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.vector_search import search_properties as db_search_properties
 from app.services.cache import cache
+from app.models import UserMemory
 
 logger = logging.getLogger(__name__)
 
@@ -200,14 +202,25 @@ class WolfBrain:
                 cache.set_lead_score(session_id, lead_score)
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # MEMORY: Hydrate ConversationMemory from history + current query
+            # MEMORY: Hydrate from DB (cross-session) + history (current session)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # 1. Load cross-session memory from DB (if user is logged in)
+            user_id = profile.get("user_id") if profile else None
+            db_memory = await self._load_user_memory(session, user_id) if user_id else None
+            
+            # 2. Build session memory from current conversation history
             memory = ConversationMemory()
             for msg in history:
                 if msg.get("role") == "user":
                     memory.extract_from_message(msg.get("content", ""))
             # Extract from current query with AI-detected filters
             memory.extract_from_message(query, {"filters": intent.filters})
+            
+            # 3. Merge: DB memory fills gaps, current session wins on conflicts
+            if db_memory:
+                memory.merge(db_memory)
+                logger.info("🧠 Cross-session memory loaded and merged")
+            
             logger.info(f"🧠 Memory: {memory.to_dict()}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -396,6 +409,47 @@ class WolfBrain:
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 5B: FEASIBILITY SCREENING (Budget Negotiation)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # If user has budget + location + property_type, check if request is realistic
+            # Handles "Villa in Zayed for 5M" → "5M won't get a villa, but here's a townhouse"
+            feasibility_location = intent.filters.get('location', '')
+            feasibility_type = intent.filters.get('property_type', '')
+            feasibility_budget = intent.filters.get('budget_max', 0)
+            
+            if feasibility_location and feasibility_type and feasibility_budget and feasibility_budget > 0:
+                feasibility_result = market_intelligence.screen_feasibility(
+                    location=feasibility_location,
+                    property_type=feasibility_type,
+                    budget=feasibility_budget
+                )
+                if not feasibility_result.is_feasible:
+                    logger.info(f"🛑 FEASIBILITY: {feasibility_type} in {feasibility_location} for {feasibility_budget/1e6:.1f}M is NOT feasible")
+                    # Don't block — inject the feasibility message and still search with alternatives
+                    feasibility_msg = feasibility_result.message_ar if language == 'ar' else feasibility_result.message_en
+                    alternatives = feasibility_result.alternatives
+                    
+                    # Build negotiation response
+                    alt_text = ""
+                    if alternatives:
+                        if language == 'ar':
+                            alt_text = "\n\nبس أنا لقيتلك بدائل ممتازة:\n"
+                            for alt in alternatives[:3]:
+                                alt_text += f"• **{alt.get('type_ar', alt.get('type', ''))}** في {alt.get('location_ar', alt.get('location', ''))} — من {alt.get('min_price', 0)/1e6:.1f} مليون\n"
+                        else:
+                            alt_text = "\n\nBut I found excellent alternatives:\n"
+                            for alt in alternatives[:3]:
+                                alt_text += f"• **{alt.get('type', '')}** in {alt.get('location', '')} — from {alt.get('min_price', 0)/1e6:.1f}M\n"
+                    
+                    return {
+                        "response": feasibility_msg + alt_text,
+                        "properties": [],
+                        "ui_actions": [{"type": "feasibility_alert", "priority": "high", "data": feasibility_result.to_dict()}],
+                        "strategy": {"strategy": "budget_negotiation", "feasibility": feasibility_result.to_dict()},
+                        "psychology": psychology.to_dict()
+                    }
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 6: THE SMART HUNT (Agentic Search with Reflexion)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             properties = []
@@ -403,8 +457,8 @@ class WolfBrain:
             hunt_strategy = "none"
             pivot_message = None
             
-            # Determine "Smart Display" Strategy
-            showing_strategy = self._determine_showing_strategy(intent, psychology, is_discovery_complete)
+            # Determine "Smart Display" Strategy (now with lead score awareness)
+            showing_strategy = self._determine_showing_strategy(intent, psychology, is_discovery_complete, lead_score=lead_score)
             logger.info(f"👁️ Visual Strategy: {showing_strategy}")
 
             # Only search if strategy is TEASER or FULL_LIST
@@ -484,6 +538,20 @@ class WolfBrain:
                 market_pulse = await market_layer.get_real_time_market_pulse(intent.filters.get("location"))
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 7B: DEVELOPER INSIGHT INJECTION
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Auto-detect developer mentions and inject graph-backed context
+            developer_insight = None
+            for dev_key, dev_data in DEVELOPER_GRAPH.items():
+                # Check English name, Arabic name, and key in the query
+                dev_names = [dev_key, dev_data.get('name_en', '').lower(), dev_data.get('name_ar', '')]
+                if any(name and name.lower() in query.lower() for name in dev_names):
+                    developer_insight = analytical_engine.get_developer_insight(dev_key, language)
+                    if developer_insight:
+                        logger.info(f"📊 DEVELOPER GRAPH: Injecting insight for {dev_data.get('name_en')}")
+                    break
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 8: SPEAK (Narrative Generation)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             response_text = await self._generate_wolf_narrative(
@@ -504,9 +572,16 @@ class WolfBrain:
                 showing_strategy=showing_strategy,  # Smart Display strategy
                 pivot_message=pivot_message,  # NEW: Reflexion pivot explanation
                 hunt_strategy=hunt_strategy,  # NEW: Reflexion hunt strategy used
-                memory=memory  # Conversation memory for context injection
+                memory=memory,  # Conversation memory for context injection
+                developer_insight=developer_insight  # Wolf 2.0: Graph-backed developer data
             )
             self.stats["claude_calls"] += 1
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # SAVE MEMORY: Persist to DB for cross-session recall
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if user_id:
+                await self._save_user_memory(session, user_id, memory)
 
             # Calculate processing time
             elapsed = (datetime.now() - start_time).total_seconds()
@@ -551,6 +626,57 @@ class WolfBrain:
         if has_arabic:
             return "ar"
         return "en"
+
+    async def _load_user_memory(self, session: AsyncSession, user_id: int) -> Optional[ConversationMemory]:
+        """Load cross-session memory from DB for a logged-in user."""
+        try:
+            result = await session.execute(
+                select(UserMemory).where(UserMemory.user_id == user_id)
+            )
+            record = result.scalar_one_or_none()
+            if record and record.memory_json:
+                import json
+                data = json.loads(record.memory_json)
+                return ConversationMemory.from_dict(data)
+        except Exception as e:
+            logger.warning(f"Failed to load user memory for user {user_id}: {e}")
+        return None
+
+    async def _save_user_memory(self, session: AsyncSession, user_id: int, memory: ConversationMemory):
+        """Save/update cross-session memory to DB for a logged-in user."""
+        try:
+            import json
+            memory_dict = memory.to_dict()
+            memory_json = json.dumps(memory_dict, ensure_ascii=False)
+            
+            result = await session.execute(
+                select(UserMemory).where(UserMemory.user_id == user_id)
+            )
+            record = result.scalar_one_or_none()
+            
+            if record:
+                record.memory_json = memory_json
+                record.budget_min = memory.budget_range.get('min') if memory.budget_range else None
+                record.budget_max = memory.budget_range.get('max') if memory.budget_range else None
+                record.preferred_areas = ','.join(memory.preferred_areas) if memory.preferred_areas else None
+                record.investment_vs_living = memory.investment_vs_living
+                record.preferences_text = '; '.join(memory.preferences) if memory.preferences else None
+            else:
+                new_record = UserMemory(
+                    user_id=user_id,
+                    memory_json=memory_json,
+                    budget_min=memory.budget_range.get('min') if memory.budget_range else None,
+                    budget_max=memory.budget_range.get('max') if memory.budget_range else None,
+                    preferred_areas=','.join(memory.preferred_areas) if memory.preferred_areas else None,
+                    investment_vs_living=memory.investment_vs_living,
+                    preferences_text='; '.join(memory.preferences) if memory.preferences else None
+                )
+                session.add(new_record)
+            
+            await session.commit()
+            logger.info(f"💾 User memory saved for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to save user memory for user {user_id}: {e}")
 
     def _needs_screening(self, query: str, history: List[Dict]) -> bool:
         """
@@ -922,16 +1048,16 @@ class WolfBrain:
         logger.debug(f"Discovery incomplete: budget={has_budget}, context={has_context}, purpose={has_manual_purpose}, location={has_location}")
         return False
     
-    def _determine_showing_strategy(self, intent: Intent, psychology: PsychologyProfile, is_discovery_complete: bool) -> str:
+    def _determine_showing_strategy(self, intent: Intent, psychology: PsychologyProfile, is_discovery_complete: bool, lead_score: int = 0) -> str:
         """
-        Smart Display Protocol: Decides HOW to show properties based on User Intent & Psychology.
+        Smart Display Protocol: Decides HOW to show properties based on User Intent, Psychology, & Lead Score.
         
         Returns: 'NONE', 'TEASER', 'FULL_LIST'
         
         Tiers:
-        - NONE: Window shoppers, educational queries → Charts only
-        - TEASER: Location but no budget → 1 anchor property to test price sensitivity
-        - FULL_LIST: Qualified user (budget + location) → 3-5 targeted properties
+        - Tier 0 (Education): NONE — Window shoppers, cold leads → Charts only, hide properties
+        - Tier 1 (Teaser):    TEASER — Curious but vague → 1 anchor property to set expectations
+        - Tier 2 (Vault):     FULL_LIST — Serious/qualified → 3-5 targeted properties + comparison
         """
         # 1. Block if Trust Deficit (Psychology Rule)
         if psychology.primary_state == PsychologicalState.TRUST_DEFICIT:
@@ -943,7 +1069,13 @@ class WolfBrain:
             logger.info("👁️ Strategy: NONE (Educational query without location)")
             return 'NONE'
 
-        # 3. FULL LIST: If Discovery Complete OR Explicit show keywords
+        # 3. LEAD SCORE GATE: Very cold leads stay on NONE
+        if lead_score < 20 and not is_discovery_complete:
+            if intent.action not in ["search", "price_check"]:
+                logger.info(f"👁️ Strategy: NONE (Cold lead: score={lead_score})")
+                return 'NONE'
+
+        # 4. FULL LIST: If Discovery Complete OR Explicit show keywords
         show_keywords = ["show", "أوريني", "ورجيني", "best", "أفضل", "options", "خيارات"]
         has_show_keyword = any(kw in intent.raw_query.lower() for kw in show_keywords)
         
@@ -951,13 +1083,18 @@ class WolfBrain:
             logger.info("👁️ Strategy: FULL_LIST (Qualified or explicit request)")
             return 'FULL_LIST'
 
-        # 4. TEASER: If we have Location but NO Budget (The "Anchor" Strategy)
+        # 5. LEAD SCORE UPGRADE: Warm/hot leads get FULL_LIST even without full discovery
+        if lead_score >= 60 and intent.filters.get("location"):
+            logger.info(f"👁️ Strategy: FULL_LIST (Warm lead upgrade: score={lead_score})")
+            return 'FULL_LIST'
+
+        # 6. TEASER: If we have Location but NO Budget (The "Anchor" Strategy)
         # We show 1 property to force them to react to the price.
         if intent.filters.get("location") and not intent.filters.get("budget_max"):
             logger.info("👁️ Strategy: TEASER (Location without budget - anchor mode)")
             return 'TEASER'
 
-        # 5. Default: Window shopper - don't show yet
+        # 7. Default: Window shopper - don't show yet
         if intent.intent_bucket == "window_shopper":
             logger.info("👁️ Strategy: NONE (Window shopper)")
             return 'NONE'
@@ -1163,7 +1300,8 @@ class WolfBrain:
         showing_strategy: str = 'NONE',
         pivot_message: Optional[str] = None,  # NEW: Reflexion pivot explanation
         hunt_strategy: str = 'none',  # NEW: Reflexion hunt strategy used
-        memory: Optional[Any] = None  # Conversation memory for context injection
+        memory: Optional[Any] = None,  # Conversation memory for context injection
+        developer_insight: Optional[Dict] = None  # Wolf 2.0: Developer graph data
     ) -> str:
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
@@ -1175,6 +1313,21 @@ class WolfBrain:
             # INSIGHT INJECTION (The "Wolf" Edge)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             wolf_insight_instruction = ""
+            
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # DEVELOPER GRAPH INSIGHT (Wolf 2.0)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if developer_insight:
+                dev_name = developer_insight.get('developer', '')
+                insight_text = developer_insight.get('insight_text', '')
+                wolf_insight_instruction += f"""
+[DEVELOPER GRAPH DATA - VERIFIED]
+{insight_text}
+
+IMPORTANT: Use this verified data to answer the user's question about {dev_name}.
+Do NOT make up statistics. Use ONLY the numbers above.
+Frame it as insider market intelligence: "My data shows..."
+"""
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # REFLEXION CONTEXT (Search Pivot Explanation)

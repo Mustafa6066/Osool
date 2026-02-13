@@ -341,3 +341,37 @@ class Invitation(Base):
 
     # Relationships
     created_by_user = relationship("User", back_populates="invitations_created", foreign_keys=[created_by_user_id])
+
+
+class UserMemory(Base):
+    """
+    Cross-Session Memory Persistence
+    ---------------------------------
+    Stores key customer facts (budget, preferences, deal-breakers) so the AI 
+    can recall them across sessions. Creates the "family consultant" experience.
+    
+    Example: Session 1 user says "wife hates open kitchens" → stored.
+             Session 2 user looks at unit with American kitchen → AI warns them.
+    """
+    __tablename__ = "user_memories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    
+    # Core memory fields (JSON serialized)
+    memory_json: Mapped[str] = mapped_column(Text, nullable=True)  # Full ConversationMemory dict
+    
+    # Quick-access fields for common lookups
+    budget_min: Mapped[int] = mapped_column(Integer, nullable=True)
+    budget_max: Mapped[int] = mapped_column(Integer, nullable=True)
+    preferred_areas: Mapped[str] = mapped_column(String, nullable=True)  # Comma-separated
+    investment_vs_living: Mapped[str] = mapped_column(String, nullable=True)
+    
+    # Free-text preferences (e.g., "wife hates open kitchens", "needs garden")
+    preferences_text: Mapped[str] = mapped_column(Text, nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")

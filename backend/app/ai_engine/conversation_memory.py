@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConversationMemory:
-    """Cross-turn fact extraction and memory for AMR."""
+    """Cross-turn and cross-session fact extraction and memory for AMR."""
 
     def __init__(self):
         self.budget_range: Optional[Dict[str, int]] = None  # {'min': X, 'max': Y}
@@ -27,6 +27,58 @@ class ConversationMemory:
         self.family_size: Optional[int] = None
         self.investment_vs_living: Optional[str] = None  # 'investment' | 'living' | 'both'
         self.discovery_answers: Dict[str, str] = {}
+        self.preferences: List[str] = []  # Free-text preferences ("wife hates open kitchens")
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'ConversationMemory':
+        """Hydrate memory from a saved dict (e.g., from DB JSON)."""
+        mem = cls()
+        if not data:
+            return mem
+        mem.budget_range = data.get('budget_range')
+        mem.preferred_areas = data.get('preferred_areas', [])
+        mem.preferred_developers = data.get('preferred_developers', [])
+        mem.deal_breakers = data.get('deal_breakers', [])
+        mem.liked_properties = data.get('liked_properties', [])
+        mem.objections_raised = data.get('objections_raised', [])
+        mem.timeline = data.get('timeline')
+        mem.family_size = data.get('family_size')
+        mem.investment_vs_living = data.get('investment_vs_living')
+        mem.discovery_answers = data.get('discovery_answers', {})
+        mem.preferences = data.get('preferences', [])
+        return mem
+
+    def merge(self, other: 'ConversationMemory'):
+        """Merge another memory (e.g., from DB) into this one. Current session wins on conflicts."""
+        # Budget: current session wins if set
+        if not self.budget_range and other.budget_range:
+            self.budget_range = other.budget_range
+        # Lists: union without duplicates
+        for area in other.preferred_areas:
+            if area not in self.preferred_areas:
+                self.preferred_areas.append(area)
+        for dev in other.preferred_developers:
+            if dev not in self.preferred_developers:
+                self.preferred_developers.append(dev)
+        for db in other.deal_breakers:
+            if db not in self.deal_breakers:
+                self.deal_breakers.append(db)
+        for lp in other.liked_properties:
+            if lp not in self.liked_properties:
+                self.liked_properties.append(lp)
+        for obj in other.objections_raised:
+            if obj not in self.objections_raised:
+                self.objections_raised.append(obj)
+        for pref in other.preferences:
+            if pref not in self.preferences:
+                self.preferences.append(pref)
+        # Scalars: current session wins if set
+        if not self.timeline and other.timeline:
+            self.timeline = other.timeline
+        if not self.investment_vs_living and other.investment_vs_living:
+            self.investment_vs_living = other.investment_vs_living
+        if not self.family_size and other.family_size:
+            self.family_size = other.family_size
 
     def extract_from_message(self, message: str, ai_analysis: Optional[Dict] = None):
         """Extract and remember key facts from each exchange."""
@@ -82,6 +134,8 @@ class ConversationMemory:
         parts.append(f"- Objections: {', '.join(self.objections_raised) if self.objections_raised else 'None'}")
         parts.append(f"- Timeline: {self.timeline or 'Not specified'}")
         parts.append(f"- Properties shown: {len(self.shown_properties)}")
+        if self.preferences:
+            parts.append(f"- Key Preferences: {'; '.join(self.preferences)}")
 
         return '\n'.join(parts)
 
@@ -181,6 +235,7 @@ class ConversationMemory:
             'objections_raised': self.objections_raised,
             'timeline': self.timeline,
             'investment_vs_living': self.investment_vs_living,
+            'preferences': self.preferences,
         }
 
     def check_repetitive_loop(self, history: List[Dict], current_response: str) -> bool:
