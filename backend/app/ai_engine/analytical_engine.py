@@ -444,6 +444,7 @@ class OsoolScore:
 
 
 # Import Async Session
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from .market_analytics_layer import MarketAnalyticsLayer
 
