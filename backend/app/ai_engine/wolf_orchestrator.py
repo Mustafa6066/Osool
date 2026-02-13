@@ -1409,7 +1409,7 @@ Focus on value compared to market average.
                 
                 # Fetch Real Market Average (The "Price Sandwich" Anchor)
                 # Ensure we use the Live DB average if available, otherwise fallback
-                area_avg = market_pulse['avg_price_sqm'] if market_pulse else analytical_engine.get_avg_price_per_sqm(location)
+                area_avg = market_pulse['avg_price_sqm'] if market_pulse else market_intelligence.get_avg_price_per_sqm(location)
                 if area_avg == 0:
                      area_avg = top_prop.get('wolf_benchmark', {}).get('market_avg', 0)
 
