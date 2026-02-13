@@ -147,6 +147,15 @@ PROPERTY_TYPE_ALIASES = {
     "اراضي": "plot",
     "plot": "plot",
     "land": "plot",
+
+    # Generic housing terms (Egyptian Arabic)
+    "سكن": "apartment",          # Generic "housing" -> default to apartment
+    "سكن عائلي": "villa",        # "Family housing" -> villa (3+ bedrooms, compounds)
+    "بيت": "apartment",          # Generic "home" -> apartment
+    "منزل": "apartment",         # Generic "house" -> apartment
+    "شاليه": "chalet",           # Chalet (North Coast / Ain Sokhna)
+    "شالية": "chalet",
+    "chalet": "chalet",
 }
 
 
@@ -294,6 +303,12 @@ property_type VALUES (include):
 - residential_building: ONLY for explicit requests for buildings/lands ("عمارة", "أرض")
 - plot: For "ارض سكن عائلي", land plots
 
+EGYPTIAN MARKET KEYWORDS (add to keywords[] if detected):
+- Delivery: "تسليم فوري"=ready_to_move, "أوفر"/"ريسيل"=resale
+- Orientation: "بحري"=north_facing
+- Extras: "جاردن"=garden, "روف"=roof
+- Finishing: "سوبر لوكس"=lux, "على الطوب"=core, "نص تشطيب"=semi
+
 Example query: "عايز شقة 3 غرف في التجمع تحت 5 مليون"
 Example response:
 {
@@ -411,6 +426,49 @@ IMPORTANT:
         if bedroom_match:
             filters["bedrooms"] = int(bedroom_match.group(1))
         
+        # Extract purpose from keywords
+        family_keywords = ["سكن عائلي", "عيلة", "عائلي", "family", "living", "اعيش", "سكن", "اسكن", "بيت العيلة", "استقرار"]
+        investment_keywords = ["استثمار", "عائد", "roi", "investment", "ايجار", "ارباح", "ربح", "rent"]
+        commercial_keywords = ["تجاري", "مكتب", "محل", "عيادة", "commercial", "office", "clinic"]
+
+        if any(kw in query_lower for kw in family_keywords):
+            filters["purpose"] = "living"
+        elif any(kw in query_lower for kw in investment_keywords):
+            filters["purpose"] = "investment"
+        elif any(kw in query_lower for kw in commercial_keywords):
+            filters["purpose"] = "commercial"
+
+        # Extract finishing level
+        finishing_map = {
+            "تشطيب كامل": "finished", "متشطبة": "finished", "متشطب": "finished",
+            "تشطيب لوكس": "lux", "سوبر لوكس": "lux", "لوكس": "lux",
+            "نص تشطيب": "semi", "نصف تشطيب": "semi",
+            "على الطوب": "core", "كور اند شيل": "core", "core": "core",
+            "finished": "finished", "semi": "semi",
+        }
+        for keyword, finishing in finishing_map.items():
+            if keyword in query_lower:
+                filters["finishing"] = finishing
+                break
+
+        # Extract delivery/market terms as keywords
+        delivery_keywords = []
+        if any(kw in query_lower for kw in ["تسليم فوري", "استلام فوري", "ready", "immediate"]):
+            delivery_keywords.append("ready_to_move")
+        if any(kw in query_lower for kw in ["أوفر", "over", "ريسيل", "resale", "إعادة بيع"]):
+            delivery_keywords.append("resale")
+        if any(kw in query_lower for kw in ["بحري", "north facing"]):
+            delivery_keywords.append("north_facing")
+        if any(kw in query_lower for kw in ["جاردن", "garden", "حديقة"]):
+            delivery_keywords.append("garden")
+        if any(kw in query_lower for kw in ["روف", "roof", "سطح"]):
+            delivery_keywords.append("roof")
+        if delivery_keywords:
+            existing = filters.get("keywords", [])
+            if isinstance(existing, str):
+                existing = [existing] if existing else []
+            filters["keywords"] = existing + delivery_keywords
+
         # Extract budget
         budget_match = re.search(r'(\d+(?:\.\d+)?)\s*(مليون|million|m)', query_lower)
         if budget_match:

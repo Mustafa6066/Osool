@@ -14,6 +14,7 @@ Statistics include:
 
 import logging
 from typing import Dict, List, Optional
+from datetime import datetime
 from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Property
@@ -23,6 +24,11 @@ logger = logging.getLogger(__name__)
 
 # Cache for statistics (refreshed periodically)
 _market_stats_cache: Optional[Dict] = None
+
+# Cache for QA statistics with TTL
+_qa_stats_cache: Optional[Dict] = None
+_qa_stats_timestamp: Optional[datetime] = None
+QA_STATS_TTL = 600  # 10 minutes
 
 
 async def compute_market_statistics(db: AsyncSession) -> Dict:
@@ -495,3 +501,73 @@ async def compute_detailed_qa_statistics(
             "best_price_per_type": {},
             "summary": {"total_properties": 0, "error": str(e)}
         }
+
+
+async def get_cached_qa_statistics(area: str = None) -> Dict:
+    """
+    Get QA statistics with in-memory caching. TTL = 10 minutes.
+    Falls back to fresh computation if cache is stale or empty.
+    """
+    global _qa_stats_cache, _qa_stats_timestamp
+
+    now = datetime.now()
+    if (
+        _qa_stats_cache
+        and _qa_stats_timestamp
+        and (now - _qa_stats_timestamp).total_seconds() < QA_STATS_TTL
+    ):
+        return _qa_stats_cache
+
+    try:
+        async with AsyncSessionLocal() as db:
+            stats = await compute_detailed_qa_statistics(db, area=area)
+            _qa_stats_cache = stats
+            _qa_stats_timestamp = now
+            logger.info(f"✅ QA stats cache refreshed ({stats.get('summary', {}).get('total_properties', 0)} properties)")
+            return stats
+    except Exception as e:
+        logger.error(f"Failed to get cached QA statistics: {e}")
+        return _qa_stats_cache or {"summary": {"total_properties": 0}}
+
+
+def format_qa_stats_for_ai(stats: Dict, location: str = None) -> str:
+    """
+    Format detailed QA statistics as compact, token-efficient context for Claude.
+    Used to inject verified database numbers into narrative generation.
+    """
+    lines = ["[VERIFIED DATABASE STATISTICS - USE THESE EXACT NUMBERS]"]
+
+    summary = stats.get("summary", {})
+    if summary.get("total_properties", 0) > 0:
+        lines.append(f"Total properties in database: {summary['total_properties']}")
+        lines.append(f"Market meter price range: {summary.get('min_meter', 0):,.0f} - {summary.get('max_meter', 0):,.0f} EGP/sqm")
+
+    # Meter price by area (focused on requested location)
+    meter_by_area = stats.get("meter_price_by_area", {})
+    if location and location in meter_by_area:
+        area_data = meter_by_area[location]
+        lines.append(f"\n{location} meter prices: {area_data['min_meter']:,.0f} - {area_data['max_meter']:,.0f} EGP/sqm (avg: {area_data['avg_meter']:,.0f}, {area_data['count']} units)")
+    elif meter_by_area:
+        lines.append("\nTop areas by meter price:")
+        for area_name, data in sorted(meter_by_area.items(), key=lambda x: x[1].get('count', 0), reverse=True)[:5]:
+            lines.append(f"  {area_name}: {data['min_meter']:,.0f}-{data['max_meter']:,.0f} EGP/sqm (avg: {data['avg_meter']:,.0f}, {data['count']} units)")
+
+    # Room statistics
+    room_stats = stats.get("room_statistics", {})
+    if room_stats:
+        lines.append("\nBedroom breakdown:")
+        for beds, data in sorted(room_stats.items(), key=lambda x: int(x[0])):
+            lines.append(f"  {beds}BR: {data['count']} units, avg {data['avg_price']/1e6:.1f}M EGP, avg {data['avg_size_sqm']:.0f}sqm")
+
+    # Best deals per area
+    best_area = stats.get("best_price_per_area", {})
+    if location and location in best_area:
+        deal = best_area[location]
+        lines.append(f"\nBest deal in {location}: {deal['title']} at {deal['price_per_sqm']:,.0f} EGP/sqm by {deal['developer']} in {deal['compound']}")
+    elif best_area:
+        lines.append("\nBest deals by area:")
+        for area_name, deal in list(best_area.items())[:3]:
+            lines.append(f"  {area_name}: {deal['price_per_sqm']:,.0f} EGP/sqm ({deal['developer']})")
+
+    lines.append("\nCRITICAL: Use ONLY these verified numbers. Do NOT invent statistics.")
+    return "\n".join(lines)

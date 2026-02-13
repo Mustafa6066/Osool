@@ -48,6 +48,7 @@ from app.database import AsyncSessionLocal
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.vector_search import search_properties as db_search_properties
 from app.services.cache import cache
+from app.services.market_statistics import get_cached_qa_statistics, format_qa_stats_for_ai
 
 logger = logging.getLogger(__name__)
 
@@ -394,6 +395,16 @@ class WolfBrain:
             # Determine "Smart Display" Strategy
             showing_strategy = self._determine_showing_strategy(intent, psychology, is_discovery_complete)
             logger.info(f"👁️ Visual Strategy: {showing_strategy}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # FAMILY HOUSING INTENT ENHANCEMENT
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if (intent.filters.get('purpose') == 'living'
+                and intent.intent_bucket == 'serious_buyer'
+                and not intent.filters.get('bedrooms')):
+                # Family buyer with no bedroom preference → default to 3+ bedrooms
+                intent.filters['bedrooms'] = 3
+                logger.info("👨‍👩‍👧‍👦 Family buyer detected: auto-setting min 3 bedrooms")
 
             # Only search if strategy is TEASER or FULL_LIST
             if showing_strategy in ['TEASER', 'FULL_LIST']:
@@ -766,12 +777,40 @@ class WolfBrain:
                     pivot_msg = f"With a small stretch (+{budget_diff:.1f}M), I found excellent options."
                 return alternatives, "budget_pivot", pivot_msg
         
-        # All strategies failed
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # REFLEXION: Relaxed Search (Drop all filters, keep location only)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if location:
+            relaxed_filters = {"location": filters.get("location")}
+            alternatives = await self._search_database(relaxed_filters, db_session=session)
+            if alternatives:
+                logger.info(f"🔄 SMART HUNT: Relaxed search success (location-only for {location})")
+                if language == "ar":
+                    pivot_msg = "معايير البحث المحددة ضيقة شوية، بس لقيت خيارات تانية في نفس المنطقة ممكن تعجبك."
+                else:
+                    pivot_msg = "Your specific criteria are quite narrow, but I found other options in the same area that might interest you."
+                return alternatives[:5], "relaxed_search", pivot_msg
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # REFLEXION: Any Area Search (Drop location too, keep budget only)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if budget_max and budget_max > 0:
+            any_filters = {"budget_max": int(budget_max * 1.1)}
+            alternatives = await self._search_database(any_filters, db_session=session)
+            if alternatives:
+                logger.info(f"🔄 SMART HUNT: Any-area search success (budget-only)")
+                if language == "ar":
+                    pivot_msg = "مفيش وحدات بالمواصفات دي في المنطقة المحددة، بس لقيت فرص ممتازة في مناطق تانية بنفس الميزانية."
+                else:
+                    pivot_msg = "No units match in the specified area, but I found excellent options in other areas within your budget."
+                return alternatives[:5], "any_area_search", pivot_msg
+
+        # All strategies exhausted - ask for adjusted criteria
         logger.info("❌ SMART HUNT: All reflexion strategies failed")
         if language == "ar":
-            pivot_msg = "للأسف مفيش وحدات متاحة بالمواصفات دي. ممكن نعدل المعايير؟"
+            pivot_msg = "الفرص المتاحة حالياً محدودة بالمواصفات دي. خليني أعرف أكتر عن احتياجاتك عشان أرشحلك أفضل البدائل."
         else:
-            pivot_msg = "Unfortunately, no units match these exact criteria. Shall we adjust the search?"
+            pivot_msg = "Current availability is limited for these exact specs. Tell me more about your needs so I can find the best alternatives."
         return [], "failed", pivot_msg
 
                     
@@ -945,7 +984,7 @@ class WolfBrain:
         if psychology.primary_state == PsychologicalState.FAMILY_SECURITY:
             investment_amount = properties[0].get('price', 5_000_000) if properties else 5_000_000
             inflation_data = analytical_engine.calculate_inflation_hedge(investment_amount, years=5)
-            if inflation_data:  # Only add if calculation succeeded
+            if inflation_data and inflation_data.get('projections'):  # Only add if calculation produced data
                 ui_actions.append({
                     "type": "inflation_killer",
                     "priority": 8,
@@ -996,7 +1035,7 @@ class WolfBrain:
                 investment_amount = properties[0].get('price', 5_000_000)
 
             inflation_data = analytical_engine.calculate_inflation_hedge(investment_amount, years=5)
-            if inflation_data:  # Only add if calculation succeeded
+            if inflation_data and inflation_data.get('projections'):  # Only add if calculation produced data
                 ui_actions.append({
                     "type": "inflation_killer",  # Use consistent type for frontend
                     "priority": "high",
@@ -1020,7 +1059,7 @@ class WolfBrain:
                 investment_amount = properties[0].get('price', 5_000_000)
 
             bank_data = analytical_engine.calculate_bank_vs_property(investment_amount, years=5)
-            if bank_data:  # Only add if calculation succeeded
+            if bank_data and bank_data.get('data_points'):  # Only add if calculation produced data
                 ui_actions.append({
                     "type": "certificates_vs_property",  # Use type that frontend supports
                     "priority": "high",
@@ -1066,7 +1105,38 @@ class WolfBrain:
                     "property": bargains[0],
                     "discount": bargains[0].get("la2ta_score", 0)
                 })
-        
+
+        # ═══════════════════════════════════════════════════════════════
+        # FOMO TRIGGER: Hot Market Price Increase Warning
+        # When buyer is hesitant + area has >30% growth → urgency alert
+        # ═══════════════════════════════════════════════════════════════
+        if location and psychology.primary_state in [
+            PsychologicalState.HESITATION,
+            PsychologicalState.ANALYSIS_PARALYSIS,
+            PsychologicalState.SKEPTICISM
+        ]:
+            area_context = market_intelligence.get_area_context(location)
+            growth_rate = area_context.get('growth_rate', 0) if area_context.get('found') else 0
+            if growth_rate > 0.25:  # >25% annual growth = hot market
+                avg_price = area_context.get('avg_price_sqm', 0)
+                projected_increase = int(avg_price * growth_rate)
+                ui_actions.append({
+                    "type": "la2ta_alert",
+                    "priority": "high",
+                    "title": "⏰ تحذير زيادة أسعار",
+                    "title_en": "⏰ Price Increase Warning",
+                    "property": properties[0] if properties else {},
+                    "discount": 0,
+                    "fomo_data": {
+                        "area": location,
+                        "growth_rate": f"{growth_rate*100:.0f}%",
+                        "current_avg_sqm": avg_price,
+                        "projected_increase_sqm": projected_increase,
+                        "message_ar": f"أسعار {location} بتزيد {growth_rate*100:.0f}% سنوياً. المتر هيزيد ~{projected_increase:,} جنيه السنة الجاية.",
+                        "message_en": f"{location} prices rising {growth_rate*100:.0f}% annually. Expect ~{projected_increase:,} EGP/sqm increase next year."
+                    }
+                })
+
         # Sort by priority
         priority_order = {"high": 0, "medium": 1, "low": 2}
         ui_actions.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 3))
@@ -1114,6 +1184,8 @@ class WolfBrain:
                     'location_pivot': 'Location Alternative',
                     'type_pivot': 'Property Type Alternative',
                     'budget_pivot': 'Budget Stretch',
+                    'relaxed_search': 'Flexible Criteria',
+                    'any_area_search': 'Cross-Area Search',
                     'failed': 'No Match Found'
                 }
                 pivot_type = pivot_type_names.get(hunt_strategy, 'Alternative')
@@ -1274,6 +1346,30 @@ Then use the Inflation vs Bank equation to prove your point.
 End with: "تحب أوريك الرسم البياني للمقارنة دي؟"
 """
 
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # PROTOCOL F: CAPITAL PRESERVATION PSYCHOLOGY
+            # When user's primary concern is protecting savings, not investing
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            preservation_keywords = [
+                "تحويشة", "تحويشتي", "حفظ قيمة", "فلوس البنك", "قيمة الفلوس",
+                "تحويشة العمر", "أمان الفلوس", "أحمي فلوسي", "حماية", "ادخار",
+                "savings", "protect my money", "preserve", "safe investment"
+            ]
+            is_preservation = any(kw in query.lower() for kw in preservation_keywords)
+
+            if is_preservation or psychology.primary_state == PsychologicalState.FEAR_OF_LOSS:
+                wolf_insight_instruction += """
+[PROTOCOL_F_CAPITAL_PRESERVATION]
+The user's concern is PROTECTING their savings, not maximizing returns.
+APPROACH: Switch from "investor pitch" to "wealth guardian" mode.
+
+MANDATORY FRAMEWORK:
+1. Validate their fear: "حفظ الفلوس في البنك مش حفظ قيمة. ده تآكل بطيء."
+2. Show the math: "لو حطيت 5 مليون في البنك، بعد 5 سنين القوة الشرائية بتبقى X مليون بس"
+3. Reframe property: "أنت مش بتشتري عقار، أنت بتحوّل فلوسك من عملة بتخس لأصل بيكبر"
+4. Close with safety: "العقار هو الـ safe haven الوحيد اللي بينمو فوق التضخم"
+"""
+
             # Build context for Claude
             context_parts = []
             
@@ -1422,9 +1518,22 @@ Use phrases like:
 - "ده Premium بس المكان يستاهل" (Premium but location justifies)
 """)
             
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # DATABASE STATISTICS INJECTION (Verified Numbers from PostgreSQL)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                requested_location = intent.filters.get('location', '') if intent else ''
+                qa_stats = await get_cached_qa_statistics(area=requested_location or None)
+                if qa_stats and qa_stats.get('summary', {}).get('total_properties', 0) > 0:
+                    stats_context = format_qa_stats_for_ai(qa_stats, location=requested_location or None)
+                    context_parts.append(stats_context)
+                    logger.info(f"📊 Injected QA stats into narrative context (location={requested_location or 'all'})")
+            except Exception as e:
+                logger.warning(f"Failed to inject QA stats: {e}")
+
             # Psychology context
             context_parts.append(get_psychology_context_for_prompt(psychology))
-            
+
             # Strategy context
             context_parts.append(f"""
 [STRATEGY: {strategy['strategy'].upper()}]
@@ -1514,7 +1623,7 @@ DO NOT mention any prices outside this range.
                 messages.append({"role": "assistant", "content": prefill})
             
             # Call Claude
-            claude_model = os.getenv("CLAUDE_MODEL", "claude-3-haiku-20240307")
+            claude_model = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
             
             response = await self.anthropic.messages.create(
                 model=claude_model,

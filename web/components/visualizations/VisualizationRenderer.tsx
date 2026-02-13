@@ -130,7 +130,6 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
     switch (type) {
         // V4: New Wolf Brain visualizations
         case "inflation_killer":
-        case "certificates_vs_property":  // Backend may send this type name
             // Accept multiple valid data keys from backend
             if (!hasContent(data, ['projections', 'data_points', 'summary', 'summary_cards', 'initial_investment', 'property_value', 'years'])) return null;
             return (
@@ -341,22 +340,39 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         // Market benchmark visualization (shows market segment data)
-        case "market_benchmark":
+        case "market_benchmark": {
             if (!hasContent(data, ['market_segment', 'area_context', 'avg_price_sqm'])) return null;
+            // Generate synthetic historical data from current price and growth rate
+            const currentPrice = data.avg_price_sqm || 0;
+            const growthRate = data.growth_rate || 0.12;
+            const months = ['Jan', 'Mar', 'May', 'Jul', 'Sep', 'Nov', 'Jan'];
+            const syntheticHistorical = currentPrice > 0 ? months.map((month, i) => {
+                const yearsBack = (months.length - 1 - i) / 6; // Go back ~1 year
+                return {
+                    period: month,
+                    avg_price: Math.round(currentPrice / Math.pow(1 + growthRate, yearsBack)),
+                    volume: 50 + Math.round(Math.random() * 50)
+                };
+            }) : [];
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <MarketTrendChart
                         location={data.market_segment?.name_en || data.area_context?.name || "Market"}
                         data={{
-                            historical: [],
-                            current_price: data.avg_price_sqm || 0,
-                            trend: data.growth_rate > 0.15 ? "Bullish" : data.growth_rate > 0.08 ? "Stable" : "Bearish",
-                            yoy_change: (data.growth_rate || 0.12) * 100,
+                            historical: syntheticHistorical,
+                            current_price: currentPrice,
+                            trend: growthRate > 0.15 ? "Bullish" : growthRate > 0.08 ? "Stable" : "Bearish",
+                            yoy_change: growthRate * 100,
                             momentum: "Medium"
                         }}
                     />
                 </Suspense>
             );
+        }
+
+        // Property cards are rendered by ChatMain.tsx via the properties field
+        case "property_cards":
+            return null;
 
         default:
             return null;

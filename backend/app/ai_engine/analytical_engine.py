@@ -673,6 +673,8 @@ class AnalyticalEngine:
         - Bank CDs: 22% nominal return
         - Property: 20% appreciation + 7.5% rental yield = ~27.5% effective return
         - After inflation adjustment, property wins
+
+        Returns data matching CertificatesVsProperty.tsx frontend contract.
         """
         try:
             bank_rate = MARKET_DATA.get("bank_cd_rate", 0.22)
@@ -680,14 +682,22 @@ class AnalyticalEngine:
             rental_yield = MARKET_DATA.get("rental_yield_avg", 0.075)
             inflation_rate = MARKET_DATA.get("inflation_rate", 0.136)
 
+            year_labels_ar = ["السنة الأولى", "السنة الثانية", "السنة الثالثة", "السنة الرابعة", "السنة الخامسة", "السنة السادسة", "السنة السابعة"]
+            year_labels_en = ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 7"]
+
             data_points = []
-            bank_value = initial_investment
+            bank_nominal = initial_investment
             property_value = initial_investment
             cumulative_rent = 0
 
             for year in range(1, years + 1):
-                # Bank grows at CD rate
-                bank_value = bank_value * (1 + bank_rate)
+                # Bank grows at CD rate (nominal)
+                bank_nominal = bank_nominal * (1 + bank_rate)
+                # Bank real value after inflation
+                bank_real = initial_investment
+                for _ in range(year):
+                    bank_real = bank_real * (1 + bank_rate) / (1 + inflation_rate)
+                bank_real = int(bank_real)
 
                 # Property appreciates + generates rent
                 property_value = property_value * (1 + property_appreciation)
@@ -696,38 +706,56 @@ class AnalyticalEngine:
 
                 data_points.append({
                     "year": year,
-                    "bank_value": int(bank_value),
+                    "label": year_labels_ar[year - 1] if year <= len(year_labels_ar) else f"السنة {year}",
+                    "label_en": year_labels_en[year - 1] if year <= len(year_labels_en) else f"Year {year}",
+                    "bank_nominal": int(bank_nominal),
+                    "bank_real": bank_real,
+                    "property_total": int(property_value + cumulative_rent),
                     "property_value": int(property_value),
-                    "cumulative_rent": int(cumulative_rent),
-                    "property_total": int(property_value + cumulative_rent)
+                    "cumulative_rent": int(cumulative_rent)
                 })
 
             final = data_points[-1]
-            bank_total_return = ((final["bank_value"] - initial_investment) / initial_investment) * 100
-            property_total_return = ((final["property_total"] - initial_investment) / initial_investment) * 100
+            bank_nominal_gain = final["bank_nominal"] - initial_investment
+            bank_real_loss = initial_investment - final["bank_real"]
+            bank_real_loss_pct = round((bank_real_loss / initial_investment) * 100, 1)
+            property_gain_pct = round(((final["property_total"] - initial_investment) / initial_investment) * 100, 1)
+            difference = final["property_total"] - final["bank_nominal"]
+            winner = "property" if difference > 0 else "bank"
 
-            winner = "property" if final["property_total"] > final["bank_value"] else "bank"
+            advantage_pct = round(property_gain_pct - ((bank_nominal_gain / initial_investment) * 100), 1)
 
             return {
                 "initial_investment": initial_investment,
                 "years": years,
                 "data_points": data_points,
                 "summary": {
-                    "final_bank_value": final["bank_value"],
-                    "final_property_total": final["property_total"],
-                    "bank_return_percent": round(bank_total_return, 1),
-                    "property_return_percent": round(property_total_return, 1),
-                    "winner": winner,
-                    "advantage_amount": abs(final["property_total"] - final["bank_value"])
+                    "bank_nominal_final": final["bank_nominal"],
+                    "bank_nominal_gain": int(bank_nominal_gain),
+                    "bank_real_final": final["bank_real"],
+                    "bank_real_loss": int(bank_real_loss),
+                    "bank_real_loss_percent": bank_real_loss_pct,
+                    "property_final": final["property_total"],
+                    "property_value_only": final["property_value"],
+                    "total_rent_earned": final["cumulative_rent"],
+                    "property_gain_percent": property_gain_pct,
+                    "difference": int(difference),
+                    "winner": winner
                 },
-                "rates_used": {
-                    "bank_cd": bank_rate,
-                    "property_growth": property_appreciation,
+                "assumptions": {
+                    "bank_cd_rate": bank_rate,
+                    "inflation_rate": inflation_rate,
+                    "property_appreciation": property_appreciation,
                     "rental_yield": rental_yield,
-                    "inflation": inflation_rate
+                    "source": "Egyptian Market Research Feb 2026"
                 },
-                "verdict_ar": f"العقار بيكسب {round(property_total_return - bank_total_return, 1)}% أكتر من البنك",
-                "verdict_en": f"Property beats bank by {round(property_total_return - bank_total_return, 1)}%"
+                "verdict": {
+                    "winner": winner,
+                    "message_ar": f"العقار بيكسب {advantage_pct}% أكتر من شهادات البنك بعد التضخم",
+                    "message_en": f"Property beats bank certificates by {advantage_pct}% after inflation",
+                    "headline_ar": "العقار يتفوق على البنك" if winner == "property" else "شهادات البنك أفضل",
+                    "headline_en": "Property Beats Bank" if winner == "property" else "Bank CDs Win"
+                }
             }
         except Exception as e:
             logger.error(f"Failed to calculate bank vs property: {e}")
