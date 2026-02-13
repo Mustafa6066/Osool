@@ -65,8 +65,8 @@ ROUTE_PATTERNS = {
         r"(weather|طقس|news|أخبار|joke|نكتة)",
     ],
     RouteType.SEARCH: [
-        r"(شقة|apartment|flat|فيلا|villa|بنتهاوس|penthouse|دوبلكس|duplex|تاون|townhouse)",
-        r"(عايز|أريد|أبحث|looking for|searching|find me|show me|أبي)",
+        r"(شقة|apartment|flat|فيلا|villa|بنتهاوس|penthouse|دوبلكس|duplex|تاون|townhouse|سكن|بيت|منزل)",
+        r"(عايز|أريد|أبحث|looking for|searching|find me|show me|أبي|بدور|محتاج)",
         r"(غرف|غرفة|bedroom|bed|room)",
         r"(متر|sqm|square meter|مساحة|area)",
         r"(كمباوند|compound|مشروع|project)",

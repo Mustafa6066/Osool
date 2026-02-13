@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, Mic, BarChart3, TrendingUp, RotateCcw, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown'; //
 import remarkGfm from 'remark-gfm'; //
-import rehypeRaw from 'rehype-raw'; //
+import rehypeRaw from 'rehype-raw'; // DISABLED - kept import for reference
 import PropertyCardEnhanced from './PropertyCardEnhanced';
 import { PropertyContext, UIActionData } from './ContextualPane';
 import api from '@/lib/api';
@@ -111,7 +111,7 @@ function AIMessage({
                         {/* Markdown Rendering Implementation */}
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
-                            rehypePlugins={[rehypeRaw]}
+                            // rehypePlugins removed - rehypeRaw can cause XSS
                             components={{
                                 p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
                                 ul: ({ node, ...props }) => <ul className={`list-disc mb-3 ${messageIsArabic ? 'pr-6' : 'pl-6'}`} {...props} />,

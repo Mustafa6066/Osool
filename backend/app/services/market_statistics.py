@@ -13,6 +13,7 @@ Statistics include:
 """
 
 import logging
+import time
 from typing import Dict, List, Optional
 from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 # Cache for statistics (refreshed periodically)
 _market_stats_cache: Optional[Dict] = None
+_market_stats_timestamp: float = 0.0
+_STATS_TTL_SECONDS: int = 300  # 5-minute TTL
 
 
 async def compute_market_statistics(db: AsyncSession) -> Dict:
@@ -175,13 +178,18 @@ async def compute_market_statistics(db: AsyncSession) -> Dict:
 async def get_market_statistics() -> Dict:
     """
     Get cached market statistics or compute fresh ones.
+    Uses TTL-based caching to avoid recomputing on every request.
     """
-    global _market_stats_cache
+    global _market_stats_cache, _market_stats_timestamp
     
-    # For now, always compute fresh stats (later: add caching with TTL)
+    now = time.time()
+    if _market_stats_cache and (now - _market_stats_timestamp) < _STATS_TTL_SECONDS:
+        return _market_stats_cache
+    
     async with AsyncSessionLocal() as db:
         stats = await compute_market_statistics(db)
         _market_stats_cache = stats
+        _market_stats_timestamp = now
         return stats
 
 
@@ -495,3 +503,41 @@ async def compute_detailed_qa_statistics(
             "best_price_per_type": {},
             "summary": {"total_properties": 0, "error": str(e)}
         }
+
+
+def format_qa_stats_for_ai(stats: Dict) -> str:
+    """
+    Format QA statistics into a compact string for AI context injection.
+    Keeps token count low while providing key market data.
+    """
+    lines = []
+    s = stats.get("summary", {})
+    if not s.get("total_properties"):
+        return ""
+
+    lines.append(f"[DB_STATS] {s['total_properties']} properties | Avg meter: {s.get('avg_meter', 0):,.0f} EGP/m²")
+
+    # Top 5 areas by count
+    areas = stats.get("meter_price_by_area", {})
+    top_areas = sorted(areas.items(), key=lambda x: x[1].get("count", 0), reverse=True)[:5]
+    if top_areas:
+        lines.append("Areas: " + " | ".join(
+            f"{loc}({d['count']}u,{d['avg_meter']:,.0f}/m²)" for loc, d in top_areas
+        ))
+
+    # Room stats
+    rooms = stats.get("room_statistics", {})
+    if rooms:
+        lines.append("Rooms: " + " | ".join(
+            f"{br}BR({d['count']}u,avg {d['avg_price']/1e6:.1f}M)" for br, d in sorted(rooms.items())
+        ))
+
+    # Top 3 developers
+    devs = stats.get("meter_price_by_developer", {})
+    top_devs = sorted(devs.items(), key=lambda x: x[1].get("count", 0), reverse=True)[:3]
+    if top_devs:
+        lines.append("Devs: " + " | ".join(
+            f"{dev}({d['count']}u,{d['avg_meter']:,.0f}/m²)" for dev, d in top_devs
+        ))
+
+    return "\n".join(lines)

@@ -147,6 +147,12 @@ PROPERTY_TYPE_ALIASES = {
     "اراضي": "plot",
     "plot": "plot",
     "land": "plot",
+
+    # General housing terms (Egyptian colloquial)
+    "سكن": "apartment",
+    "سكن عائلي": "villa",
+    "بيت": "apartment",
+    "منزل": "apartment",
 }
 
 
@@ -400,10 +406,11 @@ IMPORTANT:
                 filters["location"] = normalized
                 break
         
-        # Extract property type
-        for alias, normalized in PROPERTY_TYPE_ALIASES.items():
+        # Extract property type (check multi-word aliases first)
+        sorted_aliases = sorted(PROPERTY_TYPE_ALIASES.keys(), key=len, reverse=True)
+        for alias in sorted_aliases:
             if alias in query_lower:
-                filters["property_type"] = normalized
+                filters["property_type"] = PROPERTY_TYPE_ALIASES[alias]
                 break
         
         # Extract bedrooms
@@ -423,6 +430,34 @@ IMPORTANT:
                 filters["budget_max"] = int(amount * 1.2)  # Add 20% buffer
                 filters["budget_min"] = int(amount * 0.8)
         
+        # --- PURPOSE DETECTION ---
+        family_keywords = ["سكن عائلي", "عيلة", "عائلي", "family", "بيت عيلة"]
+        if any(kw in query_lower for kw in family_keywords):
+            filters["purpose"] = "living"
+            
+        investment_keywords = ["استثمار", "عائد", "roi", "investment", "return", "profit"]
+        if any(kw in query_lower for kw in investment_keywords):
+            filters["purpose"] = "investment"
+
+        # --- EGYPTIAN FINISHING TERMS ---
+        finishing_terms = {
+            "تشطيب كامل": "finished",
+            "سوبر لوكس": "finished",
+            "تشطيب سوبر لوكس": "finished",
+            "كامل التشطيب": "finished",
+            "نص تشطيب": "semi-finished",
+            "نصف تشطيب": "semi-finished",
+            "على الطوب": "core",
+            "طوب أحمر": "core",
+            "بدون تشطيب": "core",
+            "تسليم فوري": "ready",
+            "استلام فوري": "ready",
+        }
+        for term, value in finishing_terms.items():
+            if term in query_lower:
+                filters["finishing"] = value
+                break
+            
         return {"action": action, "filters": filters}
     
     def _normalize_filters(self, intent_data: Dict) -> Dict:

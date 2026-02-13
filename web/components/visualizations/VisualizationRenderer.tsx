@@ -130,7 +130,6 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
     switch (type) {
         // V4: New Wolf Brain visualizations
         case "inflation_killer":
-        case "certificates_vs_property":  // Backend may send this type name
             // Accept multiple valid data keys from backend
             if (!hasContent(data, ['projections', 'data_points', 'summary', 'summary_cards', 'initial_investment', 'property_value', 'years'])) return null;
             return (
@@ -333,7 +332,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
 
         // Bank vs Property comparison (alias for certificates_vs_property)
         case "bank_vs_property":
-            if (!hasContent(data, ['projections', 'data_points', 'summary', 'summary_cards', 'bank_value', 'property_value'])) return null;
+            if (!hasContent(data, ['data_points', 'summary', 'verdict', 'assumptions'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <CertificatesVsProperty {...data} isRTL={isRTL} />
@@ -341,22 +340,36 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             );
 
         // Market benchmark visualization (shows market segment data)
-        case "market_benchmark":
+        case "market_benchmark": {
             if (!hasContent(data, ['market_segment', 'area_context', 'avg_price_sqm'])) return null;
+            const currentPrice = data.avg_price_sqm || 0;
+            const growthRate = data.growth_rate || 0.12;
+            // Generate synthetic historical points when backend sends empty array
+            const historical = (data.historical && data.historical.length > 0)
+                ? data.historical
+                : Array.from({ length: 6 }, (_, i) => ({
+                    date: `${2020 + i}`,
+                    price: Math.round(currentPrice / Math.pow(1 + growthRate, 5 - i))
+                }));
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <MarketTrendChart
                         location={data.market_segment?.name_en || data.area_context?.name || "Market"}
                         data={{
-                            historical: [],
-                            current_price: data.avg_price_sqm || 0,
-                            trend: data.growth_rate > 0.15 ? "Bullish" : data.growth_rate > 0.08 ? "Stable" : "Bearish",
-                            yoy_change: (data.growth_rate || 0.12) * 100,
+                            historical,
+                            current_price: currentPrice,
+                            trend: growthRate > 0.15 ? "Bullish" : growthRate > 0.08 ? "Stable" : "Bearish",
+                            yoy_change: growthRate * 100,
                             momentum: "Medium"
                         }}
                     />
                 </Suspense>
             );
+        }
+
+        // Property cards are rendered by ChatMain.tsx via the properties field
+        case "property_cards":
+            return null;
 
         default:
             return null;

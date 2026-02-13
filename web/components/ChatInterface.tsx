@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
+// import rehypeRaw from 'rehype-raw'; // DISABLED - kept for reference
 import DOMPurify from 'dompurify';
 import Link from 'next/link';
 import anime from 'animejs';
@@ -1412,7 +1412,7 @@ export default function ChatInterface() {
                                                                                 >
                                                                                     <ReactMarkdown
                                                                                         remarkPlugins={[remarkGfm]}
-                                                                                        rehypePlugins={[rehypeRaw]}
+                                                                                        // rehypePlugins removed - rehypeRaw can cause XSS
                                                                                         components={{
                                                                                             p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${alignClass}`} {...props} />,
                                                                                             strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,

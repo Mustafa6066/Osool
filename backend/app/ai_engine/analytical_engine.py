@@ -673,6 +673,8 @@ class AnalyticalEngine:
         - Bank CDs: 22% nominal return
         - Property: 20% appreciation + 7.5% rental yield = ~27.5% effective return
         - After inflation adjustment, property wins
+
+        Returns data matching CertificatesVsProperty.tsx contract.
         """
         try:
             bank_rate = MARKET_DATA.get("bank_cd_rate", 0.22)
@@ -681,53 +683,74 @@ class AnalyticalEngine:
             inflation_rate = MARKET_DATA.get("inflation_rate", 0.136)
 
             data_points = []
-            bank_value = initial_investment
+            bank_nominal_val = initial_investment
             property_value = initial_investment
             cumulative_rent = 0
 
             for year in range(1, years + 1):
-                # Bank grows at CD rate
-                bank_value = bank_value * (1 + bank_rate)
+                # Bank grows at CD rate (nominal)
+                bank_nominal_val = bank_nominal_val * (1 + bank_rate)
+                # Bank real value after inflation erosion
+                bank_real_val = bank_nominal_val / ((1 + inflation_rate) ** year)
 
                 # Property appreciates + generates rent
                 property_value = property_value * (1 + property_appreciation)
                 yearly_rent = initial_investment * rental_yield
                 cumulative_rent += yearly_rent
+                property_total = property_value + cumulative_rent
 
                 data_points.append({
                     "year": year,
-                    "bank_value": int(bank_value),
+                    "label": f"سنة {year}",
+                    "label_en": f"Year {year}",
+                    "bank_nominal": int(bank_nominal_val),
+                    "bank_real": int(bank_real_val),
+                    "property_total": int(property_total),
                     "property_value": int(property_value),
                     "cumulative_rent": int(cumulative_rent),
-                    "property_total": int(property_value + cumulative_rent)
                 })
 
             final = data_points[-1]
-            bank_total_return = ((final["bank_value"] - initial_investment) / initial_investment) * 100
-            property_total_return = ((final["property_total"] - initial_investment) / initial_investment) * 100
+            bank_nominal_gain = final["bank_nominal"] - initial_investment
+            bank_real_loss = initial_investment - final["bank_real"]
+            bank_real_loss_pct = round((bank_real_loss / initial_investment) * 100, 1)
+            property_gain_pct = round(((final["property_total"] - initial_investment) / initial_investment) * 100, 1)
+            difference = final["property_total"] - final["bank_real"]
 
-            winner = "property" if final["property_total"] > final["bank_value"] else "bank"
+            winner = "property" if final["property_total"] > final["bank_nominal"] else "bank"
+            advantage_pct = round(property_gain_pct - ((bank_nominal_gain / initial_investment) * 100), 1)
 
             return {
                 "initial_investment": initial_investment,
                 "years": years,
                 "data_points": data_points,
                 "summary": {
-                    "final_bank_value": final["bank_value"],
-                    "final_property_total": final["property_total"],
-                    "bank_return_percent": round(bank_total_return, 1),
-                    "property_return_percent": round(property_total_return, 1),
+                    "bank_nominal_final": final["bank_nominal"],
+                    "bank_nominal_gain": int(bank_nominal_gain),
+                    "bank_real_final": final["bank_real"],
+                    "bank_real_loss": int(bank_real_loss),
+                    "bank_real_loss_percent": bank_real_loss_pct,
+                    "property_final": final["property_total"],
+                    "property_value_only": final["property_value"],
+                    "total_rent_earned": final["cumulative_rent"],
+                    "property_gain_percent": property_gain_pct,
+                    "difference": int(difference),
                     "winner": winner,
-                    "advantage_amount": abs(final["property_total"] - final["bank_value"])
                 },
-                "rates_used": {
-                    "bank_cd": bank_rate,
-                    "property_growth": property_appreciation,
+                "assumptions": {
+                    "bank_cd_rate": bank_rate,
+                    "inflation_rate": inflation_rate,
+                    "property_appreciation": property_appreciation,
                     "rental_yield": rental_yield,
-                    "inflation": inflation_rate
+                    "source": "Central Bank of Egypt & CAPMAS 2025",
                 },
-                "verdict_ar": f"العقار بيكسب {round(property_total_return - bank_total_return, 1)}% أكتر من البنك",
-                "verdict_en": f"Property beats bank by {round(property_total_return - bank_total_return, 1)}%"
+                "verdict": {
+                    "winner": winner,
+                    "headline_ar": "فلوسك في البنك بتخسر قيمتها" if winner == "property" else "الشهادة أفضل حالياً",
+                    "headline_en": "Your money in the bank is losing value" if winner == "property" else "Bank CDs are currently better",
+                    "message_ar": f"شهادات البنك بتجيب {int(bank_rate*100)}% فايدة بس التضخم {int(inflation_rate*100)}%.\nالعقار بيكسب {advantage_pct}% أكتر من البنك بعد التضخم.",
+                    "message_en": f"Bank CDs yield {int(bank_rate*100)}% but inflation is {int(inflation_rate*100)}%.\nProperty beats bank by {advantage_pct}% after inflation adjustment.",
+                },
             }
         except Exception as e:
             logger.error(f"Failed to calculate bank vs property: {e}")
@@ -736,6 +759,8 @@ class AnalyticalEngine:
                 "years": years,
                 "data_points": [],
                 "summary": {},
+                "assumptions": {},
+                "verdict": {},
                 "error": str(e)
             }
 
