@@ -1411,6 +1411,47 @@ def admin_withdraw_fees(api_key: str = Depends(verify_api_key)):
     return {"status": "Not implemented yet"}
 
 
+@router.post("/admin/update-economic-data")
+async def admin_update_economic_data(
+    db: AsyncSession = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Admin: Trigger economic data scrape and update MarketIndicator table.
+    Scrapes Trading Economics, gold prices, and merges with manual fallback data.
+    Protected by X-Admin-Key header.
+    """
+    from app.services.economic_scraper import update_market_indicators
+    result = await update_market_indicators(db)
+    return {"status": "ok", **result}
+
+
+@router.get("/market-stats")
+async def get_public_market_stats(
+    db: AsyncSession = Depends(get_db),
+    location: Optional[str] = None
+):
+    """
+    Public endpoint for market statistics.
+    Returns aggregated market data for the frontend Market page.
+    """
+    from app.services.market_statistics import compute_market_statistics
+    try:
+        stats = await compute_market_statistics(db)
+        if location:
+            location_data = stats.get("location_stats", {}).get(location.lower(), {})
+            return {"location": location, "data": location_data, "global": stats.get("global", {})}
+        return stats
+    except Exception as e:
+        logger.error(f"Market stats error: {e}")
+        # Return basic stats from analytical engine as fallback
+        from app.ai_engine.analytical_engine import AREA_BENCHMARKS, MARKET_DATA
+        return {
+            "global": MARKET_DATA,
+            "areas": {k: {"avg_price_sqm": v.get("avg_price_sqm", 0), "growth_rate": v.get("growth_rate", 0)} for k, v in AREA_BENCHMARKS.items()},
+        }
+
+
 # ═══════════════════════════════════════════════════════════════
 # ADMIN CHAT MANAGEMENT ENDPOINTS
 # ═══════════════════════════════════════════════════════════════

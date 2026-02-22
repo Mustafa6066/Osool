@@ -671,6 +671,107 @@ Respond with ONLY:
         return PsychologicalState.NEUTRAL, 0.3
 
 
+def calculate_card_readiness(
+    psychology: PsychologyProfile,
+    history: List[Dict],
+    memory: Optional[Any] = None,
+    lead_score: int = 0
+) -> Dict[str, Any]:
+    """
+    Calculate a composite 'card readiness' score 0-100 that determines
+    when the user is psychologically ready to see property cards.
+
+    Factors:
+    - Lead score contribution (0-30 points)
+    - Engagement depth (0-20 points)
+    - Emotional momentum (0-15 points)
+    - Urgency level (0-15 points)
+    - Objection resolution / state modifiers (0-20 points)
+    """
+    score = 0
+    reasons = []
+
+    # 1. Base from lead score (0-30 points)
+    score += min(int(lead_score * 0.3), 30)
+
+    # 2. Engagement depth (0-20 points)
+    turn_count = len([m for m in history if m.get("role") == "user"])
+    depth_points = min(turn_count * 4, 20)
+    score += depth_points
+    if turn_count >= 3:
+        reasons.append("sustained_engagement")
+
+    # 3. Emotional momentum (-10 to +15 points)
+    if psychology.emotional_momentum == "warming_up":
+        score += 15
+        reasons.append("warming_up")
+    elif psychology.emotional_momentum == "cooling_down":
+        score -= 10
+        reasons.append("cooling_down")
+
+    # 4. Urgency (0-15 points)
+    urgency_scores = {
+        UrgencyLevel.URGENT: 15,
+        UrgencyLevel.READY_TO_ACT: 12,
+        UrgencyLevel.EVALUATING: 8,
+        UrgencyLevel.EXPLORING: 4,
+        UrgencyLevel.BROWSING: 0,
+    }
+    score += urgency_scores.get(psychology.urgency_level, 0)
+
+    # 5. Objection resolution (0-20 points)
+    if memory:
+        objections = getattr(memory, 'objections_raised', [])
+        if len(objections) > 0 and turn_count > len(objections) + 2:
+            score += 20  # Objections were raised and conversation continued
+            reasons.append("objections_resolved")
+        elif len(objections) > 0:
+            score -= 10  # Active unresolved objections
+            reasons.append("unresolved_objections")
+
+    # 6. State-specific modifiers
+    state_modifiers = {
+        PsychologicalState.IMPULSE_BUYER: 20,
+        PsychologicalState.GREED_DRIVEN: 15,
+        PsychologicalState.FOMO: 15,
+        PsychologicalState.LIQUIDITY_SHIFT: 10,
+        PsychologicalState.CURRENCY_HEDGER: 10,
+        PsychologicalState.NEUTRAL: 10,
+        PsychologicalState.FAMILY_SECURITY: 5,
+        PsychologicalState.INFLATION_REFUGEE: 5,
+        PsychologicalState.RISK_AVERSE: -10,
+        PsychologicalState.ANALYSIS_PARALYSIS: -15,
+        PsychologicalState.SKEPTICISM: -15,
+        PsychologicalState.MACRO_SKEPTIC: -15,
+        PsychologicalState.LEGAL_ANXIETY: -10,
+        PsychologicalState.DELIVERY_FEAR: -10,
+        PsychologicalState.INSTALLMENT_ANXIETY: -5,
+        PsychologicalState.TRUST_DEFICIT: -30,
+    }
+    modifier = state_modifiers.get(psychology.primary_state, 0)
+    score += modifier
+
+    score = max(0, min(100, score))
+
+    # Threshold mapping
+    if score >= 70:
+        recommendation = "FULL_LIST"
+    elif score >= 45:
+        recommendation = "TEASER"
+    elif score >= 20:
+        recommendation = "ANALYTICS_ONLY"
+    else:
+        recommendation = "NONE"
+
+    return {
+        "readiness_score": score,
+        "recommendation": recommendation,
+        "reasons": reasons,
+        "state_modifier": modifier,
+        "turn_count": turn_count,
+    }
+
+
 def analyze_psychology(
     query: str,
     history: List[Dict],

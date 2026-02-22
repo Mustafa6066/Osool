@@ -55,7 +55,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-blue-950/30 to-indigo-950/20"
+            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-blue-950/30 to-indigo-950/20 backdrop-blur-sm"
         >
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 px-6 py-4 border-b border-[var(--color-border)]">
@@ -64,7 +64,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                         <MapPinIcon className="w-5 h-5 text-blue-400" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-white">تحليل المنطقة 📍</h3>
+                        <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">تحليل المنطقة 📍</h3>
                         <p className="text-sm text-[var(--color-text-secondary)]">{area.name}</p>
                     </div>
                 </div>
@@ -73,29 +73,29 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
             <div className="p-6 space-y-6">
                 {/* Key Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
+                    <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">متوسط سعر المتر</p>
                         <p className="text-lg font-bold text-blue-400">{formatCurrency(area.avg_price_per_sqm)}</p>
                     </div>
-                    <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
+                    <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">نمو السعر</p>
                         <p className="text-lg font-bold text-green-400">+{area.price_growth_ytd}%</p>
                     </div>
-                    <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
+                    <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">مستوى الطلب</p>
                         <p className="text-lg font-bold text-amber-400">{area.demand_level}</p>
                     </div>
-                    <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
+                    <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">المعروض</p>
                         <p className="text-lg font-bold text-purple-400">{area.supply_level}</p>
                     </div>
                 </div>
 
                 {/* Best For */}
-                <div className="bg-[var(--color-surface)]/30 rounded-xl p-4">
+                <div className="bg-[var(--color-surface)]/30 backdrop-blur-sm rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-3">
                         <UsersIcon className="w-4 h-4 text-blue-400" />
-                        <p className="text-sm font-medium text-white">المنطقة مناسبة لـ</p>
+                        <p className="text-sm font-medium text-[var(--color-text-primary)]">المنطقة مناسبة لـ</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {(area.best_for || []).map((item, i) => (
@@ -107,10 +107,10 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                 </div>
 
                 {/* Top Developers */}
-                <div className="bg-[var(--color-surface)]/30 rounded-xl p-4">
+                <div className="bg-[var(--color-surface)]/30 backdrop-blur-sm rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-3">
                         <HomeIcon className="w-4 h-4 text-indigo-400" />
-                        <p className="text-sm font-medium text-white">أبرز المطورين</p>
+                        <p className="text-sm font-medium text-[var(--color-text-primary)]">أبرز المطورين</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {(area.top_developers || []).map((dev, i) => (
@@ -123,7 +123,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
 
                 {/* Pros & Cons */}
                 <div className="grid md:grid-cols-2 gap-4">
-                    <div className="bg-green-950/30 rounded-xl p-4">
+                    <div className="bg-green-950/30 backdrop-blur-sm rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                             <CheckCircleIcon className="w-4 h-4 text-green-400" />
                             <p className="text-sm font-medium text-green-400">مميزات</p>
@@ -136,7 +136,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                             ))}
                         </ul>
                     </div>
-                    <div className="bg-red-950/30 rounded-xl p-4">
+                    <div className="bg-red-950/30 backdrop-blur-sm rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                             <XCircleIcon className="w-4 h-4 text-red-400" />
                             <p className="text-sm font-medium text-red-400">تحديات</p>
@@ -177,10 +177,10 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
 
                 {/* Price Heatmap */}
                 {heatmap && heatmap.length > 0 && (
-                    <div className="bg-[var(--color-surface)]/30 rounded-xl p-4">
+                    <div className="bg-[var(--color-surface)]/30 backdrop-blur-sm rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                             <TrendingUpIcon className="w-4 h-4 text-cyan-400" />
-                            <p className="text-sm font-medium text-white">خريطة الأسعار</p>
+                            <p className="text-sm font-medium text-[var(--color-text-primary)]">خريطة الأسعار</p>
                         </div>
                         <div className="space-y-2">
                             {heatmap.map((loc, i) => (

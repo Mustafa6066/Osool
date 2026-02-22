@@ -86,6 +86,12 @@ const PriceHeatmap = dynamic(() => import("./PriceHeatmap"), {
     ssr: false,
 });
 
+// V8: Market Benchmark (Analytics-First)
+const MarketBenchmarkChart = dynamic(() => import("./MarketBenchmarkChart"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
 // Loading skeleton
 function VisualizationSkeleton() {
     return (
@@ -339,30 +345,12 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
                 </Suspense>
             );
 
-        // Market benchmark visualization (shows market segment data)
+        // Market benchmark visualization (smart analytics chart)
         case "market_benchmark": {
             if (!hasContent(data, ['market_segment', 'area_context', 'avg_price_sqm'])) return null;
-            const currentPrice = data.avg_price_sqm || 0;
-            const growthRate = data.growth_rate || 0.12;
-            // Generate synthetic historical points when backend sends empty array
-            const historical = (data.historical && data.historical.length > 0)
-                ? data.historical
-                : Array.from({ length: 6 }, (_, i) => ({
-                    date: `${2020 + i}`,
-                    price: Math.round(currentPrice / Math.pow(1 + growthRate, 5 - i))
-                }));
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <MarketTrendChart
-                        location={data.market_segment?.name_en || data.area_context?.name || "Market"}
-                        data={{
-                            historical,
-                            current_price: currentPrice,
-                            trend: growthRate > 0.15 ? "Bullish" : growthRate > 0.08 ? "Stable" : "Bearish",
-                            yoy_change: growthRate * 100,
-                            momentum: "Medium"
-                        }}
-                    />
+                    <MarketBenchmarkChart {...data} isRTL={isRTL} />
                 </Suspense>
             );
         }

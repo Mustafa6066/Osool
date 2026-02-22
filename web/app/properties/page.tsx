@@ -1,22 +1,23 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import PropertyFilter from '@/components/PropertyFilter';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { MapPin, Bed, Bath, Maximize, Sparkles, Heart, Grid3X3, Map, SlidersHorizontal } from 'lucide-react';
+import { MapPin, Bed, Bath, Maximize, Sparkles, Heart, Grid3X3, Map, SlidersHorizontal, Loader2 } from 'lucide-react';
+import api from '@/lib/api';
 
-// Extended sample properties data
-const allProperties = [
+// Hardcoded fallback data (used if API fails)
+const fallbackProperties = [
     {
         id: '1',
         title: 'Luxury Villa in New Cairo',
-        titleAr: 'فيلا فاخرة في القاهرة الجديدة',
+        titleAr: '\u0641\u064a\u0644\u0627 \u0641\u0627\u062e\u0631\u0629 \u0641\u064a \u0627\u0644\u0642\u0627\u0647\u0631\u0629 \u0627\u0644\u062c\u062f\u064a\u062f\u0629',
         location: 'New Cairo, 5th Settlement',
-        locationAr: 'القاهرة الجديدة، التجمع الخامس',
+        locationAr: '\u0627\u0644\u0642\u0627\u0647\u0631\u0629 \u0627\u0644\u062c\u062f\u064a\u062f\u0629\u060c \u0627\u0644\u062a\u062c\u0645\u0639 \u0627\u0644\u062e\u0627\u0645\u0633',
         city: 'new-cairo',
         price: 15000000,
         aiEstimate: 14800000,
@@ -26,13 +27,14 @@ const allProperties = [
         image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&h=400&fit=crop',
         type: 'villa',
         dateAdded: '2026-01-10',
+        developer: '',
     },
     {
         id: '2',
         title: 'Modern Apartment in Zamalek',
-        titleAr: 'شقة حديثة في الزمالك',
+        titleAr: '\u0634\u0642\u0629 \u062d\u062f\u064a\u062b\u0629 \u0641\u064a \u0627\u0644\u0632\u0645\u0627\u0644\u0643',
         location: 'Zamalek, Cairo',
-        locationAr: 'الزمالك، القاهرة',
+        locationAr: '\u0627\u0644\u0632\u0645\u0627\u0644\u0643\u060c \u0627\u0644\u0642\u0627\u0647\u0631\u0629',
         city: 'cairo',
         price: 5500000,
         aiEstimate: 5650000,
@@ -42,13 +44,14 @@ const allProperties = [
         image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&h=400&fit=crop',
         type: 'apartment',
         dateAdded: '2026-01-12',
+        developer: '',
     },
     {
         id: '3',
         title: 'Beachfront Chalet in Ain Sokhna',
-        titleAr: 'شاليه على البحر في العين السخنة',
+        titleAr: '\u0634\u0627\u0644\u064a\u0647 \u0639\u0644\u0649 \u0627\u0644\u0628\u062d\u0631 \u0641\u064a \u0627\u0644\u0639\u064a\u0646 \u0627\u0644\u0633\u062e\u0646\u0629',
         location: 'Ain Sokhna, Red Sea',
-        locationAr: 'العين السخنة، البحر الأحمر',
+        locationAr: '\u0627\u0644\u0639\u064a\u0646 \u0627\u0644\u0633\u062e\u0646\u0629\u060c \u0627\u0644\u0628\u062d\u0631 \u0627\u0644\u0623\u062d\u0645\u0631',
         city: 'ain-sokhna',
         price: 3200000,
         aiEstimate: 3100000,
@@ -58,13 +61,14 @@ const allProperties = [
         image: 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=600&h=400&fit=crop',
         type: 'chalet',
         dateAdded: '2026-01-08',
+        developer: '',
     },
     {
         id: '4',
         title: 'Commercial Office in Smart Village',
-        titleAr: 'مكتب تجاري في القرية الذكية',
+        titleAr: '\u0645\u0643\u062a\u0628 \u062a\u062c\u0627\u0631\u064a \u0641\u064a \u0627\u0644\u0642\u0631\u064a\u0629 \u0627\u0644\u0630\u0643\u064a\u0629',
         location: 'Smart Village, 6th October',
-        locationAr: 'القرية الذكية، 6 أكتوبر',
+        locationAr: '\u0627\u0644\u0642\u0631\u064a\u0629 \u0627\u0644\u0630\u0643\u064a\u0629\u060c 6 \u0623\u0643\u062a\u0648\u0628\u0631',
         city: '6th-october',
         price: 8500000,
         aiEstimate: 8750000,
@@ -74,13 +78,14 @@ const allProperties = [
         image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&fit=crop',
         type: 'commercial',
         dateAdded: '2026-01-05',
+        developer: '',
     },
     {
         id: '5',
         title: 'Garden Duplex in Maadi',
-        titleAr: 'دوبلكس بحديقة في المعادي',
+        titleAr: '\u062f\u0648\u0628\u0644\u0643\u0633 \u0628\u062d\u062f\u064a\u0642\u0629 \u0641\u064a \u0627\u0644\u0645\u0639\u0627\u062f\u064a',
         location: 'Maadi, Cairo',
-        locationAr: 'المعادي، القاهرة',
+        locationAr: '\u0627\u0644\u0645\u0639\u0627\u062f\u064a\u060c \u0627\u0644\u0642\u0627\u0647\u0631\u0629',
         city: 'cairo',
         price: 7200000,
         aiEstimate: 7100000,
@@ -90,13 +95,14 @@ const allProperties = [
         image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop',
         type: 'duplex',
         dateAdded: '2026-01-11',
+        developer: '',
     },
     {
         id: '6',
         title: 'Penthouse in Sheikh Zayed',
-        titleAr: 'بنتهاوس في الشيخ زايد',
+        titleAr: '\u0628\u0646\u062a\u0647\u0627\u0648\u0633 \u0641\u064a \u0627\u0644\u0634\u064a\u062e \u0632\u0627\u064a\u062f',
         location: 'Sheikh Zayed City',
-        locationAr: 'مدينة الشيخ زايد',
+        locationAr: '\u0645\u062f\u064a\u0646\u0629 \u0627\u0644\u0634\u064a\u062e \u0632\u0627\u064a\u062f',
         city: 'sheikh-zayed',
         price: 12000000,
         aiEstimate: 11800000,
@@ -106,13 +112,14 @@ const allProperties = [
         image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=400&fit=crop',
         type: 'penthouse',
         dateAdded: '2026-01-09',
+        developer: '',
     },
     {
         id: '7',
         title: 'Studio Apartment in Heliopolis',
-        titleAr: 'ستوديو في مصر الجديدة',
+        titleAr: '\u0633\u062a\u0648\u062f\u064a\u0648 \u0641\u064a \u0645\u0635\u0631 \u0627\u0644\u062c\u062f\u064a\u062f\u0629',
         location: 'Heliopolis, Cairo',
-        locationAr: 'مصر الجديدة، القاهرة',
+        locationAr: '\u0645\u0635\u0631 \u0627\u0644\u062c\u062f\u064a\u062f\u0629\u060c \u0627\u0644\u0642\u0627\u0647\u0631\u0629',
         city: 'cairo',
         price: 1800000,
         aiEstimate: 1750000,
@@ -122,13 +129,14 @@ const allProperties = [
         image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&h=400&fit=crop',
         type: 'apartment',
         dateAdded: '2026-01-13',
+        developer: '',
     },
     {
         id: '8',
         title: 'Townhouse in Madinaty',
-        titleAr: 'تاون هاوس في مدينتي',
+        titleAr: '\u062a\u0627\u0648\u0646 \u0647\u0627\u0648\u0633 \u0641\u064a \u0645\u062f\u064a\u0646\u062a\u064a',
         location: 'Madinaty, New Cairo',
-        locationAr: 'مدينتي، القاهرة الجديدة',
+        locationAr: '\u0645\u062f\u064a\u0646\u062a\u064a\u060c \u0627\u0644\u0642\u0627\u0647\u0631\u0629 \u0627\u0644\u062c\u062f\u064a\u062f\u0629',
         city: 'new-cairo',
         price: 9500000,
         aiEstimate: 9600000,
@@ -138,8 +146,27 @@ const allProperties = [
         image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop',
         type: 'townhouse',
         dateAdded: '2026-01-07',
+        developer: '',
     },
 ];
+
+interface PropertyItem {
+    id: string;
+    title: string;
+    titleAr: string;
+    location: string;
+    locationAr: string;
+    city: string;
+    price: number;
+    aiEstimate: number;
+    bedrooms: number;
+    bathrooms: number;
+    area: number;
+    image: string;
+    type: string;
+    dateAdded: string;
+    developer: string;
+}
 
 interface Filters {
     location: string;
@@ -149,8 +176,29 @@ interface Filters {
     bedrooms: number;
 }
 
+function PropertyCardSkeleton() {
+    return (
+        <div className="rounded-2xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] animate-pulse">
+            <div className="h-52 bg-[var(--color-surface-elevated)]" />
+            <div className="p-5 space-y-3">
+                <div className="h-5 bg-[var(--color-surface-elevated)] rounded w-3/4" />
+                <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-1/2" />
+                <div className="flex gap-4">
+                    <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-12" />
+                    <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-12" />
+                    <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-16" />
+                </div>
+                <div className="h-10 bg-[var(--color-surface-elevated)] rounded-lg" />
+            </div>
+        </div>
+    );
+}
+
 export default function PropertiesPage() {
     const { t, language } = useLanguage();
+    const [properties, setProperties] = useState<PropertyItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [usingFallback, setUsingFallback] = useState(false);
     const [filters, setFilters] = useState<Filters>({
         location: 'all',
         type: 'all',
@@ -162,8 +210,74 @@ export default function PropertiesPage() {
     const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
     const [showFilters, setShowFilters] = useState(false);
 
+    // Normalize API property to our internal format
+    const normalizeProperty = useCallback((p: any): PropertyItem => {
+        return {
+            id: String(p.id),
+            title: p.title || p.name || '',
+            titleAr: p.titleAr || p.title || '',
+            location: p.location || '',
+            locationAr: p.locationAr || p.location || '',
+            city: inferCity(p.location || ''),
+            price: p.price || p.totalPrice || 0,
+            aiEstimate: p.aiValuation || p.aiEstimate || (p.price || 0) * 1.05,
+            bedrooms: p.bedrooms ?? 0,
+            bathrooms: p.bathrooms ?? 1,
+            area: p.size_sqm || p.area || 0,
+            image: p.image_url || p.image || 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop',
+            type: (p.type || 'apartment').toLowerCase(),
+            dateAdded: p.dateAdded || p.created_at || new Date().toISOString().split('T')[0],
+            developer: p.developer || '',
+        };
+    }, []);
+
+    // Infer city key from location string for filtering
+    function inferCity(location: string): string {
+        const loc = location.toLowerCase();
+        if (loc.includes('new cairo') || loc.includes('madinaty') || loc.includes('5th settlement') || loc.includes('rehab')) return 'new-cairo';
+        if (loc.includes('zayed') || loc.includes('sheikh zayed')) return 'sheikh-zayed';
+        if (loc.includes('october') || loc.includes('smart village')) return '6th-october';
+        if (loc.includes('sokhna') || loc.includes('ain sokhna')) return 'ain-sokhna';
+        if (loc.includes('north coast') || loc.includes('sahel')) return 'north-coast';
+        if (loc.includes('new capital') || loc.includes('capital')) return 'new-capital';
+        if (loc.includes('zamalek') || loc.includes('maadi') || loc.includes('heliopolis') || loc.includes('cairo')) return 'cairo';
+        return 'other';
+    }
+
+    // Fetch properties from the API
+    const fetchProperties = useCallback(async () => {
+        try {
+            setLoading(true);
+            const { data } = await api.get('/api/properties');
+
+            // The API returns an array directly or {properties: [...]}
+            const rawProperties = Array.isArray(data) ? data : (data.properties || []);
+
+            if (rawProperties.length === 0) {
+                // API returned empty -- fall back to hardcoded
+                setProperties(fallbackProperties);
+                setUsingFallback(true);
+            } else {
+                const normalized = rawProperties.map(normalizeProperty);
+                setProperties(normalized);
+                setUsingFallback(false);
+            }
+        } catch (err) {
+            console.error('Failed to fetch properties:', err);
+            setProperties(fallbackProperties);
+            setUsingFallback(true);
+        } finally {
+            setLoading(false);
+        }
+    }, [normalizeProperty]);
+
+    useEffect(() => {
+        fetchProperties();
+    }, [fetchProperties]);
+
+    // Client-side filtering and sorting
     const filteredProperties = useMemo(() => {
-        let result = allProperties.filter((p) => {
+        let result = properties.filter((p) => {
             if (filters.location !== 'all' && p.city !== filters.location) return false;
             if (filters.type !== 'all' && p.type !== filters.type) return false;
             if (p.price < filters.minPrice || p.price > filters.maxPrice) return false;
@@ -181,11 +295,11 @@ export default function PropertiesPage() {
         }
 
         return result;
-    }, [filters, sortBy]);
+    }, [properties, filters, sortBy]);
 
     const formatPrice = (price: number) => {
         if (language === 'ar') {
-            return `${(price / 1000000).toFixed(1)} مليون ج.م`;
+            return `${(price / 1000000).toFixed(1)} \u0645\u0644\u064a\u0648\u0646 \u062c.\u0645`;
         }
         return `EGP ${(price / 1000000).toFixed(1)}M`;
     };
@@ -201,10 +315,15 @@ export default function PropertiesPage() {
                         {t('nav.properties')}
                     </h1>
                     <p className="text-[var(--color-text-secondary)]">
-                        {language === 'ar'
-                            ? `${filteredProperties.length} عقار متاح`
-                            : `${filteredProperties.length} properties available`
+                        {loading
+                            ? (language === 'ar' ? '\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...' : 'Loading properties...')
+                            : (language === 'ar'
+                                ? `${filteredProperties.length} \u0639\u0642\u0627\u0631 \u0645\u062a\u0627\u062d`
+                                : `${filteredProperties.length} properties available`)
                         }
+                        {usingFallback && !loading && (
+                            <span className="text-amber-500 text-sm ml-2">(cached data)</span>
+                        )}
                     </p>
                 </div>
             </div>
@@ -223,7 +342,7 @@ export default function PropertiesPage() {
                             className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)]"
                         >
                             <SlidersHorizontal className="w-5 h-5" />
-                            {language === 'ar' ? 'الفلاتر' : 'Filters'}
+                            {language === 'ar' ? '\u0627\u0644\u0641\u0644\u0627\u062a\u0631' : 'Filters'}
                         </button>
 
                         {showFilters && (
@@ -243,9 +362,9 @@ export default function PropertiesPage() {
                                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                                 className="px-4 py-2.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                             >
-                                <option value="date">{language === 'ar' ? 'الأحدث' : 'Newest'}</option>
-                                <option value="price-asc">{language === 'ar' ? 'السعر: من الأقل' : 'Price: Low to High'}</option>
-                                <option value="price-desc">{language === 'ar' ? 'السعر: من الأعلى' : 'Price: High to Low'}</option>
+                                <option value="date">{language === 'ar' ? '\u0627\u0644\u0623\u062d\u062f\u062b' : 'Newest'}</option>
+                                <option value="price-asc">{language === 'ar' ? '\u0627\u0644\u0633\u0639\u0631: \u0645\u0646 \u0627\u0644\u0623\u0642\u0644' : 'Price: Low to High'}</option>
+                                <option value="price-desc">{language === 'ar' ? '\u0627\u0644\u0633\u0639\u0631: \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649' : 'Price: High to Low'}</option>
                             </select>
 
                             {/* View Toggle */}
@@ -265,9 +384,18 @@ export default function PropertiesPage() {
                             </div>
                         </div>
 
+                        {/* Loading Skeletons */}
+                        {loading && viewMode === 'grid' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <PropertyCardSkeleton key={i} />
+                                ))}
+                            </div>
+                        )}
+
                         {/* Properties Grid */}
-                        {viewMode === 'grid' ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {!loading && viewMode === 'grid' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredProperties.map((property, index) => (
                                     <motion.div
                                         key={property.id}
@@ -312,6 +440,12 @@ export default function PropertiesPage() {
                                                 {language === 'ar' ? property.locationAr : property.location}
                                             </div>
 
+                                            {property.developer && (
+                                                <p className="text-xs text-[var(--color-text-muted)] mb-3">
+                                                    {language === 'ar' ? '\u0627\u0644\u0645\u0637\u0648\u0631:' : 'Developer:'} {property.developer}
+                                                </p>
+                                            )}
+
                                             <div className="flex items-center gap-4 text-sm text-[var(--color-text-muted)]">
                                                 {property.bedrooms > 0 && (
                                                     <div className="flex items-center gap-1.5">
@@ -325,7 +459,7 @@ export default function PropertiesPage() {
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <Maximize className="w-4 h-4" />
-                                                    {property.area} {language === 'ar' ? 'م²' : 'sqm'}
+                                                    {property.area} {language === 'ar' ? '\u0645\u00B2' : 'sqm'}
                                                 </div>
                                             </div>
 
@@ -339,24 +473,39 @@ export default function PropertiesPage() {
                                     </motion.div>
                                 ))}
                             </div>
-                        ) : (
+                        )}
+
+                        {/* Map View */}
+                        {!loading && viewMode === 'map' && (
                             <div className="h-[600px] rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
                                 <div className="text-center text-[var(--color-text-muted)]">
                                     <Map className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                                    <p>{language === 'ar' ? 'عرض الخريطة قريباً' : 'Map view coming soon'}</p>
+                                    <p>{language === 'ar' ? '\u0639\u0631\u0636 \u0627\u0644\u062e\u0631\u064a\u0637\u0629 \u0642\u0631\u064a\u0628\u0627\u064b' : 'Map view coming soon'}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Loading state for map view */}
+                        {loading && viewMode === 'map' && (
+                            <div className="h-[600px] rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
+                                <div className="flex flex-col items-center gap-3 text-[var(--color-text-muted)]">
+                                    <Loader2 className="w-8 h-8 animate-spin" />
+                                    <p>{language === 'ar' ? '\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...' : 'Loading...'}</p>
                                 </div>
                             </div>
                         )}
 
                         {/* Empty State */}
-                        {filteredProperties.length === 0 && (
+                        {!loading && filteredProperties.length === 0 && (
                             <div className="text-center py-16">
-                                <div className="text-6xl mb-4">🏠</div>
+                                <div className="w-20 h-20 bg-[var(--color-surface-elevated)] rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <MapPin className="w-8 h-8 text-[var(--color-text-muted)]" />
+                                </div>
                                 <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2">
-                                    {language === 'ar' ? 'لا توجد عقارات' : 'No properties found'}
+                                    {language === 'ar' ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0639\u0642\u0627\u0631\u0627\u062a' : 'No properties found'}
                                 </h3>
                                 <p className="text-[var(--color-text-secondary)]">
-                                    {language === 'ar' ? 'جرب تعديل الفلاتر' : 'Try adjusting your filters'}
+                                    {language === 'ar' ? '\u062c\u0631\u0628 \u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0641\u0644\u0627\u062a\u0631' : 'Try adjusting your filters'}
                                 </p>
                             </div>
                         )}

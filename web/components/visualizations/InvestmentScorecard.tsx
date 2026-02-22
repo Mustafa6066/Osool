@@ -90,21 +90,21 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-gradient-to-br from-[#1a1c2e] to-[#2d3748] rounded-2xl p-6 border border-white/10 shadow-2xl"
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, type: "spring", stiffness: 100, damping: 18 }}
+            className="bg-[var(--color-surface)]/80 backdrop-blur-sm rounded-2xl p-6 border border-[var(--color-border)] shadow-2xl"
             dir={isRTL ? 'rtl' : 'ltr'}
         >
             {/* Header */}
             <div className="mb-6">
-                <h3 className="text-xl font-bold text-white mb-1">{property.title}</h3>
-                <p className="text-gray-400 text-sm">{property.location}</p>
+                <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">{property.title}</h3>
+                <p className="text-[var(--color-text-secondary)] text-sm">{property.location}</p>
                 <div className="mt-2 flex items-center gap-2">
                     <span className="text-2xl font-bold text-blue-400">
                         {(property.price / 1000000).toFixed(1)}M {labels.currency}
                     </span>
-                    <span className="text-xs text-gray-500 px-2 py-1 bg-white/5 rounded">
+                    <span className="text-xs text-[var(--color-text-muted)] px-2 py-1 bg-[var(--color-surface-elevated)]/50 rounded">
                         {price_verdict}
                     </span>
                 </div>
@@ -114,46 +114,46 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
             <div className="grid grid-cols-2 gap-4 mb-6">
                 {/* Match Score */}
                 <motion.div
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-white/5 rounded-xl p-4 border border-white/10"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.1, type: "spring", stiffness: 120, damping: 16 }}
+                    className="bg-[var(--color-surface-elevated)]/50 backdrop-blur-sm rounded-xl p-4 border border-[var(--color-border)]"
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-400 text-xs">{labels.matchScore}</span>
+                        <span className="text-[var(--color-text-secondary)] text-xs">{labels.matchScore}</span>
                         <CheckCircle2 className="w-4 h-4 text-blue-400" />
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="text-3xl font-bold text-white">{match_score}</span>
-                        <span className="text-gray-500 text-sm mb-1">/100</span>
+                        <span className="text-3xl font-bold text-[var(--color-text-primary)]">{match_score}</span>
+                        <span className="text-[var(--color-text-muted)] text-sm mb-1">/100</span>
                     </div>
-                    <div className="mt-2 w-full bg-white/10 rounded-full h-2">
+                    <div className="mt-2 w-full bg-[var(--color-border)] rounded-full h-2.5 overflow-hidden">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${match_score}%` }}
-                            transition={{ duration: 1, delay: 0.3 }}
-                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
+                            transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
+                            className="bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 h-2.5 rounded-full shadow-[0_0_8px_rgba(56,189,248,0.4)]"
                         />
                     </div>
                 </motion.div>
 
                 {/* ROI Projection */}
                 <motion.div
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-white/5 rounded-xl p-4 border border-white/10"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2, type: "spring", stiffness: 120, damping: 16 }}
+                    className="bg-[var(--color-surface-elevated)]/50 backdrop-blur-sm rounded-xl p-4 border border-[var(--color-border)]"
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-400 text-xs">{labels.roiProjection}</span>
+                        <span className="text-[var(--color-text-secondary)] text-xs">{labels.roiProjection}</span>
                         <TrendingUp className="w-4 h-4 text-green-400" />
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-3xl font-bold text-green-400">{roi_projection.toFixed(1)}</span>
-                        <span className="text-gray-500 text-sm mb-1">{labels.annual}</span>
+                        <span className="text-[var(--color-text-muted)] text-sm mb-1">{labels.annual}</span>
                     </div>
                     {annual_return > 0 && (
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-xs text-[var(--color-text-secondary)] mt-2">
                             ~{(annual_return / 1000).toFixed(0)}K {labels.currency}/{isRTL ? 'سنة' : 'year'}
                         </p>
                     )}
@@ -161,13 +161,13 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
 
                 {/* Risk Level */}
                 <motion.div
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.3 }}
-                    className={`rounded-xl p-4 border ${riskColors[risk_level]}`}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.3, type: "spring", stiffness: 120, damping: 16 }}
+                    className={`backdrop-blur-sm rounded-xl p-4 border ${riskColors[risk_level]}`}
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-400 text-xs">{labels.riskLevel}</span>
+                        <span className="text-[var(--color-text-secondary)] text-xs">{labels.riskLevel}</span>
                         <AlertTriangle className={`w-4 h-4 ${risk_level === "Low" ? "text-green-400" : risk_level === "High" ? "text-red-400" : "text-yellow-400"}`} />
                     </div>
                     <div className="flex items-center gap-2">
@@ -182,13 +182,13 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
 
                 {/* Market Trend */}
                 <motion.div
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className={`rounded-xl p-4 border border-white/10 ${trendColors[market_trend]}`}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.4, type: "spring", stiffness: 120, damping: 16 }}
+                    className={`backdrop-blur-sm rounded-xl p-4 border border-[var(--color-border)] ${trendColors[market_trend]}`}
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-gray-400 text-xs">{labels.marketTrend}</span>
+                        <span className="text-[var(--color-text-secondary)] text-xs">{labels.marketTrend}</span>
                         {trendIcons[market_trend]}
                     </div>
                     <div className="flex items-center gap-2">
@@ -220,13 +220,13 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
             {/* Location Quality */}
             {location_quality > 0 && (
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="bg-white/5 rounded-xl p-4 border border-white/10"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, type: "spring", stiffness: 120, damping: 16 }}
+                    className="bg-[var(--color-surface-elevated)]/50 backdrop-blur-sm rounded-xl p-4 border border-[var(--color-border)]"
                 >
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-gray-400 text-sm">{labels.locationQuality}</span>
+                        <span className="text-[var(--color-text-secondary)] text-sm">{labels.locationQuality}</span>
                         <span className="text-yellow-400 text-lg font-bold">{location_quality.toFixed(1)} ⭐</span>
                     </div>
                     <div className="flex gap-1">
@@ -236,19 +236,19 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ delay: 0.5 + star * 0.05 }}
-                                className={`h-2 flex-1 rounded ${star <= location_quality ? "bg-yellow-400" : "bg-white/10"}`}
+                                className={`h-2 flex-1 rounded ${star <= location_quality ? "bg-yellow-400" : "bg-[var(--color-border)]"}`}
                             />
                         ))}
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className="text-xs text-[var(--color-text-secondary)] mt-2">
                         {labels.locationDesc}
                     </p>
                 </motion.div>
             )}
 
             {/* AI Badge */}
-            <div className="mt-6 pt-4 border-t border-white/10">
-                <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+            <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
+                <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)]">
                     <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                     <span>{labels.aiAnalysis}</span>
                 </div>

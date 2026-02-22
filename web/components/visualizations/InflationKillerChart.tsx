@@ -150,7 +150,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="bg-[var(--color-surface)] rounded-3xl p-6 border border-[var(--color-border)] shadow-xl overflow-hidden"
+            className="bg-[var(--color-surface)]/80 backdrop-blur-sm rounded-3xl p-6 border border-[var(--color-border)] shadow-xl overflow-hidden"
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
@@ -180,7 +180,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4"
+                    className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 rounded-2xl p-4"
                 >
                     <div className="flex items-center gap-2 mb-2">
                         <Banknote className="w-5 h-5 text-red-500" />
@@ -203,7 +203,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4"
+                    className="bg-yellow-500/10 backdrop-blur-sm border border-yellow-500/20 rounded-2xl p-4"
                 >
                     <div className="flex items-center gap-2 mb-2">
                         <Coins className="w-5 h-5 text-yellow-500" />
@@ -226,7 +226,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4"
+                    className="bg-emerald-500/10 backdrop-blur-sm border border-emerald-500/20 rounded-2xl p-4"
                 >
                     <div className="flex items-center gap-2 mb-2">
                         <Home className="w-5 h-5 text-emerald-500" />
@@ -250,13 +250,14 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="bg-[var(--color-surface-elevated)]/50 rounded-2xl p-4 border border-[var(--color-border)] mb-4"
+                className="bg-[var(--color-surface-elevated)]/50 backdrop-blur-sm rounded-2xl p-4 border border-[var(--color-border)] mb-4 min-h-[200px] h-[280px] sm:h-[320px]"
             >
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                     <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="colorProperty" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                                <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.5} />
+                                <stop offset="50%" stopColor="#10b981" stopOpacity={0.2} />
                                 <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="colorGold" x1="0" y1="0" x2="0" y2="1">
@@ -309,8 +310,8 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                         <Area
                             type="monotone"
                             dataKey="property"
-                            stroke="#10b981"
-                            strokeWidth={2}
+                            stroke="#14b8a6"
+                            strokeWidth={2.5}
                             fill="url(#colorProperty)"
                             name="property"
                         />
@@ -339,11 +340,11 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
-                className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4"
+                className="bg-emerald-500/10 backdrop-blur-sm border border-emerald-500/20 rounded-2xl p-4"
             >
                 <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
                             <TrendingUp className="w-4 h-4 text-white" />
                         </div>
                         <span className="text-3xl font-bold text-emerald-500">

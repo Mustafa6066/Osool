@@ -2212,6 +2212,120 @@ body {
   border-radius: 4px;
 }
 
+/* ============================================
+   ANIMATION UTILITIES (v8 - Analytics-First)
+   ============================================ */
+
+/* Tailwind-style animate-in utilities for chat elements */
+@keyframes animate-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes animate-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes animate-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: animate-fade-in;
+}
+
+.slide-in-from-bottom-4 {
+  animation-name: animate-slide-up;
+}
+
+.scale-in {
+  animation-name: animate-scale-in;
+}
+
+.duration-300 {
+  animation-duration: 300ms;
+}
+
+.duration-500 {
+  animation-duration: 500ms;
+}
+
+.duration-700 {
+  animation-duration: 700ms;
+}
+
+/* Glass morphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dark .glass {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Chart card wrapper */
+.chart-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.chart-card:hover {
+  border-color: rgba(45, 212, 191, 0.2);
+  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.2);
+}
+
+/* Property card minimal style */
+.property-card-minimal {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.property-card-minimal:hover {
+  border-color: rgba(45, 212, 191, 0.3);
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Mobile-specific utilities */
+@media (max-width: 768px) {
+  .mobile-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
+  }
+
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  /* Safe area for bottom input on mobile */
+  .mobile-safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
 .chatgpt-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }

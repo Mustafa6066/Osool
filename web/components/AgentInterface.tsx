@@ -13,6 +13,13 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import dynamic from 'next/dynamic';
+
+// Lazy load visualization renderer for smart charts
+const VisualizationRenderer = dynamic(
+    () => import('@/components/visualizations/VisualizationRenderer'),
+    { ssr: false }
+);
 
 /**
  * TYPES - Aligned with backend schemas
@@ -50,6 +57,10 @@ interface Message {
     role: 'user' | 'agent';
     content: string;
     artifacts?: Artifacts | null;
+    uiActions?: any[];
+    analyticsContext?: any;
+    showingStrategy?: string;
+    allProperties?: Property[];
 }
 
 interface Suggestion {
@@ -136,7 +147,7 @@ const MarkdownMessage = ({ content }: { content: string }) => {
                     ),
                     blockquote: ({ node, ...props }) => (
                         <blockquote
-                            className={`${msgIsArabic ? 'border-r-4 pr-4' : 'border-l-4 pl-4'} border-teal-500 py-1 my-2 bg-[#252627] rounded`}
+                            className={`${msgIsArabic ? 'border-r-4 pr-4' : 'border-l-4 pl-4'} border-teal-500 py-1 my-2 bg-[var(--color-surface-elevated)] rounded`}
                             {...props}
                         />
                     ),
@@ -146,26 +157,26 @@ const MarkdownMessage = ({ content }: { content: string }) => {
                     code: ({ node, className, children, ...props }) => {
                         const isInline = !className;
                         return isInline ? (
-                            <code className="bg-[#252627] text-teal-300 px-1.5 py-0.5 rounded text-sm" {...props}>{children}</code>
+                            <code className="bg-[var(--color-surface-elevated)] text-teal-300 px-1.5 py-0.5 rounded text-sm" {...props}>{children}</code>
                         ) : (
-                            <pre className="bg-[#1a1a1b] border border-[#3d3d3d] rounded-lg p-4 my-3 overflow-x-auto">
+                            <pre className="bg-[#1a1a1b] border border-[var(--color-border-light)] rounded-lg p-4 my-3 overflow-x-auto">
                                 <code className="text-sm text-gray-300" {...props}>{children}</code>
                             </pre>
                         );
                     },
                     hr: ({ node, ...props }) => (
-                        <hr className="border-[#3d3d3d] my-4" {...props} />
+                        <hr className="border-[var(--color-border-light)] my-4" {...props} />
                     ),
                     table: ({ node, ...props }) => (
                         <div className="overflow-x-auto my-3">
-                            <table className="w-full border-collapse border border-[#3d3d3d] text-sm" {...props} />
+                            <table className="w-full border-collapse border border-[var(--color-border-light)] text-sm" {...props} />
                         </div>
                     ),
                     th: ({ node, ...props }) => (
-                        <th className="border border-[#3d3d3d] bg-[#252627] px-3 py-2 text-teal-400 font-semibold" {...props} />
+                        <th className="border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] px-3 py-2 text-teal-400 font-semibold" {...props} />
                     ),
                     td: ({ node, ...props }) => (
-                        <td className="border border-[#3d3d3d] px-3 py-2" {...props} />
+                        <td className="border border-[var(--color-border-light)] px-3 py-2" {...props} />
                     ),
                 }}
             >
@@ -238,13 +249,14 @@ export default function AgentInterface() {
             const data = response.data;
             console.log('[AMR] API Response:', data);
 
-            // Extract property artifacts from response
+            // Extract ALL property artifacts from response
             let artifacts: Artifacts | null = null;
+            const allProps: Property[] = [];
+
             if (data.properties && data.properties.length > 0) {
-                const prop = data.properties[0];
-                artifacts = {
-                    property: {
-                        id: prop.id?.toString() || `prop_${Date.now()}`,
+                data.properties.forEach((prop: any) => {
+                    allProps.push({
+                        id: prop.id?.toString() || `prop_${Date.now()}_${Math.random()}`,
                         title: prop.title || prop.name || 'Property',
                         location: prop.location || prop.address || 'Location',
                         price: prop.price || 0,
@@ -262,15 +274,23 @@ export default function AgentInterface() {
                         developer: prop.developer || 'Developer',
                         tags: prop.tags || [],
                         status: prop.status || 'Available'
-                    }
-                };
+                    });
+                });
+                // First property as artifact for context pane
+                if (allProps.length > 0) {
+                    artifacts = { property: allProps[0] };
+                }
             }
 
             const aiMsg: Message = {
                 id: Date.now() + 1,
                 role: 'agent',
                 content: data.response || data.message || "I'm AMR, your real estate intelligence agent. How can I assist you today?",
-                artifacts
+                artifacts,
+                uiActions: data.ui_actions || [],
+                analyticsContext: data.analytics_context || null,
+                showingStrategy: data.showing_strategy || 'NONE',
+                allProperties: allProps,
             };
 
             setMessages(prev => [...prev, aiMsg]);
@@ -323,20 +343,20 @@ export default function AgentInterface() {
     const hasStarted = messages.length > 0;
 
     return (
-        <div className="flex h-screen bg-[#131314] text-[#e3e3e3] font-sans overflow-hidden selection:bg-teal-500/30 relative">
+        <div className="flex h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] font-sans overflow-hidden selection:bg-teal-500/30 relative">
 
             {/* ---------------------------------------------------------------------------
        * FLOATING HISTORY PANE (SIDEBAR)
        * --------------------------------------------------------------------------- */}
             <aside
-                className={`fixed top-4 bottom-4 left-4 w-[300px] bg-[#1e1f20]/95 backdrop-blur-md rounded-3xl z-50 flex flex-col overflow-hidden border border-[#2d2d2d] shadow-2xl transition-transform duration-500 ${sidebarOpen ? 'translate-x-0' : '-translate-x-[calc(100%+24px)]'}`}
+                className={`fixed top-0 md:top-4 bottom-0 md:bottom-4 left-0 md:left-4 w-full md:w-[300px] bg-[var(--color-surface)]/95 backdrop-blur-md md:rounded-3xl z-50 flex flex-col overflow-hidden border-r md:border border-[var(--color-border)] shadow-2xl transition-transform duration-500 ${sidebarOpen ? 'translate-x-0' : '-translate-x-[calc(100%+24px)]'}`}
                 style={{ transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }}
             >
                 <div className="p-4 pt-5 flex-1 overflow-y-auto">
                     <div className="flex justify-between items-center mb-6 px-1">
                         <button
                             onClick={() => setSidebarOpen(false)}
-                            className="p-2 hover:bg-[#2c2d2e] rounded-full text-gray-400 transition-colors"
+                            className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 transition-colors"
                         >
                             <Menu className="w-5 h-5" />
                         </button>
@@ -345,7 +365,7 @@ export default function AgentInterface() {
 
                     <button
                         onClick={handleNewChat}
-                        className="flex items-center gap-3 px-4 py-3 rounded-full bg-[#2c2d2e] hover:bg-[#353638] text-[#e3e3e3] transition-colors w-full mb-6 border border-[#3d3d3d] group"
+                        className="flex items-center gap-3 px-4 py-3 rounded-full bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] transition-colors w-full mb-6 border border-[var(--color-border-light)] group"
                     >
                         <Plus className="w-5 h-5 text-gray-400 group-hover:text-white" />
                         <span className="text-sm font-medium">New Analysis</span>
@@ -359,7 +379,7 @@ export default function AgentInterface() {
                                     <button
                                         key={i}
                                         onClick={() => handleSendMessage(query)}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[#e3e3e3] hover:bg-[#2c2d2e] rounded-lg group transition-colors truncate"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg group transition-colors truncate"
                                     >
                                         <History className="w-4 h-4 text-gray-500 flex-shrink-0" />
                                         <span className="truncate flex-1 text-left opacity-80 group-hover:opacity-100" dir="auto">{query}</span>
@@ -371,7 +391,7 @@ export default function AgentInterface() {
                     )}
                 </div>
 
-                <div className="p-4 bg-[#1e1f20] border-t border-[#2d2d2d]">
+                <div className="p-4 bg-[var(--color-surface)] border-t border-[var(--color-border)]">
                     <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl">
                         <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg">
                             <Building2 className="w-4 h-4" />
@@ -387,7 +407,7 @@ export default function AgentInterface() {
             {/* ---------------------------------------------------------------------------
        * MAIN CHAT AREA
        * --------------------------------------------------------------------------- */}
-            <main className="flex-1 flex flex-col relative min-w-0 bg-[#131314] h-full w-full z-0">
+            <main className="flex-1 flex flex-col relative min-w-0 bg-[var(--color-background)] h-full w-full z-0">
 
                 {/* Top Bar */}
                 <div className="absolute top-0 left-0 right-0 h-20 flex items-center justify-between px-6 z-30 pointer-events-none">
@@ -396,11 +416,11 @@ export default function AgentInterface() {
                     <div className="flex items-center gap-4 pointer-events-auto">
                         <button
                             onClick={() => setSidebarOpen(true)}
-                            className={`p-2.5 hover:bg-[#2c2d2e] rounded-full text-gray-400 transition-all duration-300 ${sidebarOpen ? 'opacity-0 -translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}
+                            className={`p-2.5 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 transition-all duration-300 ${sidebarOpen ? 'opacity-0 -translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}
                         >
                             <Menu className="w-5 h-5" />
                         </button>
-                        <span className={`text-xl font-medium text-[#e3e3e3] opacity-90 tracking-tight transition-opacity duration-500 ${!hasStarted ? 'opacity-0' : 'opacity-100'}`}>
+                        <span className={`text-xl font-medium text-[var(--color-text-primary)] opacity-90 tracking-tight transition-opacity duration-500 ${!hasStarted ? 'opacity-0' : 'opacity-100'}`}>
                             Osool <span className="opacity-50 font-light">AMR</span>
                         </span>
                     </div>
@@ -408,7 +428,7 @@ export default function AgentInterface() {
                     <div className="flex items-center gap-3 pointer-events-auto">
                         <button
                             onClick={handleNewChat}
-                            className="p-2.5 hover:bg-[#2c2d2e] rounded-full text-gray-400 transition-colors"
+                            className="p-2.5 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 transition-colors"
                             title="New Chat"
                         >
                             <RefreshCw className="w-5 h-5" />
@@ -432,7 +452,7 @@ export default function AgentInterface() {
                                                 Hello, {userName}
                                             </span>
                                         </h1>
-                                        <h2 className="text-3xl md:text-4xl text-[#444746] font-normal">Ready to analyze your assets?</h2>
+                                        <h2 className="text-3xl md:text-4xl text-[var(--color-text-muted)] font-normal">Ready to analyze your assets?</h2>
                                     </div>
                                 </div>
 
@@ -446,10 +466,10 @@ export default function AgentInterface() {
                                             <button
                                                 key={i}
                                                 onClick={() => handleSendMessage(s.prompt)}
-                                                className="p-4 bg-[#1e1f20] hover:bg-[#2c2d2e] rounded-2xl text-left transition-all duration-300 h-36 flex flex-col justify-between group border border-transparent hover:border-[#3d3d3d]"
+                                                className="p-4 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] rounded-2xl text-left transition-all duration-300 h-36 flex flex-col justify-between group border border-transparent hover:border-[var(--color-border-light)]"
                                             >
-                                                <span className="text-sm font-medium text-[#e3e3e3] group-hover:text-white leading-snug" dir="auto">{s.label}</span>
-                                                <div className="self-end p-2 bg-[#131314] rounded-full group-hover:bg-[#e3e3e3] group-hover:text-black transition-colors shadow-sm">
+                                                <span className="text-sm font-medium text-[var(--color-text-primary)] group-hover:text-white leading-snug" dir="auto">{s.label}</span>
+                                                <div className="self-end p-2 bg-[var(--color-background)] rounded-full group-hover:bg-[#e3e3e3] group-hover:text-black transition-colors shadow-sm">
                                                     <s.icon className="w-4 h-4" />
                                                 </div>
                                             </button>
@@ -472,55 +492,130 @@ export default function AgentInterface() {
                                             <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
                                                 {msg.role === 'user' ? (
                                                     <div
-                                                        className="bg-[#2c2d2e] text-[#e3e3e3] px-6 py-3.5 rounded-[24px] rounded-br-sm max-w-[85%] text-[16px] leading-relaxed tracking-wide"
+                                                        className="bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] px-6 py-3.5 rounded-[24px] rounded-br-sm max-w-[85%] text-[16px] leading-relaxed tracking-wide"
                                                         dir="auto"
                                                     >
                                                         {msg.content}
                                                     </div>
                                                 ) : (
                                                     <div
-                                                        className="text-[16px] leading-8 text-[#e3e3e3] font-light tracking-wide"
+                                                        className="text-[16px] leading-8 text-[var(--color-text-primary)] font-light tracking-wide"
                                                         dir="auto"
                                                     >
                                                         <MarkdownMessage content={msg.content} />
 
-                                                        {/* Rich Artifacts - Linked to Context Pane */}
-                                                        {msg.artifacts?.property && (
-                                                            <div className="mt-8" dir="ltr">
-                                                                <div
-                                                                    onClick={() => { setActiveContext(msg.artifacts!); setContextPaneOpen(true); }}
-                                                                    className="group relative border border-[#444746] hover:border-teal-500/50 bg-[#1e1f20] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 max-w-md shadow-xl hover:shadow-2xl hover:shadow-teal-900/10"
-                                                                >
-                                                                    <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        {/* Smart Visualizations — Charts triggered by AI brain */}
+                                                        {msg.uiActions && msg.uiActions.length > 0 && (
+                                                            <div className="mt-6 space-y-4" dir="ltr">
+                                                                {msg.uiActions
+                                                                    .filter((action: any) => action.type !== 'property_cards')
+                                                                    .map((action: any, idx: number) => (
+                                                                    <div key={idx} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${idx * 150}ms` }}>
+                                                                        <VisualizationRenderer
+                                                                            type={action.type}
+                                                                            data={action.data || action}
+                                                                            isRTL={isArabic(msg.content)}
+                                                                        />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
 
-                                                                    <div className="p-5 flex gap-5">
-                                                                        <div className="w-28 h-28 bg-gray-800 rounded-xl flex-shrink-0 overflow-hidden shadow-inner">
-                                                                            <img src={msg.artifacts.property.image} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" alt="Thumb" />
-                                                                        </div>
-                                                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                                            <div className="flex items-center gap-2 mb-1.5">
-                                                                                <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-                                                                                <span className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">AMR Insight</span>
+                                                        {/* Analytics Insight Panel — shown when ANALYTICS_ONLY mode */}
+                                                        {msg.analyticsContext?.has_analytics && (!msg.allProperties || msg.allProperties.length === 0) && (
+                                                            <div className="mt-6 p-5 rounded-2xl border border-teal-500/20 bg-teal-950/10 backdrop-blur-sm" dir="ltr">
+                                                                <div className="flex items-center gap-2 mb-4">
+                                                                    <BarChart2 className="w-4 h-4 text-teal-400" />
+                                                                    <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Market Intelligence</span>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                                    {msg.analyticsContext.avg_price_sqm > 0 && (
+                                                                        <div>
+                                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Avg Price/m²</div>
+                                                                            <div className="text-lg font-semibold text-[var(--color-text-primary)]">
+                                                                                {msg.analyticsContext.avg_price_sqm?.toLocaleString()} <span className="text-xs opacity-50">EGP</span>
                                                                             </div>
-                                                                            <h3 className="font-medium text-lg text-[#e3e3e3] truncate mb-1" dir="auto">{msg.artifacts.property.title}</h3>
-                                                                            <p className="text-sm text-gray-400 mb-3 truncate" dir="auto">{msg.artifacts.property.location}</p>
+                                                                        </div>
+                                                                    )}
+                                                                    {msg.analyticsContext.growth_rate > 0 && (
+                                                                        <div>
+                                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Growth Rate</div>
+                                                                            <div className="text-lg font-semibold text-emerald-400">
+                                                                                +{(msg.analyticsContext.growth_rate * 100).toFixed(0)}% <span className="text-xs opacity-50">YoY</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    {msg.analyticsContext.rental_yield > 0 && (
+                                                                        <div>
+                                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Rental Yield</div>
+                                                                            <div className="text-lg font-semibold text-cyan-400">
+                                                                                {(msg.analyticsContext.rental_yield * 100).toFixed(1)}%
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
 
-                                                                            <div className="flex items-center gap-3">
-                                                                                <span className="text-sm font-medium text-white bg-[#2c2d2e] px-2.5 py-1 rounded-md border border-[#3d3d3d]">
-                                                                                    {(msg.artifacts.property.price / 1000000).toFixed(1)}M EGP
+                                                        {/* Property Cards — All properties, not just first */}
+                                                        {msg.allProperties && msg.allProperties.length > 0 && (
+                                                            <div className="mt-6 space-y-3" dir="ltr">
+                                                                {msg.allProperties.map((prop, idx) => (
+                                                                    <div
+                                                                        key={prop.id}
+                                                                        onClick={() => { setActiveContext({ property: prop }); setContextPaneOpen(true); }}
+                                                                        className="group relative flex gap-4 p-4 border border-[var(--color-border)] hover:border-teal-500/40 bg-[var(--color-surface)] rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-teal-900/5"
+                                                                        style={{ animationDelay: `${idx * 100}ms` }}
+                                                                    >
+                                                                        {/* Accent bar */}
+                                                                        <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl bg-gradient-to-b from-teal-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                                                        {/* Image */}
+                                                                        <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-800 rounded-xl flex-shrink-0 overflow-hidden">
+                                                                            <img src={prop.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={prop.title} />
+                                                                        </div>
+
+                                                                        {/* Info */}
+                                                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                                            <h3 className="font-medium text-[var(--color-text-primary)] truncate text-sm md:text-base" dir="auto">{prop.title}</h3>
+                                                                            <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5" dir="auto">
+                                                                                {prop.location} {prop.developer && `• ${prop.developer}`}
+                                                                            </p>
+                                                                            <div className="flex items-center gap-2 mt-2">
+                                                                                <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+                                                                                    {(prop.price / 1000000).toFixed(1)}M EGP
                                                                                 </span>
-                                                                                {msg.artifacts.property.metrics.roi > 0 && (
-                                                                                    <span className="text-sm font-medium text-emerald-400 bg-emerald-950/30 px-2.5 py-1 rounded-md border border-emerald-900/50">
-                                                                                        +{msg.artifacts.property.metrics.roi}% ROI
+                                                                                {prop.metrics.price_per_sqm > 0 && (
+                                                                                    <span className="text-[10px] text-[var(--color-text-muted)]">
+                                                                                        {prop.metrics.price_per_sqm.toLocaleString()}/m²
+                                                                                    </span>
+                                                                                )}
+                                                                                {prop.metrics.roi > 0 && (
+                                                                                    <span className="text-[10px] font-medium text-emerald-400 bg-emerald-950/30 px-1.5 py-0.5 rounded">
+                                                                                        +{prop.metrics.roi}% ROI
                                                                                     </span>
                                                                                 )}
                                                                             </div>
+                                                                            {/* Mini Osool score bar */}
+                                                                            {prop.metrics.wolf_score > 0 && (
+                                                                                <div className="mt-2 flex items-center gap-2">
+                                                                                    <div className="flex-1 h-1 bg-[var(--color-border)] rounded-full overflow-hidden max-w-[120px]">
+                                                                                        <div
+                                                                                            className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-700"
+                                                                                            style={{ width: `${Math.min(prop.metrics.wolf_score, 100)}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <span className="text-[9px] text-teal-400 font-bold">{prop.metrics.wolf_score}</span>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
-                                                                        <div className="flex flex-col justify-center items-center text-gray-600 group-hover:text-teal-400 pl-2 border-l border-[#2d2d2d]">
-                                                                            <ExternalLink className="w-5 h-5" />
+
+                                                                        {/* Arrow */}
+                                                                        <div className="flex items-center text-[var(--color-text-muted)] group-hover:text-teal-400 transition-colors">
+                                                                            <ChevronRight className="w-4 h-4" />
                                                                         </div>
                                                                     </div>
-                                                                </div>
+                                                                ))}
                                                             </div>
                                                         )}
 
@@ -528,13 +623,13 @@ export default function AgentInterface() {
                                                             <div className="flex gap-2 mt-6" dir="ltr">
                                                                 <button
                                                                     onClick={() => copyToClipboard(msg.content)}
-                                                                    className="p-2 hover:bg-[#2c2d2e] rounded-full text-gray-400 hover:text-[#e3e3e3] transition-colors"
+                                                                    className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 hover:text-[var(--color-text-primary)] transition-colors"
                                                                     title="Copy to clipboard"
                                                                 >
                                                                     <Copy className="w-4 h-4" />
                                                                 </button>
                                                                 <button
-                                                                    className="p-2 hover:bg-[#2c2d2e] rounded-full text-gray-400 hover:text-[#e3e3e3] transition-colors"
+                                                                    className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 hover:text-[var(--color-text-primary)] transition-colors"
                                                                     title="Refresh analysis"
                                                                 >
                                                                     <RefreshCw className="w-4 h-4" />
@@ -568,7 +663,7 @@ export default function AgentInterface() {
                     style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)' }}
                 >
                     <div className="max-w-[800px] mx-auto relative">
-                        <div className={`bg-[#1e1f20] rounded-[32px] flex flex-col transition-all duration-200 ${isTyping ? 'opacity-50' : ''} border border-[#3d3d3d] focus-within:border-[#4d4d4d] focus-within:bg-[#1e1f20] shadow-2xl`}>
+                        <div className={`bg-[var(--color-surface)] rounded-[32px] flex flex-col transition-all duration-200 ${isTyping ? 'opacity-50' : ''} border border-[var(--color-border-light)] focus-within:border-teal-500/30 focus-within:bg-[var(--color-surface)] shadow-2xl`}>
 
                             <textarea
                                 dir="auto"
@@ -577,7 +672,7 @@ export default function AgentInterface() {
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask AMR about liquidity, market data, or properties..."
-                                className="w-full bg-transparent border-none text-[#e3e3e3] placeholder-gray-500 focus:ring-0 resize-none py-5 px-6 text-[17px] max-h-[200px] outline-none focus:outline-none ring-0 focus:ring-0"
+                                className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-gray-500 focus:ring-0 resize-none py-5 px-6 text-[17px] max-h-[200px] outline-none focus:outline-none ring-0 focus:ring-0"
                                 rows={1}
                                 disabled={isTyping}
                             />
@@ -611,10 +706,10 @@ export default function AgentInterface() {
        * RIGHT PANE (WORKSPACE / CANVAS)
        * --------------------------------------------------------------------------- */}
             {contextPaneOpen && activeContext?.property && (
-                <aside className="w-[420px] bg-[#1e1f20] border-l border-[#2d2d2d] flex flex-col shadow-2xl z-40 relative">
-                    <div className="h-16 border-b border-[#2d2d2d] flex items-center justify-between px-6 bg-[#1e1f20] flex-shrink-0">
+                <aside className="w-[420px] bg-[var(--color-surface)] border-l border-[var(--color-border)] flex flex-col shadow-2xl z-40 relative">
+                    <div className="h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 bg-[var(--color-surface)] flex-shrink-0">
                         <div className="flex items-center gap-2">
-                            <span className="text-[#e3e3e3] font-medium text-lg">AMR Workspace</span>
+                            <span className="text-[var(--color-text-primary)] font-medium text-lg">AMR Workspace</span>
                             <span className="text-[10px] text-teal-400 bg-teal-900/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Live</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -642,7 +737,7 @@ export default function AgentInterface() {
                                 </div>
                             </div>
                             <div>
-                                <h2 className="text-3xl font-medium text-[#e3e3e3] leading-tight mb-2" dir="auto">
+                                <h2 className="text-3xl font-medium text-[var(--color-text-primary)] leading-tight mb-2" dir="auto">
                                     {activeContext.property.title}
                                 </h2>
                                 <p className="text-gray-400 flex items-center gap-1.5 text-sm" dir="auto">
@@ -653,16 +748,16 @@ export default function AgentInterface() {
                         </div>
 
                         {/* AI Insight Block */}
-                        <div className="bg-[#252627] rounded-2xl p-6 border border-[#3d3d3d] relative overflow-hidden">
+                        <div className="bg-[var(--color-surface-elevated)] rounded-2xl p-6 border border-[var(--color-border-light)] relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                                 <Sparkles className="w-24 h-24 text-teal-500" />
                             </div>
                             <div className="flex items-center gap-2 mb-4 relative z-10">
                                 <Sparkles className="w-5 h-5 text-teal-400" />
-                                <h3 className="font-medium text-[#e3e3e3]">Osool Score Analysis</h3>
+                                <h3 className="font-medium text-[var(--color-text-primary)]">Osool Score Analysis</h3>
                             </div>
                             <div className="space-y-5 relative z-10">
-                                <p className="text-[15px] text-[#c4c7c5] leading-relaxed" dir="auto">
+                                <p className="text-[15px] text-[var(--color-text-secondary)] leading-relaxed" dir="auto">
                                     Analysis via AMR indicates this asset shows strong investment potential based on market comparables and liquidity metrics.
                                 </p>
                                 <div className="flex gap-6 pt-2">
@@ -687,29 +782,29 @@ export default function AgentInterface() {
                         {/* Data Grid */}
                         <div>
                             <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase tracking-widest pl-1">Specifications</h3>
-                            <div className="grid grid-cols-2 gap-px bg-[#3d3d3d] rounded-2xl overflow-hidden border border-[#3d3d3d]">
-                                <div className="bg-[#1e1f20] p-5 hover:bg-[#252627] transition-colors">
+                            <div className="grid grid-cols-2 gap-px bg-[#3d3d3d] rounded-2xl overflow-hidden border border-[var(--color-border-light)]">
+                                <div className="bg-[var(--color-surface)] p-5 hover:bg-[var(--color-surface-elevated)] transition-colors">
                                     <div className="text-xs text-gray-500 mb-1.5">Total Area</div>
-                                    <div className="text-[#e3e3e3] font-medium text-lg">
+                                    <div className="text-[var(--color-text-primary)] font-medium text-lg">
                                         {activeContext.property.metrics.size} <span className="text-sm text-gray-600">sqm</span>
                                     </div>
                                 </div>
-                                <div className="bg-[#1e1f20] p-5 hover:bg-[#252627] transition-colors">
+                                <div className="bg-[var(--color-surface)] p-5 hover:bg-[var(--color-surface-elevated)] transition-colors">
                                     <div className="text-xs text-gray-500 mb-1.5">Bedrooms</div>
-                                    <div className="text-[#e3e3e3] font-medium text-lg">
+                                    <div className="text-[var(--color-text-primary)] font-medium text-lg">
                                         {activeContext.property.metrics.bedrooms} <span className="text-sm text-gray-600">Beds</span>
                                     </div>
                                 </div>
-                                <div className="bg-[#1e1f20] p-5 hover:bg-[#252627] transition-colors">
+                                <div className="bg-[var(--color-surface)] p-5 hover:bg-[var(--color-surface-elevated)] transition-colors">
                                     <div className="text-xs text-gray-500 mb-1.5">Price / Meter</div>
-                                    <div className="text-[#e3e3e3] font-medium text-lg">
+                                    <div className="text-[var(--color-text-primary)] font-medium text-lg">
                                         {activeContext.property.metrics.price_per_sqm > 0
                                             ? `${(activeContext.property.metrics.price_per_sqm / 1000).toFixed(1)}k`
                                             : 'N/A'
                                         } <span className="text-sm text-gray-600">EGP</span>
                                     </div>
                                 </div>
-                                <div className="bg-[#1e1f20] p-5 hover:bg-[#252627] transition-colors">
+                                <div className="bg-[var(--color-surface)] p-5 hover:bg-[var(--color-surface-elevated)] transition-colors">
                                     <div className="text-xs text-gray-500 mb-1.5">Total Price</div>
                                     <div className="text-teal-400 font-medium text-lg">
                                         {(activeContext.property.price / 1000000).toFixed(2)}M

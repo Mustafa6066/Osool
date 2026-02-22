@@ -88,9 +88,17 @@ export default function DashboardPage() {
         });
     };
 
+    const handleShareInvite = (code: string) => {
+        const link = `${window.location.origin}/signup?invite=${code}`;
+        const message = `Hey! I'm using Osool - an AI-powered real estate platform for the Egyptian market. Join me with this exclusive invite: ${link}`;
+        navigator.clipboard.writeText(message);
+        setCopySuccess(`share_${code}`);
+        setTimeout(() => setCopySuccess(null), 2000);
+    };
+
     if (loading || !isAuthenticated) {
         return (
-            <div className="min-h-screen bg-[#121416] flex items-center justify-center">
+            <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
             </div>
         );
@@ -329,13 +337,24 @@ export default function DashboardPage() {
                                                             <td className="p-4 text-sm text-[var(--color-text-muted)]">{formatDate(invite.created_at)}</td>
                                                             <td className="p-4 text-sm text-[var(--color-text-muted)]">{formatDate(invite.used_at)}</td>
                                                             <td className="p-4 text-right">
-                                                                <button
-                                                                    onClick={() => handleCopy(`${window.location.origin}/signup?invite=${invite.code}`, invite.code)}
-                                                                    className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors p-2 rounded hover:bg-[var(--color-surface-elevated)]"
-                                                                    title="Copy Link"
-                                                                >
-                                                                    {copySuccess === invite.code ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
-                                                                </button>
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <button
+                                                                        onClick={() => handleCopy(`${window.location.origin}/signup?invite=${invite.code}`, invite.code)}
+                                                                        className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors p-2 rounded hover:bg-[var(--color-surface-elevated)]"
+                                                                        title="Copy Link"
+                                                                    >
+                                                                        {copySuccess === invite.code ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
+                                                                    </button>
+                                                                    {!invite.is_used && (
+                                                                        <button
+                                                                            onClick={() => handleShareInvite(invite.code)}
+                                                                            className="text-[var(--color-text-muted)] hover:text-teal-400 transition-colors p-2 rounded hover:bg-[var(--color-surface-elevated)] text-xs font-medium"
+                                                                            title="Copy with message"
+                                                                        >
+                                                                            {copySuccess === `share_${invite.code}` ? <Check size={18} className="text-green-500" /> : <Gift size={18} />}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     ))

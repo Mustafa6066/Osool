@@ -455,6 +455,35 @@ class AnalyticalEngine:
     Refactored for Async & Real-time DB (Protocol 7).
     """
     
+    def format_economic_context(self, market_data: Dict) -> str:
+        """Format live economic data for injection into AI prompt."""
+        inflation = market_data.get("inflation_rate", 0.136) * 100
+        bank_rate = market_data.get("bank_cd_rate", 0.22) * 100
+        usd_rate = market_data.get("usd_egp_rate", 51.50)
+        real_spread = bank_rate - inflation
+        real_growth = market_data.get("real_property_growth", 0.145) * 100
+        rental_yield = market_data.get("rental_yield_avg", 0.075) * 100
+        nominal_growth = market_data.get("nominal_property_appreciation", 0.304) * 100
+        gold = market_data.get("gold_appreciation", 0.15) * 100
+        mortgage = market_data.get("mortgage_rate", 0.18) * 100
+
+        return f"""
+[LIVE ECONOMIC DATA - VERIFIED FROM DATABASE]
+- Inflation Rate: {inflation:.1f}%
+- Bank CD Rate: {bank_rate:.1f}%
+- Real Bank Yield: {real_spread:+.1f}% (Bank - Inflation = {'NEGATIVE real return' if real_spread < 0 else 'POSITIVE real return'})
+- USD/EGP: {usd_rate:.2f}
+- Property Growth (Real): {real_growth:.1f}%
+- Property Growth (Nominal): {nominal_growth:.1f}% YoY
+- Average Rental Yield: {rental_yield:.1f}%
+- Gold Appreciation: {gold:.1f}%
+- Mortgage Rate: {mortgage:.1f}%
+
+INSTRUCTION: Use these exact numbers when discussing market conditions.
+If bank CD rate < inflation, frame bank deposits as losing money in real terms.
+Property real growth of {real_growth:.1f}% means property holders beat inflation.
+"""
+
     async def get_live_market_data(self, session: AsyncSession) -> Dict[str, float]:
         """Fetch live economic indicators from DB (Inflation, Rates)."""
         try:

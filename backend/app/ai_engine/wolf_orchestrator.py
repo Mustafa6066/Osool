@@ -27,11 +27,12 @@ from openai import AsyncOpenAI
 from .wolf_router import wolf_router, RouteType, RouteDecision
 from .perception_layer import perception_layer, Intent
 from .psychology_layer import (
-    analyze_psychology, 
+    analyze_psychology,
     determine_strategy,
     get_psychology_context_for_prompt,
     PsychologyProfile,
-    PsychologicalState
+    PsychologicalState,
+    UrgencyLevel
 )
 from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS, DEVELOPER_GRAPH
 from app.config import config
@@ -274,7 +275,21 @@ class WolfBrain:
             # STEP 4: DISCOVERY CHECK
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             is_discovery_complete = self._is_discovery_complete(intent.filters, history, query)
-            
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 4A: ANALYTICS ENRICHMENT (Always-On Market Intelligence)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            analytics_context = await self._build_analytics_context(intent, session, market_layer)
+            if analytics_context.get("has_analytics"):
+                logger.info(f"📊 ANALYTICS ENRICHMENT: Built context for {analytics_context.get('location', 'N/A')}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 4A.2: CARD READINESS SCORE (Psychology-Driven)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            from .psychology_layer import calculate_card_readiness
+            card_readiness = calculate_card_readiness(psychology, history, memory, lead_score)
+            logger.info(f"🎯 Card Readiness: score={card_readiness['readiness_score']}, rec={card_readiness['recommendation']}")
+
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 4B: DEEP ANALYSIS TRIGGER (Market Context Queries)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -457,9 +472,13 @@ class WolfBrain:
             hunt_strategy = "none"
             pivot_message = None
             
-            # Determine "Smart Display" Strategy (now with lead score awareness)
-            showing_strategy = self._determine_showing_strategy(intent, psychology, is_discovery_complete, lead_score=lead_score)
-            logger.info(f"👁️ Visual Strategy: {showing_strategy}")
+            # Determine "Smart Display" Strategy (Psychology-Driven Card Gate v3)
+            showing_strategy = self._psychology_card_gate(intent, psychology, is_discovery_complete, lead_score=lead_score, memory=memory, history=history)
+            # Override safety: if card readiness is very low, don't show cards
+            if card_readiness["readiness_score"] < 20 and showing_strategy in ['TEASER', 'FULL_LIST']:
+                showing_strategy = 'ANALYTICS_ONLY'
+                logger.info(f"🛡️ Psychology override: readiness={card_readiness['readiness_score']}, forced ANALYTICS_ONLY")
+            logger.info(f"👁️ Visual Strategy: {showing_strategy} (readiness={card_readiness['readiness_score']})")
 
             # Only search if strategy is TEASER or FULL_LIST
             if showing_strategy in ['TEASER', 'FULL_LIST']:
@@ -573,6 +592,7 @@ class WolfBrain:
                 pivot_message=pivot_message,  # NEW: Reflexion pivot explanation
                 hunt_strategy=hunt_strategy,  # NEW: Reflexion hunt strategy used
                 memory=memory,  # Conversation memory for context injection
+                analytics_context=analytics_context,  # Analytics-first data
                 developer_insight=developer_insight  # Wolf 2.0: Graph-backed developer data
             )
             self.stats["claude_calls"] += 1
@@ -590,13 +610,15 @@ class WolfBrain:
                 "response": response_text,
                 "properties": scored_properties[:5] if showing_strategy == 'FULL_LIST' else (scored_properties[:1] if showing_strategy == 'TEASER' else []),
                 "ui_actions": ui_actions,
+                "analytics_context": analytics_context,
+                "card_readiness": card_readiness,
                 "psychology": psychology.to_dict(),
                 "strategy": strategy,
                 "intent": intent.to_dict(),
                 "processing_time_ms": int(elapsed * 1000),
-                "model_used": "wolf_brain_v7_reflexion",
+                "model_used": "wolf_brain_v8_analytics_first",
                 "showing_strategy": showing_strategy,
-                "hunt_strategy": hunt_strategy,  # NEW: Reflexion strategy used
+                "hunt_strategy": hunt_strategy,
             }
             
         except Exception as e:
@@ -1048,59 +1070,187 @@ class WolfBrain:
         logger.debug(f"Discovery incomplete: budget={has_budget}, context={has_context}, purpose={has_manual_purpose}, location={has_location}")
         return False
     
-    def _determine_showing_strategy(self, intent: Intent, psychology: PsychologyProfile, is_discovery_complete: bool, lead_score: int = 0) -> str:
+    def _psychology_card_gate(
+        self,
+        intent: Intent,
+        psychology: PsychologyProfile,
+        is_discovery_complete: bool,
+        lead_score: int = 0,
+        memory: Optional[Any] = None,
+        history: Optional[List[Dict]] = None
+    ) -> str:
         """
-        Smart Display Protocol: Decides HOW to show properties based on User Intent, Psychology, & Lead Score.
-        
-        Returns: 'NONE', 'TEASER', 'FULL_LIST'
-        
+        Psychology-Driven Card Display Gate v3.
+
+        Returns: 'NONE', 'ANALYTICS_ONLY', 'TEASER', 'FULL_LIST'
+
         Tiers:
-        - Tier 0 (Education): NONE — Window shoppers, cold leads → Charts only, hide properties
-        - Tier 1 (Teaser):    TEASER — Curious but vague → 1 anchor property to set expectations
-        - Tier 2 (Vault):     FULL_LIST — Serious/qualified → 3-5 targeted properties + comparison
+        - NONE:           No data, no cards (educational, no location, hard trust blocks)
+        - ANALYTICS_ONLY: Show market data/charts but zero property cards (analytics-first)
+        - TEASER:         1 anchor property after analytics context
+        - FULL_LIST:      3-5 properties with full comparison
+
+        Psychology drives the gate — not just lead score.
         """
-        # 1. Block if Trust Deficit (Psychology Rule)
-        if psychology.primary_state == PsychologicalState.TRUST_DEFICIT:
-            logger.info("👁️ Strategy: NONE (Trust Deficit - build confidence first)")
+        history = history or []
+        state = psychology.primary_state
+        trust_level = self._calculate_trust_level(psychology, history)
+        engagement_depth = len([m for m in history if m.get("role") == "user"])
+        has_location = bool(intent.filters.get("location"))
+        has_budget = bool(intent.filters.get("budget_max"))
+
+        # ── HARD BLOCKS (never show cards) ──
+        if state == PsychologicalState.TRUST_DEFICIT:
+            logger.info("👁️ Gate: NONE (Trust Deficit — build confidence first)")
             return 'NONE'
 
-        # 2. Block if purely educational query (e.g. "What is ROI?")
-        if intent.action in ["investment", "general", "legal"] and not intent.filters.get("location"):
-            logger.info("👁️ Strategy: NONE (Educational query without location)")
+        if state == PsychologicalState.LEGAL_ANXIETY and trust_level < 0.5:
+            logger.info("👁️ Gate: NONE (Legal Anxiety + low trust)")
             return 'NONE'
 
-        # 3. LEAD SCORE GATE: Very cold leads stay on NONE
-        if lead_score < 20 and not is_discovery_complete:
-            if intent.action not in ["search", "price_check"]:
-                logger.info(f"👁️ Strategy: NONE (Cold lead: score={lead_score})")
-                return 'NONE'
+        # Educational / no location → no cards
+        if intent.action in ["investment", "general", "legal"] and not has_location:
+            logger.info("👁️ Gate: NONE (Educational query without location)")
+            return 'NONE'
 
-        # 4. FULL LIST: If Discovery Complete OR Explicit show keywords
-        show_keywords = ["show", "أوريني", "ورجيني", "best", "أفضل", "options", "خيارات"]
-        has_show_keyword = any(kw in intent.raw_query.lower() for kw in show_keywords)
-        
-        if is_discovery_complete or has_show_keyword:
-            logger.info("👁️ Strategy: FULL_LIST (Qualified or explicit request)")
-            return 'FULL_LIST'
-
-        # 5. LEAD SCORE UPGRADE: Warm/hot leads get FULL_LIST even without full discovery
-        if lead_score >= 60 and intent.filters.get("location"):
-            logger.info(f"👁️ Strategy: FULL_LIST (Warm lead upgrade: score={lead_score})")
-            return 'FULL_LIST'
-
-        # 6. TEASER: If we have Location but NO Budget (The "Anchor" Strategy)
-        # We show 1 property to force them to react to the price.
-        if intent.filters.get("location") and not intent.filters.get("budget_max"):
-            logger.info("👁️ Strategy: TEASER (Location without budget - anchor mode)")
+        # ── ANALYTICS_ONLY tier (show data, not cards) ──
+        if state == PsychologicalState.ANALYSIS_PARALYSIS:
+            if engagement_depth < 4:
+                logger.info(f"👁️ Gate: ANALYTICS_ONLY (Analysis Paralysis, depth={engagement_depth})")
+                return 'ANALYTICS_ONLY'
+            logger.info("👁️ Gate: TEASER (Analysis Paralysis resolved after 4+ turns)")
             return 'TEASER'
 
-        # 7. Default: Window shopper - don't show yet
-        if intent.intent_bucket == "window_shopper":
-            logger.info("👁️ Strategy: NONE (Window shopper)")
-            return 'NONE'
+        if state == PsychologicalState.RISK_AVERSE and trust_level < 0.6:
+            logger.info(f"👁️ Gate: ANALYTICS_ONLY (Risk Averse, trust={trust_level:.2f})")
+            return 'ANALYTICS_ONLY'
 
-        logger.info("👁️ Strategy: NONE (Default fallback)")
+        if state in [PsychologicalState.MACRO_SKEPTIC, PsychologicalState.SKEPTICISM]:
+            if engagement_depth < 3:
+                logger.info(f"👁️ Gate: ANALYTICS_ONLY (Skeptic, depth={engagement_depth})")
+                return 'ANALYTICS_ONLY'
+
+        if state == PsychologicalState.INFLATION_REFUGEE and not has_budget:
+            logger.info("👁️ Gate: ANALYTICS_ONLY (Inflation Refugee — show economic data first)")
+            return 'ANALYTICS_ONLY'
+
+        # Cold leads → analytics first
+        if lead_score < 20 and not is_discovery_complete:
+            if intent.action not in ["search", "price_check"]:
+                if has_location:
+                    logger.info(f"👁️ Gate: ANALYTICS_ONLY (Cold lead={lead_score}, has location)")
+                    return 'ANALYTICS_ONLY'
+                logger.info(f"👁️ Gate: NONE (Cold lead={lead_score}, no location)")
+                return 'NONE'
+
+        # ── FAST-TRACK tier (psychology says ready) ──
+        if state == PsychologicalState.IMPULSE_BUYER and has_location:
+            if is_discovery_complete or has_budget:
+                logger.info("👁️ Gate: FULL_LIST (Impulse Buyer + qualified)")
+                return 'FULL_LIST'
+            logger.info("👁️ Gate: TEASER (Impulse Buyer — quick anchor)")
+            return 'TEASER'
+
+        if state in [PsychologicalState.GREED_DRIVEN, PsychologicalState.FOMO]:
+            if lead_score >= 30 and has_location:
+                logger.info(f"👁️ Gate: FULL_LIST ({state.value} + warm lead)")
+                return 'FULL_LIST'
+            if has_location:
+                logger.info(f"👁️ Gate: TEASER ({state.value} + location)")
+                return 'TEASER'
+            return 'ANALYTICS_ONLY'
+
+        # ── Explicit show request ──
+        show_keywords = ["show", "أوريني", "ورجيني", "best", "أفضل", "options", "خيارات", "وريني", "عايز اشوف"]
+        if any(kw in intent.raw_query.lower() for kw in show_keywords):
+            logger.info("👁️ Gate: FULL_LIST (Explicit show request)")
+            return 'FULL_LIST'
+
+        # ── Discovery complete → FULL_LIST ──
+        if is_discovery_complete:
+            logger.info("👁️ Gate: FULL_LIST (Discovery complete)")
+            return 'FULL_LIST'
+
+        # ── Warm/hot lead upgrade ──
+        if lead_score >= 60 and has_location:
+            logger.info(f"👁️ Gate: FULL_LIST (Hot lead upgrade: {lead_score})")
+            return 'FULL_LIST'
+
+        # ── Has location but no budget → analytics then teaser ──
+        if has_location and not has_budget:
+            if engagement_depth >= 2:
+                logger.info("👁️ Gate: TEASER (Location + engagement ≥ 2)")
+                return 'TEASER'
+            logger.info("👁️ Gate: ANALYTICS_ONLY (Location only, early conversation)")
+            return 'ANALYTICS_ONLY'
+
+        # ── Default: analytics if location, else none ──
+        if has_location:
+            logger.info("👁️ Gate: ANALYTICS_ONLY (Default with location)")
+            return 'ANALYTICS_ONLY'
+
+        logger.info("👁️ Gate: NONE (Default fallback)")
         return 'NONE'
+
+    def _calculate_trust_level(self, psychology: PsychologyProfile, history: List[Dict]) -> float:
+        """Calculate trust 0.0-1.0 based on psychology + conversation depth."""
+        base = 0.3
+        if psychology.emotional_momentum == "warming_up":
+            base += 0.2
+        elif psychology.emotional_momentum == "cooling_down":
+            base -= 0.1
+        if psychology.urgency_level in [UrgencyLevel.EVALUATING, UrgencyLevel.READY_TO_ACT, UrgencyLevel.URGENT]:
+            base += 0.15
+        # Longer conversations build trust
+        turn_count = len([m for m in history if m.get("role") == "user"])
+        turn_bonus = min(turn_count / 20, 0.3)
+        return max(0.0, min(base + turn_bonus, 1.0))
+
+    async def _build_analytics_context(self, intent: Intent, session: AsyncSession, market_layer: MarketAnalyticsLayer) -> Dict[str, Any]:
+        """Build comprehensive analytics context from DB before any property search."""
+        context: Dict[str, Any] = {"has_analytics": False}
+        location = intent.filters.get("location", "")
+        if not location:
+            return context
+
+        try:
+            # Parallel fetch: market pulse + economic data
+            pulse_task = market_layer.get_real_time_market_pulse(location)
+            econ_task = analytical_engine.get_live_market_data(session)
+
+            pulse, econ = await asyncio.gather(pulse_task, econ_task, return_exceptions=True)
+
+            # Handle exceptions from gather
+            if isinstance(pulse, Exception):
+                logger.warning(f"Market pulse fetch failed: {pulse}")
+                pulse = None
+            if isinstance(econ, Exception):
+                logger.warning(f"Economic data fetch failed: {econ}")
+                econ = MARKET_DATA.copy() if 'MARKET_DATA' in dir() else {}
+
+            # Sync fetch: area context + market segment
+            area_ctx = market_intelligence.get_area_context(location)
+            segment = market_intelligence.get_market_segment(location)
+
+            # Format economic context for prompt injection
+            economic_brief = analytical_engine.format_economic_context(econ) if econ else ""
+
+            context = {
+                "has_analytics": True,
+                "location": location,
+                "market_pulse": pulse if isinstance(pulse, dict) else None,
+                "area_context": area_ctx,
+                "market_segment": segment,
+                "economic_data": econ if isinstance(econ, dict) else {},
+                "economic_brief": economic_brief,
+                "avg_price_sqm": area_ctx.get("avg_price_sqm", 0),
+                "growth_rate": area_ctx.get("growth_rate", 0),
+                "rental_yield": area_ctx.get("rental_yield", 0),
+            }
+        except Exception as e:
+            logger.warning(f"Analytics context build failed: {e}")
+
+        return context
     
 
     async def _determine_ui_actions(
@@ -1145,6 +1295,49 @@ class WolfBrain:
                     }
                 })
         
+        # ═══════════════════════════════════════════════════════════════
+        # ANALYTICS_ONLY BOOST: Extra charts when in data-first mode
+        # ═══════════════════════════════════════════════════════════════
+        if showing_strategy == 'ANALYTICS_ONLY' and location:
+            area_ctx = market_intelligence.get_area_context(location)
+            if area_ctx.get('found'):
+                # Area analysis visualization (always in analytics mode)
+                ui_actions.append({
+                    "type": "area_analysis",
+                    "priority": "high",
+                    "title": f"تحليل منطقة {location}",
+                    "title_en": f"Area Analysis: {location}",
+                    "data": {
+                        "area": {
+                            "name": location,
+                            "avg_price_sqm": area_ctx.get('avg_price_sqm', 0),
+                            "growth_rate": area_ctx.get('growth_rate', 0),
+                            "rental_yield": area_ctx.get('rental_yield', 0),
+                            "inventory": area_ctx.get('inventory_count', 0),
+                            "tier1_developers": area_ctx.get('tier1_developers', []),
+                            "property_minimums": area_ctx.get('property_minimums', {}),
+                        }
+                    }
+                })
+
+            # Auto-inject inflation chart for investment/economic queries
+            investment_keywords = ["invest", "استثمار", "عائد", "roi", "return", "bank", "بنك", "فايدة", "شهادات"]
+            if any(kw in query_lower for kw in investment_keywords):
+                investment_amount = 5_000_000
+                inflation_data = analytical_engine.calculate_inflation_hedge(investment_amount, years=5)
+                if inflation_data and inflation_data.get('projections'):
+                    ui_actions.append({
+                        "type": "inflation_killer",
+                        "priority": "high",
+                        "title": "العقار vs التضخم vs البنك",
+                        "title_en": "Property vs Inflation vs Bank",
+                        "data": {
+                            **inflation_data,
+                            "initial_investment": investment_amount,
+                            "years": 5
+                        }
+                    })
+
         # ═══════════════════════════════════════════════════════════════
         # PSYCHOLOGY-DRIVEN CHARTS (Automatic triggers based on emotional state)
         # ═══════════════════════════════════════════════════════════════
@@ -1301,7 +1494,8 @@ class WolfBrain:
         pivot_message: Optional[str] = None,  # NEW: Reflexion pivot explanation
         hunt_strategy: str = 'none',  # NEW: Reflexion hunt strategy used
         memory: Optional[Any] = None,  # Conversation memory for context injection
-        developer_insight: Optional[Dict] = None  # Wolf 2.0: Developer graph data
+        developer_insight: Optional[Dict] = None,  # Wolf 2.0: Developer graph data
+        analytics_context: Optional[Dict] = None  # Analytics-first enrichment data
     ) -> str:
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
@@ -1355,7 +1549,31 @@ Then present the alternatives as helpful suggestions, NOT as the user's original
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # SMART DISPLAY STRATEGY CONTEXT
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            if properties and showing_strategy == 'TEASER':
+            if showing_strategy == 'ANALYTICS_ONLY':
+                # ANALYTICS-FIRST MODE: Show off data, no properties
+                if language == 'ar':
+                    wolf_insight_instruction += """
+[STRATEGY: ANALYTICS_FIRST]
+أنت في وضع "المستشار البيانات" — أظهر ذكاءك بالأرقام:
+1. ابدأ بأرقام محددة: متوسط سعر المتر، نسبة النمو، العائد الإيجاري
+2. قارن بين المناطق أو المطورين بالبيانات الحقيقية
+3. لا تذكر أي وحدات أو عقارات محددة — بيانات فقط
+4. أشر للرسم البياني المعروض ("زي ما بتشوف في الرسم...")
+5. اختم بسؤال استكشافي يساعدك تفهم احتياجاته أكتر
+6. خلي المستخدم يحس إنه في جلسة استشارية خاصة مع خبير سوق
+"""
+                else:
+                    wolf_insight_instruction += """
+[STRATEGY: ANALYTICS_FIRST]
+You are in DATA CONSULTANT mode — show off with numbers:
+1. LEAD with specific numbers: avg price/sqm, growth rate, rental yield
+2. Compare areas, developers, market segments with REAL data
+3. DO NOT mention any specific properties or units — data only
+4. Reference the chart being shown ("As you can see in the chart below...")
+5. End with a strategic qualifying question to narrow their needs
+6. Make them feel like they're getting a private market briefing from an insider
+"""
+            elif properties and showing_strategy == 'TEASER':
                 # TEASER MODE: Show 1 anchor property to test price sensitivity
                 anchor_price = properties[0].get('price', 0)
                 anchor_location = properties[0].get('location', 'المنطقة')
@@ -1390,6 +1608,10 @@ You are showing the best matches. Pick the top winner and sell its ROI hard.
 Focus on value compared to market average.
 """
             
+            # 0. Inject Economic Context (Always-On from Analytics Enrichment)
+            if analytics_context and analytics_context.get("economic_brief"):
+                wolf_insight_instruction += analytics_context["economic_brief"]
+
             # 1. Inject Live Market Pulse (Real-Time DB Data)
             # This overrides hardcoded assumptions with fresh data
             if market_pulse:
