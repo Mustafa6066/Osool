@@ -1301,7 +1301,48 @@ class WolfBrain:
         if showing_strategy == 'ANALYTICS_ONLY' and location:
             area_ctx = market_intelligence.get_area_context(location)
             if area_ctx.get('found'):
-                # Area analysis visualization (always in analytics mode)
+                # Build rich area data from AREA_BENCHMARKS
+                loc_key = market_intelligence._normalize_location(location)
+                raw_bench = AREA_BENCHMARKS.get(loc_key, {})
+                growth_raw = area_ctx.get('growth_rate', 0)
+                # Convert growth to percentage (some benchmarks store as 1.57 = 157%)
+                growth_pct = growth_raw * 100 if growth_raw < 5 else growth_raw
+                rental_yield = area_ctx.get('rental_yield', 0)
+                yield_pct = rental_yield * 100 if rental_yield < 1 else rental_yield
+                avg_sqm = area_ctx.get('avg_price_sqm', 0)
+                tier1 = area_ctx.get('tier1_developers', [])
+                tier2 = raw_bench.get('tier2_developers', [])
+                minimums = raw_bench.get('property_minimums', {})
+
+                # Build pros/cons from real data
+                pros_list = []
+                cons_list = []
+                if growth_pct > 20:
+                    pros_list.append(f"نمو سعري قوي ({growth_pct:.0f}% سنوياً)")
+                if yield_pct > 6:
+                    pros_list.append(f"عائد إيجاري مرتفع ({yield_pct:.1f}%)")
+                if len(tier1) >= 3:
+                    pros_list.append(f"تواجد {len(tier1)} مطورين درجة أولى")
+                if minimums.get('apartment', 0) < 4_000_000:
+                    pros_list.append("نقطة دخول معقولة للشقق")
+                if avg_sqm > 60000:
+                    cons_list.append("متوسط سعر المتر مرتفع نسبياً")
+                if growth_pct > 100:
+                    cons_list.append("أسعار قد تكون في ذروة الارتفاع")
+                if len(tier1) <= 1:
+                    cons_list.append("عدد محدود من المطورين الكبار")
+
+                # Build best_for from data characteristics
+                best_for = []
+                if yield_pct > 7:
+                    best_for.append("الاستثمار الإيجاري")
+                if growth_pct > 30:
+                    best_for.append("زيادة رأس المال")
+                if minimums.get('apartment', 99_000_000) < 5_000_000:
+                    best_for.append("المشترين لأول مرة")
+                if minimums.get('villa', 0) > 0:
+                    best_for.append("العائلات")
+
                 ui_actions.append({
                     "type": "area_analysis",
                     "priority": "high",
@@ -1309,13 +1350,21 @@ class WolfBrain:
                     "title_en": f"Area Analysis: {location}",
                     "data": {
                         "area": {
-                            "name": location,
-                            "avg_price_sqm": area_ctx.get('avg_price_sqm', 0),
-                            "growth_rate": area_ctx.get('growth_rate', 0),
-                            "rental_yield": area_ctx.get('rental_yield', 0),
-                            "inventory": area_ctx.get('inventory_count', 0),
-                            "tier1_developers": area_ctx.get('tier1_developers', []),
-                            "property_minimums": area_ctx.get('property_minimums', {}),
+                            "name": area_ctx.get('ar_name', location),
+                            "avg_price_sqm": avg_sqm,
+                            "avg_price_per_sqm": avg_sqm,
+                            "price_growth_ytd": growth_pct,
+                            "growth_rate": growth_raw,
+                            "rental_yield": rental_yield,
+                            "demand_level": "عالي" if growth_pct > 50 else "متوسط" if growth_pct > 15 else "منخفض",
+                            "supply_level": "محدود" if avg_sqm > 60000 else "متوسط",
+                            "market_trend": "صاعد" if growth_pct > 20 else "مستقر",
+                            "tier1_developers": tier1,
+                            "top_developers": tier1 + tier2[:2],
+                            "best_for": best_for,
+                            "pros": pros_list,
+                            "cons": cons_list,
+                            "property_minimums": minimums,
                         }
                     }
                 })

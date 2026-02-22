@@ -1,28 +1,34 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { 
-    MapPinIcon, 
-    TrendingUpIcon, 
+import {
+    MapPinIcon,
+    TrendingUpIcon,
     HomeIcon,
     UsersIcon,
-    ChartBarIcon,
     CheckCircleIcon,
-    XCircleIcon
+    XCircleIcon,
+    BuildingIcon,
+    BarChart3Icon
 } from "lucide-react";
 
 interface AreaAnalysisProps {
     area: {
         name: string;
-        avg_price_per_sqm: number;
-        price_growth_ytd: number;
-        demand_level: string;
-        supply_level: string;
-        market_trend: string;
-        best_for: string[];
-        top_developers: string[];
-        pros: string[];
-        cons: string[];
+        avg_price_per_sqm?: number;
+        avg_price_sqm?: number;
+        price_growth_ytd?: number;
+        growth_rate?: number;
+        rental_yield?: number;
+        demand_level?: string;
+        supply_level?: string;
+        market_trend?: string;
+        best_for?: string[];
+        top_developers?: string[];
+        tier1_developers?: string[];
+        pros?: string[];
+        cons?: string[];
+        property_minimums?: Record<string, number>;
     };
     comparison?: {
         highest_growth: string;
@@ -37,188 +43,229 @@ interface AreaAnalysisProps {
 }
 
 export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysisProps) {
-    // Defensive check for required props
-    if (!area || !area.name) {
-        console.warn('AreaAnalysis: Missing required area data');
-        return null;
-    }
+    if (!area || !area.name) return null;
 
-    // Normalize: backend may send avg_price_sqm instead of avg_price_per_sqm
-    const avgPriceSqm = area.avg_price_per_sqm || (area as any).avg_price_sqm || 0;
-    // Normalize: growth_rate may come as decimal (0.15) or percent (15)
-    const rawGrowth = area.price_growth_ytd || (area as any).growth_rate || 0;
-    const growthPercent = rawGrowth < 1 ? rawGrowth * 100 : rawGrowth;
+    // Normalize data
+    const avgPrice = area.avg_price_per_sqm || area.avg_price_sqm || 0;
+    const rawGrowth = area.price_growth_ytd || (area.growth_rate ? (area.growth_rate < 5 ? area.growth_rate * 100 : area.growth_rate) : 0);
+    const growthPct = rawGrowth < 1 && rawGrowth > 0 ? rawGrowth * 100 : rawGrowth;
+    const rentalYield = area.rental_yield ? (area.rental_yield < 1 ? area.rental_yield * 100 : area.rental_yield) : 0;
+    const developers = area.top_developers || area.tier1_developers || [];
+    const pros = area.pros || [];
+    const cons = area.cons || [];
+    const bestFor = area.best_for || [];
+    const minimums = area.property_minimums || {};
 
-    // Don't render if no meaningful data
-    if (avgPriceSqm === 0 && growthPercent === 0 && !area.demand_level && !area.best_for?.length) {
-        console.warn('AreaAnalysis: No meaningful data to display');
-        return null;
-    }
+    // Skip if truly empty
+    if (avgPrice === 0 && growthPct === 0 && developers.length === 0) return null;
 
-    const formatCurrency = (value: number) => {
-        if (!value || isNaN(value)) return 'N/A';
-        return new Intl.NumberFormat('en-EG', {
-            style: 'currency',
-            currency: 'EGP',
-            maximumFractionDigits: 0
-        }).format(value);
+    const fmt = (v: number) => {
+        if (!v || isNaN(v)) return 'N/A';
+        return v.toLocaleString('en-EG');
     };
+
+    const fmtPrice = (v: number) => {
+        if (!v || isNaN(v)) return 'N/A';
+        if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M EGP`;
+        return `${(v / 1_000).toFixed(0)}K EGP`;
+    };
+
+    // Build comparison bar data for mini chart
+    const areaComparisons = [
+        { name: "القاهرة الجديدة", price: 61550 },
+        { name: "الشيخ زايد", price: 64050 },
+        { name: "الساحل", price: 76150 },
+        { name: "العاصمة", price: 45000 },
+        { name: "أكتوبر", price: 47000 },
+    ];
+    const maxBarPrice = Math.max(...areaComparisons.map(a => a.price), avgPrice);
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-blue-950/30 to-indigo-950/20 backdrop-blur-sm"
+            transition={{ duration: 0.4 }}
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden"
         >
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 px-6 py-4 border-b border-[var(--color-border)]">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                        <MapPinIcon className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">تحليل المنطقة 📍</h3>
-                        <p className="text-sm text-[var(--color-text-secondary)]">{area.name}</p>
-                    </div>
+            {/* Header — compact */}
+            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
+                <MapPinIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-bold text-[var(--color-text-primary)]" dir="rtl">
+                        تحليل {area.name}
+                    </h3>
                 </div>
+                {area.market_trend && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        area.market_trend === 'صاعد' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                    }`}>
+                        {area.market_trend}
+                    </span>
+                )}
             </div>
 
-            <div className="p-6 space-y-6">
-                {/* Key Metrics */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {avgPriceSqm > 0 && (
-                    <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
-                        <p className="text-xs text-[var(--color-text-secondary)] mb-1">متوسط سعر المتر</p>
-                        <p className="text-lg font-bold text-blue-400">{formatCurrency(avgPriceSqm)}</p>
-                    </div>
+            <div className="px-5 py-4 space-y-4" dir="rtl">
+                {/* Key Numbers — inline text, not cards */}
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                    {avgPrice > 0 && (
+                        <div>
+                            <span className="text-[var(--color-text-muted)]">متوسط المتر: </span>
+                            <span className="font-bold text-[var(--color-text-primary)]">{fmt(avgPrice)} ج.م</span>
+                        </div>
                     )}
-                    {growthPercent > 0 && (
-                    <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
-                        <p className="text-xs text-[var(--color-text-secondary)] mb-1">نمو السعر</p>
-                        <p className="text-lg font-bold text-green-400">+{growthPercent.toFixed(0)}%</p>
-                    </div>
+                    {growthPct > 0 && (
+                        <div>
+                            <span className="text-[var(--color-text-muted)]">النمو: </span>
+                            <span className="font-bold text-emerald-500">+{growthPct.toFixed(0)}%</span>
+                        </div>
+                    )}
+                    {rentalYield > 0 && (
+                        <div>
+                            <span className="text-[var(--color-text-muted)]">العائد الإيجاري: </span>
+                            <span className="font-bold text-blue-500">{rentalYield.toFixed(1)}%</span>
+                        </div>
                     )}
                     {area.demand_level && (
-                    <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
-                        <p className="text-xs text-[var(--color-text-secondary)] mb-1">مستوى الطلب</p>
-                        <p className="text-lg font-bold text-amber-400">{area.demand_level}</p>
-                    </div>
-                    )}
-                    {area.supply_level && (
-                    <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
-                        <p className="text-xs text-[var(--color-text-secondary)] mb-1">المعروض</p>
-                        <p className="text-lg font-bold text-purple-400">{area.supply_level}</p>
-                    </div>
+                        <div>
+                            <span className="text-[var(--color-text-muted)]">الطلب: </span>
+                            <span className="font-bold text-amber-500">{area.demand_level}</span>
+                        </div>
                     )}
                 </div>
 
-                {/* Best For */}
-                <div className="bg-[var(--color-surface)]/30 backdrop-blur-sm rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                        <UsersIcon className="w-4 h-4 text-blue-400" />
-                        <p className="text-sm font-medium text-[var(--color-text-primary)]">المنطقة مناسبة لـ</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {(area.best_for || []).map((item, i) => (
-                            <span key={i} className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded-full">
-                                {item}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Top Developers */}
-                <div className="bg-[var(--color-surface)]/30 backdrop-blur-sm rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                        <HomeIcon className="w-4 h-4 text-indigo-400" />
-                        <p className="text-sm font-medium text-[var(--color-text-primary)]">أبرز المطورين</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {(area.top_developers || []).map((dev, i) => (
-                            <span key={i} className="px-3 py-1 bg-indigo-500/20 text-indigo-300 text-sm rounded-full">
-                                {dev}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Pros & Cons */}
-                <div className="grid md:grid-cols-2 gap-4">
-                    <div className="bg-green-950/30 backdrop-blur-sm rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <CheckCircleIcon className="w-4 h-4 text-green-400" />
-                            <p className="text-sm font-medium text-green-400">مميزات</p>
-                        </div>
-                        <ul className="space-y-2">
-                            {(area.pros || []).map((pro, i) => (
-                                <li key={i} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
-                                    <span className="text-green-400">•</span> {pro}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                    <div className="bg-red-950/30 backdrop-blur-sm rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <XCircleIcon className="w-4 h-4 text-red-400" />
-                            <p className="text-sm font-medium text-red-400">تحديات</p>
-                        </div>
-                        <ul className="space-y-2">
-                            {(area.cons || []).map((con, i) => (
-                                <li key={i} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
-                                    <span className="text-red-400">•</span> {con}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
-
-                {/* Comparison Quick Stats */}
-                {comparison && (
-                    <div className="bg-gradient-to-r from-amber-950/30 to-orange-950/30 rounded-xl p-4 border border-amber-500/20">
-                        <div className="flex items-center gap-2 mb-3">
-                            <ChartBarIcon className="w-4 h-4 text-amber-400" />
-                            <p className="text-sm font-medium text-amber-400">مقارنة سريعة</p>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4 text-center text-sm">
-                            <div>
-                                <p className="text-[var(--color-text-secondary)]">أعلى نمو</p>
-                                <p className="text-amber-300 font-medium">{comparison.highest_growth}</p>
-                            </div>
-                            <div>
-                                <p className="text-[var(--color-text-secondary)]">للعائلات</p>
-                                <p className="text-amber-300 font-medium">{comparison.best_family}</p>
-                            </div>
-                            <div>
-                                <p className="text-[var(--color-text-secondary)]">للاستثمار</p>
-                                <p className="text-amber-300 font-medium">{comparison.best_investment}</p>
-                            </div>
+                {/* Mini Comparison Bars — slim horizontal chart */}
+                {avgPrice > 0 && (
+                    <div className="space-y-1.5">
+                        <p className="text-[11px] font-semibold text-[var(--color-text-muted)] flex items-center gap-1.5">
+                            <BarChart3Icon className="w-3 h-3" />
+                            مقارنة سعر المتر بالمناطق
+                        </p>
+                        <div className="space-y-1">
+                            {areaComparisons.map((comp) => {
+                                const isCurrentArea = area.name.includes(comp.name) || comp.name.includes(area.name.split(' ')[0]);
+                                const barW = (comp.price / maxBarPrice) * 100;
+                                return (
+                                    <div key={comp.name} className="flex items-center gap-2 text-[11px]">
+                                        <span className={`w-24 text-left truncate ${isCurrentArea ? 'font-bold text-blue-500' : 'text-[var(--color-text-muted)]'}`}>
+                                            {comp.name}
+                                        </span>
+                                        <div className="flex-1 h-2 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${barW}%` }}
+                                                transition={{ duration: 0.8, delay: 0.2 }}
+                                                className={`h-full rounded-full ${isCurrentArea ? 'bg-blue-500' : 'bg-[var(--color-text-muted)]/30'}`}
+                                            />
+                                        </div>
+                                        <span className={`w-14 text-left tabular-nums ${isCurrentArea ? 'font-bold text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'}`}>
+                                            {fmt(comp.price)}
+                                        </span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
 
-                {/* Price Heatmap */}
-                {heatmap && heatmap.length > 0 && (
-                    <div className="bg-[var(--color-surface)]/30 backdrop-blur-sm rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <TrendingUpIcon className="w-4 h-4 text-cyan-400" />
-                            <p className="text-sm font-medium text-[var(--color-text-primary)]">خريطة الأسعار</p>
-                        </div>
-                        <div className="space-y-2">
-                            {heatmap.map((loc, i) => (
-                                <div key={i} className="flex items-center gap-3">
-                                    <span className="text-sm text-[var(--color-text-secondary)] w-32 truncate">{loc.location}</span>
-                                    <div className="flex-1 h-4 bg-[var(--color-surface)] rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 rounded-full"
-                                            style={{ width: `${Math.min(loc.intensity, 100)}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs text-[var(--color-text-secondary)] w-24 text-right">
-                                        {formatCurrency(loc.avg_price_per_sqm)}/م²
-                                    </span>
-                                </div>
+                {/* Property Entry Prices */}
+                {Object.keys(minimums).length > 0 && (
+                    <div>
+                        <p className="text-[11px] font-semibold text-[var(--color-text-muted)] mb-1.5 flex items-center gap-1.5">
+                            <HomeIcon className="w-3 h-3" />
+                            الحد الأدنى للأسعار
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {Object.entries(minimums).map(([type, price]) => (
+                                <span key={type} className="text-[11px] px-2.5 py-1 rounded-lg bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]">
+                                    {type === 'apartment' ? 'شقة' : type === 'villa' ? 'فيلا' : type === 'townhouse' ? 'تاون هاوس' : type === 'duplex' ? 'دوبلكس' : type === 'chalet' ? 'شاليه' : type}: <span className="font-semibold text-[var(--color-text-primary)]">{fmtPrice(price as number)}</span>
+                                </span>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {/* Developers */}
+                {developers.length > 0 && (
+                    <div>
+                        <p className="text-[11px] font-semibold text-[var(--color-text-muted)] mb-1.5 flex items-center gap-1.5">
+                            <UsersIcon className="w-3 h-3" />
+                            أبرز المطورين
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {developers.map((dev, i) => (
+                                <span key={i} className="text-[11px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 font-medium">
+                                    {dev}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Best For */}
+                {bestFor.length > 0 && (
+                    <div>
+                        <p className="text-[11px] font-semibold text-[var(--color-text-muted)] mb-1.5">مناسبة لـ</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {bestFor.map((item, i) => (
+                                <span key={i} className="text-[11px] px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 font-medium">
+                                    {item}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Pros & Cons — inline text */}
+                {(pros.length > 0 || cons.length > 0) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {pros.length > 0 && (
+                            <div>
+                                <p className="text-[11px] font-semibold text-emerald-500 mb-1 flex items-center gap-1">
+                                    <CheckCircleIcon className="w-3 h-3" /> مميزات
+                                </p>
+                                <ul className="space-y-0.5">
+                                    {pros.map((p, i) => (
+                                        <li key={i} className="text-[11px] text-[var(--color-text-secondary)] pr-3">• {p}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {cons.length > 0 && (
+                            <div>
+                                <p className="text-[11px] font-semibold text-red-400 mb-1 flex items-center gap-1">
+                                    <XCircleIcon className="w-3 h-3" /> تحديات
+                                </p>
+                                <ul className="space-y-0.5">
+                                    {cons.map((c, i) => (
+                                        <li key={i} className="text-[11px] text-[var(--color-text-secondary)] pr-3">• {c}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Comparison Quick Stats */}
+                {comparison && (
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] pt-2 border-t border-[var(--color-border)]">
+                        {comparison.highest_growth && (
+                            <div>
+                                <span className="text-[var(--color-text-muted)]">أعلى نمو: </span>
+                                <span className="font-semibold text-amber-400">{comparison.highest_growth}</span>
+                            </div>
+                        )}
+                        {comparison.best_investment && (
+                            <div>
+                                <span className="text-[var(--color-text-muted)]">للاستثمار: </span>
+                                <span className="font-semibold text-amber-400">{comparison.best_investment}</span>
+                            </div>
+                        )}
+                        {comparison.best_family && (
+                            <div>
+                                <span className="text-[var(--color-text-muted)]">للعائلات: </span>
+                                <span className="font-semibold text-amber-400">{comparison.best_family}</span>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
