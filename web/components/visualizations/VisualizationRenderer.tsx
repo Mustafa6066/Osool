@@ -132,12 +132,20 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         });
     };
 
+    // Helper: check if value is a valid non-NaN number > 0
+    const isValidNum = (v: any): boolean => typeof v === 'number' && isFinite(v) && v > 0;
+
     // Route to appropriate component based on type
     switch (type) {
         // V4: New Wolf Brain visualizations
         case "inflation_killer":
             // Accept multiple valid data keys from backend
             if (!hasContent(data, ['projections', 'data_points', 'summary', 'summary_cards', 'initial_investment', 'property_value', 'years'])) return null;
+            // Extra guard: ensure projections have actual numeric values
+            if (data.projections && data.projections.length > 0) {
+                const hasRealData = data.projections.some((p: any) => isValidNum(p.cash) || isValidNum(p.cash_real_value) || isValidNum(p.property) || isValidNum(p.property_total));
+                if (!hasRealData) return null;
+            }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <InflationKillerChart {...data} />
@@ -187,6 +195,9 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
                 heatmap: data.price_heatmap || data.heatmap
             };
             if (!areaData.area) return null;
+            // Guard: don't render if area has no real numeric data
+            const aPrice = areaData.area.avg_price_per_sqm || areaData.area.avg_price_sqm || 0;
+            if (!areaData.area.name || (!isValidNum(aPrice) && !areaData.area.demand_level && !areaData.area.best_for?.length)) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <AreaAnalysis {...areaData} />
@@ -348,6 +359,9 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         // Market benchmark visualization (smart analytics chart)
         case "market_benchmark": {
             if (!hasContent(data, ['market_segment', 'area_context', 'avg_price_sqm'])) return null;
+            // Guard: ensure actual price data exists
+            const mbPrice = data.avg_price_sqm || data.area_context?.avg_price_sqm || 0;
+            if (!isValidNum(mbPrice)) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
                     <MarketBenchmarkChart {...data} isRTL={isRTL} />

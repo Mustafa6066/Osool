@@ -508,7 +508,30 @@ export default function AgentInterface() {
                                                         {msg.uiActions && msg.uiActions.length > 0 && (
                                                             <div className="mt-6 space-y-4" dir="ltr">
                                                                 {msg.uiActions
-                                                                    .filter((action: any) => action.type !== 'property_cards')
+                                                                    .filter((action: any) => {
+                                                                        // Skip property cards (rendered separately)
+                                                                        if (action.type === 'property_cards') return false;
+                                                                        // Skip visualizations with no data
+                                                                        if (!action.data) return false;
+                                                                        const d = action.data;
+                                                                        // Skip area_analysis with no real numbers
+                                                                        if (action.type === 'area_analysis') {
+                                                                            const area = d.area || d.areas?.[0] || d;
+                                                                            const price = area?.avg_price_sqm || area?.avg_price_per_sqm || 0;
+                                                                            if (!area?.name || price === 0) return false;
+                                                                        }
+                                                                        // Skip inflation_killer with no projections
+                                                                        if (action.type === 'inflation_killer') {
+                                                                            const hasProjections = d.projections?.length > 0 || d.data_points?.length > 0;
+                                                                            const hasSummary = d.summary?.cash_final > 0 || d.final_values?.cash_real_value > 0;
+                                                                            if (!hasProjections && !hasSummary) return false;
+                                                                        }
+                                                                        // Skip market_benchmark with no price data
+                                                                        if (action.type === 'market_benchmark') {
+                                                                            if (!d.avg_price_sqm && !d.area_context?.avg_price_sqm) return false;
+                                                                        }
+                                                                        return true;
+                                                                    })
                                                                     .map((action: any, idx: number) => (
                                                                     <div key={idx} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${idx * 150}ms` }}>
                                                                         <VisualizationRenderer

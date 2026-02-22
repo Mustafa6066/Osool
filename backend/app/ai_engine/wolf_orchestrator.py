@@ -1550,26 +1550,64 @@ Then present the alternatives as helpful suggestions, NOT as the user's original
             # SMART DISPLAY STRATEGY CONTEXT
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             if showing_strategy == 'ANALYTICS_ONLY':
-                # ANALYTICS-FIRST MODE: Show off data, no properties
+                # ANALYTICS-FIRST MODE: Embed stats in TEXT, not just charts
+                # Build a data brief string from analytics context
+                data_brief_lines = []
+                if analytics_context:
+                    ac = analytics_context
+                    loc_name = ac.get('location', '')
+                    avg_p = ac.get('avg_price_sqm', 0)
+                    growth = ac.get('growth_rate', 0)
+                    ryield = ac.get('rental_yield', 0)
+                    if avg_p > 0:
+                        data_brief_lines.append(f"- متوسط سعر المتر في {loc_name}: {avg_p:,.0f} جنيه/م²" if language == 'ar' else f"- Avg price/sqm in {loc_name}: {avg_p:,.0f} EGP/m²")
+                    if growth > 0:
+                        pct = growth * 100 if growth < 1 else growth
+                        data_brief_lines.append(f"- نسبة النمو السنوي: +{pct:.0f}%" if language == 'ar' else f"- YoY Growth: +{pct:.0f}%")
+                    if ryield > 0:
+                        ypct = ryield * 100 if ryield < 1 else ryield
+                        data_brief_lines.append(f"- العائد الإيجاري: {ypct:.1f}%" if language == 'ar' else f"- Rental Yield: {ypct:.1f}%")
+                    # Add area context details
+                    area_ctx = ac.get('area_context', {})
+                    if area_ctx.get('tier1_developers'):
+                        devs = ', '.join(area_ctx['tier1_developers'][:4])
+                        data_brief_lines.append(f"- أبرز المطورين: {devs}" if language == 'ar' else f"- Top developers: {devs}")
+                    # Add economic data
+                    econ = ac.get('economic_data', {})
+                    if econ.get('inflation_rate'):
+                        inf_val = econ['inflation_rate']
+                        inf_pct = inf_val * 100 if inf_val < 1 else inf_val
+                        data_brief_lines.append(f"- معدل التضخم: {inf_pct:.1f}%" if language == 'ar' else f"- Inflation rate: {inf_pct:.1f}%")
+                    if econ.get('usd_egp'):
+                        data_brief_lines.append(f"- سعر الدولار: {econ['usd_egp']:.2f} جنيه" if language == 'ar' else f"- USD/EGP: {econ['usd_egp']:.2f}")
+                    if econ.get('bank_cd_rate'):
+                        cd_val = econ['bank_cd_rate']
+                        cd_pct = cd_val * 100 if cd_val < 1 else cd_val
+                        data_brief_lines.append(f"- عائد شهادات البنك: {cd_pct:.0f}%" if language == 'ar' else f"- Bank CD rate: {cd_pct:.0f}%")
+
+                data_brief = "\n".join(data_brief_lines) if data_brief_lines else ""
+
                 if language == 'ar':
-                    wolf_insight_instruction += """
+                    wolf_insight_instruction += f"""
 [STRATEGY: ANALYTICS_FIRST]
 أنت في وضع "المستشار البيانات" — أظهر ذكاءك بالأرقام:
-1. ابدأ بأرقام محددة: متوسط سعر المتر، نسبة النمو، العائد الإيجاري
+1. لازم تكتب الأرقام دي في كلامك مباشرة (مش بس في الرسوم):
+{data_brief}
 2. قارن بين المناطق أو المطورين بالبيانات الحقيقية
 3. لا تذكر أي وحدات أو عقارات محددة — بيانات فقط
-4. أشر للرسم البياني المعروض ("زي ما بتشوف في الرسم...")
+4. اكتب الأرقام والإحصائيات كجزء أساسي من الرد مش مجرد إشارة للرسوم
 5. اختم بسؤال استكشافي يساعدك تفهم احتياجاته أكتر
 6. خلي المستخدم يحس إنه في جلسة استشارية خاصة مع خبير سوق
 """
                 else:
-                    wolf_insight_instruction += """
+                    wolf_insight_instruction += f"""
 [STRATEGY: ANALYTICS_FIRST]
-You are in DATA CONSULTANT mode — show off with numbers:
-1. LEAD with specific numbers: avg price/sqm, growth rate, rental yield
-2. Compare areas, developers, market segments with REAL data
+You are in DATA CONSULTANT mode — embed these numbers DIRECTLY in your text:
+{data_brief}
+1. WRITE these exact numbers in your response text (not just in charts)
+2. Compare areas, developers, market segments with REAL data in your message
 3. DO NOT mention any specific properties or units — data only
-4. Reference the chart being shown ("As you can see in the chart below...")
+4. The statistics must appear in your text message, not hidden in visualizations
 5. End with a strategic qualifying question to narrow their needs
 6. Make them feel like they're getting a private market briefing from an insider
 """

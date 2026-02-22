@@ -138,6 +138,16 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
         total_rent_earned: 0,
     });
 
+    // ── GUARD: Don't render if all data is zero/NaN/empty ──
+    const hasValidChart = chartData.length > 0 && chartData.some(d => (d.cash || 0) > 0 || (d.gold || 0) > 0 || (d.property || 0) > 0);
+    const hasValidSummary = summary.cash_final > 0 || summary.gold_final > 0 || summary.property_final > 0;
+    if (!hasValidChart && !hasValidSummary) {
+        return null;
+    }
+
+    // Safe number formatter — never show NaN
+    const safeNum = (v: number | undefined | null): number => (v && isFinite(v) ? v : 0);
+
     const verdict = props.verdict || {
         message_ar: "العقار هو الحصان الكسبان!",
         message_en: "Property wins the race!",
@@ -187,14 +197,14 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                         <span className="text-sm text-[var(--color-text-muted)]">Cash</span>
                     </div>
                     <div className="text-2xl font-bold text-red-500">
-                        -{summary.cash_loss_percent}%
+                        -{safeNum(summary.cash_loss_percent).toFixed(0)}%
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mt-1">
                         <TrendingDown className="w-3 h-3" />
                         Inflation eats it
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)] mt-2">
-                        → {formatMillions(summary.cash_final)} EGP
+                        → {formatMillions(safeNum(summary.cash_final))} EGP
                     </div>
                 </motion.div>
 
@@ -210,14 +220,14 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                         <span className="text-sm text-[var(--color-text-muted)]">Gold</span>
                     </div>
                     <div className="text-2xl font-bold text-yellow-500">
-                        +{summary.gold_gain_percent}%
+                        +{safeNum(summary.gold_gain_percent).toFixed(0)}%
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mt-1">
                         <TrendingUp className="w-3 h-3" />
                         Volatile gains
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)] mt-2">
-                        → {formatMillions(summary.gold_final)} EGP
+                        → {formatMillions(safeNum(summary.gold_final))} EGP
                     </div>
                 </motion.div>
 
@@ -233,14 +243,14 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                         <span className="text-sm text-[var(--color-text-muted)]">Property</span>
                     </div>
                     <div className="text-2xl font-bold text-emerald-500">
-                        +{summary.property_gain_percent}%
+                        +{safeNum(summary.property_gain_percent).toFixed(0)}%
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mt-1">
                         <TrendingUp className="w-3 h-3" />
                         + Rental Income
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)] mt-2">
-                        → {formatMillions(summary.property_final)} EGP
+                        → {formatMillions(safeNum(summary.property_final))} EGP
                     </div>
                 </motion.div>
             </div>
@@ -348,7 +358,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                             <TrendingUp className="w-4 h-4 text-white" />
                         </div>
                         <span className="text-3xl font-bold text-emerald-500">
-                            +{formatMillions(summary.property_vs_cash_advantage)} EGP
+                            +{formatMillions(safeNum(summary.property_vs_cash_advantage))} EGP
                         </span>
                     </div>
                     <p className="text-sm text-[var(--color-text-primary)]" dir="rtl">

@@ -43,7 +43,20 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
         return null;
     }
 
+    // Normalize: backend may send avg_price_sqm instead of avg_price_per_sqm
+    const avgPriceSqm = area.avg_price_per_sqm || (area as any).avg_price_sqm || 0;
+    // Normalize: growth_rate may come as decimal (0.15) or percent (15)
+    const rawGrowth = area.price_growth_ytd || (area as any).growth_rate || 0;
+    const growthPercent = rawGrowth < 1 ? rawGrowth * 100 : rawGrowth;
+
+    // Don't render if no meaningful data
+    if (avgPriceSqm === 0 && growthPercent === 0 && !area.demand_level && !area.best_for?.length) {
+        console.warn('AreaAnalysis: No meaningful data to display');
+        return null;
+    }
+
     const formatCurrency = (value: number) => {
+        if (!value || isNaN(value)) return 'N/A';
         return new Intl.NumberFormat('en-EG', {
             style: 'currency',
             currency: 'EGP',
@@ -73,22 +86,30 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
             <div className="p-6 space-y-6">
                 {/* Key Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {avgPriceSqm > 0 && (
                     <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">متوسط سعر المتر</p>
-                        <p className="text-lg font-bold text-blue-400">{formatCurrency(area.avg_price_per_sqm)}</p>
+                        <p className="text-lg font-bold text-blue-400">{formatCurrency(avgPriceSqm)}</p>
                     </div>
+                    )}
+                    {growthPercent > 0 && (
                     <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">نمو السعر</p>
-                        <p className="text-lg font-bold text-green-400">+{area.price_growth_ytd}%</p>
+                        <p className="text-lg font-bold text-green-400">+{growthPercent.toFixed(0)}%</p>
                     </div>
+                    )}
+                    {area.demand_level && (
                     <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">مستوى الطلب</p>
                         <p className="text-lg font-bold text-amber-400">{area.demand_level}</p>
                     </div>
+                    )}
+                    {area.supply_level && (
                     <div className="bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-xl p-4 text-center">
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">المعروض</p>
                         <p className="text-lg font-bold text-purple-400">{area.supply_level}</p>
                     </div>
+                    )}
                 </div>
 
                 {/* Best For */}
