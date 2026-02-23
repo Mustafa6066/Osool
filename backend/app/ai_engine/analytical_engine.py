@@ -487,20 +487,35 @@ class ROIAnalysis:
 
 @dataclass
 class OsoolScore:
-    """Property scoring result (formerly Wolf Score)."""
+    """Property scoring result — V2 with rental yield + location premium."""
     total_score: int
     value_score: int
     growth_score: int
     developer_score: int
-    verdict: str  # BARGAIN, FAIR, PREMIUM
-    
+    rental_score: int       # V2: Rental yield attractiveness
+    location_score: int     # V2: Location premium/demand level
+    verdict: str  # BARGAIN, FAIR, PREMIUM, BELOW_COST
+
+    def __init__(self, total_score=0, value_score=0, growth_score=0,
+                 developer_score=0, rental_score=0, location_score=0, verdict="FAIR"):
+        self.total_score = total_score
+        self.value_score = value_score
+        self.growth_score = growth_score
+        self.developer_score = developer_score
+        self.rental_score = rental_score
+        self.location_score = location_score
+        self.verdict = verdict
+
     def to_dict(self) -> Dict:
         return {
             "osool_score": self.total_score,
+            "wolf_score": self.total_score,  # Alias for backwards compatibility
             "score_breakdown": {
                 "value": self.value_score,
                 "growth": self.growth_score,
-                "developer": self.developer_score
+                "developer": self.developer_score,
+                "rental": self.rental_score,
+                "location": self.location_score,
             },
             "verdict": self.verdict
         }
@@ -957,62 +972,124 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
             }
 
     async def score_property(
-        self, 
-        property_data: Dict, 
+        self,
+        property_data: Dict,
         session: Optional[AsyncSession] = None
     ) -> OsoolScore:
         """
-        Calculate Osool Score (Async).
-        Accepts optional DB session for real-time benchmarking.
+        V2 Osool Score — Enhanced multi-factor scoring.
+
+        Factors:
+        1. VALUE (25%): Price/sqm vs market average
+        2. GROWTH (20%): Area appreciation rate (historical)
+        3. DEVELOPER (20%): Developer tier + track record
+        4. RENTAL (15%): Expected rental yield attractiveness
+        5. LOCATION (20%): Area demand level + infrastructure maturity
+
+        Returns score 0-100 with verdict.
         """
-        price = property_data.get("price", 0)
-        size_sqm = property_data.get("size_sqm", 1) or 1
-        location = property_data.get("location", "")
-        developer = property_data.get("developer", "").lower() if property_data.get("developer") else ""
-        
-        # 1. VALUE SCORE (Price per sqm vs market)
-        price_per_sqm = price / size_sqm
-        
-        # Async Fetch of Market Average
-        market_avg = await self._get_area_avg_price(location, session)
-        
-        value_ratio = market_avg / (price_per_sqm or 1)
-        value_score = min(100, max(0, int(value_ratio * 70)))
-        
-        # 2. GROWTH SCORE (Keep sync for now, growth rates are usually static/macro)
-        growth_rate = self._get_appreciation_rate(location)
-        growth_score = min(100, max(50, int(50 + (growth_rate * 200))))
-        
-        # 3. DEVELOPER SCORE
-        if any(d in developer for d in TIER1_DEVELOPERS):
-            developer_score = 95
-        elif any(d in developer for d in TIER2_DEVELOPERS):
-            developer_score = 80
-        else:
-            developer_score = 60
-        
-        # Final weighted score
-        total_score = int(
-            (value_score * 0.35) +
-            (developer_score * 0.35) +
-            (growth_score * 0.30)
-        )
-        
-        # Verdict
-        if value_score > 85:
-            verdict = "BARGAIN"
-        elif value_score > 60:
-            verdict = "FAIR"
-        else:
-            verdict = "PREMIUM"
-        
-        return OsoolScore(
-            total_score=total_score,
-            value_score=value_score,
-            growth_score=growth_score,
-            developer_score=developer_score,
-            verdict=verdict
-        )
+        try:
+            price = property_data.get("price", 0) or property_data.get("total_price", 0) or 0
+            size_sqm = property_data.get("size_sqm", 0) or property_data.get("area", 0) or property_data.get("size", 0) or 1
+            if size_sqm <= 0:
+                size_sqm = 1
+            location = property_data.get("location", "") or property_data.get("area_name", "") or ""
+            developer = (property_data.get("developer", "") or property_data.get("developer_name", "") or "").lower()
+
+            # 1. VALUE SCORE (Price/sqm vs market) — 0-100
+            price_per_sqm = price / size_sqm if size_sqm > 0 else 0
+            market_avg = await self._get_area_avg_price(location, session)
+
+            if price_per_sqm > 0 and market_avg > 0:
+                # Ratio > 1 means cheap vs market, < 1 means expensive
+                value_ratio = market_avg / price_per_sqm
+                # Map: 0.5 ratio -> 0, 1.0 ratio -> 70, 1.5 ratio -> 100
+                value_score = min(100, max(0, int(value_ratio * 70)))
+            elif price == 0:
+                # No price data — give neutral score
+                value_score = 50
+            else:
+                value_score = 50
+
+            # 2. GROWTH SCORE (Area appreciation) — 0-100
+            growth_rate = self._get_appreciation_rate(location)
+            # Map: 0% -> 40, 50% -> 60, 100% -> 75, 200% -> 100
+            growth_score = min(100, max(40, int(40 + min(growth_rate, 3.0) * 20)))
+
+            # 3. DEVELOPER SCORE — 0-100
+            developer_score = 60  # Default for unknown
+            if developer:
+                if any(d in developer for d in TIER1_DEVELOPERS):
+                    developer_score = 95
+                elif any(d in developer for d in TIER2_DEVELOPERS):
+                    developer_score = 80
+                # Check DEVELOPER_GRAPH for additional matches
+                for dev_key, dev_data in DEVELOPER_GRAPH.items():
+                    dev_names = [dev_key, dev_data.get('name_en', '').lower(), dev_data.get('name_ar', '')]
+                    if any(name and name.lower() in developer for name in dev_names):
+                        tier = dev_data.get('tier', 3)
+                        developer_score = {1: 95, 2: 80}.get(tier, 65)
+                        break
+
+            # 4. RENTAL SCORE (Yield attractiveness) — 0-100
+            rental_yield = self._get_rental_yield(location)
+            # Map: 5% -> 50, 6.5% -> 65, 7.5% -> 75, 10% -> 100
+            rental_score = min(100, max(30, int(rental_yield * 1000)))
+
+            # 5. LOCATION SCORE (Demand + infrastructure) — 0-100
+            location_score = 60  # Default
+            loc_lower = location.lower()
+            # Premium locations
+            if any(loc in loc_lower for loc in ["new cairo", "التجمع", "cairo", "zayed", "زايد"]):
+                location_score = 90
+            elif any(loc in loc_lower for loc in ["madinaty", "مدينتي", "rehab", "الرحاب"]):
+                location_score = 80
+            elif any(loc in loc_lower for loc in ["october", "أكتوبر"]):
+                location_score = 75
+            elif any(loc in loc_lower for loc in ["capital", "العاصمة"]):
+                location_score = 70
+            elif any(loc in loc_lower for loc in ["north coast", "الساحل", "sokhna", "سخنة"]):
+                location_score = 70
+            elif any(loc in loc_lower for loc in ["maadi", "المعادي"]):
+                location_score = 85
+
+            # TOTAL WEIGHTED SCORE
+            total_score = int(
+                (value_score * 0.25) +
+                (growth_score * 0.20) +
+                (developer_score * 0.20) +
+                (rental_score * 0.15) +
+                (location_score * 0.20)
+            )
+            total_score = max(0, min(100, total_score))
+
+            # VERDICT
+            if value_score > 85 and total_score > 80:
+                verdict = "BELOW_COST"  # Buying below replacement cost
+            elif value_score > 75:
+                verdict = "BARGAIN"
+            elif value_score > 55:
+                verdict = "FAIR"
+            else:
+                verdict = "PREMIUM"
+
+            return OsoolScore(
+                total_score=total_score,
+                value_score=value_score,
+                growth_score=growth_score,
+                developer_score=developer_score,
+                rental_score=rental_score,
+                location_score=location_score,
+                verdict=verdict,
+            )
+        except Exception as e:
+            logger.error(f"score_property error: {e}", exc_info=True)
+            # Return a safe default instead of crashing
+            return OsoolScore(
+                total_score=50, value_score=50, growth_score=50,
+                developer_score=50, rental_score=50, location_score=50,
+                verdict="FAIR"
+            )
     
     async def score_properties(
         self, 

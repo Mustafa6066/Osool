@@ -32,8 +32,11 @@ from .psychology_layer import (
     get_psychology_context_for_prompt,
     PsychologyProfile,
     PsychologicalState,
-    UrgencyLevel
+    UrgencyLevel,
+    DecisionStage,
+    BuyerPersona,
 )
+from .reasoning_engine import reasoning_engine, ReasoningChain
 from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS, DEVELOPER_GRAPH
 from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
@@ -284,6 +287,40 @@ class WolfBrain:
                 logger.info(f"📊 ANALYTICS ENRICHMENT: Built context for {analytics_context.get('location', 'N/A')}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 4A.1: CHAIN-OF-THOUGHT REASONING (V3)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            reasoning_chain: Optional[ReasoningChain] = None
+            try:
+                location = intent.filters.get('location', '')
+                budget = intent.filters.get('max_price') or intent.filters.get('budget', 0)
+                property_type = intent.filters.get('property_type', '')
+
+                if location and analytics_context.get("has_analytics"):
+                    # Full investment analysis when we have location + analytics
+                    reasoning_chain = reasoning_engine.analyze_investment_opportunity(
+                        location=location,
+                        budget=int(budget) if budget else 5_000_000,
+                        property_type=property_type or "apartment",
+                        analytics_context=analytics_context,
+                        market_data=None,
+                    )
+                    logger.info(f"🧠 CoT: {len(reasoning_chain.steps)} steps, conf={reasoning_chain.total_confidence:.0%}, verdict={reasoning_chain.final_verdict}")
+                else:
+                    # Dynamic reasoning based on query type
+                    reasoning_chain = reasoning_engine.reason_about_query(
+                        query=query,
+                        intent=intent.to_dict() if hasattr(intent, 'to_dict') else {"action": intent.action, "filters": intent.filters},
+                        psychology=psychology.to_dict(),
+                        analytics_context=analytics_context,
+                        history=history,
+                    )
+                    if reasoning_chain and reasoning_chain.steps:
+                        logger.info(f"🧠 CoT (dynamic): {len(reasoning_chain.steps)} steps, verdict={reasoning_chain.final_verdict}")
+            except Exception as e:
+                logger.warning(f"⚠️ Reasoning engine error (non-fatal): {e}")
+                reasoning_chain = None
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 4A.2: CARD READINESS SCORE (Psychology-Driven)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             from .psychology_layer import calculate_card_readiness
@@ -474,8 +511,27 @@ class WolfBrain:
             
             # Determine "Smart Display" Strategy (Psychology-Driven Card Gate v3)
             showing_strategy = self._psychology_card_gate(intent, psychology, is_discovery_complete, lead_score=lead_score, memory=memory, history=history)
-            # Override safety: if card readiness is very low, don't show cards
-            if card_readiness["readiness_score"] < 20 and showing_strategy in ['TEASER', 'FULL_LIST']:
+
+            # ── OVERRIDE: Explicit price-range query → always show properties ──
+            # When user says "I want from 3M to 5M" or "عايز من 3 ل 5 مليون"
+            has_budget_range = bool(
+                intent.filters.get('budget_max') or intent.filters.get('budget_min')
+                or intent.filters.get('max_price') or intent.filters.get('min_price')
+            )
+            has_location = bool(intent.filters.get('location'))
+            is_search_intent = intent.action in ['search', 'price_check']
+
+            if has_budget_range and showing_strategy in ['NONE', 'ANALYTICS_ONLY']:
+                if is_search_intent or has_location:
+                    showing_strategy = 'FULL_LIST'
+                    logger.info(f"🔓 Budget-range override: showing FULL_LIST (budget range + {'location' if has_location else 'search intent'})")
+                elif has_budget_range:
+                    # Pure budget query without location — show grouped by area
+                    showing_strategy = 'FULL_LIST'
+                    logger.info(f"🔓 Budget-range override: showing FULL_LIST (budget range only — will group by area)")
+
+            # Safety: if card readiness very low AND no explicit price range, hold back
+            if card_readiness["readiness_score"] < 20 and showing_strategy in ['TEASER', 'FULL_LIST'] and not has_budget_range:
                 showing_strategy = 'ANALYTICS_ONLY'
                 logger.info(f"🛡️ Psychology override: readiness={card_readiness['readiness_score']}, forced ANALYTICS_ONLY")
             logger.info(f"👁️ Visual Strategy: {showing_strategy} (readiness={card_readiness['readiness_score']})")
@@ -580,20 +636,22 @@ class WolfBrain:
                 strategy=strategy,
                 ui_actions=ui_actions,
                 history=history,
-                language=language, # Strict detected language
+                language=language,
                 profile=profile,
                 is_discovery=not is_discovery_complete,
                 intent=intent,
-                feasibility=None, 
+                feasibility=None,
                 no_discount_mode=no_discount_mode,
-                market_segment=strategy.get("market_segment"), # Pass market segment if used
-                market_pulse=market_pulse,  # Inject live DB stats
-                showing_strategy=showing_strategy,  # Smart Display strategy
-                pivot_message=pivot_message,  # NEW: Reflexion pivot explanation
-                hunt_strategy=hunt_strategy,  # NEW: Reflexion hunt strategy used
-                memory=memory,  # Conversation memory for context injection
-                analytics_context=analytics_context,  # Analytics-first data
-                developer_insight=developer_insight  # Wolf 2.0: Graph-backed developer data
+                market_segment=strategy.get("market_segment"),
+                market_pulse=market_pulse,
+                showing_strategy=showing_strategy,
+                pivot_message=pivot_message,
+                hunt_strategy=hunt_strategy,
+                memory=memory,
+                analytics_context=analytics_context,
+                developer_insight=developer_insight,
+                reasoning_chain=reasoning_chain,  # V3: Chain-of-Thought
+                db_session=session,  # Reuse session for QA stats (no extra connections)
             )
             self.stats["claude_calls"] += 1
 
@@ -1108,9 +1166,9 @@ class WolfBrain:
             logger.info("👁️ Gate: NONE (Legal Anxiety + low trust)")
             return 'NONE'
 
-        # Educational / no location → no cards
-        if intent.action in ["investment", "general", "legal"] and not has_location:
-            logger.info("👁️ Gate: NONE (Educational query without location)")
+        # Educational / no location → no cards (UNLESS they have a budget = they want to see units)
+        if intent.action in ["investment", "general", "legal"] and not has_location and not has_budget:
+            logger.info("👁️ Gate: NONE (Educational query without location or budget)")
             return 'NONE'
 
         # ── ANALYTICS_ONLY tier (show data, not cards) ──
@@ -1356,18 +1414,17 @@ class WolfBrain:
                     }
                 })
 
-            # Auto-inject price growth chart when discussing area prices / growth
-            growth_keywords = ["سعر", "أسعار", "نمو", "زيادة", "growth", "price", "تطور", "سنوات", "years", "ارتفاع", "market", "سوق"]
-            if any(kw in query_lower for kw in growth_keywords):
-                growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
-                if growth_data.get('found') and growth_data.get('data_points'):
-                    add_action({
-                        "type": "price_growth_chart",
-                        "priority": "high",
-                        "title": f"📈 تطور الأسعار في {growth_data.get('location_ar', location)} (2021–2026)",
-                        "title_en": f"📈 Price Growth in {location} (2021–2026)",
-                        "data": growth_data
-                    })
+            # ALWAYS inject price growth chart with area analysis (line chart)
+            # The user explicitly requested: "make the AI show a line chart about growth with analysis"
+            growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
+            if growth_data.get('found') and growth_data.get('data_points'):
+                add_action({
+                    "type": "price_growth_chart",
+                    "priority": "high",
+                    "title": f"📈 تطور الأسعار في {growth_data.get('location_ar', location)} (2021–2026)",
+                    "title_en": f"📈 Price Growth in {location} (2021–2026)",
+                    "data": growth_data
+                })
 
             # Auto-inject inflation chart for investment/economic queries
             investment_keywords = ["invest", "استثمار", "عائد", "roi", "return", "bank", "بنك", "فايدة", "شهادات"]
@@ -1548,17 +1605,18 @@ class WolfBrain:
         profile: Optional[Dict] = None,
         is_discovery: bool = False,
         intent: Optional[Intent] = None,
-
         feasibility: Optional[Any] = None,
         no_discount_mode: bool = False,
         market_segment: Optional[Dict] = None,
         market_pulse: Optional[Dict] = None,
         showing_strategy: str = 'NONE',
-        pivot_message: Optional[str] = None,  # NEW: Reflexion pivot explanation
-        hunt_strategy: str = 'none',  # NEW: Reflexion hunt strategy used
-        memory: Optional[Any] = None,  # Conversation memory for context injection
-        developer_insight: Optional[Dict] = None,  # Wolf 2.0: Developer graph data
-        analytics_context: Optional[Dict] = None  # Analytics-first enrichment data
+        pivot_message: Optional[str] = None,
+        hunt_strategy: str = 'none',
+        memory: Optional[Any] = None,
+        developer_insight: Optional[Dict] = None,
+        analytics_context: Optional[Dict] = None,
+        reasoning_chain: Optional[ReasoningChain] = None,  # V3: CoT reasoning
+        db_session: Optional[Any] = None,  # Reuse existing session for QA stats
     ) -> str:
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
@@ -1695,18 +1753,77 @@ Say: "For example, this is what the average unit in {anchor_location} costs ({an
 Then ask for their specific budget so you can recommend precisely.
 """
             elif properties and showing_strategy == 'FULL_LIST':
-                # FULL MODE: Show best matches and sell hard
-                if language == 'ar':
-                    wolf_insight_instruction += """
-[STRATEGY: FULL_INVENTORY]
-أنت بتعرض أفضل الخيارات المتاحة. اختار الأفضل واشرح ليه هي لقطة.
-ركز على ROI والقيمة مقارنة بالسوق.
+                # FULL MODE: Group properties and show them intelligently
+                # Detect grouping mode: by developer (if area given) or by area (if no area)
+                user_loc = (intent.filters.get("location", "") if intent else "").strip()
+                has_user_area = bool(user_loc)
+
+                # Build grouping summary for the AI
+                if has_user_area:
+                    # User chose an area → group by developer
+                    dev_groups = {}
+                    for p in properties:
+                        dev = p.get("developer", "أخرى") or "أخرى"
+                        dev_groups.setdefault(dev, []).append(p)
+                    group_lines = []
+                    for dev, props in dev_groups.items():
+                        prices = [p.get('price', 0) for p in props if p.get('price')]
+                        avg_p = sum(prices) / len(prices) if prices else 0
+                        group_lines.append(f"  • {dev}: {len(props)} وحدة — متوسط {avg_p/1e6:.1f}M" if language == 'ar' else f"  • {dev}: {len(props)} units — avg {avg_p/1e6:.1f}M")
+                    grouping_text = "\n".join(group_lines)
+
+                    if language == 'ar':
+                        wolf_insight_instruction += f"""
+[STRATEGY: FULL_INVENTORY — مجمّعة حسب المطور]
+أنت بتعرض أفضل الخيارات في {user_loc}. رتّب الوحدات حسب المطور:
+{grouping_text}
+
+لكل مطور: اذكر اسم المطور، عدد الوحدات المتاحة، ومتوسط السعر.
+ركز على مقارنة المطورين ببعض: مين أرخص ومين أجود.
+أختم بتوصية واضحة: "لو بتدور على أفضل قيمة، {dev_groups and list(dev_groups.keys())[0] or 'X'} هو الأنسب."
+"""
+                    else:
+                        wolf_insight_instruction += f"""
+[STRATEGY: FULL_INVENTORY — Grouped by Developer]
+Showing best matches in {user_loc}. Present grouped by developer:
+{grouping_text}
+
+For each developer: mention name, available units, avg price.
+Compare developers against each other: who's cheapest, who's best quality.
+End with a clear recommendation.
 """
                 else:
-                    wolf_insight_instruction += """
-[STRATEGY: FULL_INVENTORY]
-You are showing the best matches. Pick the top winner and sell its ROI hard.
-Focus on value compared to market average.
+                    # No area chosen → group by area/location
+                    area_groups = {}
+                    for p in properties:
+                        area = p.get("location", "غير محدد") or "غير محدد"
+                        area_groups.setdefault(area, []).append(p)
+                    group_lines = []
+                    for area, props in area_groups.items():
+                        prices = [p.get('price', 0) for p in props if p.get('price')]
+                        avg_p = sum(prices) / len(prices) if prices else 0
+                        group_lines.append(f"  • {area}: {len(props)} وحدة — متوسط {avg_p/1e6:.1f}M" if language == 'ar' else f"  • {area}: {len(props)} units — avg {avg_p/1e6:.1f}M")
+                    grouping_text = "\n".join(group_lines)
+
+                    if language == 'ar':
+                        wolf_insight_instruction += f"""
+[STRATEGY: FULL_INVENTORY — مجمّعة حسب المنطقة]
+المستخدم محددش منطقة، فأنت بتعرض الفرص حسب المنطقة:
+{grouping_text}
+
+لكل منطقة: اذكر اسمها، عدد الوحدات المتاحة، ومتوسط السعر.
+قارن المناطق ببعض: أسعار + نمو + عائد إيجاري.
+أختم بسؤال: "حضرتك تفضل منطقة معينة ولا أختارلك الأنسب؟"
+"""
+                    else:
+                        wolf_insight_instruction += f"""
+[STRATEGY: FULL_INVENTORY — Grouped by Area]
+User hasn't chosen an area. Present options grouped by location:
+{grouping_text}
+
+For each area: mention name, available units, avg price.
+Compare areas: prices, growth, rental yield.
+End with: "Do you prefer a specific area, or shall I pick the best value?"
 """
             
             # 0. Inject Economic Context (Always-On from Analytics Enrichment)
@@ -1948,12 +2065,12 @@ YOUR APPROACH:
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # DATABASE STATISTICS INJECTION (Phase 5C)
+            # Reuse existing db_session to avoid creating extra connections
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             try:
                 from app.services.market_statistics import compute_detailed_qa_statistics, format_qa_stats_for_ai
-                from app.database import AsyncSessionLocal
-                async with AsyncSessionLocal() as stats_session:
-                    qa_stats = await compute_detailed_qa_statistics(stats_session)
+                if db_session:
+                    qa_stats = await compute_detailed_qa_statistics(db_session)
                     qa_stats_text = format_qa_stats_for_ai(qa_stats)
                     if qa_stats_text:
                         context_parts.append(f"\n[LIVE_DATABASE_STATISTICS]\n{qa_stats_text}\nUse ONLY these numbers. Never invent statistics.\n")
@@ -2094,6 +2211,25 @@ RULE 4: Anchor the price to the ROI: "You are not spending X, you are securing a
                 memory_summary = memory.get_context_summary()
                 if memory_summary:
                     context_parts.append(f"\n{memory_summary}\n")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3: CHAIN-OF-THOUGHT REASONING INJECTION
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if reasoning_chain and reasoning_chain.steps:
+                cot_prompt = reasoning_engine.generate_reasoning_prompt(reasoning_chain, language)
+                if cot_prompt:
+                    context_parts.append(cot_prompt)
+
+            # V3: Psychology Chain-of-Thought injection
+            if hasattr(psychology, 'thought_chain') and psychology.thought_chain:
+                psy_cot = "\n[PSYCHOLOGY_CHAIN_OF_THOUGHT]"
+                for i, t in enumerate(psychology.thought_chain, 1):
+                    psy_cot += f"\nStep {i}: {t.observation} → {t.action}"
+                if hasattr(psychology, 'buyer_persona') and psychology.buyer_persona.value != "unknown":
+                    psy_cot += f"\nBUYER PERSONA: {psychology.buyer_persona.value}"
+                if hasattr(psychology, 'decision_stage'):
+                    psy_cot += f"\nDECISION STAGE: {psychology.decision_stage.value}"
+                context_parts.append(psy_cot)
 
             # Build system prompt
             system_prompt = get_wolf_system_prompt() + "\n\n" + "\n".join(context_parts)

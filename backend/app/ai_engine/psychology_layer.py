@@ -1,20 +1,22 @@
 """
-Psychology Layer for AMR - "The Wolf's Eye"
---------------------------------------------
-Extracts psychological state from user messages to enable
-psychology-aware selling tactics.
+Psychology Layer V3 - "The Wolf's Eye" (Chain-of-Thought Edition)
+================================================================
+Advanced emotional intelligence for real estate AI.
 
-States:
-- FOMO: Fear of Missing Out - responds to scarcity
-- RISK_AVERSE: Safety-focused - needs reassurance
-- GREED_DRIVEN: ROI-focused - responds to gains
-- ANALYSIS_PARALYSIS: Overthinking - needs simplification
-- IMPULSE_BUYER: Quick decisions - reduce friction
-- TRUST_DEFICIT: Skeptical - needs proof/verification
+V1: Basic keyword-based state detection
+V2: Dominant trait, emotional momentum, sarcasm detection, objection classification
+V3 (THIS VERSION):
+  - DecisionStage: Tracks where user is in the buying funnel
+  - BuyerPersona: Composite personality (Investor, End-User, Speculator, First-Timer)
+  - Emotional Decay: Older signals weighted less than recent ones
+  - Cognitive Bias Detection: Anchoring, loss aversion, confirmation bias
+  - Multi-turn Pattern Analysis: Psychology drift across conversation
+  - Chain-of-Thought: Reasoning trace for every psychology decision
 """
 
 import logging
 import re
+import math
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
@@ -65,15 +67,75 @@ class UrgencyLevel(Enum):
     URGENT = "urgent"           # 80-100% urgency
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# V3: DECISION STAGE — Where is the user in the buying funnel?
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class DecisionStage(Enum):
+    """Tracks where user is in the real estate buying journey."""
+    AWARENESS = "awareness"           # Just learning about market / areas
+    RESEARCH = "research"             # Actively comparing areas, prices, developers
+    CONSIDERATION = "consideration"   # Narrowed to 2-3 options, evaluating deeply
+    DECISION = "decision"             # Ready to choose, needs final push
+    ACTION = "action"                 # Wants to book/reserve/sign NOW
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# V3: BUYER PERSONA — Composite personality archetype
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class BuyerPersona(Enum):
+    """Composite persona derived from combined signals."""
+    INVESTOR = "investor"             # ROI-driven, comparing yields, financial literacy
+    END_USER = "end_user"             # Buying to live in, family/lifestyle focused
+    SPECULATOR = "speculator"         # Short-term flip, timing the market
+    FIRST_TIMER = "first_timer"       # Never bought before, needs education
+    UPGRADER = "upgrader"             # Has property, wants to upgrade
+    PORTFOLIO_BUILDER = "portfolio"   # Already owns, adding to portfolio
+    UNKNOWN = "unknown"
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# V3: COGNITIVE BIAS — Detected thinking patterns
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class CognitiveBias(Enum):
+    """Detected cognitive biases that influence decision-making."""
+    ANCHORING = "anchoring"                   # Fixated on a reference price
+    LOSS_AVERSION = "loss_aversion"           # More afraid of losing than eager to gain
+    CONFIRMATION_BIAS = "confirmation_bias"   # Only wants info that supports existing view
+    RECENCY_BIAS = "recency_bias"             # Over-weighting recent news/events
+    HERD_MENTALITY = "herd_mentality"         # "Everyone is buying" influence
+    STATUS_QUO_BIAS = "status_quo_bias"       # Prefers current situation over change
+    NONE = "none"
+
+
+@dataclass
+class PsychologyThought:
+    """V3: Single reasoning step in the psychology chain-of-thought."""
+    observation: str     # What was observed in the user's message
+    interpretation: str  # What it means psychologically
+    action: str          # What the AI should do about it
+    confidence: float = 0.0  # 0-1
+
+    def to_dict(self) -> Dict:
+        return {
+            "observation": self.observation,
+            "interpretation": self.interpretation,
+            "action": self.action,
+            "confidence": round(self.confidence, 2),
+        }
+
+
 @dataclass
 class PsychologyProfile:
     """
-    V2: Enhanced psychological profile with emotional trajectory.
-    
-    Upgrades:
-    - dominant_trait: Session-wide personality (not just current message)
-    - emotional_momentum: Tracks if user is warming up or cooling down
-    - specific_objection: Granular objection type for targeted responses
+    V3: Advanced psychological profile with chain-of-thought reasoning.
+
+    Upgrades from V2:
+    - decision_stage: Where user is in the buying funnel
+    - buyer_persona: Composite personality archetype
+    - cognitive_biases: Detected thinking patterns (list)
+    - thought_chain: Explicit reasoning trace for every decision
+    - emotional_intensity: 0-1 how strong the emotional signal is
+    - state_history: Track psychology shifts across conversation
     """
     primary_state: PsychologicalState
     secondary_state: Optional[PsychologicalState] = None
@@ -81,11 +143,19 @@ class PsychologyProfile:
     confidence_score: float = 0.5  # 0-1
     detected_triggers: List[str] = field(default_factory=list)
     recommended_tactics: List[str] = field(default_factory=list)
-    
-    # V2 Superhuman Upgrades
-    dominant_trait: Optional[PsychologicalState] = None  # Session personality
-    emotional_momentum: str = "static"  # "warming_up", "cooling_down", "static"
-    specific_objection: ObjectionType = ObjectionType.NONE  # Granular objection
+
+    # V2 fields (preserved)
+    dominant_trait: Optional[PsychologicalState] = None
+    emotional_momentum: str = "static"
+    specific_objection: ObjectionType = ObjectionType.NONE
+
+    # V3 Chain-of-Thought fields
+    decision_stage: DecisionStage = DecisionStage.AWARENESS
+    buyer_persona: BuyerPersona = BuyerPersona.UNKNOWN
+    cognitive_biases: List[CognitiveBias] = field(default_factory=list)
+    thought_chain: List[PsychologyThought] = field(default_factory=list)
+    emotional_intensity: float = 0.5  # 0-1: how strong the emotional signal
+    state_history: List[str] = field(default_factory=list)  # Last N states for drift detection
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""
@@ -99,7 +169,14 @@ class PsychologyProfile:
             # V2 fields
             "dominant_trait": self.dominant_trait.value if self.dominant_trait else None,
             "emotional_momentum": self.emotional_momentum,
-            "specific_objection": self.specific_objection.value
+            "specific_objection": self.specific_objection.value,
+            # V3 fields
+            "decision_stage": self.decision_stage.value,
+            "buyer_persona": self.buyer_persona.value,
+            "cognitive_biases": [b.value for b in self.cognitive_biases],
+            "thought_chain": [t.to_dict() for t in self.thought_chain],
+            "emotional_intensity": round(self.emotional_intensity, 2),
+            "state_history": self.state_history,
         }
 
 
@@ -772,52 +849,352 @@ def calculate_card_readiness(
     }
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# V3: DECISION STAGE DETECTION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DECISION_STAGE_SIGNALS = {
+    DecisionStage.AWARENESS: {
+        "keywords": ["إيه الأحسن", "what's the best", "فين أروح", "where should i", "أعرف إيه", "tell me about",
+                      "إيه الفرق", "ما هي", "what is", "مش فاهم", "explain"],
+        "turn_range": (0, 3),
+    },
+    DecisionStage.RESEARCH: {
+        "keywords": ["بقارن", "comparing", "الفرق بين", "difference between", "أسعار", "prices",
+                      "أحسن منطقة", "best area", "المطورين", "developers", "متوسط", "average"],
+        "turn_range": (2, 8),
+    },
+    DecisionStage.CONSIDERATION: {
+        "keywords": ["بين دول", "between these", "أختار", "choose", "مميزات", "features",
+                      "عيوب", "downsides", "المقارنة", "comparison", "أقرب حاجة", "closest"],
+        "turn_range": (4, 15),
+    },
+    DecisionStage.DECISION: {
+        "keywords": ["قررت", "decided", "هختار", "i'll pick", "الأفضل", "the best one",
+                      "أحسن خيار", "best option", "إيه رأيك", "what do you think", "نصيحتك"],
+        "turn_range": (5, 20),
+    },
+    DecisionStage.ACTION: {
+        "keywords": ["عايز أحجز", "want to book", "نمضي", "sign", "أدفع", "pay",
+                      "خطوة جاية", "next step", "reserve", "احجزلي", "book for me"],
+        "turn_range": (3, 50),
+    },
+}
+
+# V3: BUYER PERSONA SIGNALS
+PERSONA_SIGNALS = {
+    BuyerPersona.INVESTOR: {
+        "keywords_ar": ["عائد", "roi", "إيجار", "استثمار", "محفظة", "ربح", "كام في السنة", "yield"],
+        "keywords_en": ["return", "roi", "rental", "investment", "portfolio", "profit", "yield", "capital gain"],
+    },
+    BuyerPersona.END_USER: {
+        "keywords_ar": ["سكن", "عايلة", "أولاد", "مدارس", "أمان", "هسكن", "بيت", "قريب من"],
+        "keywords_en": ["live", "family", "kids", "schools", "safety", "home", "near to", "neighborhood"],
+    },
+    BuyerPersona.SPECULATOR: {
+        "keywords_ar": ["أبيع", "فليب", "سريع", "قبل التسليم", "أكسب", "ريسيل", "إعادة بيع"],
+        "keywords_en": ["flip", "resell", "before delivery", "quick profit", "sell before", "short term"],
+    },
+    BuyerPersona.FIRST_TIMER: {
+        "keywords_ar": ["أول مرة", "مش فاهم", "إزاي الموضوع", "أبدأ منين", "معرفش", "جديد"],
+        "keywords_en": ["first time", "don't understand", "how does it work", "new to", "never bought", "beginner"],
+    },
+    BuyerPersona.UPGRADER: {
+        "keywords_ar": ["أكبر", "أحسن من", "بدل", "upgrade", "نقل", "مكاني ضيق"],
+        "keywords_en": ["bigger", "better than", "upgrade", "move from", "current apartment", "outgrown"],
+    },
+    BuyerPersona.PORTFOLIO_BUILDER: {
+        "keywords_ar": ["عندي شقة", "شقتي", "تاني وحدة", "إضافة", "ضيف على"],
+        "keywords_en": ["already own", "second unit", "add to", "my apartment", "another property"],
+    },
+}
+
+# V3: COGNITIVE BIAS PATTERNS
+BIAS_PATTERNS = {
+    CognitiveBias.ANCHORING: {
+        "signals_ar": ["كان بـ", "السعر القديم", "زمان كان", "كام كان", "السنة اللي فاتت"],
+        "signals_en": ["used to be", "old price", "last year it was", "it was", "back when"],
+    },
+    CognitiveBias.LOSS_AVERSION: {
+        "signals_ar": ["هخسر", "خسارة", "ضمان", "أفقد", "مخاطرة", "خايف أخسر"],
+        "signals_en": ["lose", "loss", "guarantee", "risk", "afraid of losing", "what if it drops"],
+    },
+    CognitiveBias.CONFIRMATION_BIAS: {
+        "signals_ar": ["أنا عارف", "بالظبط", "زي ما قلت", "ده اللي أنا فاكره", "ده يأكد"],
+        "signals_en": ["i knew it", "exactly", "like i said", "confirms", "that proves", "see i told you"],
+    },
+    CognitiveBias.RECENCY_BIAS: {
+        "signals_ar": ["امبارح", "النهاردة", "الأسبوع ده", "شفت في الأخبار", "حد قالي"],
+        "signals_en": ["yesterday", "today", "this week", "saw in the news", "someone told me", "just heard"],
+    },
+    CognitiveBias.HERD_MENTALITY: {
+        "signals_ar": ["الكل بيشتري", "صحابي", "الناس", "كلهم", "الموجة"],
+        "signals_en": ["everyone is buying", "my friends", "people are", "the trend", "everybody"],
+    },
+    CognitiveBias.STATUS_QUO_BIAS: {
+        "signals_ar": ["الفلوس في البنك", "كويس كده", "مرتاح", "مش محتاج أتحرك"],
+        "signals_en": ["money in the bank", "fine as is", "comfortable", "don't need to move", "why change"],
+    },
+}
+
+
+def _detect_decision_stage(query: str, history: List[Dict]) -> DecisionStage:
+    """V3: Determine where user is in the buying funnel."""
+    query_lower = query.lower()
+    turn_count = len([m for m in history if m.get("role") == "user"])
+
+    # Score each stage
+    stage_scores: Dict[DecisionStage, float] = {}
+    for stage, signals in DECISION_STAGE_SIGNALS.items():
+        score = 0.0
+        # Keyword matching
+        for kw in signals["keywords"]:
+            if kw in query_lower:
+                score += 1.0
+        # Turn range bonus (is the conversation length typical for this stage?)
+        min_t, max_t = signals["turn_range"]
+        if min_t <= turn_count <= max_t:
+            score += 0.5
+        stage_scores[stage] = score
+
+    # Pick highest scoring stage
+    best = max(stage_scores, key=stage_scores.get)
+    if stage_scores[best] > 0:
+        return best
+
+    # Default based on conversation length
+    if turn_count >= 8:
+        return DecisionStage.CONSIDERATION
+    elif turn_count >= 4:
+        return DecisionStage.RESEARCH
+    return DecisionStage.AWARENESS
+
+
+def _detect_buyer_persona(query: str, history: List[Dict]) -> BuyerPersona:
+    """V3: Determine buyer persona from full conversation history."""
+    # Combine all user messages
+    all_text = query.lower()
+    for msg in history:
+        if msg.get("role") == "user":
+            all_text += " " + msg.get("content", "").lower()
+
+    # Score each persona
+    scores: Dict[BuyerPersona, float] = {}
+    for persona, signals in PERSONA_SIGNALS.items():
+        score = 0.0
+        for kw in signals.get("keywords_ar", []) + signals.get("keywords_en", []):
+            if kw in all_text:
+                score += 1.0
+        scores[persona] = score
+
+    best = max(scores, key=scores.get)
+    if scores[best] >= 1.0:
+        return best
+    return BuyerPersona.UNKNOWN
+
+
+def _detect_cognitive_biases(query: str, history: List[Dict]) -> List[CognitiveBias]:
+    """V3: Detect cognitive biases active in the user's thinking."""
+    query_lower = query.lower()
+    # Also check last 3 user messages
+    recent_text = query_lower
+    user_msgs = [m for m in history if m.get("role") == "user"]
+    for msg in user_msgs[-3:]:
+        recent_text += " " + msg.get("content", "").lower()
+
+    detected = []
+    for bias, patterns in BIAS_PATTERNS.items():
+        for signal in patterns.get("signals_ar", []) + patterns.get("signals_en", []):
+            if signal in recent_text:
+                detected.append(bias)
+                break  # One match per bias is enough
+
+    return detected if detected else [CognitiveBias.NONE]
+
+
+def _calculate_emotional_intensity(state_scores: Dict, primary_score: float) -> float:
+    """V3: How intense is the emotional signal? 0.0 = faint, 1.0 = overwhelming."""
+    if primary_score <= 0:
+        return 0.0
+    # Intensity = how dominant the primary state is vs others
+    all_scores = sorted(state_scores.values(), reverse=True)
+    if len(all_scores) < 2 or all_scores[1] == 0:
+        return min(primary_score / 2.0, 1.0)  # No competition = moderate intensity
+    # Ratio of primary to second
+    ratio = primary_score / max(all_scores[1], 0.1)
+    return min(ratio / 3.0, 1.0)
+
+
+def _build_thought_chain(
+    query: str,
+    primary_state: PsychologicalState,
+    secondary_state: Optional[PsychologicalState],
+    triggers: List[str],
+    decision_stage: DecisionStage,
+    persona: BuyerPersona,
+    biases: List[CognitiveBias],
+    momentum: str,
+    confidence: float,
+) -> List[PsychologyThought]:
+    """V3: Build explicit chain-of-thought reasoning trace."""
+    thoughts = []
+
+    # Step 1: Emotional State Detection
+    trigger_summary = ", ".join(triggers[:3]) if triggers else "no strong signals"
+    thoughts.append(PsychologyThought(
+        observation=f"User message contains signals: [{trigger_summary}]",
+        interpretation=f"Primary emotional driver: {primary_state.value}"
+                       + (f", with secondary {secondary_state.value}" if secondary_state else ""),
+        action=f"Apply {primary_state.value} communication strategy",
+        confidence=confidence,
+    ))
+
+    # Step 2: Decision Stage Assessment
+    thoughts.append(PsychologyThought(
+        observation=f"User is at {decision_stage.value} stage in buying journey",
+        interpretation={
+            DecisionStage.AWARENESS: "Still learning — needs education, not selling",
+            DecisionStage.RESEARCH: "Actively comparing — provide data and comparisons",
+            DecisionStage.CONSIDERATION: "Narrowing options — highlight differentiators",
+            DecisionStage.DECISION: "About to choose — give clear recommendation",
+            DecisionStage.ACTION: "Ready to act — minimize friction, provide next step",
+        }.get(decision_stage, "Unknown stage"),
+        action={
+            DecisionStage.AWARENESS: "Lead with market education + area analysis",
+            DecisionStage.RESEARCH: "Show comparison data + growth charts",
+            DecisionStage.CONSIDERATION: "Focus on top 2-3 options with pros/cons",
+            DecisionStage.DECISION: "Make a single clear recommendation",
+            DecisionStage.ACTION: "Provide booking/payment info immediately",
+        }.get(decision_stage, "Guide the conversation"),
+        confidence=0.7,
+    ))
+
+    # Step 3: Persona Classification
+    if persona != BuyerPersona.UNKNOWN:
+        thoughts.append(PsychologyThought(
+            observation=f"Buyer persona detected: {persona.value}",
+            interpretation={
+                BuyerPersona.INVESTOR: "ROI-focused — needs numbers, yields, growth projections",
+                BuyerPersona.END_USER: "Family/lifestyle buyer — needs safety, schools, community",
+                BuyerPersona.SPECULATOR: "Flip-minded — needs entry price, resale timing, demand data",
+                BuyerPersona.FIRST_TIMER: "New buyer — needs education, reassurance, simple language",
+                BuyerPersona.UPGRADER: "Upgrading — needs comparison to current situation",
+                BuyerPersona.PORTFOLIO_BUILDER: "Portfolio play — needs diversification logic",
+            }.get(persona, "Unknown persona"),
+            action=f"Tailor language and data presentation for {persona.value}",
+            confidence=0.65,
+        ))
+
+    # Step 4: Cognitive Bias Response
+    real_biases = [b for b in biases if b != CognitiveBias.NONE]
+    if real_biases:
+        bias_names = ", ".join(b.value for b in real_biases)
+        thoughts.append(PsychologyThought(
+            observation=f"Cognitive biases detected: {bias_names}",
+            interpretation={
+                CognitiveBias.ANCHORING: "User is anchored to an old price — reframe with current market reality",
+                CognitiveBias.LOSS_AVERSION: "Fear of loss dominates — show downside protection first",
+                CognitiveBias.CONFIRMATION_BIAS: "User seeks validation — acknowledge their view, then expand",
+                CognitiveBias.RECENCY_BIAS: "Over-weighting recent events — show 5-year trend perspective",
+                CognitiveBias.HERD_MENTALITY: "Social proof matters — mention what other buyers are doing",
+                CognitiveBias.STATUS_QUO_BIAS: "Resistance to change — show cost of inaction (inflation erosion)",
+            }.get(real_biases[0], "Monitor and adapt"),
+            action="Adjust messaging to address detected bias",
+            confidence=0.6,
+        ))
+
+    # Step 5: Momentum-Based Adaptation
+    if momentum != "static":
+        thoughts.append(PsychologyThought(
+            observation=f"Emotional momentum: {momentum}",
+            interpretation="warming_up: User engagement increasing" if momentum == "warming_up"
+                          else "cooling_down: User losing interest or becoming skeptical",
+            action="Push toward close" if momentum == "warming_up"
+                   else "Re-engage with new value proposition or data",
+            confidence=0.55,
+        ))
+
+    return thoughts
+
+
+def _calculate_scores_with_decay(query: str, history: List[Dict]) -> Tuple[Dict, Dict]:
+    """
+    V3: Score each psychological state with EMOTIONAL DECAY.
+    Recent messages contribute more than older ones.
+    Decay formula: weight = 1.0 / (1 + distance * 0.3)
+    """
+    state_scores: Dict[PsychologicalState, float] = {}
+    detected_triggers: Dict[PsychologicalState, List[str]] = {}
+
+    # Build weighted text corpus: most recent = highest weight
+    user_msgs = [query.lower()]
+    for msg in reversed(history):
+        if msg.get("role") == "user":
+            user_msgs.append(msg.get("content", "").lower())
+
+    for state, patterns in PSYCHOLOGY_PATTERNS.items():
+        score = 0.0
+        triggers = []
+        weight = patterns.get("weight", 1.0)
+
+        for distance, text in enumerate(user_msgs):
+            decay = 1.0 / (1.0 + distance * 0.3)  # decay: 1.0, 0.77, 0.63, 0.53...
+
+            for keyword in patterns.get("keywords_ar", []):
+                if keyword in text:
+                    score += decay * weight
+                    if distance == 0:  # Only trigger from current msg
+                        triggers.append(f"ar:{keyword}")
+
+            for keyword in patterns.get("keywords_en", []):
+                if keyword in text:
+                    score += decay * weight
+                    if distance == 0:
+                        triggers.append(f"en:{keyword}")
+
+            # Only look at last 6 messages
+            if distance >= 6:
+                break
+
+        state_scores[state] = score
+        detected_triggers[state] = triggers
+
+    return state_scores, detected_triggers
+
+
+def _extract_state_history(history: List[Dict]) -> List[str]:
+    """V3: Extract previous psychology states from conversation metadata."""
+    states = []
+    for msg in history:
+        if msg.get("role") == "assistant":
+            meta = msg.get("metadata", {})
+            ps = meta.get("psychology_state") or meta.get("primary_state")
+            if ps:
+                states.append(ps)
+    return states[-10:]  # Last 10 states max
+
+
 def analyze_psychology(
     query: str,
     history: List[Dict],
     intent: Optional[Dict] = None
 ) -> PsychologyProfile:
     """
-    Analyze user's psychological state from query and history.
+    V3: Analyze user's psychological state with chain-of-thought reasoning.
 
-    Args:
-        query: Current user message
-        history: Conversation history
-        intent: Extracted intent from perception layer
-
-    Returns:
-        PsychologyProfile with detected state and recommendations
+    Upgrades from V2:
+    - Emotional decay (recent messages weigh more)
+    - Decision stage detection (buying funnel position)
+    - Buyer persona classification
+    - Cognitive bias detection
+    - Explicit thought chain for every decision
+    - Emotional intensity measurement
     """
     query_lower = query.lower()
 
-    # Combine current query with recent history for analysis
-    all_text = query_lower
-    for msg in history[-5:]:  # Last 5 messages
-        if msg.get("role") == "user":
-            all_text += " " + msg.get("content", "").lower()
-
-    # Score each psychological state
-    state_scores: Dict[PsychologicalState, float] = {}
-    detected_triggers: Dict[PsychologicalState, List[str]] = {}
-
-    for state, patterns in PSYCHOLOGY_PATTERNS.items():
-        score = 0.0
-        triggers = []
-
-        # Check Arabic keywords
-        for keyword in patterns.get("keywords_ar", []):
-            if keyword in all_text:
-                score += 1.0 * patterns["weight"]
-                triggers.append(f"ar:{keyword}")
-
-        # Check English keywords
-        for keyword in patterns.get("keywords_en", []):
-            if keyword in all_text:
-                score += 1.0 * patterns["weight"]
-                triggers.append(f"en:{keyword}")
-
-        state_scores[state] = score
-        detected_triggers[state] = triggers
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # STEP 1: Score states with EMOTIONAL DECAY (V3 upgrade)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    state_scores, detected_triggers = _calculate_scores_with_decay(query, history)
 
     # Find primary and secondary states
     sorted_states = sorted(state_scores.items(), key=lambda x: x[1], reverse=True)
@@ -829,7 +1206,7 @@ def analyze_psychology(
 
     if sorted_states[0][1] > 0:
         primary_state = sorted_states[0][0]
-        confidence = min(sorted_states[0][1] / 3.0, 1.0)  # Normalize to 0-1
+        confidence = min(sorted_states[0][1] / 3.0, 1.0)
         all_triggers = detected_triggers[primary_state]
 
         if len(sorted_states) > 1 and sorted_states[1][1] > 0:
@@ -843,55 +1220,87 @@ def analyze_psychology(
     tactics = PSYCHOLOGY_PATTERNS.get(primary_state, {}).get("recommended_tactics", [])
     if secondary_state:
         tactics.extend(PSYCHOLOGY_PATTERNS.get(secondary_state, {}).get("recommended_tactics", []))
-    tactics = list(set(tactics))  # Remove duplicates
+    tactics = list(set(tactics))
 
-    # NEW: Sarcasm Detector (The "Human Touch" Framework)
-    # 1. Direct verbal signals
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # STEP 2: Sarcasm Detection (preserved from V2)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     sarcasm_triggers = ["sure you are", "yeah right", "tell me another one", "obvious", "robot", "lies", "joke", "funny", "نكتة", "بتهزر", "مصدقك", "اكيد طبعا"]
-    is_sarcastic = any(x in query.lower() for x in sarcasm_triggers)
-    
-    # 2. Contextual Sarcasm (Price Sensitivity)
+    is_sarcastic = any(x in query_lower for x in sarcasm_triggers)
     if not is_sarcastic:
         is_sarcastic = _detect_contextual_sarcasm(query, history)
 
     if is_sarcastic:
         primary_state = PsychologicalState.TRUST_DEFICIT
-        confidence = 0.0 # Force low confidence to trigger cautious response
+        confidence = 0.0
         tactics = ["humility", "proof_only", "acknowledge_skepticism"]
         all_triggers.append("detected_sarcasm")
         logger.info("🎭 Sarcasm Detected: Overriding state to TRUST_DEFICIT")
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # V2 SUPERHUMAN UPGRADES
+    # STEP 3: V2 Upgrades (preserved)
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    
-    # 1. Calculate Dominant Trait (session-wide personality)
     dominant_trait = _calculate_dominant_trait(history)
-    
-    # 2. Calculate Emotional Momentum (warming up vs cooling down)
     emotional_momentum = _calculate_emotional_momentum(history)
-    
-    # 3. Detect Specific Objection Type (granular risk classification)
     specific_objection = _detect_objection_type(query, all_triggers)
-    
-    logger.info(f"🧠 V2 Psychology: dominant={dominant_trait}, momentum={emotional_momentum}, objection={specific_objection.value}")
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # STEP 4: V3 CHAIN-OF-THOUGHT UPGRADES
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    decision_stage = _detect_decision_stage(query, history)
+    buyer_persona = _detect_buyer_persona(query, history)
+    cognitive_biases = _detect_cognitive_biases(query, history)
+    emotional_intensity = _calculate_emotional_intensity(
+        state_scores, sorted_states[0][1] if sorted_states else 0
+    )
+    state_history = _extract_state_history(history)
+
+    # Build the chain-of-thought reasoning trace
+    thought_chain = _build_thought_chain(
+        query=query,
+        primary_state=primary_state,
+        secondary_state=secondary_state,
+        triggers=all_triggers,
+        decision_stage=decision_stage,
+        persona=buyer_persona,
+        biases=cognitive_biases,
+        momentum=emotional_momentum,
+        confidence=confidence,
+    )
+
+    logger.info(
+        f"🧠 V3 Psychology: state={primary_state.value} (conf:{confidence:.2f}), "
+        f"stage={decision_stage.value}, persona={persona_name(buyer_persona)}, "
+        f"biases={[b.value for b in cognitive_biases]}, intensity={emotional_intensity:.2f}, "
+        f"thoughts={len(thought_chain)}"
+    )
 
     profile = PsychologyProfile(
         primary_state=primary_state,
         secondary_state=secondary_state,
         urgency_level=urgency,
         confidence_score=confidence,
-        detected_triggers=all_triggers[:5],  # Limit to top 5 triggers
+        detected_triggers=all_triggers[:5],
         recommended_tactics=tactics,
         # V2 fields
         dominant_trait=dominant_trait,
         emotional_momentum=emotional_momentum,
-        specific_objection=specific_objection
+        specific_objection=specific_objection,
+        # V3 fields
+        decision_stage=decision_stage,
+        buyer_persona=buyer_persona,
+        cognitive_biases=cognitive_biases,
+        thought_chain=thought_chain,
+        emotional_intensity=emotional_intensity,
+        state_history=state_history,
     )
 
-    logger.info(f"🧠 Psychology: {primary_state.value} (conf: {confidence:.2f}), Urgency: {urgency.value}")
-
     return profile
+
+
+def persona_name(p: BuyerPersona) -> str:
+    """Short display name for logging."""
+    return p.value if p else "unknown"
 
 
 def _detect_contextual_sarcasm(query: str, history: List[Dict]) -> bool:
@@ -1077,6 +1486,51 @@ def get_psychology_context_for_prompt(profile: PsychologyProfile) -> str:
 - Provide booking/reservation link or next step
 - Don't introduce new options, focus on closing current interest
 """)
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # V3: CHAIN-OF-THOUGHT REASONING INJECTION
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if hasattr(profile, 'thought_chain') and profile.thought_chain:
+        cot_lines = ["\n[PSYCHOLOGY_REASONING_CHAIN]"]
+        for i, thought in enumerate(profile.thought_chain, 1):
+            cot_lines.append(
+                f"Step {i}: {thought.observation} → {thought.interpretation} → ACTION: {thought.action}"
+            )
+        context_parts.append("\n".join(cot_lines))
+
+    # V3: Decision Stage Context
+    if hasattr(profile, 'decision_stage'):
+        stage = profile.decision_stage
+        context_parts.append(f"\n[DECISION_STAGE: {stage.value.upper()}]")
+        if stage == DecisionStage.AWARENESS:
+            context_parts.append("- EDUCATE first. Show market overview + growth charts. Do NOT push properties yet.")
+        elif stage == DecisionStage.RESEARCH:
+            context_parts.append("- COMPARE and ANALYZE. Show data, charts, area comparisons. Growth chart is MANDATORY.")
+        elif stage == DecisionStage.CONSIDERATION:
+            context_parts.append("- NARROW DOWN. Focus on top 2-3 options. Show clear pros/cons.")
+        elif stage == DecisionStage.DECISION:
+            context_parts.append("- RECOMMEND ONE. Make a clear, confident recommendation. Show why it's the best.")
+        elif stage == DecisionStage.ACTION:
+            context_parts.append("- CLOSE NOW. Provide booking steps, payment info. Minimize new information.")
+
+    # V3: Buyer Persona Context
+    if hasattr(profile, 'buyer_persona') and profile.buyer_persona != BuyerPersona.UNKNOWN:
+        context_parts.append(f"\n[BUYER_PERSONA: {profile.buyer_persona.value.upper()}]")
+
+    # V3: Cognitive Bias Counter-Strategy
+    if hasattr(profile, 'cognitive_biases'):
+        real_biases = [b for b in profile.cognitive_biases if b != CognitiveBias.NONE]
+        if real_biases:
+            context_parts.append(f"\n[COGNITIVE_BIAS_DETECTED: {', '.join(b.value for b in real_biases)}]")
+            for bias in real_biases:
+                if bias == CognitiveBias.ANCHORING:
+                    context_parts.append("- Counter anchoring: Show 5-year price chart to reframe reference point")
+                elif bias == CognitiveBias.LOSS_AVERSION:
+                    context_parts.append("- Counter loss aversion: Emphasize inflation erosion of cash — inaction IS the loss")
+                elif bias == CognitiveBias.RECENCY_BIAS:
+                    context_parts.append("- Counter recency bias: Show long-term 5-year growth trajectory, not just recent moves")
+                elif bias == CognitiveBias.STATUS_QUO_BIAS:
+                    context_parts.append("- Counter status quo: Calculate cost of waiting — each month delay = X EGP lost to inflation")
 
     return "\n".join(context_parts)
 
@@ -1359,15 +1813,20 @@ def determine_strategy(
 # Export
 __all__ = [
     "PsychologicalState",
-    "ObjectionType",  # V2: Granular objection classification
+    "ObjectionType",
     "UrgencyLevel",
     "PsychologyProfile",
     "Strategy",
     "analyze_psychology",
-    "semantic_classify_emotion",  # V2: LLM fallback classifier
+    "semantic_classify_emotion",
     "determine_strategy",
     "get_psychology_context_for_prompt",
     "PSYCHOLOGY_PATTERNS",
-    "OBJECTION_PATTERNS"  # V2: Objection patterns
+    "OBJECTION_PATTERNS",
+    # V3 exports
+    "DecisionStage",
+    "BuyerPersona",
+    "CognitiveBias",
+    "PsychologyThought",
 ]
 

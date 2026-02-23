@@ -1,4 +1,5 @@
 import os
+import time
 import redis
 import json
 from dotenv import load_dotenv
@@ -6,6 +7,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+# Max entries in memory fallback before eviction
+_MAX_MEMORY_ENTRIES = 500
+
 
 class RedisClient:
     def __init__(self):
@@ -16,7 +21,7 @@ class RedisClient:
         except Exception as e:
             print(f"⚠️ [Cache] Redis Connection Failed: {e}. using Memory Fallback.")
             self.redis = None
-            self._memory_fallback = {}
+            self._memory_fallback: dict = {}  # {key: {"value": ..., "expires_at": float}}
 
     def set_json(self, key: str, value: dict, ttl: int = 3600):
         """Stores a dict as JSON string with TTL."""
@@ -24,7 +29,14 @@ class RedisClient:
             if self.redis:
                 self.redis.setex(key, ttl, json.dumps(value))
             else:
-                self._memory_fallback[key] = value # No TTL in fallback
+                # Memory fallback WITH TTL + eviction
+                self._memory_fallback[key] = {
+                    "value": value,
+                    "expires_at": time.time() + ttl,
+                }
+                # Evict oldest entries if over limit
+                if len(self._memory_fallback) > _MAX_MEMORY_ENTRIES:
+                    self._evict_expired()
         except Exception as e:
             print(f"❌ Redis Set Error: {e}")
 
@@ -35,10 +47,37 @@ class RedisClient:
                 data = self.redis.get(key)
                 return json.loads(data) if data else None
             else:
-                return self._memory_fallback.get(key)
+                entry = self._memory_fallback.get(key)
+                if not entry:
+                    return None
+                # Check TTL expiration
+                if entry.get("expires_at", 0) < time.time():
+                    del self._memory_fallback[key]
+                    return None
+                return entry.get("value")
         except Exception as e:
             print(f"❌ Redis Get Error: {e}")
             return None
+
+    def _evict_expired(self):
+        """Remove expired entries + oldest entries if still over limit."""
+        now = time.time()
+        # Remove expired
+        expired_keys = [
+            k for k, v in self._memory_fallback.items()
+            if v.get("expires_at", 0) < now
+        ]
+        for k in expired_keys:
+            del self._memory_fallback[k]
+
+        # If still over limit, remove oldest half
+        if len(self._memory_fallback) > _MAX_MEMORY_ENTRIES:
+            sorted_keys = sorted(
+                self._memory_fallback.keys(),
+                key=lambda k: self._memory_fallback[k].get("expires_at", 0)
+            )
+            for k in sorted_keys[:len(sorted_keys) // 2]:
+                del self._memory_fallback[k]
 
     def store_session_results(self, session_id: str, results: list):
         """Specific helper for Agent Search Results."""
@@ -62,6 +101,7 @@ class RedisClient:
         key = f"score:{session_id}"
         data = self.get_json(key)
         return data.get("score") if data else None
+
 
 # Singleton
 cache = RedisClient()
