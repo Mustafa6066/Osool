@@ -74,6 +74,70 @@ AREA_GROWTH = {
 }
 
 # ═══════════════════════════════════════════════════════════════
+# HISTORICAL PRICE DATA (2021–2026) — EGP per sqm
+# Based on market research: baseline 2021 → sharp spikes 2024/2025
+# Used for growth trajectory line charts
+# ═══════════════════════════════════════════════════════════════
+AREA_PRICE_HISTORY = {
+    "New Cairo": {
+        2021: 14000, 2022: 18500, 2023: 26000, 2024: 40000, 2025: 55000, 2026: 61550
+    },
+    "Sheikh Zayed": {
+        2021: 13500, 2022: 17000, 2023: 24500, 2024: 38000, 2025: 56000, 2026: 64050
+    },
+    "New Capital": {
+        2021: 20000, 2022: 24000, 2023: 30000, 2024: 36000, 2025: 42000, 2026: 45000
+    },
+    "6th October": {
+        2021: 10000, 2022: 13000, 2023: 18000, 2024: 28000, 2025: 40000, 2026: 47000
+    },
+    "North Coast": {
+        2021: 15000, 2022: 20000, 2023: 30000, 2024: 50000, 2025: 68000, 2026: 76150
+    },
+    "Maadi": {
+        2021: 18000, 2022: 20000, 2023: 22000, 2024: 25000, 2025: 26950, 2026: 70000
+    },
+    "Ain Sokhna": {
+        2021: 12000, 2022: 16000, 2023: 25000, 2024: 45000, 2025: 75000, 2026: 91200
+    },
+    "Madinaty": {
+        2021: 22000, 2022: 26000, 2023: 32000, 2024: 40000, 2025: 50000, 2026: 55000
+    },
+    "Rehab": {
+        2021: 20000, 2022: 24000, 2023: 29000, 2024: 36000, 2025: 45000, 2026: 50000
+    },
+}
+
+# Developer-specific price history (per sqm, finished units)
+DEVELOPER_PRICE_HISTORY = {
+    "Emaar (Mivida)": {
+        "area": "New Cairo",
+        "type": "apartment",
+        2021: 25000, 2022: 35000, 2023: 48000, 2024: 65000, 2025: 90000, 2026: 95000,
+    },
+    "SODIC (Eastown)": {
+        "area": "New Cairo",
+        "type": "apartment",
+        2021: 18000, 2022: 24000, 2023: 35000, 2024: 50000, 2025: 68000, 2026: 67500,
+    },
+    "Palm Hills (PHNC)": {
+        "area": "New Cairo",
+        "type": "apartment",
+        2021: 22000, 2022: 30000, 2023: 42000, 2024: 58000, 2025: 75000, 2026: 72500,
+    },
+    "Mountain View (iCity)": {
+        "area": "New Cairo",
+        "type": "apartment",
+        2021: 15000, 2022: 22000, 2023: 32000, 2024: 45000, 2025: 58000, 2026: 55000,
+    },
+    "Hyde Park": {
+        "area": "New Cairo",
+        "type": "apartment",
+        2021: 14000, 2022: 20000, 2023: 28000, 2024: 40000, 2025: 52000, 2026: 50000,
+    },
+}
+
+# ═══════════════════════════════════════════════════════════════
 # COMPREHENSIVE AREA BENCHMARKS (Wolf Intelligence Layer)
 # ═══════════════════════════════════════════════════════════════
 AREA_BENCHMARKS = {
@@ -690,6 +754,104 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
                 "summary": {},
                 "error": str(e)
             }
+
+    def calculate_price_growth_history(
+        self,
+        location: str,
+        include_developers: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Return 5-year (2021→2026) price growth trajectory for an area.
+        Optionally includes developer-specific price lines.
+        Used by the price_growth_chart UI visualization.
+        """
+        try:
+            # Normalize location lookup
+            loc_upper = location.strip().title()
+            # Fuzzy match: "new cairo", "التجمع الخامس", "fifth settlement" etc.
+            loc_map = {
+                "التجمع الخامس": "New Cairo",
+                "القاهرة الجديدة": "New Cairo",
+                "Fifth Settlement": "New Cairo",
+                "الشيخ زايد": "Sheikh Zayed",
+                "العاصمة الإدارية": "New Capital",
+                "أكتوبر": "6th October",
+                "السادس من أكتوبر": "6th October",
+                "الساحل الشمالي": "North Coast",
+                "المعادي": "Maadi",
+                "العين السخنة": "Ain Sokhna",
+                "مدينتي": "Madinaty",
+                "الرحاب": "Rehab",
+            }
+            resolved = loc_map.get(location.strip(), loc_upper)
+            # Try direct match first
+            history = AREA_PRICE_HISTORY.get(resolved)
+            if not history:
+                # Try fuzzy match on keys
+                for key in AREA_PRICE_HISTORY:
+                    if key.lower() in resolved.lower() or resolved.lower() in key.lower():
+                        history = AREA_PRICE_HISTORY[key]
+                        resolved = key
+                        break
+
+            if not history:
+                return {"found": False, "location": location}
+
+            # Build data points
+            years_list = sorted([y for y in history.keys() if isinstance(y, int)])
+            data_points = []
+            for yr in years_list:
+                price = history[yr]
+                yoy = 0
+                if yr - 1 in history and history[yr - 1] > 0:
+                    yoy = round(((price - history[yr - 1]) / history[yr - 1]) * 100, 1)
+                data_points.append({
+                    "year": yr,
+                    "price_sqm": price,
+                    "yoy_growth": yoy,
+                })
+
+            # Overall growth
+            start_price = history.get(years_list[0], 0)
+            end_price = history.get(years_list[-1], 0)
+            total_growth = round(((end_price - start_price) / start_price) * 100, 1) if start_price > 0 else 0
+
+            # Developer lines (only for the same area)
+            developer_lines = []
+            if include_developers:
+                for dev_name, dev_data in DEVELOPER_PRICE_HISTORY.items():
+                    if dev_data.get("area", "").lower() == resolved.lower():
+                        dev_points = []
+                        for yr in years_list:
+                            if yr in dev_data:
+                                dev_points.append({"year": yr, "price_sqm": dev_data[yr]})
+                        if dev_points:
+                            dev_start = dev_points[0]["price_sqm"]
+                            dev_end = dev_points[-1]["price_sqm"]
+                            dev_growth = round(((dev_end - dev_start) / dev_start) * 100, 1) if dev_start > 0 else 0
+                            developer_lines.append({
+                                "name": dev_name,
+                                "type": dev_data.get("type", "apartment"),
+                                "data_points": dev_points,
+                                "total_growth": dev_growth,
+                            })
+
+            return {
+                "found": True,
+                "location": resolved,
+                "location_ar": AREA_BENCHMARKS.get(resolved.lower().replace(" ", " "), {}).get("ar_name", location),
+                "data_points": data_points,
+                "total_growth_pct": total_growth,
+                "start_year": years_list[0],
+                "end_year": years_list[-1],
+                "start_price": start_price,
+                "end_price": end_price,
+                "developer_lines": developer_lines,
+                "current_growth_rate": AREA_GROWTH.get(resolved, 0),
+            }
+        except Exception as e:
+            logger.error(f"Failed to calculate price growth history: {e}")
+            return {"found": False, "location": location, "error": str(e)}
 
     def calculate_bank_vs_property(
         self,
@@ -1486,5 +1648,7 @@ __all__ = [
     "AREA_PRICES",
     "AREA_GROWTH",
     "AREA_BENCHMARKS",
+    "AREA_PRICE_HISTORY",
+    "DEVELOPER_PRICE_HISTORY",
     "MARKET_SEGMENTS",
 ]

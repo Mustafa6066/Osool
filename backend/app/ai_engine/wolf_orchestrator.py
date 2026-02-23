@@ -1260,43 +1260,30 @@ class WolfBrain:
         intent: Intent,
         query: str,
         showing_strategy: str = 'NONE',
-        wolf_strategy: Optional[Dict] = None  # NEW: Pass chosen verbal strategy
+        wolf_strategy: Optional[Dict] = None
     ) -> List[Dict]:
         """
         Determine which UI visualizations to trigger.
-        ALWAYS include market analytics from the first answer.
-        Uses showing_strategy to control property display.
-        Uses wolf_strategy to ensure charts match the script (e.g. "Look at the chart").
+        SELECTIVE: Only show charts when they add real value to the conversation.
+        The AI text itself should carry the statistics — charts are supplementary.
+        Deduplicates by type to prevent the same chart appearing twice.
         """
         ui_actions = []
+        seen_types = set()  # Prevent duplicate chart types
         query_lower = query.lower()
-        
-        # ═══════════════════════════════════════════════════════════════
-        # ALWAYS SHOW: Market Analytics (FROM FIRST ANSWER)
-        # ═══════════════════════════════════════════════════════════════
+
+        def add_action(action: Dict):
+            """Add ui_action only if its type hasn't been added yet."""
+            atype = action.get("type", "")
+            if atype not in seen_types:
+                seen_types.add(atype)
+                ui_actions.append(action)
+
         location = intent.filters.get('location', '')
-        if location:
-            # Get market segment data for the location
-            market_segment = market_intelligence.get_market_segment(location)
-            area_context = market_intelligence.get_area_context(location)
-            
-            if market_segment.get('found') or area_context.get('found'):
-                ui_actions.append({
-                    "type": "market_benchmark",
-                    "priority": "high",
-                    "title": f"📊 أسعار السوق في {market_segment.get('name_ar', location)}",
-                    "title_en": f"📊 Market Prices in {location}",
-                    "data": {
-                        "market_segment": market_segment,
-                        "area_context": area_context,
-                        "avg_price_sqm": area_context.get('avg_price_sqm', 0),
-                        "rental_yield": area_context.get('rental_yield', 0.065),
-                        "growth_rate": area_context.get('growth_rate', 0.12),
-                    }
-                })
         
         # ═══════════════════════════════════════════════════════════════
-        # ANALYTICS_ONLY BOOST: Extra charts when in data-first mode
+        # ANALYTICS_ONLY: Show area_analysis (text-rich) instead of market_benchmark
+        # The AI text carries the statistics. Only one chart per message.
         # ═══════════════════════════════════════════════════════════════
         if showing_strategy == 'ANALYTICS_ONLY' and location:
             area_ctx = market_intelligence.get_area_context(location)
@@ -1343,7 +1330,7 @@ class WolfBrain:
                 if minimums.get('villa', 0) > 0:
                     best_for.append("العائلات")
 
-                ui_actions.append({
+                add_action({
                     "type": "area_analysis",
                     "priority": "high",
                     "title": f"تحليل منطقة {location}",
@@ -1369,13 +1356,26 @@ class WolfBrain:
                     }
                 })
 
+            # Auto-inject price growth chart when discussing area prices / growth
+            growth_keywords = ["سعر", "أسعار", "نمو", "زيادة", "growth", "price", "تطور", "سنوات", "years", "ارتفاع", "market", "سوق"]
+            if any(kw in query_lower for kw in growth_keywords):
+                growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
+                if growth_data.get('found') and growth_data.get('data_points'):
+                    add_action({
+                        "type": "price_growth_chart",
+                        "priority": "high",
+                        "title": f"📈 تطور الأسعار في {growth_data.get('location_ar', location)} (2021–2026)",
+                        "title_en": f"📈 Price Growth in {location} (2021–2026)",
+                        "data": growth_data
+                    })
+
             # Auto-inject inflation chart for investment/economic queries
             investment_keywords = ["invest", "استثمار", "عائد", "roi", "return", "bank", "بنك", "فايدة", "شهادات"]
             if any(kw in query_lower for kw in investment_keywords):
                 investment_amount = 5_000_000
                 inflation_data = analytical_engine.calculate_inflation_hedge(investment_amount, years=5)
                 if inflation_data and inflation_data.get('projections'):
-                    ui_actions.append({
+                    add_action({
                         "type": "inflation_killer",
                         "priority": "high",
                         "title": "العقار vs التضخم vs البنك",
@@ -1394,8 +1394,8 @@ class WolfBrain:
         if psychology.primary_state == PsychologicalState.FAMILY_SECURITY:
             investment_amount = properties[0].get('price', 5_000_000) if properties else 5_000_000
             inflation_data = analytical_engine.calculate_inflation_hedge(investment_amount, years=5)
-            if inflation_data and inflation_data.get('projections'):  # Only add if calculation succeeded with data
-                ui_actions.append({
+            if inflation_data and inflation_data.get('projections'):
+                add_action({
                     "type": "inflation_killer",
                     "priority": 8,
                     "title": "حماية العيلة من التضخم",
@@ -1409,7 +1409,7 @@ class WolfBrain:
 
         # LEGAL_ANXIETY -> Always show Law 114 Guardian
         if psychology.primary_state == PsychologicalState.LEGAL_ANXIETY:
-            ui_actions.append({
+            add_action({
                 "type": "law_114_guardian",
                 "priority": 9,
                 "status": "active",
@@ -1445,9 +1445,9 @@ class WolfBrain:
                 investment_amount = properties[0].get('price', 5_000_000)
 
             inflation_data = analytical_engine.calculate_inflation_hedge(investment_amount, years=5)
-            if inflation_data and inflation_data.get('projections'):  # Only add if calculation succeeded with data
-                ui_actions.append({
-                    "type": "inflation_killer",  # Use consistent type for frontend
+            if inflation_data and inflation_data.get('projections'):
+                add_action({
+                    "type": "inflation_killer",
                     "priority": "high",
                     "title": "العقار vs شهادات البنك (22% فايدة)",
                     "title_en": "Property vs Bank CDs (22% Interest)",
@@ -1469,8 +1469,8 @@ class WolfBrain:
                 investment_amount = properties[0].get('price', 5_000_000)
 
             bank_data = analytical_engine.calculate_bank_vs_property(investment_amount, years=5)
-            if bank_data:  # Only add if calculation succeeded
-                ui_actions.append({
+            if bank_data:
+                add_action({
                     "type": "certificates_vs_property",  # Use type that frontend supports
                     "priority": "high",
                     "title": "شهادات البنك vs العقار (الحقيقة)",
@@ -1494,7 +1494,7 @@ class WolfBrain:
                 card_title_en = "🏠 Units Matching Your Criteria"
                 display_properties = properties[:5]  # Full list
             
-            ui_actions.append({
+            add_action({
                 "type": "property_cards",
                 "priority": "medium" if showing_strategy == 'FULL_LIST' else "low",
                 "title": card_title_ar,
@@ -1507,7 +1507,7 @@ class WolfBrain:
         if properties:
             bargains = await analytical_engine.detect_bargains(properties, threshold_percent=10)
             if bargains:
-                ui_actions.append({
+                add_action({
                     "type": "la2ta_alert",
                     "priority": "high",
                     "title": "🔥 لقطة",
@@ -1516,10 +1516,24 @@ class WolfBrain:
                     "discount": bargains[0].get("la2ta_score", 0)
                 })
         
+        # Growth chart for any location + price/growth-related query (outside ANALYTICS_ONLY too)
+        if location and showing_strategy != 'ANALYTICS_ONLY':
+            price_keywords = ["سعر", "أسعار", "نمو", "growth", "price", "تطور", "سنوات", "ارتفاع", "chart", "تغير", "رسم"]
+            if any(kw in query_lower for kw in price_keywords):
+                growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
+                if growth_data.get('found') and growth_data.get('data_points'):
+                    add_action({
+                        "type": "price_growth_chart",
+                        "priority": "high",
+                        "title": f"📈 تطور الأسعار في {growth_data.get('location_ar', location)} (2021–2026)",
+                        "title_en": f"📈 Price Growth in {location} (2021–2026)",
+                        "data": growth_data
+                    })
+
         # Sort by priority
         priority_order = {"high": 0, "medium": 1, "low": 2}
         ui_actions.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 3))
-        
+
         return ui_actions
     
     async def _generate_wolf_narrative(

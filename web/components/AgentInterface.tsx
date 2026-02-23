@@ -530,6 +530,10 @@ export default function AgentInterface() {
                                                                         if (action.type === 'market_benchmark') {
                                                                             if (!d.avg_price_sqm && !d.area_context?.avg_price_sqm) return false;
                                                                         }
+                                                                        // Skip price_growth_chart with no data points
+                                                                        if (action.type === 'price_growth_chart') {
+                                                                            if (!d.data_points?.length || d.data_points.length < 2) return false;
+                                                                        }
                                                                         return true;
                                                                     })
                                                                     .map((action: any, idx: number) => (

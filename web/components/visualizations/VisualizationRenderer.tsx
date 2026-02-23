@@ -92,6 +92,12 @@ const MarketBenchmarkChart = dynamic(() => import("./MarketBenchmarkChart"), {
     ssr: false,
 });
 
+// V9: Price Growth Chart (Line chart — 2021-2026 trajectory)
+const PriceGrowthChart = dynamic(() => import("./PriceGrowthChart"), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
 // Loading skeleton
 function VisualizationSkeleton() {
     return (
@@ -355,6 +361,17 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
                     <CertificatesVsProperty {...data} isRTL={isRTL} />
                 </Suspense>
             );
+
+        // V9: Price Growth Chart (2021-2026 line chart)
+        case "price_growth_chart": {
+            if (!hasContent(data, ['data_points'])) return null;
+            if (!data.data_points?.length || data.data_points.length < 2) return null;
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <PriceGrowthChart {...data} />
+                </Suspense>
+            );
+        }
 
         // Market benchmark visualization (smart analytics chart)
         case "market_benchmark": {
