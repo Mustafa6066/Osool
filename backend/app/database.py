@@ -29,16 +29,16 @@ elif DATABASE_URL.startswith("postgres://"):
 elif DATABASE_URL.startswith("sqlite://") and "sqlite+aiosqlite" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://", 1)
 
-# Async Engine — configured for stability under load
+# Async Engine — production-grade connection pooling for stability under load
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     future=True,
-    pool_size=10,              # Base connections (up from default 5)
+    pool_size=10,              # Base persistent connections
     max_overflow=20,           # Burst connections when pool is full
     pool_recycle=1800,         # Recycle connections every 30 min (prevent stale)
-    pool_pre_ping=True,        # Test connection before use (detect dead connections)
-    pool_timeout=30,           # Wait max 30s for a connection
+    pool_pre_ping=True,        # Verify connections before use (detect dead connections)
+    pool_timeout=30,           # Wait max 30s for a connection from pool
 )
 
 # Session Factory

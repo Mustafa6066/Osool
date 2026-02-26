@@ -347,9 +347,9 @@ class UserMemory(Base):
     """
     Cross-Session Memory Persistence
     ---------------------------------
-    Stores key customer facts (budget, preferences, deal-breakers) so the AI 
+    Stores key customer facts (budget, preferences, deal-breakers) so the AI
     can recall them across sessions. Creates the "family consultant" experience.
-    
+
     Example: Session 1 user says "wife hates open kitchens" → stored.
              Session 2 user looks at unit with American kitchen → AI warns them.
     """
@@ -357,21 +357,119 @@ class UserMemory(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
-    
+
     # Core memory fields (JSON serialized)
     memory_json: Mapped[str] = mapped_column(Text, nullable=True)  # Full ConversationMemory dict
-    
+
     # Quick-access fields for common lookups
     budget_min: Mapped[int] = mapped_column(Integer, nullable=True)
     budget_max: Mapped[int] = mapped_column(Integer, nullable=True)
     preferred_areas: Mapped[str] = mapped_column(String, nullable=True)  # Comma-separated
     investment_vs_living: Mapped[str] = mapped_column(String, nullable=True)
-    
+
     # Free-text preferences (e.g., "wife hates open kitchens", "needs garden")
     preferences_text: Mapped[str] = mapped_column(Text, nullable=True)
-    
+
     # Timestamps
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+# ═══════════════════════════════════════════════════════════════
+# GAMIFICATION MODELS (Phase 9: Professional Investor Gamification)
+# ═══════════════════════════════════════════════════════════════
+
+class InvestorProfile(Base):
+    """
+    Investor Progression & Gamification Profile
+    --------------------------------------------
+    Tracks XP, level, streaks, and investment readiness.
+    Levels: curious -> informed -> analyst -> strategist -> mogul
+    """
+    __tablename__ = "investor_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+
+    # Progression
+    xp: Mapped[int] = mapped_column(Integer, default=0)
+    level: Mapped[str] = mapped_column(String(20), default="curious")
+    investment_readiness_score: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Streaks
+    login_streak: Mapped[int] = mapped_column(Integer, default=0)
+    longest_streak: Mapped[int] = mapped_column(Integer, default=0)
+    last_active_date: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Activity tracking (JSON via Text)
+    areas_explored: Mapped[str] = mapped_column(Text, default="{}")
+    tools_used: Mapped[str] = mapped_column(Text, default="{}")
+    properties_analyzed: Mapped[int] = mapped_column(Integer, default=0)
+
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class Achievement(Base):
+    """Achievement badge definitions. Seeded on startup."""
+    __tablename__ = "achievements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    key: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    title_en: Mapped[str] = mapped_column(String(100))
+    title_ar: Mapped[str] = mapped_column(String(100))
+    description_en: Mapped[str] = mapped_column(Text, nullable=True)
+    description_ar: Mapped[str] = mapped_column(Text, nullable=True)
+    icon: Mapped[str] = mapped_column(String(50), default="award")
+    category: Mapped[str] = mapped_column(String(30))
+    xp_reward: Mapped[int] = mapped_column(Integer, default=50)
+    requirement_type: Mapped[str] = mapped_column(String(30))
+    requirement_value: Mapped[int] = mapped_column(Integer, default=1)
+    tier: Mapped[str] = mapped_column(String(10), default="bronze")
+
+
+class UserAchievement(Base):
+    """Tracks which achievements a user has unlocked."""
+    __tablename__ = "user_achievements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    achievement_id: Mapped[int] = mapped_column(ForeignKey("achievements.id"), index=True)
+    unlocked_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    achievement = relationship("Achievement")
+
+
+class UserFavorite(Base):
+    """Property shortlist / favorites."""
+    __tablename__ = "user_favorites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), index=True)
+    notes: Mapped[str] = mapped_column(Text, nullable=True)
+    added_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    property = relationship("Property")
+
+
+class SavedSearch(Base):
+    """Background search agents that notify on matching properties."""
+    __tablename__ = "saved_searches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    filters_json: Mapped[str] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_checked_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    match_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User")

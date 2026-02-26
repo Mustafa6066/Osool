@@ -46,6 +46,7 @@ print("✅ Market Intel Injection: ENABLED")
 # Import routers
 from app.api.endpoints import router as api_router
 from app.api.auth_endpoints import router as auth_router
+from app.api.gamification_endpoints import router as gamification_router
 from app.services.metrics import metrics_endpoint
 
 # ═══════════════════════════════════════════════════════════════
@@ -218,6 +219,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(api_router)
 app.include_router(auth_router)
+app.include_router(gamification_router)
 
 
 @app.get("/")
@@ -292,12 +294,23 @@ async def startup_event():
             print(f"[!] {error_msg}")
             raise RuntimeError(error_msg)
 
+    # Phase 9: Seed gamification achievements
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.gamification import gamification_engine
+        async with AsyncSessionLocal() as session:
+            await gamification_engine.seed_achievements(session)
+        print("    |-- Gamification Engine: ACHIEVEMENTS SEEDED")
+    except Exception as e:
+        print(f"    |-- Gamification Engine: Seed skipped ({e})")
+
     print("    |-- AI Intelligence Layer: READY")
     print("    |-- AMR Agent (Claude 3.5 Sonnet): READY")
     print("    |-- Hybrid Brain (XGBoost + GPT-4o): READY")
+    print("    |-- Gamification Engine: READY")
     print("    +-- Semantic Search (pgvector): READY")
     print(f"[+] Osool Backend is ONLINE (Environment: {environment})")
-    print(f"[+] Phase 1: AI-First Real Estate Platform")
+    print(f"[+] Phase 9: AI + Gamification Platform")
 
 
 if __name__ == "__main__":

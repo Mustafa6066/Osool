@@ -2448,3 +2448,133 @@ body {
 .prose-rtl li {
   text-align: right;
 }
+
+/* ============================================
+   GAMIFICATION ANIMATIONS (Phase 9)
+   Professional micro-interactions for XP, achievements, streaks
+   ============================================ */
+
+/* XP Toast - Float up and fade */
+@keyframes xp-toast-anim {
+  0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+  20% { opacity: 1; transform: translateY(0) scale(1); }
+  80% { opacity: 1; transform: translateY(-5px); }
+  100% { opacity: 0; transform: translateY(-20px) scale(0.95); }
+}
+
+.animate-xp-toast {
+  animation: xp-toast-anim 2.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+/* Achievement Slide-in */
+@keyframes achievement-slide-anim {
+  0% { opacity: 0; transform: translateX(100px) scale(0.8); }
+  15% { opacity: 1; transform: translateX(-5px) scale(1.02); }
+  25% { transform: translateX(0) scale(1); }
+  85% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(30px); }
+}
+
+.animate-achievement-slide {
+  animation: achievement-slide-anim 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* XP Float (for celebrations.ts) */
+.xp-float-toast {
+  position: fixed;
+  z-index: 9999;
+  font-size: 14px;
+  font-weight: 700;
+  color: #2dd4bf;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(0);
+  text-shadow: 0 0 8px rgba(45, 212, 191, 0.5);
+}
+
+.xp-float-animate {
+  animation: xp-float-keyframes 1.5s ease-out forwards;
+}
+
+@keyframes xp-float-keyframes {
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  20% { opacity: 1; transform: translateY(-10px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(0.9); }
+}
+
+/* Level Up Overlay */
+.level-up-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.level-up-particle {
+  position: absolute;
+  bottom: -10px;
+  left: var(--x);
+  width: var(--size, 6px);
+  height: var(--size, 6px);
+  border-radius: 50%;
+  background: hsl(var(--hue, 160), 70%, 60%);
+  opacity: 0;
+  animation: particle-rise 1.5s var(--delay, 0s) ease-out forwards;
+}
+
+@keyframes particle-rise {
+  0% { opacity: 0; transform: translateY(0) scale(0); }
+  20% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(-100vh) rotate(720deg); }
+}
+
+/* Streak Burst */
+.streak-burst {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.streak-emoji {
+  position: absolute;
+  font-size: 2rem;
+  opacity: 0;
+  animation: streak-pop 1.2s calc(var(--i) * 0.1s) ease-out forwards;
+}
+
+@keyframes streak-pop {
+  0% { opacity: 0; transform: scale(0) rotate(0deg); }
+  30% { opacity: 1; transform: scale(1.3) rotate(15deg); }
+  100% { opacity: 0; transform: scale(0.5) translateY(-60px) rotate(-30deg); }
+}
+
+/* Phase Indicator Pulse */
+@keyframes phase-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.animate-phase-pulse {
+  animation: phase-pulse 1.5s ease-in-out infinite;
+}
+
+/* Progress bar shimmer for gamification */
+@keyframes progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.progress-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer 2s ease infinite;
+}
