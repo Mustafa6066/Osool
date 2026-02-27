@@ -291,6 +291,11 @@ async def compute_detailed_qa_statistics(
             "best_price_per_area": {},
             "best_price_per_developer": {},
             "best_price_per_type": {},
+            "finishing_statistics": {},
+            "size_bracket_statistics": {},
+            "payment_statistics": {},
+            "price_bracket_distribution": {},
+            "top_compounds": [],
             "summary": {}
         }
 
@@ -464,7 +469,147 @@ async def compute_detailed_qa_statistics(
                 }
 
         # ═══════════════════════════════════════════════════════════════
-        # 7. SUMMARY STATISTICS
+        # 7. FINISHING TYPE STATISTICS
+        # ═══════════════════════════════════════════════════════════════
+        finishing_query = select(
+            Property.finishing,
+            func.min(Property.price_per_sqm).label('min_meter'),
+            func.avg(Property.price_per_sqm).label('avg_meter'),
+            func.max(Property.price_per_sqm).label('max_meter'),
+            func.count(Property.id).label('count')
+        ).filter(
+            Property.is_available == True,
+            Property.price_per_sqm > 0,
+            Property.finishing != None,
+            Property.finishing != ''
+        ).group_by(Property.finishing)
+
+        finishing_result = await db.execute(finishing_query)
+        stats["finishing_statistics"] = {}
+        for row in finishing_result.all():
+            if row.finishing:
+                stats["finishing_statistics"][row.finishing] = {
+                    "min_meter": round(float(row.min_meter or 0), 0),
+                    "avg_meter": round(float(row.avg_meter or 0), 0),
+                    "max_meter": round(float(row.max_meter or 0), 0),
+                    "count": row.count
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 8. SIZE BRACKET STATISTICS
+        # ═══════════════════════════════════════════════════════════════
+        size_brackets = [
+            ("Under 100 m²", 0, 100),
+            ("100-200 m²", 100, 200),
+            ("200-300 m²", 200, 300),
+            ("300+ m²", 300, 99999),
+        ]
+        stats["size_bracket_statistics"] = {}
+        for label, low, high in size_brackets:
+            bracket_query = select(
+                func.count(Property.id).label('count'),
+                func.avg(Property.price).label('avg_price'),
+                func.avg(Property.price_per_sqm).label('avg_meter'),
+                func.avg(Property.size_sqm).label('avg_size')
+            ).filter(
+                Property.is_available == True,
+                Property.size_sqm >= low,
+                Property.size_sqm < high
+            )
+            bracket_result = await db.execute(bracket_query)
+            row = bracket_result.first()
+            if row and row.count > 0:
+                stats["size_bracket_statistics"][label] = {
+                    "count": row.count,
+                    "avg_price": round(float(row.avg_price or 0), 0),
+                    "avg_meter": round(float(row.avg_meter or 0), 0),
+                    "avg_size": round(float(row.avg_size or 0), 0)
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 9. PAYMENT PLAN STATISTICS
+        # ═══════════════════════════════════════════════════════════════
+        payment_query = select(
+            func.avg(Property.down_payment).label('avg_down_payment'),
+            func.avg(Property.installment_years).label('avg_installment_years'),
+            func.avg(Property.monthly_installment).label('avg_monthly_installment'),
+            func.min(Property.down_payment).label('min_down_payment'),
+            func.max(Property.down_payment).label('max_down_payment'),
+            func.count(Property.id).label('count')
+        ).filter(
+            Property.is_available == True,
+            Property.down_payment != None,
+            Property.down_payment > 0
+        )
+        payment_result = await db.execute(payment_query)
+        pay_row = payment_result.first()
+        stats["payment_statistics"] = {
+            "avg_down_payment": round(float(pay_row.avg_down_payment or 0), 1),
+            "avg_installment_years": round(float(pay_row.avg_installment_years or 0), 1),
+            "avg_monthly_installment": round(float(pay_row.avg_monthly_installment or 0), 0),
+            "min_down_payment": int(pay_row.min_down_payment or 0),
+            "max_down_payment": int(pay_row.max_down_payment or 0),
+            "properties_with_plans": pay_row.count or 0
+        }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 10. PRICE BRACKET DISTRIBUTION
+        # ═══════════════════════════════════════════════════════════════
+        price_brackets = [
+            ("Under 2M", 0, 2000000),
+            ("2M - 5M", 2000000, 5000000),
+            ("5M - 10M", 5000000, 10000000),
+            ("10M+", 10000000, 999999999),
+        ]
+        stats["price_bracket_distribution"] = {}
+        for label, low, high in price_brackets:
+            pb_query = select(
+                func.count(Property.id).label('count'),
+                func.avg(Property.price_per_sqm).label('avg_meter')
+            ).filter(
+                Property.is_available == True,
+                Property.price >= low,
+                Property.price < high
+            )
+            pb_result = await db.execute(pb_query)
+            row = pb_result.first()
+            if row and row.count > 0:
+                stats["price_bracket_distribution"][label] = {
+                    "count": row.count,
+                    "avg_meter": round(float(row.avg_meter or 0), 0)
+                }
+
+        # ═══════════════════════════════════════════════════════════════
+        # 11. TOP COMPOUNDS BY VOLUME
+        # ═══════════════════════════════════════════════════════════════
+        compound_query = select(
+            Property.compound,
+            Property.developer,
+            Property.location,
+            func.count(Property.id).label('count'),
+            func.avg(Property.price_per_sqm).label('avg_meter')
+        ).filter(
+            Property.is_available == True,
+            Property.compound != None,
+            Property.compound != '',
+            Property.price_per_sqm > 0
+        ).group_by(
+            Property.compound, Property.developer, Property.location
+        ).order_by(func.count(Property.id).desc()).limit(10)
+
+        compound_result = await db.execute(compound_query)
+        stats["top_compounds"] = []
+        for row in compound_result.all():
+            stats["top_compounds"].append({
+                "compound": row.compound,
+                "developer": row.developer,
+                "location": row.location,
+                "count": row.count,
+                "avg_meter": round(float(row.avg_meter or 0), 0)
+            })
+
+        # ═══════════════════════════════════════════════════════════════
+        # 12. SUMMARY STATISTICS
         # ═══════════════════════════════════════════════════════════════
         summary_query = select(
             func.count(Property.id).label('total_properties'),
@@ -501,6 +646,15 @@ async def compute_detailed_qa_statistics(
             "best_price_per_area": {},
             "best_price_per_developer": {},
             "best_price_per_type": {},
+            "finishing_statistics": {},
+            "size_bracket_statistics": {},
+            "payment_statistics": {
+                "avg_down_payment": 0, "avg_installment_years": 0,
+                "avg_monthly_installment": 0, "min_down_payment": 0,
+                "max_down_payment": 0, "properties_with_plans": 0
+            },
+            "price_bracket_distribution": {},
+            "top_compounds": [],
             "summary": {"total_properties": 0, "error": str(e)}
         }
 
