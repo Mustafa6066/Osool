@@ -3,8 +3,8 @@
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import Navigation from '@/components/Navigation';
-import Footer from '@/components/Footer';
+import { useAuth } from '@/contexts/AuthContext';
+import SmartNav from '@/components/SmartNav';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -12,6 +12,7 @@ import {
     ChevronLeft, ChevronRight, Shield, TrendingUp, Calendar,
     Phone, Mail, Building
 } from 'lucide-react';
+import { toggleFavorite } from '@/lib/gamification';
 
 // Sample property data - in production, fetch from API
 const propertyData: Record<string, {
@@ -109,10 +110,21 @@ const defaultProperty = {
 export default function PropertyDetailsPage() {
     const params = useParams();
     const { language, t } = useLanguage();
+    const { isAuthenticated } = useAuth();
     const [currentImage, setCurrentImage] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
 
     const propertyId = params.id as string;
+
+    const handleToggleFavorite = async () => {
+        if (!isAuthenticated) return;
+        setIsLiked(!isLiked);
+        try {
+            await toggleFavorite(Number(propertyId));
+        } catch {
+            setIsLiked(isLiked); // Revert
+        }
+    };
     const property = propertyData[propertyId] || defaultProperty;
 
     const formatPrice = (price: number) => {
@@ -126,8 +138,8 @@ export default function PropertyDetailsPage() {
     const priceDiffPercent = ((priceDiff / property.price) * 100).toFixed(1);
 
     return (
-        <main className="min-h-screen bg-[var(--color-background)]">
-            <Navigation />
+        <SmartNav>
+        <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Breadcrumb */}
@@ -185,10 +197,12 @@ export default function PropertyDetailsPage() {
                             {/* Action Buttons */}
                             <div className="absolute top-4 right-4 flex gap-2">
                                 <button
-                                    onClick={() => setIsLiked(!isLiked)}
-                                    className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors"
+                                    onClick={handleToggleFavorite}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                        isLiked ? 'bg-red-500 hover:bg-red-600' : 'bg-white/90 hover:bg-white'
+                                    }`}
                                 >
-                                    <Heart className={`w-5 h-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+                                    <Heart className={`w-5 h-5 ${isLiked ? 'fill-white text-white' : 'text-gray-600'}`} />
                                 </button>
                                 <button className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors">
                                     <Share2 className="w-5 h-5 text-gray-600" />
@@ -338,7 +352,7 @@ export default function PropertyDetailsPage() {
                 </div>
             </div>
 
-            <Footer />
         </main>
+        </SmartNav>
     );
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, ArrowDownRight, ArrowUpRight, DollarSign, Activity, BarChart3, MapPin, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
-import Sidebar from '@/components/Sidebar';
+import SmartNav from '@/components/SmartNav';
 import MarketTrendChart from '@/components/visualizations/MarketTrendChart';
 
 // Fallback static values if API fails
@@ -162,13 +162,9 @@ export default function MarketPage() {
     const maxPrice = Math.max(...marketData.areas.map((a) => a.avgPriceSqm));
 
     return (
-        <div className="flex h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] font-sans overflow-hidden">
-            {/* Sidebar */}
-            <Sidebar activePage="market" />
-
-            {/* Main Content */}
-            <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-12 scrollbar-hide">
+        <SmartNav>
+            <div className="h-full overflow-y-auto">
+                <div className="p-4 sm:p-6 md:p-12 pb-24 md:pb-12">
                     <div className="max-w-7xl mx-auto space-y-8 md:space-y-12">
 
                         {/* Header */}
@@ -280,7 +276,7 @@ export default function MarketPage() {
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </SmartNav>
     );
 }

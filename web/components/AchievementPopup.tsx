@@ -63,7 +63,7 @@ export default function AchievementPopup({
     return (
         <div
             className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5
-                        bg-[#1e1f20] border border-[#3d3d3d] rounded-2xl
+                        bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl
                         shadow-2xl shadow-black/40 animate-achievement-slide
                         max-w-sm`}
             dir={language === 'ar' ? 'rtl' : 'ltr'}
@@ -79,10 +79,10 @@ export default function AchievementPopup({
                 <div className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-0.5">
                     {language === 'ar' ? 'إنجاز جديد!' : 'Achievement Unlocked!'}
                 </div>
-                <div className="text-sm font-medium text-white truncate">
+                <div className="text-sm font-medium text-[var(--color-text-primary)] truncate">
                     {title}
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-[var(--color-text-muted)]">
                     +{xpReward} XP
                 </div>
             </div>

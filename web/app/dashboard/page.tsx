@@ -17,15 +17,22 @@ import {
     Plus,
     X,
     ShieldCheck,
-    AlertCircle
+    AlertCircle,
+    Award,
+    Heart,
+    MapPin
 } from 'lucide-react';
 import { generateInvitation, getMyInvitations, MyInvitationsResponse, getCurrentUserFromToken, InvitationResponse } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGamification } from '@/contexts/GamificationContext';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
+import SmartNav from '@/components/SmartNav';
+import InvestorProfileCard from '@/components/InvestorProfileCard';
+import { TIER_COLORS } from '@/lib/gamification';
 
 export default function DashboardPage() {
     const { user, isAuthenticated, loading } = useAuth();
+    const { profile, achievements } = useGamification();
     const router = useRouter();
     const [invitationsData, setInvitationsData] = useState<MyInvitationsResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -110,25 +117,89 @@ export default function DashboardPage() {
     const isUnlimited = invitationsData?.invitations_remaining === 'unlimited';
 
     return (
-        <div className="flex h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] font-sans overflow-hidden">
-            {/* Sidebar */}
-            <Sidebar activePage="dashboard" />
-
-            {/* Main Content */}
-            <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-                <div className="flex-1 overflow-y-auto p-6 md:p-12 scrollbar-hide">
+        <SmartNav>
+            <div className="h-full overflow-y-auto">
+                <div className="p-6 md:p-12 pb-24 md:pb-12 scrollbar-hide">
                     <div className="max-w-[1400px] mx-auto space-y-8">
                         {/* Page Header */}
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
                             <div>
-                                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[var(--color-text-primary)] mb-2 font-display">Referral Hub</h1>
-                                <p className="text-[var(--color-text-muted)] text-lg font-light max-w-xl">Manage your exclusive network invitations and track your referral impact.</p>
+                                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[var(--color-text-primary)] mb-2 font-display">Dashboard</h1>
+                                <p className="text-[var(--color-text-muted)] text-lg font-light max-w-xl">Your investor profile, achievements, and referral network.</p>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] bg-[var(--color-surface)] px-3 py-1.5 rounded-full border border-[var(--color-border)] shadow-sm">
                                 <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
                                 System Operational
                             </div>
                         </div>
+
+                        {/* ═══════ Gamification Section ═══════ */}
+                        {profile && (
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
+                                {/* Investor Profile Card (8 cols) */}
+                                <div className="md:col-span-8">
+                                    <InvestorProfileCard profile={profile} />
+                                </div>
+
+                                {/* Achievements Showcase (4 cols) */}
+                                <div className="md:col-span-4 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-sm font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
+                                            <Award className="w-4 h-4 text-teal-500" />
+                                            Achievements
+                                        </h3>
+                                        <span className="text-xs text-[var(--color-text-muted)]">
+                                            {profile.achievement_count} unlocked
+                                        </span>
+                                    </div>
+
+                                    {profile.achievements && profile.achievements.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {profile.achievements.slice(0, 5).map((ach) => (
+                                                <div key={ach.key} className="flex items-center gap-3 py-2">
+                                                    <div
+                                                        className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md"
+                                                        style={{
+                                                            background: `linear-gradient(135deg, ${TIER_COLORS[ach.tier] || '#CD7F32'}44, ${TIER_COLORS[ach.tier] || '#CD7F32'}22)`,
+                                                            border: `1px solid ${TIER_COLORS[ach.tier] || '#CD7F32'}55`
+                                                        }}
+                                                    >
+                                                        <Award className="w-5 h-5" style={{ color: TIER_COLORS[ach.tier] || '#CD7F32' }} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                                                            {ach.title_en}
+                                                        </div>
+                                                        <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">
+                                                            {ach.tier} tier
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8">
+                                            <Award className="w-8 h-8 mx-auto text-[var(--color-text-muted)] mb-2" />
+                                            <p className="text-sm text-[var(--color-text-muted)]">
+                                                Start exploring to unlock achievements
+                                            </p>
+                                            <Link
+                                                href="/chat"
+                                                className="inline-block mt-3 px-4 py-1.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs font-medium hover:bg-[var(--color-primary)]/20 transition-colors"
+                                            >
+                                                Start Analysis
+                                            </Link>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ═══════ Referral Section ═══════ */}
+                        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
+                            <Gift className="w-5 h-5 text-emerald-500" />
+                            Referral Hub
+                        </h2>
 
                         {/* Bento Grid Layout */}
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
@@ -367,7 +438,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </SmartNav>
     );
 }

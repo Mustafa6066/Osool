@@ -13,7 +13,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGamification } from '@/contexts/GamificationContext';
 import dynamic from 'next/dynamic';
+import SuggestionChips from '@/components/SuggestionChips';
+import FunnelIndicator from '@/components/FunnelIndicator';
 
 // Lazy load visualization renderer for smart charts
 const VisualizationRenderer = dynamic(
@@ -192,10 +195,10 @@ const MarkdownMessage = ({ content }: { content: string }) => {
  */
 export default function AgentInterface() {
     const { user } = useAuth();
+    const { profile, triggerXP } = useGamification();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [contextPaneOpen, setContextPaneOpen] = useState(false);
     const [activeContext, setActiveContext] = useState<Artifacts | null>(null);
     const [recentQueries, setRecentQueries] = useState<string[]>([]);
@@ -225,7 +228,7 @@ export default function AgentInterface() {
         const content = text || inputValue;
         if (!content.trim() || isTyping) return;
 
-        setSidebarOpen(false);
+        // SmartNav handles navigation
 
         // Add to recent queries
         setRecentQueries(prev => {
@@ -295,6 +298,14 @@ export default function AgentInterface() {
 
             setMessages(prev => [...prev, aiMsg]);
 
+            // Award XP for asking a question
+            triggerXP(5, 'Asked a question');
+
+            // Award bonus XP for analysis tools used
+            if (aiMsg.uiActions && aiMsg.uiActions.length > 0) {
+                triggerXP(15, 'Used analysis tool');
+            }
+
             if (aiMsg.artifacts) {
                 setActiveContext(aiMsg.artifacts);
                 setContextPaneOpen(true);
@@ -331,7 +342,7 @@ export default function AgentInterface() {
         setContextPaneOpen(false);
         setActiveContext(null);
         setInputValue('');
-        setSidebarOpen(false);
+        // SmartNav handles navigation
         // New conversation = new session ID
         sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     };
@@ -342,67 +353,41 @@ export default function AgentInterface() {
 
     const hasStarted = messages.length > 0;
 
+    // Generate contextual follow-up suggestions based on the AI response
+    const generateSuggestions = (msg: Message): string[] => {
+        const suggestions: string[] = [];
+        const content = msg.content.toLowerCase();
+        const hasProperties = msg.allProperties && msg.allProperties.length > 0;
+        const hasAnalytics = msg.analyticsContext?.has_analytics;
+        const hasVisualizations = msg.uiActions && msg.uiActions.length > 0;
+
+        if (hasProperties) {
+            suggestions.push('Compare these properties side by side');
+            suggestions.push('Show ROI analysis');
+            suggestions.push('What are the payment plans?');
+        } else if (hasAnalytics) {
+            suggestions.push('Show price trends over time');
+            suggestions.push('Which area has best growth?');
+            suggestions.push('Compare with alternative investments');
+        } else if (content.includes('developer') || content.includes('مطور')) {
+            suggestions.push('Show their track record');
+            suggestions.push('Compare delivery dates');
+            suggestions.push('Show available units');
+        } else if (content.includes('area') || content.includes('location') || content.includes('منطقة')) {
+            suggestions.push('Show price per sqm breakdown');
+            suggestions.push('What about nearby areas?');
+            suggestions.push('Show infrastructure developments');
+        } else {
+            suggestions.push('Show me top properties');
+            suggestions.push('Market overview');
+            suggestions.push('Help me set a budget');
+        }
+
+        return suggestions.slice(0, 3);
+    };
+
     return (
-        <div className="flex h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] font-sans overflow-hidden selection:bg-teal-500/30 relative">
-
-            {/* ---------------------------------------------------------------------------
-       * FLOATING HISTORY PANE (SIDEBAR)
-       * --------------------------------------------------------------------------- */}
-            <aside
-                className={`fixed top-0 md:top-4 bottom-0 md:bottom-4 left-0 md:left-4 w-full md:w-[300px] bg-[var(--color-surface)]/95 backdrop-blur-md md:rounded-3xl z-50 flex flex-col overflow-hidden border-r md:border border-[var(--color-border)] shadow-2xl transition-transform duration-500 ${sidebarOpen ? 'translate-x-0' : '-translate-x-[calc(100%+24px)]'}`}
-                style={{ transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }}
-            >
-                <div className="p-4 pt-5 flex-1 overflow-y-auto">
-                    <div className="flex justify-between items-center mb-6 px-1">
-                        <button
-                            onClick={() => setSidebarOpen(false)}
-                            className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 transition-colors"
-                        >
-                            <Menu className="w-5 h-5" />
-                        </button>
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Sessions</span>
-                    </div>
-
-                    <button
-                        onClick={handleNewChat}
-                        className="flex items-center gap-3 px-4 py-3 rounded-full bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] transition-colors w-full mb-6 border border-[var(--color-border-light)] group"
-                    >
-                        <Plus className="w-5 h-5 text-gray-400 group-hover:text-white" />
-                        <span className="text-sm font-medium">New Analysis</span>
-                    </button>
-
-                    {recentQueries.length > 0 && (
-                        <>
-                            <div className="text-xs font-medium text-gray-500 mb-3 px-2">Recent Queries</div>
-                            <div className="space-y-1">
-                                {recentQueries.map((query, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => handleSendMessage(query)}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg group transition-colors truncate"
-                                    >
-                                        <History className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                                        <span className="truncate flex-1 text-left opacity-80 group-hover:opacity-100" dir="auto">{query}</span>
-                                        <MoreHorizontal className="w-4 h-4 text-gray-500 opacity-0 group-hover:opacity-100 flex-shrink-0" />
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                <div className="p-4 bg-[var(--color-surface)] border-t border-[var(--color-border)]">
-                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl">
-                        <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg">
-                            <Building2 className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <div className="text-sm font-medium text-white">{userName}</div>
-                            <div className="text-[10px] text-teal-400">Elite Investor</div>
-                        </div>
-                    </div>
-                </div>
-            </aside>
+        <div className="flex h-full w-full bg-[var(--color-background)] text-[var(--color-text-primary)] font-sans overflow-hidden selection:bg-teal-500/30 relative">
 
             {/* ---------------------------------------------------------------------------
        * MAIN CHAT AREA
@@ -410,16 +395,10 @@ export default function AgentInterface() {
             <main className="flex-1 flex flex-col relative min-w-0 bg-[var(--color-background)] h-full w-full z-0">
 
                 {/* Top Bar */}
-                <div className="absolute top-0 left-0 right-0 h-20 flex items-center justify-between px-6 z-30 pointer-events-none">
+                <div className="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-6 z-30 pointer-events-none">
 
-                    {/* Menu Trigger */}
+                    {/* Title */}
                     <div className="flex items-center gap-4 pointer-events-auto">
-                        <button
-                            onClick={() => setSidebarOpen(true)}
-                            className={`p-2.5 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 transition-all duration-300 ${sidebarOpen ? 'opacity-0 -translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}
-                        >
-                            <Menu className="w-5 h-5" />
-                        </button>
                         <span className={`text-xl font-medium text-[var(--color-text-primary)] opacity-90 tracking-tight transition-opacity duration-500 ${!hasStarted ? 'opacity-0' : 'opacity-100'}`}>
                             Osool <span className="opacity-50 font-light">AMR</span>
                         </span>
@@ -435,6 +414,18 @@ export default function AgentInterface() {
                         </button>
                     </div>
                 </div>
+
+                {/* Funnel Indicator — buying journey progress */}
+                {hasStarted && profile && (
+                    <div className="absolute top-14 left-0 right-0 z-20 pointer-events-none">
+                        <div className="max-w-[600px] mx-auto">
+                            <FunnelIndicator
+                                leadScore={profile.investment_readiness_score || 0}
+                                readinessScore={profile.investment_readiness_score}
+                            />
+                        </div>
+                    </div>
+                )}
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto scroll-smooth">
@@ -481,8 +472,8 @@ export default function AgentInterface() {
 
                         {/* CHAT MESSAGES */}
                         {hasStarted && (
-                            <div className="px-4 pt-28 pb-48">
-                                {messages.map((msg) => (
+                            <div className="px-4 pt-20 pb-48">
+                                {messages.map((msg, index) => (
                                     <div key={msg.id} className="mb-8">
                                         <div className="flex gap-5">
                                             <div className="flex-shrink-0 mt-1">
@@ -647,21 +638,32 @@ export default function AgentInterface() {
                                                         )}
 
                                                         {!isTyping && (
-                                                            <div className="flex gap-2 mt-6" dir="ltr">
-                                                                <button
-                                                                    onClick={() => copyToClipboard(msg.content)}
-                                                                    className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 hover:text-[var(--color-text-primary)] transition-colors"
-                                                                    title="Copy to clipboard"
-                                                                >
-                                                                    <Copy className="w-4 h-4" />
-                                                                </button>
-                                                                <button
-                                                                    className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 hover:text-[var(--color-text-primary)] transition-colors"
-                                                                    title="Refresh analysis"
-                                                                >
-                                                                    <RefreshCw className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
+                                                            <>
+                                                                <div className="flex gap-2 mt-6" dir="ltr">
+                                                                    <button
+                                                                        onClick={() => copyToClipboard(msg.content)}
+                                                                        className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 hover:text-[var(--color-text-primary)] transition-colors"
+                                                                        title="Copy to clipboard"
+                                                                    >
+                                                                        <Copy className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button
+                                                                        className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 hover:text-[var(--color-text-primary)] transition-colors"
+                                                                        title="Refresh analysis"
+                                                                    >
+                                                                        <RefreshCw className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Smart Suggestion Chips */}
+                                                                {index === messages.length - 1 && (
+                                                                    <SuggestionChips
+                                                                        suggestions={generateSuggestions(msg)}
+                                                                        onSelect={(suggestion) => handleSendMessage(suggestion)}
+                                                                        isRTL={isArabic(msg.content)}
+                                                                    />
+                                                                )}
+                                                            </>
                                                         )}
                                                     </div>
                                                 )}

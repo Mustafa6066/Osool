@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import Navigation from '@/components/Navigation';
-import Footer from '@/components/Footer';
+import { useAuth } from '@/contexts/AuthContext';
+import SmartNav from '@/components/SmartNav';
 import PropertyFilter from '@/components/PropertyFilter';
+import { toggleFavorite } from '@/lib/gamification';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { MapPin, Bed, Bath, Maximize, Sparkles, Heart, Grid3X3, Map, SlidersHorizontal, Loader2 } from 'lucide-react';
@@ -196,9 +197,33 @@ function PropertyCardSkeleton() {
 
 export default function PropertiesPage() {
     const { t, language } = useLanguage();
+    const { isAuthenticated } = useAuth();
     const [properties, setProperties] = useState<PropertyItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [usingFallback, setUsingFallback] = useState(false);
+    const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+    const handleToggleFavorite = async (propertyId: string) => {
+        if (!isAuthenticated) return;
+        // Optimistic UI
+        setFavoriteIds(prev => {
+            const next = new Set(prev);
+            if (next.has(propertyId)) next.delete(propertyId);
+            else next.add(propertyId);
+            return next;
+        });
+        try {
+            await toggleFavorite(Number(propertyId));
+        } catch {
+            // Revert on error
+            setFavoriteIds(prev => {
+                const next = new Set(prev);
+                if (next.has(propertyId)) next.delete(propertyId);
+                else next.add(propertyId);
+                return next;
+            });
+        }
+    };
     const [filters, setFilters] = useState<Filters>({
         location: 'all',
         type: 'all',
@@ -305,8 +330,8 @@ export default function PropertiesPage() {
     };
 
     return (
-        <main className="min-h-screen bg-[var(--color-background)]">
-            <Navigation />
+        <SmartNav>
+        <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
 
             {/* Page Header */}
             <div className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
@@ -418,8 +443,15 @@ export default function PropertiesPage() {
                                                 AI Verified
                                             </div>
 
-                                            <button className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/40 transition-colors">
-                                                <Heart className="w-5 h-5 text-white" />
+                                            <button
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(property.id); }}
+                                                className={`absolute top-4 right-4 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center transition-all duration-300 ${
+                                                    favoriteIds.has(property.id)
+                                                        ? 'bg-red-500 hover:bg-red-600'
+                                                        : 'bg-white/20 hover:bg-white/40'
+                                                }`}
+                                            >
+                                                <Heart className={`w-5 h-5 transition-colors ${favoriteIds.has(property.id) ? 'text-white fill-white' : 'text-white'}`} />
                                             </button>
 
                                             <div className="absolute bottom-4 left-4">
@@ -513,7 +545,7 @@ export default function PropertiesPage() {
                 </div>
             </div>
 
-            <Footer />
         </main>
+        </SmartNav>
     );
 }

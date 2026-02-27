@@ -4,7 +4,9 @@ import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { GamificationProvider } from '@/contexts/GamificationContext';
 import NeuralBackground from '@/components/NeuralBackground';
+import GamificationOverlay from '@/components/GamificationOverlay';
 
 const inter = Inter({
   variable: "--font-inter",
@@ -46,13 +48,18 @@ export default function RootLayout({
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>
-              {/* Neural Background Layer */}
-              <NeuralBackground />
+              <GamificationProvider>
+                {/* Neural Background Layer */}
+                <NeuralBackground />
 
-              {/* Content Layer */}
-              <div className="relative z-10 w-full h-full flex flex-col">
-                {children}
-              </div>
+                {/* Content Layer */}
+                <div className="relative z-10 w-full h-full flex flex-col">
+                  {children}
+                </div>
+
+                {/* Global Gamification Notifications */}
+                <GamificationOverlay />
+              </GamificationProvider>
             </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>

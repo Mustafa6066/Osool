@@ -13,6 +13,7 @@ interface InvestorProfileCardProps {
 /**
  * Investor Profile Card - Level, XP bar, streak, readiness
  * Used in dashboard and chat sidebar.
+ * Theme-aware: uses CSS custom properties.
  */
 export default function InvestorProfileCard({ profile, language = 'en', compact = false }: InvestorProfileCardProps) {
     const levelColor = LEVEL_COLORS[profile.level] || LEVEL_COLORS.curious;
@@ -36,8 +37,8 @@ export default function InvestorProfileCard({ profile, language = 'en', compact 
                     <span className="text-xs font-bold text-white">{profile.xp}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-white">{levelTitle}</div>
-                    <div className="w-full h-1 bg-[#2c2d2e] rounded-full mt-1">
+                    <div className="text-xs font-medium text-[var(--color-text-primary)]">{levelTitle}</div>
+                    <div className="w-full h-1 bg-[var(--color-surface-elevated)] rounded-full mt-1">
                         <div
                             className={`h-full rounded-full bg-gradient-to-r ${levelGradient} transition-all duration-500`}
                             style={{ width: `${Math.max(xpProgress, 5)}%` }}
@@ -49,7 +50,7 @@ export default function InvestorProfileCard({ profile, language = 'en', compact 
     }
 
     return (
-        <div className="bg-[#1e1f20] rounded-2xl border border-[#3d3d3d] p-6 space-y-5">
+        <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-6 space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -58,8 +59,8 @@ export default function InvestorProfileCard({ profile, language = 'en', compact 
                         <Award className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <div className="text-lg font-medium text-white">{levelTitle}</div>
-                        <div className="text-xs text-gray-400">
+                        <div className="text-lg font-medium text-[var(--color-text-primary)]">{levelTitle}</div>
+                        <div className="text-xs text-[var(--color-text-muted)]">
                             {profile.xp.toLocaleString()} XP
                         </div>
                     </div>
@@ -77,17 +78,17 @@ export default function InvestorProfileCard({ profile, language = 'en', compact 
             {/* XP Progress Bar */}
             <div>
                 <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-[var(--color-text-muted)]">
                         {language === 'ar' ? 'التقدم' : 'Progress'}
                     </span>
                     {nextLevelTitle && (
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <span className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1">
                             {language === 'ar' ? 'التالي:' : 'Next:'} {nextLevelTitle}
                             <ChevronRight className="w-3 h-3" />
                         </span>
                     )}
                 </div>
-                <div className="w-full h-2.5 bg-[#2c2d2e] rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
                     <div
                         className={`h-full rounded-full bg-gradient-to-r ${levelGradient}
                                    transition-all duration-700 ease-out`}
@@ -96,7 +97,7 @@ export default function InvestorProfileCard({ profile, language = 'en', compact 
                 </div>
                 {profile.next_level && (
                     <div className="text-right mt-1">
-                        <span className="text-[10px] text-gray-500">
+                        <span className="text-[10px] text-[var(--color-text-secondary)]">
                             {profile.next_level.xp_remaining.toLocaleString()} XP {language === 'ar' ? 'متبقي' : 'remaining'}
                         </span>
                     </div>
@@ -105,21 +106,21 @@ export default function InvestorProfileCard({ profile, language = 'en', compact 
 
             {/* Stats Row */}
             <div className="grid grid-cols-3 gap-3">
-                <div className="bg-[#131314] rounded-xl p-3 text-center">
+                <div className="bg-[var(--color-background)] rounded-xl p-3 text-center">
                     <div className="text-lg font-bold text-teal-400">{profile.investment_readiness_score}</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+                    <div className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider">
                         {language === 'ar' ? 'الجاهزية' : 'Readiness'}
                     </div>
                 </div>
-                <div className="bg-[#131314] rounded-xl p-3 text-center">
-                    <div className="text-lg font-bold text-white">{profile.properties_analyzed}</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+                <div className="bg-[var(--color-background)] rounded-xl p-3 text-center">
+                    <div className="text-lg font-bold text-[var(--color-text-primary)]">{profile.properties_analyzed}</div>
+                    <div className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider">
                         {language === 'ar' ? 'محلل' : 'Analyzed'}
                     </div>
                 </div>
-                <div className="bg-[#131314] rounded-xl p-3 text-center">
-                    <div className="text-lg font-bold text-white">{profile.achievement_count}</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">
+                <div className="bg-[var(--color-background)] rounded-xl p-3 text-center">
+                    <div className="text-lg font-bold text-[var(--color-text-primary)]">{profile.achievement_count}</div>
+                    <div className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider">
                         {language === 'ar' ? 'إنجازات' : 'Badges'}
                     </div>
                 </div>

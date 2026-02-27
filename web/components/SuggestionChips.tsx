@@ -26,8 +26,10 @@ export default function SuggestionChips({ suggestions, onSelect, isRTL = false }
                     key={i}
                     onClick={() => onSelect(suggestion)}
                     className="group flex items-center gap-1.5 px-4 py-2 rounded-full
-                             bg-[#1e1f20] hover:bg-[#2c2d2e] border border-[#3d3d3d]
-                             hover:border-teal-500/50 text-sm text-[#c4c7c5] hover:text-white
+                             bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)]
+                             border border-[var(--color-border)]
+                             hover:border-teal-500/50 text-sm text-[var(--color-text-secondary)]
+                             hover:text-[var(--color-text-primary)]
                              transition-all duration-200 hover:shadow-lg hover:shadow-teal-900/10
                              transform hover:-translate-y-0.5"
                 >
