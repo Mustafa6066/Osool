@@ -46,6 +46,9 @@ from .hybrid_brain_prod import hybrid_brain_prod  # The Specialist Tools
 from .conversation_memory import ConversationMemory
 from .lead_scoring import score_lead, LeadTemperature, BehaviorSignal
 from .wolf_checklist import validate_checklist, WolfChecklistResult
+from .verifier_agent import verifier_agent
+from .suggestion_engine import generate_suggestions_from_turn
+from .proactive_insights import proactive_engine
 
 
 # Database
@@ -209,7 +212,7 @@ class WolfBrain:
             # MEMORY: Hydrate from DB (cross-session) + history (current session)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # 1. Load cross-session memory from DB (if user is logged in)
-            user_id = profile.get("user_id") if profile else None
+            user_id = profile.get("id") or profile.get("user_id") if profile else None
             db_memory = await self._load_user_memory(session, user_id) if user_id else None
             
             # 2. Build session memory from current conversation history
@@ -656,6 +659,87 @@ class WolfBrain:
             self.stats["claude_calls"] += 1
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # POST-SPEAK: Verification (Anti-Hallucination Layer)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            verification = {}
+            try:
+                properties_for_verify = scored_properties[:5] if showing_strategy == 'FULL_LIST' else (scored_properties[:1] if showing_strategy == 'TEASER' else [])
+                verification = await verifier_agent.verify_response(
+                    response_text=response_text,
+                    properties_mentioned=properties_for_verify,
+                    session=session,
+                )
+                if verification.get("corrections"):
+                    logger.info(f"🔍 VERIFIER: Found {len(verification['corrections'])} corrections (confidence: {verification.get('confidence', 'N/A')})")
+            except Exception as e:
+                logger.warning(f"Verifier agent skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # POST-SPEAK: Smart Follow-Up Suggestions
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            suggestions = []
+            try:
+                suggestions = generate_suggestions_from_turn(
+                    language=language,
+                    lead_score=lead_score,
+                    history=history,
+                    ui_actions=ui_actions,
+                    properties=scored_properties,
+                )
+                if suggestions:
+                    logger.info(f"💡 SUGGESTIONS: Generated {len(suggestions)} follow-up suggestions")
+            except Exception as e:
+                logger.warning(f"Suggestion engine skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # POST-SPEAK: Proactive Intelligence Alerts
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            proactive_alerts = []
+            try:
+                tools_used_list = [a.get("type", "") for a in ui_actions] if ui_actions else []
+                insights = proactive_engine.analyze(
+                    history=history,
+                    properties_viewed=scored_properties,
+                    tools_used=tools_used_list,
+                    lead_score=lead_score,
+                    user_memory=memory.to_dict() if memory else None,
+                    session_count=len([m for m in history if m.get("role") == "user"]),
+                )
+                proactive_alerts = [ins.to_dict(language) for ins in insights]
+                if proactive_alerts:
+                    logger.info(f"🔮 PROACTIVE: {proactive_alerts[0].get('type', 'unknown')} alert generated")
+            except Exception as e:
+                logger.warning(f"Proactive insights skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # POST-SPEAK: Gamification XP Award
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            xp_awarded = 0
+            try:
+                if user_id:
+                    from app.services.gamification import GamificationEngine
+                    gam_engine = GamificationEngine()
+
+                    # Base XP for asking a question
+                    result = await gam_engine.award_xp(user_id, "ask_question", session)
+                    xp_awarded += result.get("xp_awarded", 0)
+
+                    # Bonus XP for using analysis tools
+                    analysis_tools = ["certificates_vs_property", "bank_vs_property", "roi_calculator", "area_analysis", "comparison_matrix"]
+                    tools_in_turn = [a.get("type", "") for a in ui_actions] if ui_actions else []
+                    if any(t in analysis_tools for t in tools_in_turn):
+                        result = await gam_engine.award_xp(user_id, "use_analysis_tool", session)
+                        xp_awarded += result.get("xp_awarded", 0)
+
+                    # Check achievements
+                    await gam_engine.check_achievements(user_id, session)
+
+                    if xp_awarded > 0:
+                        logger.info(f"🎮 GAMIFICATION: Awarded {xp_awarded} XP to user {user_id}")
+            except Exception as e:
+                logger.warning(f"Gamification XP skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # SAVE MEMORY: Persist to DB for cross-session recall
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             if user_id:
@@ -663,7 +747,7 @@ class WolfBrain:
 
             # Calculate processing time
             elapsed = (datetime.now() - start_time).total_seconds()
-            
+
             return {
                 "response": response_text,
                 "properties": scored_properties[:5] if showing_strategy == 'FULL_LIST' else (scored_properties[:1] if showing_strategy == 'TEASER' else []),
@@ -674,9 +758,13 @@ class WolfBrain:
                 "strategy": strategy,
                 "intent": intent.to_dict(),
                 "processing_time_ms": int(elapsed * 1000),
-                "model_used": "wolf_brain_v8_analytics_first",
+                "model_used": "wolf_brain_v9_full_pipeline",
                 "showing_strategy": showing_strategy,
                 "hunt_strategy": hunt_strategy,
+                "suggestions": suggestions,
+                "verification": verification,
+                "proactive_alerts": proactive_alerts,
+                "xp_awarded": xp_awarded,
             }
             
         except Exception as e:

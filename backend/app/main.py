@@ -141,7 +141,8 @@ print(f"[+] Vercel preview URLs also allowed via wildcard pattern")
 # Use allow_origin_regex to accept all Vercel preview URLs
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for Phase 1 debugging
+    allow_origins=origins,
+    allow_origin_regex=r"https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

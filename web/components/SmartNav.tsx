@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
     MessageSquare, LayoutDashboard, TrendingUp, Building2,
-    Heart, Award, LogOut, Sun, Moon, ChevronLeft, ChevronRight,
-    User, Gift, Menu, X
+    Heart, Award, LogOut, Sun, Moon, Gift, Menu, X,
+    Zap, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
@@ -15,7 +15,7 @@ import { LEVEL_COLORS, LEVEL_GRADIENTS } from '@/lib/gamification';
 import InvitationModal from '@/components/InvitationModal';
 
 // ═══════════════════════════════════════════════════════════════
-// NAV ITEMS
+// NAV ITEMS — Professional minimal icons
 // ═══════════════════════════════════════════════════════════════
 
 const NAV_ITEMS = [
@@ -39,16 +39,37 @@ export default function SmartNav({ children }: SmartNavProps) {
     const { user, isAuthenticated, logout } = useAuth();
     const { profile } = useGamification();
     const { theme, toggleTheme } = useTheme();
-    const [expanded, setExpanded] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
 
     const levelGradient = profile ? (LEVEL_GRADIENTS[profile.level] || LEVEL_GRADIENTS.curious) : 'from-gray-500 to-gray-600';
-    const levelColor = profile ? (LEVEL_COLORS[profile.level] || LEVEL_COLORS.curious) : '#6B7280';
     const levelTitle = profile?.level_title_en || 'Curious';
     const xpProgress = profile?.next_level
         ? Math.min(((profile.xp - (profile.next_level.xp_required - profile.next_level.xp_remaining)) / profile.next_level.xp_remaining) * 100, 100)
         : 100;
+
+    // Track scroll for header shadow
+    useEffect(() => {
+        const handleScroll = () => setScrolled(window.scrollY > 8);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Close mobile menu on route change
+    useEffect(() => {
+        setMobileMenuOpen(false);
+        setUserMenuOpen(false);
+    }, [pathname]);
+
+    // Close user menu on outside click
+    useEffect(() => {
+        if (!userMenuOpen) return;
+        const handleClick = () => setUserMenuOpen(false);
+        document.addEventListener('click', handleClick);
+        return () => document.removeEventListener('click', handleClick);
+    }, [userMenuOpen]);
 
     const getActiveKey = () => {
         if (pathname === '/chat') return 'chat';
@@ -65,185 +86,213 @@ export default function SmartNav({ children }: SmartNavProps) {
         <>
             <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-            <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-background)]">
+            <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--color-background)]">
                 {/* ═══════════════════════════════════════════════════════
-                 * DESKTOP SIDE RAIL (hidden on mobile)
+                 * FLOATING HEADER — Glassmorphism minimal bar
                  * ═══════════════════════════════════════════════════════ */}
-                <aside
-                    className={`hidden md:flex flex-col flex-shrink-0 h-full border-r border-[var(--color-border)]
-                               bg-[var(--color-surface)]/95 backdrop-blur-md z-40
-                               transition-all duration-300 ease-[var(--ease-out-expo)]
-                               ${expanded ? 'w-[220px]' : 'w-[68px]'}`}
-                    onMouseEnter={() => setExpanded(true)}
-                    onMouseLeave={() => setExpanded(false)}
+                <header
+                    className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300
+                               ${scrolled
+                            ? 'bg-[var(--color-surface)]/90 backdrop-blur-xl shadow-lg shadow-black/5 border-b border-[var(--color-border)]'
+                            : 'bg-[var(--color-surface)]/70 backdrop-blur-md border-b border-transparent'
+                        }`}
                 >
-                    {/* Logo */}
-                    <div className={`flex items-center gap-3 px-4 h-16 flex-shrink-0 border-b border-[var(--color-border)] ${expanded ? '' : 'justify-center'}`}>
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[var(--color-primary)] to-teal-500 flex items-center justify-center text-white shadow-lg flex-shrink-0">
-                            <Building2 className="w-5 h-5" />
-                        </div>
-                        {expanded && (
-                            <span className="text-[var(--color-text-primary)] text-sm font-bold tracking-tight whitespace-nowrap overflow-hidden">
-                                Osool<span className="font-light opacity-70">AI</span>
-                            </span>
-                        )}
-                    </div>
+                    <div className="max-w-[1440px] mx-auto px-4 md:px-6">
+                        <div className="flex items-center justify-between h-14 md:h-[56px]">
 
-                    {/* Nav Links */}
-                    <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide">
-                        {NAV_ITEMS.map((item) => {
-                            const isActive = item.key === activeKey;
-                            const Icon = item.icon;
-                            return (
-                                <Link
-                                    key={item.key}
-                                    href={item.href}
-                                    className={`flex items-center gap-3 rounded-xl transition-all duration-200 group relative
-                                               ${expanded ? 'px-3 py-2.5' : 'px-0 py-2.5 justify-center'}
-                                               ${isActive
-                                            ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                                            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]'
-                                        }`}
-                                    title={!expanded ? item.label : undefined}
-                                >
-                                    {/* Active indicator bar */}
-                                    {isActive && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[var(--color-primary)]" />
-                                    )}
-                                    <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-[var(--color-primary)]' : ''}`} />
-                                    {expanded && (
-                                        <span className={`text-sm whitespace-nowrap overflow-hidden ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                                            {item.label}
-                                        </span>
-                                    )}
-                                </Link>
-                            );
-                        })}
-                    </nav>
+                            {/* ── LEFT: Logo ── */}
+                            <Link href="/chat" className="flex items-center gap-2.5 flex-shrink-0 group">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--color-primary)] to-teal-400 flex items-center justify-center text-white shadow-md group-hover:shadow-teal-500/25 transition-shadow">
+                                    <Building2 className="w-4.5 h-4.5" />
+                                </div>
+                                <span className="text-[var(--color-text-primary)] text-sm font-bold tracking-tight hidden sm:block">
+                                    Osool<span className="font-light opacity-60">AI</span>
+                                </span>
+                            </Link>
 
-                    {/* Level Badge */}
-                    {isAuthenticated && profile && (
-                        <div className={`px-3 py-3 border-t border-[var(--color-border)] ${expanded ? '' : 'flex justify-center'}`}>
-                            {expanded ? (
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${levelGradient} flex items-center justify-center shadow-md flex-shrink-0`}>
-                                        <Award className="w-4 h-4 text-white" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-semibold text-[var(--color-text-primary)] truncate">{levelTitle}</div>
-                                        <div className="w-full h-1 bg-[var(--color-surface-elevated)] rounded-full mt-1">
+                            {/* ── CENTER: Nav Tabs (desktop) ── */}
+                            <nav className="hidden md:flex items-center gap-1 bg-[var(--color-background)]/60 rounded-xl px-1.5 py-1 border border-[var(--color-border)]/50">
+                                {NAV_ITEMS.map((item) => {
+                                    const isActive = item.key === activeKey;
+                                    const Icon = item.icon;
+                                    return (
+                                        <Link
+                                            key={item.key}
+                                            href={item.href}
+                                            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200
+                                                       ${isActive
+                                                    ? 'bg-[var(--color-primary)]/12 text-[var(--color-primary)] shadow-sm'
+                                                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]/80'
+                                                }`}
+                                        >
+                                            <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--color-primary)]' : ''}`} />
+                                            <span>{item.label}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </nav>
+
+                            {/* ── RIGHT: Level + Theme + User (desktop) ── */}
+                            <div className="hidden md:flex items-center gap-2">
+                                {/* XP Level Pill */}
+                                {isAuthenticated && profile && (
+                                    <Link
+                                        href="/dashboard"
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r ${levelGradient}
+                                                   text-white text-xs font-semibold shadow-md hover:shadow-lg transition-shadow group`}
+                                        title={`${levelTitle} — ${profile.xp} XP`}
+                                    >
+                                        <Zap className="w-3.5 h-3.5" />
+                                        <span>{profile.xp} XP</span>
+                                        {/* Mini progress bar */}
+                                        <div className="w-8 h-1 bg-white/25 rounded-full overflow-hidden">
                                             <div
-                                                className={`h-full rounded-full bg-gradient-to-r ${levelGradient} transition-all duration-500`}
-                                                style={{ width: `${Math.max(xpProgress, 5)}%` }}
+                                                className="h-full bg-white/80 rounded-full transition-all duration-500"
+                                                style={{ width: `${Math.max(xpProgress, 8)}%` }}
                                             />
                                         </div>
-                                        <div className="text-[9px] text-[var(--color-text-muted)] mt-0.5">{profile.xp} XP</div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div
-                                    className={`w-8 h-8 rounded-lg bg-gradient-to-br ${levelGradient} flex items-center justify-center shadow-md`}
-                                    title={`${levelTitle} — ${profile.xp} XP`}
-                                >
-                                    <Award className="w-4 h-4 text-white" />
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                    </Link>
+                                )}
 
-                    {/* Bottom Actions */}
-                    <div className={`px-3 py-3 border-t border-[var(--color-border)] space-y-1 ${expanded ? '' : 'flex flex-col items-center'}`}>
-                        {/* Theme Toggle */}
-                        <button
-                            onClick={toggleTheme}
-                            className={`flex items-center gap-3 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors
-                                       ${expanded ? 'px-3 py-2 w-full' : 'p-2 justify-center'}`}
-                            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                        >
-                            {theme === 'dark' ? <Sun className="w-4 h-4 flex-shrink-0" /> : <Moon className="w-4 h-4 flex-shrink-0" />}
-                            {expanded && <span className="text-sm font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
-                        </button>
-
-                        {/* User Menu */}
-                        {isAuthenticated && (
-                            <>
+                                {/* Theme Toggle */}
                                 <button
-                                    onClick={() => setShowInviteModal(true)}
-                                    className={`flex items-center gap-3 rounded-xl text-emerald-500 hover:bg-emerald-500/10 transition-colors
-                                               ${expanded ? 'px-3 py-2 w-full' : 'p-2 justify-center'}`}
-                                    title="Invite Friends"
+                                    onClick={toggleTheme}
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+                                    title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
                                 >
-                                    <Gift className="w-4 h-4 flex-shrink-0" />
-                                    {expanded && <span className="text-sm font-medium">Invite</span>}
+                                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                                 </button>
 
-                                <button
-                                    onClick={() => logout()}
-                                    className={`flex items-center gap-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors
-                                               ${expanded ? 'px-3 py-2 w-full' : 'p-2 justify-center'}`}
-                                    title="Sign Out"
-                                >
-                                    <LogOut className="w-4 h-4 flex-shrink-0" />
-                                    {expanded && <span className="text-sm font-medium">Sign Out</span>}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </aside>
-
-                {/* ═══════════════════════════════════════════════════════
-                 * MAIN CONTENT
-                 * ═══════════════════════════════════════════════════════ */}
-                <main className="flex-1 min-w-0 h-full overflow-hidden relative">
-                    {children}
-                </main>
-
-                {/* ═══════════════════════════════════════════════════════
-                 * MOBILE BOTTOM TAB BAR (hidden on desktop)
-                 * ═══════════════════════════════════════════════════════ */}
-                <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-xl safe-area-bottom">
-                    <nav className="flex items-center justify-around h-14 px-1">
-                        {NAV_ITEMS.map((item) => {
-                            const isActive = item.key === activeKey;
-                            const Icon = item.icon;
-                            return (
-                                <Link
-                                    key={item.key}
-                                    href={item.href}
-                                    className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 rounded-lg transition-colors
-                                               ${isActive
-                                            ? 'text-[var(--color-primary)]'
-                                            : 'text-[var(--color-text-muted)]'
-                                        }`}
-                                >
+                                {/* User Menu */}
+                                {isAuthenticated && (
                                     <div className="relative">
-                                        <Icon className={`w-5 h-5 ${isActive ? 'text-[var(--color-primary)]' : ''}`} />
-                                        {isActive && (
-                                            <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-teal-400" />
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setUserMenuOpen(!userMenuOpen); }}
+                                            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-[var(--color-primary)]/20 flex items-center justify-center text-[var(--color-primary)]">
+                                                <span className="text-[10px] font-bold">
+                                                    {(user?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <ChevronDown className={`w-3 h-3 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        {/* Dropdown */}
+                                        {userMenuOpen && (
+                                            <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-2xl shadow-black/20 py-1.5 z-50">
+                                                <div className="px-3 py-2 border-b border-[var(--color-border)]">
+                                                    <div className="text-xs font-medium text-[var(--color-text-primary)] truncate">
+                                                        {user?.full_name || 'User'}
+                                                    </div>
+                                                    <div className="text-[10px] text-[var(--color-text-muted)] truncate">
+                                                        {user?.email}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => setShowInviteModal(true)}
+                                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-emerald-500 hover:bg-[var(--color-surface-elevated)] transition-colors"
+                                                >
+                                                    <Gift className="w-4 h-4" />
+                                                    Invite Friends
+                                                </button>
+                                                <button
+                                                    onClick={() => logout()}
+                                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-400 hover:bg-[var(--color-surface-elevated)] transition-colors"
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    Sign Out
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
-                                    <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>
-                                        {item.label}
-                                    </span>
-                                </Link>
-                            );
-                        })}
-                    </nav>
-                </div>
+                                )}
+                            </div>
 
-                {/* Mobile Level Badge (floating top-right) */}
-                {isAuthenticated && profile && (
-                    <div className="md:hidden fixed top-3 right-3 z-50">
-                        <Link
-                            href="/dashboard"
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r ${levelGradient}
-                                       shadow-lg border border-white/20 backdrop-blur-md`}
-                        >
-                            <Award className="w-3 h-3 text-white" />
-                            <span className="text-[10px] font-bold text-white">{profile.xp} XP</span>
-                        </Link>
+                            {/* ── MOBILE: Hamburger + XP ── */}
+                            <div className="flex md:hidden items-center gap-2">
+                                {isAuthenticated && profile && (
+                                    <Link
+                                        href="/dashboard"
+                                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r ${levelGradient}
+                                                   text-white text-[10px] font-bold shadow-md`}
+                                    >
+                                        <Zap className="w-3 h-3" />
+                                        {profile.xp} XP
+                                    </Link>
+                                )}
+                                <button
+                                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                                    className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+                                >
+                                    {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                )}
+
+                    {/* ── MOBILE: Slide-down menu ── */}
+                    {mobileMenuOpen && (
+                        <div className="md:hidden border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-xl animate-in slide-in-from-top-2 duration-200">
+                            <nav className="px-4 py-3 space-y-1">
+                                {NAV_ITEMS.map((item) => {
+                                    const isActive = item.key === activeKey;
+                                    const Icon = item.icon;
+                                    return (
+                                        <Link
+                                            key={item.key}
+                                            href={item.href}
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors
+                                                       ${isActive
+                                                    ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                                                    : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)]'
+                                                }`}
+                                        >
+                                            <Icon className={`w-5 h-5 ${isActive ? 'text-[var(--color-primary)]' : ''}`} />
+                                            <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+                                        </Link>
+                                    );
+                                })}
+
+                                {/* Mobile footer actions */}
+                                <div className="border-t border-[var(--color-border)] pt-2 mt-2 flex items-center gap-2">
+                                    <button
+                                        onClick={toggleTheme}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] transition-colors flex-1"
+                                    >
+                                        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                                        <span className="text-sm">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+                                    </button>
+                                    {isAuthenticated && (
+                                        <>
+                                            <button
+                                                onClick={() => { setShowInviteModal(true); setMobileMenuOpen(false); }}
+                                                className="flex items-center gap-2 px-3 py-2 rounded-xl text-emerald-500 hover:bg-emerald-500/10 transition-colors flex-1"
+                                            >
+                                                <Gift className="w-4 h-4" />
+                                                <span className="text-sm">Invite</span>
+                                            </button>
+                                            <button
+                                                onClick={() => logout()}
+                                                className="flex items-center gap-2 px-3 py-2 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors"
+                                            >
+                                                <LogOut className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </nav>
+                        </div>
+                    )}
+                </header>
+
+                {/* ═══════════════════════════════════════════════════════
+                 * MAIN CONTENT — Below floating header
+                 * ═══════════════════════════════════════════════════════ */}
+                <main className="flex-1 min-w-0 overflow-hidden pt-14 md:pt-[56px]">
+                    {children}
+                </main>
             </div>
         </>
     );

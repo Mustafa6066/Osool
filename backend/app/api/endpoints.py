@@ -1108,41 +1108,65 @@ async def chat_stream(
             db.add(user_message)
             await db.commit()
 
-            # Create user dict for AI context
+            # Send initial tool indication
+            yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'wolf_brain'}, ensure_ascii=False)}\n\n"
+
+            # Run Wolf Brain pipeline (non-streaming: perception->psychology->hunt->analyze->strategy)
+            # This returns everything EXCEPT the narrative text when streaming is requested
+            from app.ai_engine.wolf_orchestrator import wolf_brain
+
+            # Convert chat history to simple dict format
+            history_for_loop = []
+            if chat_history:
+                for msg in chat_history:
+                    if hasattr(msg, "content"):
+                        role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
+                        history_for_loop.append({"role": role, "content": msg.content})
+                    elif isinstance(msg, dict):
+                        history_for_loop.append(msg)
+
             user_dict = {
                 "id": user.id,
                 "email": getattr(user, "email", None),
                 "full_name": getattr(user, "full_name", None),
             }
 
-            # Send initial tool indication
-            yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'search_properties'}, ensure_ascii=False)}\n\n"
-            await asyncio.sleep(0.1)
-
-            # Get AI response (non-streaming for now, will be enhanced later)
-            # Pass language preference for proper response localization
-            ai_result = await claude_sales_agent.chat_with_context(
-                user_input=req.message,
+            # Get full result (including streamed narrative)
+            ai_result = await wolf_brain.process_turn(
+                query=req.message,
+                history=history_for_loop,
+                profile=user_dict,
+                language=req.language,
                 session_id=req.session_id,
-                chat_history=chat_history,
-                user=user_dict,
-                language=req.language  # Pass user's language preference (ar/en/auto)
             )
 
-            yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'search_properties'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'wolf_brain'}, ensure_ascii=False)}\n\n"
 
             # Extract response components
             response_text = clean_response_text(ai_result.get("response", ""))
             search_results = ai_result.get("properties", [])
             ui_actions = ai_result.get("ui_actions", [])
             psychology = ai_result.get("psychology")
+            suggestions = ai_result.get("suggestions", [])
+            verification = ai_result.get("verification", {})
+            proactive_alerts = ai_result.get("proactive_alerts", [])
 
-            # Stream response text token by token (simulated streaming)
-            words = response_text.split(' ')
-            for i, word in enumerate(words):
-                token = word + (' ' if i < len(words) - 1 else '')
-                yield f"data: {json.dumps({'type': 'token', 'content': token}, ensure_ascii=False)}\n\n"
-                await asyncio.sleep(0.02)  # 20ms delay between words
+            # True streaming: send tokens from the response text
+            # Split into small chunks (sentence fragments) for smooth UX
+            import re as re_module
+            # Split on sentence boundaries and word groups for natural streaming
+            chunks = re_module.findall(r'[^\s]+(?:\s+|$)', response_text)
+            buffer = ""
+            for chunk in chunks:
+                buffer += chunk
+                # Flush every 2-4 words for smooth streaming feel
+                word_count = len(buffer.split())
+                if word_count >= 3 or chunk.endswith(('.', '!', '?', '\n', '،', '。')):
+                    yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
+                    buffer = ""
+                    await asyncio.sleep(0.015)  # 15ms between chunks for natural feel
+            if buffer:
+                yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
 
             # Save AI response to database (linked to authenticated user)
             ai_message = ChatMessage(
@@ -1156,17 +1180,7 @@ async def chat_stream(
             await db.commit()
 
             # Send final response with all metadata
-            yield f"data: {json.dumps({'type': 'done', 'properties': search_results, 'ui_actions': ui_actions, 'psychology': psychology}, ensure_ascii=False)}\n\n"
-
-            # Proactive follow-up: Check if AMR should send a delayed follow-up
-            try:
-                proactive = ai_result.get('proactive_alerts', [])
-                if proactive and len(proactive) > 0:
-                    top_alert = proactive[0]
-                    await asyncio.sleep(2)  # Brief pause before follow-up
-                    yield f"data: {json.dumps({'type': 'follow_up', 'content': top_alert}, ensure_ascii=False)}\n\n"
-            except Exception:
-                pass  # Non-fatal: follow-up is optional
+            yield f"data: {json.dumps({'type': 'done', 'properties': search_results, 'ui_actions': ui_actions, 'psychology': psychology, 'suggestions': suggestions, 'verification': verification, 'proactive_alerts': proactive_alerts}, ensure_ascii=False)}\n\n"
 
         except Exception as e:
             await db.rollback()
