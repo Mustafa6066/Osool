@@ -88,8 +88,8 @@ const ANALYTICS_CONFIG: Record<string, { icon: any; label: string; labelAr: stri
         icon: TrendingUp,
         label: "Trends",
         labelAr: "الاتجاهات",
-        color: "text-teal-400",
-        bgColor: "bg-teal-500/10",
+        color: "text-emerald-400",
+        bgColor: "bg-emerald-500/10",
     },
 };
 
@@ -435,11 +435,11 @@ export default function UnifiedAnalytics({ visualizations, isRTL = true }: Unifi
         >
             {/* Header */}
             <div className="flex items-center gap-2 px-1 mb-3">
-                <Sparkles className="w-4 h-4 text-teal-400" />
+                <Sparkles className="w-4 h-4 text-emerald-400" />
                 <span className="text-sm font-semibold text-white">
                     {isRTL ? "تحليلات ذكية" : "Smart Insights"}
                 </span>
-                <span className="px-1.5 py-0.5 bg-teal-500/20 text-teal-400 text-[10px] font-medium rounded">
+                <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-medium rounded">
                     {validVisualizations.length}
                 </span>
             </div>

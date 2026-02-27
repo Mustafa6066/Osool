@@ -1,50 +1,51 @@
 @import "tailwindcss";
 
 /* ============================================
-   OSOOL DESIGN SYSTEM V4 - Agentic Workspace
-   Professional Real Estate AI Platform
+   OSOOL DESIGN SYSTEM V5 - AI Agency
+   Enterprise-Grade AI Real Estate Platform
+   B/W Backbone + Emerald AI Accent
    ============================================ */
 
 @theme {
   --font-sans: "Inter", "Manrope", "Cairo", sans-serif;
-  --font-display: "Playfair Display", "Manrope", serif;
+  --font-display: "Inter", "Manrope", serif;
 
-  /* Primary Brand Colors */
-  --color-primary: #124759;
-  --color-primary-light: #1a5a70;
-  --color-primary-dark: #0d3442;
+  /* Primary Brand Colors — Emerald AI Signature */
+  --color-primary: #10B981;
+  --color-primary-light: #34D399;
+  --color-primary-dark: #059669;
 
   /* Accent Colors */
-  --color-teal-accent: #2dd4bf;
-  --color-teal-accent-dark: #14b8a6;
+  --color-teal-accent: #34D399;
+  --color-teal-accent-dark: #10B981;
 
   /* Legacy Sage Colors (kept for compatibility) */
   --color-secondary: #D4A3A3;
   --color-tertiary: #E6D5B8;
 
   /* Studio Theme Colors */
-  --color-studio-white: #FDFDFD;
+  --color-studio-white: #FFFFFF;
   --color-studio-gray: #F8F9FA;
-  --color-studio-accent: #2D3436;
-  --color-border-subtle: #E9ECEF;
-  --color-text-main: #2D3436;
-  --color-text-muted-studio: #636E72;
+  --color-studio-accent: #09090B;
+  --color-border-subtle: #E4E4E7;
+  --color-text-main: #09090B;
+  --color-text-muted-studio: #71717A;
 
-  /* Background Colors */
-  --color-background-light: #f4f2f1;
-  --color-background-dark: #16181d;
+  /* Background Colors — True B/W */
+  --color-background-light: #FFFFFF;
+  --color-background-dark: #09090B;
 
   /* Surface Colors */
-  --color-surface-light: #ffffff;
-  --color-surface-dark: #1c2b31;
+  --color-surface-light: #FFFFFF;
+  --color-surface-dark: #18181B;
 
   /* Border Colors */
-  --color-border-light: #e5e7eb;
-  --color-border-dark: #273d44;
+  --color-border-light: #E4E4E7;
+  --color-border-dark: #27272A;
 
   /* Text Colors */
-  --color-text-secondary: #97b8c3;
-  --color-text-off-white: #E8E8E3;
+  --color-text-secondary: #A1A1AA;
+  --color-text-off-white: #FAFAFA;
 }
 
 /* ============================================
@@ -52,40 +53,40 @@
    ============================================ */
 
 :root {
-  /* Light Theme Defaults */
-  --color-background: var(--color-background-light);
-  --color-surface: var(--color-surface-light);
-  --color-surface-hover: #f9fafb;
-  --color-text-primary: #1f2937;
-  --color-text-muted: #6b7280;
-  --color-border: var(--color-border-light);
+  /* Light Theme — Clean White Studio */
+  --color-background: #FFFFFF;
+  --color-surface: #F4F4F5;
+  --color-surface-hover: #E4E4E7;
+  --color-text-primary: #09090B;
+  --color-text-muted: #71717A;
+  --color-border: #E4E4E7;
 
   /* Chat specific colors */
   --chat-primary: var(--color-primary);
   --chat-teal-accent: var(--color-teal-accent);
-  --chat-surface: rgba(255, 255, 255, 0.8);
-  --chat-border: rgba(0, 0, 0, 0.08);
+  --chat-surface: rgba(244, 244, 245, 0.8);
+  --chat-border: rgba(0, 0, 0, 0.06);
 
-  --color-surface-elevated: #ffffff;
+  --color-surface-elevated: #FFFFFF;
 
-  /* AI Message Surface - teal-tinted, distinct from user */
-  --ai-surface: #F0F7F9;
-  --ai-surface-border: #D4E8ED;
-  --ai-accent-line: #124759;
+  /* AI Message Surface — minimal, clean */
+  --ai-surface: transparent;
+  --ai-surface-border: transparent;
+  --ai-accent-line: #10B981;
 
-  /* User Message Surface - brand deep teal */
-  --user-surface: #124759;
-  --user-surface-text: #FFFFFF;
+  /* User Message Surface — soft neutral */
+  --user-surface: #F4F4F5;
+  --user-surface-text: #09090B;
 
   /* Input Bar */
   --input-bg: #FFFFFF;
-  --input-border: rgba(18, 71, 89, 0.12);
-  --input-focus-ring: rgba(45, 212, 191, 0.25);
+  --input-border: #E4E4E7;
+  --input-focus-ring: rgba(16, 185, 129, 0.2);
 
   /* Sidebar */
-  --sidebar-bg: #FAFCFD;
-  --sidebar-active: rgba(18, 71, 89, 0.06);
-  --sidebar-hover: rgba(18, 71, 89, 0.03);
+  --sidebar-bg: #FAFAFA;
+  --sidebar-active: rgba(16, 185, 129, 0.08);
+  --sidebar-hover: rgba(16, 185, 129, 0.04);
 
   /* Radius tokens */
   --radius-message: 1.25rem;
@@ -139,12 +140,12 @@
      SEMANTIC COLOR PALETTE - LIGHT MODE
      WCAG AA Compliant (4.5:1+ contrast ratios)
      ============================================ */
-  /* Primary */
-  --semantic-primary: #124759;
-  /* 7.2:1 on white */
-  --semantic-primary-hover: #1A5A70;
-  /* 5.8:1 on white */
-  --semantic-accent: #0D9488;
+  /* Primary — Emerald */
+  --semantic-primary: #059669;
+  /* 4.7:1 on white */
+  --semantic-primary-hover: #047857;
+  /* 5.5:1 on white */
+  --semantic-accent: #10B981;
   /* 4.5:1 on white */
 
   /* Feedback Colors */
@@ -155,26 +156,26 @@
   --semantic-danger: #B91C1C;
   /* 5.9:1 - risk indicators */
 
-  /* Semantic Text */
-  --semantic-text-primary: #1F2937;
-  /* 13.1:1 */
-  --semantic-text-secondary: #4B5563;
-  /* 7.5:1 */
-  --semantic-text-muted: #6B7280;
+  /* Semantic Text — Zinc scale */
+  --semantic-text-primary: #09090B;
+  /* 19.5:1 */
+  --semantic-text-secondary: #3F3F46;
+  /* 9.0:1 */
+  --semantic-text-muted: #71717A;
   /* 4.6:1 */
 
-  /* Semantic Surfaces */
+  /* Semantic Surfaces — Zinc scale */
   --semantic-surface-card: #FFFFFF;
-  --semantic-surface-elevated: #F9FAFB;
-  --semantic-surface-panel: #F3F4F6;
-  --semantic-border: #E5E7EB;
+  --semantic-surface-elevated: #FAFAFA;
+  --semantic-surface-panel: #F4F4F5;
+  --semantic-border: #E4E4E7;
 
   /* Chart Colors - Light Mode */
-  --chart-primary-semantic: #124759;
-  --chart-secondary: #059669;
+  --chart-primary-semantic: #059669;
+  --chart-secondary: #10B981;
   --chart-tertiary: #7C3AED;
-  --chart-area-fill: rgba(18, 71, 89, 0.1);
-  --chart-grid: #E5E7EB;
+  --chart-area-fill: rgba(16, 185, 129, 0.08);
+  --chart-grid: #E4E4E7;
 
   /* Panel Dimensions */
   --panel-width: 360px;
@@ -183,70 +184,72 @@
   --card-max-width: 400px;
 
   /* Premium Card Tokens - Light Mode */
-  --card-surface: rgba(255, 255, 255, 0.92);
-  --card-surface-hover: rgba(255, 255, 255, 0.98);
+  --card-surface: rgba(255, 255, 255, 0.95);
+  --card-surface-hover: rgba(255, 255, 255, 1);
   --card-border: rgba(0, 0, 0, 0.06);
-  --card-border-hover: rgba(18, 71, 89, 0.15);
+  --card-border-hover: rgba(16, 185, 129, 0.2);
   --card-accent: var(--color-primary);
-  --card-accent-subtle: rgba(18, 71, 89, 0.08);
-  --card-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --card-shadow-hover: 0 12px 40px -8px rgba(18, 71, 89, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05);
-  --chart-embedded-bg: rgba(18, 71, 89, 0.03);
+  --card-accent-subtle: rgba(16, 185, 129, 0.06);
+  --card-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --card-shadow-hover: 0 12px 40px -8px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --chart-embedded-bg: rgba(16, 185, 129, 0.03);
   --chart-line-color: var(--color-primary);
   --metric-highlight: #059669;
-  --metric-highlight-bg: rgba(5, 150, 105, 0.08);
-  --data-ribbon-bg: linear-gradient(135deg, rgba(18, 71, 89, 0.04) 0%, rgba(45, 212, 191, 0.04) 100%);
+  --metric-highlight-bg: rgba(16, 185, 129, 0.06);
+  --data-ribbon-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(52, 211, 153, 0.03) 100%);
 }
 
-/* Dark Theme Overrides */
+/* Dark Theme — True Black Canvas */
 .dark,
 [data-theme="dark"] {
-  --color-background: var(--color-background-dark);
-  --color-surface: var(--color-surface-dark);
-  --color-surface-hover: #243038;
-  --color-text-primary: var(--color-text-off-white);
-  --color-text-muted: var(--color-text-secondary);
-  --color-border: var(--color-border-dark);
+  --color-background: #09090B;
+  --color-surface: #18181B;
+  --color-surface-hover: #27272A;
+  --color-text-primary: #FAFAFA;
+  --color-text-muted: #A1A1AA;
+  --color-border: #27272A;
 
-  --chat-surface: rgba(19, 29, 32, 0.6);
-  --chat-border: rgba(255, 255, 255, 0.08);
+  --chat-surface: rgba(24, 24, 27, 0.6);
+  --chat-border: rgba(255, 255, 255, 0.06);
 
-  --color-surface-elevated: #232936;
+  --color-surface-elevated: #1C1C1F;
 
   /* Studio Theme - Dark Mode Overrides */
-  --color-studio-white: #1a1a1a;
-  --color-studio-gray: #0f0f0f;
-  --color-studio-accent: #E9ECEF;
-  --color-border-subtle: #2a2a2a;
-  --color-text-main: #FDFDFD;
-  --color-text-muted-studio: #9CA3AF;
+  --color-studio-white: #18181B;
+  --color-studio-gray: #09090B;
+  --color-studio-accent: #FAFAFA;
+  --color-border-subtle: #27272A;
+  --color-text-main: #FAFAFA;
+  --color-text-muted-studio: #71717A;
 
   /* AI & User Message Surfaces - Dark */
-  --ai-surface: #1A2A2F;
-  --ai-surface-border: #273D44;
-  --ai-accent-line: #2dd4bf;
-  --user-surface: #1a5a70;
+  --ai-surface: transparent;
+  --ai-surface-border: transparent;
+  --ai-accent-line: #34D399;
+  --user-surface: #27272A;
+  --user-surface-text: #FAFAFA;
 
   /* Input Bar - Dark */
-  --input-bg: #1A2023;
-  --input-border: rgba(45, 212, 191, 0.15);
+  --input-bg: #18181B;
+  --input-border: #27272A;
+  --input-focus-ring: rgba(16, 185, 129, 0.15);
 
   /* Sidebar - Dark */
-  --sidebar-bg: #0D1214;
-  --sidebar-active: rgba(45, 212, 191, 0.08);
-  --sidebar-hover: rgba(45, 212, 191, 0.04);
+  --sidebar-bg: #09090B;
+  --sidebar-active: rgba(16, 185, 129, 0.08);
+  --sidebar-hover: rgba(16, 185, 129, 0.04);
 
   /* ============================================
      SEMANTIC COLOR PALETTE - DARK MODE
      WCAG AA Compliant (4.5:1+ contrast ratios)
      ============================================ */
-  /* Primary (swap to teal for dark mode visibility) */
-  --semantic-primary: #2DD4BF;
-  /* 8.9:1 on dark */
-  --semantic-primary-hover: #5EEAD4;
-  /* 11.2:1 on dark */
-  --semantic-accent: #2DD4BF;
-  /* 8.9:1 on dark */
+  /* Primary — Emerald for dark mode visibility */
+  --semantic-primary: #34D399;
+  /* 9.8:1 on dark */
+  --semantic-primary-hover: #6EE7B7;
+  /* 12.4:1 on dark */
+  --semantic-accent: #34D399;
+  /* 9.8:1 on dark */
 
   /* Feedback Colors - Dark Mode */
   --semantic-success: #34D399;
@@ -257,40 +260,40 @@
   /* 7.4:1 */
 
   /* Semantic Text - Dark Mode */
-  --semantic-text-primary: #F9FAFB;
-  /* 15.8:1 */
-  --semantic-text-secondary: #D1D5DB;
-  /* 10.9:1 */
-  --semantic-text-muted: #9CA3AF;
-  /* 6.3:1 */
+  --semantic-text-primary: #FAFAFA;
+  /* 17.1:1 */
+  --semantic-text-secondary: #D4D4D8;
+  /* 11.8:1 */
+  --semantic-text-muted: #A1A1AA;
+  /* 7.0:1 */
 
   /* Semantic Surfaces - Dark Mode */
-  --semantic-surface-card: #1F2937;
-  --semantic-surface-elevated: #374151;
-  --semantic-surface-panel: #111827;
-  --semantic-border: #374151;
+  --semantic-surface-card: #18181B;
+  --semantic-surface-elevated: #27272A;
+  --semantic-surface-panel: #0F0F12;
+  --semantic-border: #27272A;
 
   /* Chart Colors - Dark Mode */
-  --chart-primary-semantic: #2DD4BF;
-  --chart-secondary: #34D399;
+  --chart-primary-semantic: #34D399;
+  --chart-secondary: #10B981;
   --chart-tertiary: #A78BFA;
-  --chart-area-fill: rgba(45, 212, 191, 0.15);
-  --chart-grid: #374151;
+  --chart-area-fill: rgba(52, 211, 153, 0.12);
+  --chart-grid: #27272A;
 
   /* Premium Card Tokens - Dark Mode */
-  --card-surface: rgba(28, 43, 49, 0.92);
-  --card-surface-hover: rgba(28, 43, 49, 0.98);
-  --card-border: rgba(255, 255, 255, 0.08);
-  --card-border-hover: rgba(45, 212, 191, 0.2);
-  --card-accent: var(--color-teal-accent);
-  --card-accent-subtle: rgba(45, 212, 191, 0.1);
-  --card-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
-  --card-shadow-hover: 0 12px 40px -8px rgba(45, 212, 191, 0.15), 0 4px 12px rgba(0, 0, 0, 0.3);
-  --chart-embedded-bg: rgba(45, 212, 191, 0.05);
-  --chart-line-color: var(--color-teal-accent);
-  --metric-highlight: #34d399;
-  --metric-highlight-bg: rgba(52, 211, 153, 0.12);
-  --data-ribbon-bg: linear-gradient(135deg, rgba(45, 212, 191, 0.06) 0%, rgba(18, 71, 89, 0.06) 100%);
+  --card-surface: rgba(24, 24, 27, 0.92);
+  --card-surface-hover: rgba(24, 24, 27, 0.98);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --card-border-hover: rgba(16, 185, 129, 0.2);
+  --card-accent: var(--color-primary-light);
+  --card-accent-subtle: rgba(16, 185, 129, 0.08);
+  --card-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 12px 40px -8px rgba(16, 185, 129, 0.12), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --chart-embedded-bg: rgba(16, 185, 129, 0.04);
+  --chart-line-color: var(--color-primary-light);
+  --metric-highlight: #34D399;
+  --metric-highlight-bg: rgba(52, 211, 153, 0.1);
+  --data-ribbon-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(52, 211, 153, 0.05) 100%);
 }
 
 body {
@@ -339,17 +342,17 @@ body {
 
   .dark .glass-panel,
   [data-theme="dark"] .glass-panel {
-    background: rgba(19, 29, 32, 0.6);
-    border: 1px solid var(--color-border-dark);
+    background: rgba(9, 9, 11, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  /* Glow Effect */
+  /* Glow Effect — Emerald AI */
   .shadow-glow {
-    box-shadow: 0 0 15px rgba(18, 71, 89, 0.3);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
   }
 
   .shadow-glow-teal {
-    box-shadow: 0 0 20px rgba(45, 212, 191, 0.3);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);
   }
 
   /* Studio Theme Glass Effects */
@@ -508,8 +511,8 @@ body {
 }
 
 .chat-input:focus-within {
-  border-color: rgba(18, 71, 89, 0.5);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 4px rgba(18, 71, 89, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 4px rgba(16, 185, 129, 0.08);
 }
 
 /* Chat Send Button */
@@ -519,12 +522,12 @@ body {
   background: var(--color-primary);
   color: white;
   transition: all 0.2s;
-  box-shadow: 0 4px 6px -1px rgba(18, 71, 89, 0.2);
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
 }
 
 .chat-send-button:hover:not(:disabled) {
   background: var(--color-primary-light);
-  box-shadow: 0 10px 15px -3px rgba(18, 71, 89, 0.3);
+  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.25);
   transform: translateY(-1px);
 }
 
@@ -562,12 +565,12 @@ body {
   0%,
   100% {
     opacity: 0.4;
-    filter: drop-shadow(0 0 2px rgba(45, 212, 191, 0.3));
+    filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.3));
   }
 
   50% {
     opacity: 0.8;
-    filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.6));
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
   }
 }
 
@@ -632,14 +635,14 @@ body {
    AGENTIC WORKSPACE - DECORATIVE EFFECTS
    ============================================ */
 
-/* Decorative Background Gradients */
+/* Decorative Background Gradients — Subtle AI Presence */
 .decorative-gradient-1 {
   position: absolute;
   top: 0;
   left: 25%;
   width: 500px;
   height: 500px;
-  background: rgba(18, 71, 89, 0.05);
+  background: rgba(16, 185, 129, 0.03);
   border-radius: 50%;
   filter: blur(100px);
   pointer-events: none;
@@ -651,18 +654,18 @@ body {
   right: 25%;
   width: 600px;
   height: 600px;
-  background: rgba(20, 184, 166, 0.1);
+  background: rgba(16, 185, 129, 0.04);
   border-radius: 50%;
   filter: blur(120px);
   pointer-events: none;
 }
 
 .dark .decorative-gradient-1 {
-  background: rgba(18, 71, 89, 0.08);
+  background: rgba(16, 185, 129, 0.04);
 }
 
 .dark .decorative-gradient-2 {
-  background: rgba(20, 184, 166, 0.06);
+  background: rgba(16, 185, 129, 0.03);
 }
 
 /* Enhanced Input Glow Ring */
@@ -797,8 +800,8 @@ body {
 }
 
 .metric-widget:hover {
-  border-color: rgba(18, 71, 89, 0.3);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
 /* AI Recommendation Card */
@@ -809,7 +812,7 @@ body {
   color: white;
   padding: 20px;
   border-radius: 0.75rem;
-  box-shadow: 0 10px 25px -5px rgba(18, 71, 89, 0.4);
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3);
 }
 
 .ai-recommendation-card::before {
@@ -835,7 +838,7 @@ body {
 }
 
 .dark .contextual-sidebar {
-  background: rgba(19, 29, 32, 0.8);
+  background: rgba(9, 9, 11, 0.85);
 }
 
 /* Walk Score Progress Bar */
@@ -934,7 +937,7 @@ body {
   stroke: var(--color-primary);
   stroke-width: 3;
   fill: none;
-  filter: drop-shadow(0 2px 4px rgba(18, 71, 89, 0.3));
+  filter: drop-shadow(0 2px 4px rgba(16, 185, 129, 0.25));
 }
 
 .dark .chart-trend-line {
@@ -1127,13 +1130,13 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(18, 71, 89, 0.2);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
 }
 
 .premium-card-btn-primary:hover {
   opacity: 0.9;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(18, 71, 89, 0.3);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
 .premium-card-btn-secondary {
@@ -1325,7 +1328,7 @@ body {
   justify-content: center;
   font-size: calc(var(--avatar-size) * 0.45);
   color: white;
-  box-shadow: 0 4px 16px rgba(18, 71, 89, 0.3);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
   overflow: hidden;
 }
 
@@ -1347,9 +1350,9 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--color-teal-accent);
+  background: var(--color-primary-light);
   border: 2px solid var(--color-studio-white);
-  box-shadow: 0 0 8px rgba(45, 212, 191, 0.5);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
 }
 
 [dir="rtl"] .amr-avatar-status {
@@ -1394,7 +1397,7 @@ body {
 .ai-message-body.streaming {
   background: linear-gradient(90deg,
       var(--ai-surface) 0%,
-      rgba(45, 212, 191, 0.05) 50%,
+      rgba(16, 185, 129, 0.04) 50%,
       var(--ai-surface) 100%);
   background-size: 200% 100%;
   animation: shimmer-surface 2s ease-in-out infinite;
@@ -1491,7 +1494,7 @@ body {
 
 .osool-input-surface:focus-within {
   border-color: var(--color-primary);
-  box-shadow: 0 4px 20px rgba(18, 71, 89, 0.08), 0 0 0 3px var(--input-focus-ring);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.06), 0 0 0 3px var(--input-focus-ring);
 }
 
 .osool-send-btn {
@@ -1500,7 +1503,7 @@ body {
   background: var(--color-primary);
   color: white;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(18, 71, 89, 0.2);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1517,7 +1520,7 @@ body {
 .osool-send-btn:hover:not(:disabled) {
   background: var(--color-primary-light);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(18, 71, 89, 0.3);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
 .osool-send-btn:active:not(:disabled) {
@@ -1674,12 +1677,12 @@ body {
 [data-theme="dark"] {
   /* ChatGPT Colors - Dark */
   --chatgpt-user-bg: transparent;
-  --chatgpt-ai-bg: #2f2f2f;
-  --chatgpt-ai-border: #3f3f3f;
-  --chatgpt-input-border: #4f4f4f;
-  --chatgpt-input-focus: var(--color-teal-accent);
-  --chatgpt-hover-bg: rgba(255, 255, 255, 0.05);
-  --chatgpt-code-bg: #1e1e1e;
+  --chatgpt-ai-bg: #18181B;
+  --chatgpt-ai-border: #27272A;
+  --chatgpt-input-border: #3F3F46;
+  --chatgpt-input-focus: var(--color-primary-light);
+  --chatgpt-hover-bg: rgba(255, 255, 255, 0.04);
+  --chatgpt-code-bg: #0F0F12;
 }
 
 /* Centered Container */
@@ -1889,11 +1892,11 @@ body {
 
 .chatgpt-input:focus-within {
   border-color: var(--chatgpt-input-focus);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05), 0 0 0 2px rgba(18, 71, 89, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04), 0 0 0 2px rgba(16, 185, 129, 0.08);
 }
 
 .dark .chatgpt-input:focus-within {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 0 0 2px rgba(45, 212, 191, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(16, 185, 129, 0.12);
 }
 
 .chatgpt-input textarea {
@@ -2283,8 +2286,8 @@ body {
 }
 
 .chart-card:hover {
-  border-color: rgba(45, 212, 191, 0.2);
-  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.2);
+  border-color: rgba(16, 185, 129, 0.15);
+  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.12);
 }
 
 /* Property card minimal style */
@@ -2300,8 +2303,8 @@ body {
 }
 
 .property-card-minimal:hover {
-  border-color: rgba(45, 212, 191, 0.3);
-  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.15);
+  border-color: rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
 }
 
@@ -2357,9 +2360,9 @@ body {
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg,
-      rgba(45, 212, 191, 0.2) 0%,
-      rgba(18, 71, 89, 0.0) 50%,
-      rgba(45, 212, 191, 0.1) 100%);
+      rgba(16, 185, 129, 0.12) 0%,
+      transparent 50%,
+      rgba(16, 185, 129, 0.06) 100%);
   opacity: 0.6;
   transition: opacity 0.3s ease;
   pointer-events: none;
@@ -2485,11 +2488,11 @@ body {
   z-index: 9999;
   font-size: 14px;
   font-weight: 700;
-  color: #2dd4bf;
+  color: #34D399;
   pointer-events: none;
   opacity: 0;
   transform: translateY(0);
-  text-shadow: 0 0 8px rgba(45, 212, 191, 0.5);
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
 }
 
 .xp-float-animate {

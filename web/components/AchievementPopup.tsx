@@ -76,7 +76,7 @@ export default function AchievementPopup({
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-0.5">
+                <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">
                     {language === 'ar' ? 'إنجاز جديد!' : 'Achievement Unlocked!'}
                 </div>
                 <div className="text-sm font-medium text-[var(--color-text-primary)] truncate">

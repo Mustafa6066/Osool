@@ -85,9 +85,11 @@ const SUGGESTIONS: Suggestion[] = [
  */
 const AgentAvatar = ({ thinking = false }: { thinking?: boolean }) => {
     return (
-        <div className={`relative flex items-center justify-center w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ${thinking ? 'animate-pulse' : ''}`}>
-            <div className="absolute inset-0 bg-gradient-to-tr from-teal-600 to-emerald-600" />
-            <span className="relative text-[10px] font-bold text-white font-mono">AMR</span>
+        <div className={`relative flex items-center justify-center w-8 h-8 rounded-xl overflow-hidden flex-shrink-0 ${thinking ? 'animate-pulse' : ''}`}>
+            <div className="absolute inset-0 bg-[var(--color-text-primary)]" />
+            <span className="relative text-[10px] font-bold text-[var(--color-background)] font-mono tracking-tight">A</span>
+            {/* Emerald AI dot */}
+            <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" />
         </div>
     );
 };
@@ -134,36 +136,36 @@ const MarkdownMessage = ({ content }: { content: string }) => {
                         <li className="mb-1" {...props} />
                     ),
                     strong: ({ node, ...props }) => (
-                        <strong className="font-bold text-teal-400" {...props} />
+                        <strong className="font-bold text-emerald-500 dark:text-emerald-400" {...props} />
                     ),
                     em: ({ node, ...props }) => (
-                        <em className="italic text-gray-300" {...props} />
+                        <em className="italic text-[var(--color-text-secondary)]" {...props} />
                     ),
                     h1: ({ node, ...props }) => (
-                        <h1 className="text-xl font-bold mb-3 mt-4 text-white" {...props} />
+                        <h1 className="text-xl font-bold mb-3 mt-4 text-[var(--color-text-primary)]" {...props} />
                     ),
                     h2: ({ node, ...props }) => (
-                        <h2 className="text-lg font-bold mb-2 mt-3 text-white" {...props} />
+                        <h2 className="text-lg font-bold mb-2 mt-3 text-[var(--color-text-primary)]" {...props} />
                     ),
                     h3: ({ node, ...props }) => (
-                        <h3 className="text-base font-semibold mb-2 mt-2 text-white" {...props} />
+                        <h3 className="text-base font-semibold mb-2 mt-2 text-[var(--color-text-primary)]" {...props} />
                     ),
                     blockquote: ({ node, ...props }) => (
                         <blockquote
-                            className={`${msgIsArabic ? 'border-r-4 pr-4' : 'border-l-4 pl-4'} border-teal-500 py-1 my-2 bg-[var(--color-surface-elevated)] rounded`}
+                            className={`${msgIsArabic ? 'border-r-4 pr-4' : 'border-l-4 pl-4'} border-emerald-500 py-1 my-2 bg-[var(--color-surface-elevated)] rounded`}
                             {...props}
                         />
                     ),
                     a: ({ node, ...props }) => (
-                        <a className="text-teal-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
+                        <a className="text-emerald-500 dark:text-emerald-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
                     ),
                     code: ({ node, className, children, ...props }) => {
                         const isInline = !className;
                         return isInline ? (
-                            <code className="bg-[var(--color-surface-elevated)] text-teal-300 px-1.5 py-0.5 rounded text-sm" {...props}>{children}</code>
+                            <code className="bg-[var(--color-surface-elevated)] text-emerald-400 px-1.5 py-0.5 rounded text-sm" {...props}>{children}</code>
                         ) : (
-                            <pre className="bg-[#1a1a1b] border border-[var(--color-border-light)] rounded-lg p-4 my-3 overflow-x-auto">
-                                <code className="text-sm text-gray-300" {...props}>{children}</code>
+                            <pre className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 my-3 overflow-x-auto">
+                                <code className="text-sm text-[var(--color-text-secondary)]" {...props}>{children}</code>
                             </pre>
                         );
                     },
@@ -176,7 +178,7 @@ const MarkdownMessage = ({ content }: { content: string }) => {
                         </div>
                     ),
                     th: ({ node, ...props }) => (
-                        <th className="border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] px-3 py-2 text-teal-400 font-semibold" {...props} />
+                        <th className="border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] px-3 py-2 text-emerald-500 dark:text-emerald-400 font-semibold" {...props} />
                     ),
                     td: ({ node, ...props }) => (
                         <td className="border border-[var(--color-border-light)] px-3 py-2" {...props} />
@@ -387,7 +389,7 @@ export default function AgentInterface() {
     };
 
     return (
-        <div className="flex h-full w-full bg-[var(--color-background)] text-[var(--color-text-primary)] font-sans overflow-hidden selection:bg-teal-500/30 relative">
+        <div className="flex h-full w-full bg-[var(--color-background)] text-[var(--color-text-primary)] font-sans overflow-hidden selection:bg-emerald-500/20 relative">
 
             {/* ---------------------------------------------------------------------------
        * MAIN CHAT AREA
@@ -407,7 +409,7 @@ export default function AgentInterface() {
                     <div className="flex items-center gap-3 pointer-events-auto">
                         <button
                             onClick={handleNewChat}
-                            className="p-2.5 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 transition-colors"
+                            className="p-2.5 hover:bg-[var(--color-surface-hover)] rounded-full text-[var(--color-text-muted)] transition-colors"
                             title="New Chat"
                         >
                             <RefreshCw className="w-5 h-5" />
@@ -438,12 +440,12 @@ export default function AgentInterface() {
                                 {/* Top Half - Title */}
                                 <div className="flex-1 flex flex-col justify-end pb-10 px-4">
                                     <div className="text-center w-full max-w-2xl mx-auto">
-                                        <h1 className="text-5xl md:text-6xl font-medium tracking-tight mb-4">
-                                            <span className="bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 text-transparent bg-clip-text">
+                                        <h1 className="text-5xl md:text-6xl font-semibold tracking-tight mb-4">
+                                            <span className="text-[var(--color-text-primary)]">
                                                 Hello, {userName}
                                             </span>
                                         </h1>
-                                        <h2 className="text-3xl md:text-4xl text-[var(--color-text-muted)] font-normal">Ready to analyze your assets?</h2>
+                                        <h2 className="text-2xl md:text-3xl text-[var(--color-text-muted)] font-light tracking-tight">What would you like to explore<span className="text-emerald-500">?</span></h2>
                                     </div>
                                 </div>
 
@@ -457,10 +459,10 @@ export default function AgentInterface() {
                                             <button
                                                 key={i}
                                                 onClick={() => handleSendMessage(s.prompt)}
-                                                className="p-4 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] rounded-2xl text-left transition-all duration-300 h-36 flex flex-col justify-between group border border-transparent hover:border-[var(--color-border-light)]"
+                                                className="p-4 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] rounded-2xl text-left transition-all duration-300 h-36 flex flex-col justify-between group border border-[var(--color-border)] hover:border-emerald-500/20 hover:shadow-sm"
                                             >
-                                                <span className="text-sm font-medium text-[var(--color-text-primary)] group-hover:text-white leading-snug" dir="auto">{s.label}</span>
-                                                <div className="self-end p-2 bg-[var(--color-background)] rounded-full group-hover:bg-[#e3e3e3] group-hover:text-black transition-colors shadow-sm">
+                                                <span className="text-sm font-medium text-[var(--color-text-primary)] leading-snug" dir="auto">{s.label}</span>
+                                                <div className="self-end p-2 bg-[var(--color-background)] rounded-xl text-[var(--color-text-muted)] group-hover:text-emerald-500 transition-colors">
                                                     <s.icon className="w-4 h-4" />
                                                 </div>
                                             </button>
@@ -541,10 +543,10 @@ export default function AgentInterface() {
 
                                                         {/* Analytics Insight Panel — shown when ANALYTICS_ONLY mode */}
                                                         {msg.analyticsContext?.has_analytics && (!msg.allProperties || msg.allProperties.length === 0) && (
-                                                            <div className="mt-6 p-5 rounded-2xl border border-teal-500/20 bg-teal-950/10 backdrop-blur-sm" dir="ltr">
+                                                            <div className="mt-6 p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-sm" dir="ltr">
                                                                 <div className="flex items-center gap-2 mb-4">
-                                                                    <BarChart2 className="w-4 h-4 text-teal-400" />
-                                                                    <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Market Intelligence</span>
+                                                                    <BarChart2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                                                                    <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Market Intelligence</span>
                                                                 </div>
                                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                                                     {msg.analyticsContext.avg_price_sqm > 0 && (
@@ -582,14 +584,14 @@ export default function AgentInterface() {
                                                                     <div
                                                                         key={prop.id}
                                                                         onClick={() => { setActiveContext({ property: prop }); setContextPaneOpen(true); }}
-                                                                        className="group relative flex gap-4 p-4 border border-[var(--color-border)] hover:border-teal-500/40 bg-[var(--color-surface)] rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-teal-900/5"
+                                                                        className="group relative flex gap-4 p-4 border border-[var(--color-border)] hover:border-emerald-500/40 bg-[var(--color-surface)] rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-black/5"
                                                                         style={{ animationDelay: `${idx * 100}ms` }}
                                                                     >
                                                                         {/* Accent bar */}
-                                                                        <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl bg-gradient-to-b from-teal-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                        <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl bg-gradient-to-b from-emerald-500 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                                                                         {/* Image */}
-                                                                        <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-800 rounded-xl flex-shrink-0 overflow-hidden">
+                                                                        <div className="w-20 h-20 md:w-24 md:h-24 bg-[var(--color-surface-hover)] rounded-xl flex-shrink-0 overflow-hidden">
                                                                             <img src={prop.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={prop.title} />
                                                                         </div>
 
@@ -609,7 +611,7 @@ export default function AgentInterface() {
                                                                                     </span>
                                                                                 )}
                                                                                 {prop.metrics.roi > 0 && (
-                                                                                    <span className="text-[10px] font-medium text-emerald-400 bg-emerald-950/30 px-1.5 py-0.5 rounded">
+                                                                                    <span className="text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
                                                                                         +{prop.metrics.roi}% ROI
                                                                                     </span>
                                                                                 )}
@@ -619,17 +621,17 @@ export default function AgentInterface() {
                                                                                 <div className="mt-2 flex items-center gap-2">
                                                                                     <div className="flex-1 h-1 bg-[var(--color-border)] rounded-full overflow-hidden max-w-[120px]">
                                                                                         <div
-                                                                                            className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-700"
+                                                                                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-700"
                                                                                             style={{ width: `${Math.min(prop.metrics.wolf_score, 100)}%` }}
                                                                                         />
                                                                                     </div>
-                                                                                    <span className="text-[9px] text-teal-400 font-bold">{prop.metrics.wolf_score}</span>
+                                                                                    <span className="text-[9px] text-emerald-500 dark:text-emerald-400 font-bold">{prop.metrics.wolf_score}</span>
                                                                                 </div>
                                                                             )}
                                                                         </div>
 
                                                                         {/* Arrow */}
-                                                                        <div className="flex items-center text-[var(--color-text-muted)] group-hover:text-teal-400 transition-colors">
+                                                                        <div className="flex items-center text-[var(--color-text-muted)] group-hover:text-emerald-500 dark:text-emerald-400 transition-colors">
                                                                             <ChevronRight className="w-4 h-4" />
                                                                         </div>
                                                                     </div>
@@ -642,13 +644,13 @@ export default function AgentInterface() {
                                                                 <div className="flex gap-2 mt-6" dir="ltr">
                                                                     <button
                                                                         onClick={() => copyToClipboard(msg.content)}
-                                                                        className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 hover:text-[var(--color-text-primary)] transition-colors"
+                                                                        className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                                                                         title="Copy to clipboard"
                                                                     >
                                                                         <Copy className="w-4 h-4" />
                                                                     </button>
                                                                     <button
-                                                                        className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-gray-400 hover:text-[var(--color-text-primary)] transition-colors"
+                                                                        className="p-2 hover:bg-[var(--color-surface-hover)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                                                                         title="Refresh analysis"
                                                                     >
                                                                         <RefreshCw className="w-4 h-4" />
@@ -692,7 +694,7 @@ export default function AgentInterface() {
                     style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)' }}
                 >
                     <div className="max-w-[800px] mx-auto relative">
-                        <div className={`bg-[var(--color-surface)] rounded-[32px] flex flex-col transition-all duration-200 ${isTyping ? 'opacity-50' : ''} border border-[var(--color-border-light)] focus-within:border-teal-500/30 focus-within:bg-[var(--color-surface)] shadow-2xl`}>
+                        <div className={`bg-[var(--color-surface)] rounded-[28px] flex flex-col transition-all duration-200 ${isTyping ? 'opacity-50' : ''} border border-[var(--color-border)] focus-within:border-emerald-500/25 focus-within:shadow-[0_0_0_3px_rgba(16,185,129,0.06)] shadow-xl`}>
 
                             <textarea
                                 dir="auto"
@@ -715,7 +717,7 @@ export default function AgentInterface() {
                                     <button
                                         onClick={() => handleSendMessage()}
                                         disabled={isTyping}
-                                        className="p-2.5 bg-white text-black rounded-full hover:bg-gray-200 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="p-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-full hover:opacity-80 transition-opacity shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
                                     >
                                         <Send className="w-5 h-5" />
                                     </button>
@@ -724,7 +726,7 @@ export default function AgentInterface() {
                         </div>
 
                         <div className={`text-center mt-3 transition-opacity duration-500 ${!hasStarted ? 'opacity-0' : 'opacity-100'}`}>
-                            <p className="text-[12px] text-gray-500">AMR can make mistakes. Verify critical financial data independently.</p>
+                            <p className="text-[12px] text-[var(--color-text-muted)]">AMR can make mistakes. Verify critical financial data independently.</p>
                         </div>
                     </div>
                 </div>
@@ -739,12 +741,12 @@ export default function AgentInterface() {
                     <div className="h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 bg-[var(--color-surface)] flex-shrink-0">
                         <div className="flex items-center gap-2">
                             <span className="text-[var(--color-text-primary)] font-medium text-lg">AMR Workspace</span>
-                            <span className="text-[10px] text-teal-400 bg-teal-900/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Live</span>
+                            <span className="text-[10px] text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Live</span>
                         </div>
                         <div className="flex items-center gap-1">
                             <button
                                 onClick={() => setContextPaneOpen(false)}
-                                className="p-2 text-gray-400 hover:text-white hover:bg-[#2d2d2e] rounded-full transition-colors"
+                                className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-full transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -755,7 +757,7 @@ export default function AgentInterface() {
 
                         {/* Main Visual */}
                         <div className="space-y-4">
-                            <div className="aspect-video bg-gray-800 rounded-2xl overflow-hidden relative shadow-2xl ring-1 ring-white/10">
+                            <div className="aspect-video bg-[var(--color-surface-hover)] rounded-2xl overflow-hidden relative shadow-2xl ring-1 ring-white/10">
                                 <img
                                     src={activeContext.property.image}
                                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
@@ -769,8 +771,8 @@ export default function AgentInterface() {
                                 <h2 className="text-3xl font-medium text-[var(--color-text-primary)] leading-tight mb-2" dir="auto">
                                     {activeContext.property.title}
                                 </h2>
-                                <p className="text-gray-400 flex items-center gap-1.5 text-sm" dir="auto">
-                                    <MapPin className="w-4 h-4 text-teal-500" />
+                                <p className="text-[var(--color-text-muted)] flex items-center gap-1.5 text-sm" dir="auto">
+                                    <MapPin className="w-4 h-4 text-emerald-500" />
                                     {activeContext.property.location}
                                 </p>
                             </div>
@@ -779,10 +781,10 @@ export default function AgentInterface() {
                         {/* AI Insight Block */}
                         <div className="bg-[var(--color-surface-elevated)] rounded-2xl p-6 border border-[var(--color-border-light)] relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                                <Sparkles className="w-24 h-24 text-teal-500" />
+                                <Sparkles className="w-24 h-24 text-emerald-500" />
                             </div>
                             <div className="flex items-center gap-2 mb-4 relative z-10">
-                                <Sparkles className="w-5 h-5 text-teal-400" />
+                                <Sparkles className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
                                 <h3 className="font-medium text-[var(--color-text-primary)]">Osool Score Analysis</h3>
                             </div>
                             <div className="space-y-5 relative z-10">
@@ -791,15 +793,15 @@ export default function AgentInterface() {
                                 </p>
                                 <div className="flex gap-6 pt-2">
                                     <div>
-                                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Osool Score</div>
-                                        <div className="text-3xl font-medium text-teal-400">
+                                        <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider font-bold mb-1">Osool Score</div>
+                                        <div className="text-3xl font-medium text-emerald-500 dark:text-emerald-400">
                                             {activeContext.property.metrics.wolf_score}
-                                            <span className="text-sm text-teal-600/70">/100</span>
+                                            <span className="text-sm text-emerald-600/50">/100</span>
                                         </div>
                                     </div>
-                                    <div className="w-px bg-[#3d3d3d]" />
+                                    <div className="w-px bg-[var(--color-border)]" />
                                     <div>
-                                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Liquidity</div>
+                                        <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider font-bold mb-1">Liquidity</div>
                                         <div className="text-3xl font-medium text-emerald-400">
                                             {activeContext.property.metrics.liquidity_rating}
                                         </div>
@@ -810,32 +812,32 @@ export default function AgentInterface() {
 
                         {/* Data Grid */}
                         <div>
-                            <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase tracking-widest pl-1">Specifications</h3>
-                            <div className="grid grid-cols-2 gap-px bg-[#3d3d3d] rounded-2xl overflow-hidden border border-[var(--color-border-light)]">
+                            <h3 className="text-xs font-bold text-[var(--color-text-muted)] mb-4 uppercase tracking-widest pl-1">Specifications</h3>
+                            <div className="grid grid-cols-2 gap-px bg-[var(--color-border)] rounded-2xl overflow-hidden border border-[var(--color-border-light)]">
                                 <div className="bg-[var(--color-surface)] p-5 hover:bg-[var(--color-surface-elevated)] transition-colors">
-                                    <div className="text-xs text-gray-500 mb-1.5">Total Area</div>
+                                    <div className="text-xs text-[var(--color-text-muted)] mb-1.5">Total Area</div>
                                     <div className="text-[var(--color-text-primary)] font-medium text-lg">
-                                        {activeContext.property.metrics.size} <span className="text-sm text-gray-600">sqm</span>
+                                        {activeContext.property.metrics.size} <span className="text-sm text-[var(--color-text-muted)]">sqm</span>
                                     </div>
                                 </div>
                                 <div className="bg-[var(--color-surface)] p-5 hover:bg-[var(--color-surface-elevated)] transition-colors">
-                                    <div className="text-xs text-gray-500 mb-1.5">Bedrooms</div>
+                                    <div className="text-xs text-[var(--color-text-muted)] mb-1.5">Bedrooms</div>
                                     <div className="text-[var(--color-text-primary)] font-medium text-lg">
-                                        {activeContext.property.metrics.bedrooms} <span className="text-sm text-gray-600">Beds</span>
+                                        {activeContext.property.metrics.bedrooms} <span className="text-sm text-[var(--color-text-muted)]">Beds</span>
                                     </div>
                                 </div>
                                 <div className="bg-[var(--color-surface)] p-5 hover:bg-[var(--color-surface-elevated)] transition-colors">
-                                    <div className="text-xs text-gray-500 mb-1.5">Price / Meter</div>
+                                    <div className="text-xs text-[var(--color-text-muted)] mb-1.5">Price / Meter</div>
                                     <div className="text-[var(--color-text-primary)] font-medium text-lg">
                                         {activeContext.property.metrics.price_per_sqm > 0
                                             ? `${(activeContext.property.metrics.price_per_sqm / 1000).toFixed(1)}k`
                                             : 'N/A'
-                                        } <span className="text-sm text-gray-600">EGP</span>
+                                        } <span className="text-sm text-[var(--color-text-muted)]">EGP</span>
                                     </div>
                                 </div>
                                 <div className="bg-[var(--color-surface)] p-5 hover:bg-[var(--color-surface-elevated)] transition-colors">
-                                    <div className="text-xs text-gray-500 mb-1.5">Total Price</div>
-                                    <div className="text-teal-400 font-medium text-lg">
+                                    <div className="text-xs text-[var(--color-text-muted)] mb-1.5">Total Price</div>
+                                    <div className="text-emerald-500 dark:text-emerald-400 font-medium text-lg">
                                         {(activeContext.property.price / 1000000).toFixed(2)}M
                                     </div>
                                 </div>
@@ -848,7 +850,7 @@ export default function AgentInterface() {
                                 {activeContext.property.tags.map((tag, i) => (
                                     <span
                                         key={i}
-                                        className="text-xs bg-teal-900/30 text-teal-400 px-3 py-1.5 rounded-full border border-teal-800/50"
+                                        className="text-xs bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20/50"
                                     >
                                         {tag}
                                     </span>
@@ -856,7 +858,7 @@ export default function AgentInterface() {
                             </div>
                         )}
 
-                        <button className="w-full py-4 bg-[#e3e3e3] hover:bg-white text-black rounded-full font-bold text-sm tracking-wide transition-all shadow-lg hover:shadow-xl hover:shadow-white/10 transform hover:-translate-y-0.5">
+                        <button className="w-full py-4 bg-[var(--color-text-primary)] hover:opacity-90 text-[var(--color-background)] rounded-full font-bold text-sm tracking-wide transition-all shadow-lg transform hover:-translate-y-0.5">
                             Request Viewing
                         </button>
 

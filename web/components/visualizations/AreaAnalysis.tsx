@@ -207,7 +207,7 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                         <p className="text-[11px] font-semibold text-[var(--color-text-muted)] mb-1.5">مناسبة لـ</p>
                         <div className="flex flex-wrap gap-1.5">
                             {bestFor.map((item, i) => (
-                                <span key={i} className="text-[11px] px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 font-medium">
+                                <span key={i} className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-medium">
                                     {item}
                                 </span>
                             ))}

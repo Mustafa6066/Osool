@@ -26,7 +26,8 @@ interface FunnelIndicatorProps {
 }
 
 /**
- * Funnel Indicator - Shows where user is in the buying journey
+ * Funnel Indicator V5 — B/W + Emerald
+ * Shows where user is in the buying journey.
  * Compact bar for chat header or sidebar.
  */
 export default function FunnelIndicator({ leadScore, readinessScore, language = 'en' }: FunnelIndicatorProps) {
@@ -47,16 +48,16 @@ export default function FunnelIndicator({ leadScore, readinessScore, language = 
                                 <div
                                     className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-500
                                         ${isCurrent
-                                            ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/30 scale-110'
+                                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-110'
                                             : isActive
-                                                ? 'bg-teal-900/50 text-teal-400 border border-teal-700'
-                                                : 'bg-[var(--color-surface-elevated)] text-gray-600'
+                                                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                                : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]'
                                         }`}
                                 >
                                     <Icon className="w-3.5 h-3.5" />
                                 </div>
                                 <span className={`text-[9px] font-medium transition-colors
-                                    ${isCurrent ? 'text-teal-400' : isActive ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    ${isCurrent ? 'text-emerald-500' : isActive ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-muted)] opacity-50'}`}>
                                     {language === 'ar' ? stage.label_ar : stage.label_en}
                                 </span>
                             </div>
@@ -66,7 +67,7 @@ export default function FunnelIndicator({ leadScore, readinessScore, language = 
                                 <div className="flex-1 h-px mx-1 mb-4">
                                     <div
                                         className={`h-full transition-colors duration-500
-                                            ${i < currentStage ? 'bg-teal-600' : 'bg-[var(--color-border)]'}`}
+                                            ${i < currentStage ? 'bg-emerald-500/40' : 'bg-[var(--color-border)]'}`}
                                     />
                                 </div>
                             )}
@@ -83,11 +84,11 @@ export default function FunnelIndicator({ leadScore, readinessScore, language = 
                     </span>
                     <div className="flex-1 h-1.5 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
                         <div
-                            className="h-full rounded-full bg-gradient-to-r from-teal-600 to-emerald-500 transition-all duration-700"
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-700"
                             style={{ width: `${readinessScore}%` }}
                         />
                     </div>
-                    <span className="text-xs font-bold text-teal-400">{readinessScore}%</span>
+                    <span className="text-xs font-bold text-emerald-500">{readinessScore}%</span>
                 </div>
             )}
         </div>

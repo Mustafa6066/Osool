@@ -184,7 +184,7 @@ export default function ConversationHistory({
                                         onNewConversation();
                                         onClose();
                                     }}
-                                    className="w-full mt-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-2.5 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2"
+                                    className="w-full mt-3 bg-gradient-to-r from-emerald-500 to-emerald-500 hover:from-emerald-600 hover:to-emerald-600 text-white font-semibold py-2.5 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2"
                                 >
                                     <MessageSquare className="w-4 h-4" />
                                     New Conversation
@@ -218,7 +218,7 @@ export default function ConversationHistory({
                                         >
                                             {/* Conversation Content */}
                                             <div className="flex items-start gap-3">
-                                                <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md">
+                                                <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-500 flex items-center justify-center shadow-md">
                                                     <MessageSquare className="w-4 h-4 text-white" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">

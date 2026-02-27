@@ -65,10 +65,10 @@ export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) 
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-cyan-950/30 to-teal-950/20"
+            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-cyan-950/30 to-emerald-950/20"
         >
             {/* Header */}
-            <div className="bg-gradient-to-r from-cyan-600/20 to-teal-600/20 px-6 py-4 border-b border-[var(--color-border)]">
+            <div className="bg-gradient-to-r from-cyan-600/20 to-emerald-600/20 px-6 py-4 border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
                         <CalculatorIcon className="w-5 h-5 text-cyan-400" />
@@ -121,7 +121,7 @@ export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) 
                 </div>
 
                 {/* 5 Year Projection */}
-                <div className="bg-gradient-to-r from-emerald-950/30 to-teal-950/30 rounded-xl p-4 border border-emerald-500/20">
+                <div className="bg-gradient-to-r from-emerald-950/30 to-emerald-950/30 rounded-xl p-4 border border-emerald-500/20">
                     <p className="text-sm font-medium text-emerald-400 mb-4">توقعات 5 سنوات 🚀</p>
                     <div className="grid grid-cols-3 gap-4 text-center">
                         <div>

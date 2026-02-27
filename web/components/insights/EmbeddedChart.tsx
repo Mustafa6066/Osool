@@ -263,12 +263,12 @@ export default function EmbeddedChart({
                             <linearGradient id="chartAreaFill" x1="0" y1="0" x2="0" y2="1">
                                 <stop
                                     offset="0%"
-                                    stopColor="var(--chart-primary-semantic, var(--chart-primary, #124759))"
+                                    stopColor="var(--chart-primary-semantic, var(--chart-primary, #059669))"
                                     stopOpacity={0.3}
                                 />
                                 <stop
                                     offset="100%"
-                                    stopColor="var(--chart-primary-semantic, var(--chart-primary, #124759))"
+                                    stopColor="var(--chart-primary-semantic, var(--chart-primary, #059669))"
                                     stopOpacity={0}
                                 />
                             </linearGradient>
@@ -312,7 +312,7 @@ export default function EmbeddedChart({
                             <Tooltip
                                 content={<CustomTooltip isRTL={isRTL} />}
                                 cursor={{
-                                    stroke: 'var(--chart-primary-semantic, #124759)',
+                                    stroke: 'var(--chart-primary-semantic, #059669)',
                                     strokeWidth: 1,
                                     strokeDasharray: '4 4'
                                 }}
@@ -322,7 +322,7 @@ export default function EmbeddedChart({
                         <Area
                             type="monotone"
                             dataKey="price"
-                            stroke="var(--chart-primary-semantic, var(--chart-primary, #124759))"
+                            stroke="var(--chart-primary-semantic, var(--chart-primary, #059669))"
                             strokeWidth={2}
                             fill="url(#chartAreaFill)"
                             animationDuration={enableDrawAnimation ? 0 : 1000}

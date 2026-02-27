@@ -58,10 +58,10 @@ export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyT
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-emerald-950/30 to-teal-950/20"
+            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-emerald-950/30 to-emerald-950/20"
         >
             {/* Header */}
-            <div className="bg-gradient-to-r from-emerald-600/20 to-teal-600/20 px-6 py-4 border-b border-[var(--color-border)]">
+            <div className="bg-gradient-to-r from-emerald-600/20 to-emerald-600/20 px-6 py-4 border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-2xl">
                         {getTypeIcon(analysis.type)}
@@ -127,7 +127,7 @@ export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyT
                                         </div>
                                         <div className="h-2 bg-[var(--color-surface)] rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
+                                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full"
                                                 style={{
                                                     width: `${Math.min((item.avg_price_per_sqm / Math.max(...comparison.map(c => c.avg_price_per_sqm))) * 100, 100)}%`
                                                 }}

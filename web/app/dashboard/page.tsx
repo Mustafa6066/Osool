@@ -145,7 +145,7 @@ export default function DashboardPage() {
                                 <div className="md:col-span-4 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-6">
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-sm font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
-                                            <Award className="w-4 h-4 text-teal-500" />
+                                            <Award className="w-4 h-4 text-emerald-500" />
                                             Achievements
                                         </h3>
                                         <span className="text-xs text-[var(--color-text-muted)]">
@@ -419,7 +419,7 @@ export default function DashboardPage() {
                                                                     {!invite.is_used && (
                                                                         <button
                                                                             onClick={() => handleShareInvite(invite.code)}
-                                                                            className="text-[var(--color-text-muted)] hover:text-teal-400 transition-colors p-2 rounded hover:bg-[var(--color-surface-elevated)] text-xs font-medium"
+                                                                            className="text-[var(--color-text-muted)] hover:text-emerald-400 transition-colors p-2 rounded hover:bg-[var(--color-surface-elevated)] text-xs font-medium"
                                                                             title="Copy with message"
                                                                         >
                                                                             {copySuccess === `share_${invite.code}` ? <Check size={18} className="text-green-500" /> : <Gift size={18} />}

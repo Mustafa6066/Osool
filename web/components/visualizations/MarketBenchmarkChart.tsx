@@ -74,8 +74,8 @@ export default function MarketBenchmarkChart({
             {/* Header */}
             <div className="px-5 pt-5 pb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center">
-                        <BarChart3 className="w-4 h-4 text-teal-400" />
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4 text-emerald-400" />
                     </div>
                     <div>
                         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -87,7 +87,7 @@ export default function MarketBenchmarkChart({
                     </div>
                 </div>
                 {inventory > 0 && (
-                    <span className="text-[10px] px-2 py-1 rounded-full bg-teal-500/10 text-teal-400 font-medium">
+                    <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-medium">
                         {inventory} listings
                     </span>
                 )}
@@ -140,12 +140,12 @@ export default function MarketBenchmarkChart({
                                             animate={{ width: `${widthPct}%` }}
                                             transition={{ duration: 0.8, delay: idx * 0.1, ease: "easeOut" }}
                                             className={`h-full rounded-full ${isCurrent
-                                                ? "bg-gradient-to-r from-teal-500 to-emerald-400"
+                                                ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
                                                 : "bg-gradient-to-r from-gray-600 to-gray-500"
                                                 }`}
                                         />
                                     </div>
-                                    <div className={`w-16 text-[11px] font-medium ${isCurrent ? "text-teal-400" : "text-[var(--color-text-secondary)]"}`}>
+                                    <div className={`w-16 text-[11px] font-medium ${isCurrent ? "text-emerald-400" : "text-[var(--color-text-secondary)]"}`}>
                                         {(comp.price / 1000).toFixed(1)}k
                                     </div>
                                 </div>

@@ -10,8 +10,8 @@ interface SuggestionChipsProps {
 }
 
 /**
- * Suggestion Chips - Contextual follow-up suggestions
- * Rendered below each AI response as clickable pills.
+ * Suggestion Chips V5 — B/W + Emerald
+ * Contextual follow-up suggestions rendered below each AI response.
  */
 export default function SuggestionChips({ suggestions, onSelect, isRTL = false }: SuggestionChipsProps) {
     if (!suggestions || suggestions.length === 0) return null;
@@ -28,12 +28,12 @@ export default function SuggestionChips({ suggestions, onSelect, isRTL = false }
                     className="group flex items-center gap-1.5 px-4 py-2 rounded-full
                              bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)]
                              border border-[var(--color-border)]
-                             hover:border-teal-500/50 text-sm text-[var(--color-text-secondary)]
+                             hover:border-emerald-500/30 text-sm text-[var(--color-text-secondary)]
                              hover:text-[var(--color-text-primary)]
-                             transition-all duration-200 hover:shadow-lg hover:shadow-teal-900/10
+                             transition-all duration-200 hover:shadow-sm
                              transform hover:-translate-y-0.5"
                 >
-                    <Sparkles className="w-3 h-3 text-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Sparkles className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <span className="truncate max-w-[200px]" dir="auto">{suggestion}</span>
                 </button>
             ))}

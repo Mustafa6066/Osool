@@ -107,7 +107,7 @@ export default function InvestorProfileCard({ profile, language = 'en', compact 
             {/* Stats Row */}
             <div className="grid grid-cols-3 gap-3">
                 <div className="bg-[var(--color-background)] rounded-xl p-3 text-center">
-                    <div className="text-lg font-bold text-teal-400">{profile.investment_readiness_score}</div>
+                    <div className="text-lg font-bold text-emerald-500 dark:text-emerald-400">{profile.investment_readiness_score}</div>
                     <div className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider">
                         {language === 'ar' ? 'الجاهزية' : 'Readiness'}
                     </div>

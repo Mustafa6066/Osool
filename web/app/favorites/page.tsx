@@ -163,7 +163,7 @@ export default function FavoritesPage() {
                                                 </span>
                                             )}
                                             {fav.price_per_sqm > 0 && (
-                                                <span className="text-teal-500 font-medium">
+                                                <span className="text-emerald-500 font-medium">
                                                     {fav.price_per_sqm.toLocaleString()}/m²
                                                 </span>
                                             )}

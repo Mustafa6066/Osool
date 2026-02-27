@@ -102,16 +102,16 @@ export default function SmartNav({ children }: SmartNavProps) {
 
                             {/* ── LEFT: Logo ── */}
                             <Link href="/chat" className="flex items-center gap-2.5 flex-shrink-0 group">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[var(--color-primary)] to-teal-400 flex items-center justify-center text-white shadow-md group-hover:shadow-teal-500/25 transition-shadow">
-                                    <Building2 className="w-4.5 h-4.5" />
+                                <div className="w-8 h-8 rounded-lg bg-[var(--color-text-primary)] flex items-center justify-center text-[var(--color-background)] shadow-sm group-hover:shadow-md transition-shadow">
+                                    <Building2 className="w-4 h-4" />
                                 </div>
                                 <span className="text-[var(--color-text-primary)] text-sm font-bold tracking-tight hidden sm:block">
-                                    Osool<span className="font-light opacity-60">AI</span>
+                                    Osool<span className="text-[var(--color-primary)] font-bold">.ai</span>
                                 </span>
                             </Link>
 
                             {/* ── CENTER: Nav Tabs (desktop) ── */}
-                            <nav className="hidden md:flex items-center gap-1 bg-[var(--color-background)]/60 rounded-xl px-1.5 py-1 border border-[var(--color-border)]/50">
+                            <nav className="hidden md:flex items-center gap-0.5 bg-[var(--color-surface)]/60 rounded-xl px-1 py-1 border border-[var(--color-border)]/40 backdrop-blur-sm">
                                 {NAV_ITEMS.map((item) => {
                                     const isActive = item.key === activeKey;
                                     const Icon = item.icon;

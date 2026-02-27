@@ -125,7 +125,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                 </div>
 
                 {/* Strengths */}
-                <div className="bg-gradient-to-r from-emerald-950/30 to-teal-950/30 rounded-xl p-4 border border-emerald-500/20">
+                <div className="bg-gradient-to-r from-emerald-950/30 to-emerald-950/30 rounded-xl p-4 border border-emerald-500/20">
                     <div className="flex items-center gap-2 mb-3">
                         <CheckBadgeIcon className="w-4 h-4 text-emerald-400" />
                         <p className="text-sm font-medium text-emerald-400">نقاط القوة</p>

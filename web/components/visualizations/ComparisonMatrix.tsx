@@ -73,7 +73,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                                                 </span>
                                             )}
                                             {property.id === bestValueId && property.id !== recommendedId && (
-                                                <span className="px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] rounded-full whitespace-nowrap font-semibold shadow-lg shadow-emerald-500/30 flex items-center gap-1">
+                                                <span className="px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-emerald-500 text-white text-[10px] rounded-full whitespace-nowrap font-semibold shadow-lg shadow-emerald-500/30 flex items-center gap-1">
                                                     <TrendingUp size={10} />
                                                     Best Value
                                                 </span>
