@@ -28,48 +28,48 @@ export default function Home() {
                 onClose={() => setShowInvitationModal(false)}
             />
 
-            {/* Navigation */}
-            <header className="fixed top-0 w-full z-50 border-b border-[var(--color-border)] backdrop-blur-xl bg-[var(--color-background)]/80">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6">
-                    <div className="flex items-center justify-between h-14">
-                        {/* Logo */}
-                        <Link href="/" className="flex items-center gap-2.5 group">
-                            <div className="w-7 h-7 rounded-lg bg-[var(--color-text-primary)] text-[var(--color-background)] flex items-center justify-center">
-                                <span className="text-[10px] font-bold tracking-tight">A</span>
-                            </div>
-                            <span className="text-sm font-semibold tracking-tight text-[var(--color-text-primary)]">AMR</span>
-                        </Link>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-2">
-                            {!loading && !isAuthenticated && (
-                                <Link href="/login" className="hidden md:block text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors px-3 py-1.5">
-                                    Log in
-                                </Link>
-                            )}
-                            <LanguageToggle />
-                            <ThemeToggle />
-
-                            {loading ? (
-                                <div className="w-28 h-9 bg-[var(--color-surface)] rounded-lg animate-pulse" />
-                            ) : isAuthenticated ? (
-                                <>
-                                    <button
-                                        onClick={() => setShowInvitationModal(true)}
-                                        className="bg-[var(--color-text-primary)] text-[var(--color-background)] text-sm font-medium py-2 px-4 rounded-lg transition-opacity hover:opacity-85 hidden sm:flex items-center gap-2"
-                                    >
-                                        <span>Invite</span>
-                                        <ArrowRight size={14} />
-                                    </button>
-                                    <ProfileDropdown onGenerateInvitation={() => setShowInvitationModal(true)} />
-                                </>
-                            ) : (
-                                <Link href="/signup" className="bg-[var(--color-text-primary)] text-[var(--color-background)] text-sm font-medium py-2 px-4 rounded-lg transition-opacity hover:opacity-85 flex items-center gap-2">
-                                    <span>Get Started</span>
-                                    <ArrowRight size={14} />
-                                </Link>
-                            )}
+            {/* Floating Navigation */}
+            <header className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4">
+                <div className="flex items-center justify-between h-14 w-full max-w-5xl bg-[var(--color-surface)]/80 backdrop-blur-2xl border border-[var(--color-border)]/50 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-4 sm:px-6">
+                    {/* Logo */}
+                    <Link href="/" className="flex items-center gap-2.5 group">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-900 to-gray-700 dark:from-white dark:to-gray-200 flex items-center justify-center text-white dark:text-gray-900 shadow-sm transition-transform group-hover:scale-105 group-hover:shadow-md">
+                            <span className="text-[11px] font-bold tracking-wider">OA</span>
                         </div>
+                        <span className="text-[15px] font-semibold tracking-tight text-[var(--color-text-primary)]">Osool<span className="text-emerald-500">.ai</span></span>
+                    </Link>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                        {!loading && !isAuthenticated && (
+                            <Link href="/login" className="hidden md:block text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-gray-100 dark:hover:bg-gray-800/80 rounded-full transition-all px-4 py-2">
+                                Log in
+                            </Link>
+                        )}
+                        <LanguageToggle />
+                        <ThemeToggle />
+
+                        {loading ? (
+                            <div className="w-24 h-9 bg-[var(--color-surface-hover)] rounded-full animate-pulse ml-2" />
+                        ) : isAuthenticated ? (
+                            <>
+                                <button
+                                    onClick={() => setShowInvitationModal(true)}
+                                    className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] text-[13px] font-medium py-2 px-4 rounded-full transition-all hover:bg-gray-200 dark:hover:bg-gray-700 hidden sm:flex items-center gap-2"
+                                >
+                                    <span>Invite</span>
+                                    <ArrowRight size={14} strokeWidth={2} />
+                                </button>
+                                <div className="ml-1">
+                                    <ProfileDropdown onGenerateInvitation={() => setShowInvitationModal(true)} />
+                                </div>
+                            </>
+                        ) : (
+                            <Link href="/signup" className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[13px] font-semibold py-2 px-5 rounded-full transition-transform hover:scale-105 active:scale-95 shadow-sm flex items-center gap-2 ml-2">
+                                <span>Get Started</span>
+                                <ArrowRight size={14} strokeWidth={2} />
+                            </Link>
+                        )}
                     </div>
                 </div>
             </header>
@@ -82,26 +82,26 @@ export default function Home() {
                         <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">AI-Powered Real Estate Intelligence</span>
                     </div>
 
-                    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-medium leading-[1.05] tracking-tight max-w-4xl text-balance">
+                    <h1 className="text-[3rem] sm:text-[4rem] lg:text-[5rem] font-semibold leading-[1.05] tracking-tight max-w-4xl text-balance">
                         The intelligence behind your{' '}
                         <span className="text-emerald-500">next investment</span>
                     </h1>
 
-                    <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed max-w-2xl text-balance">
+                    <p className="text-[17px] md:text-lg text-[var(--color-text-secondary)] font-medium leading-relaxed max-w-2xl text-balance mt-2">
                         AMR analyzes the Egyptian real estate market with AI precision. Get instant insights on pricing, ROI forecasts, and developer audits.
                     </p>
 
-                    <div className="flex flex-wrap gap-3 mt-4 justify-center">
+                    <div className="flex flex-wrap gap-4 mt-6 justify-center">
                         <Link
                             href={isAuthenticated ? "/chat" : "/login"}
-                            className="bg-[var(--color-text-primary)] text-[var(--color-background)] h-11 px-7 rounded-xl font-medium text-sm hover:opacity-90 transition-opacity flex items-center gap-2"
+                            className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 h-12 px-8 rounded-full font-semibold text-[15px] hover:scale-105 active:scale-95 transition-all shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center gap-2"
                         >
                             Start Analysis
-                            <ArrowRight size={16} />
+                            <ArrowRight size={18} strokeWidth={2.5} />
                         </Link>
                         <Link
                             href="#demo"
-                            className="h-11 px-7 rounded-xl font-medium text-sm border border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors flex items-center"
+                            className="h-12 px-8 rounded-full font-semibold text-[15px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm transition-all flex items-center shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
                         >
                             View Demo
                         </Link>
