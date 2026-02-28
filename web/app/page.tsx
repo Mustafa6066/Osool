@@ -75,19 +75,19 @@ export default function Home() {
             </header>
 
             {/* Hero Section */}
-            <section className="relative px-4 pt-36 pb-20 md:pt-44 md:pb-28 max-w-4xl mx-auto w-full">
+            <section className="relative px-4 pt-36 pb-20 md:pt-44 md:pb-28 max-w-6xl mx-auto w-full">
                 <div className="flex flex-col items-center text-center gap-6">
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/8 border border-emerald-500/15 mb-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">AI-Powered Real Estate Intelligence</span>
                     </div>
 
-                    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-medium leading-[1.05] tracking-tight max-w-3xl">
+                    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-medium leading-[1.05] tracking-tight max-w-4xl text-balance">
                         The intelligence behind your{' '}
                         <span className="text-emerald-500">next investment</span>
                     </h1>
 
-                    <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed max-w-xl">
+                    <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed max-w-2xl text-balance">
                         AMR analyzes the Egyptian real estate market with AI precision. Get instant insights on pricing, ROI forecasts, and developer audits.
                     </p>
 

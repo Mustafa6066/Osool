@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-    Send, Sparkles, MapPin, TrendingUp,
-    Building2, X, ChevronRight,
+    Sparkles, MapPin,
+    X, ChevronRight,
     BarChart2, Shield, Search,
     Copy, RefreshCw, Wallet, ArrowUp
 } from 'lucide-react';
@@ -263,7 +263,6 @@ export default function AgentInterface() {
 
             if (aiMsg.artifacts) {
                 setActiveContext(aiMsg.artifacts);
-                setContextPaneOpen(true);
             }
         } catch (error: any) {
             console.error('[AMR] API Error:', error?.response?.data || error?.message || error);
@@ -329,10 +328,10 @@ export default function AgentInterface() {
     };
 
     return (
-        <div className="flex h-full w-full bg-[var(--color-background)] text-[var(--color-text-primary)] overflow-hidden selection:bg-emerald-500/15 relative">
+        <div className="flex h-full min-h-0 w-full bg-[var(--color-background)] text-[var(--color-text-primary)] overflow-hidden selection:bg-emerald-500/15 relative">
 
             {/* Main Chat */}
-            <main className="flex-1 flex flex-col relative min-w-0 h-full w-full z-0">
+            <main className="flex-1 flex flex-col relative min-w-0 h-full w-full min-h-0 z-0">
 
                 {/* Top bar — only visible in conversation */}
                 {hasStarted && (
@@ -366,26 +365,21 @@ export default function AgentInterface() {
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto scroll-smooth">
-                    <div className="max-w-[720px] mx-auto h-full">
+                    <div className="max-w-[980px] mx-auto h-full w-full">
 
                         {/* Greeting */}
                         {!hasStarted && (
-                            <div className="flex flex-col h-full relative">
-                                <div className="flex-1 flex flex-col justify-end pb-8 px-4">
-                                    <div className="text-center w-full max-w-xl mx-auto">
-                                        <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-3 text-[var(--color-text-primary)]">
+                            <div className="flex flex-col min-h-[calc(100vh-12rem)] justify-center px-4 py-10">
+                                <div className="text-center w-full max-w-2xl mx-auto">
+                                        <h1 className="text-5xl md:text-6xl font-medium tracking-tight mb-4 text-[var(--color-text-primary)]">
                                             Hello, {userName}
                                         </h1>
-                                        <p className="text-xl md:text-2xl text-[var(--color-text-muted)] font-light">
+                                        <p className="text-xl md:text-2xl text-[var(--color-text-muted)] font-light max-w-xl mx-auto">
                                             What can I help you with<span className="text-emerald-500">?</span>
                                         </p>
                                     </div>
-                                </div>
 
-                                <div className="h-[130px] flex-shrink-0 w-full" aria-hidden="true" />
-
-                                <div className="flex-1 flex flex-col justify-start pt-4 px-4 pb-8">
-                                    <div className="w-full max-w-2xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                                    <div className="w-full max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-10">
                                         {SUGGESTIONS.map((s, i) => (
                                             <button
                                                 key={i}
@@ -399,13 +393,12 @@ export default function AgentInterface() {
                                             </button>
                                         ))}
                                     </div>
-                                </div>
                             </div>
                         )}
 
                         {/* Messages */}
                         {hasStarted && (
-                            <div className="px-4 pt-20 pb-44">
+                            <div className="px-4 pt-20 pb-8">
                                 {messages.map((msg, index) => (
                                     <div key={msg.id} className="mb-6 animate-fade-in">
                                         <div className="flex gap-4">
@@ -509,7 +502,7 @@ export default function AgentInterface() {
                                                                         style={{ animationDelay: `${idx * 80}ms` }}
                                                                     >
                                                                         {/* Image */}
-                                                                        <div className="w-18 h-18 md:w-20 md:h-20 bg-[var(--color-surface-hover)] rounded-lg flex-shrink-0 overflow-hidden">
+                                                                        <div className="w-[72px] h-[72px] md:w-20 md:h-20 bg-[var(--color-surface-hover)] rounded-lg flex-shrink-0 overflow-hidden">
                                                                             <img src={prop.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={prop.title} />
                                                                         </div>
 
@@ -609,13 +602,8 @@ export default function AgentInterface() {
                 </div>
 
                 {/* Input Bar */}
-                <div className={`absolute left-0 right-0 z-40 transition-all duration-700 ${!hasStarted
-                    ? 'top-[50%] -translate-y-1/2 p-4'
-                    : 'bottom-0 p-4 md:p-6'
-                    }`}
-                    style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)' }}
-                >
-                    <div className="max-w-[720px] mx-auto relative">
+                <div className="sticky bottom-0 left-0 right-0 z-40 px-4 md:px-6 pb-4 pt-3 border-t border-[var(--color-border)] bg-[var(--color-background)]/92 backdrop-blur-xl">
+                    <div className="max-w-[980px] mx-auto relative">
                         <div className={`bg-[var(--color-surface)] rounded-2xl flex flex-col transition-all duration-150 ${isTyping ? 'opacity-60' : ''} border border-[var(--color-border)] focus-within:border-[var(--color-text-muted)]/30 shadow-lg shadow-black/5 dark:shadow-black/20`}>
 
                             <textarea
@@ -639,6 +627,7 @@ export default function AgentInterface() {
                                     <button
                                         onClick={() => handleSendMessage()}
                                         disabled={isTyping}
+                                        title="Send message"
                                         className="p-2 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-lg hover:opacity-85 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                                     >
                                         <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
@@ -666,6 +655,7 @@ export default function AgentInterface() {
                         </div>
                         <button
                             onClick={() => setContextPaneOpen(false)}
+                            title="Close details pane"
                             className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
                         >
                             <X className="w-4 h-4" />

@@ -6,12 +6,10 @@ import { usePathname } from 'next/navigation';
 import {
     MessageSquare, LayoutDashboard, TrendingUp, Building2,
     Heart, LogOut, Sun, Moon, Gift, Menu, X,
-    Zap, ChevronDown
+    ChevronDown
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useGamification } from '@/contexts/GamificationContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { LEVEL_COLORS, LEVEL_GRADIENTS } from '@/lib/gamification';
 import InvitationModal from '@/components/InvitationModal';
 
 const NAV_ITEMS = [
@@ -29,16 +27,10 @@ interface SmartNavProps {
 export default function SmartNav({ children }: SmartNavProps) {
     const pathname = usePathname();
     const { user, isAuthenticated, logout } = useAuth();
-    const { profile } = useGamification();
     const { theme, toggleTheme } = useTheme();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
-
-    const levelGradient = profile ? (LEVEL_GRADIENTS[profile.level] || LEVEL_GRADIENTS.curious) : 'from-zinc-500 to-zinc-600';
-    const xpProgress = profile?.next_level
-        ? Math.min(((profile.xp - (profile.next_level.xp_required - profile.next_level.xp_remaining)) / profile.next_level.xp_remaining) * 100, 100)
-        : 100;
 
     useEffect(() => {
         setMobileMenuOpen(false);
@@ -67,7 +59,7 @@ export default function SmartNav({ children }: SmartNavProps) {
         <>
             <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-            <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--color-background)]">
+            <div className="flex flex-col min-h-screen w-full bg-[var(--color-background)]">
 
                 {/* Header */}
                 <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]">
@@ -108,27 +100,10 @@ export default function SmartNav({ children }: SmartNavProps) {
 
                             {/* Right — Actions */}
                             <div className="hidden md:flex items-center gap-1.5">
-                                {/* XP Chip */}
-                                {isAuthenticated && profile && (
-                                    <Link
-                                        href="/dashboard"
-                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 transition-colors"
-                                        title={`${profile.xp} XP`}
-                                    >
-                                        <Zap className="w-3 h-3" />
-                                        <span>{profile.xp}</span>
-                                        <div className="w-6 h-1 bg-emerald-500/20 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                                                style={{ width: `${Math.max(xpProgress, 8)}%` }}
-                                            />
-                                        </div>
-                                    </Link>
-                                )}
-
                                 {/* Theme */}
                                 <button
                                     onClick={toggleTheme}
+                                    title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                                     className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)] transition-colors"
                                 >
                                     {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -181,17 +156,9 @@ export default function SmartNav({ children }: SmartNavProps) {
 
                             {/* Mobile */}
                             <div className="flex md:hidden items-center gap-1.5">
-                                {isAuthenticated && profile && (
-                                    <Link
-                                        href="/dashboard"
-                                        className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold"
-                                    >
-                                        <Zap className="w-3 h-3" />
-                                        {profile.xp}
-                                    </Link>
-                                )}
                                 <button
                                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                                    title={mobileMenuOpen ? 'Close menu' : 'Open menu'}
                                     className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors"
                                 >
                                     {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -243,6 +210,7 @@ export default function SmartNav({ children }: SmartNavProps) {
                                             </button>
                                             <button
                                                 onClick={() => logout()}
+                                                title="Sign out"
                                                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
                                             >
                                                 <LogOut className="w-4 h-4" />
@@ -256,7 +224,7 @@ export default function SmartNav({ children }: SmartNavProps) {
                 </header>
 
                 {/* Main Content */}
-                <main className="flex-1 min-w-0 overflow-hidden pt-12">
+                <main className="flex-1 min-w-0 pt-12">
                     {children}
                 </main>
             </div>
