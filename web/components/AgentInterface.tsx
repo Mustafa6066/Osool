@@ -768,7 +768,6 @@ export default function AgentInterface() {
                                 <ChevronRight className="w-4 h-4 opacity-70" strokeWidth={2.5} />
                             </button>
                         </div>
-                        </button>
                     </div>
                 </aside>
             )}
