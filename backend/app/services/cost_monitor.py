@@ -1,8 +1,8 @@
 """
-OpenAI Cost Monitor - Phase 4: Budget Protection
--------------------------------------------------
-Tracks token usage and costs for OpenAI API calls to prevent budget overruns.
-Alerts when daily spending exceeds threshold.
+AI Cost Monitor - Phase 4+: Budget Protection (Claude + OpenAI)
+---------------------------------------------------------------
+Tracks token usage and costs for ALL LLM API calls (Claude and OpenAI)
+to prevent budget overruns. Alerts when daily spending exceeds threshold.
 """
 
 import logging
@@ -16,33 +16,59 @@ logger = logging.getLogger(__name__)
 
 class CostMonitor:
     """
-    Monitors OpenAI API usage and calculates costs.
+    Monitors Claude and OpenAI API usage and calculates costs.
 
-    Pricing (as of 2024):
-    - GPT-4o: $0.0025/1K input tokens, $0.01/1K output tokens
-    - text-embedding-ada-002: $0.0001/1K tokens
-    - text-embedding-3-small: $0.00002/1K tokens
+    Pricing (as of 2025):
+    - Claude Sonnet 4.5: $3/1M input, $15/1M output
+    - Claude Haiku 3.5:  $0.80/1M input, $4/1M output
+    - GPT-4o:            $2.50/1M input, $10/1M output
+    - GPT-4o-mini:       $0.15/1M input, $0.60/1M output
     """
 
     # Pricing per 1K tokens (USD)
     COSTS = {
+        # ── Claude / Anthropic models ──
+        'claude-sonnet-4-5-20250929': {
+            'input': 0.003,          # $3 / 1M tokens
+            'output': 0.015,         # $15 / 1M tokens
+            'cache_read': 0.0003,    # 90% discount on cached input
+            'cache_write': 0.00375,  # 25% surcharge on first cache write
+        },
+        'claude-3-5-sonnet-20241022': {  # legacy alias
+            'input': 0.003,
+            'output': 0.015,
+            'cache_read': 0.0003,
+            'cache_write': 0.00375,
+        },
+        'claude-3-5-haiku-20241022': {
+            'input': 0.0008,
+            'output': 0.004,
+            'cache_read': 0.00008,
+            'cache_write': 0.001,
+        },
+        # ── OpenAI models ──
         'gpt-4o': {
             'input': 0.0025,
-            'output': 0.01
+            'output': 0.01,
+        },
+        'gpt-4o-2024-11-20': {
+            'input': 0.0025,
+            'output': 0.01,
         },
         'gpt-4o-mini': {
             'input': 0.00015,
-            'output': 0.0006
+            'output': 0.0006,
         },
+        # ── Embedding models ──
         'text-embedding-ada-002': {
-            'usage': 0.0001
+            'usage': 0.0001,
         },
         'text-embedding-3-small': {
-            'usage': 0.00002
+            'usage': 0.00002,
         },
         'text-embedding-3-large': {
-            'usage': 0.00013
-        }
+            'usage': 0.00013,
+        },
     }
 
     DAILY_BUDGET_THRESHOLD = 100  # USD - alert if exceeded
@@ -90,9 +116,61 @@ class CostMonitor:
 
         return cost
 
-    def _calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
-        """Calculate cost based on token usage"""
+    def log_claude_usage(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0,
+        context: str = "",
+    ) -> float:
+        """
+        Log Anthropic/Claude API usage with prompt-caching breakdown.
+
+        Returns cost in USD.
+        """
+        cost = self._calculate_cost(
+            model, input_tokens, output_tokens,
+            cache_creation_tokens=cache_creation_tokens,
+            cache_read_tokens=cache_read_tokens,
+        )
+        self._store_usage(model, input_tokens, output_tokens, cost, context)
+
+        daily_total = self._get_daily_total()
+        if daily_total > self.DAILY_BUDGET_THRESHOLD:
+            logger.critical(
+                f"🚨 COST ALERT: Daily AI spending ${daily_total:.2f} "
+                f"exceeds threshold ${self.DAILY_BUDGET_THRESHOLD}"
+            )
+
+        cache_info = ""
+        if cache_creation_tokens or cache_read_tokens:
+            cache_info = f", Cache-write: {cache_creation_tokens}, Cache-read: {cache_read_tokens}"
+
+        logger.info(
+            f"💰 Claude usage - Model: {model}, In: {input_tokens}, Out: {output_tokens}"
+            f"{cache_info}, Cost: ${cost:.4f}, Daily: ${daily_total:.2f}"
+        )
+        return cost
+
+    def _calculate_cost(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0,
+    ) -> float:
+        """Calculate cost based on token usage, including prompt-cache pricing."""
         pricing = self.COSTS.get(model)
+
+        if not pricing:
+            # Try partial match (e.g. "claude-sonnet-4-5" matches full key)
+            for key, val in self.COSTS.items():
+                if key.startswith(model) or model.startswith(key):
+                    pricing = val
+                    break
 
         if not pricing:
             logger.warning(f"⚠️ Unknown model: {model} - cost tracking unavailable")
@@ -101,11 +179,20 @@ class CostMonitor:
         if 'usage' in pricing:
             # Embedding models (single token count)
             return (input_tokens / 1000) * pricing['usage']
-        else:
-            # Chat models (separate input/output pricing)
-            input_cost = (input_tokens / 1000) * pricing['input']
-            output_cost = (output_tokens / 1000) * pricing['output']
-            return input_cost + output_cost
+
+        # Chat models (separate input/output pricing)
+        input_cost = (input_tokens / 1000) * pricing['input']
+        output_cost = (output_tokens / 1000) * pricing['output']
+
+        # Prompt-cache pricing (Anthropic)
+        cache_write_cost = 0.0
+        cache_read_cost = 0.0
+        if cache_creation_tokens and 'cache_write' in pricing:
+            cache_write_cost = (cache_creation_tokens / 1000) * pricing['cache_write']
+        if cache_read_tokens and 'cache_read' in pricing:
+            cache_read_cost = (cache_read_tokens / 1000) * pricing['cache_read']
+
+        return input_cost + output_cost + cache_write_cost + cache_read_cost
 
     def _store_usage(
         self,

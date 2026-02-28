@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import {
     ArrowRight, Building2, TrendingUp, GitCompare,
-    BarChart3, Sparkles, Sun, Moon
+    BarChart3, Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -22,7 +21,7 @@ export default function Home() {
     const developers = ['EMAAR', 'SODIC', 'ORASCOM', 'PALM HILLS', 'MOUNTAIN VIEW', 'TMG'];
 
     return (
-        <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] font-display selection:bg-[#267360] selection:text-white overflow-x-hidden">
+        <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] selection:bg-emerald-500/20 selection:text-emerald-200 overflow-x-hidden">
             {/* Invitation Modal */}
             <InvitationModal
                 isOpen={showInvitationModal}
@@ -30,54 +29,44 @@ export default function Home() {
             />
 
             {/* Navigation */}
-            <header className="fixed top-0 w-full z-50 border-b border-[var(--color-border)] backdrop-blur-xl bg-[var(--color-background)]/80 transition-colors duration-300">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16 sm:h-20">
+            <header className="fixed top-0 w-full z-50 border-b border-[var(--color-border)] backdrop-blur-xl bg-[var(--color-background)]/80">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6">
+                    <div className="flex items-center justify-between h-14">
                         {/* Logo */}
-                        <Link href="/" className="flex items-center gap-2 text-[#267360] group">
-                            <div className="w-8 h-8 rounded bg-[#267360] text-white flex items-center justify-center transition-transform group-hover:scale-110">
-                                <Building2 size={20} />
+                        <Link href="/" className="flex items-center gap-2.5 group">
+                            <div className="w-7 h-7 rounded-lg bg-[var(--color-text-primary)] text-[var(--color-background)] flex items-center justify-center">
+                                <span className="text-[10px] font-bold tracking-tight">A</span>
                             </div>
-                            <span className="text-xl font-bold tracking-tight">AMR</span>
+                            <span className="text-sm font-semibold tracking-tight text-[var(--color-text-primary)]">AMR</span>
                         </Link>
 
-                        {/* Desktop Nav */}
-                        <nav className="hidden md:flex items-center gap-8">
-                            <Link href="#market" className="text-sm font-medium hover:text-[#267360] transition-colors">
-                                Market Analysis
-                            </Link>
-                            <Link href="#developers" className="text-sm font-medium hover:text-[#267360] transition-colors">
-                                Developers
-                            </Link>
-                        </nav>
-
                         {/* Actions */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                             {!loading && !isAuthenticated && (
-                                <Link href="/login" className="hidden md:block text-sm font-medium hover:text-[#267360] transition-colors mr-2">
-                                    Login
+                                <Link href="/login" className="hidden md:block text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors px-3 py-1.5">
+                                    Log in
                                 </Link>
                             )}
                             <LanguageToggle />
                             <ThemeToggle />
 
                             {loading ? (
-                                <div className="w-32 h-10 bg-[var(--color-surface)] rounded-lg animate-pulse"></div>
+                                <div className="w-28 h-9 bg-[var(--color-surface)] rounded-lg animate-pulse" />
                             ) : isAuthenticated ? (
                                 <>
                                     <button
                                         onClick={() => setShowInvitationModal(true)}
-                                        className="bg-[#267360] hover:bg-[#1e5c4d] text-white text-sm font-bold py-2.5 px-5 rounded-lg transition-all shadow-lg shadow-[#267360]/20 hidden sm:flex items-center gap-2 group"
+                                        className="bg-[var(--color-text-primary)] text-[var(--color-background)] text-sm font-medium py-2 px-4 rounded-lg transition-opacity hover:opacity-85 hidden sm:flex items-center gap-2"
                                     >
-                                        <span>Generate Invitation</span>
-                                        <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                        <span>Invite</span>
+                                        <ArrowRight size={14} />
                                     </button>
                                     <ProfileDropdown onGenerateInvitation={() => setShowInvitationModal(true)} />
                                 </>
                             ) : (
-                                <Link href="/signup" className="bg-[#267360] hover:bg-[#1e5c4d] text-white text-sm font-bold py-2.5 px-5 rounded-lg transition-all shadow-lg shadow-[#267360]/20 flex items-center gap-2 group">
-                                    <span>Get Early Access</span>
-                                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                <Link href="/signup" className="bg-[var(--color-text-primary)] text-[var(--color-background)] text-sm font-medium py-2 px-4 rounded-lg transition-opacity hover:opacity-85 flex items-center gap-2">
+                                    <span>Get Started</span>
+                                    <ArrowRight size={14} />
                                 </Link>
                             )}
                         </div>
@@ -86,144 +75,125 @@ export default function Home() {
             </header>
 
             {/* Hero Section */}
-            <section className="relative px-4 py-12 md:py-20 lg:py-24 max-w-7xl mx-auto w-full mt-20">
-                <div className="grid lg:grid-cols-2 gap-12 items-center">
-                    {/* Text Content */}
-                    <div className="flex flex-col gap-6 max-w-2xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#267360]/10 border border-[#267360]/20 w-fit">
-                            <span className="w-2 h-2 rounded-full bg-[#267360] animate-pulse"></span>
-                            <span className="text-xs font-bold text-[#267360] tracking-wide uppercase">AI-Powered Insights V2.0</span>
+            <section className="relative px-4 pt-36 pb-20 md:pt-44 md:pb-28 max-w-4xl mx-auto w-full">
+                <div className="flex flex-col items-center text-center gap-6">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/8 border border-emerald-500/15 mb-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">AI-Powered Real Estate Intelligence</span>
+                    </div>
+
+                    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-medium leading-[1.05] tracking-tight max-w-3xl">
+                        The intelligence behind your{' '}
+                        <span className="text-emerald-500">next investment</span>
+                    </h1>
+
+                    <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed max-w-xl">
+                        AMR analyzes the Egyptian real estate market with AI precision. Get instant insights on pricing, ROI forecasts, and developer audits.
+                    </p>
+
+                    <div className="flex flex-wrap gap-3 mt-4 justify-center">
+                        <Link
+                            href={isAuthenticated ? "/chat" : "/login"}
+                            className="bg-[var(--color-text-primary)] text-[var(--color-background)] h-11 px-7 rounded-xl font-medium text-sm hover:opacity-90 transition-opacity flex items-center gap-2"
+                        >
+                            Start Analysis
+                            <ArrowRight size={16} />
+                        </Link>
+                        <Link
+                            href="#demo"
+                            className="h-11 px-7 rounded-xl font-medium text-sm border border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors flex items-center"
+                        >
+                            View Demo
+                        </Link>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-8 text-sm text-[var(--color-text-muted)]">
+                        <div className="flex -space-x-1.5">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="w-6 h-6 rounded-full border-2 border-[var(--color-background)] bg-emerald-500/20" />
+                            ))}
                         </div>
-                        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight">
-                            The Intelligence Behind Your{' '}
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#267360] to-emerald-400">
-                                Next Investment.
-                            </span>
-                        </h1>
-                        <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed max-w-lg">
-                            AMR is the state-of-the-art AI advisor for the Egyptian real estate market. Analyze, compare, and invest with data-driven confidence in Cairo and beyond.
-                        </p>
-                        <div className="flex flex-wrap gap-3 mt-2">
-                            <Link
-                                href={isAuthenticated ? "/chat" : "/login"}
-                                className="bg-[#267360] text-white h-12 px-8 rounded-lg font-bold text-base hover:bg-[#1e5c4d] transition-all flex items-center justify-center gap-2"
-                            >
-                                Start Analysis
-                                <BarChart3 size={20} />
-                            </Link>
-                            <Link
-                                href="#demo"
-                                className="h-12 px-8 rounded-lg font-bold text-base border border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-all flex items-center justify-center"
-                            >
-                                View Demo
-                            </Link>
+                        <p className="text-xs">Trusted by 2,000+ investors</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Dashboard Preview */}
+            <section className="px-4 pb-20 max-w-5xl mx-auto">
+                <div className="relative bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-2xl shadow-black/5 dark:shadow-black/30 overflow-hidden">
+                    {/* Window Chrome */}
+                    <div className="px-5 py-3 border-b border-[var(--color-border)] flex items-center gap-2">
+                        <div className="flex gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-text-muted)]/20" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-text-muted)]/20" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-text-muted)]/20" />
                         </div>
-                        <div className="flex items-center gap-4 mt-6 text-sm text-[var(--color-text-muted)]">
-                            <div className="flex -space-x-2">
-                                {[1, 2, 3].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="w-8 h-8 rounded-full border-2 border-[var(--color-background)] bg-gradient-to-br from-[#267360] to-emerald-600"
-                                    />
-                                ))}
+                        <div className="flex-1 flex justify-center">
+                            <div className="px-3 py-0.5 bg-[var(--color-background)] rounded text-[10px] font-mono text-[var(--color-text-muted)]">
+                                amr.osool.ai
                             </div>
-                            <p>Trusted by 2,000+ investors</p>
                         </div>
                     </div>
 
-                    {/* Visual Dashboard */}
-                    <div className="relative w-full aspect-[4/3] lg:aspect-square max-h-[600px] flex items-center justify-center">
-                        {/* Background Glow */}
-                        <div className="absolute inset-0 bg-[#267360]/20 blur-[100px] rounded-full opacity-50 dark:opacity-30"></div>
-
-                        {/* Dashboard Card */}
-                        <div className="relative w-full h-full bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-2xl overflow-hidden flex flex-col">
-                            {/* Card Header */}
-                            <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                </div>
-                                <div className="px-3 py-1 bg-[var(--color-surface)] rounded text-xs font-mono text-[var(--color-text-muted)]">
-                                    amr_agent_v2.exe
+                    <div className="p-6 md:p-8 flex flex-col gap-5">
+                        {/* Stats */}
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="bg-[var(--color-background)] p-4 rounded-xl border border-[var(--color-border)]">
+                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">New Capital Growth</p>
+                                <div className="flex items-baseline gap-1.5">
+                                    <span className="text-xl font-semibold">+12.4%</span>
+                                    <span className="text-[10px] text-emerald-500 font-medium">YTD</span>
                                 </div>
                             </div>
-
-                            {/* Stats & Chart */}
-                            <div className="relative flex-1 p-6 flex flex-col gap-6">
-                                {/* Stats Row */}
-                                <div className="flex gap-4">
-                                    <div className="flex-1 bg-[var(--color-background)] p-4 rounded-lg border border-[var(--color-border)]">
-                                        <p className="text-xs text-[var(--color-text-muted)] mb-1">New Capital Growth</p>
-                                        <div className="flex items-end gap-2">
-                                            <span className="text-2xl font-bold">+12.4%</span>
-                                            <span className="text-xs text-[#267360] font-bold mb-1">↑ YTD</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 bg-[var(--color-background)] p-4 rounded-lg border border-[var(--color-border)]">
-                                        <p className="text-xs text-[var(--color-text-muted)] mb-1">Predicted ROI</p>
-                                        <div className="flex items-end gap-2">
-                                            <span className="text-2xl font-bold">18%</span>
-                                            <span className="text-xs text-[var(--color-text-muted)] mb-1">Annual</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Chart Visualization */}
-                                <div className="flex-1 bg-[var(--color-background)] rounded-lg border border-[var(--color-border)] p-4 relative overflow-hidden group">
-                                    <div className="absolute top-4 right-4 z-10">
-                                        <span className="bg-[#267360] text-white text-xs font-bold px-2 py-1 rounded">Live Analysis</span>
-                                    </div>
-                                    <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
-                                        <defs>
-                                            <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#267360" stopOpacity="0.4" />
-                                                <stop offset="100%" stopColor="#267360" stopOpacity="0" />
-                                            </linearGradient>
-                                        </defs>
-                                        <path
-                                            d="M0,160 Q40,150 80,120 T160,110 T240,80 T320,60 L400,30 L400,200 L0,200 Z"
-                                            fill="url(#chartGradient)"
-                                        />
-                                        <path
-                                            d="M0,160 Q40,150 80,120 T160,110 T240,80 T320,60 L400,30"
-                                            fill="none"
-                                            stroke="#267360"
-                                            strokeWidth="3"
-                                            strokeLinecap="round"
-                                        />
-                                        <circle cx="320" cy="60" r="6" fill="currentColor" className="text-[var(--color-surface)] stroke-[#267360] stroke-[3px] animate-pulse" />
-                                    </svg>
+                            <div className="bg-[var(--color-background)] p-4 rounded-xl border border-[var(--color-border)]">
+                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Predicted ROI</p>
+                                <div className="flex items-baseline gap-1.5">
+                                    <span className="text-xl font-semibold">18%</span>
+                                    <span className="text-[10px] text-[var(--color-text-muted)]">Annual</span>
                                 </div>
                             </div>
-
-                            {/* Floating Alert */}
-                            <div className="absolute bottom-6 left-6 right-6 bg-[var(--color-surface-elevated)] p-3 rounded-lg shadow-lg border border-[var(--color-border)] flex items-center gap-3 animate-bounce" style={{ animationDuration: '3s' }}>
-                                <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
-                                    <TrendingUp size={18} />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-bold">Market Alert</p>
-                                    <p className="text-xs text-[var(--color-text-muted)]">Sodic East prices up 2% this week.</p>
+                            <div className="bg-[var(--color-background)] p-4 rounded-xl border border-[var(--color-border)]">
+                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Liquidity Score</p>
+                                <div className="flex items-baseline gap-1.5">
+                                    <span className="text-xl font-semibold">87</span>
+                                    <span className="text-[10px] text-emerald-500 font-medium">/100</span>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Chart */}
+                        <div className="bg-[var(--color-background)] rounded-xl border border-[var(--color-border)] p-5 relative h-48">
+                            <div className="absolute top-4 left-5 flex items-center gap-2">
+                                <span className="text-xs font-medium text-[var(--color-text-primary)]">Price Trend</span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-medium">Live</span>
+                            </div>
+                            <svg className="w-full h-full" viewBox="0 0 400 160" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="rgb(16,185,129)" stopOpacity="0.15" />
+                                        <stop offset="100%" stopColor="rgb(16,185,129)" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                <path d="M0,130 Q40,120 80,100 T160,90 T240,60 T320,45 L400,20 L400,160 L0,160 Z" fill="url(#chartGradient)" />
+                                <path d="M0,130 Q40,120 80,100 T160,90 T240,60 T320,45 L400,20" fill="none" stroke="rgb(16,185,129)" strokeWidth="2" strokeLinecap="round" />
+                                <circle cx="400" cy="20" r="3" fill="rgb(16,185,129)" className="animate-pulse" />
+                            </svg>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* Developer Ticker */}
-            <section id="developers" className="border-y border-[var(--color-border)] bg-[var(--color-surface)] py-8 overflow-hidden">
-                <div className="max-w-7xl mx-auto px-4 mb-4">
-                    <p className="text-center text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+            <section id="developers" className="border-y border-[var(--color-border)] py-8 overflow-hidden">
+                <div className="max-w-6xl mx-auto px-4 mb-4">
+                    <p className="text-center text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-[0.15em]">
                         Trusted insights on properties from
                     </p>
                 </div>
-                <div className="relative flex overflow-x-hidden group">
-                    <div className="animate-marquee whitespace-nowrap flex items-center gap-16 px-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+                <div className="relative flex overflow-x-hidden">
+                    <div className="animate-marquee whitespace-nowrap flex items-center gap-16 px-8 opacity-40">
                         {[...developers, ...developers].map((dev, idx) => (
-                            <span key={idx} className="text-2xl font-bold text-[var(--color-text-muted)]">
+                            <span key={idx} className="text-xl font-semibold text-[var(--color-text-muted)] tracking-wide">
                                 {dev}
                             </span>
                         ))}
@@ -231,102 +201,93 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* Bento Grid Features */}
-            <section id="market" className="py-20 px-4 max-w-7xl mx-auto w-full">
-                <div className="flex flex-col gap-4 mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight max-w-2xl">
-                        Smarter Investment Decisions
+            {/* Feature Grid */}
+            <section id="market" className="py-24 px-4 max-w-5xl mx-auto w-full">
+                <div className="flex flex-col gap-3 mb-14 max-w-xl">
+                    <h2 className="text-3xl md:text-4xl font-medium tracking-tight">
+                        Smarter investment decisions
                     </h2>
-                    <p className="text-lg text-[var(--color-text-secondary)] max-w-2xl">
-                        Leverage AI to uncover hidden opportunities in the Egyptian property market.
+                    <p className="text-[var(--color-text-secondary)]">
+                        AI-powered tools to uncover hidden opportunities in the Egyptian property market.
                     </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Real-time Analysis */}
-                    <div className="md:col-span-2 group relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-sm hover:shadow-md transition-all hover:border-[#267360]/50">
-                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <BarChart3 size={96} className="text-[#267360]" />
-                        </div>
-                        <div className="relative z-10 flex flex-col h-full justify-between">
+                    <div className="md:col-span-2 group relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7 hover:border-emerald-500/20 transition-all duration-300">
+                        <div className="flex flex-col h-full justify-between">
                             <div>
-                                <div className="w-12 h-12 rounded-lg bg-[#267360]/10 flex items-center justify-center text-[#267360] mb-6">
-                                    <BarChart3 size={24} />
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/8 flex items-center justify-center text-emerald-500 mb-5">
+                                    <BarChart3 size={20} />
                                 </div>
-                                <h3 className="text-2xl font-bold mb-2">Real-time Analysis</h3>
-                                <p className="text-[var(--color-text-secondary)] max-w-md">
-                                    Live data tracking market trends across Cairo, New Capital, and North Coast. Our algorithms process thousands of data points daily.
+                                <h3 className="text-xl font-medium mb-2">Real-time Analysis</h3>
+                                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-md">
+                                    Live data tracking market trends across Cairo, New Capital, and North Coast. Thousands of data points processed daily.
                                 </p>
                             </div>
-                            <div className="mt-8">
-                                <Link href="/chat" className="flex items-center gap-2 text-[#267360] font-bold text-sm group">
+                            <div className="mt-6">
+                                <Link href="/chat" className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium text-sm group/link">
                                     <span>View Market Report</span>
-                                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                    <ArrowRight size={14} className="group-hover/link:translate-x-0.5 transition-transform" />
                                 </Link>
                             </div>
                         </div>
                     </div>
 
                     {/* ROI Forecasting */}
-                    <div className="group relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-sm hover:shadow-md transition-all hover:border-[#267360]/50">
-                        <div className="w-12 h-12 rounded-lg bg-[#267360]/10 flex items-center justify-center text-[#267360] mb-6">
-                            <TrendingUp size={24} />
+                    <div className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7 hover:border-emerald-500/20 transition-all duration-300">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/8 flex items-center justify-center text-emerald-500 mb-5">
+                            <TrendingUp size={20} />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">ROI Forecasting</h3>
-                        <p className="text-sm text-[var(--color-text-secondary)] mb-6">
-                            Predictive models estimate your property's future value growth over 5 and 10 years.
+                        <h3 className="text-lg font-medium mb-2">ROI Forecasting</h3>
+                        <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mb-5">
+                            Predictive models estimate future value growth over 5 and 10 years.
                         </p>
-                        {/* Micro Chart */}
-                        <div className="h-24 w-full bg-[var(--color-background)] rounded border border-[var(--color-border)] relative flex items-end px-2 pb-2 gap-1">
+                        <div className="h-20 w-full bg-[var(--color-background)] rounded-lg border border-[var(--color-border)] flex items-end px-2 pb-2 gap-1">
                             {[40, 55, 45, 70, 85].map((height, idx) => (
-                                <div
-                                    key={idx}
-                                    className="w-1/5 bg-[#267360] rounded-sm transition-all"
-                                    style={{ height: `${height}%`, opacity: 0.2 + (idx * 0.2) }}
-                                />
+                                <div key={idx} className="w-1/5 bg-emerald-500 rounded-sm transition-all" style={{ height: `${height}%`, opacity: 0.15 + (idx * 0.2) }} />
                             ))}
                         </div>
                     </div>
 
                     {/* Developer Comparisons */}
-                    <div className="group relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-sm hover:shadow-md transition-all hover:border-[#267360]/50">
-                        <div className="w-12 h-12 rounded-lg bg-[#267360]/10 flex items-center justify-center text-[#267360] mb-6">
-                            <GitCompare size={24} />
+                    <div className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7 hover:border-emerald-500/20 transition-all duration-300">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/8 flex items-center justify-center text-emerald-500 mb-5">
+                            <GitCompare size={20} />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">Developer Comparisons</h3>
-                        <p className="text-sm text-[var(--color-text-secondary)]">
-                            Unbiased side-by-side comparisons. See delivery history, finish quality, and resale value retention.
+                        <h3 className="text-lg font-medium mb-2">Developer Comparisons</h3>
+                        <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                            Unbiased side-by-side comparisons. Delivery history, finish quality, and resale value retention.
                         </p>
                     </div>
 
-                    {/* AI Chat - Demo Section */}
-                    <div id="demo" className="md:col-span-2 group relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[#1A1D1F] p-8 shadow-sm hover:shadow-md transition-all scroll-mt-24">
-                        <div className="absolute inset-0 bg-gradient-to-r from-[#267360]/20 to-transparent opacity-20"></div>
-                        <div className="relative z-10 flex flex-col sm:flex-row gap-8 items-center">
+                    {/* AI Chat Demo */}
+                    <div id="demo" className="md:col-span-2 group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-dark,var(--color-surface))] p-7 hover:border-emerald-500/20 transition-all duration-300 scroll-mt-24 overflow-hidden relative">
+                        <div className="flex flex-col sm:flex-row gap-6 items-start">
                             <div className="flex-1">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 w-fit mb-4">
-                                    <Sparkles size={16} className="text-[#267360]" />
-                                    <span className="text-xs font-bold text-white tracking-wide">AMR ASSISTANT</span>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/15 mb-4">
+                                    <Sparkles size={12} className="text-emerald-500" />
+                                    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">AMR Assistant</span>
                                 </div>
-                                <h3 className="text-2xl font-bold mb-2 text-white">Ask AMR Anything</h3>
-                                <p className="text-gray-300 max-w-md mb-6">
-                                    "What is the average price per meter in Sheikh Zayed?"<br />
-                                    "Compare payment plans for Zed Towers vs. O West."
+                                <h3 className="text-xl font-medium mb-2">Ask AMR Anything</h3>
+                                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mb-5">
+                                    &ldquo;Average price per meter in Sheikh Zayed?&rdquo;<br />
+                                    &ldquo;Compare Zed Towers vs. O West payment plans.&rdquo;
                                 </p>
                                 <Link
                                     href={isAuthenticated ? "/chat" : "/login"}
-                                    className="bg-white text-gray-900 px-6 py-2 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors inline-block"
+                                    className="bg-[var(--color-text-primary)] text-[var(--color-background)] px-5 py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity inline-block"
                                 >
                                     Try AI Chat
                                 </Link>
                             </div>
-                            {/* Chat Simulation */}
-                            <div className="w-full sm:w-1/2 bg-[#2c3533] rounded-lg p-4 border border-white/10 flex flex-col gap-3">
-                                <div className="self-end bg-[#267360]/20 text-white text-xs p-3 rounded-t-lg rounded-bl-lg max-w-[90%] border border-[#267360]/20">
+                            <div className="w-full sm:w-5/12 bg-[var(--color-background)] rounded-xl p-4 border border-[var(--color-border)] flex flex-col gap-2.5">
+                                <div className="self-end bg-[var(--color-surface)] text-[var(--color-text-primary)] text-xs p-3 rounded-2xl rounded-br-md max-w-[90%] border border-[var(--color-border)]">
                                     Is it a good time to buy in New Alamein?
                                 </div>
-                                <div className="self-start bg-[#1e2423] text-gray-200 text-xs p-3 rounded-t-lg rounded-br-lg max-w-[90%] border border-white/5">
-                                    <span className="text-[#267360] font-bold block mb-1">AMR Analysis:</span>
-                                    Yes. Seasonal demand is peaking. Prices have risen 8% in Q1 2024. Rental yields are currently averaging 7-9%.
+                                <div className="self-start text-[var(--color-text-secondary)] text-xs p-3 max-w-[90%] leading-relaxed">
+                                    <span className="text-emerald-500 font-medium block mb-1 text-[10px] uppercase tracking-wider">AMR Analysis</span>
+                                    Seasonal demand is peaking. Prices rose 8% in Q1 2024. Rental yields averaging 7-9%.
                                 </div>
                             </div>
                         </div>
@@ -334,19 +295,19 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* CTA Section */}
-            <section className="py-20 bg-[var(--color-surface)]">
-                <div className="max-w-4xl mx-auto px-4 text-center">
-                    <h2 className="text-3xl md:text-5xl font-black mb-6 tracking-tight">
+            {/* CTA */}
+            <section className="py-24 border-t border-[var(--color-border)]">
+                <div className="max-w-2xl mx-auto px-4 text-center">
+                    <h2 className="text-3xl md:text-4xl font-medium mb-4 tracking-tight">
                         Ready to invest with confidence?
                     </h2>
-                    <p className="text-lg text-[var(--color-text-secondary)] mb-10 max-w-xl mx-auto">
+                    <p className="text-[var(--color-text-secondary)] mb-8 max-w-lg mx-auto">
                         Join the waiting list for AMR Premium and get exclusive access to off-market opportunities.
                     </p>
                     {!isAuthenticated && (
                         <Link
                             href="/signup"
-                            className="inline-flex h-12 px-8 items-center rounded-lg bg-[#267360] text-white font-bold hover:bg-[#1e5c4d] transition-colors"
+                            className="inline-flex h-11 px-7 items-center rounded-xl bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium text-sm hover:opacity-90 transition-opacity"
                         >
                             Get Early Access
                         </Link>
@@ -355,34 +316,32 @@ export default function Home() {
             </section>
 
             {/* Footer */}
-            <footer className="border-t border-[var(--color-border)] py-12">
-                <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
+            <footer className="border-t border-[var(--color-border)] py-10">
+                <div className="max-w-5xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <Building2 className="text-[#267360]" size={20} />
-                        <span className="text-lg font-bold">AMR</span>
+                        <div className="w-5 h-5 rounded bg-[var(--color-text-primary)] text-[var(--color-background)] flex items-center justify-center">
+                            <span className="text-[7px] font-bold">A</span>
+                        </div>
+                        <span className="text-sm font-medium">AMR</span>
                     </div>
-                    <div className="flex gap-8 text-sm text-[var(--color-text-secondary)]">
-                        <a href="#" className="hover:text-[#267360] transition-colors">Privacy Policy</a>
-                        <a href="#" className="hover:text-[#267360] transition-colors">Terms of Service</a>
-                        <a href="#" className="hover:text-[#267360] transition-colors">Contact</a>
+                    <div className="flex gap-6 text-xs text-[var(--color-text-muted)]">
+                        <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Privacy</a>
+                        <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Terms</a>
+                        <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Contact</a>
                     </div>
-                    <div className="text-sm text-[var(--color-text-muted)]">
-                        © 2024 AMR Intelligence. All rights reserved.
+                    <div className="text-xs text-[var(--color-text-muted)]">
+                        © 2024 AMR Intelligence
                     </div>
                 </div>
             </footer>
 
             <style jsx global>{`
-                html {
-                    scroll-behavior: smooth;
-                }
+                html { scroll-behavior: smooth; }
                 @keyframes marquee {
                     0% { transform: translateX(0); }
                     100% { transform: translateX(-50%); }
                 }
-                .animate-marquee {
-                    animation: marquee 30s linear infinite;
-                }
+                .animate-marquee { animation: marquee 30s linear infinite; }
             `}</style>
         </main>
     );

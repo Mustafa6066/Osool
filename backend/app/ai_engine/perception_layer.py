@@ -1,22 +1,25 @@
 """
 Perception Layer - Intent Extraction Engine
 --------------------------------------------
-GPT-4o powered intent extraction and filter parsing.
+GPT-4o-mini powered intent extraction with Pydantic Structured Outputs.
 
-Extracts:
-- Action type (search, valuation, objection, general)
-- Filters (location, budget, bedrooms, property_type, etc.)
-- Language detection (ar/en)
-- Conversation phase tracking
+Upgrades (v2):
+- Pydantic structured outputs (schema-validated, no JSON parsing errors)
+- Semantic caching (hash-based, avoids repeat LLM calls)
+- GPT-4o-mini (faster + cheaper for structured extraction)
+- Retry with tenacity
 """
 
 import os
 import json
 import logging
+import hashlib
 import re
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -160,16 +163,36 @@ class PerceptionLayer:
     """
     The Wolf's Eyes - Extract intent and filters from natural language.
     
-    Uses GPT-4o for robust extraction with fallback to rule-based parsing.
+    Uses GPT-4o-mini with Pydantic Structured Outputs for robust extraction.
+    Includes in-memory semantic cache to avoid repeat LLM calls.
     """
+    
+    # ── Pydantic schema for OpenAI Structured Outputs ──
+    class IntentExtraction(BaseModel):
+        """Structured intent extracted from user query."""
+        action: str = Field(
+            description="One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation"
+        )
+        intent_bucket: str = Field(
+            default="window_shopper",
+            description="One of: window_shopper, serious_buyer, objection_mode"
+        )
+        filters: Dict[str, Any] = Field(
+            default_factory=dict,
+            description="Extracted filters: location, budget_min, budget_max, purpose, bedrooms, property_type, size_min, size_max, developer, keywords, finishing"
+        )
     
     def __init__(self):
         self.openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.stats = {
             "llm_extractions": 0,
             "rule_based_extractions": 0,
-            "failures": 0
+            "cache_hits": 0,
+            "failures": 0,
         }
+        # Semantic cache: hash(query + last_2_history) -> Intent
+        self._intent_cache: Dict[str, Intent] = {}
+        self._CACHE_MAX = 500
     
     def detect_language(self, text: str) -> str:
         """Detect if text is primarily Arabic or English."""
@@ -194,31 +217,39 @@ class PerceptionLayer:
         """
         Extract intent and filters from user query.
         
-        Args:
-            query: User's natural language query
-            history: Conversation history for context
-            
-        Returns:
-            Intent object with action and filters
+        Uses hash-based semantic cache to avoid repeated LLM calls
+        for identical or near-identical queries.
         """
         language = self.detect_language(query)
         
+        # ── Semantic cache lookup ──
+        cache_key = self._make_cache_key(query, history)
+        if cache_key in self._intent_cache:
+            self.stats["cache_hits"] += 1
+            cached = self._intent_cache[cache_key]
+            logger.debug(f"🎯 Perception cache hit for: {query[:30]}...")
+            return cached
+        
         try:
-            # Use GPT-4o for robust extraction
+            # Use GPT-4o-mini with Pydantic Structured Outputs
             intent_data = await self._extract_with_llm(query, history)
             self.stats["llm_extractions"] += 1
             
             # Normalize extracted data
             intent_data = self._normalize_filters(intent_data)
             
-            return Intent(
+            intent = Intent(
                 action=intent_data.get("action", "search"),
                 filters=intent_data.get("filters", {}),
                 language=language,
-                confidence=0.9,
+                confidence=0.95,  # Higher confidence with structured outputs
                 raw_query=query,
                 intent_bucket=intent_data.get("intent_bucket", "window_shopper")
             )
+            
+            # Cache the result
+            self._cache_intent(cache_key, intent)
+            return intent
             
         except Exception as e:
             logger.warning(f"LLM extraction failed, using rule-based: {e}")
@@ -234,19 +265,40 @@ class PerceptionLayer:
                 language=language,
                 confidence=0.7,
                 raw_query=query,
-                intent_bucket="window_shopper" # Default fallback
+                intent_bucket="window_shopper"
             )
     
+    def _make_cache_key(self, query: str, history: Optional[List[Dict]]) -> str:
+        """Generate cache key from query + recent history context."""
+        context = query.strip().lower()
+        if history:
+            for msg in history[-2:]:
+                if isinstance(msg, dict):
+                    context += "|" + msg.get("content", "")[:50]
+        return hashlib.md5(context.encode()).hexdigest()
+    
+    def _cache_intent(self, key: str, intent: Intent):
+        """Cache intent with LRU eviction."""
+        if len(self._intent_cache) >= self._CACHE_MAX:
+            oldest_key = next(iter(self._intent_cache))
+            del self._intent_cache[oldest_key]
+        self._intent_cache[key] = intent
+    
+    @retry(
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=3),
+        reraise=True,
+    )
     async def _extract_with_llm(
         self,
         query: str,
         history: Optional[List[Dict]] = None
     ) -> Dict[str, Any]:
-        """Use GPT-4o to extract structured intent."""
+        """Use GPT-4o-mini with Pydantic Structured Outputs for robust extraction."""
         
         system_prompt = """You are the Perception Layer of Osool, an Egyptian Real Estate AI.
-        
-Extract structured intent from the user's query. Return ONLY valid JSON (no markdown, no code fences).
+
+Extract structured intent from the user's query.
 
 Extract:
 1. action: One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation
@@ -254,11 +306,11 @@ Extract:
     - "window_shopper": Casual browsing, broad questions
     - "serious_buyer": Specific budget, timeline, ready to book
     - "objection_mode": Complaining, debating price, skeptical
-3. filters: Object with these optional fields:
+3. filters: Object with optional fields:
    - location: Area name (New Cairo, Sheikh Zayed, New Capital, 6th October, North Coast, etc.)
    - budget_min: Minimum budget in EGP (convert millions: 5M = 5000000)
    - budget_max: Maximum budget in EGP
-   - purpose: "living" OR "investment" OR "commercial" (CRITICAL: Infer from context!)
+   - purpose: "living" OR "investment" OR "commercial"
    - bedrooms: Number of bedrooms (integer)
    - property_type: apartment, villa, townhouse, twinhouse, penthouse, duplex, studio
    - size_min: Minimum size in sqm
@@ -267,122 +319,52 @@ Extract:
    - keywords: Any specific compound/project names mentioned
    - finishing: core, semi, finished, lux
 
-CONTEXT RULES FOR 'purpose' (CRITICAL - Distinguish Intent vs Product):
-
-FAMILY LIVING (Intent - Lifestyle): 
-- Signals: "بيت العيلة", "استقرار", "مدارس", "marriage", "kids", "اعيش", "منزل".
-- purpose: "living"
-- User wants a UNIT in a COMPOUND for family safety and lifestyle.
-
-FAMILY INVESTMENT (Product - "سكن عائلي" / B+G+3 Building):
-- CRITICAL: Only use `property_type: "residential_building"` if user EXPLICITLY mentions "building", "structure", "land", "plot", "عمارة", "أرض".
-- For generic "سكن عائلي" (Family Home), default to `property_type: ["apartment", "villa", "duplex"]`.
-- Signals: "بناء", "عمارة كاملة", "أرض مباني".
-
-INVESTMENT (purpose: "investment"): 
-- Signals: "ROI", "rent", "income", "profit", "business", "yield", "return", "استثمار", "عائد", "ايجار", "ارباح"
-
-COMMERCIAL (purpose: "commercial"): 
-- Signals: "office", "shop", "clinic", "مكتب", "محل", "عيادة", "تجاري"
-
-CAPITAL PRESERVATION: 
-- Signals: "فلوس البنك", "تحويشة العمر", "حفظ قيمة" 
-- purpose: "investment" (sub-type: preservation)
-
-INTENT BUCKET RULES (CRITICAL):
-- "serious_buyer": If user mentions FAMILY, CHILDREN, MARRIAGE, LIVING, or specific BUDGET + LOCATION = This is a LIFE DECISION MAKER, not a window shopper.
-- "serious_buyer": budget OR delivery timeline OR specific location = Serious
-- "window_shopper": Generic questions like "show me everything" or "how is the market"
-- "objection_mode": Complaining, debating price, skeptical language
-
-property_type VALUES (include):
-- apartment, villa, townhouse, duplex, chalet
-- residential_building: ONLY for explicit requests for buildings/lands ("عمارة", "أرض")
-- plot: For "ارض سكن عائلي", land plots
-
-Example query: "عايز شقة 3 غرف في التجمع تحت 5 مليون"
-Example response:
-{
-  "action": "search",
-  "intent_bucket": "serious_buyer",
-  "filters": {
-    "location": "New Cairo",
-    "bedrooms": 3,
-    "budget_max": 5000000,
-    "property_type": "apartment"
-  }
-}
-
-Example query: "بدور على سكن عائلي قريب من مدارس في كمباوند"
-Example response:
-{
-  "action": "search",
-  "intent_bucket": "serious_buyer",
-  "filters": {
-    "purpose": "living",
-    "property_type": "villa",
-    "keywords": "family, schools, compound, gated"
-  }
-}
-
-Example query: "بدور على ارض سكن عائلي استثمار للعيلة"
-Example response:
-{
-  "action": "search",
-  "intent_bucket": "serious_buyer",
-  "filters": {
-    "purpose": "investment",
-    "property_type": "residential_building",
-    "keywords": "سكن عائلي, building, land, legacy"
-  }
-}
-
-Example query: "ده سعر غالي ولا لأ؟"
-Example response:
-{
-  "action": "valuation",
-  "intent_bucket": "objection_mode",
-  "filters": {}
-}
-
-IMPORTANT: 
-- Convert Arabic numbers to integers
-- Convert "مليون" (million) to actual number (5 مليون = 5000000)
-- Normalize locations to English names
-- INFER purpose from context even if not explicitly stated
+CONTEXT RULES FOR 'purpose':
+- Family signals ("بيت العيلة", "استقرار", "مدارس", "kids", "اعيش"): purpose="living"
+- Investment signals ("ROI", "استثمار", "عائد", "ايجار"): purpose="investment"
 - "سكن عائلي" = purpose: "living" + intent_bucket: "serious_buyer"
-- Return ONLY the JSON object, nothing else"""
+
+INTENT BUCKET RULES:
+- "serious_buyer": budget OR delivery timeline OR specific location = Serious
+- "window_shopper": Generic questions like "show me everything"
+- "objection_mode": Complaining, debating price
+
+IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual number."""
 
         messages = []
-        
-        # Add relevant history for context
         if history:
-            for msg in history[-4:]:  # Last 4 messages
+            for msg in history[-4:]:
                 if isinstance(msg, dict):
                     messages.append(msg)
-        
         messages.append({"role": "user", "content": query})
         
-        response = await self.openai_client.chat.completions.create(
-            model="gpt-4o",
+        # Use Pydantic Structured Outputs (schema-validated, zero parsing errors)
+        from app.config import config
+        model = getattr(config, 'GPT_MINI_MODEL', 'gpt-4o-mini')
+        
+        response = await self.openai_client.beta.chat.completions.parse(
+            model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 *messages
             ],
-            max_tokens=300,
+            max_tokens=400,
             temperature=0.1,
-            response_format={"type": "json_object"}
+            response_format=self.IntentExtraction,
         )
         
-        result = json.loads(response.choices[0].message.content)
+        parsed = response.choices[0].message.parsed
         
-        # Ensure required fields
-        if "action" not in result:
-            result["action"] = "search"
-        if "filters" not in result:
-            result["filters"] = {}
+        if parsed is None:
+            # Fallback: refusal or parse failure
+            logger.warning("Structured output returned None — falling back to JSON mode")
+            raise ValueError("Structured output parse failure")
         
-        return result
+        return {
+            "action": parsed.action,
+            "intent_bucket": parsed.intent_bucket,
+            "filters": parsed.filters,
+        }
     
     def _extract_rule_based(self, query: str) -> Dict[str, Any]:
         """Fallback rule-based extraction."""
@@ -492,6 +474,7 @@ IMPORTANT:
         return {
             **self.stats,
             "total": total,
+            "cache_size": len(self._intent_cache),
             "success_rate": ((total - self.stats["failures"]) / max(total, 1)) * 100
         }
 

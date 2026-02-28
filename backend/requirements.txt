@@ -70,3 +70,9 @@ playwright>=1.40.0
 
 # Cache
 redis>=5.0.0
+
+# Resilience & Retry
+tenacity>=8.2.0
+
+# Structured Outputs
+pydantic>=2.5.0

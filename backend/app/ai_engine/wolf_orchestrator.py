@@ -17,11 +17,13 @@ import os
 import json
 import logging
 import asyncio
+import hashlib
 import re
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, AsyncIterator
 from datetime import datetime
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 # Internal modules
 from .wolf_router import wolf_router, RouteType, RouteDecision
@@ -95,10 +97,12 @@ class WolfBrain:
         history: List[Dict],
         profile: Optional[Dict] = None,
         language: str = "auto",
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        streaming: bool = False,
     ) -> Dict[str, Any]:
         """
         The Main Thinking Loop - Wrapper for Session Management.
+        When streaming=True, returns _stream_context for real SSE streaming.
         """
         async with AsyncSessionLocal() as session:
             return await self._process_turn_logic(
@@ -107,7 +111,8 @@ class WolfBrain:
                 session=session,
                 profile=profile,
                 language=language,
-                session_id=session_id
+                session_id=session_id,
+                streaming=streaming,
             )
 
     async def _process_turn_logic(
@@ -117,7 +122,8 @@ class WolfBrain:
         session: AsyncSession,
         profile: Optional[Dict] = None,
         language: str = "auto",
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        streaming: bool = False,
     ) -> Dict[str, Any]:
         """
         The Core Thinking Loop.
@@ -632,7 +638,8 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 8: SPEAK (Narrative Generation)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            response_text = await self._generate_wolf_narrative(
+            suggestions = []  # initialized early for streaming path
+            _narrative_kwargs = dict(
                 query=query,
                 properties=scored_properties,
                 psychology=psychology,
@@ -653,9 +660,39 @@ class WolfBrain:
                 memory=memory,
                 analytics_context=analytics_context,
                 developer_insight=developer_insight,
-                reasoning_chain=reasoning_chain,  # V3: Chain-of-Thought
-                db_session=session,  # Reuse session for QA stats (no extra connections)
+                reasoning_chain=reasoning_chain,
+                db_session=session,
             )
+
+            # ── STREAMING MODE: return context for real SSE streaming ──
+            if streaming and config.ENABLE_REAL_STREAMING:
+                stream_context = await self._generate_wolf_narrative(
+                    **_narrative_kwargs, _return_context=True,
+                )
+                # Skip verification & return immediately with stream context
+                elapsed = (datetime.now() - start_time).total_seconds()
+                return {
+                    "response": "",  # Will be filled by streaming
+                    "_stream_context": stream_context,
+                    "properties": scored_properties[:5] if showing_strategy == 'FULL_LIST' else (scored_properties[:1] if showing_strategy == 'TEASER' else []),
+                    "ui_actions": ui_actions,
+                    "analytics_context": analytics_context,
+                    "card_readiness": card_readiness,
+                    "psychology": psychology.to_dict(),
+                    "strategy": strategy,
+                    "intent": intent.to_dict(),
+                    "processing_time_ms": int(elapsed * 1000),
+                    "model_used": "wolf_brain_v10_streaming",
+                    "showing_strategy": showing_strategy,
+                    "hunt_strategy": hunt_strategy,
+                    "suggestions": suggestions,
+                    "verification": {},
+                    "proactive_alerts": [],
+                    "xp_awarded": 0,
+                }
+
+            # ── NON-STREAMING: full pipeline ──
+            response_text = await self._generate_wolf_narrative(**_narrative_kwargs)
             self.stats["claude_calls"] += 1
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1703,9 +1740,10 @@ class WolfBrain:
         memory: Optional[Any] = None,
         developer_insight: Optional[Dict] = None,
         analytics_context: Optional[Dict] = None,
-        reasoning_chain: Optional[ReasoningChain] = None,  # V3: CoT reasoning
-        db_session: Optional[Any] = None,  # Reuse existing session for QA stats
-    ) -> str:
+        reasoning_chain: Optional[ReasoningChain] = None,
+        db_session: Optional[Any] = None,
+        _return_context: bool = False,
+    ):
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
         Generate the Wolf's response using ONLY verified data.
@@ -2354,24 +2392,170 @@ DO NOT mention any prices outside this range.
                 prefill = f"اهلا بيك في اصول!\n\nمتوسط أسعار الشقق في {ar_name}"
                 messages.append({"role": "assistant", "content": prefill})
             
-            # Call Claude
+            # Call Claude — with Prompt Caching + Extended Thinking
             claude_model = config.CLAUDE_MODEL
             
-            response = await self.anthropic.messages.create(
-                model=claude_model,
-                max_tokens=1200,
-                temperature=0.7,
-                system=system_prompt,
-                messages=messages
-            )
+            # ── Early return: streaming mode gets context only ──
+            if _return_context:
+                return {
+                    "system_prompt": system_prompt,
+                    "messages": messages,
+                    "prefill": prefill,
+                }
+            
+            # ── Prompt Caching (saves ~90% on repeated system prompt tokens) ──
+            if config.ENABLE_PROMPT_CACHING:
+                system_payload = [
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ]
+            else:
+                system_payload = system_prompt
+            
+            # ── Extended Thinking (Claude's deep reasoning mode) ──
+            if config.CLAUDE_EXTENDED_THINKING:
+                response = await self._call_claude_with_retry(
+                    model=claude_model,
+                    max_tokens=config.CLAUDE_MAX_TOKENS,
+                    thinking={
+                        "type": "enabled",
+                        "budget_tokens": config.CLAUDE_THINKING_BUDGET,
+                    },
+                    system=system_payload,
+                    messages=messages,
+                )
+            else:
+                response = await self._call_claude_with_retry(
+                    model=claude_model,
+                    max_tokens=min(4096, config.CLAUDE_MAX_TOKENS),
+                    temperature=0.7,
+                    system=system_payload,
+                    messages=messages,
+                )
+            
+            # ── Track Claude cost (prompt caching breakdown) ──
+            try:
+                from app.services.cost_monitor import cost_monitor
+                usage = response.usage
+                cost_monitor.log_claude_usage(
+                    model=claude_model,
+                    input_tokens=getattr(usage, 'input_tokens', 0),
+                    output_tokens=getattr(usage, 'output_tokens', 0),
+                    cache_creation_tokens=getattr(usage, 'cache_creation_input_tokens', 0),
+                    cache_read_tokens=getattr(usage, 'cache_read_input_tokens', 0),
+                    context="wolf_narrative",
+                )
+            except Exception as cost_err:
+                logger.debug(f"Cost tracking error (non-fatal): {cost_err}")
+            
+            self.stats["claude_calls"] += 1
+            
+            # ── Extract text from response (skip thinking blocks) ──
+            response_text = ""
+            for block in response.content:
+                if block.type == "text":
+                    response_text += block.text
             
             # Combine prefill with response
-            full_response = prefill + response.content[0].text if prefill else response.content[0].text
+            full_response = prefill + response_text if prefill else response_text
             return full_response
             
         except Exception as e:
             logger.error(f"Narrative generation failed: {e}", exc_info=True)
             return "عذراً، حصل مشكلة فنية. جرب تاني يا افندم. (Sorry, technical issue. Try again.)"
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((Exception,)),
+        reraise=True,
+    )
+    async def _call_claude_with_retry(self, **kwargs):
+        """Call Claude API with exponential backoff retry."""
+        return await self.anthropic.messages.create(**kwargs)
+    
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # REAL STREAMING (SSE) — replaces the fake word-drip
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    async def stream_wolf_narrative(
+        self,
+        system_prompt: str,
+        messages: List[Dict],
+        prefill: str = "",
+    ) -> AsyncIterator[str]:
+        """
+        Stream the Wolf's Claude response token-by-token via SSE.
+        
+        Yields text chunks as they arrive from the Anthropic streaming API.
+        Skips thinking blocks — only emits visible text.
+        """
+        claude_model = config.CLAUDE_MODEL
+        
+        # Prompt caching
+        if config.ENABLE_PROMPT_CACHING:
+            system_payload = [
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
+        else:
+            system_payload = system_prompt
+        
+        # Yield prefill first
+        if prefill:
+            yield prefill
+        
+        try:
+            stream_kwargs = dict(
+                model=claude_model,
+                max_tokens=config.CLAUDE_MAX_TOKENS,
+                system=system_payload,
+                messages=messages,
+            )
+            
+            if config.CLAUDE_EXTENDED_THINKING:
+                stream_kwargs["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": config.CLAUDE_THINKING_BUDGET,
+                }
+            else:
+                stream_kwargs["temperature"] = 0.7
+            
+            async with self.anthropic.messages.stream(**stream_kwargs) as stream:
+                async for event in stream:
+                    # Only yield visible text deltas (skip thinking)
+                    if hasattr(event, 'type'):
+                        if event.type == 'content_block_delta':
+                            delta = getattr(event, 'delta', None)
+                            if delta and getattr(delta, 'type', '') == 'text_delta':
+                                yield delta.text
+                
+                # Track cost after stream completes
+                try:
+                    final_message = await stream.get_final_message()
+                    from app.services.cost_monitor import cost_monitor
+                    usage = final_message.usage
+                    cost_monitor.log_claude_usage(
+                        model=claude_model,
+                        input_tokens=getattr(usage, 'input_tokens', 0),
+                        output_tokens=getattr(usage, 'output_tokens', 0),
+                        cache_creation_tokens=getattr(usage, 'cache_creation_input_tokens', 0),
+                        cache_read_tokens=getattr(usage, 'cache_read_input_tokens', 0),
+                        context="wolf_narrative_stream",
+                    )
+                except Exception:
+                    pass
+                
+                self.stats["claude_calls"] += 1
+                
+        except Exception as e:
+            logger.error(f"Streaming narrative failed: {e}", exc_info=True)
+            yield "عذراً، حصل مشكلة فنية. جرب تاني. (Sorry, technical issue.)"
     
     def _format_property_context(self, properties: List[Dict]) -> str:
         """Format properties for Claude context."""

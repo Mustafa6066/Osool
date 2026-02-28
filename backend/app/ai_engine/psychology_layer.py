@@ -694,7 +694,7 @@ async def semantic_classify_emotion(query: str, history_context: str = "") -> Tu
         from langchain_anthropic import ChatAnthropic
         
         classifier = ChatAnthropic(
-            model="claude-3-haiku-20240307",
+            model="claude-3-5-haiku-20241022",
             temperature=0,
             max_tokens=100
         )

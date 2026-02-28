@@ -1,35 +1,47 @@
 """
 Osool AI Intelligence Layer
 ---------------------------
-OpenAI-powered AI services for:
-1. Legal Contract Analysis (Egyptian Real Estate Law)
+OpenAI + Claude-powered AI services for:
+1. Legal Contract Analysis (Egyptian Real Estate Law) — text + vision
 2. Smart Property Valuation with Market Reasoning
+3. Vision Contract Analysis (photographed documents)
 
-This is the "Killer Feature" that differentiates Osool from competitors.
+Upgrades (v2):
+- Async clients throughout
+- Vision support for photographed contracts (GPT-4o / Claude)
+- Retry with tenacity
 """
 
 import os
 import json
 import re
-from openai import OpenAI
+import base64
+import logging
+from openai import AsyncOpenAI
+from anthropic import AsyncAnthropic
+from tenacity import retry, stop_after_attempt, wait_exponential
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_anthropic_client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
 class OsoolAI:
     """
-    AI services powered by GPT-4o for Egyptian Real Estate market.
+    AI services powered by GPT-4o + Claude for Egyptian Real Estate market.
+    Now fully async with vision support for photographed contracts.
     """
     
     def __init__(self):
-        # GPT-4o handles Arabic legal nuances better than 3.5
         self.model = "gpt-4o"
+        self.openai = _openai_client
+        self.anthropic = _anthropic_client
     
     
-    def analyze_contract_with_egyptian_context(self, contract_text: str) -> dict:
+    async def analyze_contract_with_egyptian_context(self, contract_text: str) -> dict:
         """
         The 'Killer Feature': Scans legal text for Egyptian Real Estate risks.
         Based on Civil Code No. 131 of 1948 and Law No. 114 of 1946.
@@ -111,7 +123,7 @@ class OsoolAI:
         """
         
         try:
-            response = client.chat.completions.create(
+            response = await self.openai.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -151,7 +163,7 @@ class OsoolAI:
         
         return ai_result
     
-    def get_smart_valuation(self, location: str, size_sqm: int, finishing: str, 
+    async def get_smart_valuation(self, location: str, size_sqm: int, finishing: str, 
                             bedrooms: int = 3, property_type: str = "Apartment") -> dict:
         """
         AI-powered property valuation with market reasoning.
@@ -205,7 +217,7 @@ class OsoolAI:
         """
         
         try:
-            response = client.chat.completions.create(
+            response = await self.openai.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -219,14 +231,14 @@ class OsoolAI:
         except Exception as e:
             return {"error": f"Valuation Failed: {str(e)}"}
     
-    def compare_price_to_market(self, asking_price: int, location: str, 
+    async def compare_price_to_market(self, asking_price: int, location: str, 
                                  size_sqm: int, finishing: str) -> dict:
         """
         Compare a seller's asking price against AI valuation.
         Returns whether the price is fair, high, or a bargain.
         """
         
-        valuation = self.get_smart_valuation(location, size_sqm, finishing)
+        valuation = await self.get_smart_valuation(location, size_sqm, finishing)
         
         if "error" in valuation:
             return valuation
@@ -261,7 +273,7 @@ class OsoolAI:
         }
 
 
-    def chat_with_osool(self, user_message: str) -> dict:
+    async def chat_with_osool(self, user_message: str) -> dict:
         """
         Interactive chat with Osool AI Sales Agent.
         
@@ -286,7 +298,7 @@ class OsoolAI:
         """
         
         try:
-            response = client.chat.completions.create(
+            response = await self.openai.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -298,6 +310,138 @@ class OsoolAI:
             
         except Exception as e:
             return {"error": f"Chat Failed: {str(e)}"}
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # VISION: Analyze Photographed Contracts (GPT-4o / Claude Vision)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=5), reraise=True)
+    async def analyze_contract_from_image(
+        self,
+        image_data: str,
+        image_media_type: str = "image/jpeg",
+        use_claude: bool = True,
+    ) -> dict:
+        """
+        Analyze a photographed real estate contract using vision AI.
+        
+        Accepts base64-encoded image data of a contract photo.
+        Uses Claude Vision (preferred for Arabic OCR) or GPT-4o Vision.
+        
+        Args:
+            image_data: Base64-encoded image data
+            image_media_type: MIME type (image/jpeg, image/png, image/webp)
+            use_claude: Use Claude Vision (better Arabic) or GPT-4o Vision
+            
+        Returns:
+            Contract analysis dict with risk_score, red_flags, etc.
+        """
+        system_prompt = """You are a Senior Egyptian Real Estate Lawyer analyzing a photographed contract.
+
+1. First, OCR the contract image — extract ALL Arabic and English text.
+2. Then analyze based on Egyptian Civil Code and Law 114 of 1946.
+
+CRITICAL CHECKS:
+- "Tawkil" (Power of Attorney / توكيل): MISSING = HIGH RISK
+- "Taslsol Malekeya" (Ownership Sequence)
+- "Delivery Date" with penalty clause
+- "Maintenance Deposit" (fixed or variable?)
+- "Refund Policy" (reasonable or abusive?)
+- "Share in Land" (حصة في الأرض): MISSING = HIGH RISK
+
+Return JSON:
+{
+    "extracted_text": "The OCR'd text from the image",
+    "risk_score": 0-100,
+    "contract_type": "Primary/Final/Accession",
+    "red_flags": ["..."],
+    "missing_essential_clauses": ["..."],
+    "ai_verdict": "Safe to Sign" | "Proceed with Caution" | "DO NOT SIGN",
+    "legal_summary_arabic": "ملخص قانوني بالعربي",
+    "legal_summary_english": "Legal summary in English"
+}"""
+
+        try:
+            if use_claude:
+                # Claude Vision — better Arabic OCR
+                response = await self.anthropic.messages.create(
+                    model="claude-sonnet-4-5-20250929",
+                    max_tokens=4096,
+                    system=system_prompt,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": image_media_type,
+                                        "data": image_data,
+                                    },
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "Analyze this contract photo. Extract ALL text and check for legal risks.",
+                                },
+                            ],
+                        }
+                    ],
+                )
+                result_text = response.content[0].text
+            else:
+                # GPT-4o Vision fallback
+                response = await self.openai.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:{image_media_type};base64,{image_data}",
+                                        "detail": "high",
+                                    },
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "Analyze this contract photo. Extract ALL text and check for legal risks.",
+                                },
+                            ],
+                        },
+                    ],
+                    response_format={"type": "json_object"},
+                    max_tokens=4096,
+                    temperature=0.1,
+                )
+                result_text = response.choices[0].message.content
+
+            # Parse JSON from response
+            try:
+                return json.loads(result_text)
+            except json.JSONDecodeError:
+                # Try to extract JSON from markdown code blocks
+                json_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', result_text)
+                if json_match:
+                    return json.loads(json_match.group(1))
+                return {
+                    "risk_score": 50,
+                    "ai_verdict": "Proceed with Caution",
+                    "extracted_text": result_text,
+                    "red_flags": ["Could not parse structured analysis — review extracted text manually"],
+                    "missing_essential_clauses": [],
+                }
+
+        except Exception as e:
+            logger.error(f"Vision contract analysis failed: {e}", exc_info=True)
+            return {
+                "risk_score": 0,
+                "ai_verdict": "Unknown (Vision AI Offline)",
+                "red_flags": [],
+                "missing_essential_clauses": [],
+                "error": str(e),
+            }
 
 
 # Singleton instance

@@ -49,8 +49,21 @@ class Config:
 
     # Claude Model Configuration
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
-    CLAUDE_MAX_TOKENS: int = int(os.getenv("CLAUDE_MAX_TOKENS", "4096"))
+    CLAUDE_MAX_TOKENS: int = int(os.getenv("CLAUDE_MAX_TOKENS", "8192"))
     CLAUDE_TEMPERATURE: float = float(os.getenv("CLAUDE_TEMPERATURE", "0.3"))
+
+    # Claude Extended Thinking (State-of-the-Art reasoning)
+    CLAUDE_EXTENDED_THINKING: bool = os.getenv("CLAUDE_EXTENDED_THINKING", "true").lower() == "true"
+    CLAUDE_THINKING_BUDGET: int = int(os.getenv("CLAUDE_THINKING_BUDGET", "5000"))
+
+    # GPT Model Configuration
+    GPT_MODEL: str = os.getenv("GPT_MODEL", "gpt-4o")
+    GPT_MINI_MODEL: str = os.getenv("GPT_MINI_MODEL", "gpt-4o-mini")
+
+    # Feature Flags
+    ENABLE_PROMPT_CACHING: bool = os.getenv("ENABLE_PROMPT_CACHING", "true").lower() == "true"
+    ENABLE_REAL_STREAMING: bool = os.getenv("ENABLE_REAL_STREAMING", "true").lower() == "true"
+    ENABLE_VISION_CONTRACTS: bool = os.getenv("ENABLE_VISION_CONTRACTS", "true").lower() == "true"
 
     # ═══════════════════════════════════════════════════════════════
     # BLOCKCHAIN (OPTIONAL - Phase 1+)

@@ -56,7 +56,7 @@ ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
 OPENAI_API_KEY=sk-proj-your-openai-key-here
 
 # Claude Model Configuration
-CLAUDE_MODEL=claude-3-5-sonnet-20241022
+CLAUDE_MODEL=claude-sonnet-4-5-20250929
 CLAUDE_MAX_TOKENS=4096
 CLAUDE_TEMPERATURE=0.3
 
@@ -324,7 +324,7 @@ Backend logs will show:
 ✅ [AI Brain] Supabase Vector Store Connected
 🔎 PostgreSQL Vector Search (threshold: 0.7): 'apartment New Cairo 3 bed'
 ✅ Found 5 validated properties (similarity >= 0.7)
-💬 Claude API called (model: claude-3-5-sonnet-20241022)
+💬 Claude API called (model: claude-sonnet-4-5-20250929)
 💰 Cost: $0.0168 USD (1523 input + 842 output tokens)
 ```
 

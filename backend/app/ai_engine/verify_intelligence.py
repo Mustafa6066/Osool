@@ -37,7 +37,9 @@ sys.modules["app.services.vector_search"].search_properties = AsyncMock(return_v
 from app.ai_engine.customer_profiles import extract_user_facts, UserProfile, profile_to_context_string
 from app.ai_engine.amr_master_prompt import get_master_system_prompt
 # We need to monkeypatch hybrid_brain to use our mocks before importing
-from app.ai_engine.hybrid_brain import OsoolHybridBrain
+# OsoolHybridBrain was in the now-archived hybrid_brain.py
+# Use WolfBrain from wolf_orchestrator as replacement
+from app.ai_engine.wolf_orchestrator import WolfBrain as OsoolHybridBrain
 
 async def test_elephant_memory():
     print("\n🐘 TEST 1: Elephant Memory Extraction")

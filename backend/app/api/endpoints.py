@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from app.ai_engine.openai_service import osool_ai
-from app.ai_engine.hybrid_brain import hybrid_brain
+from app.ai_engine.wolf_orchestrator import wolf_brain as hybrid_brain  # Backward compat alias
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.claude_sales_agent import claude_sales_agent
 from app.services.paymob_service import paymob_service
@@ -1131,19 +1131,19 @@ async def chat_stream(
                 "full_name": getattr(user, "full_name", None),
             }
 
-            # Get full result (including streamed narrative)
+            # Get full result (with streaming context if real streaming enabled)
             ai_result = await wolf_brain.process_turn(
                 query=req.message,
                 history=history_for_loop,
                 profile=user_dict,
                 language=req.language,
                 session_id=req.session_id,
+                streaming=True,  # Request streaming context
             )
 
             yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'wolf_brain'}, ensure_ascii=False)}\n\n"
 
             # Extract response components
-            response_text = clean_response_text(ai_result.get("response", ""))
             search_results = ai_result.get("properties", [])
             ui_actions = ai_result.get("ui_actions", [])
             psychology = ai_result.get("psychology")
@@ -1151,22 +1151,34 @@ async def chat_stream(
             verification = ai_result.get("verification", {})
             proactive_alerts = ai_result.get("proactive_alerts", [])
 
-            # True streaming: send tokens from the response text
-            # Split into small chunks (sentence fragments) for smooth UX
-            import re as re_module
-            # Split on sentence boundaries and word groups for natural streaming
-            chunks = re_module.findall(r'[^\s]+(?:\s+|$)', response_text)
-            buffer = ""
-            for chunk in chunks:
-                buffer += chunk
-                # Flush every 2-4 words for smooth streaming feel
-                word_count = len(buffer.split())
-                if word_count >= 3 or chunk.endswith(('.', '!', '?', '\n', '،', '。')):
+            stream_context = ai_result.get("_stream_context")
+
+            # ── REAL STREAMING: token-by-token from Claude API ──
+            if stream_context:
+                accumulated_text = ""
+                async for chunk in wolf_brain.stream_wolf_narrative(
+                    system_prompt=stream_context["system_prompt"],
+                    messages=stream_context["messages"],
+                    prefill=stream_context.get("prefill", ""),
+                ):
+                    accumulated_text += chunk
+                    yield f"data: {json.dumps({'type': 'token', 'content': chunk}, ensure_ascii=False)}\n\n"
+                response_text = clean_response_text(accumulated_text)
+            else:
+                # ── FALLBACK: fake streaming (split pre-generated text) ──
+                response_text = clean_response_text(ai_result.get("response", ""))
+                import re as re_module
+                chunks = re_module.findall(r'[^\s]+(?:\s+|$)', response_text)
+                buffer = ""
+                for chunk in chunks:
+                    buffer += chunk
+                    word_count = len(buffer.split())
+                    if word_count >= 3 or chunk.endswith(('.', '!', '?', '\n', '،', '。')):
+                        yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
+                        buffer = ""
+                        await asyncio.sleep(0.015)
+                if buffer:
                     yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
-                    buffer = ""
-                    await asyncio.sleep(0.015)  # 15ms between chunks for natural feel
-            if buffer:
-                yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
 
             # Save AI response to database (linked to authenticated user)
             ai_message = ChatMessage(

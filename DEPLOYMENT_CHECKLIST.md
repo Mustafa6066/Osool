@@ -41,7 +41,7 @@ Copy from `RAILWAY_ENV_TEMPLATE.txt` and add:
 - [ ] `DATABASE_URL=${{Postgres.DATABASE_URL}}`
 - [ ] `OPENAI_API_KEY=sk-proj-...`
 - [ ] `ANTHROPIC_API_KEY=sk-ant-api03-...`
-- [ ] `CLAUDE_MODEL=claude-3-5-sonnet-20241022`
+- [ ] `CLAUDE_MODEL=claude-sonnet-4-5-20250929`
 - [ ] `CLAUDE_MAX_TOKENS=4096`
 - [ ] `CLAUDE_TEMPERATURE=0.3`
 - [ ] `SUPABASE_URL=https://...`

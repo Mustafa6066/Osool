@@ -43,7 +43,7 @@ Osool is a sophisticated real estate platform with AI-powered property analysis 
 
 3. **Anthropic API Key** ([console.anthropic.com](https://console.anthropic.com/settings/keys))
    - Required for Claude 3.5 Sonnet (AMR Agent)
-   - Model: `claude-3-5-sonnet-20241022`
+   - Model: `claude-sonnet-4-5-20250929`
 
 4. **GitHub Repository**
    - Osool codebase pushed to GitHub
@@ -155,7 +155,7 @@ curl https://api.anthropic.com/v1/messages \
   -H "x-api-key: YOUR_ANTHROPIC_KEY" \
   -H "anthropic-version: 2023-06-01" \
   -H "content-type: application/json" \
-  -d '{"model":"claude-3-5-sonnet-20241022","max_tokens":10,"messages":[{"role":"user","content":"Hi"}]}'
+  -d '{"model":"claude-sonnet-4-5-20250929","max_tokens":10,"messages":[{"role":"user","content":"Hi"}]}'
 ```
 
 ### Step 3: Commit and Push Code
@@ -270,7 +270,7 @@ OPENAI_API_KEY=sk-proj-YOUR_OPENAI_KEY_HERE
 ANTHROPIC_API_KEY=sk-ant-api03-YOUR_ANTHROPIC_KEY_HERE
 
 # Claude Configuration
-CLAUDE_MODEL=claude-3-5-sonnet-20241022
+CLAUDE_MODEL=claude-sonnet-4-5-20250929
 CLAUDE_MAX_TOKENS=4096
 CLAUDE_TEMPERATURE=0.3
 
