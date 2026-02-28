@@ -17,18 +17,18 @@ export default function SuggestionChips({ suggestions, onSelect, isRTL = false }
 
     return (
         <div
-            className={`flex flex-wrap gap-1.5 mt-3 ${isRTL ? 'flex-row-reverse' : ''}`}
+            className={`flex flex-wrap gap-2 mt-4 ${isRTL ? 'flex-row-reverse' : ''}`}
             dir={isRTL ? 'rtl' : 'ltr'}
         >
             {suggestions.map((suggestion, i) => (
                 <button
                     key={i}
                     onClick={() => onSelect(suggestion)}
-                    className="px-3.5 py-1.5 rounded-lg text-[13px]
-                             text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]
-                             bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)]
-                             border border-[var(--color-border)] hover:border-[var(--color-text-muted)]/20
-                             transition-all duration-150"
+                    className="px-4 py-2 rounded-full text-[13px] font-medium
+                             text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]
+                             bg-gray-50/50 hover:bg-gray-100 dark:bg-gray-800/30 dark:hover:bg-gray-800/80
+                             border border-[var(--color-border)]/50 hover:border-[var(--color-border)]
+                             hover:shadow-sm transition-all duration-200"
                 >
                     <span className="truncate max-w-[200px]" dir="auto">{suggestion}</span>
                 </button>
