@@ -59,7 +59,7 @@ export default function SmartNav({ children }: SmartNavProps) {
         <>
             <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-            <div className="flex flex-col min-h-screen w-full bg-[var(--color-background)]">
+            <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--color-background)]">
 
                 {/* Header */}
                 <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]">
@@ -224,7 +224,7 @@ export default function SmartNav({ children }: SmartNavProps) {
                 </header>
 
                 {/* Main Content */}
-                <main className="flex-1 min-w-0 pt-12">
+                <main className="flex-1 min-w-0 overflow-hidden pt-12 flex flex-col h-full">
                     {children}
                 </main>
             </div>

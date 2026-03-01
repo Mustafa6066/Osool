@@ -123,7 +123,7 @@ function SignupContent() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] px-6 py-12">
+        <div className="w-full min-h-screen flex items-center justify-center bg-[var(--color-background)] px-6 py-12">
             <div className="w-full max-w-md bg-[var(--color-surface)] rounded-3xl shadow-xl border border-[var(--color-border)] p-8 space-y-6">
                 {/* Header */}
                 <div className="text-center space-y-2">
@@ -282,7 +282,7 @@ function SignupContent() {
 export default function SignupPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+            <div className="w-full min-h-screen flex items-center justify-center bg-[var(--color-background)]">
                 <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
             </div>
         }>
