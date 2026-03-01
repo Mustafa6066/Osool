@@ -245,7 +245,13 @@ class ReasoningEngine:
         chain = ReasoningChain(metadata={"query": query, "intent": intent})
 
         try:
-            intent_lower = intent.lower() if intent else ""
+            # Handle intent being a dict (from wolf_orchestrator) or string
+            if isinstance(intent, dict):
+                intent_lower = intent.get("action", "").lower()
+            elif isinstance(intent, str):
+                intent_lower = intent.lower()
+            else:
+                intent_lower = str(intent).lower() if intent else ""
 
             # --- Price queries ------------------------------------------------
             if any(kw in intent_lower for kw in ("price", "سعر", "كام", "cost")):

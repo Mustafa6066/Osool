@@ -2416,21 +2416,27 @@ DO NOT mention any prices outside this range.
                 system_payload = system_prompt
             
             # ── Extended Thinking (Claude's deep reasoning mode) ──
-            if config.CLAUDE_EXTENDED_THINKING:
+            # max_tokens MUST be > thinking.budget_tokens per Anthropic API
+            thinking_budget = config.CLAUDE_THINKING_BUDGET
+            max_tok = config.CLAUDE_MAX_TOKENS
+            if config.CLAUDE_EXTENDED_THINKING and max_tok > thinking_budget:
                 response = await self._call_claude_with_retry(
                     model=claude_model,
-                    max_tokens=config.CLAUDE_MAX_TOKENS,
+                    max_tokens=max_tok,
                     thinking={
                         "type": "enabled",
-                        "budget_tokens": config.CLAUDE_THINKING_BUDGET,
+                        "budget_tokens": thinking_budget,
                     },
                     system=system_payload,
                     messages=messages,
                 )
             else:
+                # Fallback: disable thinking if budget >= max_tokens
+                if config.CLAUDE_EXTENDED_THINKING:
+                    logger.warning(f"⚠️ Extended thinking disabled: max_tokens({max_tok}) must be > budget_tokens({thinking_budget})")
                 response = await self._call_claude_with_retry(
                     model=claude_model,
-                    max_tokens=min(4096, config.CLAUDE_MAX_TOKENS),
+                    max_tokens=min(4096, max_tok),
                     temperature=0.7,
                     system=system_payload,
                     messages=messages,
@@ -2518,7 +2524,8 @@ DO NOT mention any prices outside this range.
                 messages=messages,
             )
             
-            if config.CLAUDE_EXTENDED_THINKING:
+            # max_tokens MUST be > thinking.budget_tokens per Anthropic API
+            if config.CLAUDE_EXTENDED_THINKING and config.CLAUDE_MAX_TOKENS > config.CLAUDE_THINKING_BUDGET:
                 stream_kwargs["thinking"] = {
                     "type": "enabled",
                     "budget_tokens": config.CLAUDE_THINKING_BUDGET,

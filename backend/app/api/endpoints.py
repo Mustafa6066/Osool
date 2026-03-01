@@ -381,11 +381,13 @@ def prometheus_metrics():
 
 
 @router.get("/property/{property_id}")
-def get_property(property_id: int, db: Session = Depends(get_db)):
+async def get_property(property_id: int, db: AsyncSession = Depends(get_db)):
     """Get property details from database"""
     from app.models import Property
+    from sqlalchemy import select
 
-    property = db.query(Property).filter(Property.id == property_id).first()
+    result = await db.execute(select(Property).filter(Property.id == property_id))
+    property = result.scalar_one_or_none()
 
     if not property:
         raise HTTPException(status_code=404, detail=f"Property {property_id} not found")
@@ -413,12 +415,14 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
     }
 
 @router.get("/properties")
-def list_properties(db: Session = Depends(get_db)):
+async def list_properties(db: AsyncSession = Depends(get_db)):
     """
     🏠 List all available properties.
     Used by the Fractional Investment Dashboard.
     """
-    props = db.query(Property).filter(Property.is_available == True).all()
+    from sqlalchemy import select
+    result = await db.execute(select(Property).filter(Property.is_available == True))
+    props = result.scalars().all()
     
     # Enrich with computed fields (Mocking AI score/Funding for MVP if not in DB)
     results = []

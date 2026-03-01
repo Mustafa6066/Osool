@@ -168,8 +168,26 @@ class PerceptionLayer:
     """
     
     # ── Pydantic schema for OpenAI Structured Outputs ──
+    # NOTE: OpenAI strict mode requires all object schemas to have
+    # additionalProperties=false. Dict[str, Any] generates
+    # additionalProperties=true which is rejected. Use explicit fields instead.
+    class ExtractedFilters(BaseModel):
+        """Extracted property search filters."""
+        model_config = {"extra": "forbid"}
+        location: Optional[str] = Field(default=None, description="Location/area name")
+        budget_min: Optional[int] = Field(default=None, description="Minimum budget in EGP")
+        budget_max: Optional[int] = Field(default=None, description="Maximum budget in EGP")
+        purpose: Optional[str] = Field(default=None, description="Purpose: living, investment, rental")
+        bedrooms: Optional[int] = Field(default=None, description="Number of bedrooms")
+        property_type: Optional[str] = Field(default=None, description="apartment, villa, studio, duplex, penthouse, townhouse, twin_house, chalet")
+        size_min: Optional[int] = Field(default=None, description="Minimum size in sqm")
+        size_max: Optional[int] = Field(default=None, description="Maximum size in sqm")
+        developer: Optional[str] = Field(default=None, description="Developer name")
+        finishing: Optional[str] = Field(default=None, description="Finishing type: finished, semi_finished, unfinished")
+
     class IntentExtraction(BaseModel):
         """Structured intent extracted from user query."""
+        model_config = {"extra": "forbid"}
         action: str = Field(
             description="One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation"
         )
@@ -177,9 +195,9 @@ class PerceptionLayer:
             default="window_shopper",
             description="One of: window_shopper, serious_buyer, objection_mode"
         )
-        filters: Dict[str, Any] = Field(
-            default_factory=dict,
-            description="Extracted filters: location, budget_min, budget_max, purpose, bedrooms, property_type, size_min, size_max, developer, keywords, finishing"
+        filters: "PerceptionLayer.ExtractedFilters" = Field(
+            default_factory=lambda: PerceptionLayer.ExtractedFilters(),
+            description="Extracted property search filters"
         )
     
     def __init__(self):
@@ -363,7 +381,7 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
         return {
             "action": parsed.action,
             "intent_bucket": parsed.intent_bucket,
-            "filters": parsed.filters,
+            "filters": {k: v for k, v in parsed.filters.model_dump().items() if v is not None},
         }
     
     def _extract_rule_based(self, query: str) -> Dict[str, Any]:

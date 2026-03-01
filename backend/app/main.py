@@ -295,6 +295,14 @@ async def startup_event():
             print(f"[!] {error_msg}")
             raise RuntimeError(error_msg)
 
+    # Create missing tables (gamification, etc.) if they don't exist
+    try:
+        from app.database import init_db
+        await init_db()
+        print("    |-- Database tables: VERIFIED")
+    except Exception as e:
+        print(f"    |-- Database tables: init_db skipped ({e})")
+
     # Phase 9: Seed gamification achievements
     try:
         from app.database import AsyncSessionLocal
