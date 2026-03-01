@@ -32,7 +32,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
-      <body className="antialiased bg-[var(--color-background)] text-[var(--color-text-primary)] transition-colors duration-500 overflow-hidden h-screen w-screen relative selection:bg-[var(--color-primary)] selection:text-white">
+      <body className="antialiased bg-[var(--color-background)] text-[var(--color-text-primary)] transition-colors duration-500 flex flex-col h-screen w-screen relative selection:bg-[var(--color-primary)] selection:text-white">
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>
@@ -41,7 +41,7 @@ export default function RootLayout({
                 <NeuralBackground />
 
                 {/* Content Layer */}
-                <div className="relative z-10 w-full flex-1 flex flex-col">
+                <div className="relative z-10 w-full h-full flex flex-col overflow-auto">
                   {children}
                 </div>
 
