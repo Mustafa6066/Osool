@@ -18,14 +18,10 @@
   /* Deep Teal — Secondary */
   --color-teal-accent: #0D9488;
 
-  /* Spacing — 4pt base grid */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-2xl: 48px;
-  --spacing-3xl: 64px;
+  /* NOTE: Custom spacing tokens (xs/sm/md/lg/xl/2xl/3xl) are defined in :root
+     instead of @theme, because Tailwind v4 resolves max-w-sm → --spacing-sm
+     when --spacing-sm exists in @theme. This breaks max-w-sm/md/lg/xl/2xl/3xl
+     (they become 8–64px instead of 24–48rem). */
 
   /* Border Radius — Refined */
   --radius-sm: 8px;
@@ -47,6 +43,16 @@
    LIGHT THEME — Clean White
    ============================================ */
 :root {
+  /* Custom spacing — 4pt base grid (in :root, NOT @theme, to avoid
+     poisoning Tailwind's max-w-sm/md/lg/xl/2xl/3xl utilities) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
   --color-background: #FFFFFF;
   --color-surface: #FAFAFA;
   --color-surface-hover: #F4F4F5;
