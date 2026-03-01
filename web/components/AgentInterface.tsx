@@ -609,7 +609,7 @@ export default function AgentInterface() {
                 {/* Input Bar - Floating Figma Style */}
                 <div className="sticky bottom-0 left-0 right-0 z-40 px-4 md:px-6 pb-6 pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
                     <div className="max-w-[800px] mx-auto relative pointer-events-auto">
-                        <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} border border-[var(--color-border)]/60 focus-within:border-emerald-500/30 focus-within:shadow-[0_8px_40px_rgba(16,185,129,0.08)] shadow-[0_8px_30px_rgba(0,0,0,0.04)]`}>
+                        <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)]`}>
 
                             <textarea
                                 dir="auto"
@@ -618,27 +618,29 @@ export default function AgentInterface() {
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask about properties, market data, or investments..."
-                                className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-5 px-6 text-[15px] max-h-[180px] outline-none ring-0 leading-relaxed font-medium"
+                                className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-4 px-6 text-[15px] max-h-[180px] outline-none ring-0 leading-normal font-medium"
                                 rows={1}
                                 disabled={isTyping}
                             />
 
-                            <div className="flex items-center justify-between px-4 pb-4">
-                                <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)]/60 bg-[var(--color-surface-elevated)] px-2 py-1 rounded-lg">
-                                    {hasStarted && <span><span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">⇧</span> + <span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">↵</span> for new line</span>}
-                                </div>
+                            {(hasStarted || inputValue.trim()) && (
+                                <div className="flex items-center justify-between px-4 pb-3">
+                                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)]/60">
+                                        {hasStarted && <span><span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">⇧</span> + <span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">↵</span> for new line</span>}
+                                    </div>
 
-                                {inputValue.trim() && (
-                                    <button
-                                        onClick={() => handleSendMessage()}
-                                        disabled={isTyping}
-                                        title="Send message"
-                                        className="p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none"
-                                    >
-                                        <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-                                    </button>
-                                )}
-                            </div>
+                                    {inputValue.trim() && (
+                                        <button
+                                            onClick={() => handleSendMessage()}
+                                            disabled={isTyping}
+                                            title="Send message"
+                                            className="p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none"
+                                        >
+                                            <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div className={`text-center mt-3 transition-all duration-300 ${!hasStarted ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
