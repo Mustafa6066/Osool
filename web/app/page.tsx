@@ -87,7 +87,7 @@ export default function Home() {
                         <span className="text-emerald-500">next investment</span>
                     </h1>
 
-                    <p className="text-[17px] md:text-lg text-[var(--color-text-secondary)] font-medium leading-relaxed max-w-2xl text-balance mt-2">
+                    <p className="text-[17px] md:text-lg text-[var(--color-text-secondary)] font-medium leading-relaxed max-w-2xl mt-2">
                         AMR analyzes the Egyptian real estate market with AI precision. Get instant insights on pricing, ROI forecasts, and developer audits.
                     </p>
 
