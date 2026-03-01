@@ -82,7 +82,7 @@ export default function Home() {
                         <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">AI-Powered Real Estate Intelligence</span>
                     </div>
 
-                    <h1 className="text-[3rem] sm:text-[4rem] lg:text-[5rem] font-semibold leading-[1.05] tracking-tight max-w-4xl text-balance">
+                    <h1 className="text-[3rem] sm:text-[4rem] lg:text-[5rem] font-semibold leading-[1.05] tracking-tight max-w-4xl">
                         The intelligence behind your{' '}
                         <span className="text-emerald-500">next investment</span>
                     </h1>
