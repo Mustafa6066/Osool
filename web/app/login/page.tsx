@@ -18,7 +18,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="relative min-h-screen w-full bg-slate-900">
+        <div style={{ position: 'relative', minHeight: '100vh', width: '100%' }} className="bg-slate-900">
             {/* Background with Cairo/Modern Aesthetic */}
             <div
                 className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1663435860738-f9b699c647b0?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center opacity-50"

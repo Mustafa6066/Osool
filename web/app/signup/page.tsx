@@ -123,8 +123,8 @@ function SignupContent() {
     };
 
     return (
-        <div className="w-full min-h-screen flex items-center justify-center bg-[var(--color-background)] px-6 py-12">
-            <div className="w-full max-w-md bg-[var(--color-surface)] rounded-3xl shadow-xl border border-[var(--color-border)] p-8 space-y-6">
+        <div style={{ width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem' }} className="bg-[var(--color-background)]">
+            <div style={{ width: '100%', maxWidth: '28rem' }} className="bg-[var(--color-surface)] rounded-3xl shadow-xl border border-[var(--color-border)] p-8 space-y-6">
                 {/* Header */}
                 <div className="text-center space-y-2">
                     <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
@@ -282,7 +282,7 @@ function SignupContent() {
 export default function SignupPage() {
     return (
         <Suspense fallback={
-            <div className="w-full min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+            <div style={{ width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="bg-[var(--color-background)]">
                 <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
             </div>
         }>

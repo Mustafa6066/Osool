@@ -32,7 +32,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
-      <body className="antialiased selection:bg-[var(--color-primary)] selection:text-white">
+      <body>
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>
@@ -40,8 +40,20 @@ export default function RootLayout({
                 {/* Neural Background Layer */}
                 <NeuralBackground />
 
-                {/* Content Layer */}
-                <div className="relative z-10 flex flex-col overflow-auto" style={{ width: '100vw', minHeight: '100vh', flex: 1 }}>
+                {/* Content Layer — inline styles guarantee these can never be overridden */}
+                <div
+                  id="app-root"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: '100%',
+                    minHeight: '100vh',
+                    flex: '1 1 0%',
+                    position: 'relative',
+                    zIndex: 10,
+                    overflow: 'auto',
+                  }}
+                >
                   {children}
                 </div>
 

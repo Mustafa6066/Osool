@@ -197,32 +197,32 @@
 }
 
 /* ============================================
-   BASE — unlayered CSS always beats @layer utilities in Tailwind v4
+   BASE — These unlayered rules beat Tailwind v4 @layer utilities.
+   This is the ONLY place layout-critical properties should live.
    ============================================ */
 
-html {
-  height: 100%;
+html, body {
+  margin: 0;
+  padding: 0;
   width: 100%;
+  height: 100%;
 }
 
 body {
   display: flex;
   flex-direction: column;
-  width: 100vw;
   min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  position: relative;
+  overflow-x: hidden;
   background-color: var(--color-background);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
-  transition: background-color 0.2s ease, color 0.2s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Next.js App Router injects a classless <div> wrapper — make it invisible to layout */
+/* Next.js App Router injects a classless <div> between <body> and the layout content.
+   display:contents makes it invisible to the flex layout so body's children
+   (NeuralBackground canvas, content wrapper, overlay) participate directly. */
 body > div:first-child {
   display: contents;
 }
