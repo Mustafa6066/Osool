@@ -197,17 +197,34 @@
 }
 
 /* ============================================
-   BASE
+   BASE — unlayered CSS always beats @layer utilities in Tailwind v4
    ============================================ */
 
+html {
+  height: 100%;
+  width: 100%;
+}
+
 body {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
   background-color: var(--color-background);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   transition: background-color 0.2s ease, color 0.2s ease;
-  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Next.js App Router injects a classless <div> wrapper — make it invisible to layout */
+body > div:first-child {
+  display: contents;
 }
 
 /* Scrollbar — Ultra minimal */
