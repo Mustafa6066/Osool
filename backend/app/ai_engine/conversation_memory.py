@@ -1,19 +1,106 @@
 """
-Osool Conversation Memory Engine
----------------------------------
+Osool Conversation Memory Engine V2
+-------------------------------------
 Tracks key facts across conversation turns to make AMR smarter.
 Extracts and remembers budget, preferences, objections, and shown properties.
+
+V2 Enhancements:
+- Emotional journey tracking (turn-by-turn emotional state recording)
+- Objection resolution tracking (raised vs. resolved objections)
+- Commitment level (0-100 micro-commitment score)
+- Competitor mentions (track what user is comparing to)
+- Family members mentioned (individual stakeholder tracking)
+- Preferred payment structure (down payment, installment preference)
+- Visit scheduling state
+- Properties liked/rejected with reasons
+- Cross-session strategy intelligence
 """
 
 import logging
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
+class CrossSessionIntelligence:
+    """Analyze return behavior patterns to adapt sales strategy."""
+
+    @staticmethod
+    def analyze_return_behavior(
+        last_session_time: Optional[str],
+        current_time: Optional[datetime] = None,
+        previous_sessions_count: int = 0,
+    ) -> Dict[str, Any]:
+        """
+        Determine user's return pattern and adapt strategy.
+
+        Return types:
+        - hot_return (<24h): High intent, push for close
+        - comparison_return (1-7d): Comparing options, differentiate
+        - cold_return (>30d): Re-engage, refresh context
+        - fresh_start: First session
+        """
+        if not last_session_time:
+            return {
+                "return_type": "fresh_start",
+                "strategy_hint": "discovery",
+                "message_ar": "أهلاً بيك في أصول! خليني أساعدك تلاقي أحسن فرصة.",
+                "message_en": "Welcome to Osool! Let me help you find the best opportunity.",
+                "sessions_count": 0,
+            }
+
+        now = current_time or datetime.utcnow()
+        try:
+            last_dt = datetime.fromisoformat(last_session_time.replace("Z", "+00:00"))
+            if last_dt.tzinfo:
+                from datetime import timezone
+                now = now.replace(tzinfo=timezone.utc)
+            hours_since = (now - last_dt).total_seconds() / 3600
+        except Exception:
+            hours_since = 999
+
+        if hours_since < 24:
+            return {
+                "return_type": "hot_return",
+                "hours_since": round(hours_since, 1),
+                "strategy_hint": "close",
+                "message_ar": "رجعت بسرعة! يبان إنك مهتم جداً. خلينا نكمل من حيث وقفنا.",
+                "message_en": "You're back quickly! Seems like you're very interested. Let's pick up where we left off.",
+                "sessions_count": previous_sessions_count,
+            }
+        elif hours_since < 168:  # 7 days
+            return {
+                "return_type": "comparison_return",
+                "hours_since": round(hours_since, 1),
+                "strategy_hint": "differentiate",
+                "message_ar": "نورت تاني! لو كنت بتقارن عروض، خليني أوريك ليه اختياراتنا أحسن.",
+                "message_en": "Welcome back! If you've been comparing, let me show you why our picks stand out.",
+                "sessions_count": previous_sessions_count,
+            }
+        elif hours_since < 720:  # 30 days
+            return {
+                "return_type": "warm_return",
+                "hours_since": round(hours_since, 1),
+                "strategy_hint": "re_engage",
+                "message_ar": "وحشتنا! السوق اتغير شوية من آخر مرة. خليني أورديك الجديد.",
+                "message_en": "We missed you! The market has shifted since your last visit. Let me update you.",
+                "sessions_count": previous_sessions_count,
+            }
+        else:
+            return {
+                "return_type": "cold_return",
+                "hours_since": round(hours_since, 1),
+                "strategy_hint": "re_discover",
+                "message_ar": "أهلاً تاني! عدى وقت من آخر زيارة. عايز نبدأ من الأول ولا نكمل؟",
+                "message_en": "Welcome back! It's been a while. Want to start fresh or continue where we left off?",
+                "sessions_count": previous_sessions_count,
+            }
+
+
 class ConversationMemory:
-    """Cross-turn and cross-session fact extraction and memory for AMR."""
+    """Cross-turn and cross-session fact extraction and memory for AMR (V2)."""
 
     def __init__(self):
         self.budget_range: Optional[Dict[str, int]] = None  # {'min': X, 'max': Y}
@@ -28,6 +115,19 @@ class ConversationMemory:
         self.investment_vs_living: Optional[str] = None  # 'investment' | 'living' | 'both'
         self.discovery_answers: Dict[str, str] = {}
         self.preferences: List[str] = []  # Free-text preferences ("wife hates open kitchens")
+
+        # ═══ V2 Enhanced Memory Fields ═══
+        self.emotional_journey: List[Dict] = []  # [{"turn": N, "state": "fomo", "intensity": 0.7}]
+        self.objections_resolved: Dict[str, bool] = {}  # {"price": True, "delivery": False}
+        self.commitment_level: int = 0  # 0-100 micro-commitment score
+        self.competitors_mentioned: List[str] = []  # ["Nawy", "Aqarmap"]
+        self.family_members_mentioned: List[str] = []  # ["wife", "father"]
+        self.preferred_payment: Optional[Dict] = None  # {"down_pct": 10, "years": 8, "quarterly": True}
+        self.visit_scheduled: bool = False
+        self.properties_liked_with_reasons: List[Dict] = []  # [{"title": "X", "reason": "good view"}]
+        self.properties_rejected_with_reasons: List[Dict] = []  # [{"title": "X", "reason": "too far"}]
+        self.last_session_time: Optional[str] = None  # ISO timestamp
+        self.session_count: int = 0
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'ConversationMemory':
@@ -46,6 +146,18 @@ class ConversationMemory:
         mem.investment_vs_living = data.get('investment_vs_living')
         mem.discovery_answers = data.get('discovery_answers', {})
         mem.preferences = data.get('preferences', [])
+        # V2 fields
+        mem.emotional_journey = data.get('emotional_journey', [])
+        mem.objections_resolved = data.get('objections_resolved', {})
+        mem.commitment_level = data.get('commitment_level', 0)
+        mem.competitors_mentioned = data.get('competitors_mentioned', [])
+        mem.family_members_mentioned = data.get('family_members_mentioned', [])
+        mem.preferred_payment = data.get('preferred_payment')
+        mem.visit_scheduled = data.get('visit_scheduled', False)
+        mem.properties_liked_with_reasons = data.get('properties_liked_with_reasons', [])
+        mem.properties_rejected_with_reasons = data.get('properties_rejected_with_reasons', [])
+        mem.last_session_time = data.get('last_session_time')
+        mem.session_count = data.get('session_count', 0)
         return mem
 
     def merge(self, other: 'ConversationMemory'):
@@ -80,6 +192,33 @@ class ConversationMemory:
         if not self.family_size and other.family_size:
             self.family_size = other.family_size
 
+        # V2 merge: union lists, preserve scores
+        for comp in other.competitors_mentioned:
+            if comp not in self.competitors_mentioned:
+                self.competitors_mentioned.append(comp)
+        for fam in other.family_members_mentioned:
+            if fam not in self.family_members_mentioned:
+                self.family_members_mentioned.append(fam)
+        # Emotional journey: append previous session's journey
+        if other.emotional_journey:
+            self.emotional_journey = other.emotional_journey + self.emotional_journey
+        # Objection resolution: merge (current wins on conflict)
+        for obj_key, resolved in other.objections_resolved.items():
+            if obj_key not in self.objections_resolved:
+                self.objections_resolved[obj_key] = resolved
+        # Commitment: take maximum (progress should never decrease)
+        self.commitment_level = max(self.commitment_level, other.commitment_level)
+        # Payment preference: current session wins
+        if not self.preferred_payment and other.preferred_payment:
+            self.preferred_payment = other.preferred_payment
+        # Visit: once scheduled, stays true
+        if other.visit_scheduled:
+            self.visit_scheduled = True
+        # Cross-session: carry over
+        if not self.last_session_time and other.last_session_time:
+            self.last_session_time = other.last_session_time
+        self.session_count = max(self.session_count, other.session_count)
+
     def extract_from_message(self, message: str, ai_analysis: Optional[Dict] = None):
         """Extract and remember key facts from each exchange."""
         if not message:
@@ -92,6 +231,11 @@ class ConversationMemory:
         self._extract_purpose(msg_lower)
         self._extract_objections(msg_lower)
         self._extract_timeline(msg_lower)
+        # V2 extractors
+        self._extract_competitors(msg_lower)
+        self._extract_family_members(msg_lower)
+        self._extract_payment_preferences(msg_lower)
+        self._extract_visit_intent(msg_lower)
 
         if ai_analysis:
             filters = ai_analysis.get('filters', {})
@@ -136,6 +280,31 @@ class ConversationMemory:
         parts.append(f"- Properties shown: {len(self.shown_properties)}")
         if self.preferences:
             parts.append(f"- Key Preferences: {'; '.join(self.preferences)}")
+
+        # V2 enhanced context
+        if self.commitment_level > 0:
+            parts.append(f"- Commitment Level: {self.commitment_level}/100")
+        if self.competitors_mentioned:
+            parts.append(f"- Competitors Compared: {', '.join(self.competitors_mentioned)}")
+        if self.family_members_mentioned:
+            parts.append(f"- Family Stakeholders: {', '.join(self.family_members_mentioned)}")
+        if self.preferred_payment:
+            dp = self.preferred_payment.get('down_pct', '?')
+            yrs = self.preferred_payment.get('years', '?')
+            parts.append(f"- Payment Preference: {dp}% down, {yrs} years")
+        if self.visit_scheduled:
+            parts.append("- Visit: SCHEDULED ✓")
+        if self.objections_resolved:
+            resolved = [k for k, v in self.objections_resolved.items() if v]
+            unresolved = [k for k, v in self.objections_resolved.items() if not v]
+            if resolved:
+                parts.append(f"- Objections Resolved: {', '.join(resolved)}")
+            if unresolved:
+                parts.append(f"- Objections UNRESOLVED: {', '.join(unresolved)}")
+        if self.emotional_journey:
+            recent = self.emotional_journey[-3:]
+            journey_str = " → ".join(e.get('state', '?') for e in recent)
+            parts.append(f"- Emotional Journey (recent): {journey_str}")
 
         return '\n'.join(parts)
 
@@ -223,6 +392,107 @@ class ConversationMemory:
         elif any(kw in msg_lower for kw in ['سنة', 'year', 'بعدين', 'later']):
             self.timeline = '6-12 months'
 
+    # ═══════════════════════════════════════════════════════════════
+    # V2: NEW EXTRACTOR METHODS
+    # ═══════════════════════════════════════════════════════════════
+
+    def _extract_competitors(self, msg_lower: str):
+        """Extract competitor platform mentions."""
+        competitor_map = {
+            'ناوي': 'Nawy', 'nawy': 'Nawy',
+            'عقارماب': 'Aqarmap', 'aqarmap': 'Aqarmap',
+            'أولكس': 'OLX', 'olx': 'OLX',
+            'بروبرتي فايندر': 'Property Finder', 'property finder': 'Property Finder',
+            'دوبيزل': 'Dubizzle', 'dubizzle': 'Dubizzle',
+            'بيوت': 'Bayut', 'bayut': 'Bayut',
+            'سمسار': 'Local Broker', 'broker': 'Local Broker',
+        }
+        for keyword, name in competitor_map.items():
+            if keyword in msg_lower and name not in self.competitors_mentioned:
+                self.competitors_mentioned.append(name)
+
+    def _extract_family_members(self, msg_lower: str):
+        """Extract family member mentions for committee mode."""
+        family_map = {
+            'مراتي': 'wife', 'زوجتي': 'wife', 'wife': 'wife', 'my wife': 'wife',
+            'جوزي': 'husband', 'زوجي': 'husband', 'husband': 'husband',
+            'أبويا': 'father', 'والدي': 'father', 'father': 'father', 'my dad': 'father',
+            'أمي': 'mother', 'والدتي': 'mother', 'mother': 'mother', 'my mom': 'mother',
+            'أخويا': 'brother', 'brother': 'brother',
+            'أختي': 'sister', 'sister': 'sister',
+            'ابني': 'son', 'son': 'son',
+            'بنتي': 'daughter', 'daughter': 'daughter',
+            'العيلة': 'family', 'family': 'family',
+            'خطيبتي': 'fiancée', 'خطيبي': 'fiancé',
+        }
+        for keyword, member in family_map.items():
+            if keyword in msg_lower and member not in self.family_members_mentioned:
+                self.family_members_mentioned.append(member)
+
+    def _extract_payment_preferences(self, msg_lower: str):
+        """Extract installment/payment plan preferences."""
+        # Down payment extraction
+        dp_match = re.search(r'(?:مقدم|down\s*payment|dp)\s*(\d+)\s*%?', msg_lower)
+        if dp_match:
+            dp_val = int(dp_match.group(1))
+            if dp_val <= 50:  # Reasonable down payment %
+                if not self.preferred_payment:
+                    self.preferred_payment = {}
+                self.preferred_payment['down_pct'] = dp_val
+
+        # Installment years extraction
+        years_match = re.search(r'(\d+)\s*(?:سنة|سنين|year|years|سنوات)', msg_lower)
+        if years_match:
+            years_val = int(years_match.group(1))
+            if 1 <= years_val <= 15:
+                if not self.preferred_payment:
+                    self.preferred_payment = {}
+                self.preferred_payment['years'] = years_val
+
+        # Quarterly / semi-annual preference
+        if any(kw in msg_lower for kw in ['ربع سنوي', 'quarterly', 'كل 3 شهور']):
+            if not self.preferred_payment:
+                self.preferred_payment = {}
+            self.preferred_payment['quarterly'] = True
+        elif any(kw in msg_lower for kw in ['نص سنوي', 'semi-annual', 'كل 6 شهور']):
+            if not self.preferred_payment:
+                self.preferred_payment = {}
+            self.preferred_payment['semi_annual'] = True
+
+    def _extract_visit_intent(self, msg_lower: str):
+        """Detect if user is scheduling or interested in a property visit."""
+        visit_keywords = [
+            'معاينة', 'زيارة', 'أشوف', 'أعاين', 'visit', 'see it',
+            'viewing', 'show me in person', 'أروح', 'go there', 'site visit',
+            'هروح', 'نشوفها', 'نزورها',
+        ]
+        if any(kw in msg_lower for kw in visit_keywords):
+            self.visit_scheduled = True
+
+    def record_emotional_state(self, turn_number: int, state: str, intensity: float = 0.5):
+        """V2: Record emotional state for this turn."""
+        self.emotional_journey.append({
+            "turn": turn_number,
+            "state": state,
+            "intensity": round(intensity, 2),
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+
+    def resolve_objection(self, objection_type: str):
+        """V2: Mark an objection as resolved."""
+        self.objections_resolved[objection_type] = True
+
+    def raise_objection(self, objection_type: str):
+        """V2: Register a new objection."""
+        if objection_type not in self.objections_resolved:
+            self.objections_resolved[objection_type] = False
+        if objection_type not in self.objections_raised:
+            self.objections_raised.append(objection_type)
+
+    def update_commitment(self, delta: int):
+        """V2: Adjust commitment level (clamped 0-100)."""
+        self.commitment_level = max(0, min(100, self.commitment_level + delta))
+
     def to_dict(self) -> Dict:
         """Serialize memory to dict."""
         return {
@@ -236,6 +506,18 @@ class ConversationMemory:
             'timeline': self.timeline,
             'investment_vs_living': self.investment_vs_living,
             'preferences': self.preferences,
+            # V2 fields
+            'emotional_journey': self.emotional_journey,
+            'objections_resolved': self.objections_resolved,
+            'commitment_level': self.commitment_level,
+            'competitors_mentioned': self.competitors_mentioned,
+            'family_members_mentioned': self.family_members_mentioned,
+            'preferred_payment': self.preferred_payment,
+            'visit_scheduled': self.visit_scheduled,
+            'properties_liked_with_reasons': self.properties_liked_with_reasons,
+            'properties_rejected_with_reasons': self.properties_rejected_with_reasons,
+            'last_session_time': self.last_session_time,
+            'session_count': self.session_count,
         }
 
     def check_repetitive_loop(self, history: List[Dict], current_response: str) -> bool:

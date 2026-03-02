@@ -95,7 +95,7 @@ AREA_PRICE_HISTORY = {
         2021: 15000, 2022: 20000, 2023: 30000, 2024: 50000, 2025: 68000, 2026: 76150
     },
     "Maadi": {
-        2021: 18000, 2022: 20000, 2023: 22000, 2024: 25000, 2025: 26950, 2026: 70000
+        2021: 18000, 2022: 20000, 2023: 22000, 2024: 25000, 2025: 26950, 2026: 31000
     },
     "Ain Sokhna": {
         2021: 12000, 2022: 16000, 2023: 25000, 2024: 45000, 2025: 75000, 2026: 91200
@@ -118,12 +118,12 @@ DEVELOPER_PRICE_HISTORY = {
     "SODIC (Eastown)": {
         "area": "New Cairo",
         "type": "apartment",
-        2021: 18000, 2022: 24000, 2023: 35000, 2024: 50000, 2025: 68000, 2026: 67500,
+        2021: 18000, 2022: 24000, 2023: 35000, 2024: 50000, 2025: 68000, 2026: 73500,
     },
     "Palm Hills (PHNC)": {
         "area": "New Cairo",
         "type": "apartment",
-        2021: 22000, 2022: 30000, 2023: 42000, 2024: 58000, 2025: 75000, 2026: 72500,
+        2021: 22000, 2022: 30000, 2023: 42000, 2024: 58000, 2025: 75000, 2026: 81000,
     },
     "Mountain View (iCity)": {
         "area": "New Cairo",
@@ -464,6 +464,584 @@ DEVELOPER_GRAPH = {
         "flagship_projects": ["Taj City", "De Joya"],
     },
 }
+
+
+# ═══════════════════════════════════════════════════════════════
+# RESALE MARKUP DATA (Pre-delivery appreciation by developer)
+# Historical data for speculator/flipper segment
+# ═══════════════════════════════════════════════════════════════
+RESALE_MARKUP_DATA = {
+    "emaar_mivida": {"phase_1_launch": 0, "6_months": 15, "1_year": 25, "pre_delivery": 40, "post_delivery": 60},
+    "emaar_belle_vie": {"phase_1_launch": 0, "6_months": 18, "1_year": 30, "pre_delivery": 45, "post_delivery": 65},
+    "sodic_villette": {"phase_1_launch": 0, "6_months": 12, "1_year": 20, "pre_delivery": 35, "post_delivery": 50},
+    "sodic_east": {"phase_1_launch": 0, "6_months": 10, "1_year": 18, "pre_delivery": 30, "post_delivery": 45},
+    "palm_hills_new_cairo": {"phase_1_launch": 0, "6_months": 10, "1_year": 18, "pre_delivery": 30, "post_delivery": 45},
+    "palm_hills_october": {"phase_1_launch": 0, "6_months": 8, "1_year": 15, "pre_delivery": 25, "post_delivery": 40},
+    "mountain_view_icity": {"phase_1_launch": 0, "6_months": 12, "1_year": 22, "pre_delivery": 35, "post_delivery": 55},
+    "ora_zed": {"phase_1_launch": 0, "6_months": 15, "1_year": 28, "pre_delivery": 42, "post_delivery": 62},
+    "hyde_park": {"phase_1_launch": 0, "6_months": 8, "1_year": 15, "pre_delivery": 25, "post_delivery": 35},
+    "tatweer_misr_il_monte": {"phase_1_launch": 0, "6_months": 10, "1_year": 20, "pre_delivery": 30, "post_delivery": 50},
+    "city_edge_etapa": {"phase_1_launch": 0, "6_months": 12, "1_year": 22, "pre_delivery": 32, "post_delivery": 48},
+}
+
+# Average rent by area (monthly, 2BR, EGP) — for rent-vs-buy comparison
+AVERAGE_RENT_BY_AREA = {
+    "New Cairo": 18000,
+    "Sheikh Zayed": 20000,
+    "6th October": 12000,
+    "New Capital": 10000,
+    "North Coast": 25000,  # Seasonal premium
+    "Maadi": 22000,
+    "Madinaty": 15000,
+    "Rehab": 13000,
+    "Mostakbal City": 11000,
+    "Ain Sokhna": 15000,
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# PAYMENT PLAN ANALYZER — Egyptian-specific installment intelligence
+# 80% of Egyptian purchases are installment-based
+# ═══════════════════════════════════════════════════════════════
+class PaymentPlanAnalyzer:
+    """
+    Egyptian-specific payment plan analysis.
+    Models: 5-10% down payment, 6-10 year installment,
+    quarterly/semi-annual/monthly payments.
+    """
+
+    def calculate_installment_plan(
+        self,
+        total_price: int,
+        down_payment_pct: float = 0.10,
+        years: int = 8,
+        payment_frequency: str = "quarterly",
+        location: str = "",
+    ) -> Dict:
+        """
+        Calculate a detailed installment plan with rent comparison.
+
+        Args:
+            total_price: Total property price in EGP
+            down_payment_pct: Down payment percentage (0.05 to 0.30)
+            years: Installment period in years (1-10)
+            payment_frequency: quarterly, semi_annual, annual, monthly
+            location: For rent comparison context
+        """
+        down_payment = int(total_price * down_payment_pct)
+        remaining = total_price - down_payment
+
+        freq_map = {"quarterly": 4, "semi_annual": 2, "annual": 1, "monthly": 12}
+        payments_per_year = freq_map.get(payment_frequency, 4)
+        total_payments = years * payments_per_year
+        installment = remaining / total_payments if total_payments > 0 else remaining
+
+        monthly_equivalent = int(remaining / (years * 12))
+
+        # Rent comparison (the "you're paying rent anyway" argument)
+        rent_comparison = self._compare_to_rent(monthly_equivalent, location)
+
+        # Multiple plan options for comparison
+        plans = []
+        for dp_pct in [0.05, 0.10, 0.15, 0.20, 0.25]:
+            dp = int(total_price * dp_pct)
+            rem = total_price - dp
+            inst = rem / total_payments if total_payments > 0 else rem
+            plans.append({
+                "down_payment_pct": dp_pct,
+                "down_payment": dp,
+                "installment_amount": int(inst),
+                "monthly_equivalent": int(rem / (years * 12)),
+            })
+
+        return {
+            "total_price": total_price,
+            "down_payment": down_payment,
+            "down_payment_pct": down_payment_pct,
+            "remaining": remaining,
+            "installment_amount": int(installment),
+            "payment_frequency": payment_frequency,
+            "years": years,
+            "total_payments": total_payments,
+            "monthly_equivalent": monthly_equivalent,
+            "rent_comparison": rent_comparison,
+            "alternative_plans": plans,
+        }
+
+    def _compare_to_rent(self, monthly_installment: int, location: str) -> Dict:
+        """Compare monthly installment equivalent to average rent."""
+        avg_rent = AVERAGE_RENT_BY_AREA.get(location, 15000)
+
+        difference = monthly_installment - avg_rent
+        ratio = monthly_installment / avg_rent if avg_rent > 0 else 0
+
+        if ratio <= 1.0:
+            verdict_ar = "🟢 القسط الشهري أقل من الإيجار! أنت بتبني ملكية بنفس اللي كنت هتدفعه إيجار"
+            verdict_en = "🟢 Monthly installment is LESS than rent! You're building equity for the same cost"
+        elif ratio <= 1.3:
+            verdict_ar = "🟡 القسط أعلى من الإيجار بشوية، بس أنت بتبني ملكية"
+            verdict_en = "🟡 Slightly more than rent, but you're building ownership"
+        elif ratio <= 1.5:
+            verdict_ar = "🟠 القسط أعلى من الإيجار بـ 30-50%، بس العقار بيزيد قيمته سنوياً"
+            verdict_en = "🟠 30-50% more than rent, but the asset appreciates annually"
+        else:
+            verdict_ar = "🔴 القسط أعلى من الإيجار بكتير — تأكد إن الميزانية مريحة"
+            verdict_en = "🔴 Significantly more than rent — ensure this fits your budget"
+
+        return {
+            "monthly_installment": monthly_installment,
+            "avg_rent": avg_rent,
+            "difference": difference,
+            "ratio": round(ratio, 2),
+            "verdict_ar": verdict_ar,
+            "verdict_en": verdict_en,
+            "location": location,
+        }
+
+    def format_for_prompt(self, plan: Dict, language: str) -> str:
+        """Format payment plan data for injection into Claude's context."""
+        rc = plan.get("rent_comparison", {})
+
+        if language == "ar":
+            return f"""
+[PAYMENT_PLAN_INTELLIGENCE]
+💰 إجمالي السعر: {plan['total_price']:,} جنيه
+💵 المقدم ({plan['down_payment_pct']*100:.0f}%): {plan['down_payment']:,} جنيه
+📅 القسط ({plan['payment_frequency']}): {plan['installment_amount']:,} جنيه
+📅 المكافئ الشهري: {plan['monthly_equivalent']:,} جنيه/شهر
+🏠 متوسط الإيجار في {rc.get('location', 'المنطقة')}: {rc.get('avg_rent', 0):,} جنيه/شهر
+{rc.get('verdict_ar', '')}
+
+MENTION THIS when discussing price:
+- "المقدم بس {plan['down_payment']:,} جنيه — يعني {plan['down_payment_pct']*100:.0f}% من السعر"
+- "القسط الشهري {plan['monthly_equivalent']:,} جنيه — قارنه بالإيجار ({rc.get('avg_rent', 0):,})"
+"""
+        else:
+            return f"""
+[PAYMENT_PLAN_INTELLIGENCE]
+💰 Total Price: {plan['total_price']:,} EGP
+💵 Down Payment ({plan['down_payment_pct']*100:.0f}%): {plan['down_payment']:,} EGP
+📅 Installment ({plan['payment_frequency']}): {plan['installment_amount']:,} EGP
+📅 Monthly Equivalent: {plan['monthly_equivalent']:,} EGP/month
+🏠 Avg Rent in {rc.get('location', 'area')}: {rc.get('avg_rent', 0):,} EGP/month
+{rc.get('verdict_en', '')}
+
+MENTION THIS when discussing price:
+- "Down payment is only {plan['down_payment']:,} EGP — just {plan['down_payment_pct']*100:.0f}%"
+- "Monthly equivalent is {plan['monthly_equivalent']:,} EGP — compare to rent ({rc.get('avg_rent', 0):,})"
+"""
+
+
+# ═══════════════════════════════════════════════════════════════
+# DEVELOPER TRUST SCORE CALCULATOR
+# Surfaces DEVELOPER_GRAPH data as a visible "Trust Score"
+# DELIVERY_FEAR is the #2 psychological state
+# ═══════════════════════════════════════════════════════════════
+class DeveloperTrustScorer:
+    """
+    Calculate a 0-100 Trust Score for a developer.
+    Based on: Delivery reliability, resale premium, project count, tier.
+    """
+
+    def calculate_trust_score(self, developer: str) -> Dict:
+        """Calculate a composite trust score for a developer."""
+        dev_key = self._normalize_developer(developer)
+        dev_data = DEVELOPER_GRAPH.get(dev_key)
+
+        if not dev_data:
+            return {"score": 0, "found": False, "developer": developer}
+
+        # Weighted scoring
+        delivery_weight = 0.40   # Most important for Egyptians
+        resale_weight = 0.25     # Proves value retention
+        tier_weight = 0.20       # Brand recognition
+        project_weight = 0.15    # Track record depth
+
+        delivery_score = dev_data.get("delivery_reliability", 50)
+        resale_score = min(dev_data.get("resale_premium", 0) * 5, 100)
+        tier_score = {1: 100, 2: 70, 3: 40}.get(dev_data.get("tier", 3), 30)
+        project_score = min(len(dev_data.get("flagship_projects", [])) * 33, 100)
+
+        total = int(
+            delivery_score * delivery_weight
+            + resale_score * resale_weight
+            + tier_score * tier_weight
+            + project_score * project_weight
+        )
+
+        return {
+            "score": total,
+            "found": True,
+            "developer": dev_data.get("name_en", developer),
+            "developer_ar": dev_data.get("name_ar", developer),
+            "tier": dev_data.get("tier", 3),
+            "delivery_reliability": dev_data.get("delivery_reliability", 0),
+            "resale_premium": dev_data.get("resale_premium", 0),
+            "strength": dev_data.get("strength", ""),
+            "strength_ar": dev_data.get("strength_ar", ""),
+            "flagship_projects": dev_data.get("flagship_projects", []),
+            "verdict_ar": self._trust_verdict_ar(total),
+            "verdict_en": self._trust_verdict_en(total),
+            "breakdown": {
+                "delivery": int(delivery_score * delivery_weight),
+                "resale": int(resale_score * resale_weight),
+                "brand": int(tier_score * tier_weight),
+                "experience": int(project_score * project_weight),
+            },
+        }
+
+    def _normalize_developer(self, developer: str) -> str:
+        """Normalize developer name to DEVELOPER_GRAPH key."""
+        dev_lower = developer.lower().strip()
+        # Direct match
+        if dev_lower in DEVELOPER_GRAPH:
+            return dev_lower
+        # Partial match
+        for key in DEVELOPER_GRAPH:
+            dev_data = DEVELOPER_GRAPH[key]
+            if (key in dev_lower or dev_lower in key
+                or dev_data.get("name_en", "").lower() in dev_lower
+                or dev_lower in dev_data.get("name_en", "").lower()
+                or dev_data.get("name_ar", "") in developer):
+                return key
+        return dev_lower
+
+    def _trust_verdict_ar(self, score: int) -> str:
+        if score >= 85:
+            return "🟢 مطور موثوق جداً — سجل تسليم ممتاز وقيمة إعادة بيع عالية"
+        if score >= 70:
+            return "🟡 مطور جيد — التزام معقول بالمواعيد وسمعة سوقية قوية"
+        if score >= 50:
+            return "🟠 مطور متوسط — تحقق من سجل التسليم والضمانات القانونية"
+        return "🔴 احذر — مطور بدون سجل كافي أو سمعة ضعيفة"
+
+    def _trust_verdict_en(self, score: int) -> str:
+        if score >= 85:
+            return "🟢 Highly Trusted — Excellent delivery track record and strong resale value"
+        if score >= 70:
+            return "🟡 Good Developer — Reasonable delivery commitment and solid market reputation"
+        if score >= 50:
+            return "🟠 Average — Verify delivery track record and legal guarantees"
+        return "🔴 Caution — Insufficient track record or weak reputation"
+
+    def format_for_prompt(self, trust_data: Dict, language: str) -> str:
+        """Format trust score for injection into Claude's context."""
+        if not trust_data.get("found"):
+            return ""
+
+        s = trust_data
+        if language == "ar":
+            return f"""
+[DEVELOPER_TRUST_SCORE — {s['developer_ar']}]
+🛡️ درجة الثقة: {s['score']}/100
+{s['verdict_ar']}
+- نسبة الالتزام بالتسليم: {s['delivery_reliability']}%
+- علاوة إعادة البيع: +{s['resale_premium']}%
+- نقطة القوة: {s['strength_ar']}
+- أبرز المشاريع: {', '.join(s['flagship_projects'][:3])}
+
+MENTION THIS when user asks about developer or shows DELIVERY_FEAR:
+- "المطور ده عنده {s['delivery_reliability']}% نسبة التزام بالتسليم"
+- "{s['verdict_ar']}"
+"""
+        else:
+            return f"""
+[DEVELOPER_TRUST_SCORE — {s['developer']}]
+🛡️ Trust Score: {s['score']}/100
+{s['verdict_en']}
+- Delivery Reliability: {s['delivery_reliability']}%
+- Resale Premium: +{s['resale_premium']}%
+- Key Strength: {s['strength']}
+- Flagship Projects: {', '.join(s['flagship_projects'][:3])}
+
+MENTION THIS when user asks about developer or shows DELIVERY_FEAR:
+- "This developer has a {s['delivery_reliability']}% on-time delivery rate"
+- "{s['verdict_en']}"
+"""
+
+
+# ═══════════════════════════════════════════════════════════════
+# RESALE INTELLIGENCE — Speculator/Flipper Analytics
+# 10% of market are speculators needing pre-delivery markup data
+# ═══════════════════════════════════════════════════════════════
+class ResaleIntelligence:
+    """
+    Calculate resale projections for speculators/flippers.
+    Pre-delivery markup, ROI on equity, annualized returns.
+    """
+
+    def calculate_resale_projection(
+        self,
+        developer: str,
+        compound: str = "",
+        total_price: int = 0,
+        down_payment_pct: float = 0.10,
+        years_to_delivery: int = 3,
+    ) -> Dict:
+        """Project resale value for speculators."""
+        key = self._normalize_key(developer, compound)
+        markup_data = RESALE_MARKUP_DATA.get(key, {})
+
+        # Use matched data or area average
+        if not markup_data:
+            # Fallback: estimate based on developer tier
+            dev_key = developer.lower().strip()
+            for dk, dd in DEVELOPER_GRAPH.items():
+                if dk in dev_key or dev_key in dk:
+                    tier = dd.get("tier", 3)
+                    resale_prem = dd.get("resale_premium", 5)
+                    markup_data = {
+                        "phase_1_launch": 0,
+                        "6_months": int(resale_prem * 0.5),
+                        "1_year": resale_prem,
+                        "pre_delivery": int(resale_prem * 2),
+                        "post_delivery": int(resale_prem * 3),
+                    }
+                    break
+
+        if not markup_data:
+            return {"available": False, "developer": developer}
+
+        # Calculate ROI on equity (down payment)
+        markup_at_delivery = markup_data.get("pre_delivery", 25) / 100
+        roi_on_equity = markup_at_delivery / down_payment_pct if down_payment_pct > 0 else 0
+        annualized_roi = (
+            ((1 + roi_on_equity) ** (1 / years_to_delivery) - 1) * 100
+            if years_to_delivery > 0 and roi_on_equity > 0
+            else 0
+        )
+
+        # Money calculations
+        if total_price > 0:
+            down_payment = int(total_price * down_payment_pct)
+            profit_at_delivery = int(total_price * markup_at_delivery)
+        else:
+            down_payment = 0
+            profit_at_delivery = 0
+
+        return {
+            "available": True,
+            "developer": developer,
+            "compound": compound,
+            "markup_timeline": markup_data,
+            "projected_markup_pct": round(markup_at_delivery * 100, 1),
+            "roi_on_equity_pct": round(roi_on_equity * 100, 1),
+            "annualized_roi_pct": round(annualized_roi, 1),
+            "down_payment": down_payment,
+            "profit_at_delivery": profit_at_delivery,
+            "years_to_delivery": years_to_delivery,
+            "verdict_ar": (
+                f"لو دفعت {down_payment_pct*100:.0f}% مقدم وبعت قبل التسليم، "
+                f"العائد على رأس مالك {roi_on_equity*100:.0f}% "
+                f"(يعني {annualized_roi:.0f}% سنوياً)"
+            ),
+            "verdict_en": (
+                f"With {down_payment_pct*100:.0f}% down payment and pre-delivery sale, "
+                f"ROI on your equity is {roi_on_equity*100:.0f}% "
+                f"({annualized_roi:.0f}% annualized)"
+            ),
+        }
+
+    def _normalize_key(self, developer: str, compound: str) -> str:
+        """Normalize developer + compound to RESALE_MARKUP_DATA key."""
+        combined = f"{developer}_{compound}".lower().replace(" ", "_").replace("-", "_")
+        for key in RESALE_MARKUP_DATA:
+            if key in combined or combined in key:
+                return key
+        # Try developer only
+        dev_lower = developer.lower().replace(" ", "_")
+        for key in RESALE_MARKUP_DATA:
+            if dev_lower in key:
+                return key
+        return combined
+
+    def format_for_prompt(self, projection: Dict, language: str) -> str:
+        """Format resale projection for prompt injection."""
+        if not projection.get("available"):
+            return ""
+
+        p = projection
+        if language == "ar":
+            return f"""
+[RESALE_INTELLIGENCE — تحليل الربح لمضاربي السوق]
+📈 المطور: {p['developer']}
+📊 الربح المتوقع قبل التسليم: +{p['projected_markup_pct']}%
+💰 العائد على رأس المال المدفوع: {p['roi_on_equity_pct']}%
+📅 العائد السنوي: {p['annualized_roi_pct']}%
+🏗️ مدة التسليم: {p['years_to_delivery']} سنوات
+
+{p['verdict_ar']}
+
+جدول الربح المتوقع:
+- بعد 6 شهور: +{p['markup_timeline'].get('6_months', 0)}%
+- بعد سنة: +{p['markup_timeline'].get('1_year', 0)}%
+- قبل التسليم: +{p['markup_timeline'].get('pre_delivery', 0)}%
+- بعد التسليم: +{p['markup_timeline'].get('post_delivery', 0)}%
+
+USE THIS for SPECULATOR/INVESTOR persona queries about flipping or resale.
+"""
+        else:
+            return f"""
+[RESALE_INTELLIGENCE — Speculator Profit Analysis]
+📈 Developer: {p['developer']}
+📊 Projected Pre-Delivery Markup: +{p['projected_markup_pct']}%
+💰 ROI on Equity (Down Payment): {p['roi_on_equity_pct']}%
+📅 Annualized ROI: {p['annualized_roi_pct']}%
+🏗️ Years to Delivery: {p['years_to_delivery']}
+
+{p['verdict_en']}
+
+Projected Markup Timeline:
+- 6 months: +{p['markup_timeline'].get('6_months', 0)}%
+- 1 year: +{p['markup_timeline'].get('1_year', 0)}%
+- Pre-delivery: +{p['markup_timeline'].get('pre_delivery', 0)}%
+- Post-delivery: +{p['markup_timeline'].get('post_delivery', 0)}%
+
+USE THIS for SPECULATOR/INVESTOR persona queries about flipping or resale.
+"""
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# V3: TRADE-UP CALCULATOR
+# Helps inheritance/upgrade users see what they can afford
+# ═══════════════════════════════════════════════════════════════════════
+class TradeUpAdvisor:
+    """
+    V3: Trade-Up Calculator.
+    Analyzes: current property value + cash → what they can afford at developer prices.
+    Used for INHERITANCE_CONFUSION and UPGRADER persona users.
+    """
+
+    def calculate_trade_up(
+        self,
+        current_property_value: int = 0,
+        cash_available: int = 0,
+        current_location: str = "",
+        target_location: str = "",
+        target_type: str = "apartment",  # apartment, villa, twin_house, duplex
+    ) -> Dict:
+        """
+        Calculate trade-up options: sell current + cash → what can you buy?
+        
+        Args:
+            current_property_value: Estimated value of current property (EGP)
+            cash_available: Additional cash (EGP)
+            current_location: Where current property is
+            target_location: Desired area for new property
+            target_type: Desired property type
+        """
+        total_budget = current_property_value + cash_available
+
+        if total_budget <= 0:
+            return {"available": False}
+
+        # Get target area pricing
+        target_price_sqm = AREA_PRICES.get(target_location, 0)
+        if target_price_sqm <= 0:
+            # Fuzzy match
+            for area, price in AREA_PRICES.items():
+                if area.lower() in target_location.lower() or target_location.lower() in area.lower():
+                    target_price_sqm = price
+                    target_location = area
+                    break
+        if target_price_sqm <= 0:
+            target_price_sqm = 50000  # Default Egyptian average
+
+        # Property type size assumptions (typical Egyptian market)
+        _type_sizes = {
+            "apartment": {"min_sqm": 90, "mid_sqm": 140, "max_sqm": 220},
+            "duplex": {"min_sqm": 180, "mid_sqm": 250, "max_sqm": 350},
+            "twin_house": {"min_sqm": 200, "mid_sqm": 280, "max_sqm": 380},
+            "villa": {"min_sqm": 250, "mid_sqm": 350, "max_sqm": 500},
+        }
+        sizes = _type_sizes.get(target_type, _type_sizes["apartment"])
+
+        # What can they afford?
+        max_sqm = total_budget / target_price_sqm
+        affordable_type = target_type
+        if max_sqm < sizes["min_sqm"]:
+            # Can't afford target type — suggest downsize
+            affordable_type = "apartment"
+            sizes = _type_sizes["apartment"]
+
+        # Down payment scenario (10% down, rest installments)
+        down_payment_10 = int(total_budget * 0.1)
+        remaining_on_plan = total_budget - down_payment_10
+        monthly_installment_7y = int(remaining_on_plan / (7 * 12))
+
+        # Growth projection: if they wait vs. trade now
+        growth_rate = AREA_GROWTH.get(target_location, 0.15)
+        if growth_rate > 1:
+            growth_rate = growth_rate * 0.15  # Moderate extreme historical rates
+
+        value_in_1y = int(total_budget * (1 + growth_rate))
+        sqm_in_1y = value_in_1y / (target_price_sqm * (1 + growth_rate))
+        sqm_lost_by_waiting = max_sqm - sqm_in_1y
+
+        # Current property appreciation if they don't sell
+        current_price_sqm = AREA_PRICES.get(current_location, 0)
+        if not current_price_sqm:
+            for area, price in AREA_PRICES.items():
+                if area.lower() in current_location.lower() or current_location.lower() in area.lower():
+                    current_price_sqm = price
+                    break
+
+        return {
+            "available": True,
+            "total_budget": total_budget,
+            "current_property_value": current_property_value,
+            "cash_available": cash_available,
+            "target_location": target_location,
+            "target_price_sqm": target_price_sqm,
+            "max_sqm_affordable": round(max_sqm, 1),
+            "affordable_type": affordable_type,
+            "suggested_size_range": f"{sizes['min_sqm']}-{sizes['max_sqm']} sqm",
+            "down_payment_10pct": down_payment_10,
+            "monthly_installment_7y": monthly_installment_7y,
+            "if_wait_1y_sqm_lost": round(sqm_lost_by_waiting, 1),
+            "growth_rate": round(growth_rate * 100, 1),
+        }
+
+    def format_for_prompt(self, result: Dict, language: str) -> str:
+        """Format trade-up analysis for Claude context injection."""
+        if not result.get("available"):
+            return ""
+
+        if language == "ar":
+            lines = ["\n[TRADE_UP_ANALYSIS — حاسبة الترقية]"]
+            if result["current_property_value"] > 0:
+                lines.append(f"💰 قيمة العقار الحالي: {result['current_property_value']:,} جنيه")
+            if result["cash_available"] > 0:
+                lines.append(f"💵 كاش متاح: {result['cash_available']:,} جنيه")
+            lines.append(f"📊 إجمالي الميزانية: {result['total_budget']:,} جنيه")
+            lines.append(f"📍 في {result['target_location']}: سعر المتر {result['target_price_sqm']:,} جنيه")
+            lines.append(f"📐 تقدر تشتري: حتى {result['max_sqm_affordable']:.0f} متر² ({result['affordable_type']})")
+            lines.append(f"💳 لو دفعت 10% مقدم: القسط الشهري ≈ {result['monthly_installment_7y']:,} جنيه (7 سنين)")
+            if result["if_wait_1y_sqm_lost"] > 0:
+                lines.append(f"⏰ لو استنيت سنة: هتخسر {result['if_wait_1y_sqm_lost']:.0f} متر² بسبب زيادة الأسعار ({result['growth_rate']}%)")
+            lines.append("USE: \"لو بعت الشقة القديمة + الكاش اللي معاك، تقدر تشتري [X] متر في [Location]\"")
+            return "\n".join(lines)
+        else:
+            lines = ["\n[TRADE_UP_ANALYSIS — Upgrade Calculator]"]
+            if result["current_property_value"] > 0:
+                lines.append(f"💰 Current property value: {result['current_property_value']:,} EGP")
+            if result["cash_available"] > 0:
+                lines.append(f"💵 Available cash: {result['cash_available']:,} EGP")
+            lines.append(f"📊 Total budget: {result['total_budget']:,} EGP")
+            lines.append(f"📍 In {result['target_location']}: {result['target_price_sqm']:,} EGP/sqm")
+            lines.append(f"📐 You can buy: up to {result['max_sqm_affordable']:.0f} sqm ({result['affordable_type']})")
+            lines.append(f"💳 With 10% down: monthly ≈ {result['monthly_installment_7y']:,} EGP (7 years)")
+            if result["if_wait_1y_sqm_lost"] > 0:
+                lines.append(f"⏰ Waiting 1 year: lose {result['if_wait_1y_sqm_lost']:.0f} sqm due to {result['growth_rate']}% price growth")
+            lines.append("USE: \"If you sell current + cash, you can buy [X] sqm in [Location]\"")
+            return "\n".join(lines)
+
+
+# Singleton instances for new components
+payment_plan_analyzer = PaymentPlanAnalyzer()
+developer_trust_scorer = DeveloperTrustScorer()
+resale_intelligence = ResaleIntelligence()
+trade_up_advisor = TradeUpAdvisor()
 
 
 @dataclass
@@ -1934,6 +2512,12 @@ __all__ = [
     "analytical_engine", 
     "MarketIntelligence",
     "market_intelligence",
+    "PaymentPlanAnalyzer",
+    "payment_plan_analyzer",
+    "DeveloperTrustScorer",
+    "developer_trust_scorer",
+    "ResaleIntelligence",
+    "resale_intelligence",
     "ROIAnalysis", 
     "OsoolScore",
     "FeasibilityResult",
@@ -1945,4 +2529,7 @@ __all__ = [
     "AREA_PRICE_HISTORY",
     "DEVELOPER_PRICE_HISTORY",
     "MARKET_SEGMENTS",
+    "DEVELOPER_GRAPH",
+    "RESALE_MARKUP_DATA",
+    "AVERAGE_RENT_BY_AREA",
 ]

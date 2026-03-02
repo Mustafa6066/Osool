@@ -244,11 +244,11 @@ class PerceptionLayer:
         """Structured intent extracted from user query."""
         model_config = {"extra": "forbid"}
         action: str = Field(
-            description="One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation"
+            description="One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation, resale_search, installment_inquiry, developer_inquiry, closing_intent"
         )
         intent_bucket: str = Field(
             default="window_shopper",
-            description="One of: window_shopper, serious_buyer, objection_mode"
+            description="One of: window_shopper, serious_buyer, objection_mode, immediate_mover, installment_inquiry, resale_inquiry, developer_inquiry, competition_compare, family_consult, closing_intent, legal_inquiry"
         )
         filters: "PerceptionLayer.ExtractedFilters" = Field(
             default_factory=lambda: PerceptionLayer.ExtractedFilters(),
@@ -374,12 +374,19 @@ class PerceptionLayer:
 Extract structured intent from the user's query.
 
 Extract:
-1. action: One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation, resale_search
+1. action: One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation, resale_search, installment_inquiry, developer_inquiry, closing_intent
 2. intent_bucket: One of:
     - "window_shopper": Casual browsing, broad questions
     - "serious_buyer": Specific budget, timeline, ready to book
     - "objection_mode": Complaining, debating price, skeptical
     - "immediate_mover": Needs to move NOW, looking for delivered/ready units
+    - "installment_inquiry": Asking about payment plans, installments, down payment, financing
+    - "resale_inquiry": Asking about resale value, flipping, exit strategy
+    - "developer_inquiry": Asking about a specific developer's reputation, track record
+    - "competition_compare": Comparing Osool to Nawy, Aqarmap, or other platforms/brokers
+    - "family_consult": Mentions consulting family member (wife, father, etc.) before deciding
+    - "closing_intent": Ready to book, reserve, pay, sign — action language
+    - "legal_inquiry": Asking about contracts, registration, ownership, Law 114
 3. filters: Object with optional fields:
    - location: Area name (New Cairo, Sheikh Zayed, New Capital, 6th October, North Coast, Mostakbal City, Ain Sokhna, etc.)
    - budget_min: Minimum budget in EGP (convert millions: 5M = 5000000)
@@ -401,6 +408,23 @@ RESALE DETECTION (Arabic + English):
 - "استلام فوري" / "تسليم فوري" / "جاهز" / "delivered" / "ready to move" / "instant delivery" → is_delivered: true
 - "ناوي ناو" / "nawy now" / "تقسيط ناوي" → is_nawy_now: true, sale_type: "nawy_now"
 - "كاش" / "cash only" / "بدون تقسيط" → means user may want resale (often cash-only)
+
+INSTALLMENT DETECTION:
+- "أقساط" / "قسط" / "تقسيط" / "installment" / "payment plan" / "مقدم" / "down payment" → action: "installment_inquiry", intent_bucket: "installment_inquiry"
+- "كام المقدم" / "how much down" / "سنين السداد" / "payment years" → installment_inquiry
+
+DEVELOPER INQUIRY DETECTION:
+- Asking about a developer name + reputation/delivery/trust → action: "developer_inquiry", intent_bucket: "developer_inquiry"
+- "إيه رأيك في [مطور]" / "what do you think of [developer]" / "المطور ده كويس؟" → developer_inquiry
+
+CLOSING INTENT DETECTION:
+- "عايز أحجز" / "نمضي" / "أدفع" / "reserve" / "book" / "sign" / "next step" → intent_bucket: "closing_intent"
+
+FAMILY CONSULT DETECTION:
+- "أشاور مراتي" / "هسأل أبويا" / "wife thinks" / "ask my father" / "العيلة" → intent_bucket: "family_consult"
+
+COMPETITION COMPARE DETECTION:
+- Mentions "ناوي" / "Nawy" / "عقارماب" / "Aqarmap" / "OLX" / "سمسار" / "broker" → intent_bucket: "competition_compare"
 
 CONTEXT RULES FOR 'purpose':
 - Family signals ("بيت العيلة", "استقرار", "مدارس", "kids", "اعيش"): purpose="living"
@@ -469,13 +493,26 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
         elif any(w in query_lower for w in ["ريسيل", "resale", "إعادة بيع", "ريسال", "secondhand", "مستعمل"]):
             action = "resale_search"
             filters["sale_type"] = "resale"
+        # V2: New action types
+        elif any(w in query_lower for w in ["أقساط", "قسط", "تقسيط", "installment", "payment plan", "مقدم", "down payment", "كام المقدم", "سنين السداد"]):
+            action = "installment_inquiry"
+            intent_bucket = "installment_inquiry"
+        elif any(w in query_lower for w in ["سمعة المطور", "المطور ده", "developer reputation", "track record", "مطور كويس", "هيسلم"]):
+            action = "developer_inquiry"
+            intent_bucket = "developer_inquiry"
+        elif any(w in query_lower for w in ["عايز أحجز", "نمضي", "أدفع", "book", "sign", "reserve", "next step", "خطوة جاية", "احجزلي"]):
+            action = "reservation"
+            intent_bucket = "closing_intent"
         
         # ── RESALE / DELIVERY DETECTION ──
         resale_keywords = ["ريسيل", "resale", "إعادة بيع", "ريسال", "secondhand", "مستعمل", "resell"]
+        resale_intent_keywords = ["أبيع بعدين", "sell later", "markup", "flip", "أبيعها", "كام الماركب", "resale value", "قيمة إعادة البيع"]
         if any(kw in query_lower for kw in resale_keywords):
             filters["sale_type"] = "resale"
             if action == "search":
                 action = "resale_search"
+        if any(kw in query_lower for kw in resale_keywords + resale_intent_keywords):
+            intent_bucket = "resale_inquiry"
         
         delivery_keywords = ["استلام فوري", "تسليم فوري", "جاهز للسكن", "جاهز", "delivered", 
                            "ready to move", "instant delivery", "ready", "مسلم", "متسلم"]
@@ -551,6 +588,21 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
             intent_bucket = "serious_buyer"
         if filters.get("is_delivered"):
             intent_bucket = "immediate_mover"
+
+        # V2: Additional intent bucket detection
+        family_consult_kws = ["أشاور", "هسأل", "مراتي", "أبويا", "wife", "father", "consult", "ask my", "العيلة تقرر"]
+        if any(kw in query_lower for kw in family_consult_kws):
+            intent_bucket = "family_consult"
+
+        competitor_kws = ["ناوي", "nawy", "عقارماب", "aqarmap", "olx", "أولكس", "سمسار", "broker", "property finder"]
+        if any(kw in query_lower for kw in competitor_kws):
+            intent_bucket = "competition_compare"
+
+        legal_kws = ["عقد", "تسجيل", "قانون", "قانوني", "ملكية", "contract", "legal", "registration", "ownership", "114"]
+        if any(kw in query_lower for kw in legal_kws):
+            intent_bucket = "legal_inquiry"
+            if action == "search":
+                action = "legal"
             
         return {"action": action, "filters": filters, "intent_bucket": intent_bucket}
     

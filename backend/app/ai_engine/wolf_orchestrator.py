@@ -37,20 +37,29 @@ from .psychology_layer import (
     UrgencyLevel,
     DecisionStage,
     BuyerPersona,
+    ObjectionResolutionTracker,
 )
 from .reasoning_engine import reasoning_engine, ReasoningChain
-from .analytical_engine import analytical_engine, market_intelligence, OsoolScore, AREA_BENCHMARKS, MARKET_SEGMENTS, DEVELOPER_GRAPH
+from .analytical_engine import (
+    analytical_engine, market_intelligence, OsoolScore,
+    AREA_BENCHMARKS, MARKET_SEGMENTS, DEVELOPER_GRAPH,
+    payment_plan_analyzer, developer_trust_scorer, resale_intelligence, trade_up_advisor,
+)
 from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
 from .analytical_actions import generate_analytical_ui_actions
 from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT, is_discount_request, FRAME_CONTROL_EXAMPLES
 from .hybrid_brain_prod import hybrid_brain_prod  # The Specialist Tools
-from .conversation_memory import ConversationMemory
+from .conversation_memory import ConversationMemory, CrossSessionIntelligence
 from .lead_scoring import score_lead, LeadTemperature, BehaviorSignal
 from .wolf_checklist import validate_checklist, WolfChecklistResult
 from .verifier_agent import verifier_agent
 from .suggestion_engine import generate_suggestions_from_turn
 from .proactive_insights import proactive_engine
+
+# V2 Enhancement Imports
+from .social_proof_engine import social_proof_engine, community_sell_engine
+from .fear_clock import fear_clock
 
 
 # Database
@@ -62,6 +71,303 @@ from app.services.cache import cache
 from app.models import UserMemory
 
 logger = logging.getLogger(__name__)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# V2: COMMITMENT LADDER (Micro-Commitment Funnel)
+# Each step earns commitment points — enables early close detection
+# ═══════════════════════════════════════════════════════════════════════
+COMMITMENT_LADDER = {
+    "shared_budget": 10,       # User told us their budget
+    "shared_area": 10,         # User specified an area
+    "shared_purpose": 10,      # Investment vs living
+    "asked_about_specific": 15, # Asked about a specific property/compound  
+    "asked_payment_plan": 15,  # Asked about installments/financing
+    "asked_developer": 10,     # Inquired about developer reputation
+    "liked_property": 20,      # Expressed liking for a property
+    "asked_visit": 25,         # Asked about site visit / viewing
+    "asked_legal": 10,         # Asked about contract/legal (engaged)
+    "asked_booking": 30,       # Asked about booking/reservation
+    "shared_timeline": 10,     # Told us when they want to buy
+    "returned_session": 15,    # Came back for another session
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# V2: CLOSING SEQUENCE TRIGGERS
+# Activate when commitment >= threshold
+# ═══════════════════════════════════════════════════════════════════════
+CLOSING_THRESHOLDS = {
+    "soft_close": 50,    # Hint at booking, test readiness
+    "medium_close": 70,  # Present booking as natural next step
+    "hard_close": 85,    # Direct ask to reserve/pay
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# V2: FAMILY COMMITTEE MODE TRIGGERS
+# Egyptian market: 60%+ of buying decisions involve family consultation
+# ═══════════════════════════════════════════════════════════════════════
+FAMILY_CONSULT_TRIGGERS = [
+    "أشاور", "أسأل", "مراتي", "زوجتي", "أبويا", "والدي", "أخويا",
+    "wife", "husband", "father", "mother", "brother", "family",
+    "العيلة", "العائلة", "أهلي", "خطيبتي", "خطيبي",
+    "هسأل", "لازم أشاور", "need to ask", "consult",
+]
+
+
+def _calculate_commitment_from_memory(memory: ConversationMemory, intent: Intent) -> int:
+    """Calculate commitment score from memory state and current intent.
+    
+    NOTE: Uses SET semantics — computes from scratch each turn, not accumulative.
+    This prevents commitment from saturating to 100 within 2-3 turns.
+    """
+    score = 0  # Start from zero each turn — compute from current memory state
+    
+    if memory.budget_range:
+        score += COMMITMENT_LADDER["shared_budget"]
+    if memory.preferred_areas:
+        score += COMMITMENT_LADDER["shared_area"]
+    if memory.investment_vs_living:
+        score += COMMITMENT_LADDER["shared_purpose"]
+    if memory.timeline:
+        score += COMMITMENT_LADDER["shared_timeline"]
+    if memory.visit_scheduled:
+        score += COMMITMENT_LADDER["asked_visit"]
+    if memory.liked_properties:
+        score += COMMITMENT_LADDER["liked_property"]
+    if memory.preferred_payment:
+        score += COMMITMENT_LADDER["asked_payment_plan"]
+    if memory.session_count > 1:
+        score += COMMITMENT_LADDER["returned_session"]
+
+    # Intent-based boosts
+    bucket = intent.intent_bucket if hasattr(intent, 'intent_bucket') else ""
+    if bucket == "closing_intent":
+        score += COMMITMENT_LADDER["asked_booking"]
+    elif bucket == "installment_inquiry":
+        score += COMMITMENT_LADDER["asked_payment_plan"]
+    elif bucket == "developer_inquiry":
+        score += COMMITMENT_LADDER["asked_developer"]
+    elif bucket == "legal_inquiry":
+        score += COMMITMENT_LADDER["asked_legal"]
+
+    return min(score, 100)
+
+
+def _predict_objections(psychology: PsychologyProfile, memory, intent, properties: list) -> list:
+    """
+    V3: Objection Pre-Emption Engine.
+    Predicts top 2 likely objections based on psychology + persona + stage + properties.
+    Returns counter-arguments for Claude to weave in naturally BEFORE the user asks.
+    """
+    predictions = []
+    state = psychology.primary_state
+    persona = getattr(psychology, 'buyer_persona', None)
+    stage = getattr(psychology, 'decision_stage', None)
+    already_resolved = set(memory.objections_resolved.keys()) if memory and hasattr(memory, 'objections_resolved') else set()
+
+    # Prediction rules (order = priority)
+    _PREDICTIONS = [
+        {
+            "type": "delivery_risk",
+            "triggers": lambda: (state in (PsychologicalState.RISK_AVERSE, PsychologicalState.DELIVERY_FEAR, PsychologicalState.FAMILY_SECURITY)
+                                 or (persona and persona.value == "first_timer")),
+            "counter_ar": "المطور ده تسليمه 95%+ في الوقت — وعندنا Law 114 بيحمي فلوسك لو حصل أي تأخير.",
+            "counter_en": "This developer has 95%+ on-time delivery — and our Law 114 Scanner protects your money against delays.",
+        },
+        {
+            "type": "price_will_drop",
+            "triggers": lambda: state in (PsychologicalState.MACRO_SKEPTIC, PsychologicalState.SKEPTICISM, PsychologicalState.ANALYSIS_PARALYSIS),
+            "counter_ar": "الأسعار مش هتنزل — تكلفة البناء النهاردة أعلى من سعر البيع. الـ downside risk شبه صفر.",
+            "counter_en": "Prices won't drop — today's construction cost exceeds selling price. Downside risk is near zero.",
+        },
+        {
+            "type": "installment_burden",
+            "triggers": lambda: (state == PsychologicalState.INSTALLMENT_ANXIETY
+                                 or (memory and memory.budget_range and memory.budget_range.get('max', 0) < 5_000_000)),
+            "counter_ar": "القسط الشهري أقل من إيجار شقة في نفس المنطقة — ومع التضخم القسط بيخف مع الوقت.",
+            "counter_en": "Monthly installment is less than rent in the same area — and inflation makes installments lighter over time.",
+        },
+        {
+            "type": "legal_safety",
+            "triggers": lambda: state in (PsychologicalState.LEGAL_ANXIETY, PsychologicalState.TRUST_DEFICIT),
+            "counter_ar": "كل وحدة بنعرضها بتعدي على Law 114 Scanner — لو الورق مش نضيف بنستبعدها قبل ما توصلك.",
+            "counter_en": "Every unit we show passes our Law 114 Scanner — if papers aren't clean, we filter it out before it reaches you.",
+        },
+        {
+            "type": "wrong_timing",
+            "triggers": lambda: stage and stage.value in ("awareness", "research"),
+            "counter_ar": "أنا مش بقولك اشتري دلوقتي — بس الأرقام بتقول إن كل شهر تأخير بيكلفك فلوس حقيقية.",
+            "counter_en": "I'm not saying buy now — but the numbers show every month of delay costs real money.",
+        },
+        {
+            "type": "remote_trust",
+            "triggers": lambda: state == PsychologicalState.EXPATRIATE_ANXIETY,
+            "counter_ar": "كل حاجة ممكن تتعمل عن بُعد — من المعاينة الفيديو للتوكيل الرسمي. عملنا كده مع عملاء كتير في الخليج.",
+            "counter_en": "Everything can be done remotely — from video viewing to legal proxy. We've done this with many Gulf-based clients.",
+        },
+    ]
+
+    for pred in _PREDICTIONS:
+        if pred["type"] in already_resolved:
+            continue
+        try:
+            if pred["triggers"]():
+                predictions.append(pred)
+                if len(predictions) >= 2:
+                    break
+        except Exception:
+            continue
+
+    return predictions
+
+
+def _get_response_length_instruction(psychology: PsychologyProfile, memory: ConversationMemory) -> str:
+    """
+    V2: Emotion-Aware Response Length Calibration.
+    
+    Returns instruction for Claude to calibrate response length based on
+    user's emotional state and engagement level.
+    """
+    state = psychology.primary_state
+    intensity = getattr(psychology, 'emotional_intensity', 0.5)
+    stage = getattr(psychology, 'decision_stage', DecisionStage.AWARENESS)
+    turn_count = len(memory.shown_properties) + len(memory.liked_properties)
+
+    # Short responses (2-4 sentences)
+    if state == PsychologicalState.IMPULSE_BUYER:
+        return "\n[RESPONSE_LENGTH: SHORT (2-4 sentences). User is ready to act. Skip explanations, give action steps only.]"
+    if stage == DecisionStage.ACTION:
+        return "\n[RESPONSE_LENGTH: SHORT (2-4 sentences). Closing stage. Booking info only. No new data.]"
+
+    # Medium responses (4-8 sentences)
+    if state in (PsychologicalState.FOMO, PsychologicalState.GREED_DRIVEN):
+        return "\n[RESPONSE_LENGTH: MEDIUM (4-8 sentences). User is engaged. Give key numbers + one closing push.]"
+    if stage == DecisionStage.DECISION:
+        return "\n[RESPONSE_LENGTH: MEDIUM (4-8 sentences). Decision stage. Clear recommendation + supporting data.]"
+
+    # Long responses (8-15 sentences) — for education and trust building
+    if state in (PsychologicalState.ANALYSIS_PARALYSIS, PsychologicalState.MACRO_SKEPTIC, PsychologicalState.RISK_AVERSE):
+        return "\n[RESPONSE_LENGTH: LONG (8-15 sentences). User needs education/reassurance. Provide thorough data-backed analysis.]"
+    if stage in (DecisionStage.AWARENESS, DecisionStage.RESEARCH):
+        return "\n[RESPONSE_LENGTH: LONG (8-12 sentences). Early stage. Educate with market data, area comparison, developer info.]"
+
+    # Default: medium
+    return "\n[RESPONSE_LENGTH: MEDIUM (5-8 sentences). Balanced response.]"
+
+
+def _get_closing_sequence_context(commitment_level: int, language: str = "ar") -> str:
+    """
+    V2: Intelligent Closing Sequence injection.
+    Returns context for Claude based on commitment level.
+    """
+    if commitment_level >= CLOSING_THRESHOLDS["hard_close"]:
+        if language == "ar":
+            return """
+[🔴 CLOSING SEQUENCE: HARD CLOSE]
+Commitment level is HIGH (85%+). The user is ready.
+MANDATORY: End your response with a direct booking call-to-action:
+- "خلينا نحجز الوحدة دي دلوقتي. محتاج بس [المقدم] وأنا هتابع معاك كل الورق."
+- "أنا شايف إنك جاهز. الخطوة الجاية: حجز مبدئي بمبلغ [X] جنيه. أبعتلك اللينك؟"
+DO NOT introduce new options. Focus on closing the current interest.
+"""
+        else:
+            return """
+[🔴 CLOSING SEQUENCE: HARD CLOSE]
+Commitment level is HIGH (85%+). The user is ready.
+MANDATORY: End with a direct booking CTA:
+- "Let's reserve this unit now. You just need [down payment] and I'll handle all the paperwork."
+- "You seem ready. Next step: initial reservation of [X] EGP. Shall I send you the link?"
+DO NOT introduce new options. Close the current interest.
+"""
+    elif commitment_level >= CLOSING_THRESHOLDS["medium_close"]:
+        if language == "ar":
+            return """
+[🟡 CLOSING SEQUENCE: MEDIUM CLOSE]
+Commitment level is HIGH (70%+). Test their readiness.
+- Mention booking as a natural next step, not as pressure
+- "لو عجبتك الوحدة دي، نقدر نعمل حجز مبدئي من غير التزام."
+- "حابب نرتب معاينة؟ دي أفضل طريقة تاخد قرارك."
+"""
+        else:
+            return """
+[🟡 CLOSING SEQUENCE: MEDIUM CLOSE]
+Commitment level is HIGH (70%+). Test readiness.
+- Frame booking as natural next step
+- "If you like this unit, we can do a preliminary reservation with no obligation."
+- "Would you like to schedule a viewing? That's the best way to decide."
+"""
+    elif commitment_level >= CLOSING_THRESHOLDS["soft_close"]:
+        if language == "ar":
+            return """
+[🟢 CLOSING SEQUENCE: SOFT CLOSE]
+Commitment level is MODERATE (50%+). Plant the seed.
+- Hint at scarcity: "الوحدات دي بتخلص بسرعة"
+- Suggest a timeline: "لو قررت الأسبوع ده، هتلحق السعر الحالي"
+"""
+        else:
+            return """
+[🟢 CLOSING SEQUENCE: SOFT CLOSE]
+Commitment level is MODERATE (50%+). Plant the seed.
+- Hint at scarcity: "Units like this sell quickly"
+- Suggest timeline: "Deciding this week locks in the current price"
+"""
+    return ""
+
+
+def _get_family_committee_context(query: str, memory: ConversationMemory, language: str = "ar") -> str:
+    """
+    V2: Family Committee Mode.
+    When user mentions family consultation, adapt strategy to address
+    the invisible decision-makers.
+    """
+    query_lower = query.lower()
+    is_family_consult = any(trigger in query_lower for trigger in FAMILY_CONSULT_TRIGGERS)
+    has_family_members = bool(memory.family_members_mentioned)
+
+    if not is_family_consult and not has_family_members:
+        return ""
+
+    members = memory.family_members_mentioned or ["family"]
+    members_str = ", ".join(members)
+
+    if language == "ar":
+        return f"""
+[👨‍👩‍👧‍👦 FAMILY COMMITTEE MODE ACTIVATED]
+The user is consulting with: {members_str}
+
+CRITICAL PIVOT: You are no longer selling to ONE person. You are selling to a COMMITTEE.
+
+RULES:
+1. Acknowledge the family role: "ده قرار كبير وطبيعي تشاور العيلة."
+2. Arm the user with SHAREABLE DATA they can present to family:
+   - Summary with key numbers (price, ROI, payment plan)
+   - "ممكن أبعتلك ملخص تشاركه مع [المرات/والدك]؟"
+3. Address the invisible objectors:
+   - Father/Father-in-law: Trust + Legal safety → "الورق سليم 100%"
+   - Wife: Lifestyle + Community → "الكمباوند فيه مدارس ونادي"
+   - Brother: ROI + Market data → "العائد 7% + نمو 30%"
+4. Offer a family viewing: "تحبوا تنزلوا كلكم مع بعض؟ أحجزلكم معاينة."
+5. Set a follow-up timeline: "خد وقتك. نتكلم بكرة بعد ما تشاوروا؟"
+"""
+    else:
+        return f"""
+[👨‍👩‍👧‍👦 FAMILY COMMITTEE MODE ACTIVATED]
+The user is consulting with: {members_str}
+
+CRITICAL PIVOT: You are selling to a COMMITTEE, not one person.
+
+RULES:
+1. Validate: "This is a big decision. It's smart to involve the family."
+2. Provide shareable data: summary with prices, ROI, payment plan.
+3. Address invisible objectors:
+   - Father: Legal safety, developer reputation
+   - Wife/Partner: Lifestyle, community, schools
+   - Sibling: ROI, market data, growth
+4. Offer family viewing: "Would everyone like to visit together?"
+5. Set follow-up: "Take your time. Let's reconnect after you discuss."
+"""
 
 
 class WolfBrain:
@@ -233,8 +539,81 @@ class WolfBrain:
             if db_memory:
                 memory.merge(db_memory)
                 logger.info("🧠 Cross-session memory loaded and merged")
-            
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: CROSS-SESSION INTELLIGENCE
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            cross_session_context = None
+            try:
+                return_analysis = CrossSessionIntelligence.analyze_return_behavior(
+                    last_session_time=memory.last_session_time,
+                    previous_sessions_count=memory.session_count,
+                )
+                if return_analysis["return_type"] != "fresh_start":
+                    cross_session_context = return_analysis
+                    logger.info(f"🔄 Return type: {return_analysis['return_type']} ({return_analysis.get('hours_since', 0):.0f}h ago)")
+            except Exception as e:
+                logger.debug(f"Cross-session intelligence skipped: {e}")
+
             logger.info(f"🧠 Memory: {memory.to_dict()}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V2 ENHANCEMENT: EMOTIONAL TRACKING + COMMITMENT SCORING
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                turn_count = len([m for m in history if m.get("role") == "user"]) + 1
+                memory.record_emotional_state(
+                    turn_count,
+                    psychology.primary_state.value,
+                    psychology.emotional_intensity
+                )
+                commitment = _calculate_commitment_from_memory(memory, intent)
+                memory.commitment_level = commitment  # SET semantics, not additive
+                logger.info(f"💎 V2: Emotion recorded (turn {turn_count}), commitment={commitment}/100")
+            except Exception as e:
+                logger.debug(f"V2 emotional tracking skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: OBJECTION RESOLUTION TRACKER
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            objection_tracker = ObjectionResolutionTracker()
+            try:
+                # Load tracker from memory if exists
+                if memory.objections_resolved:
+                    prev_tracker_data = {
+                        obj_type: {"raised_turn": 0, "trigger_text": "", "attempts": [],
+                                   "resolved": resolved, "effective_tactic": None, "re_raised_count": 0}
+                        for obj_type, resolved in memory.objections_resolved.items()
+                    }
+                    objection_tracker = ObjectionResolutionTracker.from_dict(prev_tracker_data)
+
+                # Map current psychology state → objection type
+                _STATE_TO_OBJECTION = {
+                    PsychologicalState.RISK_AVERSE: "financial",
+                    PsychologicalState.TRUST_DEFICIT: "trust",
+                    PsychologicalState.SKEPTICISM: "market",
+                    PsychologicalState.LEGAL_ANXIETY: "legal",
+                    PsychologicalState.DELIVERY_FEAR: "trust",
+                    PsychologicalState.INSTALLMENT_ANXIETY: "financial",
+                    PsychologicalState.MACRO_SKEPTIC: "market",
+                }
+
+                state = psychology.primary_state
+                turn_count_for_obj = len([m for m in history if m.get("role") == "user"]) + 1
+                if state in _STATE_TO_OBJECTION:
+                    obj_type = _STATE_TO_OBJECTION[state]
+                    objection_tracker.raise_objection(obj_type, turn_count_for_obj, query[:100])
+                    logger.info(f"🚨 Objection detected: {obj_type} (state={state.value})")
+
+                # Check for resolved objections (state shifted away from previous objection)
+                for prev_obj in objection_tracker.get_unresolved():
+                    inverse_states = [s for s, o in _STATE_TO_OBJECTION.items() if o == prev_obj]
+                    if state not in inverse_states:
+                        objection_tracker.resolve_objection(prev_obj, f"state_shift_to_{state.value}")
+                        memory.objections_resolved[prev_obj] = True
+                        logger.info(f"✅ Objection resolved: {prev_obj}")
+            except Exception as e:
+                logger.debug(f"V3 objection tracker skipped: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 3: LOGIC GATES (Loop Detection & Feasibility)
@@ -850,7 +1229,7 @@ class WolfBrain:
                 "strategy": strategy,
                 "intent": intent.to_dict(),
                 "processing_time_ms": int(elapsed * 1000),
-                "model_used": "wolf_brain_v9_full_pipeline",
+                "model_used": "wolf_brain_v10_full_pipeline",
                 "showing_strategy": showing_strategy,
                 "hunt_strategy": hunt_strategy,
                 "suggestions": suggestions,
@@ -859,6 +1238,7 @@ class WolfBrain:
                 "xp_awarded": xp_awarded,
                 "detected_language": language,
                 "lead_score": lead_score,
+                "commitment_level": memory.commitment_level if memory else 0,
             }
             
         except Exception as e:
@@ -2429,6 +2809,328 @@ Use phrases like:
 - "ده Premium بس المكان يستاهل" (Premium but location justifies)
 """)
             
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V2 ENHANCEMENT: SOCIAL PROOF ENGINE
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                sp_location = (intent.filters.get('location', '') if intent else '') or (memory.preferred_areas[0] if memory and memory.preferred_areas else '')
+                if sp_location:
+                    social_signals = await social_proof_engine.get_social_signals(sp_location, db_session=db_session)
+                    sp_context = social_proof_engine.format_for_prompt(social_signals, language)
+                    if sp_context:
+                        context_parts.append(sp_context)
+                    scarcity_msg = social_proof_engine.get_scarcity_signal(social_signals, language)
+                    if scarcity_msg:
+                        context_parts.append(f"\n[SCARCITY_SIGNAL]\n{scarcity_msg}\n")
+            except Exception as e:
+                logger.debug(f"Social proof injection skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: COMMUNITY SELL (Family-Focused Lifestyle Data)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                _community_states = (PsychologicalState.FAMILY_SECURITY, PsychologicalState.SOCIAL_PRESSURE,
+                                     PsychologicalState.LIFE_EVENT_URGENCY)
+                if psychology.primary_state in _community_states or (hasattr(psychology, 'buyer_persona') and psychology.buyer_persona and psychology.buyer_persona.value == "end_user"):
+                    _cs_compound = ""
+                    _cs_location = (intent.filters.get('location', '') if intent else '') or (memory.preferred_areas[0] if memory and memory.preferred_areas else '')
+                    if properties:
+                        _cs_compound = properties[0].get('compound', properties[0].get('project_name', ''))
+                    cs_ctx = community_sell_engine.get_community_context(compound_name=_cs_compound, location=_cs_location, language=language)
+                    if cs_ctx:
+                        context_parts.append(cs_ctx)
+                        logger.info(f"🏘️ Community Sell injected (compound={_cs_compound or _cs_location})")
+            except Exception as e:
+                logger.debug(f"Community Sell injection skipped: {e}")
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                fc_location = (intent.filters.get('location', '') if intent else '') or (memory.preferred_areas[0] if memory and memory.preferred_areas else '')
+                fc_budget = intent.filters.get('budget_max', 0) if intent else 0
+                if fc_location and psychology.decision_stage in (DecisionStage.RESEARCH, DecisionStage.CONSIDERATION, DecisionStage.DECISION):
+                    erosion = fear_clock.calculate_daily_erosion(budget=fc_budget or 5_000_000, location=fc_location)
+                    if erosion:
+                        fc_context = fear_clock.format_for_prompt(erosion, language)
+                        if fc_context:
+                            context_parts.append(fc_context)
+            except Exception as e:
+                logger.debug(f"Fear clock injection skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V2 ENHANCEMENT: PAYMENT PLAN CALCULATOR
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                pp_bucket = intent.intent_bucket if intent else ""
+                if pp_bucket == "installment_inquiry" or (properties and memory and memory.preferred_payment):
+                    pp_price = properties[0].get('price', 0) if properties else (memory.budget_range.get('max', 5_000_000) if memory and memory.budget_range else 5_000_000)
+                    pp_location = (intent.filters.get('location', '') if intent else '') or (memory.preferred_areas[0] if memory and memory.preferred_areas else '')
+                    pp_result = payment_plan_analyzer.calculate_installment_plan(total_price=pp_price, location=pp_location)
+                    pp_context = payment_plan_analyzer.format_for_prompt(pp_result, language)
+                    if pp_context:
+                        context_parts.append(pp_context)
+                        # V3: Installment Inflation Gift — show how installments get cheaper
+                        if psychology.primary_state == PsychologicalState.INSTALLMENT_ANXIETY or pp_bucket == "installment_inquiry":
+                            _monthly = pp_result.get('monthly_installment', 0)
+                            _years = pp_result.get('plan_years', 7)
+                            if _monthly > 0:
+                                ig_result = fear_clock.calculate_installment_deflation(_monthly, _years)
+                                ig_ctx = fear_clock.format_installment_gift_for_prompt(ig_result, language)
+                                if ig_ctx:
+                                    context_parts.append(ig_ctx)
+                                    logger.info(f"🎁 Installment Inflation Gift injected ({_monthly:,}/mo × {_years}y)")
+            except Exception as e:
+                logger.debug(f"Payment plan injection skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V2 ENHANCEMENT: DEVELOPER TRUST SCORE
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                dt_bucket = intent.intent_bucket if intent else ""
+                # V3: Widened trigger — fire when showing properties with a developer, not just on explicit inquiry
+                dt_should_fire = (
+                    dt_bucket == "developer_inquiry"
+                    or psychology.primary_state == PsychologicalState.DELIVERY_FEAR
+                    or psychology.primary_state == PsychologicalState.TRUST_DEFICIT
+                    or (properties and showing_strategy in ('TEASER', 'FULL_LIST'))
+                )
+                if dt_should_fire:
+                    dt_dev = intent.filters.get('developer', '') if intent else ''
+                    if not dt_dev and properties:
+                        dt_dev = properties[0].get('developer', '')
+                    if dt_dev:
+                        trust_result = developer_trust_scorer.calculate_trust_score(dt_dev)
+                        trust_context = developer_trust_scorer.format_for_prompt(trust_result, language)
+                        if trust_context:
+                            context_parts.append(trust_context)
+            except Exception as e:
+                logger.debug(f"Developer trust injection skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V2 ENHANCEMENT: RESALE INTELLIGENCE
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                ri_bucket = intent.intent_bucket if intent else ""
+                if ri_bucket == "resale_inquiry" or (intent and intent.action == "investment"):
+                    ri_price = properties[0].get('price', 0) if properties else 5_000_000
+                    ri_dev = properties[0].get('developer', '') if properties else ''
+                    ri_loc = intent.filters.get('location', '') if intent else ''
+                    ri_result = resale_intelligence.calculate_resale_projection(developer=ri_dev, total_price=ri_price)
+                    ri_context = resale_intelligence.format_for_prompt(ri_result, language)
+                    if ri_context:
+                        context_parts.append(ri_context)
+            except Exception as e:
+                logger.debug(f"Resale intelligence injection skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: TRADE-UP CALCULATOR
+            # For inheritance/upgrade users: current property + cash → what to buy
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                _tu_states = (PsychologicalState.INHERITANCE_CONFUSION, PsychologicalState.DOWNGRADE_SHAME)
+                _tu_persona = getattr(psychology, 'buyer_persona', None)
+                _tu_is_upgrader = _tu_persona and _tu_persona.value in ("upgrader", "portfolio")
+                if psychology.primary_state in _tu_states or _tu_is_upgrader:
+                    _tu_location = (intent.filters.get('location', '') if intent else '') or (memory.preferred_areas[0] if memory and memory.preferred_areas else '')
+                    _tu_budget = (intent.filters.get('budget_max', 0) if intent else 0) or (memory.budget_range.get('max', 5_000_000) if memory and memory.budget_range else 5_000_000)
+                    _tu_result = trade_up_advisor.calculate_trade_up(
+                        cash_available=_tu_budget,
+                        target_location=_tu_location or "New Cairo",
+                    )
+                    _tu_ctx = trade_up_advisor.format_for_prompt(_tu_result, language)
+                    if _tu_ctx:
+                        context_parts.append(_tu_ctx)
+                        logger.info(f"📊 Trade-Up Calculator injected (budget={_tu_budget:,})")
+            except Exception as e:
+                logger.debug(f"Trade-Up Calculator skipped: {e}")
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            response_length_hint = _get_response_length_instruction(psychology, memory)
+            if response_length_hint:
+                context_parts.append(response_length_hint)
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V2 ENHANCEMENT: MICRO-COMMITMENT + CLOSING SEQUENCE
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                commitment = _calculate_commitment_from_memory(memory, intent)
+                memory.commitment_level = commitment
+                closing_ctx = _get_closing_sequence_context(commitment, language)
+                if closing_ctx:
+                    context_parts.append(closing_ctx)
+                    logger.info(f"🎯 Commitment: {commitment}/100, Closing sequence injected")
+            except Exception as e:
+                logger.debug(f"Closing sequence injection skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: TWO-UNIT TRAP (Forced Choice Close)
+            # When showing ≥3 properties + commitment ≥50, narrow to 2 best
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                _commitment = memory.commitment_level if memory else 0
+                if (showing_strategy == 'FULL_LIST' and _commitment >= 50
+                        and properties and len(properties) >= 3):
+                    # Keep only top 2 by Osool Score — force binary choice
+                    properties = sorted(properties, key=lambda p: p.get('osool_score', p.get('score', 0)), reverse=True)[:2]
+                    if language == "ar":
+                        context_parts.append("""
+[TWO_UNIT_TRAP — استراتيجية الاختيار بين اثنين]
+أنت بتعرض وحدتين بس. استخدم "أنت مع أنهي واحدة؟" لا تعرض خيار ثالث.
+- قارن بينهم بشكل مباشر: المساحة، السعر، الموقع، العائد
+- اسأل: "الوحدة A ولا الوحدة B؟ أنا شايف إن B أحسن ليك عشان..."
+- الهدف: تحويل القرار من "هشتري ولا لأ" ل "هشتري أنهي"
+""")
+                    else:
+                        context_parts.append("""
+[TWO_UNIT_TRAP — Binary Choice Strategy]
+You are showing EXACTLY 2 units. Use "Which one are you leaning towards?" Do NOT offer a third option.
+- Compare them directly: size, price, location, ROI
+- Ask: "Unit A or Unit B? I think B suits you better because..."
+- Goal: Shift from "should I buy?" to "which should I buy?"
+""")
+                    logger.info(f"🎯 Two-Unit Trap activated (commitment={_commitment}, narrowed to 2)")
+            except Exception as e:
+                logger.debug(f"Two-Unit Trap skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: VIEWING CLOSE PROTOCOL
+            # Push towards a specific viewing appointment within 48h
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                _intent_bucket = intent.intent_bucket if hasattr(intent, 'intent_bucket') else ""
+                _visit_scheduled = memory.visit_scheduled if memory else False
+                _commitment_vc = memory.commitment_level if memory else 0
+                _viewing_keywords = ["معاينة", "أشوف", "أزور", "viewing", "visit", "see the unit", "زيارة", "نشوف"]
+                _wants_viewing = any(kw in query.lower() for kw in _viewing_keywords)
+
+                if (_wants_viewing or _intent_bucket == "closing_intent" or _commitment_vc >= 65) and not _visit_scheduled:
+                    # Calculate next 2 available viewing slots
+                    from datetime import timedelta
+                    _now = datetime.now()
+                    _slot_1 = _now + timedelta(days=1)
+                    _slot_2 = _now + timedelta(days=2)
+                    _day1 = _slot_1.strftime("%A")
+                    _day2 = _slot_2.strftime("%A")
+
+                    if language == "ar":
+                        _day_map = {"Saturday": "السبت", "Sunday": "الأحد", "Monday": "الاثنين",
+                                    "Tuesday": "الثلاثاء", "Wednesday": "الأربعاء", "Thursday": "الخميس", "Friday": "الجمعة"}
+                        context_parts.append(f"""
+[VIEWING_CLOSE — حجز معاينة]
+العميل مستعد — ادفعه ناحية معاينة محددة:
+- اقترح: "إيه رأيك نحجز معاينة يوم {_day_map.get(_day1, _day1)} أو {_day_map.get(_day2, _day2)}؟"
+- NEVER say "في أي وقت يناسبك" — حدد وقت: "الساعة 11 الصبح أو 4 العصر"
+- لو قال "هفكر" — رد: "طب خلينا نحجز مبدئي ولو عايز تلغي عندك وقت"
+- الهدف: تحويل الاهتمام ل commitment حقيقي بتاريخ ووقت
+""")
+                    else:
+                        context_parts.append(f"""
+[VIEWING_CLOSE — Schedule Viewing]
+Client is ready — push towards a specific viewing:
+- Suggest: "How about we schedule a viewing on {_day1} or {_day2}?"
+- NEVER say "whenever suits you" — offer specific times: "11 AM or 4 PM"
+- If they say "I'll think" — respond: "Let's book tentatively, you can cancel anytime"
+- Goal: Convert interest into real commitment with date and time
+""")
+                    logger.info(f"📅 Viewing Close activated (commitment={_commitment_vc})")
+            except Exception as e:
+                logger.debug(f"Viewing Close skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                family_ctx = _get_family_committee_context(query, memory, language)
+                if family_ctx:
+                    context_parts.append(family_ctx)
+                    logger.info("👨‍👩‍👧‍👦 Family Committee Mode activated")
+            except Exception as e:
+                logger.debug(f"Family mode injection skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: OBJECTION RESOLUTION TRACKER CONTEXT
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                obj_ctx = objection_tracker.get_prompt_context(language)
+                if obj_ctx:
+                    context_parts.append(obj_ctx)
+            except Exception as e:
+                logger.debug(f"Objection tracker context skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: OBJECTION PRE-EMPTION ENGINE
+            # Predict top 2 likely objections BEFORE user raises them
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                _pre_empt = _predict_objections(psychology, memory, intent, properties if 'properties' in dir() else [])
+                if _pre_empt:
+                    if language == "ar":
+                        pe_lines = ["[PRE_EMPT_OBJECTIONS — اعتراضات متوقعة: عالجها قبل ما العميل يسأل]"]
+                        for obj in _pre_empt:
+                            pe_lines.append(f"• {obj['type']}: {obj['counter_ar']}")
+                        pe_lines.append("STRATEGY: أدخل الرد بشكل طبيعي — 'أنا عارف ممكن يكون في بالك...'")
+                    else:
+                        pe_lines = ["[PRE_EMPT_OBJECTIONS — Predicted objections: address before user asks]"]
+                        for obj in _pre_empt:
+                            pe_lines.append(f"• {obj['type']}: {obj['counter_en']}")
+                        pe_lines.append("STRATEGY: Weave naturally — 'I know you might be thinking...'")
+                    context_parts.append("\n".join(pe_lines))
+                    logger.info(f"🛡️ Pre-emption: {[o['type'] for o in _pre_empt]}")
+            except Exception as e:
+                logger.debug(f"Objection pre-emption skipped: {e}")
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                if cross_session_context and len(history) <= 1:
+                    # Only inject on first turn of a returning user's session
+                    ret_type = cross_session_context["return_type"]
+                    ret_msg = cross_session_context.get(f"message_{language}", cross_session_context.get("message_en", ""))
+                    ret_hint = cross_session_context.get("strategy_hint", "")
+                    sessions = cross_session_context.get("sessions_count", 0)
+                    context_parts.append(f"""
+[RETURN_VISITOR]
+Return Type: {ret_type} (session #{sessions + 1})
+Suggested Greeting: {ret_msg}
+Strategy Hint: {ret_hint}
+- Reference previous conversation if possible
+- Do NOT restart discovery from scratch
+- For hot_return: Push towards closing
+- For comparison_return: Differentiate against competitors
+- For cold_return: Re-engage gently, offer market update
+""")
+                    logger.info(f"🔄 Return visitor context injected: {ret_type}")
+            except Exception as e:
+                logger.debug(f"Return visitor context skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V3 ENHANCEMENT: WAITING COST (Fear Clock Extension)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                _need_time_keywords = ["محتاج أفكر", "هفكر", "need time", "later", "maybe", "مش متأكد", "not sure", "بكرة", "tomorrow"]
+                _is_stalling = any(kw in query.lower() for kw in _need_time_keywords)
+                if _is_stalling:
+                    wc_location = (intent.filters.get('location', '') if intent else '') or (memory.preferred_areas[0] if memory.preferred_areas else '')
+                    wc_budget = (intent.filters.get('budget_max', 0) if intent else 0) or (memory.budget_range.get('max', 5_000_000) if memory.budget_range else 5_000_000)
+                    if wc_location and wc_budget:
+                        for wait_m in [1, 3, 6]:
+                            wc_result = fear_clock.calculate_waiting_cost(wc_budget, wc_location, wait_m)
+                            if wc_result.get("available"):
+                                if language == "ar":
+                                    context_parts.append(f"""
+[WAITING_COST — {wait_m} شهور]
+⏳ لو استنيت {wait_m} شهور:
+- سعر المتر هيزيد من {wc_result['price_today']:,} ل {wc_result['price_after']:,} جنيه
+- هتقدر تشتري {wc_result['sqm_after']:.0f} متر بدل {wc_result['sqm_today']:.0f} (خسارة {wc_result['sqm_lost']:.0f} متر²)
+- خسارة مالية تعادل: {wc_result['equivalent_money_lost']:,} جنيه
+USE: "لو استنيت {wait_m} شهور بس، هتدفع {wc_result['equivalent_money_lost']:,} جنيه زيادة على نفس الشقة"
+""")
+                                else:
+                                    context_parts.append(f"""
+[WAITING_COST — {wait_m} months]
+⏳ If you wait {wait_m} months:
+- Price/sqm rises from {wc_result['price_today']:,} to {wc_result['price_after']:,} EGP
+- You can buy {wc_result['sqm_after']:.0f} sqm instead of {wc_result['sqm_today']:.0f} ({wc_result['sqm_lost']:.0f} sqm lost)
+- Equivalent money lost: {wc_result['equivalent_money_lost']:,} EGP
+USE: "Waiting just {wait_m} months would cost you {wc_result['equivalent_money_lost']:,} EGP more for the same unit"
+""")
+                        logger.info("⏳ Waiting cost calculator injected (user stalling)")
+            except Exception as e:
+                logger.debug(f"Waiting cost injection skipped: {e}")
+
             # Psychology context
             context_parts.append(get_psychology_context_for_prompt(psychology))
             

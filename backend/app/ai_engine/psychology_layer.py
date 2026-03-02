@@ -44,6 +44,14 @@ class PsychologicalState(Enum):
     CURRENCY_HEDGER = "currency_hedger"          # Actively moving USD/EGP to real estate as store of value
     INFLATION_REFUGEE = "inflation_refugee"      # Escaping currency devaluation to real assets
 
+    # V3 Egyptian Psychology Deep States
+    BUYERS_REMORSE = "buyers_remorse"            # Post-decision regret / second-guessing after showing interest
+    LIFE_EVENT_URGENCY = "life_event_urgency"    # Marriage, baby, job relocation — time-bound need
+    EXPATRIATE_ANXIETY = "expatriate_anxiety"    # Diaspora buyer — remote trust issues, currency advantage
+    SOCIAL_PRESSURE = "social_pressure"          # Peers/family bought; "everyone is buying" influence
+    INHERITANCE_CONFUSION = "inheritance_confusion"  # Inherited money/property, doesn't know what to do
+    DOWNGRADE_SHAME = "downgrade_shame"          # Budgetary reality forces smaller unit — ego protection needed
+
     NEUTRAL = "neutral"                  # No clear signal
 
 
@@ -479,6 +487,150 @@ PSYCHOLOGY_PATTERNS = {
         ],
         "recommended_tactics": ["inflation_killer_chart", "real_returns_calculation", "asset_appreciation_history"],
         "weight": 1.3
+    },
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # V3 EGYPTIAN PSYCHOLOGY DEEP STATES
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # === BUYERS REMORSE: Post-Decision Regret / Second-Guessing ===
+    PsychologicalState.BUYERS_REMORSE: {
+        "keywords_ar": [
+            "غلطت", "ندمان", "كان لازم", "بتفكر تاني", "مش متأكد دلوقتي",
+            "كنت اخدت", "ياريت", "لو كنت", "عملت صح", "أرجع فيها",
+            "قلبي مش مرتاح", "إحساس وحش", "مكنتش المفروض"
+        ],
+        "keywords_en": [
+            "regret", "mistake", "should have", "second thoughts", "not sure anymore",
+            "wrong decision", "wish I", "if only", "go back", "change my mind",
+            "buyer's remorse", "having doubts", "reconsider"
+        ],
+        "signals": [
+            "revisiting_previous_decision",
+            "expressing_post_decision_doubt",
+            "asking_to_cancel_or_change"
+        ],
+        "recommended_tactics": ["reaffirm_data", "show_appreciation_since_decision", "meta_trust"],
+        "weight": 1.2
+    },
+
+    # === LIFE EVENT URGENCY: Marriage, Baby, Job Relocation ===
+    PsychologicalState.LIFE_EVENT_URGENCY: {
+        "keywords_ar": [
+            "جواز", "الجواز", "عروسة", "خطوبة", "فرح", "بنتقل", "نقل شغل",
+            "بيبي", "مولود", "حامل", "الأولاد كبروا", "المدرسة", "السفر",
+            "رجعت مصر", "بارجع", "لازم أسكن", "الشهر الجاي", "قبل الجواز",
+            "بعد الفرح", "عايز أجهز", "لازم ألحق"
+        ],
+        "keywords_en": [
+            "getting married", "marriage", "wedding", "engaged", "fiancée",
+            "baby", "pregnant", "newborn", "kids growing", "school",
+            "relocating", "moving back", "new job", "transfer",
+            "need to settle", "before wedding", "after wedding", "prepare"
+        ],
+        "signals": [
+            "mentioning_life_deadline",
+            "time_pressure_from_event",
+            "emotional_milestone_language"
+        ],
+        "recommended_tactics": ["timeline_anchor", "life_milestone_framing", "ready_to_move_priority"],
+        "weight": 1.5  # Very high — real urgency, not manufactured
+    },
+
+    # === EXPATRIATE ANXIETY: Diaspora Buyer / Remote Trust Issues ===
+    PsychologicalState.EXPATRIATE_ANXIETY: {
+        "keywords_ar": [
+            "أنا بره", "في الخليج", "في السعودية", "في الإمارات", "مغترب",
+            "عايز أشتري من بره", "مش في مصر", "هيبقى صعب أزور",
+            "توكيل", "حد ينوب عني", "أستثمر من بره", "فلوسي بره",
+            "بالدولار", "بالريال", "بالدرهم", "تحويل"
+        ],
+        "keywords_en": [
+            "abroad", "overseas", "gulf", "saudi", "uae", "dubai", "expat",
+            "buy from abroad", "not in egypt", "can't visit easily",
+            "power of attorney", "proxy", "invest remotely", "savings abroad",
+            "in dollars", "currency", "transfer", "diaspora"
+        ],
+        "signals": [
+            "mentioning_location_abroad",
+            "remote_purchase_concerns",
+            "currency_advantage_exploration",
+            "trust_from_distance"
+        ],
+        "recommended_tactics": ["remote_buying_guide", "legal_proxy_help", "usd_pricing_option", "video_viewing_offer"],
+        "weight": 1.3
+    },
+
+    # === SOCIAL PRESSURE: Peers Bought / Family Pressure / Herd ===
+    PsychologicalState.SOCIAL_PRESSURE: {
+        "keywords_ar": [
+            "صاحبي اشترى", "كل الناس", "زي ما الناس", "أبويا بيقول",
+            "مراتي عايزة", "جوزي بيقول", "الجيران", "قرايبي",
+            "كلهم اشتروا", "فاضل أنا", "الكل عمال يشتري",
+            "ضغط", "بيلحوا عليا", "أهلي", "العيلة"
+        ],
+        "keywords_en": [
+            "friend bought", "everyone is", "like others", "father says",
+            "wife wants", "husband says", "neighbors", "relatives",
+            "all bought", "left behind", "everyone buying",
+            "pressure", "pushing me", "family", "parents"
+        ],
+        "signals": [
+            "mentioning_peer_purchases",
+            "family_influence_language",
+            "herd_behavior_indicators",
+            "external_pressure_cues"
+        ],
+        "recommended_tactics": ["validate_social_proof", "independent_decision_framing", "community_sell"],
+        "weight": 1.1
+    },
+
+    # === INHERITANCE CONFUSION: Inherited Money/Property, Needs Guidance ===
+    PsychologicalState.INHERITANCE_CONFUSION: {
+        "keywords_ar": [
+            "ورث", "ميراث", "أبويا سابلي", "ورثت", "فلوس ميراث",
+            "أرض ورثتها", "شقة ورثتها", "مش عارف أعمل إيه",
+            "أبيع وأشتري", "أستبدل", "عندي أرض", "عندي شقة قديمة",
+            "أحسن استخدام", "فلوس حصلتلي"
+        ],
+        "keywords_en": [
+            "inherited", "inheritance", "father left me", "got money",
+            "inherited land", "inherited apartment", "don't know what to do",
+            "sell and buy", "exchange", "have land", "old apartment",
+            "best use", "windfall", "received money"
+        ],
+        "signals": [
+            "mentioning_inheritance",
+            "confusion_about_asset_allocation",
+            "asking_about_trade_up",
+            "windfall_management"
+        ],
+        "recommended_tactics": ["trade_up_calculator", "asset_reallocation_advisor", "wealth_preservation"],
+        "weight": 1.2
+    },
+
+    # === DOWNGRADE SHAME: Budget Forces Smaller Unit — Ego Protection ===
+    PsychologicalState.DOWNGRADE_SHAME: {
+        "keywords_ar": [
+            "مش بالميزانية", "مش قادر", "أصغر", "أقل", "مش هينفع",
+            "كنت عايز فيلا", "الميزانية مش كفاية", "نزلت توقعاتي",
+            "مش اللي كنت متخيله", "إزاي أقنع", "عيب", "حرام",
+            "الناس هتقول إيه", "مستوى أقل"
+        ],
+        "keywords_en": [
+            "can't afford", "smaller", "less", "won't work",
+            "wanted villa", "budget not enough", "lowered expectations",
+            "not what I imagined", "how to justify", "embarrassing",
+            "what will people say", "downgrade", "step down"
+        ],
+        "signals": [
+            "expressing_budget_disappointment",
+            "ego_protection_language",
+            "social_status_concerns",
+            "downgrade_resistance"
+        ],
+        "recommended_tactics": ["reframe_as_smart_move", "investment_angle_for_smaller", "upgrade_path_vision"],
+        "weight": 1.3  # Sensitive — ego is involved
     }
 }
 
@@ -1781,6 +1933,70 @@ def determine_strategy(
             "الدولار والتضخم هما السبب إن العقار هو الملاذ، مش العكس.",
             "تحب أوريك رسم الـ Inflation Killer يوضحلك بالأرقام؟"
         ]
+
+    # ═════════════════════════════════════════════════════════════════
+    # V3: NEW EGYPTIAN PSYCHOLOGY DEEP STATES
+    # ═════════════════════════════════════════════════════════════════
+
+    elif state == PsychologicalState.BUYERS_REMORSE:
+        strategy = Strategy.TRUST_BUILDING
+        angle = "reaffirmation"
+        talking_points = [
+            "أنا فاهم الإحساس ده — بس خليني أوريك الأرقام من يوم ما قررت.",
+            "الوحدة اللي اخترتها زادت [X]% من وقتها. القرار كان صح بالداتا.",
+            "الشك بعد القرار طبيعي جداً — بس الندم الحقيقي هو إنك متشتريش في سوق صاعد.",
+            "لو عايز reassurance، خليني أعملك Updated ROI Report يطمنك."
+        ]
+
+    elif state == PsychologicalState.LIFE_EVENT_URGENCY:
+        strategy = Strategy.CLOSE_FAST
+        angle = "life_milestone"
+        talking_points = [
+            "ألف مبروك! ده وقت مهم — وأنا هنا أخلي القرار سهل عليك.",
+            "بما إن عندك timeline، خليني أركز على وحدات جاهزة أو قريبة التسليم.",
+            "الوقت مهم — خليني أوريك أفضل 3 options تقدر تتحرك فيهم فوراً.",
+            "خلينا نحجز دلوقتي ونأمّن السعر قبل ما يتغير."
+        ]
+
+    elif state == PsychologicalState.EXPATRIATE_ANXIETY:
+        strategy = Strategy.TRUST_BUILDING
+        angle = "remote_guidance"
+        talking_points = [
+            "أهلاً! أنا فاهم إنك بره — خليني أطمنك: عملنا ده مع مغتربين كتير.",
+            "زيارة الوحدة ممكن تتعمل Virtual أو عن طريق وكيل موثوق.",
+            "تقدر تعمل توكيل رسمي ونخلص كل حاجة وإنت مكانك.",
+            "الحلو إن فلوسك بالدولار/الريال — قوتك الشرائية أكبر من اللي في مصر."
+        ]
+
+    elif state == PsychologicalState.SOCIAL_PRESSURE:
+        strategy = Strategy.CONSULTATIVE
+        angle = "independent_smart_decision"
+        talking_points = [
+            "إن الناس حواليك اشتروا ده مؤشر كويس — بس المهم تشتري اللي يناسبك أنت.",
+            "خليني أعملك تحليل مستقل — ننسى اللي اشتراه حد تاني، ونركز على أهدافك أنت.",
+            "الحقيقة إن اللي اشتروا في المنطقة دي حققوا [X]% عائد — وأنت تقدر أكتر.",
+            "القرار الذكي مش إنك تعمل زي الناس — بل تعمل أحسن بالداتا."
+        ]
+
+    elif state == PsychologicalState.INHERITANCE_CONFUSION:
+        strategy = Strategy.CONSULTATIVE
+        angle = "asset_advisor"
+        talking_points = [
+            "الله يرحم — حضرتك عندك فرصة تحول الأصل ده لاستثمار يكبر.",
+            "خليني أعملك Trade-Up Analysis: أبيع القديم وأشتري إيه بالمبلغ ده؟",
+            "المبلغ ده لو فضل كاش هيخسر [X]% سنوياً. لو اتحول عقار هيكسب [Y]%.",
+            "أنا هنا أرتبلك خطة — مش بس أبيعلك شقة."
+        ]
+
+    elif state == PsychologicalState.DOWNGRADE_SHAME:
+        strategy = Strategy.CONSULTATIVE
+        angle = "smart_investor_reframe"
+        talking_points = [
+            "الحدود عندك مش نهاية — ده بداية ذكية. أنجح المستثمرين بدأوا بشقة صغيرة.",
+            "الوحدة الأصغر دي ممكن تأجرها وتجمع لـ upgrade خلال 3-5 سنين.",
+            "في عالم العقارات: Smart Entry > Big Entry. المهم تدخل السوق.",
+            "خليني أوريك خطة الـ Trade-Up: تبدأ هنا والطريق لحلمك واضح."
+        ]
         
     else:  # NEUTRAL
         strategy = Strategy.CONSULTATIVE
@@ -1824,6 +2040,114 @@ def determine_strategy(
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# V4: OBJECTION RESOLUTION TRACKER
+# Tracks objections raised, resolution attempts, and outcomes
+# ═══════════════════════════════════════════════════════════════════════
+
+class ObjectionResolutionTracker:
+    """
+    Tracks every objection across the conversation lifecycle.
+    
+    For each objection type, records:
+    - When it was raised (turn number)
+    - Resolution attempts made
+    - Whether it was resolved
+    - Effective resolution tactic
+    
+    This enables AMR to:
+    1. Never repeat a failed tactic
+    2. Escalate unresolved objections
+    3. Know when to pivot vs. push
+    """
+
+    def __init__(self):
+        self._objections: Dict[str, Dict] = {}
+        # Maps: objection_type -> {raised_turn, attempts, resolved, effective_tactic}
+
+    def raise_objection(self, objection_type: str, turn: int, trigger_text: str = ""):
+        """Register a new objection or re-raise an existing one."""
+        if objection_type not in self._objections:
+            self._objections[objection_type] = {
+                "raised_turn": turn,
+                "trigger_text": trigger_text[:100],
+                "attempts": [],
+                "resolved": False,
+                "effective_tactic": None,
+                "re_raised_count": 0,
+            }
+        else:
+            # Re-raised: user brought it up again
+            self._objections[objection_type]["re_raised_count"] += 1
+
+    def record_resolution_attempt(self, objection_type: str, tactic: str, turn: int):
+        """Record an attempt to resolve an objection."""
+        if objection_type in self._objections:
+            self._objections[objection_type]["attempts"].append({
+                "tactic": tactic,
+                "turn": turn,
+            })
+
+    def resolve_objection(self, objection_type: str, tactic: str = ""):
+        """Mark an objection as resolved."""
+        if objection_type in self._objections:
+            self._objections[objection_type]["resolved"] = True
+            self._objections[objection_type]["effective_tactic"] = tactic
+
+    def get_unresolved(self) -> List[str]:
+        """Get list of unresolved objection types."""
+        return [k for k, v in self._objections.items() if not v["resolved"]]
+
+    def get_failed_tactics(self, objection_type: str) -> List[str]:
+        """Get tactics already tried (and failed) for an objection."""
+        obj = self._objections.get(objection_type, {})
+        if obj.get("resolved"):
+            return []
+        return [a["tactic"] for a in obj.get("attempts", [])]
+
+    def should_escalate(self, objection_type: str) -> bool:
+        """Check if an objection needs escalation (3+ failed attempts or re-raised 2+ times)."""
+        obj = self._objections.get(objection_type)
+        if not obj:
+            return False
+        return (len(obj.get("attempts", [])) >= 3 or obj.get("re_raised_count", 0) >= 2)
+
+    def get_prompt_context(self, language: str = "ar") -> str:
+        """Generate objection resolution context for Claude prompt injection."""
+        if not self._objections:
+            return ""
+
+        lines = ["\n[OBJECTION_RESOLUTION_TRACKER]"]
+        for obj_type, data in self._objections.items():
+            status = "✅ RESOLVED" if data["resolved"] else "❌ UNRESOLVED"
+            attempts_count = len(data.get("attempts", []))
+            re_raised = data.get("re_raised_count", 0)
+
+            lines.append(f"- {obj_type}: {status} ({attempts_count} attempts, re-raised {re_raised}x)")
+
+            if not data["resolved"]:
+                failed = self.get_failed_tactics(obj_type)
+                if failed:
+                    lines.append(f"  ⚠️ FAILED tactics: {', '.join(failed)} — DO NOT repeat these")
+                if self.should_escalate(obj_type):
+                    if language == "ar":
+                        lines.append(f"  🔴 ESCALATE: هذا الاعتراض محتاج تدخل مباشر. اعترف بالقلق وقدم حل ملموس.")
+                    else:
+                        lines.append(f"  🔴 ESCALATE: This objection needs direct intervention. Acknowledge and offer concrete solution.")
+
+        return "\n".join(lines)
+
+    def to_dict(self) -> Dict:
+        return dict(self._objections)
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'ObjectionResolutionTracker':
+        tracker = cls()
+        if data:
+            tracker._objections = data
+        return tracker
+
+
 # Export
 __all__ = [
     "PsychologicalState",
@@ -1842,5 +2166,8 @@ __all__ = [
     "BuyerPersona",
     "CognitiveBias",
     "PsychologyThought",
+    # V4 exports
+    "ObjectionResolutionTracker",
+    "calculate_card_readiness",
 ]
 
