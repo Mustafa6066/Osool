@@ -240,9 +240,10 @@ PSYCHOLOGY_PATTERNS = {
     },
     PsychologicalState.GREED_DRIVEN: {
         "keywords_ar": [
-            "عائد", "ربح", "استثمار", "إيجار", "هيزيد", "هيجيب كام",
+            "عائد", "ربح", "استثمار", "أستثمر", "استثمر", "بستثمر", "هستثمر", "نستثمر",
+            "إيجار", "هيزيد", "هيجيب كام",
             "ROI", "دخل", "مكسب", "فلوس", "تضخم", "دهب", "دولار",
-            "أحسن استثمار", "هيطلع كام"
+            "أحسن استثمار", "هيطلع كام", "مش للسكن", "مش هسكن"
         ],
         "keywords_en": [
             "roi", "profit", "investment", "rental", "appreciation",
@@ -1036,8 +1037,11 @@ DECISION_STAGE_SIGNALS = {
 # V3: BUYER PERSONA SIGNALS
 PERSONA_SIGNALS = {
     BuyerPersona.INVESTOR: {
-        "keywords_ar": ["عائد", "roi", "إيجار", "استثمار", "محفظة", "ربح", "كام في السنة", "yield"],
-        "keywords_en": ["return", "roi", "rental", "investment", "portfolio", "profit", "yield", "capital gain"],
+        "keywords_ar": [
+            "عائد", "roi", "إيجار", "استثمار", "أستثمر", "استثمر", "بستثمر", "هستثمر", "نستثمر",
+            "محفظة", "ربح", "كام في السنة", "yield", "مش للسكن", "مش هسكن"
+        ],
+        "keywords_en": ["return", "roi", "rental", "investment", "invest", "portfolio", "profit", "yield", "capital gain", "not to live"],
     },
     BuyerPersona.END_USER: {
         "keywords_ar": ["سكن", "عايلة", "أولاد", "مدارس", "أمان", "هسكن", "بيت", "قريب من"],
@@ -1136,20 +1140,38 @@ def _detect_decision_stage(query: str, history: List[Dict]) -> DecisionStage:
 
 
 def _detect_buyer_persona(query: str, history: List[Dict]) -> BuyerPersona:
-    """V3: Determine buyer persona from full conversation history."""
+    """V3/V4: Determine buyer persona from full conversation history.
+    
+    V4 FIX: Negation-aware — "مش أسكن" won't boost END_USER score.
+    Also checks for explicit negation of a persona's keywords.
+    """
+    import re
+    # Arabic negation — must be standalone words to avoid false matches inside وكمان, لأن, etc.
+    _NEGATION_RE = re.compile(r'(?:^|\s)(?:مش|مو|ما|لا|بلاش|مني)\s')
+
     # Combine all user messages
     all_text = query.lower()
     for msg in history:
         if msg.get("role") == "user":
             all_text += " " + msg.get("content", "").lower()
 
+    def _keyword_score(kw: str) -> float:
+        """Return +1 if keyword present and NOT negated, -0.5 if negated."""
+        idx = all_text.find(kw)
+        if idx < 0:
+            return 0.0
+        # Check ~20 chars before the keyword for negation
+        prefix = all_text[max(0, idx - 20):idx]
+        if _NEGATION_RE.search(prefix):
+            return -0.5  # Keyword is negated → penalty
+        return 1.0
+
     # Score each persona
     scores: Dict[BuyerPersona, float] = {}
     for persona, signals in PERSONA_SIGNALS.items():
         score = 0.0
         for kw in signals.get("keywords_ar", []) + signals.get("keywords_en", []):
-            if kw in all_text:
-                score += 1.0
+            score += _keyword_score(kw)
         scores[persona] = score
 
     best = max(scores, key=scores.get)

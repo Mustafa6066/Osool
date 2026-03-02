@@ -187,7 +187,8 @@ class ConversationMemory:
         # Scalars: current session wins if set
         if not self.timeline and other.timeline:
             self.timeline = other.timeline
-        if not self.investment_vs_living and other.investment_vs_living:
+        # V4 FIX: Allow purpose correction — latest session wins, not first-write-wins
+        if other.investment_vs_living:
             self.investment_vs_living = other.investment_vs_living
         if not self.family_size and other.family_size:
             self.family_size = other.family_size
@@ -243,6 +244,11 @@ class ConversationMemory:
                 self.preferred_areas.append(filters['location'])
             if filters.get('budget_max') and not self.budget_range:
                 self.budget_range = {'min': filters.get('budget_min', 0), 'max': filters['budget_max']}
+            # V4 FIX: Use GPT-4o's purpose field — it understands Arabic negation
+            gpt_purpose = filters.get('purpose')
+            if gpt_purpose and gpt_purpose in ('investment', 'living', 'rental', 'both'):
+                # GPT's structured output is more reliable than regex for purpose
+                self.investment_vs_living = gpt_purpose
 
     def record_shown_properties(self, properties: List[Dict]):
         """Record properties that were shown to the user."""
@@ -354,12 +360,38 @@ class ConversationMemory:
                 self.preferred_areas.append(area)
 
     def _extract_purpose(self, msg_lower: str):
-        """Extract investment vs living purpose."""
-        investment_keywords = ['استثمار', 'investment', 'عائد', 'return', 'roi', 'إيجار', 'rental', 'ربح', 'profit']
-        living_keywords = ['سكن', 'living', 'عايش', 'أسكن', 'عائلة', 'family', 'أولاد', 'kids', 'children']
+        """Extract investment vs living purpose with negation awareness."""
+        import re
+        # Arabic negation patterns: مش، مو، لا، بلاش
+        # Must be standalone words (preceded by space/start, followed by space)
+        # to avoid false matches inside words like وكمان, مثلاً, لأن
+        _NEGATION_RE = re.compile(r'(?:^|\s)(?:مش|مو|ما|لا|بلاش|مني)\s')
 
-        has_investment = any(kw in msg_lower for kw in investment_keywords)
-        has_living = any(kw in msg_lower for kw in living_keywords)
+        investment_keywords = [
+            'استثمار', 'أستثمر', 'استثمر', 'بستثمر', 'هستثمر', 'نستثمر',
+            'investment', 'invest',
+            'عائد', 'return', 'roi', 'إيجار', 'rental', 'ربح', 'profit',
+            'محفظة', 'portfolio', 'yield', 'كام في السنة'
+        ]
+        living_keywords = [
+            'سكن', 'أسكن', 'هسكن', 'بسكن', 'نسكن', 'عايش', 'هعيش',
+            'living', 'live in',
+            'عائلة', 'family', 'أولاد', 'kids', 'children'
+        ]
+
+        def _keyword_active(kw: str) -> bool:
+            """Check if keyword appears AND is NOT negated."""
+            idx = msg_lower.find(kw)
+            if idx < 0:
+                return False
+            # Check the ~20 chars before the keyword for negation
+            prefix = msg_lower[max(0, idx - 20):idx]
+            if _NEGATION_RE.search(prefix):
+                return False  # Keyword is negated
+            return True
+
+        has_investment = any(_keyword_active(kw) for kw in investment_keywords)
+        has_living = any(_keyword_active(kw) for kw in living_keywords)
 
         if has_investment and has_living:
             self.investment_vs_living = 'both'

@@ -42,7 +42,11 @@ class BehaviorSignal(Enum):
 # Signal detection patterns
 SIGNAL_PATTERNS: Dict[BehaviorSignal, Dict] = {
     BehaviorSignal.BUDGET_MENTIONED: {
-        "keywords": ["budget", "afford", "pay", "spend", "million", "EGP", "price range"],
+        "keywords": [
+            "budget", "afford", "pay", "spend", "million", "EGP", "price range",
+            # Arabic
+            "ميزانية", "ميزانيتي", "مليون", "أدفع", "هدفع", "جنيه", "بسعر", "حوالي"
+        ],
         "points": 20,
         "description": "User stated their budget range"
     },
@@ -50,7 +54,11 @@ SIGNAL_PATTERNS: Dict[BehaviorSignal, Dict] = {
         "keywords": [
             "reserve", "buy", "purchase", "payment", "deposit",
             "down payment", "when can i move in", "contract",
-            "how do i proceed", "next steps"
+            "how do i proceed", "next steps",
+            # Arabic
+            "أحجز", "عايز أشتري", "هاشتري", "أدفع مقدم", "العقد", "نمضي",
+            "الخطوة الجاية", "محتاج أحجز", "احجزلي", "جاهز", "قررت", "موافق",
+            "استلام", "تسليم"
         ],
         "points": 30,
         "description": "Strong buying signals detected"
@@ -58,31 +66,50 @@ SIGNAL_PATTERNS: Dict[BehaviorSignal, Dict] = {
     BehaviorSignal.SPECIFIC_LOCATION_PREFERENCE: {
         "keywords": [
             "new cairo", "new capital", "6th october", "north coast",
-            "sheikh zayed", "palm hills", "madinaty", "compound name"
+            "sheikh zayed", "palm hills", "madinaty", "compound name",
+            # Arabic
+            "التجمع", "القاهرة الجديدة", "الشيخ زايد", "زايد", "أكتوبر",
+            "العاصمة الإدارية", "العاصمة", "الساحل", "مدينتي", "المعادي"
         ],
         "points": 15,
         "description": "Has specific location in mind"
     },
     BehaviorSignal.ASKED_ABOUT_FINANCING: {
-        "keywords": ["mortgage", "loan", "bank", "financing", "installment", "monthly payment"],
+        "keywords": [
+            "mortgage", "loan", "bank", "financing", "installment", "monthly payment",
+            # Arabic
+            "أقساط", "قسط", "تمويل", "قرض", "شهري", "أقسط", "خطة الدفع",
+            "المقدم", "مقدم"
+        ],
         "points": 10,
         "description": "Interested in payment options"
     },
     BehaviorSignal.TIMELINE_MENTIONED: {
         "keywords": [
             "this month", "next month", "within", "by", "before",
-            "urgent", "asap", "soon", "3 months", "6 months"
+            "urgent", "asap", "soon", "3 months", "6 months",
+            # Arabic
+            "الشهر ده", "الشهر الجاي", "قريب", "بسرعة", "فوري", "مستعجل",
+            "قبل", "خلال", "دلوقتي", "النهارده"
         ],
         "points": 10,
         "description": "Has defined purchase timeline"
     },
     BehaviorSignal.OBJECTION_RAISED_BUT_ENGAGED: {
-        "keywords": ["but", "however", "concern", "worried", "issue"],
+        "keywords": [
+            "but", "however", "concern", "worried", "issue",
+            # Arabic
+            "بس", "لكن", "قلقان", "خايف", "مشكلة"
+        ],
         "points": -5,
         "description": "Has concerns but still engaged"
     },
     BehaviorSignal.REPEATEDLY_POSTPONING: {
-        "keywords": ["later", "maybe", "not sure", "thinking", "need time"],
+        "keywords": [
+            "later", "maybe", "not sure", "thinking", "need time",
+            # Arabic
+            "بعدين", "يمكن", "مش متأكد", "هفكر", "محتاج وقت"
+        ],
         "points": -10,
         "description": "Showing hesitation or delay signals",
         "threshold_count": 2  # Only apply if repeated 2+ times
@@ -153,20 +180,24 @@ def score_lead(
         }
     
     # NEW: Detect "The Loop Trap" (Human Handoff Protocol)
-    # Check if user asked the same question twice in last 3 turns
-    last_3_user_msgs = [msg.get('content', '') for msg in conversation_history[-6:] if msg.get('role') == 'user']
-    if len(last_3_user_msgs) >= 2 and len(set(last_3_user_msgs)) < len(last_3_user_msgs): # Duplicate detected
-        return {
-            "score": 0,
-            "temperature": LeadTemperature.COLD.value,
-            "signals": ["loop_detected"],
-            "confidence": 0.0,
-            "recommended_action": "ESCALATE_IMMEDIATELY",
-            "priority_level": 5,
-            "reason": "Loop detected - User repeating questions",
-            "detected_behaviors": [],
-            "session_summary": {}
-        }
+    # Check if user asked the EXACT same question 3+ times in last 6 turns
+    last_user_msgs = [msg.get('content', '').strip() for msg in conversation_history[-8:] if msg.get('role') == 'user']
+    if len(last_user_msgs) >= 3:
+        from collections import Counter
+        counts = Counter(last_user_msgs)
+        most_common_count = counts.most_common(1)[0][1]
+        if most_common_count >= 3:  # Only trigger on 3+ exact repeats, not 2
+            return {
+                "score": 0,
+                "temperature": LeadTemperature.COLD.value,
+                "signals": ["loop_detected"],
+                "confidence": 0.0,
+                "recommended_action": "ESCALATE_IMMEDIATELY",
+                "priority_level": 5,
+                "reason": "Loop detected - User repeating questions 3+ times",
+                "detected_behaviors": [],
+                "session_summary": {}
+            }
 
     # === SIGNAL DETECTION FROM CONVERSATION ===
     for signal, config in SIGNAL_PATTERNS.items():
