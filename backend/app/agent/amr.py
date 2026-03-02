@@ -87,6 +87,13 @@ class AmrAgent:
                 "psychology": result.get("psychology", {}),
                 "showing_strategy": result.get("showing_strategy"),
                 "hunt_strategy": result.get("hunt_strategy"),
+                # V5: Pass-through intelligence signals for frontend
+                "suggestions": result.get("suggestions", []),
+                "card_readiness": result.get("card_readiness", {}),
+                "detected_language": result.get("detected_language", "ar"),
+                "lead_score": result.get("lead_score", 0),
+                "analytics_context": result.get("analytics_context"),
+                "intent": result.get("intent", {}),
             }
 
         except Exception as e:

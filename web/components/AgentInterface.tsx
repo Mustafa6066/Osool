@@ -320,27 +320,60 @@ export default function AgentInterface() {
         const content = msg.content.toLowerCase();
         const hasProperties = msg.allProperties && msg.allProperties.length > 0;
         const hasAnalytics = msg.analyticsContext?.has_analytics;
+        // Use detected language from message OR conversation-level language, default Arabic
+        const lang = msg.detectedLanguage || conversationLanguage || 'ar';
+        const isAr = lang === 'ar';
 
         if (hasProperties) {
-            suggestions.push('Compare these properties');
-            suggestions.push('Show ROI analysis');
-            suggestions.push('Payment plan options?');
+            if (isAr) {
+                suggestions.push('قارن العقارات دي');
+                suggestions.push('تحليل العائد');
+                suggestions.push('خطة السداد؟');
+            } else {
+                suggestions.push('Compare these properties');
+                suggestions.push('Show ROI analysis');
+                suggestions.push('Payment plan options?');
+            }
         } else if (hasAnalytics) {
-            suggestions.push('Show price trends');
-            suggestions.push('Best growth areas?');
-            suggestions.push('Compare alternatives');
+            if (isAr) {
+                suggestions.push('اتجاهات الأسعار');
+                suggestions.push('أفضل مناطق النمو');
+                suggestions.push('قارن البدائل');
+            } else {
+                suggestions.push('Show price trends');
+                suggestions.push('Best growth areas?');
+                suggestions.push('Compare alternatives');
+            }
         } else if (content.includes('developer') || content.includes('مطور')) {
-            suggestions.push('Track record');
-            suggestions.push('Compare delivery dates');
-            suggestions.push('Available units');
+            if (isAr) {
+                suggestions.push('سجل المطور');
+                suggestions.push('مواعيد التسليم');
+                suggestions.push('الوحدات المتاحة');
+            } else {
+                suggestions.push('Track record');
+                suggestions.push('Compare delivery dates');
+                suggestions.push('Available units');
+            }
         } else if (content.includes('area') || content.includes('location') || content.includes('منطقة')) {
-            suggestions.push('Price per sqm');
-            suggestions.push('Nearby areas');
-            suggestions.push('Infrastructure');
+            if (isAr) {
+                suggestions.push('سعر المتر');
+                suggestions.push('مناطق قريبة');
+                suggestions.push('البنية التحتية');
+            } else {
+                suggestions.push('Price per sqm');
+                suggestions.push('Nearby areas');
+                suggestions.push('Infrastructure');
+            }
         } else {
-            suggestions.push('Top properties');
-            suggestions.push('Market overview');
-            suggestions.push('Set my budget');
+            if (isAr) {
+                suggestions.push('أفضل العقارات');
+                suggestions.push('نظرة على السوق');
+                suggestions.push('حدد ميزانيتي');
+            } else {
+                suggestions.push('Top properties');
+                suggestions.push('Market overview');
+                suggestions.push('Set my budget');
+            }
         }
 
         return suggestions.slice(0, 3);

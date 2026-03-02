@@ -248,7 +248,12 @@ class WolfBrain:
                     "properties": [],
                     "ui_actions": [{"type": "handoff_alert", "priority": "high"}],
                     "psychology": psychology.to_dict(),
-                    "handoff": True
+                    "handoff": True,
+                    "suggestions": ["تواصل مع مستشار", "ابدأ محادثة جديدة", "عرض ملخص المحادثة"],
+                    "detected_language": "ar",
+                    "lead_score": lead_score,
+                    "card_readiness": card_readiness,
+                    "intent": intent.intent if hasattr(intent, 'intent') else "handoff"
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -273,14 +278,21 @@ class WolfBrain:
                         "What developer are you worried about?"
                     )
 
+                trust_suggestions_ar = ["اسم المطور؟", "عايز أعرف عن مشروع معين", "إيه أكتر حاجة قلقانك؟"]
+                trust_suggestions_en = ["Which developer?", "Tell me about a project", "What worries you most?"]
                 return {
                     "response": resp,
                     "ui_actions": [{
-                        "type": "law_114_guardian", # Triggers a cool "Scanning..." UI animation
+                        "type": "law_114_guardian",
                         "status": "active"
                     }],
                     "strategy": {"strategy": "confidence_building", "route": "legal"},
-                    "psychology": psychology.to_dict()
+                    "psychology": psychology.to_dict(),
+                    "suggestions": trust_suggestions_ar if language == "ar" else trust_suggestions_en,
+                    "detected_language": language,
+                    "lead_score": lead_score,
+                    "card_readiness": card_readiness,
+                    "intent": intent.intent if hasattr(intent, 'intent') else "trust_building"
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -400,6 +412,8 @@ class WolfBrain:
                                 "If you'd like to see specific units, let me know your budget."
                             )
                     
+                    market_suggestions_ar = ["عايز أشوف وحدات", "إيه أحسن مطور هناك؟", "قارن مع مناطق تانية"]
+                    market_suggestions_en = ["Show me units", "Best developer there?", "Compare with other areas"]
                     return {
                         "response": resp,
                         "properties": [],
@@ -417,7 +431,13 @@ class WolfBrain:
                             }
                         }],
                         "strategy": {"strategy": "market_education", "area": location},
-                        "psychology": psychology.to_dict()
+                        "psychology": psychology.to_dict(),
+                        "suggestions": market_suggestions_ar if language == "ar" else market_suggestions_en,
+                        "detected_language": language,
+                        "lead_score": lead_score,
+                        "card_readiness": card_readiness,
+                        "analytics_context": analytics_context,
+                        "intent": intent.intent if hasattr(intent, 'intent') else "market_education"
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -461,12 +481,32 @@ class WolfBrain:
                             "To guide you correctly: **Is your primary goal High ROI or Luxury Living?**"
                         )
 
+                    # Generate screening suggestions in correct language
+                    if language == "ar":
+                        gate_suggestions = [
+                            "عايز أستثمر مش أسكن",
+                            "أنا بدور على سكن عائلي",
+                            f"ميزانيتي حوالي {market_segment['class_b']['min_price']/1000000:.0f} مليون جنيه",
+                        ]
+                    else:
+                        gate_suggestions = [
+                            "I want to invest, not live",
+                            "I'm looking for a family home",
+                            f"My budget is around {market_segment['class_b']['min_price']/1000000:.0f}M EGP",
+                        ]
                     return {
                         "response": resp,
-                        "properties": [], # Don't show properties yet
-                        "ui_actions": [{"type": "market_trend_chart", "data": market_segment}], # Show a chart to look smart
+                        "properties": [],
+                        "ui_actions": [{"type": "market_trend_chart", "data": market_segment}],
                         "strategy": {"strategy": "screening_gate", "market_segment": market_segment},
-                        "psychology": psychology.to_dict()
+                        "psychology": psychology.to_dict(),
+                        "suggestions": gate_suggestions,
+                        "detected_language": language,
+                        "lead_score": lead_score,
+                        "card_readiness": card_readiness,
+                        "showing_strategy": "ANALYTICS_ONLY",
+                        "analytics_context": None,
+                        "intent": intent.to_dict(),
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -502,12 +542,19 @@ class WolfBrain:
                             for alt in alternatives[:3]:
                                 alt_text += f"• **{alt.get('type', '')}** in {alt.get('location', '')} — from {alt.get('min_price', 0)/1e6:.1f}M\n"
                     
+                    feasibility_suggestions_ar = ["عايز أشوف البدائل", "ممكن أزود الميزانية", "منطقة تانية أرخص؟"]
+                    feasibility_suggestions_en = ["Show alternatives", "I can increase budget", "Cheaper area?"]
                     return {
                         "response": feasibility_msg + alt_text,
                         "properties": [],
                         "ui_actions": [{"type": "feasibility_alert", "priority": "high", "data": feasibility_result.to_dict()}],
                         "strategy": {"strategy": "budget_negotiation", "feasibility": feasibility_result.to_dict()},
-                        "psychology": psychology.to_dict()
+                        "psychology": psychology.to_dict(),
+                        "suggestions": feasibility_suggestions_ar if language == "ar" else feasibility_suggestions_en,
+                        "detected_language": language,
+                        "lead_score": lead_score,
+                        "card_readiness": card_readiness,
+                        "intent": intent.intent if hasattr(intent, 'intent') else "feasibility"
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -933,13 +980,31 @@ class WolfBrain:
             "This will help me filter 90% of the market for you."
         )
         
+        # Generate language-aware suggestions for the screening
+        screening_suggestions_ar = [
+            "عايز أستثمر مش أسكن",
+            "أنا بدور على شقة للسكن العائلي",
+            "ميزانيتي حوالي 5 مليون جنيه",
+        ]
+        screening_suggestions_en = [
+            "I want to invest, not live",
+            "I'm looking for a family home",
+            "My budget is around 5M EGP",
+        ]
         return {
             "response": script_ar if language != "en" else script_en,
             "ui_actions": [],
             "properties": [],
             "psychology": {"primary_state": "neutral"},
             "strategy": {"strategy": "fast_gate"},
-            "model_used": "wolf_fast_gate"
+            "model_used": "wolf_fast_gate",
+            "suggestions": screening_suggestions_ar if language != "en" else screening_suggestions_en,
+            "detected_language": language,
+            "lead_score": 0,
+            "card_readiness": {"readiness_score": 0, "recommendation": "NONE"},
+            "showing_strategy": "NONE",
+            "analytics_context": None,
+            "intent": {},
         }
 
     async def _handle_general_query(
