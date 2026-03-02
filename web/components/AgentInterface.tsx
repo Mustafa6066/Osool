@@ -6,7 +6,8 @@ import {
     Sparkles, MapPin,
     X, ChevronRight,
     BarChart2, Shield, Search,
-    Copy, RefreshCw, Wallet, ArrowUp
+    Copy, RefreshCw, Wallet, ArrowUp,
+    History, Plus, MessageSquare
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -166,11 +167,86 @@ const MarkdownMessage = ({ content }: { content: string }) => {
     );
 };
 
+/* ─── SessionStorage helpers ─── */
+const STORAGE_KEYS = {
+    MESSAGES: 'osool_chat_messages',
+    SESSION_ID: 'osool_chat_session_id',
+    SESSIONS_LIST: 'osool_chat_sessions',
+} as const;
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+    if (typeof window === 'undefined') return fallback;
+    try {
+        const raw = sessionStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+    } catch { return fallback; }
+}
+
+function saveToStorage(key: string, value: any) {
+    if (typeof window === 'undefined') return;
+    try { sessionStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
+function getOrCreateSessionId(): string {
+    if (typeof window === 'undefined') return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const existing = sessionStorage.getItem(STORAGE_KEYS.SESSION_ID);
+    if (existing) return existing;
+    const id = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, id);
+    return id;
+}
+
+/* ─── Typewriter hook ─── */
+function useTypewriter(text: string, enabled: boolean, speed = 12) {
+    const [displayed, setDisplayed] = useState(text);
+    const [done, setDone] = useState(!enabled);
+    const idx = useRef(0);
+
+    useEffect(() => {
+        if (!enabled) { setDisplayed(text); setDone(true); return; }
+        idx.current = 0;
+        setDisplayed('');
+        setDone(false);
+        const timer = setInterval(() => {
+            idx.current++;
+            if (idx.current >= text.length) {
+                setDisplayed(text);
+                setDone(true);
+                clearInterval(timer);
+            } else {
+                setDisplayed(text.slice(0, idx.current));
+            }
+        }, speed);
+        return () => clearInterval(timer);
+    }, [text, enabled, speed]);
+
+    return { displayed, done };
+}
+
+/* ─── Typewriter wrapper for agent messages ─── */
+const TypewriterMarkdown = ({ content, animate }: { content: string; animate: boolean }) => {
+    const { displayed, done } = useTypewriter(content, animate, 8);
+    return (
+        <>
+            <MarkdownMessage content={displayed} />
+            {!done && <span className="inline-block w-[2px] h-[1.1em] bg-emerald-500 animate-pulse align-text-bottom ml-0.5" />}
+        </>
+    );
+};
+
+/* ─── Past-sessions sidebar item type ─── */
+interface PastSession {
+    session_id: string;
+    preview: string | null;
+    message_count: number;
+    last_message_at: string | null;
+}
+
 /* Main Component */
 export default function AgentInterface() {
     const { user } = useAuth();
     const { profile, triggerXP } = useGamification();
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<Message[]>(() => loadFromStorage(STORAGE_KEYS.MESSAGES, []));
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [contextPaneOpen, setContextPaneOpen] = useState(false);
@@ -179,12 +255,33 @@ export default function AgentInterface() {
     const [conversationLeadScore, setConversationLeadScore] = useState(0);
     const [conversationReadiness, setConversationReadiness] = useState(0);
     const [conversationLanguage, setConversationLanguage] = useState('ar');
+    const [lastAiMsgId, setLastAiMsgId] = useState<number | null>(null);
+    const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
+    const [historyOpen, setHistoryOpen] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const sessionIdRef = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+    const sessionIdRef = useRef<string>(getOrCreateSessionId());
+    const hasFetchedHistory = useRef(false);
 
     const userName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
+
+    /* Persist messages to sessionStorage whenever they change */
+    useEffect(() => {
+        if (messages.length > 0) saveToStorage(STORAGE_KEYS.MESSAGES, messages);
+    }, [messages]);
+
+    /* Fetch past sessions from backend on first mount */
+    useEffect(() => {
+        if (hasFetchedHistory.current) return;
+        hasFetchedHistory.current = true;
+        api.get('/api/chat/history').then(res => {
+            const sessions: PastSession[] = (res.data?.sessions || []).filter(
+                (s: PastSession) => s.session_id !== sessionIdRef.current
+            );
+            setPastSessions(sessions);
+        }).catch(() => {});
+    }, []);
 
     useEffect(() => {
         if (inputRef.current) {
@@ -272,6 +369,7 @@ export default function AgentInterface() {
             if (data.detected_language) setConversationLanguage(data.detected_language);
 
             setMessages(prev => [...prev, aiMsg]);
+            setLastAiMsgId(aiMsg.id);
             triggerXP(5, 'Asked a question');
 
             if (aiMsg.uiActions && aiMsg.uiActions.length > 0) {
@@ -307,8 +405,34 @@ export default function AgentInterface() {
         setConversationLeadScore(0);
         setConversationReadiness(0);
         setConversationLanguage('ar');
-        sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        setLastAiMsgId(null);
+        const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        sessionIdRef.current = newId;
+        sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, newId);
+        sessionStorage.removeItem(STORAGE_KEYS.MESSAGES);
     };
+
+    /* Load a past session's messages from the backend */
+    const loadSession = useCallback(async (sessionId: string) => {
+        try {
+            const res = await api.get(`/api/chat/history/${sessionId}`);
+            const msgs: Message[] = (res.data?.messages || []).map((m: any, i: number) => ({
+                id: m.id || Date.now() + i,
+                role: m.role === 'user' ? 'user' : 'agent',
+                content: m.content,
+                artifacts: null,
+                allProperties: m.properties || [],
+            }));
+            setMessages(msgs);
+            sessionIdRef.current = sessionId;
+            sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, sessionId);
+            saveToStorage(STORAGE_KEYS.MESSAGES, msgs);
+            setLastAiMsgId(null); // don't animate old messages
+            setHistoryOpen(false);
+        } catch (err) {
+            console.error('[History] Failed to load session', err);
+        }
+    }, []);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -394,13 +518,22 @@ export default function AgentInterface() {
                                 Osool AI <span className="text-[var(--color-text-muted)] font-medium mx-1.5">/</span> <span className="text-[var(--color-text-secondary)] font-medium">Session</span>
                             </span>
                         </div>
-                        <button
-                            onClick={handleNewChat}
-                            className="pointer-events-auto p-2 bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)]/50 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shadow-sm transition-all hover:scale-105 active:scale-95"
-                            title="New Chat"
-                        >
-                            <RefreshCw className="w-4 h-4" strokeWidth={2} />
-                        </button>
+                        <div className="pointer-events-auto flex items-center gap-2">
+                            <button
+                                onClick={() => setHistoryOpen(true)}
+                                className="p-2 bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)]/50 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shadow-sm transition-all hover:scale-105 active:scale-95"
+                                title="Past Conversations"
+                            >
+                                <History className="w-4 h-4" strokeWidth={2} />
+                            </button>
+                            <button
+                                onClick={handleNewChat}
+                                className="p-2 bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)]/50 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shadow-sm transition-all hover:scale-105 active:scale-95"
+                                title="New Chat"
+                            >
+                                <Plus className="w-4 h-4" strokeWidth={2} />
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -450,6 +583,37 @@ export default function AgentInterface() {
                                             </button>
                                         ))}
                                     </div>
+
+                                    {/* Recent conversations on greeting screen */}
+                                    {pastSessions.length > 0 && (
+                                        <div className="w-full max-w-2xl mx-auto mt-10 px-4">
+                                            <button
+                                                onClick={() => setHistoryOpen(true)}
+                                                className="flex items-center gap-2 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] mx-auto mb-3 transition-colors"
+                                            >
+                                                <History className="w-3.5 h-3.5" />
+                                                Recent conversations
+                                            </button>
+                                            <div className="space-y-1.5">
+                                                {pastSessions.slice(0, 3).map(s => (
+                                                    <button
+                                                        key={s.session_id}
+                                                        onClick={() => loadSession(s.session_id)}
+                                                        className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface)] border border-[var(--color-border)]/50 hover:border-[var(--color-border)] transition-all text-left"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-full bg-[var(--color-surface-elevated)] flex items-center justify-center flex-shrink-0">
+                                                            <MessageSquare className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" dir="auto">{s.preview || 'Conversation'}</p>
+                                                            <p className="text-[11px] text-[var(--color-text-muted)]">{s.message_count} messages</p>
+                                                        </div>
+                                                        <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] flex-shrink-0" />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                             </div>
                         )}
 
@@ -473,7 +637,7 @@ export default function AgentInterface() {
                                                     </div>
                                                 ) : (
                                                     <div className="text-[15px] leading-8 text-[var(--color-text-secondary)] tracking-wide pt-1" dir="auto">
-                                                        <MarkdownMessage content={msg.content} />
+                                                        <TypewriterMarkdown content={msg.content} animate={msg.id === lastAiMsgId} />
 
                                                         {/* Visualizations */}
                                                         {msg.uiActions && msg.uiActions.length > 0 && (
@@ -874,6 +1038,76 @@ export default function AgentInterface() {
                     </div>
                 </aside>
             )}
+
+            {/* ── Conversation History Overlay ── */}
+            <AnimatePresence>
+                {historyOpen && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
+                            onClick={() => setHistoryOpen(false)}
+                        />
+                        {/* Slide-in panel */}
+                        <motion.aside
+                            initial={{ x: -320, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: -320, opacity: 0 }}
+                            transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+                            className="fixed left-0 top-0 bottom-0 w-[320px] bg-[var(--color-surface)] border-r border-[var(--color-border)] z-50 flex flex-col shadow-2xl"
+                        >
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+                                <span className="text-[15px] font-semibold text-[var(--color-text-primary)]">Past Conversations</span>
+                                <button onClick={() => setHistoryOpen(false)} title="Close" className="p-1.5 hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors">
+                                    <X className="w-4 h-4 text-[var(--color-text-muted)]" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                                {pastSessions.length === 0 ? (
+                                    <div className="text-center py-12 text-[var(--color-text-muted)]">
+                                        <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                                        <p className="text-sm">No past conversations yet</p>
+                                    </div>
+                                ) : (
+                                    pastSessions.map(s => (
+                                        <button
+                                            key={s.session_id}
+                                            onClick={() => loadSession(s.session_id)}
+                                            className={`w-full text-left p-3 rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors group ${s.session_id === sessionIdRef.current ? 'bg-emerald-500/10 border border-emerald-500/20' : ''}`}
+                                        >
+                                            <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" dir="auto">
+                                                {s.preview || 'Conversation'}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-[11px] text-[var(--color-text-muted)]">
+                                                    {s.message_count} messages
+                                                </span>
+                                                {s.last_message_at && (
+                                                    <span className="text-[11px] text-[var(--color-text-muted)]">
+                                                        · {new Date(s.last_message_at).toLocaleDateString()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                            <div className="p-3 border-t border-[var(--color-border)]">
+                                <button
+                                    onClick={() => { handleNewChat(); setHistoryOpen(false); }}
+                                    className="w-full py-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-xl text-[13px] font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    New Conversation
+                                </button>
+                            </div>
+                        </motion.aside>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
