@@ -7,7 +7,7 @@ import {
     X, ChevronRight,
     BarChart2, Shield, Search,
     Copy, RefreshCw, Wallet, ArrowUp,
-    History, Plus, MessageSquare
+    History, Plus, MessageSquare, Check
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -80,12 +80,29 @@ const SUGGESTIONS: Suggestion[] = [
     { icon: Shield, label: "Developer Audit", prompt: "Audit the delivery history of Palm Hills" },
 ];
 
-/* Agent Avatar — Minimal monogram */
+/* Agent Avatar — Neural Network AI icon */
 const AgentAvatar = ({ thinking = false }: { thinking?: boolean }) => (
     <div className={`relative flex items-center justify-center w-8 h-8 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm ${thinking ? 'animate-pulse' : ''}`}>
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300" />
-        <span className="relative text-[11px] font-bold text-white dark:text-gray-900 tracking-tight">OA</span>
-        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-900" />
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 to-teal-700 dark:from-emerald-400 dark:to-teal-500" />
+        {/* Neural network SVG */}
+        <svg className="relative w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Connection lines */}
+            <line x1="6" y1="5" x2="12" y2="12" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <line x1="18" y1="5" x2="12" y2="12" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <line x1="12" y1="12" x2="6" y2="19" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <line x1="12" y1="12" x2="18" y2="19" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <line x1="6" y1="5" x2="18" y2="19" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
+            <line x1="18" y1="5" x2="6" y2="19" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
+            {/* Nodes */}
+            <circle cx="6" cy="5" r="2.5" fill="white" opacity="0.95" />
+            <circle cx="18" cy="5" r="2.5" fill="white" opacity="0.95" />
+            <circle cx="12" cy="12" r="3" fill="white" />
+            <circle cx="6" cy="19" r="2.5" fill="white" opacity="0.95" />
+            <circle cx="18" cy="19" r="2.5" fill="white" opacity="0.95" />
+            {/* Center glow */}
+            <circle cx="12" cy="12" r="1.5" fill="#10b981" />
+        </svg>
+        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white dark:border-gray-900" />
     </div>
 );
 
@@ -434,9 +451,24 @@ export default function AgentInterface() {
         }
     }, []);
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
+    const [copiedMsgId, setCopiedMsgId] = useState<number | null>(null);
+
+    const copyToClipboard = (text: string, msgId: number) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedMsgId(msgId);
+            setTimeout(() => setCopiedMsgId(null), 2000);
+        });
     };
+
+    const handleRetry = useCallback(async (msgIndex: number) => {
+        // Find the last user message before this AI message
+        const prevUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === 'user');
+        if (!prevUserMsg) return;
+        // Remove the AI message being retried
+        setMessages(prev => prev.filter((_, i) => i !== msgIndex));
+        // Re-send the user message
+        await handleSendMessage(prevUserMsg.content);
+    }, [messages, handleSendMessage]);
 
     const hasStarted = messages.length > 0;
 
@@ -794,13 +826,14 @@ export default function AgentInterface() {
                                                             <>
                                                                 <div className="flex gap-1 mt-4" dir="ltr">
                                                                     <button
-                                                                        onClick={() => copyToClipboard(msg.content)}
+                                                                        onClick={() => copyToClipboard(msg.content, msg.id)}
                                                                         className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
-                                                                        title="Copy"
+                                                                        title={copiedMsgId === msg.id ? 'Copied!' : 'Copy'}
                                                                     >
-                                                                        <Copy className="w-3.5 h-3.5" />
+                                                                        {copiedMsgId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                                                                     </button>
                                                                     <button
+                                                                        onClick={() => handleRetry(index)}
                                                                         className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                                                                         title="Retry"
                                                                     >
