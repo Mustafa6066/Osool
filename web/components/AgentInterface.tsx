@@ -520,7 +520,9 @@ export default function AgentInterface() {
                                                                                     />
                                                                                 </motion.div>
                                                                             ))}
-                                                                    </AnimatePresence>
+                                                                </AnimatePresence>
+                                                            </div>
+                                                        )}
 
                                                         {/* Analytics Panel */}
                                                         {msg.analyticsContext?.has_analytics && (!msg.allProperties || msg.allProperties.length === 0) && (
@@ -564,6 +566,15 @@ export default function AgentInterface() {
                                                                     )}
                                                                 </div>
                                                                 </motion.div>
+                                                        )}
+
+                                                        {/* Property Cards */}
+                                                        {msg.allProperties && msg.allProperties.length > 0 && (
+                                                            <div className="mt-5 space-y-2" dir="ltr">
+                                                                {msg.allProperties.map((prop, idx) => (
+                                                                    <div
+                                                                        key={prop.id}
+                                                                        onClick={() => { setActiveContext({ property: prop }); setContextPaneOpen(true); }}
                                                                         className="group relative flex gap-4 p-4 border border-[var(--color-border)]/60 hover:border-emerald-500/40 bg-[var(--color-surface)]/60 backdrop-blur-sm rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
                                                                         style={{ animationDelay: `${idx * 80}ms` }}
                                                                     >
