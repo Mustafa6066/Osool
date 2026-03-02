@@ -518,8 +518,8 @@ class WolfBrain:
             hunt_strategy = "none"
             pivot_message = None
             
-            # Determine "Smart Display" Strategy (Psychology-Driven Card Gate v3)
-            showing_strategy = self._psychology_card_gate(intent, psychology, is_discovery_complete, lead_score=lead_score, memory=memory, history=history)
+            # Determine "Smart Display" Strategy (Psychology-Driven Card Gate v4 — Readiness-First)
+            showing_strategy = self._psychology_card_gate(intent, psychology, is_discovery_complete, lead_score=lead_score, memory=memory, history=history, card_readiness=card_readiness)
 
             # ── OVERRIDE: Explicit price-range query → always show properties ──
             # When user says "I want from 3M to 5M" or "عايز من 3 ل 5 مليون"
@@ -530,33 +530,26 @@ class WolfBrain:
             has_location = bool(intent.filters.get('location'))
             is_search_intent = intent.action in ['search', 'price_check']
 
-            # Budget-range override — but ONLY after enough engagement.
-            # Early turns (< 3 user messages) should show analytics first,
-            # then upgrade to FULL_LIST on the next turn.
+            # Budget-range override — respects readiness ceiling.
+            # Having a budget does NOT auto-show cards; psychology must agree.
             engagement_turns = len([m for m in history if m.get('role') == 'user'])
+            cr_score = card_readiness.get("readiness_score", 0) if card_readiness else 0
             if has_budget_range and showing_strategy in ['NONE', 'ANALYTICS_ONLY']:
-                if engagement_turns >= 3:
-                    # Enough conversation depth — show full list
-                    if is_search_intent or has_location:
-                        showing_strategy = 'FULL_LIST'
-                        logger.info(f"🔓 Budget-range override: showing FULL_LIST (budget range + {'location' if has_location else 'search intent'} + depth={engagement_turns})")
-                    elif has_budget_range:
-                        showing_strategy = 'FULL_LIST'
-                        logger.info(f"🔓 Budget-range override: showing FULL_LIST (budget range only — will group by area)")
+                if engagement_turns >= 4 and cr_score >= 45:
+                    showing_strategy = 'FULL_LIST'
+                    logger.info(f"🔓 Budget override → FULL_LIST (depth={engagement_turns}, readiness={cr_score})")
+                elif engagement_turns >= 3 and cr_score >= 20:
+                    showing_strategy = 'TEASER'
+                    logger.info(f"🔓 Budget override → TEASER (depth={engagement_turns}, readiness={cr_score})")
                 else:
-                    # Early conversation — show analytics with charts first
-                    if has_location:
-                        showing_strategy = 'ANALYTICS_ONLY'
-                        logger.info(f"📊 Budget-range early gate: ANALYTICS_ONLY first (depth={engagement_turns}, need ≥3 for FULL_LIST)")
-                    else:
-                        showing_strategy = 'ANALYTICS_ONLY'
-                        logger.info(f"📊 Budget-range early gate: ANALYTICS_ONLY (no location, depth={engagement_turns})")
+                    showing_strategy = 'ANALYTICS_ONLY'
+                    logger.info(f"📊 Budget present but gated: ANALYTICS_ONLY (depth={engagement_turns}, readiness={cr_score})")
 
-            # Safety: if card readiness very low AND no explicit price range, hold back
-            if card_readiness["readiness_score"] < 20 and showing_strategy in ['TEASER', 'FULL_LIST'] and not has_budget_range:
+            # Safety net: readiness < 20 → always cap at ANALYTICS_ONLY
+            if card_readiness and card_readiness.get("readiness_score", 0) < 20 and showing_strategy in ['TEASER', 'FULL_LIST']:
                 showing_strategy = 'ANALYTICS_ONLY'
-                logger.info(f"🛡️ Psychology override: readiness={card_readiness['readiness_score']}, forced ANALYTICS_ONLY")
-            logger.info(f"👁️ Visual Strategy: {showing_strategy} (readiness={card_readiness['readiness_score']})")
+                logger.info(f"🛡️ Psychology safety net: readiness={card_readiness.get('readiness_score', 0)}, forced ANALYTICS_ONLY")
+            logger.info(f"👁️ Visual Strategy: {showing_strategy} (readiness={card_readiness.get('readiness_score', 0) if card_readiness else 0})")
 
             # Only search if strategy is TEASER or FULL_LIST
             if showing_strategy in ['TEASER', 'FULL_LIST']:
@@ -1297,20 +1290,23 @@ class WolfBrain:
         is_discovery_complete: bool,
         lead_score: int = 0,
         memory: Optional[Any] = None,
-        history: Optional[List[Dict]] = None
+        history: Optional[List[Dict]] = None,
+        card_readiness: Optional[Dict] = None
     ) -> str:
         """
-        Psychology-Driven Card Display Gate v3.
+        Psychology-Driven Card Display Gate v4 — Readiness-First.
+
+        Card readiness score is the PRIMARY signal. Discovery status can only
+        UPGRADE within readiness bounds; it cannot bypass psychology.
+
+        Hard rules:
+        - < 3 user turns  → max ANALYTICS_ONLY (no exceptions except hard blocks)
+        - < 4 user turns  → max TEASER
+        - readiness < 20   → max ANALYTICS_ONLY
+        - readiness 20-44  → max TEASER
+        - readiness >= 45  → FULL_LIST allowed
 
         Returns: 'NONE', 'ANALYTICS_ONLY', 'TEASER', 'FULL_LIST'
-
-        Tiers:
-        - NONE:           No data, no cards (educational, no location, hard trust blocks)
-        - ANALYTICS_ONLY: Show market data/charts but zero property cards (analytics-first)
-        - TEASER:         1 anchor property after analytics context
-        - FULL_LIST:      3-5 properties with full comparison
-
-        Psychology drives the gate — not just lead score.
         """
         history = history or []
         state = psychology.primary_state
@@ -1319,7 +1315,40 @@ class WolfBrain:
         has_location = bool(intent.filters.get("location"))
         has_budget = bool(intent.filters.get("budget_max"))
 
-        # ── HARD BLOCKS (never show cards) ──
+        # Extract readiness score
+        readiness_score = card_readiness.get("readiness_score", 0) if card_readiness else 0
+        readiness_rec = card_readiness.get("recommendation", "NONE") if card_readiness else "NONE"
+
+        # ── CEILING FUNCTION: Hard cap based on readiness + engagement depth ──
+        tier_order = ['NONE', 'ANALYTICS_ONLY', 'TEASER', 'FULL_LIST']
+
+        def apply_ceiling(proposed: str) -> str:
+            """Cap proposed strategy by readiness score AND engagement depth."""
+            # Max by engagement depth
+            if engagement_depth < 3:
+                depth_max = 'ANALYTICS_ONLY'
+            elif engagement_depth < 4:
+                depth_max = 'TEASER'
+            else:
+                depth_max = 'FULL_LIST'
+
+            # Max by readiness score
+            if readiness_score < 20:
+                readiness_max = 'ANALYTICS_ONLY'
+            elif readiness_score < 45:
+                readiness_max = 'TEASER'
+            else:
+                readiness_max = 'FULL_LIST'
+
+            # Ceiling = stricter of the two
+            ceiling = tier_order[min(tier_order.index(depth_max), tier_order.index(readiness_max))]
+
+            if tier_order.index(proposed) > tier_order.index(ceiling):
+                logger.info(f"🔒 Ceiling: {proposed} → {ceiling} (depth={engagement_depth}, readiness={readiness_score})")
+                return ceiling
+            return proposed
+
+        # ── HARD BLOCKS (never show cards — bypass ceiling) ──
         if state == PsychologicalState.TRUST_DEFICIT:
             logger.info("👁️ Gate: NONE (Trust Deficit — build confidence first)")
             return 'NONE'
@@ -1328,86 +1357,103 @@ class WolfBrain:
             logger.info("👁️ Gate: NONE (Legal Anxiety + low trust)")
             return 'NONE'
 
-        # Educational / no location → no cards (UNLESS they have a budget = they want to see units)
         if intent.action in ["investment", "general", "legal"] and not has_location and not has_budget:
             logger.info("👁️ Gate: NONE (Educational query without location or budget)")
             return 'NONE'
 
-        # ── ANALYTICS_ONLY tier (show data, not cards) ──
+        # ── ANALYTICS_ONLY tier (psychology-specific gates) ──
         if state == PsychologicalState.ANALYSIS_PARALYSIS:
-            if engagement_depth < 4:
-                logger.info(f"👁️ Gate: ANALYTICS_ONLY (Analysis Paralysis, depth={engagement_depth})")
-                return 'ANALYTICS_ONLY'
-            logger.info("👁️ Gate: TEASER (Analysis Paralysis resolved after 4+ turns)")
-            return 'TEASER'
+            if engagement_depth < 5:
+                result = apply_ceiling('ANALYTICS_ONLY')
+                logger.info(f"👁️ Gate: {result} (Analysis Paralysis, depth={engagement_depth})")
+                return result
+            result = apply_ceiling('TEASER')
+            logger.info(f"👁️ Gate: {result} (Analysis Paralysis resolved after 5+ turns)")
+            return result
 
         if state == PsychologicalState.RISK_AVERSE and trust_level < 0.6:
-            logger.info(f"👁️ Gate: ANALYTICS_ONLY (Risk Averse, trust={trust_level:.2f})")
-            return 'ANALYTICS_ONLY'
+            result = apply_ceiling('ANALYTICS_ONLY')
+            logger.info(f"👁️ Gate: {result} (Risk Averse, trust={trust_level:.2f})")
+            return result
 
         if state in [PsychologicalState.MACRO_SKEPTIC, PsychologicalState.SKEPTICISM]:
-            if engagement_depth < 3:
-                logger.info(f"👁️ Gate: ANALYTICS_ONLY (Skeptic, depth={engagement_depth})")
-                return 'ANALYTICS_ONLY'
+            if engagement_depth < 4:
+                result = apply_ceiling('ANALYTICS_ONLY')
+                logger.info(f"👁️ Gate: {result} (Skeptic, depth={engagement_depth})")
+                return result
 
         if state == PsychologicalState.INFLATION_REFUGEE and not has_budget:
-            logger.info("👁️ Gate: ANALYTICS_ONLY (Inflation Refugee — show economic data first)")
-            return 'ANALYTICS_ONLY'
+            result = apply_ceiling('ANALYTICS_ONLY')
+            logger.info(f"👁️ Gate: {result} (Inflation Refugee — show economic data first)")
+            return result
 
         # Cold leads → analytics first
         if lead_score < 20 and not is_discovery_complete:
             if intent.action not in ["search", "price_check"]:
                 if has_location:
-                    logger.info(f"👁️ Gate: ANALYTICS_ONLY (Cold lead={lead_score}, has location)")
-                    return 'ANALYTICS_ONLY'
+                    result = apply_ceiling('ANALYTICS_ONLY')
+                    logger.info(f"👁️ Gate: {result} (Cold lead={lead_score}, has location)")
+                    return result
                 logger.info(f"👁️ Gate: NONE (Cold lead={lead_score}, no location)")
                 return 'NONE'
 
-        # ── FAST-TRACK tier (psychology says ready) ──
+        # ── FAST-TRACK tier (psychology says eager — still ceiling-gated) ──
         if state == PsychologicalState.IMPULSE_BUYER and has_location:
             if is_discovery_complete or has_budget:
-                logger.info("👁️ Gate: FULL_LIST (Impulse Buyer + qualified)")
-                return 'FULL_LIST'
-            logger.info("👁️ Gate: TEASER (Impulse Buyer — quick anchor)")
-            return 'TEASER'
+                result = apply_ceiling('FULL_LIST')
+                logger.info(f"👁️ Gate: {result} (Impulse Buyer + qualified)")
+                return result
+            result = apply_ceiling('TEASER')
+            logger.info(f"👁️ Gate: {result} (Impulse Buyer — quick anchor)")
+            return result
 
         if state in [PsychologicalState.GREED_DRIVEN, PsychologicalState.FOMO]:
             if lead_score >= 30 and has_location:
-                logger.info(f"👁️ Gate: FULL_LIST ({state.value} + warm lead)")
-                return 'FULL_LIST'
+                result = apply_ceiling('FULL_LIST')
+                logger.info(f"👁️ Gate: {result} ({state.value} + warm lead)")
+                return result
             if has_location:
-                logger.info(f"👁️ Gate: TEASER ({state.value} + location)")
-                return 'TEASER'
-            return 'ANALYTICS_ONLY'
+                result = apply_ceiling('TEASER')
+                logger.info(f"👁️ Gate: {result} ({state.value} + location)")
+                return result
+            return apply_ceiling('ANALYTICS_ONLY')
 
-        # ── Explicit show request ──
+        # ── Explicit show request — still respect engagement ceiling ──
         show_keywords = ["show", "أوريني", "ورجيني", "best", "أفضل", "options", "خيارات", "وريني", "عايز اشوف"]
         if any(kw in intent.raw_query.lower() for kw in show_keywords):
-            logger.info("👁️ Gate: FULL_LIST (Explicit show request)")
-            return 'FULL_LIST'
+            result = apply_ceiling('FULL_LIST')
+            logger.info(f"👁️ Gate: {result} (Explicit show request, ceiling-adjusted)")
+            return result
 
-        # ── Discovery complete → FULL_LIST ──
+        # ── Discovery complete → upgrade ONE level from readiness base ──
         if is_discovery_complete:
-            logger.info("👁️ Gate: FULL_LIST (Discovery complete)")
-            return 'FULL_LIST'
+            base_idx = tier_order.index(readiness_rec) if readiness_rec in tier_order else 0
+            upgraded = tier_order[min(base_idx + 1, len(tier_order) - 1)]
+            result = apply_ceiling(upgraded)
+            logger.info(f"👁️ Gate: {result} (Discovery complete, base={readiness_rec} → upgraded={upgraded})")
+            return result
 
         # ── Warm/hot lead upgrade ──
         if lead_score >= 60 and has_location:
-            logger.info(f"👁️ Gate: FULL_LIST (Hot lead upgrade: {lead_score})")
-            return 'FULL_LIST'
+            result = apply_ceiling('FULL_LIST')
+            logger.info(f"👁️ Gate: {result} (Hot lead upgrade: {lead_score})")
+            return result
 
         # ── Has location but no budget → analytics then teaser ──
         if has_location and not has_budget:
-            if engagement_depth >= 2:
-                logger.info("👁️ Gate: TEASER (Location + engagement ≥ 2)")
-                return 'TEASER'
-            logger.info("👁️ Gate: ANALYTICS_ONLY (Location only, early conversation)")
-            return 'ANALYTICS_ONLY'
+            if engagement_depth >= 3:
+                result = apply_ceiling('TEASER')
+                logger.info(f"👁️ Gate: {result} (Location + engagement ≥ 3)")
+                return result
+            result = apply_ceiling('ANALYTICS_ONLY')
+            logger.info(f"👁️ Gate: {result} (Location only, early conversation)")
+            return result
 
         # ── Default: analytics if location, else none ──
         if has_location:
-            logger.info("👁️ Gate: ANALYTICS_ONLY (Default with location)")
-            return 'ANALYTICS_ONLY'
+            result = apply_ceiling('ANALYTICS_ONLY')
+            logger.info(f"👁️ Gate: {result} (Default with location)")
+            return result
 
         logger.info("👁️ Gate: NONE (Default fallback)")
         return 'NONE'
