@@ -530,14 +530,27 @@ class WolfBrain:
             has_location = bool(intent.filters.get('location'))
             is_search_intent = intent.action in ['search', 'price_check']
 
+            # Budget-range override — but ONLY after enough engagement.
+            # Early turns (< 3 user messages) should show analytics first,
+            # then upgrade to FULL_LIST on the next turn.
+            engagement_turns = len([m for m in history if m.get('role') == 'user'])
             if has_budget_range and showing_strategy in ['NONE', 'ANALYTICS_ONLY']:
-                if is_search_intent or has_location:
-                    showing_strategy = 'FULL_LIST'
-                    logger.info(f"🔓 Budget-range override: showing FULL_LIST (budget range + {'location' if has_location else 'search intent'})")
-                elif has_budget_range:
-                    # Pure budget query without location — show grouped by area
-                    showing_strategy = 'FULL_LIST'
-                    logger.info(f"🔓 Budget-range override: showing FULL_LIST (budget range only — will group by area)")
+                if engagement_turns >= 3:
+                    # Enough conversation depth — show full list
+                    if is_search_intent or has_location:
+                        showing_strategy = 'FULL_LIST'
+                        logger.info(f"🔓 Budget-range override: showing FULL_LIST (budget range + {'location' if has_location else 'search intent'} + depth={engagement_turns})")
+                    elif has_budget_range:
+                        showing_strategy = 'FULL_LIST'
+                        logger.info(f"🔓 Budget-range override: showing FULL_LIST (budget range only — will group by area)")
+                else:
+                    # Early conversation — show analytics with charts first
+                    if has_location:
+                        showing_strategy = 'ANALYTICS_ONLY'
+                        logger.info(f"📊 Budget-range early gate: ANALYTICS_ONLY first (depth={engagement_turns}, need ≥3 for FULL_LIST)")
+                    else:
+                        showing_strategy = 'ANALYTICS_ONLY'
+                        logger.info(f"📊 Budget-range early gate: ANALYTICS_ONLY (no location, depth={engagement_turns})")
 
             # Safety: if card readiness very low AND no explicit price range, hold back
             if card_readiness["readiness_score"] < 20 and showing_strategy in ['TEASER', 'FULL_LIST'] and not has_budget_range:
@@ -1421,18 +1434,20 @@ class WolfBrain:
             return context
 
         try:
-            # Parallel fetch: market pulse + economic data
-            pulse_task = market_layer.get_real_time_market_pulse(location)
-            econ_task = analytical_engine.get_live_market_data(session)
-
-            pulse, econ = await asyncio.gather(pulse_task, econ_task, return_exceptions=True)
-
-            # Handle exceptions from gather
-            if isinstance(pulse, Exception):
-                logger.warning(f"Market pulse fetch failed: {pulse}")
+            # Sequential fetch: both use the same async session, so we CANNOT
+            # run them concurrently (SQLAlchemy async sessions forbid it).
+            pulse = None
+            econ = {}
+            try:
+                pulse = await market_layer.get_real_time_market_pulse(location)
+            except Exception as e:
+                logger.warning(f"Market pulse fetch failed: {e}")
                 pulse = None
-            if isinstance(econ, Exception):
-                logger.warning(f"Economic data fetch failed: {econ}")
+
+            try:
+                econ = await analytical_engine.get_live_market_data(session)
+            except Exception as e:
+                logger.warning(f"Economic data fetch failed: {e}")
                 econ = MARKET_DATA.copy() if 'MARKET_DATA' in dir() else {}
 
             # Sync fetch: area context + market segment
@@ -1722,19 +1737,18 @@ class WolfBrain:
                     "discount": bargains[0].get("la2ta_score", 0)
                 })
         
-        # Growth chart for any location + price/growth-related query (outside ANALYTICS_ONLY too)
-        if location and showing_strategy != 'ANALYTICS_ONLY':
-            price_keywords = ["سعر", "أسعار", "نمو", "growth", "price", "تطور", "سنوات", "ارتفاع", "chart", "تغير", "رسم"]
-            if any(kw in query_lower for kw in price_keywords):
-                growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
-                if growth_data.get('found') and growth_data.get('data_points'):
-                    add_action({
-                        "type": "price_growth_chart",
-                        "priority": "high",
-                        "title": f"📈 تطور الأسعار في {growth_data.get('location_ar', location)} (2021–2026)",
-                        "title_en": f"📈 Price Growth in {location} (2021–2026)",
-                        "data": growth_data
-                    })
+        # Growth chart: ALWAYS inject when a location exists — the price
+        # history chart is minimal and always adds value to the conversation.
+        if location:
+            growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
+            if growth_data.get('found') and growth_data.get('data_points'):
+                add_action({
+                    "type": "price_growth_chart",
+                    "priority": "high",
+                    "title": f"📈 تطور الأسعار في {growth_data.get('location_ar', location)} (2021–2026)",
+                    "title_en": f"📈 Price Growth in {location} (2021–2026)",
+                    "data": growth_data
+                })
 
         # Sort by priority
         priority_order = {"high": 0, "medium": 1, "low": 2}
@@ -2443,7 +2457,12 @@ DO NOT mention any prices outside this range.
             # max_tokens MUST be > thinking.budget_tokens per Anthropic API
             thinking_budget = config.CLAUDE_THINKING_BUDGET
             max_tok = config.CLAUDE_MAX_TOKENS
-            if config.CLAUDE_EXTENDED_THINKING and max_tok > thinking_budget:
+            # Auto-adjust: if max_tokens is too low for the thinking budget,
+            # shrink the budget instead of disabling thinking entirely.
+            if config.CLAUDE_EXTENDED_THINKING:
+                if max_tok <= thinking_budget:
+                    thinking_budget = max(1024, max_tok - 1024)
+                    logger.info(f"🧠 Auto-adjusted thinking budget to {thinking_budget} (max_tokens={max_tok})")
                 response = await self._call_claude_with_retry(
                     model=claude_model,
                     max_tokens=max_tok,
@@ -2455,9 +2474,6 @@ DO NOT mention any prices outside this range.
                     messages=messages,
                 )
             else:
-                # Fallback: disable thinking if budget >= max_tokens
-                if config.CLAUDE_EXTENDED_THINKING:
-                    logger.warning(f"⚠️ Extended thinking disabled: max_tokens({max_tok}) must be > budget_tokens({thinking_budget})")
                 response = await self._call_claude_with_retry(
                     model=claude_model,
                     max_tokens=min(4096, max_tok),
@@ -2549,10 +2565,14 @@ DO NOT mention any prices outside this range.
             )
             
             # max_tokens MUST be > thinking.budget_tokens per Anthropic API
-            if config.CLAUDE_EXTENDED_THINKING and config.CLAUDE_MAX_TOKENS > config.CLAUDE_THINKING_BUDGET:
+            # Auto-adjust budget if max_tokens is too low
+            if config.CLAUDE_EXTENDED_THINKING:
+                stream_budget = config.CLAUDE_THINKING_BUDGET
+                if config.CLAUDE_MAX_TOKENS <= stream_budget:
+                    stream_budget = max(1024, config.CLAUDE_MAX_TOKENS - 1024)
                 stream_kwargs["thinking"] = {
                     "type": "enabled",
-                    "budget_tokens": config.CLAUDE_THINKING_BUDGET,
+                    "budget_tokens": stream_budget,
                 }
             else:
                 stream_kwargs["temperature"] = 0.7
