@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Sparkles, MapPin,
     X, ChevronRight,
@@ -477,43 +478,59 @@ export default function AgentInterface() {
                                                         {/* Visualizations */}
                                                         {msg.uiActions && msg.uiActions.length > 0 && (
                                                             <div className="mt-5 space-y-3" dir="ltr">
-                                                                {msg.uiActions
-                                                                    .filter((action: any) => {
-                                                                        if (action.type === 'property_cards') return false;
-                                                                        if (!action.data) return false;
-                                                                        const d = action.data;
-                                                                        if (action.type === 'area_analysis') {
-                                                                            const area = d.area || d.areas?.[0] || d;
-                                                                            if (!area?.name || (area?.avg_price_sqm || area?.avg_price_per_sqm || 0) === 0) return false;
-                                                                        }
-                                                                        if (action.type === 'inflation_killer') {
-                                                                            const hasP = d.projections?.length > 0 || d.data_points?.length > 0;
-                                                                            const hasS = d.summary?.cash_final > 0 || d.final_values?.cash_real_value > 0;
-                                                                            if (!hasP && !hasS) return false;
-                                                                        }
-                                                                        if (action.type === 'market_benchmark') {
-                                                                            if (!d.avg_price_sqm && !d.area_context?.avg_price_sqm) return false;
-                                                                        }
-                                                                        if (action.type === 'price_growth_chart') {
-                                                                            if (!d.data_points?.length || d.data_points.length < 2) return false;
-                                                                        }
-                                                                        return true;
-                                                                    })
-                                                                    .map((action: any, idx: number) => (
-                                                                        <div key={idx} className="animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
-                                                                            <VisualizationRenderer
-                                                                                type={action.type}
-                                                                                data={action.data || action}
-                                                                                isRTL={isArabic(msg.content)}
-                                                                            />
-                                                                        </div>
-                                                                    ))}
-                                                            </div>
-                                                        )}
+                                                                    <AnimatePresence>
+                                                                        {msg.uiActions
+                                                                            .filter((action: any) => {
+                                                                                if (action.type === 'property_cards') return false;
+                                                                                if (!action.data) return false;
+                                                                                const d = action.data;
+                                                                                if (action.type === 'area_analysis') {
+                                                                                    const area = d.area || d.areas?.[0] || d;
+                                                                                    if (!area?.name || (area?.avg_price_sqm || area?.avg_price_per_sqm || 0) === 0) return false;
+                                                                                }
+                                                                                if (action.type === 'inflation_killer') {
+                                                                                    const hasP = d.projections?.length > 0 || d.data_points?.length > 0;
+                                                                                    const hasS = d.summary?.cash_final > 0 || d.final_values?.cash_real_value > 0;
+                                                                                    if (!hasP && !hasS) return false;
+                                                                                }
+                                                                                if (action.type === 'market_benchmark') {
+                                                                                    if (!d.avg_price_sqm && !d.area_context?.avg_price_sqm) return false;
+                                                                                }
+                                                                                if (action.type === 'price_growth_chart') {
+                                                                                    if (!d.data_points?.length || d.data_points.length < 2) return false;
+                                                                                }
+                                                                                return true;
+                                                                            })
+                                                                            .map((action: any, idx: number) => (
+                                                                                <motion.div 
+                                                                                    key={idx}
+                                                                                    initial={{ opacity: 0, height: 0, scale: 0.95, filter: 'blur(4px)' }}
+                                                                                    animate={{ opacity: 1, height: 'auto', scale: 1, filter: 'blur(0px)' }}
+                                                                                    transition={{ 
+                                                                                        duration: 0.6, 
+                                                                                        ease: [0.16, 1, 0.3, 1], // easeOutExpo
+                                                                                        delay: idx * 0.15 
+                                                                                    }}
+                                                                                    className="overflow-hidden"
+                                                                                >
+                                                                                    <VisualizationRenderer
+                                                                                        type={action.type}
+                                                                                        data={action.data || action}
+                                                                                        isRTL={isArabic(msg.content)}
+                                                                                    />
+                                                                                </motion.div>
+                                                                            ))}
+                                                                    </AnimatePresence>
 
                                                         {/* Analytics Panel */}
                                                         {msg.analyticsContext?.has_analytics && (!msg.allProperties || msg.allProperties.length === 0) && (
-                                                            <div className="mt-5 p-6 rounded-[20px] border border-[var(--color-border)]/50 bg-[var(--color-surface)] shadow-[0_4px_24px_rgba(0,0,0,0.03)]" dir="ltr">
+                                                                <motion.div 
+                                                                    initial={{ opacity: 0, y: 15 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                                                                    className="mt-5 p-6 rounded-[20px] border border-[var(--color-border)]/50 bg-[var(--color-surface)] shadow-[0_4px_24px_rgba(0,0,0,0.03)]" 
+                                                                    dir="ltr"
+                                                                >
                                                                 <div className="flex items-center gap-2 mb-5">
                                                                     <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg">
                                                                         <BarChart2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
@@ -546,16 +563,7 @@ export default function AgentInterface() {
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Property Cards */}
-                                                        {msg.allProperties && msg.allProperties.length > 0 && (
-                                                            <div className="mt-5 space-y-2" dir="ltr">
-                                                                {msg.allProperties.map((prop, idx) => (
-                                                                    <div
-                                                                        key={prop.id}
-                                                                        onClick={() => { setActiveContext({ property: prop }); setContextPaneOpen(true); }}
+                                                                </motion.div>
                                                                         className="group relative flex gap-4 p-4 border border-[var(--color-border)]/60 hover:border-emerald-500/40 bg-[var(--color-surface)]/60 backdrop-blur-sm rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
                                                                         style={{ animationDelay: `${idx * 80}ms` }}
                                                                     >
@@ -643,12 +651,41 @@ export default function AgentInterface() {
 
                                 {/* Typing indicator */}
                                 {isTyping && (
-                                    <div className="flex gap-4 mb-6">
+                                    <div className="flex gap-4 mb-6 animate-fade-in" dir="auto">
                                         <AgentAvatar thinking={true} />
-                                        <div className="flex items-center gap-1 pt-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '0ms' }} />
-                                            <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '150ms' }} />
-                                            <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '300ms' }} />
+                                        <div className="flex-1 flex flex-col items-start gap-4">
+                                            <div className="flex items-center gap-1.5 pt-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '0ms' }} />
+                                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '150ms' }} />
+                                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '300ms' }} />
+                                            </div>
+
+                                            {/* Dynamic Data Gathering Skeleton */}
+                                            {(() => {
+                                                const lastMsg = messages.length > 0 ? messages[messages.length - 1].content.toLowerCase() : '';
+                                                const wantsChart = lastMsg.includes('chart') || lastMsg.includes('trend') || lastMsg.includes('price') || lastMsg.includes('analyze') || lastMsg.includes('compare') || lastMsg.includes('سعر') || lastMsg.includes('رسم') || lastMsg.includes('مقارنة') || lastMsg.includes('تحليل') || lastMsg.includes('growth') || lastMsg.includes('نمو');
+                                                
+                                                if (wantsChart) {
+                                                    return (
+                                                        <div className="w-[85%] max-w-lg mt-2 p-5 rounded-[20px] border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/5 shadow-sm overflow-hidden animate-pulse" dir="ltr">
+                                                            <div className="flex items-center gap-3 mb-6">
+                                                                <div className="w-5 h-5 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+                                                                <div className="flex flex-col gap-2">
+                                                                    <div className="h-2 w-32 bg-emerald-500/30 rounded-full" />
+                                                                    <div className="h-1.5 w-20 bg-emerald-500/15 rounded-full" />
+                                                                </div>
+                                                            </div>
+                                                            <div className="h-[120px] w-full flex items-end justify-between gap-1.5">
+                                                                {[30, 45, 35, 65, 50, 85, 75].map((h, i) => (
+                                                                    <div key={i} className="w-full bg-emerald-500/10 dark:bg-emerald-500/20 rounded-t border-t border-emerald-500/30 relative overflow-hidden" style={{ height: `${h}%` }}>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
                                         </div>
                                     </div>
                                 )}

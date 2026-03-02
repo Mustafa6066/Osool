@@ -248,7 +248,7 @@ export default function MarketTrendChart({ location, data, isRTL = false }: Mark
                                         name === "price" ? (isRTL ? "السعر" : "Price") : name
                                     ]}
                                 />
-                                <Area
+                                <Area animationDuration={2500} 
                                     type="monotone"
                                     dataKey="price"
                                     stroke={config.color}

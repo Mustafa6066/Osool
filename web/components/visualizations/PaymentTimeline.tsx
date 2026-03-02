@@ -188,7 +188,7 @@ export default function PaymentTimeline({ property, payment }: PaymentTimelinePr
                             }}
                             formatter={(value: number) => `${(value / 1000000).toFixed(2)}M EGP`}
                         />
-                        <Line
+                        <Line animationDuration={2500} 
                             type="monotone"
                             dataKey="paid"
                             stroke="#8b5cf6"
@@ -196,7 +196,7 @@ export default function PaymentTimeline({ property, payment }: PaymentTimelinePr
                             dot={{ fill: "#8b5cf6", r: 4 }}
                             name="Amount Paid"
                         />
-                        <Line
+                        <Line animationDuration={2500} 
                             type="monotone"
                             dataKey="remaining"
                             stroke="#ef4444"

@@ -196,7 +196,7 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
                             />
 
                             {/* Main area line — thicker, solid */}
-                            <Line
+                            <Line animationDuration={2500} 
                                 type="monotone"
                                 dataKey="area_price"
                                 name={displayName || "متوسط المنطقة"}
@@ -208,7 +208,7 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
 
                             {/* Developer lines — thinner, dashed */}
                             {developer_lines.map((dev, idx) => (
-                                <Line
+                                <Line animationDuration={2500} 
                                     key={dev.name}
                                     type="monotone"
                                     dataKey={`dev_${idx}`}

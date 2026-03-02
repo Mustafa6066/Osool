@@ -200,7 +200,7 @@ export default function CertificatesVsProperty({
                                 return null;
                             }}
                         />
-                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                        <Bar animationDuration={2500}  animationDuration={2500} animationDuration={2000} animationEasing="ease-out" dataKey="value" radius={[0, 4, 4, 0]}>
                             {comparisonData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}

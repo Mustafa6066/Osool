@@ -317,7 +317,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                                 </span>
                             )}
                         />
-                        <Area
+                        <Area animationDuration={2500} 
                             type="monotone"
                             dataKey="property"
                             stroke="#14b8a6"
@@ -325,7 +325,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                             fill="url(#colorProperty)"
                             name="property"
                         />
-                        <Area
+                        <Area animationDuration={2500} 
                             type="monotone"
                             dataKey="gold"
                             stroke="#eab308"
@@ -333,7 +333,7 @@ export default function InflationKillerChart(props: InflationKillerChartProps) {
                             fill="url(#colorGold)"
                             name="gold"
                         />
-                        <Area
+                        <Area animationDuration={2500} 
                             type="monotone"
                             dataKey="cash"
                             stroke="#ef4444"
