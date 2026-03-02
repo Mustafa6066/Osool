@@ -31,6 +31,9 @@ from fastapi import Depends, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Text processing utilities
 from app.utils.text_processing import clean_response_text
@@ -889,13 +892,10 @@ async def chat_with_agent(
     try:
         from app.agent.amr import amr_agent  # Wolf Brain V7
     except Exception as e:
-        print(f"❌ Critical Error: Failed to load Wolf Brain. details: {e}")
-        # Phase 5: Graceful degradation
-        import traceback
-        traceback.print_exc()
+        logger.critical(f"Failed to load Wolf Brain: {e}", exc_info=True)
         raise HTTPException(
             status_code=503,
-            detail=f"AI Service Unavailable: {str(e)}"
+            detail="AI Service temporarily unavailable. Please try again shortly."
         )
     from app.models import ChatMessage
     from sqlalchemy import select
@@ -907,6 +907,7 @@ async def chat_with_agent(
         result = await db.execute(
             select(ChatMessage)
             .filter(ChatMessage.session_id == req.session_id)
+            .filter(ChatMessage.user_id == user.id)  # Security: scope to authenticated user
             .order_by(ChatMessage.created_at.desc())
             .limit(60)  # Sufficient for Wolf Brain memory
         )
@@ -1101,6 +1102,7 @@ async def chat_stream(
             result = await db.execute(
                 select(ChatMessage)
                 .filter(ChatMessage.session_id == req.session_id)
+                .filter(ChatMessage.user_id == user.id)  # Security: scope to authenticated user
                 .order_by(ChatMessage.created_at.desc())
                 .limit(60)  # Increased from 20 to ensure memory engine has enough context
             )
@@ -1212,7 +1214,8 @@ async def chat_stream(
 
         except Exception as e:
             await db.rollback()
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+            logger.error(f"Streaming error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'message': 'An error occurred. Please try again.'}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         generate(),

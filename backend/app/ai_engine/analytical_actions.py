@@ -80,8 +80,10 @@ def generate_analytical_ui_actions(
             })
 
         # 4a. BANK/CASH/CERTIFICATE OBJECTION KILLER (HIGHEST PRIORITY)
-        # In Egypt, the #1 competitor is bank certificates (27% interest).
+        # In Egypt, the #1 competitor is bank certificates.
         # When user mentions bank/cash/certificates, show Inflation Killer immediately.
+        from .analytical_engine import MARKET_DATA as _mdata
+
         if memory:
             objections_str = str(getattr(memory, 'objections_raised', [])).lower()
             user_query = str(getattr(memory, 'last_query', '')).lower()
@@ -97,9 +99,9 @@ def generate_analytical_ui_actions(
                     if properties:
                         investment_amount = properties[0].get('price', 5000000)
                     
-                    # 2024 Market Data
-                    BANK_CD_RATE = 0.27
-                    INFLATION_RATE = 0.33
+                    # Canonical market rates
+                    BANK_CD_RATE = _mdata["bank_cd_rate"]      # 0.22 (22%)
+                    INFLATION_RATE = _mdata["inflation_rate"]   # 0.136 (13.6%)
                     
                     real_loss_percent = round((INFLATION_RATE - BANK_CD_RATE) * 100, 1)
 
@@ -135,17 +137,22 @@ def generate_analytical_ui_actions(
             # THE INFLATION KILLER (For the "Hesitant Saver")
             # In Egypt, everyone is afraid their cash is burning due to devaluation
             if psych_value in ['RISK_AVERSE', 'ANALYSIS_PARALYSIS']:
+                _inflation_pct = round(_mdata["inflation_rate"] * 100, 1)
+                _bank_pct = round(_mdata["bank_cd_rate"] * 100)
+                _prop_growth_pct = round(_mdata["property_appreciation"] * 100)
+                _real_return = round((_mdata["bank_cd_rate"] - _mdata["inflation_rate"]) * 100, 1)
+
                 actions.append({
                     'type': 'inflation_killer',
                     'data': {
-                        'cash_erosion': '28%',  # Egyptian inflation assumption
-                        'property_growth': '18%',
+                        'cash_erosion': f'{_inflation_pct}%',
+                        'property_growth': f'{_prop_growth_pct}%',
                         'initial_investment': properties[0].get('price', 5000000) if properties else 5000000,
                         'years': 5,
                         'message_ar': 'شوف إيه هيحصل لـ 1 مليون في البنك vs. العقار ده على 5 سنين.',
                         'message_en': 'See what happens to 1M EGP in the bank vs. this property over 5 years.',
-                        'bank_rate': 27,  # Current Egyptian bank CD rate
-                        'real_return': -6,  # 27% interest - 33% inflation = -6% real return
+                        'bank_rate': _bank_pct,
+                        'real_return': _real_return,
                     },
                     'priority': 10,  # TOP PRIORITY for hesitant users
                     'trigger_reason': 'Psychology: User scared of losing money (risk_averse/analysis_paralysis)'

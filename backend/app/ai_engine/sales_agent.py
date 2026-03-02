@@ -451,8 +451,8 @@ def get_market_benchmark(location: str, unit_price_sqm: int) -> str:
                 market_avg = price
                 break
                 
-        inflation_rate = int(MARKET_DATA.get("inflation_rate", 0.33) * 100)
-        bank_cert_rate = int(MARKET_DATA.get("bank_cd_rate", 0.27) * 100)
+        inflation_rate = int(MARKET_DATA.get("inflation_rate", 0.136) * 100)
+        bank_cert_rate = int(MARKET_DATA.get("bank_cd_rate", 0.22) * 100)
         
         diff = ((unit_price_sqm - market_avg) / market_avg) * 100
         
@@ -461,10 +461,14 @@ def get_market_benchmark(location: str, unit_price_sqm: int) -> str:
         else:
             verdict = f"🟡 **PREMIUM:** This unit is priced {diff:.1f}% above average, justified only by finishing/view."
             
+        property_growth = int(MARKET_DATA.get("nominal_property_appreciation", 0.304) * 100)
+        real_growth = int(MARKET_DATA.get("real_property_growth", 0.145) * 100)
+        net_advantage = property_growth - bank_cert_rate
+        
         return json.dumps({
             "verdict": verdict,
-            "inflation_context": f"Real Estate grew ~40% last year vs Inflation 35%. Validating investment.",
-            "opportunity_cost": f"This unit outperforms Bank Certificates (27%) by estimated 12% net value annually.",
+            "inflation_context": f"Real Estate grew ~{property_growth}% last year vs Inflation {inflation_rate}%. Validating investment.",
+            "opportunity_cost": f"This unit outperforms Bank Certificates ({bank_cert_rate}%) by estimated {net_advantage}% net value annually.",
             "market_average": f"{market_avg:,} EGP/sqm",
             "wolf_analysis": "Waiting means losing purchasing power. The market is moving faster than savings."
         })

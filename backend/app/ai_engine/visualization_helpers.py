@@ -538,12 +538,13 @@ def generate_inflation_killer_chart(
     Returns:
         Structured data for InflationKillerChart component
     """
-    # Egyptian market assumptions (2024-2025 data)
-    INFLATION_RATE = 0.28           # 28% annual inflation (CBE data)
-    GOLD_APPRECIATION = 0.35        # 35% annual (EGX Gold historical)
-    PROPERTY_APPRECIATION = 0.18    # 18% annual (Prime locations)
-    RENTAL_YIELD = 0.065            # 6.5% rental yield
-    RENT_INCREASE_RATE = 0.10       # 10% annual rent increase
+    # Egyptian market assumptions — sourced from MARKET_DATA (canonical)
+    from .analytical_engine import MARKET_DATA
+    INFLATION_RATE = MARKET_DATA["inflation_rate"]             # 13.6% (2026 forecast)
+    GOLD_APPRECIATION = MARKET_DATA.get("gold_appreciation", 0.15)  # 15%
+    PROPERTY_APPRECIATION = MARKET_DATA["property_appreciation"]  # 20%
+    RENTAL_YIELD = MARKET_DATA["rental_yield_avg"]             # 7.5%
+    RENT_INCREASE_RATE = MARKET_DATA["rent_increase_rate"]      # 12%
 
     data_points = []
 
@@ -645,12 +646,13 @@ def generate_certificates_vs_property_chart(
     Returns:
         Structured data for CertificatesVsProperty component
     """
-    # Egyptian market rates (2024-2025)
-    BANK_CD_RATE = 0.27              # 27% annual interest (EGP CDs)
-    INFLATION_RATE = 0.33            # 33% effective inflation (real purchasing power loss)
-    PROPERTY_APPRECIATION = 0.18     # 18% annual property appreciation
-    RENTAL_YIELD = 0.065             # 6.5% rental yield
-    RENT_INCREASE_RATE = 0.10        # 10% annual rent increase
+    # Egyptian market rates — sourced from MARKET_DATA (canonical)
+    from .analytical_engine import MARKET_DATA as _md
+    BANK_CD_RATE = _md["bank_cd_rate"]                # 22%
+    INFLATION_RATE = _md["inflation_rate"]             # 13.6%
+    PROPERTY_APPRECIATION = _md["property_appreciation"]  # 20%
+    RENTAL_YIELD = _md["rental_yield_avg"]             # 7.5%
+    RENT_INCREASE_RATE = _md["rent_increase_rate"]     # 12%
     
     data_points = []
     

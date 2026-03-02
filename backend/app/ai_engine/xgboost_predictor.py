@@ -377,11 +377,11 @@ class OsoolXGBoostPredictor:
         Calculate how well this property hedges against inflation vs alternatives.
         The "Inflation Killer" - shows property vs cash vs gold over time.
 
-        Uses Egyptian market data:
-        - Inflation Rate: ~28% (2024)
-        - Gold Appreciation: ~35% annually in EGP terms
-        - Property Appreciation: ~18% annually + rental yield
-        - Rental Yield: ~6.5% annually
+        Uses Egyptian market data (sourced from MARKET_DATA):
+        - Inflation Rate: ~13.6% (2026 mid-year forecast)
+        - Gold Appreciation: ~15% annually in EGP terms
+        - Property Appreciation: ~20% annually + rental yield
+        - Rental Yield: ~7.5% annually
 
         Args:
             property_features: Dict with 'price' and optionally 'location', 'size_sqm'
@@ -390,12 +390,13 @@ class OsoolXGBoostPredictor:
         Returns:
             Dict with projections, hedge_score, and comparison data
         """
-        # Egyptian market constants (2024 data)
-        INFLATION_RATE = 0.28  # 28% annual inflation
-        GOLD_APPRECIATION = 0.35  # Gold in EGP terms
-        PROPERTY_APPRECIATION = 0.18  # Property appreciation
-        RENTAL_YIELD = 0.065  # 6.5% annual rental yield
-        RENT_INCREASE_RATE = 0.10  # 10% annual rent increase
+        # Egyptian market constants — sourced from MARKET_DATA (canonical)
+        from .analytical_engine import MARKET_DATA
+        INFLATION_RATE = MARKET_DATA["inflation_rate"]             # 13.6%
+        GOLD_APPRECIATION = MARKET_DATA.get("gold_appreciation", 0.15)  # 15%
+        PROPERTY_APPRECIATION = MARKET_DATA["property_appreciation"]  # 20%
+        RENTAL_YIELD = MARKET_DATA["rental_yield_avg"]             # 7.5%
+        RENT_INCREASE_RATE = MARKET_DATA["rent_increase_rate"]      # 12%
 
         initial_investment = property_features.get('price', 5_000_000)
 

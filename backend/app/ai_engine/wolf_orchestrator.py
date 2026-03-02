@@ -22,6 +22,7 @@ import re
 from typing import Dict, List, Any, Optional, AsyncIterator
 from datetime import datetime
 from anthropic import AsyncAnthropic
+import anthropic
 from openai import AsyncOpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
@@ -618,6 +619,9 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 3: LOGIC GATES (Loop Detection & Feasibility)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Pre-initialize card_readiness (computed fully in Step 4A.2 below)
+            card_readiness = {"readiness_score": 0, "recommendation": "pending"}
+
             # HUMAN HANDOFF CHECK
             if "loop_detected" in lead_data.get("signals", []):
                 return {
@@ -2577,10 +2581,11 @@ Start with: "I've run the Law 114 check on this developer. They have 0 recorded 
                             growth_rate = int(rate * 100)
                             break
                 
-                # Economic constants (Egyptian market 2024)
-                inflation_rate = 33  # Real inflation
-                bank_rate = 27       # Best CD rate
-                negative_yield = inflation_rate - bank_rate  # 6% loss
+                # Economic constants (from canonical MARKET_DATA)
+                from .analytical_engine import MARKET_DATA as _mdata
+                inflation_rate = int(_mdata["inflation_rate"] * 100)    # 13.6 → 14
+                bank_rate = int(_mdata["bank_cd_rate"] * 100)            # 22
+                negative_yield = inflation_rate - bank_rate  # Negative means bank loses to inflation
                 
                 wolf_insight_instruction += f"""
 [PROTOCOL_E_SKEPTICISM_DESTROYER_ACTIVATED]
@@ -3333,11 +3338,11 @@ DO NOT mention any prices outside this range.
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type((Exception,)),
+        retry=retry_if_exception_type((anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.APITimeoutError)),
         reraise=True,
     )
     async def _call_claude_with_retry(self, **kwargs):
-        """Call Claude API with exponential backoff retry."""
+        """Call Claude API with exponential backoff retry (only transient errors)."""
         return await self.anthropic.messages.create(**kwargs)
     
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

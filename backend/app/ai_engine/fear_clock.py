@@ -271,7 +271,7 @@ USE THIS NATURALLY:
         self,
         monthly_installment: int,
         plan_years: int = 7,
-        inflation_rate: float = 0.30,
+        inflation_rate: float = None,
     ) -> Dict:
         """
         V3: The Installment Inflation Gift.
@@ -284,11 +284,15 @@ USE THIS NATURALLY:
         Args:
             monthly_installment: Current monthly payment in EGP
             plan_years: Total installment plan duration
-            inflation_rate: Annual inflation rate (default 30% for Egypt 2025)
+            inflation_rate: Annual inflation rate (default from MARKET_DATA)
         
         Returns:
             Dict with year-by-year real value of installments
         """
+        if inflation_rate is None:
+            from .analytical_engine import MARKET_DATA
+            inflation_rate = MARKET_DATA["inflation_rate"]  # 13.6%
+
         if monthly_installment <= 0 or plan_years <= 0:
             return {"available": False}
 
