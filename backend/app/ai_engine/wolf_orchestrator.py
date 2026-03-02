@@ -965,7 +965,7 @@ class WolfBrain:
             return []
 
     async def _execute_search_query(self, filters: Dict, db: AsyncSession) -> List[Dict]:
-        """Execute the actual search logic."""
+        """Execute the actual search logic with full filter support including resale/delivery."""
         # Build query text
         query_parts = []
         if 'location' in filters:
@@ -979,20 +979,44 @@ class WolfBrain:
         if 'budget_max' in filters and filters['budget_max']:
             budget_mil = filters['budget_max'] / 1_000_000
             query_parts.append(f"under {budget_mil} million")
+        # Include sale_type in query text for semantic search
+        if 'sale_type' in filters and filters['sale_type']:
+            sale_type_map = {"resale": "Resale", "developer": "Developer", "nawy_now": "Nawy Now"}
+            query_parts.append(sale_type_map.get(filters['sale_type'], filters['sale_type']))
+        if filters.get('is_delivered'):
+            query_parts.append("delivered ready to move")
+        if 'finishing' in filters and filters['finishing']:
+            query_parts.append(f"{filters['finishing']} finishing")
             
         query_text = " ".join(query_parts) if query_parts else "property"
         
-        # Vector search
+        # Map filter values to DB column values
+        sale_type_db = None
+        if 'sale_type' in filters and filters['sale_type']:
+            sale_type_map = {"resale": "Resale", "developer": "Developer", "nawy_now": "Nawy Now"}
+            sale_type_db = sale_type_map.get(filters['sale_type'].lower(), filters['sale_type'])
+        
+        finishing_db = None
+        if 'finishing' in filters and filters['finishing']:
+            fin_map = {"finished": "Finished", "semi-finished": "Semi-Finished", "semi_finished": "Semi-Finished",
+                       "core": "Core & Shell", "unfinished": "Core & Shell", "lux": "Finished", "ready": "Finished"}
+            finishing_db = fin_map.get(filters['finishing'].lower(), filters['finishing'])
+
+        # Vector search with full filter support
         results = await db_search_properties(
             db=db,
             query_text=query_text,
             limit=50,
             similarity_threshold=0.50,
             price_min=filters.get('budget_min'),
-            price_max=filters.get('budget_max')
+            price_max=filters.get('budget_max'),
+            sale_type=sale_type_db,
+            is_delivered=filters.get('is_delivered'),
+            finishing=finishing_db,
+            is_nawy_now=filters.get('is_nawy_now'),
         )
         
-        # Apply additional filters
+        # Apply additional filters (belt & suspenders post-filter)
         if 'budget_max' in filters and filters['budget_max']:
             results = [r for r in results if r.get('price', 0) <= filters['budget_max']]
         

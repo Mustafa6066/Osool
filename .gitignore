@@ -11,6 +11,9 @@ backend/.env.local
 # Vercel
 .vercel
 
+# Next.js
+.next/
+
 # Hardhat
 artifacts/
 cache/
@@ -29,3 +32,31 @@ __pycache__/
 venv/
 .venv/
 *.pkl
+
+# Temp / patch / diff files
+*.patch
+*.bak
+diff*.txt
+*_diff.txt
+*_diff.patch
+temp_*
+
+# Data outputs
+data/scrape_summary.json
+
+# Test artifacts
+backend/test_db.py
+test_scraper.py
+backend/debug_output.txt
+backend/tmpclaude-*
+
+# Utility / one-off scripts
+patch_smartnav.py
+patch_smartnav_2.py
+web/parse_html.py
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

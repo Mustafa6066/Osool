@@ -70,10 +70,10 @@ def upgrade() -> None:
     op.execute("""
         -- Convert TEXT JSON to VECTOR for rows that have embeddings
         UPDATE properties 
-        SET embedding_vector = embedding::vector(1536)
+        SET embedding_vector = embedding::text::vector(1536)
         WHERE embedding IS NOT NULL 
-        AND embedding != ''
-        AND embedding ~ '^\[.*\]$';
+        AND embedding::text != ''
+        AND embedding::text ~ '^\[.*\]$';
     """)
     
     op.execute("""

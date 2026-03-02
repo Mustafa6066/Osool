@@ -95,9 +95,17 @@ class Property(Base):
     # External Links
     image_url: Mapped[str] = mapped_column(Text, nullable=True)
     nawy_url: Mapped[str] = mapped_column(Text, nullable=True)
-    sale_type: Mapped[str] = mapped_column(String, nullable=True) # Resale, Developer
+    sale_type: Mapped[str] = mapped_column(String, nullable=True) # Resale, Developer, Nawy Now
 
-    # Vector Embedding for Semantic Search (1536 dim for OpenAI text-embedding-ada-002)
+    # Resale / Delivery Fields (v2)
+    is_delivered: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    is_cash_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    land_area: Mapped[int] = mapped_column(Integer, nullable=True)  # Land area (separate from BUA size_sqm)
+    nawy_reference: Mapped[str] = mapped_column(String, nullable=True)  # Nawy property ID
+    is_nawy_now: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)  # Nawy mortgage product
+    scraped_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Vector Embedding for Semantic Search (1536 dim for OpenAI text-embedding-3-small)
     embedding: Mapped[Vector] = mapped_column(Vector(1536), nullable=True)
 
     # Blockchain Integration

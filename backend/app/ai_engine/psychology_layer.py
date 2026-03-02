@@ -90,6 +90,7 @@ class BuyerPersona(Enum):
     FIRST_TIMER = "first_timer"       # Never bought before, needs education
     UPGRADER = "upgrader"             # Has property, wants to upgrade
     PORTFOLIO_BUILDER = "portfolio"   # Already owns, adding to portfolio
+    IMMEDIATE_MOVER = "immediate_mover"  # Needs to move NOW — resale/delivered priority
     UNKNOWN = "unknown"
 
 
@@ -905,6 +906,19 @@ PERSONA_SIGNALS = {
     BuyerPersona.PORTFOLIO_BUILDER: {
         "keywords_ar": ["عندي شقة", "شقتي", "تاني وحدة", "إضافة", "ضيف على"],
         "keywords_en": ["already own", "second unit", "add to", "my apartment", "another property"],
+    },
+    BuyerPersona.IMMEDIATE_MOVER: {
+        "keywords_ar": [
+            "استلام فوري", "تسليم فوري", "جاهز للسكن", "جاهزة", "مسلمة",
+            "محتاج أنقل", "محتاج أنقل دلوقتي", "ريسيل", "resale", "مسلم",
+            "بدون انتظار", "نقلة فورية", "فوراً", "الشهر ده", "مستعجل",
+            "ناوي ناو", "nawy now", "متسلمة", "delivered"
+        ],
+        "keywords_en": [
+            "move now", "ready to move", "delivered", "instant delivery", "immediate",
+            "resale", "no waiting", "move in", "this month", "ASAP", "urgent move",
+            "nawy now", "ready apartment", "furnished", "already built"
+        ],
     },
 }
 

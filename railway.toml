@@ -1,0 +1,15 @@
+# Railway Configuration for Osool
+# ================================
+# This project has two services:
+#   1. Backend API (FastAPI) - always running
+#   2. Nawy Scraper (Cron) - runs weekly on Sunday at 3:00 AM UTC
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/Dockerfile.prod"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

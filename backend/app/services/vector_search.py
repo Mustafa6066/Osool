@@ -33,13 +33,13 @@ async def get_embedding(text: str) -> Optional[List[float]]:
         def _generate_embedding():
             response = client.embeddings.create(
                 input=text,
-                model="text-embedding-ada-002"
+                model="text-embedding-3-small"
             )
 
             # Phase 4: Track token usage and cost
             token_count = response.usage.total_tokens
             cost_monitor.log_usage(
-                model="text-embedding-ada-002",
+                model="text-embedding-3-small",
                 input_tokens=token_count,
                 output_tokens=0,
                 context="property_search"
@@ -61,7 +61,11 @@ async def search_properties(
     limit: int = 5,
     similarity_threshold: float = 0.7,
     price_min: int = None,
-    price_max: int = None
+    price_max: int = None,
+    sale_type: str = None,
+    is_delivered: bool = None,
+    finishing: str = None,
+    is_nawy_now: bool = None,
 ) -> List[dict]:
     """
     Search for properties using semantic similarity with STRICT threshold enforcement.
@@ -70,7 +74,8 @@ async def search_properties(
     - Primary: pgvector cosine similarity search with 0.7 minimum threshold
     - ANTI-HALLUCINATION: Returns empty if no results meet threshold
     - Fallback: Text search when pgvector not available
-    - NEW: Direct price filtering for budget enforcement
+    - Direct price filtering for budget enforcement
+    - NEW: sale_type, is_delivered, finishing, is_nawy_now filters
 
     Args:
         db: Database session
@@ -79,6 +84,10 @@ async def search_properties(
         similarity_threshold: Minimum similarity score (0-1), default 0.7
         price_min: Minimum price filter (optional)
         price_max: Maximum price filter (optional)
+        sale_type: Filter by sale type: "Resale", "Developer", "Nawy Now" (optional)
+        is_delivered: Filter for delivered/ready-to-move properties (optional)
+        finishing: Filter by finishing: "Finished", "Semi-Finished", "Core & Shell" (optional)
+        is_nawy_now: Filter for Nawy Now mortgage properties (optional)
 
     Returns:
         List of property dicts with similarity scores and _source metadata
@@ -110,6 +119,18 @@ async def search_properties(
                             filters.append(Property.price >= price_min)
                         if price_max is not None:
                             filters.append(Property.price <= price_max)
+                        # Apply sale_type filter (Resale / Developer / Nawy Now)
+                        if sale_type is not None:
+                            filters.append(Property.sale_type == sale_type)
+                        # Apply delivery status filter
+                        if is_delivered is not None:
+                            filters.append(Property.is_delivered == is_delivered)
+                        # Apply finishing filter
+                        if finishing is not None:
+                            filters.append(Property.finishing.ilike(f"%{finishing}%"))
+                        # Apply Nawy Now filter
+                        if is_nawy_now is not None:
+                            filters.append(Property.is_nawy_now == is_nawy_now)
                         
                         stmt = (
                             select(Property, similarity_expr.label('similarity'))
@@ -163,6 +184,11 @@ async def search_properties(
                             "nawy_url": prop.nawy_url,
                             "sale_type": prop.sale_type,
                             "is_available": prop.is_available,
+                            "is_delivered": getattr(prop, 'is_delivered', None),
+                            "is_cash_only": getattr(prop, 'is_cash_only', None),
+                            "land_area": getattr(prop, 'land_area', None),
+                            "nawy_reference": getattr(prop, 'nawy_reference', None),
+                            "is_nawy_now": getattr(prop, 'is_nawy_now', None),
                             "_source": "database",
                             "_similarity_score": float(row.similarity)
                         }
@@ -199,6 +225,15 @@ async def search_properties(
             base_filters.append(Property.price >= price_min)
         if price_max is not None:
             base_filters.append(Property.price <= price_max)
+        # Apply sale_type / delivery / finishing / nawy_now filters to text search too
+        if sale_type is not None:
+            base_filters.append(Property.sale_type == sale_type)
+        if is_delivered is not None:
+            base_filters.append(Property.is_delivered == is_delivered)
+        if finishing is not None:
+            base_filters.append(Property.finishing.ilike(f"%{finishing}%"))
+        if is_nawy_now is not None:
+            base_filters.append(Property.is_nawy_now == is_nawy_now)
 
         stmt = select(Property).filter(*base_filters).limit(limit)
 
@@ -272,6 +307,11 @@ async def search_properties(
                 "nawy_url": p.nawy_url,
                 "sale_type": p.sale_type,
                 "is_available": p.is_available,
+                "is_delivered": getattr(p, 'is_delivered', None),
+                "is_cash_only": getattr(p, 'is_cash_only', None),
+                "land_area": getattr(p, 'land_area', None),
+                "nawy_reference": getattr(p, 'nawy_reference', None),
+                "is_nawy_now": getattr(p, 'is_nawy_now', None),
                 "_source": "text_search_fallback",
                 "_similarity_score": None
             }

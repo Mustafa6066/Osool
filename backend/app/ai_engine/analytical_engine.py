@@ -1707,6 +1707,223 @@ Let me show you alternatives within your budget."""
                 return price
         return 50000
 
+    # ═══════════════════════════════════════════════════════════════
+    # RESALE ANALYTICS MODULE (v2)
+    # Compare Resale vs Developer pricing, calculate Resale Value Index
+    # ═══════════════════════════════════════════════════════════════
+
+    def analyze_resale_value(self, property_data: Dict, market_data: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Analyze a resale property's value proposition compared to developer pricing.
+        
+        Key metrics:
+        - Resale Premium/Discount vs developer price
+        - Price per sqm vs area average
+        - Delivery premium (delivered units command premium)
+        - Cash-only discount indicator
+        - Resale Value Index (RVI): composite score 0-100
+        
+        Args:
+            property_data: Property dict (must have sale_type, price, size_sqm, location)
+            market_data: Optional market data override
+            
+        Returns:
+            Dict with resale analysis metrics
+        """
+        rates = market_data or MARKET_DATA
+        
+        price = property_data.get("price", 0)
+        area_sqm = property_data.get("size_sqm", 0) or property_data.get("area", 0)
+        location = property_data.get("location", "")
+        sale_type = property_data.get("sale_type", "")
+        is_delivered = property_data.get("is_delivered", False)
+        is_cash_only = property_data.get("is_cash_only", False)
+        finishing = property_data.get("finishing", "")
+        
+        if price <= 0 or area_sqm <= 0:
+            return {
+                "resale_analysis": False,
+                "reason": "Insufficient data"
+            }
+        
+        price_per_sqm = price / area_sqm
+        area_avg_price = self._get_area_avg_price(location)
+        
+        # 1. Price vs Area Average
+        price_vs_avg = ((price_per_sqm - area_avg_price) / area_avg_price) * 100 if area_avg_price > 0 else 0
+        
+        # 2. Delivery Premium (delivered units typically 15-25% above undelivered)
+        DELIVERY_PREMIUM_TYPICAL = 0.20  # 20% typical premium for delivered
+        delivery_premium_applied = 0
+        if is_delivered:
+            # If delivered and below avg + delivery premium, it's a good deal
+            expected_delivered_price = area_avg_price * (1 + DELIVERY_PREMIUM_TYPICAL)
+            delivery_premium_applied = DELIVERY_PREMIUM_TYPICAL * 100
+        else:
+            expected_delivered_price = area_avg_price
+        
+        price_vs_expected = ((price_per_sqm - expected_delivered_price) / expected_delivered_price) * 100
+        
+        # 3. Cash Discount Factor
+        # Cash-only resale often 5-10% cheaper because no installment markup
+        CASH_DISCOUNT_TYPICAL = 0.08  # 8%
+        cash_factor = CASH_DISCOUNT_TYPICAL * 100 if is_cash_only else 0
+        
+        # 4. Finishing Value
+        finishing_premium = 0
+        if finishing and "finished" in finishing.lower():
+            finishing_premium = 15  # Finished adds ~15% value
+        elif finishing and "semi" in finishing.lower():
+            finishing_premium = 7
+        
+        # 5. Resale Value Index (RVI) — composite 0-100
+        rvi_score = 50  # Start at neutral
+        
+        # Price discount from expected = positive (good deal)
+        if price_vs_expected < -15:
+            rvi_score += 25  # Great deal
+        elif price_vs_expected < -5:
+            rvi_score += 15  # Good deal
+        elif price_vs_expected < 5:
+            rvi_score += 5   # Fair
+        else:
+            rvi_score -= 10  # Overpriced
+        
+        # Delivered bonus
+        if is_delivered:
+            rvi_score += 15  # No delivery risk
+        
+        # Cash-only vs installments trade-off
+        if is_cash_only:
+            rvi_score += 5   # Usually cheaper
+        
+        # Finishing bonus
+        if finishing_premium > 10:
+            rvi_score += 10
+        elif finishing_premium > 0:
+            rvi_score += 5
+        
+        # Location quality
+        if area_avg_price > 60000:
+            rvi_score += 5   # Premium location
+        
+        rvi_score = max(0, min(100, rvi_score))
+        
+        # 6. Verdict
+        if rvi_score >= 80:
+            verdict_en = "Excellent resale opportunity — below market, delivered, strong area"
+            verdict_ar = "فرصة ريسيل ممتازة — أقل من السوق، مسلّمة، منطقة قوية"
+        elif rvi_score >= 60:
+            verdict_en = "Good resale deal — fairly priced with delivery advantage"
+            verdict_ar = "صفقة ريسيل جيدة — سعر معقول مع ميزة التسليم"
+        elif rvi_score >= 40:
+            verdict_en = "Average resale — compare with developer options for payment flexibility"
+            verdict_ar = "ريسيل متوسط — قارن مع خيارات المطور لمرونة الدفع"
+        else:
+            verdict_en = "Overpriced resale — developer options may offer better value"
+            verdict_ar = "ريسيل مبالغ فيه — خيارات المطور قد تكون أفضل"
+        
+        return {
+            "resale_analysis": True,
+            "sale_type": sale_type,
+            "price_per_sqm": round(price_per_sqm),
+            "area_avg_price_sqm": area_avg_price,
+            "price_vs_area_avg_pct": round(price_vs_avg, 1),
+            "is_delivered": is_delivered,
+            "delivery_premium_pct": round(delivery_premium_applied, 1),
+            "price_vs_expected_pct": round(price_vs_expected, 1),
+            "is_cash_only": is_cash_only,
+            "cash_discount_factor_pct": round(cash_factor, 1),
+            "finishing": finishing,
+            "finishing_premium_pct": finishing_premium,
+            "resale_value_index": rvi_score,
+            "verdict_en": verdict_en,
+            "verdict_ar": verdict_ar,
+        }
+
+    def compare_resale_vs_developer(
+        self, 
+        resale_properties: List[Dict], 
+        developer_properties: List[Dict],
+        location: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Compare resale vs developer properties in the same area/compound.
+        
+        Returns side-by-side analysis showing:
+        - Average price difference
+        - Delivery timeline advantage
+        - Payment plan trade-offs
+        - Best overall recommendation
+        """
+        if not resale_properties and not developer_properties:
+            return {"comparison": False, "reason": "No properties to compare"}
+        
+        # Calculate averages for each group
+        def avg_metrics(props):
+            if not props:
+                return {"count": 0, "avg_price": 0, "avg_price_sqm": 0, "avg_area": 0}
+            prices = [p.get("price", 0) for p in props if p.get("price", 0) > 0]
+            areas = [p.get("size_sqm", 0) or p.get("area", 0) for p in props if (p.get("size_sqm", 0) or p.get("area", 0)) > 0]
+            price_sqms = [p.get("price", 0) / (p.get("size_sqm", 0) or p.get("area", 1)) 
+                         for p in props 
+                         if p.get("price", 0) > 0 and (p.get("size_sqm", 0) or p.get("area", 0)) > 0]
+            return {
+                "count": len(props),
+                "avg_price": round(sum(prices) / len(prices)) if prices else 0,
+                "avg_price_sqm": round(sum(price_sqms) / len(price_sqms)) if price_sqms else 0,
+                "avg_area": round(sum(areas) / len(areas)) if areas else 0,
+            }
+        
+        resale_avg = avg_metrics(resale_properties)
+        dev_avg = avg_metrics(developer_properties)
+        
+        # Price difference
+        if resale_avg["avg_price_sqm"] > 0 and dev_avg["avg_price_sqm"] > 0:
+            resale_premium_pct = ((resale_avg["avg_price_sqm"] - dev_avg["avg_price_sqm"]) / dev_avg["avg_price_sqm"]) * 100
+        else:
+            resale_premium_pct = 0
+        
+        # Delivery advantage
+        resale_delivered = sum(1 for p in resale_properties if p.get("is_delivered"))
+        dev_delivered = sum(1 for p in developer_properties if p.get("is_delivered"))
+        
+        # Payment flexibility
+        resale_cash_only = sum(1 for p in resale_properties if p.get("is_cash_only"))
+        dev_with_plan = sum(1 for p in developer_properties if p.get("installment_years", 0) > 0)
+        
+        # Recommendation
+        if resale_premium_pct < -5 and resale_delivered > 0:
+            recommendation_en = "Resale offers better value: cheaper per sqm AND immediate delivery"
+            recommendation_ar = "الريسيل أفضل: أرخص في المتر وتسليم فوري"
+        elif resale_premium_pct < 10 and resale_delivered > len(resale_properties) * 0.5:
+            recommendation_en = "Resale is comparable in price with delivery advantage — good for immediate movers"
+            recommendation_ar = "الريسيل قريب في السعر مع ميزة التسليم الفوري — مناسب للي محتاج ينقل"
+        elif dev_with_plan > len(developer_properties) * 0.5:
+            recommendation_en = "Developer offers better payment plans — ideal for budget-conscious buyers"
+            recommendation_ar = "المطور يقدم خطط دفع أفضل — مثالي للمشترين اللي محتاجين تقسيط"
+        else:
+            recommendation_en = "Mixed results — evaluate case by case based on your priorities"
+            recommendation_ar = "النتائج متنوعة — قيّم كل حالة حسب أولوياتك"
+        
+        return {
+            "comparison": True,
+            "location": location,
+            "resale": {
+                **resale_avg,
+                "delivered_count": resale_delivered,
+                "cash_only_count": resale_cash_only,
+            },
+            "developer": {
+                **dev_avg,
+                "delivered_count": dev_delivered,
+                "with_payment_plan": dev_with_plan,
+            },
+            "resale_premium_pct": round(resale_premium_pct, 1),
+            "recommendation_en": recommendation_en,
+            "recommendation_ar": recommendation_ar,
+        }
+
 
 # Singleton instances
 analytical_engine = AnalyticalEngine()

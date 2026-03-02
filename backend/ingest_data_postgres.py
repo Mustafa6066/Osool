@@ -66,8 +66,17 @@ Price: {prop.get('price', 0):,.0f} EGP
 Price per sqm: {prop.get('pricePerSqm', 0):,.0f} EGP
 Delivery: {prop.get('deliveryDate', 'N/A')}
 Sale Type: {prop.get('saleType', 'N/A')}
+Finishing: {prop.get('finishing', 'N/A')}
 Description: {prop.get('description', '')}
 """
+
+    # Resale/delivery enrichment
+    if prop.get('isDelivered') or prop.get('is_delivered'):
+        content += "\nDelivery Status: Delivered - Ready to Move"
+    if prop.get('isNawyNow') or prop.get('is_nawy_now'):
+        content += "\nNawy Now: Nawy Mortgage Available - Ready to Move"
+    if prop.get('isCashOnly') or prop.get('is_cash_only'):
+        content += "\nPayment: Cash Only"
 
     payment = prop.get('paymentPlan', {})
     if payment:
@@ -82,13 +91,14 @@ Monthly Installment: {payment.get('monthlyInstallment', 0):,.0f} EGP
 
 def generate_embedding(text: str) -> list:
     """
-    Generates embedding using OpenAI text-embedding-ada-002 model.
+    Generates embedding using OpenAI text-embedding-3-small model.
     Returns a 1536-dimensional vector.
+    Standardized across codebase (scraper, ingestion, search).
     """
     try:
         response = client.embeddings.create(
             input=text,
-            model="text-embedding-ada-002"
+            model="text-embedding-3-small"
         )
         return response.data[0].embedding
     except Exception as e:
@@ -170,6 +180,11 @@ async def ingest_to_postgres(properties: list):
                     image_url=prop.get('image', ''),
                     nawy_url=prop.get('nawyUrl', ''),
                     sale_type=prop.get('saleType', ''),
+                    is_delivered=prop.get('isDelivered', False),
+                    is_cash_only=prop.get('isCashOnly', False),
+                    land_area=int(prop.get('landArea', 0)) if prop.get('landArea') else None,
+                    nawy_reference=prop.get('nawyReference', ''),
+                    is_nawy_now=prop.get('isNawyNow', False),
                     embedding=embedding,
                     is_available=True
                 )

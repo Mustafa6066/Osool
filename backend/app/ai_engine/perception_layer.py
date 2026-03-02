@@ -51,16 +51,26 @@ LOCATION_ALIASES = {
     # New Cairo variants
     "التجمع": "New Cairo",
     "التجمع الخامس": "New Cairo",
-    "التجمع الخامس": "New Cairo",
     "القاهرة الجديدة": "New Cairo",
     "new cairo": "New Cairo",
     "5th settlement": "New Cairo",
+    "6th settlement": "New Cairo",
+    "golden square": "New Cairo",
+    "katameya": "New Cairo",
+    
+    # Mostakbal City
+    "المستقبل": "Mostakbal City",
+    "مدينة المستقبل": "Mostakbal City",
+    "mostakbal": "Mostakbal City",
+    "mostakbal city": "Mostakbal City",
     
     # Sheikh Zayed variants
     "زايد": "Sheikh Zayed",
     "الشيخ زايد": "Sheikh Zayed",
     "sheikh zayed": "Sheikh Zayed",
     "el sheikh zayed": "Sheikh Zayed",
+    "new zayed": "Sheikh Zayed",
+    "زايد الجديدة": "Sheikh Zayed",
     
     # New Capital variants
     "العاصمة": "New Capital",
@@ -76,19 +86,20 @@ LOCATION_ALIASES = {
     "6 أكتوبر": "6th October",
     "6th october": "6th October",
     "6 october": "6th October",
+    "october gardens": "6th October",
     
     # North Coast variants
     "الساحل": "North Coast",
     "الساحل الشمالي": "North Coast",
     "north coast": "North Coast",
     "sahel": "North Coast",
+    "سيدي عبدالرحمن": "North Coast",
+    "sidi abdel rahman": "North Coast",
+    "ras el hekma": "North Coast",
+    "راس الحكمة": "North Coast",
     
     # Madinaty variants
     "مدينتي": "Madinaty",
-    "madinaty": "Madinaty",
-    
-    # Maadi variants
-    "المعادي": "Maadi",
     "madinaty": "Madinaty",
     
     # Maadi variants
@@ -101,6 +112,47 @@ LOCATION_ALIASES = {
     "رحاب": "Rehab",
     "rehab": "Rehab",
     
+    # Ain Sokhna
+    "السخنة": "Ain Sokhna",
+    "العين السخنة": "Ain Sokhna",
+    "ain sokhna": "Ain Sokhna",
+    "sokhna": "Ain Sokhna",
+    
+    # El Shorouk
+    "الشروق": "El Shorouk",
+    "el shorouk": "El Shorouk",
+    "shorouk": "El Shorouk",
+    
+    # Heliopolis / Nasr City
+    "مصر الجديدة": "Heliopolis",
+    "هليوبوليس": "Heliopolis",
+    "heliopolis": "Heliopolis",
+    "مدينة نصر": "Nasr City",
+    "nasr city": "Nasr City",
+    
+    # Hurghada / El Gouna
+    "الغردقة": "Hurghada",
+    "hurghada": "Hurghada",
+    "الجونة": "El Gouna",
+    "el gouna": "El Gouna",
+    
+    # Alexandria
+    "إسكندرية": "Alexandria",
+    "اسكندرية": "Alexandria",
+    "alexandria": "Alexandria",
+    
+    # Northern Expansion (Sheikh Zayed extension)
+    "التوسعات الشمالية": "Northern Expansion",
+    "northern expansion": "Northern Expansion",
+    
+    # Obour
+    "العبور": "Obour",
+    "obour": "Obour",
+    
+    # 10th of Ramadan
+    "العاشر": "10th of Ramadan",
+    "10th of ramadan": "10th of Ramadan",
+    "العاشر من رمضان": "10th of Ramadan",
 }
 
 # Property type normalization
@@ -184,6 +236,9 @@ class PerceptionLayer:
         size_max: Optional[int] = Field(default=None, description="Maximum size in sqm")
         developer: Optional[str] = Field(default=None, description="Developer name")
         finishing: Optional[str] = Field(default=None, description="Finishing type: finished, semi_finished, unfinished")
+        sale_type: Optional[str] = Field(default=None, description="Sale type: resale, developer, nawy_now")
+        is_delivered: Optional[bool] = Field(default=None, description="True if user wants delivered/ready-to-move properties")
+        is_nawy_now: Optional[bool] = Field(default=None, description="True if user wants Nawy Now mortgage properties")
 
     class IntentExtraction(BaseModel):
         """Structured intent extracted from user query."""
@@ -319,13 +374,14 @@ class PerceptionLayer:
 Extract structured intent from the user's query.
 
 Extract:
-1. action: One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation
+1. action: One of: search, valuation, objection, general, comparison, investment, legal, payment, reservation, resale_search
 2. intent_bucket: One of:
     - "window_shopper": Casual browsing, broad questions
     - "serious_buyer": Specific budget, timeline, ready to book
     - "objection_mode": Complaining, debating price, skeptical
+    - "immediate_mover": Needs to move NOW, looking for delivered/ready units
 3. filters: Object with optional fields:
-   - location: Area name (New Cairo, Sheikh Zayed, New Capital, 6th October, North Coast, etc.)
+   - location: Area name (New Cairo, Sheikh Zayed, New Capital, 6th October, North Coast, Mostakbal City, Ain Sokhna, etc.)
    - budget_min: Minimum budget in EGP (convert millions: 5M = 5000000)
    - budget_max: Maximum budget in EGP
    - purpose: "living" OR "investment" OR "commercial"
@@ -336,6 +392,15 @@ Extract:
    - developer: Developer name if mentioned
    - keywords: Any specific compound/project names mentioned
    - finishing: core, semi, finished, lux
+   - sale_type: "resale" (when user wants resale/secondhand), "developer" (new from developer), "nawy_now" (Nawy mortgage)
+   - is_delivered: true (when user wants delivered/ready-to-move/immediate)
+   - is_nawy_now: true (when user mentions Nawy Now, Nawy mortgage, or wants ready + installments)
+
+RESALE DETECTION (Arabic + English):
+- "ريسيل" / "resale" / "إعادة بيع" / "secondhand" / "مستعمل" → sale_type: "resale"
+- "استلام فوري" / "تسليم فوري" / "جاهز" / "delivered" / "ready to move" / "instant delivery" → is_delivered: true
+- "ناوي ناو" / "nawy now" / "تقسيط ناوي" → is_nawy_now: true, sale_type: "nawy_now"
+- "كاش" / "cash only" / "بدون تقسيط" → means user may want resale (often cash-only)
 
 CONTEXT RULES FOR 'purpose':
 - Family signals ("بيت العيلة", "استقرار", "مدارس", "kids", "اعيش"): purpose="living"
@@ -346,6 +411,7 @@ INTENT BUCKET RULES:
 - "serious_buyer": budget OR delivery timeline OR specific location = Serious
 - "window_shopper": Generic questions like "show me everything"
 - "objection_mode": Complaining, debating price
+- "immediate_mover": Wants delivered/ready/resale + urgency signals ("محتاج أنقل دلوقتي", "ASAP", "فوراً")
 
 IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual number."""
 
@@ -389,6 +455,7 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
         query_lower = query.lower()
         filters = {}
         action = "search"
+        intent_bucket = "window_shopper"
         
         # Detect action type
         if any(w in query_lower for w in ["سعر", "غالي", "رخيص", "قيمة", "يستاهل", "fair", "price", "worth"]):
@@ -399,6 +466,27 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
             action = "comparison"
         elif any(w in query_lower for w in ["حجز", "reserve", "معاينة", "viewing"]):
             action = "reservation"
+        elif any(w in query_lower for w in ["ريسيل", "resale", "إعادة بيع", "ريسال", "secondhand", "مستعمل"]):
+            action = "resale_search"
+            filters["sale_type"] = "resale"
+        
+        # ── RESALE / DELIVERY DETECTION ──
+        resale_keywords = ["ريسيل", "resale", "إعادة بيع", "ريسال", "secondhand", "مستعمل", "resell"]
+        if any(kw in query_lower for kw in resale_keywords):
+            filters["sale_type"] = "resale"
+            if action == "search":
+                action = "resale_search"
+        
+        delivery_keywords = ["استلام فوري", "تسليم فوري", "جاهز للسكن", "جاهز", "delivered", 
+                           "ready to move", "instant delivery", "ready", "مسلم", "متسلم"]
+        if any(kw in query_lower for kw in delivery_keywords):
+            filters["is_delivered"] = True
+            intent_bucket = "immediate_mover"
+        
+        nawy_now_keywords = ["ناوي ناو", "nawy now", "تقسيط ناوي", "nawy mortgage"]
+        if any(kw in query_lower for kw in nawy_now_keywords):
+            filters["sale_type"] = "nawy_now"
+            filters["is_nawy_now"] = True
         
         # Extract location
         for alias, normalized in LOCATION_ALIASES.items():
@@ -457,8 +545,14 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
             if term in query_lower:
                 filters["finishing"] = value
                 break
+        
+        # Detect intent_bucket from signals
+        if filters.get("budget_min") or filters.get("budget_max") or filters.get("location"):
+            intent_bucket = "serious_buyer"
+        if filters.get("is_delivered"):
+            intent_bucket = "immediate_mover"
             
-        return {"action": action, "filters": filters}
+        return {"action": action, "filters": filters, "intent_bucket": intent_bucket}
     
     def _normalize_filters(self, intent_data: Dict) -> Dict:
         """Normalize extracted filters to standard format."""
