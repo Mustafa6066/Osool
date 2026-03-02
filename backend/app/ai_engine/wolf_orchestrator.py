@@ -695,6 +695,8 @@ class WolfBrain:
                     "verification": {},
                     "proactive_alerts": [],
                     "xp_awarded": 0,
+                    "detected_language": language,
+                    "lead_score": lead_score,
                 }
 
             # ── NON-STREAMING: full pipeline ──
@@ -808,6 +810,8 @@ class WolfBrain:
                 "verification": verification,
                 "proactive_alerts": proactive_alerts,
                 "xp_awarded": xp_awarded,
+                "detected_language": language,
+                "lead_score": lead_score,
             }
             
         except Exception as e:

@@ -59,6 +59,10 @@ interface Message {
     analyticsContext?: any;
     showingStrategy?: string;
     allProperties?: Property[];
+    leadScore?: number;
+    readinessScore?: number;
+    suggestions?: string[];
+    detectedLanguage?: string;
 }
 
 interface Suggestion {
@@ -171,6 +175,9 @@ export default function AgentInterface() {
     const [contextPaneOpen, setContextPaneOpen] = useState(false);
     const [activeContext, setActiveContext] = useState<Artifacts | null>(null);
     const [recentQueries, setRecentQueries] = useState<string[]>([]);
+    const [conversationLeadScore, setConversationLeadScore] = useState(0);
+    const [conversationReadiness, setConversationReadiness] = useState(0);
+    const [conversationLanguage, setConversationLanguage] = useState('ar');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -252,7 +259,16 @@ export default function AgentInterface() {
                 analyticsContext: data.analytics_context || null,
                 showingStrategy: data.showing_strategy || 'NONE',
                 allProperties: allProps,
+                leadScore: data.lead_score || 0,
+                readinessScore: data.readiness_score || 0,
+                suggestions: data.suggestions || [],
+                detectedLanguage: data.detected_language || 'ar',
             };
+
+            // Update conversation-level tracking
+            setConversationLeadScore(data.lead_score || 0);
+            setConversationReadiness(data.readiness_score || 0);
+            if (data.detected_language) setConversationLanguage(data.detected_language);
 
             setMessages(prev => [...prev, aiMsg]);
             triggerXP(5, 'Asked a question');
@@ -287,6 +303,9 @@ export default function AgentInterface() {
         setContextPaneOpen(false);
         setActiveContext(null);
         setInputValue('');
+        setConversationLeadScore(0);
+        setConversationReadiness(0);
+        setConversationLanguage('ar');
         sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     };
 
@@ -352,12 +371,13 @@ export default function AgentInterface() {
                 )}
 
                 {/* Funnel */}
-                {hasStarted && profile && (
+                {hasStarted && (
                     <div className="absolute top-12 left-0 right-0 z-20 pointer-events-none">
                         <div className="max-w-[600px] mx-auto">
                             <FunnelIndicator
-                                leadScore={profile.investment_readiness_score || 0}
-                                readinessScore={profile.investment_readiness_score}
+                                leadScore={conversationLeadScore}
+                                readinessScore={conversationReadiness}
+                                language={conversationLanguage}
                             />
                         </div>
                     </div>
@@ -574,9 +594,9 @@ export default function AgentInterface() {
 
                                                                 {index === messages.length - 1 && (
                                                                     <SuggestionChips
-                                                                        suggestions={generateSuggestions(msg)}
+                                                                        suggestions={msg.suggestions && msg.suggestions.length > 0 ? msg.suggestions : generateSuggestions(msg)}
                                                                         onSelect={(suggestion) => handleSendMessage(suggestion)}
-                                                                        isRTL={isArabic(msg.content)}
+                                                                        isRTL={msg.detectedLanguage === 'ar' || isArabic(msg.content)}
                                                                     />
                                                                 )}
                                                             </>

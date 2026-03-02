@@ -950,6 +950,11 @@ async def chat_with_agent(
         ui_actions = ai_result.get("charts", [])  # Wolf Brain returns 'charts'
         psychology = ai_result.get("psychology")
         agentic_action = ai_result.get("hunt_strategy")  # Reflexion strategy
+        suggestions = ai_result.get("suggestions", [])
+        card_readiness = ai_result.get("card_readiness", {})
+        showing_strategy = ai_result.get("showing_strategy", "NONE")
+        detected_language = ai_result.get("detected_language", "ar")
+        intent = ai_result.get("intent", {})
 
         # Save AI response to database (linked to authenticated user)
         ai_message = ChatMessage(
@@ -1044,7 +1049,14 @@ async def chat_with_agent(
             "session_id": req.session_id,
             "analytics": analytics_data,
             "agentic_action": agentic_action,  # V4: Indicates if pivot occurred
-            "cost": claude_sales_agent.get_cost_summary()
+            "cost": claude_sales_agent.get_cost_summary(),
+            # V5: Frontend-facing intelligence signals
+            "suggestions": suggestions,
+            "lead_score": card_readiness.get("readiness_score", 0) if card_readiness else 0,
+            "readiness_score": card_readiness.get("readiness_score", 0) if card_readiness else 0,
+            "showing_strategy": showing_strategy,
+            "detected_language": detected_language,
+            "analytics_context": ai_result.get("analytics_context"),
         }
     except Exception as e:
         await db.rollback()
