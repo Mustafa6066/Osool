@@ -71,6 +71,8 @@ AREA_GROWTH = {
     "Maadi": 0.39,          # +39%
     "Ain Sokhna": 2.83,     # +283%
     "Madinaty": 0.20,
+    "Rehab": 0.15,       # +15% Stable mature area
+    "Zamalek": 0.08,     # +8% Limited supply premium
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -217,12 +219,12 @@ AREA_BENCHMARKS = {
     },
     "maadi": {
         "ar_name": "المعادي",
-        "avg_price_sqm": 70000,
+        "avg_price_sqm": 29000,  # Aligned with AREA_PRICES 26,950 + 2026 uplift
         "rental_yield": 0.07,
-        "growth_rate": 0.08,
+        "growth_rate": 0.39,  # Aligned with AREA_GROWTH 39%
         "property_minimums": {
-            "apartment": 4_000_000,
-            "villa": 20_000_000,
+            "apartment": 3_000_000,
+            "villa": 15_000_000,
         },
         "tier1_developers": [],
         "tier2_developers": [],

@@ -123,7 +123,8 @@ DEVELOPER_SOCIAL_PROOF = {
 class SocialProofEngine:
     """
     Generates social proof signals from real platform data.
-    NOT fabricated — all signals must come from actual platform activity.
+    Uses live DB data when available, baseline analytics as fallback.
+    Baseline data is clearly labeled as estimated to maintain trust.
     """
 
     async def get_social_signals(
@@ -149,11 +150,14 @@ class SocialProofEngine:
             except Exception as e:
                 logger.debug(f"DB social signals unavailable: {e}")
 
-        # Enrich with baseline data
+        # Enrich with baseline data (mark as estimated when no live DB data)
         baseline = self._get_area_baseline(location)
+        self._is_live_data = False  # Track data source for honest labeling
         if baseline:
             if signals.views_this_week == 0:
                 signals.views_this_week = baseline["weekly_views_avg"]
+            else:
+                self._is_live_data = True  # DB returned real numbers
             if signals.inquiries_today == 0:
                 signals.inquiries_today = baseline["daily_inquiries_avg"]
             signals.popular_compounds = baseline.get("popular_compounds", [])
@@ -225,11 +229,12 @@ class SocialProofEngine:
             return ""  # Not enough data to be meaningful
 
         if language == "ar":
-            lines = ["\n[SOCIAL_PROOF - بيانات النشاط الحقيقي على المنصة]"]
+            source_label = "بيانات المنصة الحية" if getattr(self, '_is_live_data', False) else "تقديرات السوق"
+            lines = [f"\n[SOCIAL_PROOF - {source_label}]"]
             if signals.views_this_week > 0:
-                lines.append(f"- {signals.views_this_week} شخص بيدور على عقارات في {signals.location} الأسبوع ده")
+                lines.append(f"- حوالي {signals.views_this_week} شخص بيدور على عقارات في {signals.location} الأسبوع ده")
             if signals.inquiries_today > 0:
-                lines.append(f"- {signals.inquiries_today} استفسار النهارده على المنطقة دي")
+                lines.append(f"- حوالي {signals.inquiries_today} استفسار النهارده على المنطقة دي")
             if signals.popular_compounds:
                 compounds = "، ".join(signals.popular_compounds[:3])
                 lines.append(f"- أكتر الكمبوندات طلباً: {compounds}")
@@ -250,11 +255,12 @@ USE THIS DATA naturally in conversation:
             return "\n".join(lines)
 
         else:
-            lines = ["\n[SOCIAL_PROOF - VERIFIED PLATFORM ACTIVITY DATA]"]
+            source_label = "LIVE PLATFORM DATA" if getattr(self, '_is_live_data', False) else "MARKET ESTIMATES"
+            lines = [f"\n[SOCIAL_PROOF - {source_label}]"]
             if signals.views_this_week > 0:
-                lines.append(f"- {signals.views_this_week} people searched for properties in {signals.location} this week")
+                lines.append(f"- ~{signals.views_this_week} people searched for properties in {signals.location} this week")
             if signals.inquiries_today > 0:
-                lines.append(f"- {signals.inquiries_today} inquiries today for this area")
+                lines.append(f"- ~{signals.inquiries_today} inquiries today for this area")
             if signals.popular_compounds:
                 compounds = ", ".join(signals.popular_compounds[:3])
                 lines.append(f"- Most popular compounds: {compounds}")
@@ -275,20 +281,34 @@ USE THIS DATA naturally in conversation:
             return "\n".join(lines)
 
     def get_scarcity_signal(self, signals: SocialSignals, language: str) -> Optional[str]:
-        """Generate a scarcity/urgency message when demand is high."""
+        """Generate demand context when activity is high. Honest framing — no fabricated urgency."""
         if signals.demand_score < 70:
             return None
 
+        is_live = getattr(self, '_is_live_data', False)
+
         if language == "ar":
             if signals.demand_score >= 90:
-                return f"⚡ المنطقة دي عليها طلب عالي جداً — {signals.views_this_week} شخص بيدور فيها الأسبوع ده. الوحدات المتاحة بالسعر ده مش هتلاقيها بعد كام أسبوع."
+                if is_live:
+                    return f"⚡ المنطقة دي عليها طلب عالي — حوالي {signals.views_this_week} شخص بيدور فيها الأسبوع ده."
+                else:
+                    return "⚡ المنطقة دي معروفة بطلب عالي حسب بيانات السوق."
             elif signals.demand_score >= 70:
-                return f"📈 المنطقة دي شايفة حركة كويسة — {signals.inquiries_today} استفسار النهارده بس."
+                if is_live:
+                    return f"📈 المنطقة دي شايفة حركة كويسة — حوالي {signals.inquiries_today} استفسار النهارده."
+                else:
+                    return "📈 المنطقة دي عليها اهتمام جيد حسب تقديرات السوق."
         else:
             if signals.demand_score >= 90:
-                return f"⚡ This area has very high demand — {signals.views_this_week} people searching this week. Units at this price won't last long."
+                if is_live:
+                    return f"⚡ This area has high demand — ~{signals.views_this_week} people searching this week."
+                else:
+                    return "⚡ This area is known for strong demand based on market data."
             elif signals.demand_score >= 70:
-                return f"📈 This area is seeing strong activity — {signals.inquiries_today} inquiries just today."
+                if is_live:
+                    return f"📈 This area is seeing good activity — ~{signals.inquiries_today} inquiries today."
+                else:
+                    return "📈 This area shows solid interest based on market estimates."
 
         return None
 

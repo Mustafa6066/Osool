@@ -315,16 +315,24 @@ class ConversationMemory:
         return '\n'.join(parts)
 
     def _extract_budget(self, message: str):
-        """Extract budget information from message."""
+        """Extract budget information from message.
+        Supports: Arabic (مليون), English (million/M), Franco-Arab (melyoon/malyoon).
+        """
+        # Normalize Franco-Arab budget words to standard form
+        msg_normalized = message.lower()
+        msg_normalized = re.sub(r'\bmelyoon\b|\bmalyoon\b|\bmelyon\b', 'مليون', msg_normalized)
+
         patterns = [
             r'(\d+(?:\.\d+)?)\s*(?:مليون|million|مليار|billion|M\b)',
-            r'(?:budget|ميزانية|ميزانيتي)\s*(?:is|حوالي|تقريبا|من)?\s*(\d+(?:\.\d+)?)',
-            r'(?:من|from)\s*(\d+(?:\.\d+)?)\s*(?:مليون|million|M)?\s*(?:ل|لـ|to|إلى)\s*(\d+(?:\.\d+)?)\s*(?:مليون|million|M)?',
-            r'(?:تحت|under|less than|أقل من)\s*(\d+(?:\.\d+)?)\s*(?:مليون|million|M)?',
+            r'(?:budget|ميزانية|ميزانيتي|mizaneyty|mizanyti)\s*(?:is|حوالي|تقريبا|من|7awaly)?\s*(\d+(?:\.\d+)?)',
+            r'(?:من|from)\s*(\d+(?:\.\d+)?)\s*(?:مليون|million|M)?\s*(?:ل|لـ|to|إلى|le|l)\s*(\d+(?:\.\d+)?)\s*(?:مليون|million|M)?',
+            r'(?:تحت|under|less than|أقل من|a2al men)\s*(\d+(?:\.\d+)?)\s*(?:مليون|million|M)?',
+            # Full EGP amounts (e.g., "5000000" or "5,000,000")
+            r'(\d{1,3}(?:,\d{3})+)\s*(?:جنيه|egp|EGP|pound)',
         ]
 
         for pattern in patterns:
-            match = re.search(pattern, message, re.IGNORECASE)
+            match = re.search(pattern, msg_normalized, re.IGNORECASE)
             if match:
                 groups = match.groups()
                 try:
@@ -333,18 +341,25 @@ class ConversationMemory:
                         max_val = float(groups[1]) * 1_000_000
                         self.budget_range = {'min': int(min_val), 'max': int(max_val)}
                     elif len(groups) >= 1 and groups[0]:
-                        val = float(groups[0]) * 1_000_000
-                        if 'تحت' in message or 'under' in message.lower():
-                            self.budget_range = {'min': 0, 'max': int(val)}
+                        raw = groups[0].replace(',', '')
+                        val = float(raw)
+                        # If number is > 100000, treat as raw EGP, not millions
+                        if val > 100000:
+                            budget_val = int(val)
+                        else:
+                            budget_val = int(val * 1_000_000)
+                        if 'تحت' in msg_normalized or 'under' in msg_normalized or 'a2al' in msg_normalized:
+                            self.budget_range = {'min': 0, 'max': budget_val}
                         elif not self.budget_range:
-                            self.budget_range = {'min': 0, 'max': int(val)}
+                            self.budget_range = {'min': 0, 'max': budget_val}
                 except (ValueError, IndexError):
                     pass
                 break
 
     def _extract_areas(self, msg_lower: str):
-        """Extract area preferences."""
+        """Extract area preferences. Supports Arabic, English, and Franco-Arab."""
         area_map = {
+            # Arabic
             'التجمع': 'New Cairo', 'القاهرة الجديدة': 'New Cairo', 'new cairo': 'New Cairo',
             'زايد': 'Sheikh Zayed', 'الشيخ زايد': 'Sheikh Zayed', 'sheikh zayed': 'Sheikh Zayed',
             'أكتوبر': '6th October', '6th october': '6th October', 'اكتوبر': '6th October',
@@ -353,6 +368,17 @@ class ConversationMemory:
             'مدينتي': 'Madinaty', 'madinaty': 'Madinaty',
             'المعادي': 'Maadi', 'maadi': 'Maadi',
             'مصر الجديدة': 'Heliopolis', 'heliopolis': 'Heliopolis',
+            'السخنة': 'Ain Sokhna', 'ain sokhna': 'Ain Sokhna', 'sokhna': 'Ain Sokhna',
+            'الرحاب': 'Rehab', 'rehab': 'Rehab',
+            # Franco-Arab (Arabizi)
+            'tagamo3': 'New Cairo', 'tagammo3': 'New Cairo', 'el tagamo3': 'New Cairo',
+            'el sahel': 'North Coast', 'sahel': 'North Coast',
+            'el sokhna': 'Ain Sokhna', '3ein sokhna': 'Ain Sokhna',
+            'el ma3ady': 'Maadi', 'ma3adi': 'Maadi',
+            'oktobar': '6th October', 'october': '6th October',
+            'el 3asma': 'New Capital', '3asma': 'New Capital',
+            'mostakbal': 'Mostakbal City', 'mostaqbal': 'Mostakbal City',
+            'madinity': 'Madinaty',
         }
 
         for keyword, area in area_map.items():

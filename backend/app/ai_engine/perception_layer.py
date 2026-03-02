@@ -155,16 +155,42 @@ LOCATION_ALIASES = {
     "العاشر من رمضان": "10th of Ramadan",
 }
 
+# ═══════════════════════════════════════════════════════════════
+# FRANCO-ARAB (Arabizi) LOCATION ALIASES
+# Egyptian users commonly type Arabic in Latin characters
+# ═══════════════════════════════════════════════════════════════
+FRANCO_ARAB_ALIASES = {
+    "tagamo3": "New Cairo", "tagammo3": "New Cairo", "el tagamo3": "New Cairo",
+    "el tagammo3": "New Cairo", "5th settlement": "New Cairo",
+    "zayed": "Sheikh Zayed", "el sheikh zayed": "Sheikh Zayed",
+    "mostakbal": "Mostakbal City", "mostaqbal": "Mostakbal City",
+    "el 3asma": "New Capital", "3asma": "New Capital", "el asma": "New Capital",
+    "october": "6th October", "oktobar": "6th October",
+    "el sahel": "North Coast", "sahel shamaly": "North Coast",
+    "el sokhna": "Ain Sokhna", "3ein sokhna": "Ain Sokhna",
+    "madinity": "Madinaty", "madinaty": "Madinaty",
+    "el rehab": "Rehab", "el ma3ady": "Maadi", "ma3adi": "Maadi",
+    "zamalek": "Zamalek", "el shorou2": "El Shorouk", "shorou2": "El Shorouk",
+    "el gouna": "El Gouna", "hurghada": "Hurghada",
+    "el obour": "Obour", "iskandria": "Alexandria",
+    "ras el 7ekma": "North Coast", "sidi 3abdel ra7man": "North Coast",
+}
+
+# Merge Franco-Arab aliases into LOCATION_ALIASES
+LOCATION_ALIASES.update(FRANCO_ARAB_ALIASES)
+
 # Property type normalization
 PROPERTY_TYPE_ALIASES = {
     "شقة": "apartment",
     "شقه": "apartment",
     "apartment": "apartment",
     "flat": "apartment",
+    # Franco-Arab property types
+    "sha2a": "apartment", "sha2ah": "apartment",
+    "villa": "villa", "fela": "villa", "fella": "villa",
     
     "فيلا": "villa",
     "فيللا": "villa",
-    "villa": "villa",
     
     "تاون هاوس": "townhouse",
     "تاونهاوس": "townhouse",

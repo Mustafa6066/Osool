@@ -2532,13 +2532,13 @@ You MUST compare these two numbers to justify the value.
                 if wolf_score > 85:
                     
                     if language == 'ar':
-                         wolf_insight_instruction = f"""
+                         wolf_insight_instruction += f"""
 [MANDATORY OPENER]
 You MUST start your response with this EXACT sentence (in Egyptian Arabic):
 "🐺 أنا لقيت لقطة في السوق. الوحدة دي سعر مترها {price_sqm:,.0f} جنيه، في حين إن متوسط المنطقة {area_avg:,.0f} جنيه."
 """
                     else:
-                         wolf_insight_instruction = f"""
+                         wolf_insight_instruction += f"""
 [MANDATORY OPENER]
 You MUST start your response with this EXACT sentence:
 "🐺 I found a market anomaly. This unit is priced at {price_sqm:,.0f} EGP/sqm, while the area average is {area_avg:,.0f} EGP/sqm."
@@ -3197,6 +3197,66 @@ RULE 4: Anchor the price to the ROI: "You are not spending X, you are securing a
                 memory_summary = memory.get_context_summary()
                 if memory_summary:
                     context_parts.append(f"\n{memory_summary}\n")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V5: USER INTELLIGENCE DOSSIER — Wire memory into Claude context
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                dossier_parts = []
+                mem_dict = memory.to_dict() if memory else {}
+
+                user_name = mem_dict.get("user_name") or (profile.get("name") if profile else None)
+                budget_range = mem_dict.get("budget_range", {})
+                areas = mem_dict.get("preferred_areas", [])
+                purpose = mem_dict.get("investment_vs_living")
+                objections = mem_dict.get("objections_raised", [])
+                liked = mem_dict.get("liked_properties", [])
+                family = mem_dict.get("family_members_mentioned", [])
+                payment = mem_dict.get("preferred_payment", {})
+                competitors = mem_dict.get("competitors_mentioned", [])
+                commitment = mem_dict.get("commitment_level", 0)
+
+                has_data = any([user_name, budget_range.get("min") or budget_range.get("max"),
+                               areas, purpose, objections, liked, family])
+
+                if has_data:
+                    dossier_parts.append("\n═══════════════════════════════════════")
+                    dossier_parts.append("🕵️ USER INTELLIGENCE DOSSIER")
+                    dossier_parts.append("═══════════════════════════════════════")
+                    if user_name:
+                        dossier_parts.append(f"👤 Name: {user_name}")
+                    if budget_range.get("min") or budget_range.get("max"):
+                        bmin = budget_range.get("min", 0) / 1_000_000
+                        bmax = budget_range.get("max", 0) / 1_000_000
+                        if bmin > 0 and bmax > 0:
+                            dossier_parts.append(f"💰 Budget: {bmin:.1f}M - {bmax:.1f}M EGP")
+                        elif bmax > 0:
+                            dossier_parts.append(f"💰 Budget: Up to {bmax:.1f}M EGP")
+                    if areas:
+                        dossier_parts.append(f"📍 Preferred Areas: {', '.join(areas)}")
+                    if purpose:
+                        dossier_parts.append(f"🏠 Purpose: {purpose}")
+                    if family:
+                        dossier_parts.append(f"👨‍👩‍👧 Family: {', '.join(family)}")
+                    if liked:
+                        dossier_parts.append(f"❤️ Liked: {', '.join(liked)}")
+                    if objections:
+                        dossier_parts.append(f"⚠️ Objections raised: {', '.join(objections)}")
+                    if competitors:
+                        dossier_parts.append(f"🔄 Compared to: {', '.join(competitors)}")
+                    if payment:
+                        dp = payment.get("down_pct", "?")
+                        yrs = payment.get("years", "?")
+                        dossier_parts.append(f"💳 Payment pref: {dp}% down, {yrs}yr")
+                    if commitment > 0:
+                        dossier_parts.append(f"📊 Commitment: {commitment}/100")
+                    dossier_parts.append("═══════════════════════════════════════")
+                    dossier_parts.append("RULES: Address by name. Never re-ask known info.")
+                    dossier_parts.append("Never suggest what contradicts their objections.")
+                    dossier_parts.append("═══════════════════════════════════════")
+                    context_parts.append("\n".join(dossier_parts))
+            except Exception as e:
+                logger.debug(f"User Dossier injection skipped: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # V3: CHAIN-OF-THOUGHT REASONING INJECTION

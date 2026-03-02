@@ -15,7 +15,7 @@ New in V5:
 - Market Reality Check: Urgency visualization with price momentum
 """
 
-import random
+import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 
@@ -43,23 +43,22 @@ def generate_authority_bridge_stats(
     hot_locations = ["New Cairo", "Sheikh Zayed", "New Capital", "Madinaty", "6th October"]
     is_hot = any(loc.lower() in location.lower() for loc in hot_locations)
     
-    # Randomize total scanned for realism (±30%)
-    variance = random.uniform(0.7, 1.3)
-    total = int(total_scanned * variance)
+    # Deterministic scaling based on location (no random — consistent results)
+    total = total_scanned
     if is_hot:
         total = int(total * 1.25)  # More units in hot areas
     
-    # Rejection rates (realistic distribution)
-    # Contract issues: 20-30% (Law 114 problems, missing Tawkil, etc.)
-    contract_reject_rate = random.uniform(0.20, 0.30)
+    # Fixed rejection rates (industry-realistic midpoints)
+    # Contract issues: ~25% (Law 114 problems, missing Tawkil, etc.)
+    contract_reject_rate = 0.25
     contract_rejected = int(total * contract_reject_rate)
     
-    # ROI issues: 15-25% (below inflation, poor rental yield)
-    roi_reject_rate = random.uniform(0.15, 0.25)
+    # ROI issues: ~20% (below inflation, poor rental yield)
+    roi_reject_rate = 0.20
     roi_rejected = int((total - contract_rejected) * roi_reject_rate)
     
-    # Developer issues: 10-15% (delays, complaints, unverified)
-    dev_reject_rate = random.uniform(0.10, 0.15)
+    # Developer issues: ~12% (delays, complaints, unverified)
+    dev_reject_rate = 0.12
     dev_rejected = int((total - contract_rejected - roi_rejected) * dev_reject_rate)
     
     # Survivors: 3-5 elite units (never 0, creates credibility)
@@ -126,17 +125,17 @@ def generate_market_reality_check(
     is_hot = any(loc.lower() in location.lower() for loc in hot_locations)
     
     if is_hot:
-        # Hot markets: higher urgency
-        weekly_change = random.uniform(1.5, 3.0)
+        # Hot markets: higher urgency (deterministic midpoints)
+        weekly_change = 2.0
         urgency_level = "high"
         trend_emoji = "🔥"
-        weeks_to_loss = random.randint(2, 4)
+        weeks_to_loss = 3
     else:
         # Stable markets: moderate urgency
-        weekly_change = random.uniform(0.5, 1.5)
+        weekly_change = 1.0
         urgency_level = "medium"
         trend_emoji = "📈"
-        weeks_to_loss = random.randint(4, 8)
+        weeks_to_loss = 6
     
     # Calculate projections
     monthly_change = weekly_change * 4
@@ -476,7 +475,7 @@ def generate_market_trend_chart(
         historical.append({
             "period": quarter,
             "avg_price": price,
-            "volume": random.randint(50, 150)
+            "volume": 80 + (i * 15)  # Deterministic steady growth in volume
         })
 
     # Generate forecast (next 2 quarters)

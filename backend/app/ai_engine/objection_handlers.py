@@ -189,7 +189,11 @@ I can also schedule a video tour you can watch together. When would be good?"""
         "detection_keywords": [
             "too far", "location", "commute", "distance",
             "area is", "neighborhood", "accessibility",
-            "traffic", "infrastructure"
+            "traffic", "infrastructure",
+            # Egyptian Arabic location keywords
+            "بعيد", "بعيدة", "المنطقة", "مكان", "الموقع",
+            "مواصلات", "زحمة", "الطريق", "محتاج عربية",
+            "خدمات", "مدارس", "مستشفيات", "سوبر ماركت"
         ],
         "responses": {
             "all_segments": """Location is critical - glad you're thinking about this.
@@ -241,7 +245,11 @@ Would you like me to show you this developer's completed projects?"""
     ObjectionType.FINANCING_ISSUES: {
         "detection_keywords": [
             "financing", "mortgage", "loan", "bank approval",
-            "credit", "down payment", "can't pay", "installments"
+            "credit", "down payment", "can't pay", "installments",
+            # Egyptian Arabic financing keywords
+            "تمويل", "قرض", "البنك", "مقدم", "أقساط",
+            "القسط", "مش قادر أدفع", "التقسيط", "فوايد",
+            "تمويل عقاري", "الموافقة", "الضمان"
         ],
         "responses": {
             "all_segments": """Financing is often simpler than people think. Let me help:
@@ -306,7 +314,10 @@ The best time to buy is when you find the right property at the right price. Thi
     ObjectionType.NO_URGENCY: {
         "detection_keywords": [
             "no rush", "not urgent", "just browsing", "looking around",
-            "exploring", "researching", "no hurry"
+            "exploring", "researching", "no hurry",
+            # Egyptian Arabic no-urgency keywords
+            "بتفرج", "بتصفح", "مش مستعجل", "بشوف", "بستكشف",
+            "بدور", "مفيش استعجال", "بس بسأل", "أنا لسه"
         ],
         "responses": {
             "all_segments": """Perfect! Taking your time to research is the smart approach.

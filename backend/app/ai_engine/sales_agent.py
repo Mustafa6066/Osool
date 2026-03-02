@@ -535,20 +535,61 @@ def audit_uploaded_contract(contract_text: str) -> str:
 @tool
 def check_market_trends(compound_name: str) -> str:
     """
-    Fetches REAL-TIME market sentiment and price trends for a specific compound.
-    MUST be called if user asks about a specific project (e.g. 'Mountain View', 'Palm Hills').
+    Fetches market sentiment and price trends for a specific compound.
+    Uses real area growth data from analytical_engine to derive sentiment.
     """
-    # Mocking Real-Time Data Source (e.g., PropTx API)
-    import random
-    sentiments = ["Bullish 📈", "Bearish 📉", "Stable ⚖️"]
-    status = random.choice(sentiments)
+    from .analytical_engine import AREA_PRICES, AREA_GROWTH, MARKET_DATA
 
-    return json.dumps({
-        "compound": compound_name,
-        "sentiment": status,
-        "insight": "Prices valid for 48 hours only. High demand detected in resale market.",
-        "avg_price_sqm": "55,000 EGP"
-    })
+    # Try to match compound to an area for real data
+    compound_lower = compound_name.lower()
+    area_mappings = {
+        "mivida": "New Cairo", "villette": "New Cairo", "hyde park": "New Cairo",
+        "mountain view": "New Cairo", "madinaty": "Madinaty", "palm hills": "6th October",
+        "sodic": "Sheikh Zayed", "allegria": "Sheikh Zayed", "belle vie": "Sheikh Zayed",
+        "badya": "6th October", "hacienda": "North Coast", "marassi": "North Coast",
+        "il monte": "Ain Sokhna", "azha": "Ain Sokhna", "galala": "Ain Sokhna",
+        "sarai": "Mostakbal City", "bloomfields": "Mostakbal City",
+        "midtown": "New Capital", "city edge": "New Capital",
+    }
+
+    matched_area = None
+    for key, area in area_mappings.items():
+        if key in compound_lower:
+            matched_area = area
+            break
+
+    if matched_area:
+        avg_price = AREA_PRICES.get(matched_area, 50000)
+        growth = AREA_GROWTH.get(matched_area, 0.12)
+        # Derive sentiment from actual growth data
+        if growth >= 1.0:
+            sentiment = "Bullish 📈 (Strong growth corridor)"
+        elif growth >= 0.20:
+            sentiment = "Bullish 📈"
+        elif growth >= 0.10:
+            sentiment = "Stable ⚖️ (Steady appreciation)"
+        else:
+            sentiment = "Stable ⚖️ (Mature market)"
+
+        appreciation = MARKET_DATA.get("nominal_property_appreciation", 0.20)
+
+        return json.dumps({
+            "compound": compound_name,
+            "area": matched_area,
+            "sentiment": sentiment,
+            "yoy_growth": f"{growth * 100:.0f}%",
+            "avg_price_sqm": f"{avg_price:,} EGP",
+            "national_appreciation": f"{appreciation * 100:.0f}%",
+            "insight": f"Based on {matched_area} market data. Area growth: {growth * 100:.0f}% YoY."
+        })
+    else:
+        # Unknown compound — return honest "no specific data" response
+        return json.dumps({
+            "compound": compound_name,
+            "sentiment": "Data Pending ⏳",
+            "avg_price_sqm": "N/A — compound not in our database yet",
+            "insight": "This compound is not yet in our tracked database. National property appreciation is ~30% YoY. Ask the user for the specific area to provide better data."
+        })
 
 @tool
 async def calculate_investment_roi(property_id: int, purchase_price: int, monthly_rent: int = 0) -> str:

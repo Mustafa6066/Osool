@@ -229,6 +229,50 @@ LOCATION_PSYCHOLOGY = {
             "unknown_area": "Backed by major developers (Golden Square). Unknown means undiscovered opportunity."
         },
         "hot_compounds": ["Solana", "Sarai", "Mountain View ICity", "Bloomfields", "Latin Quarter"]
+    },
+
+    "North Coast": {
+        "buyer_motivation": "Premium seasonal lifestyle, highest appreciation in Egypt, Gulf & diaspora magnet",
+        "selling_points": [
+            "Highest YoY appreciation: +209% (2025 research)",
+            "Seasonal rental yield up to 10% for summer months",
+            "Premium Class A developers: Emaar, SODIC, Mountain View",
+            "Ras El Hekma & Sidi Abdel Rahman new luxury hub",
+            "Government infrastructure: New Alamein city, international airport",
+            "Gulf buyer influx raising property values"
+        ],
+        "typical_buyer": "Wealthy families (summer homes), Gulf investors, diaspora Egyptians, speculators",
+        "price_range": "60,000-120,000 EGP/sqm (premium chalets higher)",
+        "growth_trend": "Very high growth, 25-40% annual appreciation",
+        "objections": {
+            "seasonal_only": "New Alamein is becoming a year-round city with government offices. Plus, summer rental income covers full-year costs.",
+            "too_expensive": "North Coast has the highest appreciation in Egypt. Early buyers tripled their money in 3 years.",
+            "far_from_cairo": "New highway (Fouka Road) cuts travel to 2 hours. Plus it's a rental asset, not daily commute.",
+            "oversupply": "Premium locations (Sidi Abdel Rahman, Ras El Hekma) have limited beach frontage — scarcity drives value."
+        },
+        "hot_compounds": ["Hacienda Bay", "Mountain View Ras El Hekma", "Fouka Bay", "Marassi", "Jefaira", "Almaza Bay"]
+    },
+
+    "Ain Sokhna": {
+        "buyer_motivation": "Weekend getaway, highest growth rate in Egypt (+283%), Red Sea lifestyle",
+        "selling_points": [
+            "Highest area growth in Egypt: +283% YoY",
+            "2 hours from Cairo via Ain Sokhna highway",
+            "Year-round warm weather (unlike North Coast)",
+            "IL Monte Galala: unique mountain-meets-sea experience",
+            "Strong rental demand from Cairo weekenders",
+            "Suez Canal economic zone proximity"
+        ],
+        "typical_buyer": "Cairo weekenders, investors (rental yield), families, retirees",
+        "price_range": "50,000-120,000 EGP/sqm (Galala premium: 150,000+)",
+        "growth_trend": "Explosive growth, 30-50% annual appreciation",
+        "objections": {
+            "only_weekends": "Many buyers rent their units on Airbnb when not using them. Average occupancy 60%+ year-round.",
+            "too_expensive_now": "Ain Sokhna had the highest appreciation in all of Egypt. Early entry is critical.",
+            "limited_services": "Galala has its own mall, restaurants, aqua park. New road infrastructure improving fast.",
+            "humidity": "Sokhna has the driest climate on the Red Sea coast. Ideal year-round."
+        },
+        "hot_compounds": ["IL Monte Galala", "Azha", "Telal Sokhna", "La Vista Gardens", "Ain Bay"]
     }
 }
 
