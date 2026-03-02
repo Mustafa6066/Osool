@@ -2,18 +2,19 @@
 Smart Follow-Up Suggestion Engine
 -----------------------------------
 Generates 3 contextual follow-up suggestions after every AI response
-based on conversation phase, user psychology, and tools used.
+based on conversation phase, user psychology, tools used, and AI response content.
 
-Flow: conversation_phase + psychology + last_action → 3 clickable suggestions
+Flow: conversation_phase + psychology + last_action + response_hash → 3 unique clickable suggestions
 """
 
+import hashlib
 import logging
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════
-# PHASE-BASED SUGGESTION TEMPLATES
+# PHASE-BASED SUGGESTION TEMPLATES  (expanded for variety)
 # ═══════════════════════════════════════════════════════════════
 
 SUGGESTIONS_AR = {
@@ -24,6 +25,14 @@ SUGGESTIONS_AR = {
         "عايز أستثمر مش أسكن",
         "إيه أفضل منطقة حالياً للاستثمار؟",
         "هل العاصمة الإدارية فرصة حقيقية؟",
+        "إيه الفرق بين التجمع وأكتوبر؟",
+        "عايز مشروع بمقدم أقل من 10%",
+        "إيه المناطق اللي فيها أعلى عائد؟",
+        "بدور على فيلا في الساحل",
+        "هل الوقت ده مناسب للشراء؟",
+        "إيه المطورين الموثوقين؟",
+        "عايز أفهم حركة السوق",
+        "هل فيه فرق بين السكن والاستثمار في المناطق دي؟",
     ],
     "exploration": [
         "قارن بين {property} ومشاريع تانية في نفس المنطقة",
@@ -32,6 +41,12 @@ SUGGESTIONS_AR = {
         "إيه بدائل تانية في نفس الميزانية؟",
         "تحليل سعر المتر في {location}",
         "هل فيه وحدات أرخص بنفس المواصفات؟",
+        "ورّيني مشاريع {developer} التانية",
+        "إيه نسبة الإشغال في {location}؟",
+        "هل {location} مناسبة للعائلات؟",
+        "إيه المدارس والخدمات القريبة؟",
+        "احسبلي التضخم مقابل سعر الوحدة",
+        "ممكن أشوف وحدات بتسليم أقرب؟",
     ],
     "comparison": [
         "مقارنة جنب جنب بين الاختيارات",
@@ -40,6 +55,10 @@ SUGGESTIONS_AR = {
         "أنهي أفضل كاستثمار على المدى البعيد؟",
         "حلل الوحدة دي ضد التضخم",
         "إيه المخاطر اللي لازم أعرفها؟",
+        "قارنلي خطط السداد المختلفة",
+        "إيه أحسن وقت للتفاوض على السعر؟",
+        "عايز أعرف حالة التسليم الفعلية",
+        "هل الأسعار دي قابلة للتفاوض؟",
     ],
     "decision": [
         "احجزلي معاينة للوحدة دي",
@@ -47,6 +66,8 @@ SUGGESTIONS_AR = {
         "عايز مراجعة قانونية كاملة",
         "قارن خطط السداد النهائية",
         "إيه الخطوات اللي بعد كده؟",
+        "إيه الأوراق المطلوبة للحجز؟",
+        "عايز أتأكد من الوضع القانوني",
     ],
 }
 
@@ -58,6 +79,14 @@ SUGGESTIONS_EN = {
         "I want to invest, not live",
         "What's the best area for investment right now?",
         "Is New Capital a real opportunity?",
+        "Compare New Cairo vs October for me",
+        "Show me projects with less than 10% down",
+        "Which areas have the highest ROI?",
+        "Looking for a villa on the North Coast",
+        "Is now a good time to buy?",
+        "Which developers are most reliable?",
+        "Give me a market overview",
+        "What's the difference between residential and investment areas?",
     ],
     "exploration": [
         "Compare {property} with similar projects",
@@ -66,6 +95,12 @@ SUGGESTIONS_EN = {
         "What alternatives exist in my budget?",
         "Analyze price per sqm in {location}",
         "Are there cheaper units with similar specs?",
+        "Show me other {developer} projects",
+        "What's the occupancy rate in {location}?",
+        "Is {location} good for families?",
+        "What schools and services are nearby?",
+        "Inflation vs this unit's price growth?",
+        "Show me units with earlier delivery",
     ],
     "comparison": [
         "Side-by-side comparison of my options",
@@ -74,6 +109,10 @@ SUGGESTIONS_EN = {
         "Which is better as a long-term investment?",
         "Analyze this unit against inflation",
         "What risks should I know about?",
+        "Compare different payment plans",
+        "When's the best time to negotiate?",
+        "What's the actual delivery status?",
+        "Are these prices negotiable?",
     ],
     "decision": [
         "Schedule a viewing for this property",
@@ -81,8 +120,31 @@ SUGGESTIONS_EN = {
         "I need a full legal review",
         "Compare final payment plans",
         "What are the next steps?",
+        "What documents do I need to reserve?",
+        "Verify the legal status first",
     ],
 }
+
+# ═══════════════════════════════════════════════════════════════
+# RESPONSE-CONTENT KEYWORD TRIGGERS (override phase suggestions)
+# ═══════════════════════════════════════════════════════════════
+CONTENT_TRIGGERS_AR = [
+    (["تضخم", "inflation", "فلوسك"], ["إزاي أحمي فلوسي؟", "حلل العائد الحقيقي بعد التضخم", "أنهي أحسن: عقار ولا شهادات بنك؟"]),
+    (["مطور", "developer", "تسليم"], ["إيه سجل التسليم بتاعهم؟", "هل فيه مطور أضمن؟", "ورّيني التقييمات والشكاوي"]),
+    (["ساحل", "سوخنة", "coast", "sokhna"], ["أنهي أحسن: ساحل ولا سوخنة؟", "هل العائد الإيجاري كويس؟", "إيه أحسن كمبوند هناك؟"]),
+    (["ROI", "عائد", "ربح", "return"], ["قارن العائد مع البنك", "إيه أعلى عائد في الميزانية دي؟", "حلل العائد على 3 و5 و10 سنين"]),
+    (["أقساط", "سداد", "installment", "payment"], ["إيه أطول خطة سداد؟", "هل فيه سداد بدون فوايد؟", "قارن خطط السداد المتاحة"]),
+    (["قانون", "عقد", "law", "legal"], ["هل العقد محمي قانونياً؟", "ورّيني تحليل قانون 114", "إيه حقوقي لو المطور اتأخر؟"]),
+]
+
+CONTENT_TRIGGERS_EN = [
+    (["inflation", "cash", "money"], ["How can I protect my money?", "Analyze real return after inflation", "Property vs bank CDs — which is better?"]),
+    (["developer", "delivery", "track record"], ["What's their delivery track record?", "Is there a more reliable developer?", "Show me ratings and complaints"]),
+    (["coast", "sokhna", "sahel", "north coast"], ["North Coast vs Sokhna — which is better?", "Is rental yield good there?", "Best compound in that area?"]),
+    (["ROI", "return", "profit", "yield"], ["Compare return vs bank deposits", "Highest ROI in my budget?", "Analyze return over 3, 5, and 10 years"]),
+    (["installment", "payment", "plan"], ["What's the longest payment plan?", "Any interest-free payment?", "Compare available payment plans"]),
+    (["law", "legal", "contract"], ["Is this contract legally protected?", "Analyze Law 114 for me", "What are my rights if developer delays?"]),
+]
 
 
 def _detect_conversation_phase(
@@ -109,6 +171,31 @@ def _fill_template(template: str, context: Dict) -> str:
     return result
 
 
+def _content_trigger_suggestions(
+    ai_response: str,
+    user_message: str,
+    language: str,
+) -> List[str]:
+    """Check AI response + user message for keyword triggers → return override suggestions."""
+    combined = (ai_response + " " + user_message).lower()
+    triggers = CONTENT_TRIGGERS_AR if language == "ar" else CONTENT_TRIGGERS_EN
+    for keywords, suggestions in triggers:
+        if any(kw in combined for kw in keywords):
+            return suggestions
+    return []
+
+
+def _deterministic_rotate(candidates: List[str], seed: str, count: int = 3) -> List[str]:
+    """Pick `count` items from candidates using a deterministic hash-rotation.
+    Different seed → different selection, but same seed → same selection (stable)."""
+    if len(candidates) <= count:
+        return candidates
+    h = int(hashlib.md5(seed.encode()).hexdigest(), 16)
+    offset = h % len(candidates)
+    rotated = candidates[offset:] + candidates[:offset]
+    return rotated[:count]
+
+
 def generate_suggestions(
     language: str = "ar",
     lead_score: int = 0,
@@ -116,27 +203,24 @@ def generate_suggestions(
     tools_used: Optional[List[str]] = None,
     last_property: Optional[Dict] = None,
     last_action: Optional[str] = None,
+    ai_response: str = "",
+    user_message: str = "",
 ) -> List[str]:
     """
     Generate 3 contextual follow-up suggestions.
-
-    Args:
-        language: "ar" or "en"
-        lead_score: Current lead score (0-100)
-        history_length: Number of messages in conversation
-        tools_used: List of tool/visualization types triggered
-        last_property: Last property discussed (for template filling)
-        last_action: Last action type (e.g., "search", "compare", "audit")
-
-    Returns:
-        List of 3 suggestion strings
+    Uses content triggers first, then phase-based pool with rotation.
     """
     tools_used = tools_used or []
 
+    # 1) Check content triggers (highest priority — topic-specific)
+    triggered = _content_trigger_suggestions(ai_response, user_message, language)
+    if triggered:
+        seed = ai_response[:200] + user_message[:100]
+        return _deterministic_rotate(triggered, seed, 3)
+
+    # 2) Phase-based pool
     phase = _detect_conversation_phase(lead_score, history_length, tools_used)
-
     pool = SUGGESTIONS_AR if language == "ar" else SUGGESTIONS_EN
-
     candidates = list(pool.get(phase, pool["qualification"]))
 
     # Build template context from last property
@@ -154,19 +238,12 @@ def generate_suggestions(
     filled = []
     for template in candidates:
         suggestion = _fill_template(template, context)
-        # Skip suggestions with unfilled placeholders
         if "{" not in suggestion and suggestion.strip():
             filled.append(suggestion)
 
-    # Deduplicate and pick 3
-    seen = set()
-    unique = []
-    for s in filled:
-        if s not in seen:
-            seen.add(s)
-            unique.append(s)
-
-    return unique[:3]
+    # 3) Deterministic rotation using AI response as seed → different response = different chips
+    seed = ai_response[:200] + str(history_length) + user_message[:100]
+    return _deterministic_rotate(filled, seed, 3)
 
 
 def generate_suggestions_from_turn(
@@ -175,6 +252,8 @@ def generate_suggestions_from_turn(
     history: List[Dict],
     ui_actions: List[Dict],
     properties: List[Dict],
+    ai_response: str = "",
+    user_message: str = "",
 ) -> List[str]:
     """
     High-level wrapper called from wolf_orchestrator after each turn.
@@ -191,4 +270,6 @@ def generate_suggestions_from_turn(
         tools_used=tools_used,
         last_property=last_property,
         last_action=last_action,
+        ai_response=ai_response,
+        user_message=user_message,
     )

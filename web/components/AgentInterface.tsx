@@ -80,29 +80,26 @@ const SUGGESTIONS: Suggestion[] = [
     { icon: Shield, label: "Developer Audit", prompt: "Audit the delivery history of Palm Hills" },
 ];
 
-/* Agent Avatar — Neural Network AI icon */
+/* Agent Avatar — Clean professional AI mark, no background */
 const AgentAvatar = ({ thinking = false }: { thinking?: boolean }) => (
-    <div className={`relative flex items-center justify-center w-8 h-8 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm ${thinking ? 'animate-pulse' : ''}`}>
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 to-teal-700 dark:from-emerald-400 dark:to-teal-500" />
-        {/* Neural network SVG */}
-        <svg className="relative w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Connection lines */}
-            <line x1="6" y1="5" x2="12" y2="12" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-            <line x1="18" y1="5" x2="12" y2="12" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-            <line x1="12" y1="12" x2="6" y2="19" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-            <line x1="12" y1="12" x2="18" y2="19" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-            <line x1="6" y1="5" x2="18" y2="19" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
-            <line x1="18" y1="5" x2="6" y2="19" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
+    <div className={`relative flex items-center justify-center w-8 h-8 flex-shrink-0 ${thinking ? 'animate-pulse' : ''}`}>
+        <svg className="w-7 h-7" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Outer hexagonal frame */}
+            <path d="M14 1.5L25.26 7.75V20.25L14 26.5L2.74 20.25V7.75L14 1.5Z"
+                  className="stroke-emerald-500 dark:stroke-emerald-400"
+                  strokeWidth="1.2" fill="none" />
+            {/* Inner neural connections */}
+            <line x1="9" y1="9" x2="14" y2="14" className="stroke-emerald-500/40 dark:stroke-emerald-400/40" strokeWidth="0.8" />
+            <line x1="19" y1="9" x2="14" y2="14" className="stroke-emerald-500/40 dark:stroke-emerald-400/40" strokeWidth="0.8" />
+            <line x1="14" y1="14" x2="9" y2="19" className="stroke-emerald-500/40 dark:stroke-emerald-400/40" strokeWidth="0.8" />
+            <line x1="14" y1="14" x2="19" y2="19" className="stroke-emerald-500/40 dark:stroke-emerald-400/40" strokeWidth="0.8" />
             {/* Nodes */}
-            <circle cx="6" cy="5" r="2.5" fill="white" opacity="0.95" />
-            <circle cx="18" cy="5" r="2.5" fill="white" opacity="0.95" />
-            <circle cx="12" cy="12" r="3" fill="white" />
-            <circle cx="6" cy="19" r="2.5" fill="white" opacity="0.95" />
-            <circle cx="18" cy="19" r="2.5" fill="white" opacity="0.95" />
-            {/* Center glow */}
-            <circle cx="12" cy="12" r="1.5" fill="#10b981" />
+            <circle cx="9" cy="9" r="1.8" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.7" />
+            <circle cx="19" cy="9" r="1.8" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.7" />
+            <circle cx="14" cy="14" r="2.2" className="fill-emerald-500 dark:fill-emerald-400" />
+            <circle cx="9" cy="19" r="1.8" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.7" />
+            <circle cx="19" cy="19" r="1.8" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.7" />
         </svg>
-        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white dark:border-gray-900" />
     </div>
 );
 
@@ -258,6 +255,87 @@ interface PastSession {
     message_count: number;
     last_message_at: string | null;
 }
+
+/* ─── Thinking Steps — shows AI processing stages while waiting ─── */
+const THINKING_STEPS_AR = [
+    { label: 'تحليل الطلب...', icon: Search, duration: 1800 },
+    { label: 'فحص بيانات السوق...', icon: BarChart2, duration: 3000 },
+    { label: 'مطابقة العقارات...', icon: Sparkles, duration: 5000 },
+    { label: 'تقييم الفرص...', icon: Shield, duration: 7500 },
+    { label: 'إعداد الرد...', icon: MapPin, duration: 10000 },
+];
+
+const THINKING_STEPS_EN = [
+    { label: 'Understanding your request...', icon: Search, duration: 1800 },
+    { label: 'Analyzing market data...', icon: BarChart2, duration: 3000 },
+    { label: 'Matching properties...', icon: Sparkles, duration: 5000 },
+    { label: 'Evaluating opportunities...', icon: Shield, duration: 7500 },
+    { label: 'Preparing response...', icon: MapPin, duration: 10000 },
+];
+
+const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
+    const [visibleSteps, setVisibleSteps] = useState(0);
+    const msgIsArabic = isArabic(lastUserMessage);
+    const steps = msgIsArabic ? THINKING_STEPS_AR : THINKING_STEPS_EN;
+
+    useEffect(() => {
+        setVisibleSteps(0);
+        const timers = steps.map((step, i) =>
+            setTimeout(() => setVisibleSteps(i + 1), step.duration)
+        );
+        return () => timers.forEach(clearTimeout);
+    }, [lastUserMessage]);
+
+    return (
+        <div className="flex gap-4 mb-6 animate-fade-in" dir={msgIsArabic ? 'rtl' : 'ltr'}>
+            <AgentAvatar thinking={true} />
+            <div className="flex-1 flex flex-col gap-2 pt-1">
+                {steps.map((step, i) => {
+                    const Icon = step.icon;
+                    const isVisible = i < visibleSteps;
+                    const isCurrent = i === visibleSteps - 1;
+                    const isPending = i >= visibleSteps;
+
+                    if (isPending && i > visibleSteps) return null; // only show next pending
+
+                    return (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: isVisible ? 1 : 0.4, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className={`flex items-center gap-2.5 text-[13px] ${
+                                isCurrent
+                                    ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                                    : isVisible
+                                        ? 'text-[var(--color-text-muted)]'
+                                        : 'text-[var(--color-text-muted)]/40'
+                            }`}
+                        >
+                            {isCurrent ? (
+                                <div className="w-4 h-4 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin flex-shrink-0" />
+                            ) : isVisible ? (
+                                <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                            ) : (
+                                <Icon className="w-4 h-4 flex-shrink-0 opacity-40" />
+                            )}
+                            <span>{step.label}</span>
+                        </motion.div>
+                    );
+                })}
+
+                {/* Show pending dot when no steps revealed yet */}
+                {visibleSteps === 0 && (
+                    <div className="flex items-center gap-1.5 pt-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '0ms' }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '150ms' }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '300ms' }} />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 /* Main Component */
 export default function AgentInterface() {
@@ -473,67 +551,55 @@ export default function AgentInterface() {
     const hasStarted = messages.length > 0;
 
     const generateSuggestions = (msg: Message): string[] => {
-        const suggestions: string[] = [];
         const content = msg.content.toLowerCase();
         const hasProperties = msg.allProperties && msg.allProperties.length > 0;
         const hasAnalytics = msg.analyticsContext?.has_analytics;
-        // Use detected language from message OR conversation-level language, default Arabic
         const lang = msg.detectedLanguage || conversationLanguage || 'ar';
         const isAr = lang === 'ar';
 
-        if (hasProperties) {
-            if (isAr) {
-                suggestions.push('قارن العقارات دي');
-                suggestions.push('تحليل العائد');
-                suggestions.push('خطة السداد؟');
-            } else {
-                suggestions.push('Compare these properties');
-                suggestions.push('Show ROI analysis');
-                suggestions.push('Payment plan options?');
-            }
-        } else if (hasAnalytics) {
-            if (isAr) {
-                suggestions.push('اتجاهات الأسعار');
-                suggestions.push('أفضل مناطق النمو');
-                suggestions.push('قارن البدائل');
-            } else {
-                suggestions.push('Show price trends');
-                suggestions.push('Best growth areas?');
-                suggestions.push('Compare alternatives');
-            }
-        } else if (content.includes('developer') || content.includes('مطور')) {
-            if (isAr) {
-                suggestions.push('سجل المطور');
-                suggestions.push('مواعيد التسليم');
-                suggestions.push('الوحدات المتاحة');
-            } else {
-                suggestions.push('Track record');
-                suggestions.push('Compare delivery dates');
-                suggestions.push('Available units');
-            }
-        } else if (content.includes('area') || content.includes('location') || content.includes('منطقة')) {
-            if (isAr) {
-                suggestions.push('سعر المتر');
-                suggestions.push('مناطق قريبة');
-                suggestions.push('البنية التحتية');
-            } else {
-                suggestions.push('Price per sqm');
-                suggestions.push('Nearby areas');
-                suggestions.push('Infrastructure');
-            }
-        } else {
-            if (isAr) {
-                suggestions.push('أفضل العقارات');
-                suggestions.push('نظرة على السوق');
-                suggestions.push('حدد ميزانيتي');
-            } else {
-                suggestions.push('Top properties');
-                suggestions.push('Market overview');
-                suggestions.push('Set my budget');
-            }
+        // Use a simple hash of content to rotate through options deterministically
+        const hash = content.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+        // Content-based triggers for variety
+        if (content.includes('تضخم') || content.includes('inflation') || content.includes('فلوس')) {
+            return isAr
+                ? ['إزاي أحمي فلوسي؟', 'عقار ولا شهادات بنك؟', 'حلل العائد بعد التضخم']
+                : ['How to protect my money?', 'Property vs bank CDs?', 'Real return after inflation'];
+        }
+        if (content.includes('مطور') || content.includes('developer') || content.includes('تسليم') || content.includes('delivery')) {
+            const opts = isAr
+                ? ['سجل التسليم بتاعهم', 'هل فيه مطور أضمن؟', 'ورّيني التقييمات', 'مواعيد التسليم', 'المشاريع المتأخرة']
+                : ['Their delivery track record', 'More reliable developer?', 'Show me ratings', 'Delivery timeline', 'Delayed projects'];
+            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
+        }
+        if (content.includes('ساحل') || content.includes('coast') || content.includes('سوخنة') || content.includes('sokhna')) {
+            return isAr
+                ? ['ساحل ولا سوخنة أحسن؟', 'العائد الإيجاري كام؟', 'أحسن كمبوند هناك؟']
+                : ['Coast vs Sokhna?', 'Rental yield there?', 'Best compound there?'];
+        }
+        if (content.includes('أقساط') || content.includes('سداد') || content.includes('installment') || content.includes('payment')) {
+            return isAr
+                ? ['أطول خطة سداد؟', 'سداد بدون فوايد؟', 'قارن خطط السداد']
+                : ['Longest payment plan?', 'Interest-free options?', 'Compare payment plans'];
         }
 
-        return suggestions.slice(0, 3);
+        if (hasProperties) {
+            const opts = isAr
+                ? ['قارن العقارات دي', 'تحليل العائد', 'خطة السداد؟', 'تفاصيل أكتر عن الوحدة', 'وحدات مشابهة أرخص', 'التقييم القانوني']
+                : ['Compare these properties', 'Show ROI analysis', 'Payment plan options?', 'More details on this unit', 'Similar but cheaper?', 'Legal assessment'];
+            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
+        } else if (hasAnalytics) {
+            const opts = isAr
+                ? ['اتجاهات الأسعار', 'أفضل مناطق النمو', 'قارن البدائل', 'تحليل ضد التضخم', 'هل ده وقت مناسب؟']
+                : ['Show price trends', 'Best growth areas?', 'Compare alternatives', 'Inflation analysis', 'Is this a good time?'];
+            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
+        } else {
+            // General pool — rotate based on content hash for variety
+            const opts = isAr
+                ? ['أفضل العقارات', 'نظرة على السوق', 'حدد ميزانيتي', 'أفضل منطقة للاستثمار', 'إيه المطورين الموثوقين؟', 'فيه عروض حالياً؟', 'عايز أفهم العائد']
+                : ['Top properties', 'Market overview', 'Set my budget', 'Best area for investment', 'Reliable developers?', 'Any current deals?', 'Explain ROI to me'];
+            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
+        }
     };
 
     return (
@@ -542,42 +608,38 @@ export default function AgentInterface() {
             {/* Main Chat */}
             <main className="flex-1 flex flex-col relative min-w-0 h-full w-full min-h-0 z-0">
 
-                {/* Top bar — only visible in conversation */}
+                {/* Top bar — sticky header with session controls + funnel */}
                 {hasStarted && (
-                    <div className="absolute top-4 left-0 right-0 flex items-center justify-between px-6 z-30 pointer-events-none">
-                        <div className="pointer-events-auto bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)]/50 px-4 py-2 rounded-full shadow-sm">
-                            <span className="text-[13px] font-semibold text-[var(--color-text-primary)] tracking-tight">
-                                Osool AI <span className="text-[var(--color-text-muted)] font-medium mx-1.5">/</span> <span className="text-[var(--color-text-secondary)] font-medium">Session</span>
-                            </span>
-                        </div>
-                        <div className="pointer-events-auto flex items-center gap-2">
-                            <button
-                                onClick={() => setHistoryOpen(true)}
-                                className="p-2 bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)]/50 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shadow-sm transition-all hover:scale-105 active:scale-95"
-                                title="Past Conversations"
-                            >
-                                <History className="w-4 h-4" strokeWidth={2} />
-                            </button>
-                            <button
-                                onClick={handleNewChat}
-                                className="p-2 bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)]/50 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] shadow-sm transition-all hover:scale-105 active:scale-95"
-                                title="New Chat"
-                            >
-                                <Plus className="w-4 h-4" strokeWidth={2} />
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Funnel */}
-                {hasStarted && (
-                    <div className="absolute top-12 left-0 right-0 z-20 pointer-events-none">
-                        <div className="max-w-[600px] mx-auto">
-                            <FunnelIndicator
-                                leadScore={conversationLeadScore}
-                                readinessScore={conversationReadiness}
-                                language={conversationLanguage}
-                            />
+                    <div className="sticky top-0 left-0 right-0 z-30 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]/30">
+                        <div className="max-w-[980px] mx-auto px-6">
+                            <div className="flex items-center justify-between py-2.5">
+                                <span className="text-[13px] font-semibold text-[var(--color-text-primary)] tracking-tight">
+                                    Osool AI <span className="text-[var(--color-text-muted)] font-medium mx-1.5">/</span> <span className="text-[var(--color-text-secondary)] font-medium">Session</span>
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setHistoryOpen(true)}
+                                        className="p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
+                                        title="Past Conversations"
+                                    >
+                                        <History className="w-4 h-4" strokeWidth={2} />
+                                    </button>
+                                    <button
+                                        onClick={handleNewChat}
+                                        className="p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
+                                        title="New Chat"
+                                    >
+                                        <Plus className="w-4 h-4" strokeWidth={2} />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="max-w-[600px] mx-auto -mt-1 pb-1">
+                                <FunnelIndicator
+                                    leadScore={conversationLeadScore}
+                                    readinessScore={conversationReadiness}
+                                    language={conversationLanguage}
+                                />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -651,7 +713,7 @@ export default function AgentInterface() {
 
                         {/* Messages */}
                         {hasStarted && (
-                            <div className="px-4 pt-20 pb-8">
+                            <div className="px-4 pt-6 pb-8">
                                 {messages.map((msg, index) => (
                                     <div key={msg.id} className="mb-6 animate-fade-in">
                                         <div className="flex gap-4">
@@ -857,45 +919,9 @@ export default function AgentInterface() {
                                     </div>
                                 ))}
 
-                                {/* Typing indicator */}
+                                {/* Thinking steps indicator */}
                                 {isTyping && (
-                                    <div className="flex gap-4 mb-6 animate-fade-in" dir="auto">
-                                        <AgentAvatar thinking={true} />
-                                        <div className="flex-1 flex flex-col items-start gap-4">
-                                            <div className="flex items-center gap-1.5 pt-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '0ms' }} />
-                                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '150ms' }} />
-                                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)] animate-pulse" style={{ animationDelay: '300ms' }} />
-                                            </div>
-
-                                            {/* Dynamic Data Gathering Skeleton */}
-                                            {(() => {
-                                                const lastMsg = messages.length > 0 ? messages[messages.length - 1].content.toLowerCase() : '';
-                                                const wantsChart = lastMsg.includes('chart') || lastMsg.includes('trend') || lastMsg.includes('price') || lastMsg.includes('analyze') || lastMsg.includes('compare') || lastMsg.includes('سعر') || lastMsg.includes('رسم') || lastMsg.includes('مقارنة') || lastMsg.includes('تحليل') || lastMsg.includes('growth') || lastMsg.includes('نمو');
-                                                
-                                                if (wantsChart) {
-                                                    return (
-                                                        <div className="w-[85%] max-w-lg mt-2 p-5 rounded-[20px] border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/5 shadow-sm overflow-hidden animate-pulse" dir="ltr">
-                                                            <div className="flex items-center gap-3 mb-6">
-                                                                <div className="w-5 h-5 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
-                                                                <div className="flex flex-col gap-2">
-                                                                    <div className="h-2 w-32 bg-emerald-500/30 rounded-full" />
-                                                                    <div className="h-1.5 w-20 bg-emerald-500/15 rounded-full" />
-                                                                </div>
-                                                            </div>
-                                                            <div className="h-[120px] w-full flex items-end justify-between gap-1.5">
-                                                                {[30, 45, 35, 65, 50, 85, 75].map((h, i) => (
-                                                                    <div key={i} className="w-full bg-emerald-500/10 dark:bg-emerald-500/20 rounded-t border-t border-emerald-500/30 relative overflow-hidden" style={{ height: `${h}%` }}>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }
-                                                return null;
-                                            })()}
-                                        </div>
-                                    </div>
+                                    <ThinkingSteps lastUserMessage={messages.length > 0 ? messages[messages.length - 1].content : ''} />
                                 )}
 
                                 <div ref={messagesEndRef} />
