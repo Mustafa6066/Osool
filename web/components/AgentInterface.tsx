@@ -80,25 +80,23 @@ const SUGGESTIONS: Suggestion[] = [
     { icon: Shield, label: "Developer Audit", prompt: "Audit the delivery history of Palm Hills" },
 ];
 
-/* Agent Avatar — Clean professional AI mark, no background */
+/* Agent Avatar — Clean professional AI mark, no background, animated */
 const AgentAvatar = ({ thinking = false }: { thinking?: boolean }) => (
-    <div className={`relative flex items-center justify-center w-8 h-8 flex-shrink-0 ${thinking ? 'animate-pulse' : ''}`}>
-        <svg className="w-7 h-7" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Outer hexagonal frame */}
-            <path d="M14 1.5L25.26 7.75V20.25L14 26.5L2.74 20.25V7.75L14 1.5Z"
-                  className="stroke-emerald-500 dark:stroke-emerald-400"
-                  strokeWidth="1.2" fill="none" />
-            {/* Inner neural connections */}
-            <line x1="9" y1="9" x2="14" y2="14" className="stroke-emerald-500/40 dark:stroke-emerald-400/40" strokeWidth="0.8" />
-            <line x1="19" y1="9" x2="14" y2="14" className="stroke-emerald-500/40 dark:stroke-emerald-400/40" strokeWidth="0.8" />
-            <line x1="14" y1="14" x2="9" y2="19" className="stroke-emerald-500/40 dark:stroke-emerald-400/40" strokeWidth="0.8" />
-            <line x1="14" y1="14" x2="19" y2="19" className="stroke-emerald-500/40 dark:stroke-emerald-400/40" strokeWidth="0.8" />
-            {/* Nodes */}
-            <circle cx="9" cy="9" r="1.8" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.7" />
-            <circle cx="19" cy="9" r="1.8" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.7" />
-            <circle cx="14" cy="14" r="2.2" className="fill-emerald-500 dark:fill-emerald-400" />
-            <circle cx="9" cy="19" r="1.8" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.7" />
-            <circle cx="19" cy="19" r="1.8" className="fill-emerald-500 dark:fill-emerald-400" opacity="0.7" />
+    <div className="relative flex items-center justify-center w-8 h-8 flex-shrink-0 bg-transparent">
+        {/* Glow effect when thinking */}
+        {thinking && (
+            <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-md animate-pulse" />
+        )}
+        <svg 
+            className={`w-6 h-6 text-emerald-600 dark:text-emerald-500 ${thinking ? 'animate-[spin_3s_linear_infinite]' : ''}`} 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path 
+                d="M12 1.5C12 7.3 16.7 12 22.5 12C16.7 12 12 16.7 12 22.5C12 16.7 7.3 12 1.5 12C7.3 12 12 7.3 12 1.5Z" 
+                fill="currentColor" 
+            />
         </svg>
     </div>
 );
@@ -257,26 +255,50 @@ interface PastSession {
 }
 
 /* ─── Thinking Steps — shows AI processing stages while waiting ─── */
-const THINKING_STEPS_AR = [
-    { label: 'تحليل الطلب...', icon: Search, duration: 1800 },
-    { label: 'فحص بيانات السوق...', icon: BarChart2, duration: 3000 },
-    { label: 'مطابقة العقارات...', icon: Sparkles, duration: 5000 },
-    { label: 'تقييم الفرص...', icon: Shield, duration: 7500 },
-    { label: 'إعداد الرد...', icon: MapPin, duration: 10000 },
-];
-
-const THINKING_STEPS_EN = [
-    { label: 'Understanding your request...', icon: Search, duration: 1800 },
-    { label: 'Analyzing market data...', icon: BarChart2, duration: 3000 },
-    { label: 'Matching properties...', icon: Sparkles, duration: 5000 },
-    { label: 'Evaluating opportunities...', icon: Shield, duration: 7500 },
-    { label: 'Preparing response...', icon: MapPin, duration: 10000 },
-];
-
 const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
     const [visibleSteps, setVisibleSteps] = useState(0);
     const msgIsArabic = isArabic(lastUserMessage);
-    const steps = msgIsArabic ? THINKING_STEPS_AR : THINKING_STEPS_EN;
+    
+    // Generate dynamic steps based on the user's message
+    const steps = React.useMemo(() => {
+        const content = (lastUserMessage || '').toLowerCase();
+        let baseSteps = [];
+        
+        if (msgIsArabic) {
+            baseSteps.push({ label: 'تحليل الطلب...', icon: Search, duration: 1200 });
+            if (content.includes('عقار') || content.includes('شقة') || content.includes('فيلا') || content.includes('سعر')) {
+                 baseSteps.push({ label: 'البحث في قاعدة العقارات...', icon: MapPin, duration: 3000 });
+                 baseSteps.push({ label: 'تصفية أفضل الخيارات...', icon: Sparkles, duration: 5000 });
+            } else if (content.includes('استثمار') || content.includes('عائد') || content.includes('roi') || content.includes('تضخم') || content.includes('فلوس')) {
+                 baseSteps.push({ label: 'تحليل بيانات الاستثمار...', icon: BarChart2, duration: 3000 });
+                 baseSteps.push({ label: 'حساب العوائد المتوقعة...', icon: Wallet, duration: 5000 });
+            } else if (content.includes('مطور') || content.includes('شركة') || content.includes('تسليم')) {
+                 baseSteps.push({ label: 'فحص سجل المطورين...', icon: Shield, duration: 3000 });
+                 baseSteps.push({ label: 'تقييم المخاطر...', icon: BarChart2, duration: 5000 });
+            } else {
+                 baseSteps.push({ label: 'فحص بيانات السوق...', icon: BarChart2, duration: 3000 });
+                 baseSteps.push({ label: 'استخراج الأفكار والتوصيات...', icon: Sparkles, duration: 5000 });
+            }
+            baseSteps.push({ label: 'صياغة الرد...', icon: MessageSquare, duration: 7500 });
+        } else {
+            baseSteps.push({ label: 'Understanding request...', icon: Search, duration: 1200 });
+            if (content.includes('property') || content.includes('apartment') || content.includes('villa') || content.includes('price')) {
+                 baseSteps.push({ label: 'Scanning properties inventory...', icon: MapPin, duration: 3000 });
+                 baseSteps.push({ label: 'Filtering best matches...', icon: Sparkles, duration: 5000 });
+            } else if (content.includes('invest') || content.includes('roi') || content.includes('yield') || content.includes('inflation') || content.includes('money')) {
+                 baseSteps.push({ label: 'Analyzing investment data...', icon: BarChart2, duration: 3000 });
+                 baseSteps.push({ label: 'Calculating projected returns...', icon: Wallet, duration: 5000 });
+            } else if (content.includes('developer') || content.includes('company') || content.includes('delivery')) {
+                 baseSteps.push({ label: 'Auditing developer record...', icon: Shield, duration: 3000 });
+                 baseSteps.push({ label: 'Evaluating risk factors...', icon: BarChart2, duration: 5000 });
+            } else {
+                 baseSteps.push({ label: 'Scanning market trends...', icon: BarChart2, duration: 3000 });
+                 baseSteps.push({ label: 'Extracting insights...', icon: Sparkles, duration: 5000 });
+            }
+            baseSteps.push({ label: 'Drafting response...', icon: MessageSquare, duration: 7500 });
+        }
+        return baseSteps;
+    }, [lastUserMessage, msgIsArabic]);
 
     useEffect(() => {
         setVisibleSteps(0);
@@ -284,7 +306,7 @@ const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
             setTimeout(() => setVisibleSteps(i + 1), step.duration)
         );
         return () => timers.forEach(clearTimeout);
-    }, [lastUserMessage]);
+    }, [steps]);
 
     return (
         <div className="flex gap-4 mb-6 animate-fade-in" dir={msgIsArabic ? 'rtl' : 'ltr'}>
