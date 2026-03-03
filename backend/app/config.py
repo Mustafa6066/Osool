@@ -145,7 +145,7 @@ class Config:
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
 
     # Frontend URL (for email verification links)
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://osool-ten.vercel.app")
 
     # Admin API Key (for admin endpoints)
     ADMIN_API_KEY: Optional[str] = os.getenv("ADMIN_API_KEY")
