@@ -655,7 +655,7 @@ export default function AgentInterface() {
                                     </button>
                                 </div>
                             </div>
-                            <div className="max-w-[600px] mx-auto -mt-1 pb-1">
+                            <div className="max-w-[800px] mx-auto -mt-1 pb-2">
                                 <FunnelIndicator
                                     leadScore={conversationLeadScore}
                                     readinessScore={conversationReadiness}
