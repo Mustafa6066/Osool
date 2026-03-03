@@ -8,8 +8,21 @@ import PropertyFilter from '@/components/PropertyFilter';
 import { toggleFavorite } from '@/lib/gamification';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { MapPin, Bed, Bath, Maximize, Sparkles, Heart, Grid3X3, Map, SlidersHorizontal, Loader2 } from 'lucide-react';
+import { MapPin, Bed, Bath, Maximize, Sparkles, Heart, Grid3X3, Map, SlidersHorizontal, Loader2, Building2 } from 'lucide-react';
 import api from '@/lib/api';
+import dynamic from 'next/dynamic';
+
+const PropertyMap = dynamic(() => import('@/components/PropertyMap'), {
+    ssr: false,
+    loading: () => (
+        <div className="h-[600px] rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-[var(--color-text-muted)]">
+                <Loader2 className="w-8 h-8 animate-spin" />
+                <p>Loading map...</p>
+            </div>
+        </div>
+    ),
+});
 
 // Hardcoded fallback data (used if API fails)
 const fallbackProperties = [
@@ -234,6 +247,29 @@ export default function PropertiesPage() {
     const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'date'>('date');
     const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
     const [showFilters, setShowFilters] = useState(false);
+    const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+
+    const FALLBACK_IMAGES = [
+        'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop',
+        'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=400&fit=crop',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop',
+        'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&h=400&fit=crop',
+        'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&h=400&fit=crop',
+        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&h=400&fit=crop',
+    ];
+
+    const getPropertyImage = (property: PropertyItem) => {
+        if (failedImages.has(property.id)) {
+            // Deterministic fallback based on property id
+            const idx = parseInt(property.id, 10) % FALLBACK_IMAGES.length || 0;
+            return FALLBACK_IMAGES[idx];
+        }
+        return property.image;
+    };
+
+    const handleImageError = (propertyId: string) => {
+        setFailedImages(prev => new Set(prev).add(propertyId));
+    };
 
     // Normalize API property to our internal format
     const normalizeProperty = useCallback((p: any): PropertyItem => {
@@ -430,11 +466,12 @@ export default function PropertiesPage() {
                                         className="group relative rounded-2xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] card-hover"
                                     >
                                         {/* Image */}
-                                        <div className="relative h-52 overflow-hidden">
+                                        <div className="relative h-52 overflow-hidden bg-gradient-to-br from-emerald-900/20 to-[var(--color-surface-elevated)]">
                                             <img
-                                                src={property.image}
+                                                src={getPropertyImage(property)}
                                                 alt={language === 'ar' ? property.titleAr : property.title}
                                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                onError={() => handleImageError(property.id)}
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
@@ -509,12 +546,11 @@ export default function PropertiesPage() {
 
                         {/* Map View */}
                         {!loading && viewMode === 'map' && (
-                            <div className="h-[600px] rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
-                                <div className="text-center text-[var(--color-text-muted)]">
-                                    <Map className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                                    <p>{language === 'ar' ? '\u0639\u0631\u0636 \u0627\u0644\u062e\u0631\u064a\u0637\u0629 \u0642\u0631\u064a\u0628\u0627\u064b' : 'Map view coming soon'}</p>
-                                </div>
-                            </div>
+                            <PropertyMap
+                                properties={filteredProperties}
+                                language={language}
+                                formatPrice={formatPrice}
+                            />
                         )}
 
                         {/* Loading state for map view */}
@@ -522,7 +558,7 @@ export default function PropertiesPage() {
                             <div className="h-[600px] rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
                                 <div className="flex flex-col items-center gap-3 text-[var(--color-text-muted)]">
                                     <Loader2 className="w-8 h-8 animate-spin" />
-                                    <p>{language === 'ar' ? '\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...' : 'Loading...'}</p>
+                                    <p>{language === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
                                 </div>
                             </div>
                         )}
