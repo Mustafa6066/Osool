@@ -1,198 +1,272 @@
 "use client";
 
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import SmartNav from '@/components/SmartNav';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
     MapPin, Bed, Bath, Maximize, Sparkles, Heart, Share2,
-    ChevronLeft, ChevronRight, Shield, TrendingUp, Calendar,
-    Phone, Mail, Building
+    Shield, TrendingUp, Calendar, Clock, CreditCard,
+    Phone, Building, ExternalLink, Tag, Ruler, Home,
+    ArrowLeft, Loader2, AlertCircle, Banknote, Percent
 } from 'lucide-react';
 import { toggleFavorite } from '@/lib/gamification';
 
-// Sample property data - in production, fetch from API
-const propertyData: Record<string, {
+// ── Types ────────────────────────────────────────────────────
+interface PaymentPlan {
+    downPayment: number;
+    installmentYears: number;
+    monthlyInstallment: number;
+}
+
+interface RawProperty {
     id: string;
     title: string;
-    titleAr: string;
+    type: string;
     location: string;
-    locationAr: string;
-    description: string;
-    descriptionAr: string;
-    price: number;
-    aiEstimate: number;
+    compound: string;
+    developer: string;
+    area: number;
+    size: number;
+    sqm: number;
+    bua: number;
     bedrooms: number;
     bathrooms: number;
-    area: number;
-    images: string[];
-    type: string;
-    features: string[];
-    featuresAr: string[];
-    yearBuilt: number;
-    verified: boolean;
-}> = {
-    '1': {
-        id: '1',
-        title: 'Luxury Villa in New Cairo',
-        titleAr: 'فيلا فاخرة في القاهرة الجديدة',
-        location: 'New Cairo, 5th Settlement',
-        locationAr: 'القاهرة الجديدة، التجمع الخامس',
-        description: 'Stunning luxury villa with private garden and pool. Features premium finishes, smart home system, and panoramic views. Located in the prestigious 5th Settlement area with easy access to major roads and amenities.',
-        descriptionAr: 'فيلا فاخرة مذهلة مع حديقة خاصة ومسبح. تتميز بتشطيبات فاخرة ونظام منزل ذكي وإطلالات بانورامية. تقع في منطقة التجمع الخامس الراقية مع سهولة الوصول إلى الطرق الرئيسية والمرافق.',
-        price: 15000000,
-        aiEstimate: 14800000,
-        bedrooms: 5,
-        bathrooms: 4,
-        area: 450,
-        images: [
-            'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&h=800&fit=crop',
-            'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&h=800&fit=crop',
-            'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&h=800&fit=crop',
-            'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=800&fit=crop',
-        ],
-        type: 'villa',
-        features: ['Swimming Pool', 'Private Garden', 'Smart Home', 'Security System', 'Garage', 'Gym'],
-        featuresAr: ['مسبح', 'حديقة خاصة', 'منزل ذكي', 'نظام أمان', 'جراج', 'صالة رياضية'],
-        yearBuilt: 2022,
-        verified: true,
-    },
-    '2': {
-        id: '2',
-        title: 'Modern Apartment in Zamalek',
-        titleAr: 'شقة حديثة في الزمالك',
-        location: 'Zamalek, Cairo',
-        locationAr: 'الزمالك، القاهرة',
-        description: 'Elegant modern apartment in the heart of Zamalek with Nile views. High ceilings, parquet floors, and contemporary design throughout.',
-        descriptionAr: 'شقة عصرية أنيقة في قلب الزمالك مع إطلالة على النيل. أسقف عالية وأرضيات باركيه وتصميم معاصر.',
-        price: 5500000,
-        aiEstimate: 5650000,
-        bedrooms: 3,
-        bathrooms: 2,
-        area: 180,
-        images: [
-            'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&h=800&fit=crop',
-            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&h=800&fit=crop',
-        ],
-        type: 'apartment',
-        features: ['Nile View', 'Balcony', 'Doorman', 'Central AC', 'Parking'],
-        featuresAr: ['إطلالة على النيل', 'بلكونة', 'بواب', 'تكييف مركزي', 'موقف سيارات'],
-        yearBuilt: 2020,
-        verified: true,
-    },
+    price: number;
+    pricePerSqm: number;
+    deliveryDate: string;
+    paymentPlan: PaymentPlan;
+    image: string;
+    nawyUrl: string;
+    saleType: string;
+    description: string;
+}
+
+// ── Image fallbacks ──────────────────────────────────────────
+const FALLBACK_IMAGES = [
+    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&h=800&fit=crop',
+    'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&h=800&fit=crop',
+    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=800&fit=crop',
+    'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&h=800&fit=crop',
+    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&h=800&fit=crop',
+];
+
+// ── Arabic location map ──────────────────────────────────────
+const LOCATION_AR: Record<string, string> = {
+    'new cairo': 'القاهرة الجديدة',
+    'sheikh zayed': 'الشيخ زايد',
+    '6th october': 'السادس من أكتوبر',
+    'new capital': 'العاصمة الإدارية',
+    'mostakbal city': 'مدينة المستقبل',
+    'ain sokhna': 'العين السخنة',
+    'north coast': 'الساحل الشمالي',
+    'madinaty': 'مدينتي',
+    'rehab': 'الرحاب',
+    'maadi': 'المعادي',
+    'zamalek': 'الزمالك',
+    'heliopolis': 'مصر الجديدة',
+    'golden square': 'الحي الذهبي',
 };
 
-// Default property for IDs not in our sample data
-const defaultProperty = {
-    id: '0',
-    title: 'Property Details',
-    titleAr: 'تفاصيل العقار',
-    location: 'Cairo, Egypt',
-    locationAr: 'القاهرة، مصر',
-    description: 'Property details will be loaded from the database.',
-    descriptionAr: 'سيتم تحميل تفاصيل العقار من قاعدة البيانات.',
-    price: 5000000,
-    aiEstimate: 5100000,
-    bedrooms: 3,
-    bathrooms: 2,
-    area: 200,
-    images: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&h=800&fit=crop'],
-    type: 'apartment',
-    features: ['Air Conditioning', 'Parking', 'Security'],
-    featuresAr: ['تكييف', 'موقف سيارات', 'أمن'],
-    yearBuilt: 2021,
-    verified: false,
+const TYPE_AR: Record<string, string> = {
+    'apartment': 'شقة',
+    'villa': 'فيلا',
+    'townhouse': 'تاون هاوس',
+    'twin house': 'توين هاوس',
+    'duplex': 'دوبلكس',
+    'penthouse': 'بنتهاوس',
+    'studio': 'ستوديو',
+    'chalet': 'شاليه',
+    'iVilla': 'آي فيلا',
 };
+
+function getLocationAr(location: string): string {
+    const key = location.toLowerCase().trim();
+    return LOCATION_AR[key] || location;
+}
+
+function getTypeAr(type: string): string {
+    const key = type.toLowerCase().trim();
+    return TYPE_AR[key] || type;
+}
 
 export default function PropertyDetailsPage() {
     const params = useParams();
     const { language, t } = useLanguage();
     const { isAuthenticated } = useAuth();
-    const [currentImage, setCurrentImage] = useState(0);
+    const [property, setProperty] = useState<RawProperty | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isLiked, setIsLiked] = useState(false);
+    const [imgError, setImgError] = useState(false);
+    const [shareToast, setShareToast] = useState(false);
 
     const propertyId = params.id as string;
 
+    // ── Fetch real property data from data.js ─────────────────
+    const fetchProperty = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const res = await fetch('/assets/js/data.js');
+            const txt = await res.text();
+            const start = txt.indexOf('{');
+            const end = txt.lastIndexOf('}');
+            if (start === -1 || end === -1) throw new Error('Data parse error');
+
+            const raw = JSON.parse(txt.substring(start, end + 1));
+            const props = (raw.properties || []) as RawProperty[];
+            const found = props.find(p => String(p.id) === propertyId);
+
+            if (!found) {
+                setError(language === 'ar' ? 'لم يتم العثور على العقار' : 'Property not found');
+                return;
+            }
+            setProperty(found);
+        } catch {
+            setError(language === 'ar' ? 'فشل تحميل بيانات العقار' : 'Failed to load property data');
+        } finally {
+            setLoading(false);
+        }
+    }, [propertyId, language]);
+
+    useEffect(() => {
+        fetchProperty();
+    }, [fetchProperty]);
+
+    // ── Handlers ──────────────────────────────────────────────
     const handleToggleFavorite = async () => {
         if (!isAuthenticated) return;
         setIsLiked(!isLiked);
         try {
-            await toggleFavorite(Number(propertyId));
+            await toggleFavorite(Number(propertyId) || 0);
         } catch {
-            setIsLiked(isLiked); // Revert
+            setIsLiked(prev => !prev);
         }
     };
-    const property = propertyData[propertyId] || defaultProperty;
 
+    const handleShare = async () => {
+        const url = window.location.href;
+        const text = property ? `${property.title} — ${formatPrice(property.price)}` : 'Osool Property';
+        if (navigator.share) {
+            try { await navigator.share({ title: 'Osool', text, url }); } catch { /* cancelled */ }
+        } else {
+            await navigator.clipboard.writeText(url);
+            setShareToast(true);
+            setTimeout(() => setShareToast(false), 2000);
+        }
+    };
+
+    const handleWhatsAppShare = () => {
+        if (!property) return;
+        const text = encodeURIComponent(
+            `🏠 ${property.title}\n📍 ${property.compound}, ${property.location}\n💰 ${formatPrice(property.price)}\n🔗 ${window.location.href}`
+        );
+        window.open(`https://wa.me/?text=${text}`, '_blank');
+    };
+
+    // ── Formatters ────────────────────────────────────────────
     const formatPrice = (price: number) => {
-        if (language === 'ar') {
-            return `${(price / 1000000).toFixed(2)} مليون ج.م`;
+        if (price >= 1_000_000) {
+            const millions = price / 1_000_000;
+            return language === 'ar'
+                ? `${millions.toFixed(2)} مليون ج.م`
+                : `EGP ${millions.toFixed(2)}M`;
         }
-        return `EGP ${(price / 1000000).toFixed(2)}M`;
+        return language === 'ar'
+            ? `${price.toLocaleString('ar-EG')} ج.م`
+            : `EGP ${price.toLocaleString()}`;
     };
 
-    const priceDiff = property.aiEstimate - property.price;
-    const priceDiffPercent = ((priceDiff / property.price) * 100).toFixed(1);
+    const formatInstallment = (amount: number) => {
+        return language === 'ar'
+            ? `${amount.toLocaleString('ar-EG')} ج.م/شهر`
+            : `EGP ${amount.toLocaleString()}/mo`;
+    };
+
+    const getImage = () => {
+        if (imgError || !property?.image) {
+            const idx = propertyId.charCodeAt(propertyId.length - 1) % FALLBACK_IMAGES.length;
+            return FALLBACK_IMAGES[idx];
+        }
+        return property.image;
+    };
+
+    // AI estimate heuristic: +5% of price (simple approximation for now)
+    const aiEstimate = property ? Math.round(property.price * 1.05) : 0;
+    const priceDiff = property ? aiEstimate - property.price : 0;
+    const priceDiffPercent = property ? ((priceDiff / property.price) * 100).toFixed(1) : '0';
+
+    const area = property ? (property.area || property.bua || property.size || property.sqm || 0) : 0;
+
+    // ── Loading state ─────────────────────────────────────────
+    if (loading) {
+        return (
+            <SmartNav>
+                <main className="h-full flex items-center justify-center bg-[var(--color-background)]">
+                    <div className="flex flex-col items-center gap-4">
+                        <Loader2 className="w-10 h-10 text-[var(--color-primary)] animate-spin" />
+                        <p className="text-[var(--color-text-muted)]">{t('common.loading')}</p>
+                    </div>
+                </main>
+            </SmartNav>
+        );
+    }
+
+    // ── Error / not found state ───────────────────────────────
+    if (error || !property) {
+        return (
+            <SmartNav>
+                <main className="h-full flex items-center justify-center bg-[var(--color-background)]">
+                    <div className="flex flex-col items-center gap-4 text-center px-6">
+                        <AlertCircle className="w-12 h-12 text-red-400" />
+                        <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
+                            {error || (language === 'ar' ? 'لم يتم العثور على العقار' : 'Property not found')}
+                        </h2>
+                        <Link
+                            href="/properties"
+                            className="flex items-center gap-2 text-[var(--color-primary)] hover:underline"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            {language === 'ar' ? 'العودة للعقارات' : 'Back to Properties'}
+                        </Link>
+                    </div>
+                </main>
+            </SmartNav>
+        );
+    }
 
     return (
         <SmartNav>
         <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
-
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
                 {/* Breadcrumb */}
-                <nav className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] mb-6">
-                    <Link href="/" className="hover:text-[var(--color-primary)]">
-                        {t('nav.home')}
-                    </Link>
+                <nav className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] mb-6 flex-wrap">
+                    <Link href="/" className="hover:text-[var(--color-primary)]">{t('nav.home')}</Link>
                     <span>/</span>
-                    <Link href="/properties" className="hover:text-[var(--color-primary)]">
-                        {t('nav.properties')}
-                    </Link>
+                    <Link href="/properties" className="hover:text-[var(--color-primary)]">{t('nav.properties')}</Link>
                     <span>/</span>
-                    <span className="text-[var(--color-text-primary)]">
-                        {language === 'ar' ? property.titleAr : property.title}
-                    </span>
+                    <span className="text-[var(--color-text-primary)] truncate max-w-[200px]">{property.title}</span>
                 </nav>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Main Content */}
+                    {/* ═══ Main Content ═══ */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Image Gallery */}
+
+                        {/* Hero Image */}
                         <div className="relative rounded-2xl overflow-hidden">
                             <motion.img
-                                key={currentImage}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                src={property.images[currentImage]}
-                                alt={language === 'ar' ? property.titleAr : property.title}
-                                className="w-full h-96 lg:h-[500px] object-cover"
+                                src={getImage()}
+                                alt={property.title}
+                                onError={() => setImgError(true)}
+                                className="w-full h-72 sm:h-96 lg:h-[500px] object-cover"
                             />
-
-                            {/* Gallery Controls */}
-                            {property.images.length > 1 && (
-                                <>
-                                    <button
-                                        onClick={() => setCurrentImage(prev => prev === 0 ? property.images.length - 1 : prev - 1)}
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors"
-                                    >
-                                        <ChevronLeft className="w-6 h-6" />
-                                    </button>
-                                    <button
-                                        onClick={() => setCurrentImage(prev => prev === property.images.length - 1 ? 0 : prev + 1)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors"
-                                    >
-                                        <ChevronRight className="w-6 h-6" />
-                                    </button>
-                                </>
-                            )}
-
-                            {/* Image Counter */}
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/50 text-white text-sm">
-                                {currentImage + 1} / {property.images.length}
-                            </div>
 
                             {/* Action Buttons */}
                             <div className="absolute top-4 right-4 flex gap-2">
@@ -204,48 +278,75 @@ export default function PropertyDetailsPage() {
                                 >
                                     <Heart className={`w-5 h-5 ${isLiked ? 'fill-white text-white' : 'text-gray-600'}`} />
                                 </button>
-                                <button className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors">
+                                <button
+                                    onClick={handleShare}
+                                    className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center hover:bg-white transition-colors"
+                                >
                                     <Share2 className="w-5 h-5 text-gray-600" />
                                 </button>
                             </div>
 
-                            {/* Verified Badge */}
-                            {property.verified && (
-                                <div className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-full bg-green-500 text-white text-sm font-semibold">
-                                    <Shield className="w-4 h-4" />
-                                    {t('property.verified')}
+                            {/* Sale Type Badge */}
+                            {property.saleType && (
+                                <div className={`absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-semibold ${
+                                    property.saleType.toLowerCase() === 'resale'
+                                        ? 'bg-amber-500'
+                                        : 'bg-green-500'
+                                }`}>
+                                    <Tag className="w-4 h-4" />
+                                    {property.saleType.toLowerCase() === 'resale'
+                                        ? (language === 'ar' ? 'إعادة بيع' : 'Resale')
+                                        : (language === 'ar' ? 'من المطور' : 'Developer')
+                                    }
                                 </div>
                             )}
+
+                            {/* Share Toast */}
+                            <AnimatePresence>
+                                {shareToast && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 20 }}
+                                        className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-green-500 text-white text-sm font-medium"
+                                    >
+                                        {language === 'ar' ? 'تم نسخ الرابط ✓' : 'Link copied ✓'}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
-                        {/* Thumbnails */}
-                        {property.images.length > 1 && (
-                            <div className="flex gap-3 overflow-x-auto pb-2">
-                                {property.images.map((img, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => setCurrentImage(index)}
-                                        className={`flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden border-2 transition-all
-                      ${currentImage === index ? 'border-[var(--color-primary)]' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                                    >
-                                        <img src={img} alt="" className="w-full h-full object-cover" />
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Property Info */}
+                        {/* ── Property Info Card ───────────────────── */}
                         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6">
-                            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-3">
-                                {language === 'ar' ? property.titleAr : property.title}
-                            </h1>
-
-                            <div className="flex items-center gap-2 text-[var(--color-text-secondary)] mb-6">
-                                <MapPin className="w-5 h-5 text-[var(--color-primary)]" />
-                                {language === 'ar' ? property.locationAr : property.location}
+                            <div className="flex items-start justify-between gap-4 mb-3">
+                                <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
+                                    {property.title}
+                                </h1>
+                                <span className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                                    {language === 'ar' ? getTypeAr(property.type) : property.type}
+                                </span>
                             </div>
 
-                            {/* Key Features */}
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[var(--color-text-secondary)] mb-6">
+                                <span className="flex items-center gap-1.5">
+                                    <MapPin className="w-4 h-4 text-[var(--color-primary)]" />
+                                    {language === 'ar' ? getLocationAr(property.location) : property.location}
+                                </span>
+                                {property.compound && (
+                                    <span className="flex items-center gap-1.5">
+                                        <Home className="w-4 h-4 text-[var(--color-primary)]" />
+                                        {property.compound}
+                                    </span>
+                                )}
+                                {property.developer && property.developer !== 'Developer' && (
+                                    <span className="flex items-center gap-1.5">
+                                        <Building className="w-4 h-4 text-[var(--color-primary)]" />
+                                        {property.developer}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Key Specs */}
                             <div className="flex flex-wrap gap-6 pb-6 border-b border-[var(--color-border)]">
                                 {property.bedrooms > 0 && (
                                     <div className="flex items-center gap-2">
@@ -255,73 +356,174 @@ export default function PropertyDetailsPage() {
                                         </span>
                                     </div>
                                 )}
-                                <div className="flex items-center gap-2">
-                                    <Bath className="w-5 h-5 text-[var(--color-primary)]" />
-                                    <span className="text-[var(--color-text-primary)] font-medium">
-                                        {property.bathrooms} {t('property.bathrooms')}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Maximize className="w-5 h-5 text-[var(--color-primary)]" />
-                                    <span className="text-[var(--color-text-primary)] font-medium">
-                                        {property.area} {t('common.sqm')}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="w-5 h-5 text-[var(--color-primary)]" />
-                                    <span className="text-[var(--color-text-primary)] font-medium">
-                                        {property.yearBuilt}
-                                    </span>
-                                </div>
+                                {property.bathrooms > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <Bath className="w-5 h-5 text-[var(--color-primary)]" />
+                                        <span className="text-[var(--color-text-primary)] font-medium">
+                                            {property.bathrooms} {t('property.bathrooms')}
+                                        </span>
+                                    </div>
+                                )}
+                                {area > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <Maximize className="w-5 h-5 text-[var(--color-primary)]" />
+                                        <span className="text-[var(--color-text-primary)] font-medium">
+                                            {area} {t('common.sqm')}
+                                        </span>
+                                    </div>
+                                )}
+                                {property.deliveryDate && (
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-5 h-5 text-[var(--color-primary)]" />
+                                        <span className="text-[var(--color-text-primary)] font-medium">
+                                            {language === 'ar' ? `تسليم ${property.deliveryDate}` : `Delivery ${property.deliveryDate}`}
+                                        </span>
+                                    </div>
+                                )}
+                                {property.pricePerSqm > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <Ruler className="w-5 h-5 text-[var(--color-primary)]" />
+                                        <span className="text-[var(--color-text-primary)] font-medium">
+                                            {property.pricePerSqm.toLocaleString()} {language === 'ar' ? 'ج.م/م²' : 'EGP/sqm'}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Description */}
-                            <div className="py-6 border-b border-[var(--color-border)]">
-                                <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-3">
-                                    {language === 'ar' ? 'الوصف' : 'Description'}
-                                </h3>
-                                <p className="text-[var(--color-text-secondary)] leading-relaxed">
-                                    {language === 'ar' ? property.descriptionAr : property.description}
-                                </p>
-                            </div>
+                            {property.description && (
+                                <div className="py-6 border-b border-[var(--color-border)]">
+                                    <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-3">
+                                        {language === 'ar' ? 'الوصف' : 'Description'}
+                                    </h3>
+                                    <p className="text-[var(--color-text-secondary)] leading-relaxed">
+                                        {property.description}
+                                    </p>
+                                </div>
+                            )}
 
-                            {/* Features */}
-                            <div className="pt-6">
-                                <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-4">
-                                    {language === 'ar' ? 'المميزات' : 'Features'}
+                            {/* Nawy Link */}
+                            {property.nawyUrl && (
+                                <div className="pt-6">
+                                    <a
+                                        href={property.nawyUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 text-[var(--color-primary)] hover:underline text-sm"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        {language === 'ar' ? 'عرض على Nawy' : 'View on Nawy'}
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── Payment Plan Card ────────────────────── */}
+                        {property.paymentPlan && (
+                            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6">
+                                <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-5 flex items-center gap-2">
+                                    <CreditCard className="w-5 h-5 text-[var(--color-primary)]" />
+                                    {language === 'ar' ? 'خطة الدفع' : 'Payment Plan'}
                                 </h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {(language === 'ar' ? property.featuresAr : property.features).map((feature, index) => (
-                                        <div key={index} className="flex items-center gap-2 text-[var(--color-text-secondary)]">
-                                            <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
-                                            {feature}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    {/* Down Payment */}
+                                    <div className="rounded-xl bg-[var(--color-background)] p-4 text-center">
+                                        <Percent className="w-6 h-6 text-blue-400 mx-auto mb-2" />
+                                        <div className="text-2xl font-bold text-[var(--color-text-primary)]">
+                                            {property.paymentPlan.downPayment}%
                                         </div>
-                                    ))}
+                                        <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                                            {language === 'ar' ? 'مقدم' : 'Down Payment'}
+                                        </div>
+                                        <div className="text-sm text-[var(--color-text-secondary)] mt-1 font-medium">
+                                            {formatPrice(Math.round(property.price * property.paymentPlan.downPayment / 100))}
+                                        </div>
+                                    </div>
+
+                                    {/* Installment Years */}
+                                    <div className="rounded-xl bg-[var(--color-background)] p-4 text-center">
+                                        <Clock className="w-6 h-6 text-green-400 mx-auto mb-2" />
+                                        <div className="text-2xl font-bold text-[var(--color-text-primary)]">
+                                            {property.paymentPlan.installmentYears}
+                                        </div>
+                                        <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                                            {language === 'ar' ? 'سنوات التقسيط' : 'Years'}
+                                        </div>
+                                    </div>
+
+                                    {/* Monthly Installment */}
+                                    <div className="rounded-xl bg-[var(--color-background)] p-4 text-center">
+                                        <Banknote className="w-6 h-6 text-amber-400 mx-auto mb-2" />
+                                        <div className="text-xl font-bold text-[var(--color-text-primary)]">
+                                            {formatInstallment(property.paymentPlan.monthlyInstallment)}
+                                        </div>
+                                        <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                                            {language === 'ar' ? 'القسط الشهري' : 'Monthly Installment'}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* ── WhatsApp Share ───────────────────────── */}
+                        <button
+                            onClick={handleWhatsAppShare}
+                            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-semibold transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            {language === 'ar' ? 'شارك مع أهلك على واتساب' : 'Share with Family on WhatsApp'}
+                        </button>
                     </div>
 
-                    {/* Sidebar */}
+                    {/* ═══ Sidebar ═══ */}
                     <div className="space-y-6">
                         {/* Price Card */}
                         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 sticky top-24">
-                            <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">
+                            <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-1">
                                 {formatPrice(property.price)}
                             </div>
+                            {area > 0 && (
+                                <div className="text-sm text-[var(--color-text-muted)] mb-4">
+                                    {property.pricePerSqm.toLocaleString()} {language === 'ar' ? 'ج.م/م²' : 'EGP/sqm'}
+                                </div>
+                            )}
 
                             {/* AI Estimate */}
                             <div className="flex items-center gap-2 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 mb-6">
                                 <Sparkles className="w-5 h-5 text-purple-400" />
                                 <div>
                                     <div className="text-sm text-purple-400 font-medium">{t('property.aiEstimate')}</div>
-                                    <div className="text-lg font-bold text-purple-300">{formatPrice(property.aiEstimate)}</div>
+                                    <div className="text-lg font-bold text-purple-300">{formatPrice(aiEstimate)}</div>
                                 </div>
-                                <div className={`ml-auto text-sm font-semibold ${priceDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <div className={`ml-auto text-sm font-semibold ${priceDiff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     <TrendingUp className="w-4 h-4 inline mr-1" />
-                                    {priceDiff > 0 ? '+' : ''}{priceDiffPercent}%
+                                    +{priceDiffPercent}%
                                 </div>
                             </div>
+
+                            {/* Quick Payment Summary */}
+                            {property.paymentPlan && (
+                                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 mb-6 text-sm">
+                                    <div className="flex justify-between text-[var(--color-text-secondary)]">
+                                        <span>{language === 'ar' ? 'مقدم' : 'Down'}</span>
+                                        <span className="font-semibold text-[var(--color-text-primary)]">
+                                            {formatPrice(Math.round(property.price * property.paymentPlan.downPayment / 100))}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-[var(--color-text-secondary)] mt-1.5">
+                                        <span>{language === 'ar' ? 'قسط شهري' : 'Monthly'}</span>
+                                        <span className="font-semibold text-[var(--color-text-primary)]">
+                                            {formatInstallment(property.paymentPlan.monthlyInstallment)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-[var(--color-text-secondary)] mt-1.5">
+                                        <span>{language === 'ar' ? 'مدة' : 'Duration'}</span>
+                                        <span className="font-semibold text-[var(--color-text-primary)]">
+                                            {property.paymentPlan.installmentYears} {language === 'ar' ? 'سنوات' : 'years'}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Contact Buttons */}
                             <div className="space-y-3">
@@ -329,29 +531,35 @@ export default function PropertyDetailsPage() {
                                     <Phone className="w-5 h-5" />
                                     {t('property.contactSeller')}
                                 </button>
-                                <button className="w-full btn-secondary flex items-center justify-center gap-2">
-                                    <Mail className="w-5 h-5" />
-                                    {language === 'ar' ? 'إرسال رسالة' : 'Send Message'}
-                                </button>
+                                <Link
+                                    href={`/chat?property=${encodeURIComponent(property.title)}`}
+                                    className="w-full btn-secondary flex items-center justify-center gap-2"
+                                >
+                                    <Sparkles className="w-5 h-5" />
+                                    {language === 'ar' ? 'اسأل AMR عن هذا العقار' : 'Ask AMR about this property'}
+                                </Link>
                             </div>
 
-                            {/* Agent Info */}
-                            <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center text-white font-bold">
-                                        <Building className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <div className="font-semibold text-[var(--color-text-primary)]">Osool Properties</div>
-                                        <div className="text-sm text-[var(--color-text-muted)]">Verified Agent</div>
+                            {/* Developer Info */}
+                            {property.developer && property.developer !== 'Developer' && (
+                                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center text-white font-bold">
+                                            <Building className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <div className="font-semibold text-[var(--color-text-primary)]">{property.developer}</div>
+                                            <div className="text-sm text-[var(--color-text-muted)]">
+                                                {language === 'ar' ? 'المطور العقاري' : 'Developer'}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
-
         </main>
         </SmartNav>
     );

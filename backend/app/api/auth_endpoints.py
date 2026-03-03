@@ -886,15 +886,17 @@ async def signup_with_invitation(
     # Create custodial wallet
     wallet = create_custodial_wallet()
 
-    # Create user (pre-verified for beta)
+    # Create user (pre-verified via invitation, email verification sent separately)
+    verification_token = create_verification_token()
     new_user = User(
         full_name=req.full_name,
         email=req.email,
         password_hash=get_password_hash(req.password),
         wallet_address=wallet["address"],
         encrypted_private_key=wallet["encrypted_private_key"],
-        is_verified=True,  # Pre-verified for beta
-        email_verified=True,
+        is_verified=True,   # Can login immediately (invited user)
+        email_verified=False,  # Must verify email separately
+        verification_token=verification_token,
         invited_by_user_id=invitation.created_by_user_id,
         role="investor"
     )
@@ -909,6 +911,13 @@ async def signup_with_invitation(
 
     await db.commit()
     await db.refresh(new_user)
+
+    # Send verification email (non-blocking — don't fail signup if email fails)
+    try:
+        email_service.send_verification_email(req.email, verification_token)
+        logger.info(f"📧 Verification email sent to {req.email}")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to send verification email to {req.email}: {e}")
 
     # Award referral XP to the inviter
     try:
