@@ -1161,7 +1161,7 @@ class WolfBrain:
                     ui_actions=ui_actions,
                     properties=scored_properties,
                     ai_response=response_text or "",
-                    user_message=user_message or "",
+                    user_message=query or "",
                 )
                 if suggestions:
                     logger.info(f"💡 SUGGESTIONS: Generated {len(suggestions)} follow-up suggestions")
