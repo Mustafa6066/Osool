@@ -145,9 +145,11 @@ export default function MarketStatisticsPage() {
                 setLoading(true);
                 const res = await fetch('/assets/js/data.js');
                 const txt = await res.text();
-                const m = txt.match(/window\.egyptianData\s*=\s*(\{[\s\S]*\})\s*;?\s*$/);
-                if (!m) throw new Error('parse');
-                const raw = JSON.parse(m[1]);
+                // Fast parse: find the JSON object start/end without heavy regex
+                const start = txt.indexOf('{');
+                const end = txt.lastIndexOf('}');
+                if (start === -1 || end === -1) throw new Error('parse');
+                const raw = JSON.parse(txt.substring(start, end + 1));
                 const props = raw.properties || [];
                 if (!props.length) throw new Error('empty');
                 setData(computeDetailedStats(props));
@@ -158,8 +160,13 @@ export default function MarketStatisticsPage() {
                     try {
                         const res = await fetch('/assets/js/data.js');
                         const txt = await res.text();
-                        const m2 = txt.match(/window\.egyptianData\s*=\s*(\{[\s\S]*\})\s*;?\s*$/);
-                        if (m2) { setData(computeDetailedStats(JSON.parse(m2[1]).properties || [])); setError(null); }
+                        const start = txt.indexOf('{');
+                        const end = txt.lastIndexOf('}');
+                        if (start !== -1 && end !== -1) {
+                            const raw = JSON.parse(txt.substring(start, end + 1));
+                            setData(computeDetailedStats(raw.properties || []));
+                            setError(null);
+                        }
                     } catch { /* noop */ }
                 }, 2000);
             } finally { setLoading(false); }

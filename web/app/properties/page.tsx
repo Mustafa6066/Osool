@@ -9,7 +9,6 @@ import { toggleFavorite } from '@/lib/gamification';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { MapPin, Bed, Bath, Maximize, Sparkles, Heart, Grid3X3, Map, SlidersHorizontal, Loader2, Building2 } from 'lucide-react';
-import api from '@/lib/api';
 import dynamic from 'next/dynamic';
 
 const PropertyMap = dynamic(() => import('@/components/PropertyMap'), {
@@ -283,9 +282,9 @@ export default function PropertiesPage() {
             price: p.price || p.totalPrice || 0,
             aiEstimate: p.aiValuation || p.aiEstimate || (p.price || 0) * 1.05,
             bedrooms: p.bedrooms ?? 0,
-            bathrooms: p.bathrooms ?? 1,
-            area: p.size_sqm || p.area || 0,
-            image: p.image_url || p.image || 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop',
+            bathrooms: p.bathrooms ?? 0,
+            area: p.area || p.size || p.sqm || p.bua || p.size_sqm || 0,
+            image: p.image || p.image_url || 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop',
             type: (p.type || 'apartment').toLowerCase(),
             dateAdded: p.dateAdded || p.created_at || new Date().toISOString().split('T')[0],
             developer: p.developer || '',
@@ -295,36 +294,40 @@ export default function PropertiesPage() {
     // Infer city key from location string for filtering
     function inferCity(location: string): string {
         const loc = location.toLowerCase();
-        if (loc.includes('new cairo') || loc.includes('madinaty') || loc.includes('5th settlement') || loc.includes('rehab')) return 'new-cairo';
+        if (loc.includes('new cairo') || loc.includes('madinaty') || loc.includes('5th settlement') || loc.includes('rehab') || loc.includes('6th settlement')) return 'new-cairo';
         if (loc.includes('zayed') || loc.includes('sheikh zayed')) return 'sheikh-zayed';
         if (loc.includes('october') || loc.includes('smart village')) return '6th-october';
         if (loc.includes('sokhna') || loc.includes('ain sokhna')) return 'ain-sokhna';
         if (loc.includes('north coast') || loc.includes('sahel')) return 'north-coast';
         if (loc.includes('new capital') || loc.includes('capital')) return 'new-capital';
+        if (loc.includes('mostakbal') || loc.includes('golden square')) return 'new-cairo';
         if (loc.includes('zamalek') || loc.includes('maadi') || loc.includes('heliopolis') || loc.includes('cairo')) return 'cairo';
         return 'other';
     }
 
-    // Fetch properties from the API
+    // Load properties from static data file (fast, no backend dependency)
     const fetchProperties = useCallback(async () => {
         try {
             setLoading(true);
-            const { data } = await api.get('/api/properties');
-
-            // The API returns an array directly or {properties: [...]}
-            const rawProperties = Array.isArray(data) ? data : (data.properties || []);
-
-            if (rawProperties.length === 0) {
-                // API returned empty -- fall back to hardcoded
-                setProperties(fallbackProperties);
-                setUsingFallback(true);
-            } else {
-                const normalized = rawProperties.map(normalizeProperty);
-                setProperties(normalized);
-                setUsingFallback(false);
+            const res = await fetch('/assets/js/data.js');
+            const txt = await res.text();
+            const start = txt.indexOf('{');
+            const end = txt.lastIndexOf('}');
+            if (start !== -1 && end !== -1) {
+                const raw = JSON.parse(txt.substring(start, end + 1));
+                const props = (raw.properties || []) as any[];
+                if (props.length > 0) {
+                    const normalized = props.map(normalizeProperty);
+                    setProperties(normalized);
+                    setUsingFallback(false);
+                    return;
+                }
             }
+            // Fallback if data.js parse fails
+            setProperties(fallbackProperties);
+            setUsingFallback(true);
         } catch (err) {
-            console.error('Failed to fetch properties:', err);
+            console.error('Failed to load properties:', err);
             setProperties(fallbackProperties);
             setUsingFallback(true);
         } finally {
