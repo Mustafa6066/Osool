@@ -128,4 +128,7 @@ export default function FunnelIndicator({ leadScore, readinessScore, language = 
                         </span>
                     </div>
                 </motion.div>
+            )}
+        </div>
+    );
 }
