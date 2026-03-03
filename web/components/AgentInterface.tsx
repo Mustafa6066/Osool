@@ -73,7 +73,14 @@ interface Suggestion {
     prompt: string;
 }
 
-const SUGGESTIONS: Suggestion[] = [
+const SUGGESTIONS_AR: Suggestion[] = [
+    { icon: BarChart2, label: "تحليل السوق", prompt: "حلل اتجاهات السوق الحالية في القاهرة الجديدة" },
+    { icon: Search, label: "فرص استثمارية", prompt: "ابحث عن عقارات عائد مرتفع تحت 5 مليون جنيه" },
+    { icon: Wallet, label: "تقييم السيولة", prompt: "احسب إمكانية السيولة لوحدتي" },
+    { icon: Shield, label: "تدقيق المطور", prompt: "دقق في سجل تسليمات بالم هيلز" },
+];
+
+const SUGGESTIONS_EN: Suggestion[] = [
     { icon: BarChart2, label: "Market Intelligence", prompt: "Analyze current market trends in New Cairo" },
     { icon: Search, label: "Find Opportunities", prompt: "Find high ROI properties under 5M EGP" },
     { icon: Wallet, label: "Liquidity Check", prompt: "Calculate liquidity potential for my unit" },
@@ -430,7 +437,7 @@ export default function AgentInterface() {
                 message: content,
                 session_id: sessionIdRef.current,
                 language: 'auto'
-            });
+            }, { timeout: 120000 });
             const data = response.data;
             console.log('[AMR] API Response:', data);
 
@@ -468,7 +475,7 @@ export default function AgentInterface() {
             const aiMsg: Message = {
                 id: Date.now() + 1,
                 role: 'agent',
-                content: data.response || data.message || "I'm AMR, your real estate intelligence agent. How can I assist you today?",
+                content: data.response || data.message || (conversationLanguage === 'ar' ? 'أنا AMR، وكيل الذكاء العقاري الخاص بك. كيف أقدر أساعدك النهارده؟' : "I'm AMR, your real estate intelligence agent. How can I assist you today?"),
                 artifacts,
                 uiActions: data.ui_actions || [],
                 analyticsContext: data.analytics_context || null,
@@ -498,8 +505,11 @@ export default function AgentInterface() {
             }
         } catch (error: any) {
             console.error('[AMR] API Error:', error?.response?.data || error?.message || error);
+            const isArabic = conversationLanguage === 'ar';
             const errorMsg = error?.response?.data?.detail || error?.response?.data?.error ||
-                "I'm AMR (Automated Market Researcher). I can access the Osool liquidity engine, analyze market data, and audit real estate assets. How can I assist with your portfolio today?";
+                (isArabic
+                    ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟ أنا AMR وجاهز أساعدك في أي استفسار عقاري.'
+                    : "A brief analysis issue occurred. Could you try again? I'm AMR, ready to help with any real estate question.");
             const aiMsg: Message = { id: Date.now() + 1, role: 'agent', content: errorMsg, artifacts: null };
             setMessages(prev => [...prev, aiMsg]);
         } finally {
@@ -636,20 +646,20 @@ export default function AgentInterface() {
                         <div className="max-w-[980px] mx-auto px-6">
                             <div className="flex items-center justify-between py-2.5">
                                 <span className="text-[13px] font-semibold text-[var(--color-text-primary)] tracking-tight">
-                                    Osool AI <span className="text-[var(--color-text-muted)] font-medium mx-1.5">/</span> <span className="text-[var(--color-text-secondary)] font-medium">Session</span>
+                                    Osool AI <span className="text-[var(--color-text-muted)] font-medium mx-1.5">/</span> <span className="text-[var(--color-text-secondary)] font-medium">{conversationLanguage === 'ar' ? 'جلسة' : 'Session'}</span>
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => setHistoryOpen(true)}
                                         className="p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
-                                        title="Past Conversations"
+                                        title={conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past Conversations'}
                                     >
                                         <History className="w-4 h-4" strokeWidth={2} />
                                     </button>
                                     <button
                                         onClick={handleNewChat}
                                         className="p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
-                                        title="New Chat"
+                                        title={conversationLanguage === 'ar' ? 'محادثة جديدة' : 'New Chat'}
                                     >
                                         <Plus className="w-4 h-4" strokeWidth={2} />
                                     </button>
@@ -677,16 +687,16 @@ export default function AgentInterface() {
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
 
                                 <div className="text-center w-full max-w-3xl mx-auto">
-                                    <h1 className="text-[2.5rem] md:text-[4.5rem] font-semibold tracking-tight leading-[1.1] mb-4 md:mb-5 text-[var(--color-text-primary)]">
-                                        Hello, {userName}
+                                    <h1 className="text-[2.5rem] md:text-[4.5rem] font-semibold tracking-tight leading-[1.1] mb-4 md:mb-5 text-[var(--color-text-primary)]" dir="auto">
+                                        {conversationLanguage === 'ar' ? `أهلاً، ${userName}` : `Hello, ${userName}`}
                                     </h1>
-                                    <p className="text-[1.1rem] md:text-[1.5rem] text-[var(--color-text-muted)] font-medium max-w-2xl mx-auto leading-relaxed px-4 md:px-0">
-                                        What can I help you with<span className="text-emerald-500 font-bold ml-0.5">?</span>
+                                    <p className="text-[1.1rem] md:text-[1.5rem] text-[var(--color-text-muted)] font-medium max-w-2xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
+                                        {conversationLanguage === 'ar' ? 'إزاي أقدر أساعدك النهارده' : 'What can I help you with'}<span className="text-emerald-500 font-bold ml-0.5">?</span>
                                     </p>
                                 </div>
 
                                     <div className="w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-8 md:mt-12 px-4">
-                                        {SUGGESTIONS.map((s, i) => (
+                                        {(conversationLanguage === 'ar' ? SUGGESTIONS_AR : SUGGESTIONS_EN).map((s, i) => (
                                             <button
                                                 key={i}
                                                 onClick={() => handleSendMessage(s.prompt)}
@@ -722,7 +732,7 @@ export default function AgentInterface() {
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" dir="auto">{s.preview || 'Conversation'}</p>
-                                                            <p className="text-[11px] text-[var(--color-text-muted)]">{s.message_count} messages</p>
+                                                            <p className="text-[11px] text-[var(--color-text-muted)]">{s.message_count} {conversationLanguage === 'ar' ? 'رسالة' : 'messages'}</p>
                                                         </div>
                                                         <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] flex-shrink-0" />
                                                     </button>
@@ -963,7 +973,7 @@ export default function AgentInterface() {
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Ask about properties, market data, or investments..."
+                                placeholder={conversationLanguage === 'ar' ? 'اسأل عن العقارات، بيانات السوق، أو الاستثمار...' : 'Ask about properties, market data, or investments...'}
                                 className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-3 px-4 md:py-4 md:px-6 text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
                                 rows={1}
                                 disabled={isTyping}
@@ -972,7 +982,7 @@ export default function AgentInterface() {
                             {(hasStarted || inputValue.trim()) && (
                                 <div className="flex items-center justify-between px-4 pb-3">
                                     <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)]/60">
-                                        {hasStarted && <span><span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">⇧</span> + <span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">↵</span> for new line</span>}
+                                        {hasStarted && <span><span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">⇧</span> + <span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">↵</span> {conversationLanguage === 'ar' ? 'لسطر جديد' : 'for new line'}</span>}
                                     </div>
 
                                     {inputValue.trim() && (
@@ -990,7 +1000,7 @@ export default function AgentInterface() {
                         </div>
 
                         <div className={`text-center mt-3 transition-all duration-300 ${!hasStarted ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
-                            <p className="text-[11px] font-medium text-[var(--color-text-muted)]/60">AMR is an AI agent. Please verify critical investment data independently.</p>
+                            <p className="text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">{conversationLanguage === 'ar' ? 'AMR وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'AMR is an AI agent. Please verify critical investment data independently.'}</p>
                         </div>
                     </div>
                 </div>
@@ -1141,7 +1151,7 @@ export default function AgentInterface() {
                             className="fixed left-0 top-0 bottom-0 w-[320px] bg-[var(--color-surface)] border-r border-[var(--color-border)] z-50 flex flex-col shadow-2xl"
                         >
                             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-                                <span className="text-[15px] font-semibold text-[var(--color-text-primary)]">Past Conversations</span>
+                                <span className="text-[15px] font-semibold text-[var(--color-text-primary)]">{conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past Conversations'}</span>
                                 <button onClick={() => setHistoryOpen(false)} title="Close" className="p-1.5 hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors">
                                     <X className="w-4 h-4 text-[var(--color-text-muted)]" />
                                 </button>
@@ -1150,7 +1160,7 @@ export default function AgentInterface() {
                                 {pastSessions.length === 0 ? (
                                     <div className="text-center py-12 text-[var(--color-text-muted)]">
                                         <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                                        <p className="text-sm">No past conversations yet</p>
+                                        <p className="text-sm">{conversationLanguage === 'ar' ? 'لا توجد محادثات سابقة بعد' : 'No past conversations yet'}</p>
                                     </div>
                                 ) : (
                                     pastSessions.map(s => (
@@ -1164,7 +1174,7 @@ export default function AgentInterface() {
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-[11px] text-[var(--color-text-muted)]">
-                                                    {s.message_count} messages
+                                                    {s.message_count} {conversationLanguage === 'ar' ? 'رسالة' : 'messages'}
                                                 </span>
                                                 {s.last_message_at && (
                                                     <span className="text-[11px] text-[var(--color-text-muted)]">
@@ -1182,7 +1192,7 @@ export default function AgentInterface() {
                                     className="w-full py-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-xl text-[13px] font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                                 >
                                     <Plus className="w-4 h-4" />
-                                    New Conversation
+                                    {conversationLanguage === 'ar' ? 'محادثة جديدة' : 'New Conversation'}
                                 </button>
                             </div>
                         </motion.aside>
