@@ -958,15 +958,24 @@ async def chat_with_agent(
         intent = ai_result.get("intent", {})
 
         # Save AI response to database (linked to authenticated user)
-        ai_message = ChatMessage(
-            session_id=req.session_id,
-            user_id=user.id,  # Link message to authenticated user
-            role="assistant",
-            content=response_text,
-            properties_json=json.dumps(search_results) if search_results else None
-        )
-        db.add(ai_message)
-        await db.commit()
+        # Wrapped separately: if the connection went stale during the 30s+ AI
+        # processing the response should still be returned to the frontend.
+        try:
+            ai_message = ChatMessage(
+                session_id=req.session_id,
+                user_id=user.id,  # Link message to authenticated user
+                role="assistant",
+                content=response_text,
+                properties_json=json.dumps(search_results) if search_results else None
+            )
+            db.add(ai_message)
+            await db.commit()
+        except Exception as save_err:
+            print(f"⚠️ Failed to persist AI response (non-fatal): {save_err}")
+            try:
+                await db.rollback()
+            except Exception:
+                pass
 
         # Phase 1: Track analytics (simplified after Wolf Brain migration)
         analytics_data = {
@@ -1060,7 +1069,10 @@ async def chat_with_agent(
             "analytics_context": ai_result.get("analytics_context"),
         }
     except Exception as e:
-        await db.rollback()
+        try:
+            await db.rollback()
+        except Exception:
+            pass  # Connection may already be dead
         print(f"❌ Chat Error: {e}")
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
@@ -1149,15 +1161,24 @@ async def chat_stream(
                 "full_name": getattr(user, "full_name", None),
             }
 
-            # Get full result (with streaming context if real streaming enabled)
-            ai_result = await wolf_brain.process_turn(
+            # Run Wolf Brain as a task with keepalive heartbeats
+            # Prevents mobile carrier NAT from dropping idle TCP connections
+            processing_task = asyncio.create_task(wolf_brain.process_turn(
                 query=req.message,
                 history=history_for_loop,
                 profile=user_dict,
                 language=req.language,
                 session_id=req.session_id,
                 streaming=True,  # Request streaming context
-            )
+            ))
+
+            # Send SSE keepalive comments every 5s while Wolf Brain processes
+            while not processing_task.done():
+                done_tasks, _ = await asyncio.wait({processing_task}, timeout=5.0)
+                if not done_tasks:
+                    yield ": keepalive\n\n"
+
+            ai_result = processing_task.result()
 
             yield f"data: {json.dumps({'type': 'tool_end', 'tool': 'wolf_brain'}, ensure_ascii=False)}\n\n"
 
@@ -1168,6 +1189,10 @@ async def chat_stream(
             suggestions = ai_result.get("suggestions", [])
             verification = ai_result.get("verification", {})
             proactive_alerts = ai_result.get("proactive_alerts", [])
+            lead_score = ai_result.get("lead_score", 0)
+            detected_language = ai_result.get("detected_language", "ar")
+            showing_strategy = ai_result.get("showing_strategy", "NONE")
+            card_readiness = ai_result.get("card_readiness", {})
 
             stream_context = ai_result.get("_stream_context")
 
@@ -1198,6 +1223,22 @@ async def chat_stream(
                 if buffer:
                     yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
 
+            # Generate follow-up suggestions if not already populated
+            if not suggestions and response_text:
+                try:
+                    from app.ai_engine.suggestion_engine import generate_suggestions_from_turn
+                    suggestions = generate_suggestions_from_turn(
+                        language=detected_language or "ar",
+                        lead_score=lead_score,
+                        history=history_for_loop,
+                        ui_actions=ui_actions,
+                        properties=search_results,
+                        ai_response=response_text,
+                        user_message=req.message or "",
+                    )
+                except Exception:
+                    pass
+
             # Save AI response to database (linked to authenticated user)
             ai_message = ChatMessage(
                 session_id=req.session_id,
@@ -1209,8 +1250,9 @@ async def chat_stream(
             db.add(ai_message)
             await db.commit()
 
-            # Send final response with all metadata
-            yield f"data: {json.dumps({'type': 'done', 'properties': search_results, 'ui_actions': ui_actions, 'psychology': psychology, 'suggestions': suggestions, 'verification': verification, 'proactive_alerts': proactive_alerts}, ensure_ascii=False)}\n\n"
+            # Send final response with all metadata (including fields needed by frontend)
+            readiness_score = card_readiness.get("readiness_score", 0) if card_readiness else 0
+            yield f"data: {json.dumps({'type': 'done', 'properties': search_results, 'ui_actions': ui_actions, 'psychology': psychology, 'suggestions': suggestions, 'verification': verification, 'proactive_alerts': proactive_alerts, 'lead_score': lead_score, 'readiness_score': readiness_score, 'detected_language': detected_language, 'showing_strategy': showing_strategy}, ensure_ascii=False)}\n\n"
 
         except Exception as e:
             await db.rollback()

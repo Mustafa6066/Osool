@@ -1288,6 +1288,10 @@ class WolfBrain:
                 return ConversationMemory.from_dict(data)
         except Exception as e:
             logger.warning(f"Failed to load user memory for user {user_id}: {e}")
+            try:
+                await session.rollback()
+            except Exception:
+                pass
         return None
 
     async def _save_user_memory(self, session: AsyncSession, user_id: int, memory: ConversationMemory):
@@ -1325,6 +1329,10 @@ class WolfBrain:
             logger.info(f"💾 User memory saved for user {user_id}")
         except Exception as e:
             logger.warning(f"Failed to save user memory for user {user_id}: {e}")
+            try:
+                await session.rollback()
+            except Exception:
+                pass
 
     def _needs_screening(self, query: str, history: List[Dict]) -> bool:
         """
@@ -1423,6 +1431,12 @@ class WolfBrain:
                 return await self._execute_search_query(filters, db)
         except Exception as e:
             logger.error(f"Database search failed: {e}", exc_info=True)
+            # Rollback to reset the session's failed transaction state
+            if db_session:
+                try:
+                    await db_session.rollback()
+                except Exception:
+                    pass
             return []
 
     async def _execute_search_query(self, filters: Dict, db: AsyncSession) -> List[Dict]:
@@ -1944,12 +1958,20 @@ class WolfBrain:
             except Exception as e:
                 logger.warning(f"Market pulse fetch failed: {e}")
                 pulse = None
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
 
             try:
                 econ = await analytical_engine.get_live_market_data(session)
             except Exception as e:
                 logger.warning(f"Economic data fetch failed: {e}")
                 econ = MARKET_DATA.copy() if 'MARKET_DATA' in dir() else {}
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
 
             # Sync fetch: area context + market segment
             area_ctx = market_intelligence.get_area_context(location)

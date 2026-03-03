@@ -105,6 +105,12 @@ class VerifierAgent:
 
         except Exception as e:
             logger.error(f"Verifier agent error: {e}")
+            # Rollback to clear the failed transaction state so the session
+            # can be reused for subsequent queries (e.g., saving user memory).
+            try:
+                await session.rollback()
+            except Exception:
+                pass
             return {
                 "verified": True,
                 "confidence": "medium",
@@ -166,6 +172,10 @@ class VerifierAgent:
                             })
             except Exception as e:
                 logger.debug(f"Price verification skipped for prop {prop_id}: {e}")
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
 
         return corrections
 

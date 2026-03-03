@@ -102,6 +102,17 @@ class AmrAgent:
                 "response": "عذراً، حدث خطأ في الاتصال بالشبكة العصبية. يرجى المحاولة مرة أخرى. (System Error)",
                 "source_model": "Error Fallback",
                 "charts": [],
+                "properties": [],
+                "psychology": {},
+                "strategy": {},
+                "showing_strategy": "NONE",
+                "hunt_strategy": None,
+                "suggestions": [],
+                "card_readiness": {"readiness_score": 0, "recommendation": "NONE"},
+                "detected_language": "ar",
+                "lead_score": 0,
+                "analytics_context": None,
+                "intent": {},
                 "error": str(e)
             }
 

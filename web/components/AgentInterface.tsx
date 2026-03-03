@@ -12,6 +12,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import api from '@/lib/api';
+import { streamChat } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import dynamic from 'next/dynamic';
@@ -432,86 +433,214 @@ export default function AgentInterface() {
         setInputValue('');
         setIsTyping(true);
 
+        // ── SSE STREAMING MODE ──
+        // Uses Server-Sent Events to keep connection alive during long Wolf Brain processing.
+        // Prevents mobile carrier NAT from dropping idle TCP connections.
+        const aiMsgId = Date.now() + 1;
+        let accumulatedText = '';
+        let streamingStarted = false;
+
         try {
-            const response = await api.post('/api/chat', {
-                message: content,
-                session_id: sessionIdRef.current,
-                language: 'auto'
-            }, { timeout: 120000 });
-            const data = response.data;
-            console.log('[AMR] API Response:', data);
+            await streamChat(
+                content,
+                sessionIdRef.current,
+                {
+                    onToken: (token) => {
+                        accumulatedText += (typeof token === 'string' ? token : '');
+                        if (!streamingStarted) {
+                            streamingStarted = true;
+                            setIsTyping(false); // Hide ThinkingSteps, start showing text
+                            setMessages(prev => [...prev, {
+                                id: aiMsgId,
+                                role: 'agent',
+                                content: accumulatedText,
+                            }]);
+                        } else {
+                            const currentText = accumulatedText;
+                            setMessages(prev => prev.map(m =>
+                                m.id === aiMsgId ? { ...m, content: currentText } : m
+                            ));
+                        }
+                    },
+                    onToolStart: (tool) => {
+                        console.log('[AMR] Stream tool start:', tool);
+                    },
+                    onToolEnd: (tool) => {
+                        console.log('[AMR] Stream tool end:', tool);
+                    },
+                    onComplete: (data) => {
+                        // Process properties into typed objects
+                        const allProps: Property[] = [];
+                        if (data.properties && data.properties.length > 0) {
+                            data.properties.forEach((prop: any) => {
+                                allProps.push({
+                                    id: prop.id?.toString() || `prop_${Date.now()}_${Math.random()}`,
+                                    title: prop.title || prop.name || 'Property',
+                                    location: prop.location || prop.address || 'Location',
+                                    price: prop.price || 0,
+                                    currency: 'EGP',
+                                    metrics: {
+                                        size: prop.size_sqm || prop.size || 0,
+                                        bedrooms: prop.bedrooms || 0,
+                                        bathrooms: prop.bathrooms || 0,
+                                        wolf_score: prop.wolf_score || 0,
+                                        roi: prop.projected_roi || prop.roi || 0,
+                                        price_per_sqm: prop.price_per_sqm || 0,
+                                        liquidity_rating: prop.liquidity_rating || 'Medium'
+                                    },
+                                    image: prop.image_url || prop.image || "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=800",
+                                    developer: prop.developer || 'Developer',
+                                    tags: prop.tags || [],
+                                    status: prop.status || 'Available'
+                                });
+                            });
+                        }
+                        let artifacts: Artifacts | null = allProps.length > 0 ? { property: allProps[0] } : null;
 
-            let artifacts: Artifacts | null = null;
-            const allProps: Property[] = [];
+                        const finalContent = accumulatedText || (conversationLanguage === 'ar'
+                            ? 'أنا AMR، وكيل الذكاء العقاري الخاص بك. كيف أقدر أساعدك النهارده؟'
+                            : "I'm AMR, your real estate intelligence agent. How can I assist you today?");
 
-            if (data.properties && data.properties.length > 0) {
-                data.properties.forEach((prop: any) => {
-                    allProps.push({
-                        id: prop.id?.toString() || `prop_${Date.now()}_${Math.random()}`,
-                        title: prop.title || prop.name || 'Property',
-                        location: prop.location || prop.address || 'Location',
-                        price: prop.price || 0,
-                        currency: 'EGP',
-                        metrics: {
-                            size: prop.size_sqm || prop.size || 0,
-                            bedrooms: prop.bedrooms || 0,
-                            bathrooms: prop.bathrooms || 0,
-                            wolf_score: prop.wolf_score || 0,
-                            roi: prop.projected_roi || prop.roi || 0,
-                            price_per_sqm: prop.price_per_sqm || 0,
-                            liquidity_rating: prop.liquidity_rating || 'Medium'
-                        },
-                        image: prop.image_url || prop.image || "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=800",
-                        developer: prop.developer || 'Developer',
-                        tags: prop.tags || [],
-                        status: prop.status || 'Available'
-                    });
-                });
-                if (allProps.length > 0) {
-                    artifacts = { property: allProps[0] };
-                }
-            }
+                        // Finalize the streaming message with all metadata
+                        setMessages(prev => {
+                            // If streaming never started (no tokens received), add the AI message now
+                            const hasMsg = prev.some(m => m.id === aiMsgId);
+                            if (!hasMsg) {
+                                return [...prev, {
+                                    id: aiMsgId,
+                                    role: 'agent' as const,
+                                    content: finalContent,
+                                    artifacts,
+                                    uiActions: data.ui_actions || [],
+                                    allProperties: allProps,
+                                    suggestions: data.suggestions || [],
+                                    leadScore: data.lead_score || 0,
+                                    readinessScore: data.readiness_score || 0,
+                                    detectedLanguage: data.detected_language || 'ar',
+                                    showingStrategy: data.showing_strategy || 'NONE',
+                                }];
+                            }
+                            return prev.map(m =>
+                                m.id === aiMsgId ? {
+                                    ...m,
+                                    content: finalContent,
+                                    artifacts,
+                                    uiActions: data.ui_actions || [],
+                                    allProperties: allProps,
+                                    suggestions: data.suggestions || [],
+                                    leadScore: data.lead_score || 0,
+                                    readinessScore: data.readiness_score || 0,
+                                    detectedLanguage: data.detected_language || 'ar',
+                                    showingStrategy: data.showing_strategy || 'NONE',
+                                } : m
+                            );
+                        });
 
-            const aiMsg: Message = {
-                id: Date.now() + 1,
-                role: 'agent',
-                content: data.response || data.message || (conversationLanguage === 'ar' ? 'أنا AMR، وكيل الذكاء العقاري الخاص بك. كيف أقدر أساعدك النهارده؟' : "I'm AMR, your real estate intelligence agent. How can I assist you today?"),
-                artifacts,
-                uiActions: data.ui_actions || [],
-                analyticsContext: data.analytics_context || null,
-                showingStrategy: data.showing_strategy || 'NONE',
-                allProperties: allProps,
-                leadScore: data.lead_score || 0,
-                readinessScore: data.readiness_score || 0,
-                suggestions: data.suggestions || [],
-                detectedLanguage: data.detected_language || 'ar',
-            };
+                        // Update conversation-level tracking
+                        setConversationLeadScore(data.lead_score || 0);
+                        setConversationReadiness(data.readiness_score || 0);
+                        if (data.detected_language) setConversationLanguage(data.detected_language);
 
-            // Update conversation-level tracking
-            setConversationLeadScore(data.lead_score || 0);
-            setConversationReadiness(data.readiness_score || 0);
-            if (data.detected_language) setConversationLanguage(data.detected_language);
+                        // Don't set lastAiMsgId — streaming already provided incremental display.
+                        // Setting it would re-trigger the typewriter on already-displayed text.
+                        setIsTyping(false);
+                        triggerXP(5, 'Asked a question');
 
-            setMessages(prev => [...prev, aiMsg]);
-            setLastAiMsgId(aiMsg.id);
-            triggerXP(5, 'Asked a question');
+                        if (data.ui_actions && data.ui_actions.length > 0) {
+                            triggerXP(15, 'Used analysis tool');
+                        }
+                        if (artifacts) {
+                            setActiveContext(artifacts);
+                        }
+                    },
+                    onError: (error) => {
+                        console.error('[AMR] Stream Error:', error);
+                        const isArabic = conversationLanguage === 'ar';
+                        const errorContent = isArabic
+                            ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟ أنا AMR وجاهز أساعدك في أي استفسار عقاري.'
+                            : "A brief analysis issue occurred. Could you try again? I'm AMR, ready to help with any real estate question.";
 
-            if (aiMsg.uiActions && aiMsg.uiActions.length > 0) {
-                triggerXP(15, 'Used analysis tool');
-            }
-
-            if (aiMsg.artifacts) {
-                setActiveContext(aiMsg.artifacts);
-            }
+                        setMessages(prev => {
+                            const hasMsg = prev.some(m => m.id === aiMsgId);
+                            if (!hasMsg) {
+                                return [...prev, { id: aiMsgId, role: 'agent' as const, content: errorContent, artifacts: null }];
+                            }
+                            return prev.map(m =>
+                                m.id === aiMsgId ? { ...m, content: errorContent } : m
+                            );
+                        });
+                        setIsTyping(false);
+                    },
+                },
+                'auto'
+            );
         } catch (error: any) {
-            console.error('[AMR] API Error:', error?.response?.data || error?.message || error);
-            const isArabic = conversationLanguage === 'ar';
-            const errorMsg = error?.response?.data?.detail || error?.response?.data?.error ||
-                (isArabic
+            // Streaming setup failed entirely — fallback to non-streaming
+            console.warn('[AMR] SSE streaming failed, falling back to POST:', error?.message);
+            try {
+                const response = await api.post('/api/chat', {
+                    message: content,
+                    session_id: sessionIdRef.current,
+                    language: 'auto'
+                }, { timeout: 120000 });
+                const data = response.data;
+
+                const allProps: Property[] = [];
+                if (data.properties && data.properties.length > 0) {
+                    data.properties.forEach((prop: any) => {
+                        allProps.push({
+                            id: prop.id?.toString() || `prop_${Date.now()}_${Math.random()}`,
+                            title: prop.title || prop.name || 'Property',
+                            location: prop.location || prop.address || 'Location',
+                            price: prop.price || 0,
+                            currency: 'EGP',
+                            metrics: {
+                                size: prop.size_sqm || prop.size || 0,
+                                bedrooms: prop.bedrooms || 0,
+                                bathrooms: prop.bathrooms || 0,
+                                wolf_score: prop.wolf_score || 0,
+                                roi: prop.projected_roi || prop.roi || 0,
+                                price_per_sqm: prop.price_per_sqm || 0,
+                                liquidity_rating: prop.liquidity_rating || 'Medium'
+                            },
+                            image: prop.image_url || prop.image || "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=800",
+                            developer: prop.developer || 'Developer',
+                            tags: prop.tags || [],
+                            status: prop.status || 'Available'
+                        });
+                    });
+                }
+
+                const aiMsg: Message = {
+                    id: aiMsgId,
+                    role: 'agent',
+                    content: data.response || data.message || (conversationLanguage === 'ar' ? 'أنا AMR، وكيل الذكاء العقاري الخاص بك.' : "I'm AMR, your real estate intelligence agent."),
+                    artifacts: allProps.length > 0 ? { property: allProps[0] } : null,
+                    uiActions: data.ui_actions || [],
+                    allProperties: allProps,
+                    suggestions: data.suggestions || [],
+                    leadScore: data.lead_score || 0,
+                    readinessScore: data.readiness_score || 0,
+                    detectedLanguage: data.detected_language || 'ar',
+                    showingStrategy: data.showing_strategy || 'NONE',
+                    analyticsContext: data.analytics_context || null,
+                };
+                setMessages(prev => [...prev, aiMsg]);
+                setLastAiMsgId(aiMsgId);
+                setConversationLeadScore(data.lead_score || 0);
+                setConversationReadiness(data.readiness_score || 0);
+                if (data.detected_language) setConversationLanguage(data.detected_language);
+                triggerXP(5, 'Asked a question');
+                if (aiMsg.uiActions && aiMsg.uiActions.length > 0) triggerXP(15, 'Used analysis tool');
+                if (allProps.length > 0) setActiveContext({ property: allProps[0] });
+            } catch (fallbackErr: any) {
+                console.error('[AMR] Fallback POST also failed:', fallbackErr);
+                const isArabic = conversationLanguage === 'ar';
+                const errorMsg = isArabic
                     ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟ أنا AMR وجاهز أساعدك في أي استفسار عقاري.'
-                    : "A brief analysis issue occurred. Could you try again? I'm AMR, ready to help with any real estate question.");
-            const aiMsg: Message = { id: Date.now() + 1, role: 'agent', content: errorMsg, artifacts: null };
-            setMessages(prev => [...prev, aiMsg]);
+                    : "A brief analysis issue occurred. Could you try again? I'm AMR, ready to help with any real estate question.";
+                setMessages(prev => [...prev, { id: aiMsgId, role: 'agent' as const, content: errorMsg, artifacts: null }]);
+            }
         } finally {
             setIsTyping(false);
         }
