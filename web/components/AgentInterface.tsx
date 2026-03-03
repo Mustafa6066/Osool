@@ -677,15 +677,15 @@ export default function AgentInterface() {
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
 
                                 <div className="text-center w-full max-w-3xl mx-auto">
-                                    <h1 className="text-[3.5rem] md:text-[4.5rem] font-semibold tracking-tight leading-[1.1] mb-5 text-[var(--color-text-primary)]">
+                                    <h1 className="text-[2.5rem] md:text-[4.5rem] font-semibold tracking-tight leading-[1.1] mb-4 md:mb-5 text-[var(--color-text-primary)]">
                                         Hello, {userName}
                                     </h1>
-                                    <p className="text-[1.25rem] md:text-[1.5rem] text-[var(--color-text-muted)] font-medium max-w-2xl mx-auto leading-relaxed">
+                                    <p className="text-[1.1rem] md:text-[1.5rem] text-[var(--color-text-muted)] font-medium max-w-2xl mx-auto leading-relaxed px-4 md:px-0">
                                         What can I help you with<span className="text-emerald-500 font-bold ml-0.5">?</span>
                                     </p>
                                 </div>
 
-                                    <div className="w-full max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mt-12 px-4">
+                                    <div className="w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-8 md:mt-12 px-4">
                                         {SUGGESTIONS.map((s, i) => (
                                             <button
                                                 key={i}
@@ -746,7 +746,7 @@ export default function AgentInterface() {
                                             <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
                                                 {msg.role === 'user' ? (
                                                     <div
-                                                        className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] px-5 py-3.5 rounded-3xl rounded-br-[8px] max-w-[85%] text-[15px] leading-relaxed shadow-sm font-medium"
+                                                        className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] px-4 py-3 md:px-5 md:py-3.5 rounded-3xl rounded-br-[8px] max-w-[95%] md:max-w-[85%] text-[14px] md:text-[15px] leading-relaxed shadow-sm font-medium"
                                                         dir="auto"
                                                     >
                                                         {msg.content}
@@ -819,7 +819,7 @@ export default function AgentInterface() {
                                                                     </div>
                                                                     <span className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-widest pl-1">Market Intelligence</span>
                                                                 </div>
-                                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
+                                                                <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
                                                                     {msg.analyticsContext.avg_price_sqm > 0 && (
                                                                         <div>
                                                                             <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">Avg Price/m²</div>
@@ -855,11 +855,11 @@ export default function AgentInterface() {
                                                                     <div
                                                                         key={prop.id}
                                                                         onClick={() => { setActiveContext({ property: prop }); setContextPaneOpen(true); }}
-                                                                        className="group relative flex gap-4 p-4 border border-[var(--color-border)]/60 hover:border-emerald-500/40 bg-[var(--color-surface)]/60 backdrop-blur-sm rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
+                                                                        className="group relative flex gap-3 md:gap-4 p-3 md:p-4 border border-[var(--color-border)]/60 hover:border-emerald-500/40 bg-[var(--color-surface)]/60 backdrop-blur-sm rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
                                                                         style={{ animationDelay: `${idx * 80}ms` }}
                                                                     >
                                                                         {/* Image */}
-                                                                        <div className="w-[84px] h-[84px] md:w-24 md:h-24 bg-[var(--color-surface-hover)] rounded-[14px] flex-shrink-0 overflow-hidden shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+                                                                        <div className="w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-24 md:h-24 bg-[var(--color-surface-hover)] rounded-[14px] flex-shrink-0 overflow-hidden shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
                                                                             <img src={prop.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" alt={prop.title} />
                                                                         </div>
 
@@ -869,8 +869,8 @@ export default function AgentInterface() {
                                                                             <p className="text-[13px] text-[var(--color-text-muted)] truncate mt-0.5" dir="auto">
                                                                                 {prop.location} {prop.developer && <span className="mx-1.5 opacity-50">·</span>} {prop.developer}
                                                                             </p>
-                                                                            <div className="flex items-center gap-2.5 mt-2.5">
-                                                                                <span className="text-[15px] font-bold text-[var(--color-text-primary)] tracking-tight">
+                                                                            <div className="flex flex-wrap items-center gap-1.5 md:gap-2.5 mt-2.5">
+                                                                                <span className="text-[14px] md:text-[15px] font-bold text-[var(--color-text-primary)] tracking-tight">
                                                                                     {(prop.price / 1000000).toFixed(1)}M <span className="text-[11px] font-medium text-[var(--color-text-muted)]">EGP</span>
                                                                                 </span>
                                                                                 {prop.metrics.price_per_sqm > 0 && (
@@ -953,7 +953,7 @@ export default function AgentInterface() {
                 </div>
 
                 {/* Input Bar - Floating Figma Style */}
-                <div className="sticky bottom-0 left-0 right-0 z-40 px-4 md:px-6 pb-6 pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
+                <div className="sticky bottom-0 left-0 right-0 z-40 px-3 md:px-6 pb-4 md:pb-6 pt-8 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
                     <div className="max-w-[800px] mx-auto relative pointer-events-auto">
                         <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)]`}>
 
@@ -964,7 +964,7 @@ export default function AgentInterface() {
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask about properties, market data, or investments..."
-                                className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-4 px-6 text-[15px] max-h-[180px] outline-none ring-0 leading-normal font-medium"
+                                className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-3 px-4 md:py-4 md:px-6 text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
                                 rows={1}
                                 disabled={isTyping}
                             />
@@ -999,7 +999,7 @@ export default function AgentInterface() {
 
             {/* Context Pane - Floating Style */}
             {contextPaneOpen && activeContext?.property && (
-                <aside className="w-[400px] bg-[var(--color-surface)]/90 backdrop-blur-2xl border-l border-[var(--color-border)]/50 flex flex-col z-40 relative hidden lg:flex shadow-[-10px_0_40px_rgba(0,0,0,0.04)] m-4 ml-0 rounded-[24px] overflow-hidden">
+                <aside className="w-full lg:w-[400px] bg-[var(--color-surface)]/95 backdrop-blur-2xl lg:border-l border-[var(--color-border)]/50 flex flex-col z-50 fixed inset-0 lg:static lg:flex lg:shadow-[-10px_0_40px_rgba(0,0,0,0.04)] lg:m-4 lg:ml-0 lg:rounded-[24px] overflow-hidden">
                     {/* Header */}
                     <div className="h-14 border-b border-[var(--color-border)]/50 flex items-center justify-between px-6 flex-shrink-0 bg-white/50 dark:bg-gray-800/50">
                         <div className="flex items-center gap-2.5">
@@ -1047,7 +1047,7 @@ export default function AgentInterface() {
                                 <Sparkles className="w-5 h-5 text-emerald-500" strokeWidth={2} />
                                 <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">Osool Intelligence Score</h3>
                             </div>
-                            <div className="flex gap-8 relative z-10">
+                            <div className="flex gap-4 sm:gap-8 relative z-10">
                                 <div>
                                     <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Index</div>
                                     <div className="text-3xl font-bold text-emerald-500 tracking-tighter">
