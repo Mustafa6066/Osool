@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Link from "next/link";
 
 interface AuthModalProps {
@@ -22,6 +23,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     const [error, setError] = useState<string | null>(null);
 
     const { login: contextLogin } = useAuth();
+    const { t } = useLanguage();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -74,7 +76,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)]">
                     <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
-                        Welcome back to Osool
+                        {t('auth.welcomeBack')}
                     </h2>
                     <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
                         <X size={24} />
@@ -94,7 +96,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     {/* Login Form */}
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Email Address</label>
+                            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">{t('auth.emailAddress')}</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-3 text-[var(--color-text-muted)]" size={18} />
                                 <input
@@ -109,7 +111,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Password</label>
+                            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">{t('auth.password')}</label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-3 text-[var(--color-text-muted)]" size={18} />
                                 <input
@@ -132,10 +134,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                             {isLoading ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    Signing in...
+                                    {t('auth.signingIn')}
                                 </>
                             ) : (
-                                "Sign In"
+                                t('nav.signIn')
                             )}
                         </button>
                     </form>
@@ -143,17 +145,17 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     {/* Signup Link */}
                     <div className="mt-6 pt-4 border-t border-[var(--color-border)] text-center">
                         <p className="text-sm text-[var(--color-text-muted)]">
-                            New to Osool?{" "}
+                            {t('auth.newToOsool')}{" "}
                             <Link
                                 href="/signup"
                                 className="text-emerald-500 font-semibold hover:underline"
                                 onClick={onClose}
                             >
-                                Request an invitation
+                                {t('auth.requestInvitation')}
                             </Link>
                         </p>
                         <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                            You need an invitation code from an existing user to sign up
+                            {t('auth.needInvitationCode')}
                         </p>
                     </div>
                 </div>

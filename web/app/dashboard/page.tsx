@@ -25,6 +25,7 @@ import {
 import { generateInvitation, getMyInvitations, MyInvitationsResponse, getCurrentUserFromToken, InvitationResponse } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Link from 'next/link';
 import SmartNav from '@/components/SmartNav';
 import InvestorProfileCard from '@/components/InvestorProfileCard';
@@ -33,6 +34,7 @@ import { TIER_COLORS } from '@/lib/gamification';
 export default function DashboardPage() {
     const { user, isAuthenticated, loading } = useAuth();
     const { profile, achievements } = useGamification();
+    const { language, t } = useLanguage();
     const router = useRouter();
     const [invitationsData, setInvitationsData] = useState<MyInvitationsResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +90,7 @@ export default function DashboardPage() {
 
     const formatDate = (dateString: string | null) => {
         if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-US', {
+        return new Date(dateString).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
@@ -124,12 +126,12 @@ export default function DashboardPage() {
                         {/* Page Header */}
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
                             <div>
-                                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[var(--color-text-primary)] mb-2 font-display">Dashboard</h1>
-                                <p className="text-[var(--color-text-muted)] text-lg font-light max-w-xl">Your investor profile, achievements, and referral network.</p>
+                                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[var(--color-text-primary)] mb-2 font-display">{t('dashboard.title')}</h1>
+                                <p className="text-[var(--color-text-muted)] text-lg font-light max-w-xl">{t('dashboard.subtitle')}</p>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] bg-[var(--color-surface)] px-3 py-1.5 rounded-full border border-[var(--color-border)] shadow-sm">
                                 <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
-                                System Operational
+                                {t('dashboard.systemOperational')}
                             </div>
                         </div>
 
@@ -146,10 +148,10 @@ export default function DashboardPage() {
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-sm font-bold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-2">
                                             <Award className="w-4 h-4 text-emerald-500" />
-                                            Achievements
+                                            {t('dashboard.achievements')}
                                         </h3>
                                         <span className="text-xs text-[var(--color-text-muted)]">
-                                            {profile.achievement_count} unlocked
+                                            {profile.achievement_count} {t('dashboard.unlocked')}
                                         </span>
                                     </div>
 
@@ -168,10 +170,10 @@ export default function DashboardPage() {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="text-sm font-medium text-[var(--color-text-primary)] truncate">
-                                                            {ach.title_en}
+                                                            {language === 'ar' ? (ach.title_ar || ach.title_en) : ach.title_en}
                                                         </div>
                                                         <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">
-                                                            {ach.tier} tier
+                                                            {ach.tier} {t('dashboard.tierLabel')}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -181,13 +183,13 @@ export default function DashboardPage() {
                                         <div className="text-center py-8">
                                             <Award className="w-8 h-8 mx-auto text-[var(--color-text-muted)] mb-2" />
                                             <p className="text-sm text-[var(--color-text-muted)]">
-                                                Start exploring to unlock achievements
+                                                {t('dashboard.startExploring')}
                                             </p>
                                             <Link
                                                 href="/chat"
                                                 className="inline-block mt-3 px-4 py-1.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs font-medium hover:bg-[var(--color-primary)]/20 transition-colors"
                                             >
-                                                Start Analysis
+                                                {t('dashboard.startAnalysis')}
                                             </Link>
                                         </div>
                                     )}
@@ -198,7 +200,7 @@ export default function DashboardPage() {
                         {/* ═══════ Referral Section ═══════ */}
                         <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
                             <Gift className="w-5 h-5 text-emerald-500" />
-                            Referral Hub
+                            {t('dashboard.referralHub')}
                         </h2>
 
                         {/* Bento Grid Layout */}
@@ -217,15 +219,15 @@ export default function DashboardPage() {
                                                     ? 'bg-[#8D764D]/10 border-[#8D764D]/20 text-[#8D764D]'
                                                     : 'bg-blue-500/10 border-blue-500/20 text-blue-500'}`}>
                                                 <ShieldCheck size={14} />
-                                                {isUnlimited ? 'VIP Access' : 'Standard Access'}
+                                                {isUnlimited ? t('dashboard.vipAccess') : t('dashboard.standardAccess')}
                                             </div>
                                             <h2 className="text-3xl font-display font-bold text-[var(--color-text-primary)] mb-2">
-                                                {isUnlimited ? 'Unlimited Invitation Links' : `${invitationsData?.invitations_remaining} Invitations Remaining`}
+                                                {isUnlimited ? t('dashboard.unlimitedInvitations') : `${invitationsData?.invitations_remaining} ${t('dashboard.invitationsRemaining')}`}
                                             </h2>
                                             <p className="text-[var(--color-text-muted)] max-w-md">
                                                 {isUnlimited
-                                                    ? 'As a top-tier partner, you have uncapped potential to grow your network. Share the power of AMR without restrictions.'
-                                                    : 'Invite friends to verify properties. Each link is single-use and exclusive.'}
+                                                    ? t('dashboard.vipDescription')
+                                                    : t('dashboard.standardDescription')}
                                             </p>
                                         </div>
                                         <div className="hidden lg:flex size-24 rounded-full bg-gradient-to-br from-[#267360] to-[#121416] border-4 border-[var(--color-surface)] shadow-2xl items-center justify-center">
@@ -234,7 +236,7 @@ export default function DashboardPage() {
                                     </div>
                                     <div className="mt-8 flex gap-4">
                                         <Link href="/chat" className="px-5 py-2.5 rounded-lg bg-[var(--color-surface-elevated)] text-white text-sm font-bold border border-[var(--color-border)] hover:border-[#267360] transition-colors">
-                                            Go to Chat Agent
+                                            {t('dashboard.goToChat')}
                                         </Link>
                                     </div>
                                 </div>
@@ -244,7 +246,7 @@ export default function DashboardPage() {
                             <div className="md:col-span-4 grid grid-cols-2 gap-4 h-full">
                                 <div className="col-span-2 bg-[var(--color-surface)] rounded-xl p-6 border border-[var(--color-border)] shadow-card flex items-center justify-between">
                                     <div>
-                                        <p className="text-[var(--color-text-muted)] text-sm font-medium mb-1">Total Generated</p>
+                                        <p className="text-[var(--color-text-muted)] text-sm font-medium mb-1">{t('dashboard.totalGenerated')}</p>
                                         <p className="text-[var(--color-text-primary)] text-3xl font-display font-bold">{totalInvites}</p>
                                     </div>
                                     <div className="p-3 bg-[#267360]/10 rounded-lg text-[#267360]">
@@ -257,7 +259,7 @@ export default function DashboardPage() {
                                     </div>
                                     <div>
                                         <p className="text-[var(--color-text-primary)] text-2xl font-display font-bold">{usedCount}</p>
-                                        <p className="text-[var(--color-text-muted)] text-xs font-medium">Joined Users</p>
+                                        <p className="text-[var(--color-text-muted)] text-xs font-medium">{t('dashboard.joinedUsers')}</p>
                                     </div>
                                 </div>
                                 <div className="bg-[var(--color-surface)] rounded-xl p-6 border border-[var(--color-border)] shadow-card flex flex-col justify-between">
@@ -266,7 +268,7 @@ export default function DashboardPage() {
                                     </div>
                                     <div>
                                         <p className="text-[#8D764D] text-2xl font-display font-bold">{pendingCount}</p>
-                                        <p className="text-[var(--color-text-muted)] text-xs font-medium">Pending</p>
+                                        <p className="text-[var(--color-text-muted)] text-xs font-medium">{t('dashboard.pending')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -280,7 +282,7 @@ export default function DashboardPage() {
                                     <div className="bg-[var(--color-surface)] rounded-xl p-6 border border-[var(--color-border)] shadow-card">
                                         <h3 className="text-xl text-[var(--color-text-primary)] font-bold mb-6 flex items-center gap-2">
                                             <span className="p-1.5 bg-[#267360]/10 rounded-lg text-[#267360]"><Plus size={18} /></span>
-                                            Create Invite
+                                            {t('dashboard.createInvite')}
                                         </h3>
 
                                         {error && (
@@ -295,7 +297,7 @@ export default function DashboardPage() {
                                                 <div className="animate-in fade-in zoom-in-95">
                                                     <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-4">
                                                         <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2 flex items-center gap-2">
-                                                            <Check size={16} /> Generated Successfully
+                                                            <Check size={16} /> {t('dashboard.generatedSuccessfully')}
                                                         </p>
                                                         <div
                                                             onClick={() => handleCopy(generatedInvite.invitation_link, 'new')}
@@ -313,7 +315,7 @@ export default function DashboardPage() {
                                                         onClick={() => setGeneratedInvite(null)}
                                                         className="w-full bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface)] text-[var(--color-text-primary)] font-medium py-3 px-4 rounded-lg transition-all"
                                                     >
-                                                        Generate Another
+                                                        {t('dashboard.generateAnother')}
                                                     </button>
                                                 </div>
                                             ) : (
@@ -325,7 +327,7 @@ export default function DashboardPage() {
                                                     {isGenerating ? <Loader2 size={20} className="animate-spin" /> : (
                                                         <>
                                                             <Users size={20} />
-                                                            Generate New Link
+                                                            {t('dashboard.generateNewLink')}
                                                         </>
                                                     )}
                                                 </button>
@@ -333,7 +335,7 @@ export default function DashboardPage() {
 
                                             {!isUnlimited && invitationsData?.invitations_remaining === 0 && !generatedInvite && (
                                                 <p className="text-xs text-center text-amber-600 dark:text-amber-400">
-                                                    Limit reached. Contact admin for more.
+                                                    {t('dashboard.limitReached')}
                                                 </p>
                                             )}
                                         </div>
@@ -343,8 +345,8 @@ export default function DashboardPage() {
                                     <div className="mt-6 bg-[#8D764D]/5 border border-[#8D764D]/10 rounded-xl p-4 flex gap-3">
                                         <span className="p-1 bg-[#8D764D]/10 rounded text-[#8D764D] h-fit"><Users size={16} /></span>
                                         <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
-                                            <span className="text-[#8D764D] font-bold">Pro Tip:</span> {' '}
-                                            Trusted invites help build the community. Verify your referrals personally.
+                                            <span className="text-[#8D764D] font-bold">{t('dashboard.proTip')}</span> {' '}
+                                            {t('dashboard.proTipText')}
                                         </p>
                                     </div>
                                 </div>
@@ -354,13 +356,13 @@ export default function DashboardPage() {
                             <div className="lg:col-span-2">
                                 <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-card overflow-hidden flex flex-col min-h-[500px]">
                                     <div className="p-6 border-b border-[var(--color-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <h3 className="text-xl text-[var(--color-text-primary)] font-bold">Invitation History</h3>
+                                        <h3 className="text-xl text-[var(--color-text-primary)] font-bold">{t('dashboard.invitationHistory')}</h3>
                                         <div className="flex items-center gap-2">
                                             <div className="relative">
                                                 <Search className="absolute left-2.5 top-2.5 text-[var(--color-text-muted)]" size={18} />
                                                 <input
                                                     type="text"
-                                                    placeholder="Search code..."
+                                                    placeholder={t('dashboard.searchCode')}
                                                     className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-lg pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-1 focus:ring-[#267360] focus:border-[#267360] outline-none w-full sm:w-64"
                                                 />
                                             </div>
@@ -374,22 +376,22 @@ export default function DashboardPage() {
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
-                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Status</th>
-                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Link Code</th>
-                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Date Created</th>
-                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Date Used</th>
-                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider text-right">Actions</th>
+                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{t('dashboard.status')}</th>
+                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{t('dashboard.linkCode')}</th>
+                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{t('dashboard.dateCreated')}</th>
+                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{t('dashboard.dateUsed')}</th>
+                                                    <th className="p-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider text-right">{t('dashboard.actions')}</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-[var(--color-border)]">
                                                 {isLoading ? (
                                                     <tr>
-                                                        <td colSpan={5} className="p-8 text-center text-[var(--color-text-muted)]">Loading invitations...</td>
+                                                        <td colSpan={5} className="p-8 text-center text-[var(--color-text-muted)]">{t('dashboard.loadingInvitations')}</td>
                                                     </tr>
                                                 ) : invitationsData?.invitations.length === 0 ? (
                                                     <tr>
                                                         <td colSpan={5} className="p-8 text-center text-[var(--color-text-muted)]">
-                                                            No invitations generated yet. Create your first one!
+                                                            {t('dashboard.noInvitationsYet')}
                                                         </td>
                                                     </tr>
                                                 ) : (
@@ -401,7 +403,7 @@ export default function DashboardPage() {
                                                                     : 'bg-[#8D764D]/10 text-[#8D764D] border-[#8D764D]/20'
                                                                     }`}>
                                                                     <span className={`size-1.5 rounded-full ${invite.is_used ? 'bg-[#267360]' : 'bg-[#8D764D]'}`}></span>
-                                                                    {invite.is_used ? 'Used' : 'Pending'}
+                                                                    {invite.is_used ? t('dashboard.used') : t('dashboard.pending')}
                                                                 </span>
                                                             </td>
                                                             <td className="p-4 text-sm font-mono text-[var(--color-text-muted)]">{invite.code}</td>

@@ -900,6 +900,20 @@ async def signup_with_invitation(
     await db.commit()
     await db.refresh(new_user)
 
+    # Award referral XP to the inviter
+    try:
+        from app.services.gamification import GamificationEngine
+        gamification = GamificationEngine()
+        if invitation.created_by_user_id:
+            xp_result = await gamification.award_xp(
+                user_id=invitation.created_by_user_id,
+                action="referral",
+                session=db
+            )
+            logger.info(f"🎮 Awarded {xp_result.get('xp_awarded', 0)} referral XP to user {invitation.created_by_user_id}")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to award referral XP: {e}")
+
     # Get the proper display name using mapping rules
     display_name = get_display_name(new_user)
 

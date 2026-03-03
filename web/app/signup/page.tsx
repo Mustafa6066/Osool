@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
@@ -18,6 +19,7 @@ function SignupContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { login: contextLogin } = useAuth();
+    const { t, language } = useLanguage();
 
     // Form state
     const [fullName, setFullName] = useState('');
@@ -130,9 +132,9 @@ function SignupContent() {
                     <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
                         <UserPlus className="w-8 h-8 text-emerald-500" />
                     </div>
-                    <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Join Osool</h1>
+                    <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">{t('auth.joinTitle')}</h1>
                     <p className="text-[var(--color-text-muted)] text-sm">
-                        Create your account to chat with AMR
+                        {t('auth.joinSubtitle')}
                     </p>
                 </div>
 
@@ -140,7 +142,7 @@ function SignupContent() {
                 {isValidating && (
                     <div className="flex items-center justify-center gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                         <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-                        <span className="text-sm text-blue-500">Validating invitation...</span>
+                        <span className="text-sm text-blue-500">{t('auth.validating')}</span>
                     </div>
                 )}
 
@@ -153,7 +155,7 @@ function SignupContent() {
                             <>
                                 <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                                 <span className="text-sm text-emerald-500">
-                                    Invited by <strong>{invitationStatus.invited_by}</strong>
+                                    {t('auth.invitedByLabel')} <strong>{invitationStatus.invited_by}</strong>
                                 </span>
                             </>
                         ) : (
@@ -177,7 +179,7 @@ function SignupContent() {
                 <form className="space-y-4" onSubmit={handleSubmit}>
                     {/* Full Name */}
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Full Name</label>
+                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.fullName')}</label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
                             <input
@@ -192,7 +194,7 @@ function SignupContent() {
 
                     {/* Email */}
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Email Address</label>
+                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.emailAddress')}</label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
                             <input
@@ -207,7 +209,7 @@ function SignupContent() {
 
                     {/* Password */}
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Password</label>
+                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.password')}</label>
                         <div className="relative">
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
                             <input
@@ -218,12 +220,12 @@ function SignupContent() {
                                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
-                        <p className="text-xs text-[var(--color-text-muted)]">Minimum 8 characters</p>
+                        <p className="text-xs text-[var(--color-text-muted)]">{t('auth.minChars')}</p>
                     </div>
 
                     {/* Invitation Code */}
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Invitation Code</label>
+                        <label className="text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.invitationCode')}</label>
                         <div className="relative">
                             <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
                             <input
@@ -240,7 +242,7 @@ function SignupContent() {
                             />
                         </div>
                         <p className="text-xs text-[var(--color-text-muted)]">
-                            You need an invitation from an existing user to sign up
+                            {t('auth.needInvitationToSignup')}
                         </p>
                     </div>
 
@@ -253,11 +255,11 @@ function SignupContent() {
                         {isLoading ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                Creating account...
+                                {t('auth.creating')}
                             </>
                         ) : (
                             <>
-                                Create Account
+                                {t('auth.createAccount')}
                                 <ArrowRight className="w-5 h-5" />
                             </>
                         )}
@@ -267,9 +269,9 @@ function SignupContent() {
                 {/* Footer */}
                 <div className="pt-4 text-center border-t border-[var(--color-border)]">
                     <p className="text-sm text-[var(--color-text-muted)]">
-                        Already have an account?{' '}
+                        {t('auth.alreadyHaveAccount')}{' '}
                         <Link href="/login" className="text-emerald-500 font-semibold hover:underline">
-                            Sign In
+                            {t('nav.signIn')}
                         </Link>
                     </p>
                 </div>

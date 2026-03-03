@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, MapPin, Bed, Maximize, Trash2, Loader2, Building2, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchFavorites, toggleFavorite, FavoriteProperty } from '@/lib/gamification';
 import Link from 'next/link';
 import SmartNav from '@/components/SmartNav';
 
 export default function FavoritesPage() {
     const { isAuthenticated, loading: authLoading } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
     const [favorites, setFavorites] = useState<FavoriteProperty[]>([]);
     const [loading, setLoading] = useState(true);
@@ -60,10 +62,10 @@ export default function FavoritesPage() {
                     <div className="mb-8">
                         <h1 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)] flex items-center gap-3">
                             <Heart className="w-7 h-7 text-red-400" />
-                            Saved Properties
+                            {t('favorites.title')}
                         </h1>
                         <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                            Your shortlisted properties for quick comparison
+                            {t('favorites.subtitle')}
                         </p>
                     </div>
 
@@ -81,16 +83,16 @@ export default function FavoritesPage() {
                                 <Heart className="w-10 h-10 text-[var(--color-text-muted)]" />
                             </div>
                             <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
-                                No saved properties yet
+                                {t('favorites.noSaved')}
                             </h2>
                             <p className="text-sm text-[var(--color-text-muted)] max-w-md mb-6">
-                                Browse properties and tap the heart icon to save them here for easy comparison.
+                                {t('favorites.browsePrompt')}
                             </p>
                             <Link
                                 href="/properties"
                                 className="px-6 py-2.5 bg-[var(--color-primary)] text-white rounded-full text-sm font-medium hover:bg-[var(--color-primary)]/90 transition-colors"
                             >
-                                Explore Properties
+                                {t('favorites.explore')}
                             </Link>
                         </div>
                     )}
@@ -153,7 +155,7 @@ export default function FavoritesPage() {
                                             {fav.bedrooms > 0 && (
                                                 <span className="flex items-center gap-1">
                                                     <Bed className="w-3.5 h-3.5" />
-                                                    {fav.bedrooms} Beds
+                                                    {fav.bedrooms} {t('favorites.beds')}
                                                 </span>
                                             )}
                                             {fav.size_sqm > 0 && (
@@ -182,7 +184,7 @@ export default function FavoritesPage() {
                                             className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-all"
                                         >
                                             <Sparkles className="w-3.5 h-3.5" />
-                                            Ask AMR about this
+                                            {t('favorites.askAmr')}
                                         </Link>
                                     </div>
                                 </div>

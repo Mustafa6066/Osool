@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Gift, Copy, Check, Loader2, AlertCircle, Link as LinkIcon } from 'lucide-react';
 import { generateInvitation, getMyInvitations, InvitationResponse, MyInvitationsResponse } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface InvitationModalProps {
     isOpen: boolean;
@@ -15,6 +16,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
     const [invitation, setInvitation] = useState<InvitationResponse | null>(null);
     const [myInvitations, setMyInvitations] = useState<MyInvitationsResponse | null>(null);
     const [copied, setCopied] = useState(false);
+    const { t } = useLanguage();
 
     // Load existing invitations on open
     useEffect(() => {
@@ -70,8 +72,8 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
     if (!isOpen) return null;
 
     const remainingText = myInvitations?.invitations_remaining === 'unlimited'
-        ? 'Unlimited invitations available'
-        : `${myInvitations?.invitations_remaining || 0} invitation(s) remaining`;
+        ? t('invitation.unlimited')
+        : `${myInvitations?.invitations_remaining || 0} ${t('invitation.invitationsRemaining')}`;
 
     const canGenerate = myInvitations?.invitations_remaining === 'unlimited' ||
         (typeof myInvitations?.invitations_remaining === 'number' && myInvitations.invitations_remaining > 0);
@@ -87,7 +89,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                             <Gift size={22} className="text-green-600 dark:text-green-400" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Invite a Friend</h2>
+                            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('invitation.title')}</h2>
                             <p className="text-xs text-slate-500">{remainingText}</p>
                         </div>
                     </div>
@@ -115,7 +117,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                         <div className="space-y-4">
                             <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
                                 <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
-                                    ✅ Invitation link generated!
+                                    ✅ {t('invitation.copyLink')}!
                                 </p>
                                 <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg border border-green-200 dark:border-green-800">
                                     <LinkIcon size={16} className="text-slate-400 flex-shrink-0" />
@@ -135,7 +137,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                             </div>
 
                             <p className="text-xs text-slate-500 text-center">
-                                Share this link with your friend. It can only be used once.
+                                {t('invitation.description')}
                             </p>
 
                             {/* Generate Another Button */}
@@ -145,7 +147,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                                     disabled={isLoading}
                                     className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
                                 >
-                                    Generate Another Link
+                                    {t('invitation.generateButton')}
                                 </button>
                             )}
                         </div>
@@ -154,8 +156,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                             {/* Info Box */}
                             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
                                 <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                                    Osool is invite-only during beta. Generate a unique invitation link
-                                    to share with friends. Each link can only be used once.
+                                    {t('invitation.description')}
                                 </p>
                             </div>
 
@@ -168,12 +169,12 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                                 {isLoading ? (
                                     <>
                                         <Loader2 size={20} className="animate-spin" />
-                                        Generating...
+                                        {t('common.loading')}
                                     </>
                                 ) : (
                                     <>
                                         <Gift size={20} />
-                                        Generate Invitation Link
+                                        {t('invitation.generateButton')}
                                     </>
                                 )}
                             </button>
@@ -190,7 +191,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                     {myInvitations && myInvitations.invitations.length > 0 && (
                         <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                             <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                                Your Invitations ({myInvitations.total_invitations})
+                                {t('invitation.yourInvitations')} ({myInvitations.total_invitations})
                             </p>
                             <div className="space-y-2 max-h-32 overflow-y-auto">
                                 {myInvitations.invitations.map((inv, idx) => (
@@ -199,7 +200,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                                             {inv.code.substring(0, 12)}...
                                         </span>
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${inv.is_used ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' : 'bg-green-100 dark:bg-green-900/30 text-green-600'}`}>
-                                            {inv.is_used ? 'Used' : 'Active'}
+                                            {inv.is_used ? t('invitation.used') : t('invitation.available')}
                                         </span>
                                     </div>
                                 ))}

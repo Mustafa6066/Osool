@@ -10,6 +10,7 @@ import {
     PieChart
 } from 'lucide-react';
 import SmartNav from '@/components/SmartNav';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
     computeDetailedStats,
     type DetailedStats,
@@ -133,6 +134,7 @@ function MiniSparkline({ min, avg, max, gMax }: { min: number; avg: number; max:
 
 /* ---- MAIN PAGE ---- */
 export default function MarketStatisticsPage() {
+    const { t, language } = useLanguage();
     const [data, setData] = useState<DetailedStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -211,10 +213,10 @@ export default function MarketStatisticsPage() {
                                 30+ KPIs &middot; {data?.summary?.total_properties?.toLocaleString() || '...'} Properties &middot; Live
                             </motion.div>
                             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--color-text-primary)] tracking-tight">
-                                Market <span className="bg-gradient-to-r from-emerald-500 to-teal-400 bg-clip-text text-transparent">Intelligence</span>
+                                {t('market.title')} <span className="bg-gradient-to-r from-emerald-500 to-teal-400 bg-clip-text text-transparent">{t('market.intelligence')}</span>
                             </h1>
                             <p className="text-base sm:text-lg text-[var(--color-text-muted)] max-w-2xl">
-                                Comprehensive price per meter analysis across areas, developers, and property categories &mdash; computed in real-time from {data?.summary?.total_properties?.toLocaleString() || '...'} properties.
+                                {t('market.subtitle')} &mdash; {t('market.computedFrom')} {data?.summary?.total_properties?.toLocaleString() || '...'} {t('market.properties')}.
                             </p>
                             {error && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-sm text-amber-500"><AlertCircle size={14} />{error}</motion.div>}
                         </motion.div>
@@ -222,10 +224,10 @@ export default function MarketStatisticsPage() {
                         {/* HERO KPIs */}
                         {loading ? <SkeletonGrid /> : data?.summary && (
                             <motion.div variants={containerV} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <HeroCard label="Total Properties" value={data.summary.total_properties} unit="units" icon={Building2} />
-                                <HeroCard label="Avg Price/m\u00B2" value={data.summary.avg_meter} unit="EGP" icon={BarChart3} accent />
-                                <HeroCard label="Market Floor /m\u00B2" value={data.summary.min_meter} unit="EGP" icon={TrendingDown} />
-                                <HeroCard label="Market Ceiling /m\u00B2" value={data.summary.max_meter} unit="EGP" icon={TrendingUp} />
+                                <HeroCard label={t('market.totalProperties')} value={data.summary.total_properties} unit={t('market.units')} icon={Building2} />
+                                <HeroCard label={t('market.avgPriceSqm')} value={data.summary.avg_meter} unit="EGP" icon={BarChart3} accent />
+                                <HeroCard label={t('market.marketFloor')} value={data.summary.min_meter} unit="EGP" icon={TrendingDown} />
+                                <HeroCard label={t('market.marketCeiling')} value={data.summary.max_meter} unit="EGP" icon={TrendingUp} />
                             </motion.div>
                         )}
 
@@ -233,9 +235,9 @@ export default function MarketStatisticsPage() {
                         {!loading && data?.summary && (
                             <motion.div variants={slideUp} className="grid grid-cols-3 gap-3">
                                 {[
-                                    { icon: MapPin, color: 'blue', val: String(data.summary.areas_count), lbl: 'Areas' },
-                                    { icon: Home, color: 'violet', val: String(data.summary.types_count), lbl: 'Types' },
-                                    { icon: DollarSign, color: 'amber', val: fmtM(data.summary.avg_price), lbl: 'Avg Price' },
+                                    { icon: MapPin, color: 'blue', val: String(data.summary.areas_count), lbl: t('market.areas') },
+                                    { icon: Home, color: 'violet', val: String(data.summary.types_count), lbl: t('market.types') },
+                                    { icon: DollarSign, color: 'amber', val: fmtM(data.summary.avg_price), lbl: t('market.avgPrice') },
                                 ].map(({ icon: Ic, color, val, lbl }) => (
                                     <div key={lbl} className="p-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center gap-3">
                                         <div className={`w-8 h-8 rounded-lg bg-${color}-500/10 flex items-center justify-center`}><Ic className={`w-4 h-4 text-${color}-500`} /></div>
@@ -249,15 +251,15 @@ export default function MarketStatisticsPage() {
                         {!loading && areas.length > 0 && (
                             <motion.div variants={slideUp}>
                                 <button onClick={() => toggle('area')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={MapPin} title="Price per Meter \u2014 By Area" subtitle="Min, average, and max price/m\u00B2 across locations" kpiRange="KPIs 5-10" />
+                                    <SectionHeader icon={MapPin} title={t('market.byArea')} subtitle={t('market.byAreaSub')} kpiRange="KPIs 5-10" />
                                     <motion.div animate={{ rotate: exp.area ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
                                 </button>
                                 <AnimatePresence>{exp.area && (
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
                                         <motion.div variants={containerV} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                                            <InsightCard label="Most Expensive" value={topArea?.[0] || '\u2014'} sublabel={topArea ? `${fmt(topArea[1].avg_meter)} EGP/m\u00B2` : undefined} icon={TrendingUp} color="amber" />
-                                            <InsightCard label="Most Affordable" value={bottomArea?.[0] || '\u2014'} sublabel={bottomArea ? `${fmt(bottomArea[1].avg_meter)} EGP/m\u00B2` : undefined} icon={TrendingDown} color="emerald" />
-                                            <InsightCard label="Active Areas" value={`${data?.summary?.areas_count || areas.length}`} sublabel="locations tracked" icon={MapPin} color="blue" />
+                                            <InsightCard label={t('market.mostExpensive')} value={topArea?.[0] || '\u2014'} sublabel={topArea ? `${fmt(topArea[1].avg_meter)} EGP/m\u00B2` : undefined} icon={TrendingUp} color="amber" />
+                                            <InsightCard label={t('market.mostAffordable')} value={bottomArea?.[0] || '\u2014'} sublabel={bottomArea ? `${fmt(bottomArea[1].avg_meter)} EGP/m\u00B2` : undefined} icon={TrendingDown} color="emerald" />
+                                            <InsightCard label={t('market.activeAreas')} value={`${data?.summary?.areas_count || areas.length}`} sublabel={t('market.locationsTracked')} icon={MapPin} color="blue" />
                                         </motion.div>
                                         <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
                                             <div className="overflow-x-auto">
@@ -295,15 +297,15 @@ export default function MarketStatisticsPage() {
                         {!loading && developers.length > 0 && (
                             <motion.div variants={slideUp}>
                                 <button onClick={() => toggle('developer')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={Building2} title="Price per Meter \u2014 By Developer" subtitle="Developer pricing breakdown with min/avg/max meter rates" kpiRange="KPIs 11-16" />
+                                    <SectionHeader icon={Building2} title={t('market.byDeveloper')} subtitle={t('market.byDeveloperSub')} kpiRange="KPIs 11-16" />
                                     <motion.div animate={{ rotate: exp.developer ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
                                 </button>
                                 <AnimatePresence>{exp.developer && (
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
                                         <motion.div variants={containerV} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                                            <InsightCard label="Most Premium" value={topDev?.[0] || '\u2014'} sublabel={topDev ? `${fmt(topDev[1].avg_meter)} EGP/m\u00B2` : undefined} icon={Trophy} color="amber" />
-                                            <InsightCard label="Most Affordable" value={bottomDev?.[0] || '\u2014'} sublabel={bottomDev ? `${fmt(bottomDev[1].avg_meter)} EGP/m\u00B2` : undefined} icon={Target} color="emerald" />
-                                            <InsightCard label="Active Developers" value={`${data?.summary?.developers_count || developers.length}`} sublabel="in the market" icon={Users} color="violet" />
+                                            <InsightCard label={t('market.mostPremium')} value={topDev?.[0] || '\u2014'} sublabel={topDev ? `${fmt(topDev[1].avg_meter)} EGP/m\u00B2` : undefined} icon={Trophy} color="amber" />
+                                            <InsightCard label={t('market.mostAffordable')} value={bottomDev?.[0] || '\u2014'} sublabel={bottomDev ? `${fmt(bottomDev[1].avg_meter)} EGP/m\u00B2` : undefined} icon={Target} color="emerald" />
+                                            <InsightCard label={t('market.activeDevelopers')} value={`${data?.summary?.developers_count || developers.length}`} sublabel={t('market.inTheMarket')} icon={Users} color="violet" />
                                         </motion.div>
                                         <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
                                             <div className="overflow-x-auto">
@@ -336,7 +338,7 @@ export default function MarketStatisticsPage() {
                         {!loading && types.length > 0 && (
                             <motion.div variants={slideUp}>
                                 <button onClick={() => toggle('type')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={Home} title="Price per Meter \u2014 By Category" subtitle="Property type pricing comparison" kpiRange="KPIs 17-20" />
+                                    <SectionHeader icon={Home} title={t('market.byCategory')} subtitle={t('market.byCategorySub')} kpiRange="KPIs 17-20" />
                                     <motion.div animate={{ rotate: exp.type ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
                                 </button>
                                 <AnimatePresence>{exp.type && (
@@ -370,7 +372,7 @@ export default function MarketStatisticsPage() {
                         {!loading && rooms.length > 0 && (
                             <motion.div variants={slideUp}>
                                 <button onClick={() => toggle('rooms')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={BedDouble} title="Room Statistics" subtitle="Price and size metrics by bedroom count" kpiRange="KPIs 21-24" />
+                                    <SectionHeader icon={BedDouble} title={t('market.roomStats')} subtitle={t('market.roomStatsSub')} kpiRange="KPIs 21-24" />
                                     <motion.div animate={{ rotate: exp.rooms ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
                                 </button>
                                 <AnimatePresence>{exp.rooms && (
@@ -399,7 +401,7 @@ export default function MarketStatisticsPage() {
                         {!loading && data && (
                             <motion.div variants={slideUp}>
                                 <button onClick={() => toggle('intel')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={Sparkles} title="Market Intelligence" subtitle="Payment plans, size brackets, price distribution" kpiRange="KPIs 25-30" />
+                                    <SectionHeader icon={Sparkles} title={t('market.marketIntel')} subtitle={t('market.marketIntelSub')} kpiRange="KPIs 25-30" />
                                     <motion.div animate={{ rotate: exp.intel ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
                                 </button>
                                 <AnimatePresence>{exp.intel && (
@@ -411,20 +413,20 @@ export default function MarketStatisticsPage() {
                                                     className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] hover:border-emerald-500/20 transition-all">
                                                     <div className="flex items-center gap-2 mb-5">
                                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/10 flex items-center justify-center"><CreditCard className="w-4 h-4 text-emerald-500" /></div>
-                                                        <div><span className="text-sm font-bold text-[var(--color-text-primary)]">Payment Plan Overview</span><div className="text-[10px] text-[var(--color-text-muted)]">{payment.properties_with_plans.toLocaleString()} with plans</div></div>
+                                                        <div><span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.paymentOverview')}</span><div className="text-[10px] text-[var(--color-text-muted)]">{payment.properties_with_plans.toLocaleString()} {t('market.withPlans')}</div></div>
                                                     </div>
                                                     <div className="grid grid-cols-3 gap-4">
                                                         <div className="text-center p-3 rounded-xl bg-[var(--color-background)]">
-                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">Avg Down</div>
+                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{t('market.avgDown')}</div>
                                                             <div className="text-xl font-bold text-[var(--color-text-primary)]">{payment.avg_down_payment}%</div>
                                                             <div className="text-[10px] text-[var(--color-text-muted)]">{payment.min_down_payment}% &ndash; {payment.max_down_payment}%</div>
                                                         </div>
                                                         <div className="text-center p-3 rounded-xl bg-[var(--color-background)]">
-                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">Installments</div>
+                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{t('market.installments')}</div>
                                                             <div className="text-xl font-bold text-[var(--color-text-primary)]">{payment.avg_installment_years} yrs</div>
                                                         </div>
                                                         <div className="text-center p-3 rounded-xl bg-[var(--color-background)]">
-                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">Monthly</div>
+                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{t('market.monthly')}</div>
                                                             <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{fmt(payment.avg_monthly_installment)}</div>
                                                             <div className="text-[10px] text-[var(--color-text-muted)]">EGP/mo</div>
                                                         </div>
@@ -436,7 +438,7 @@ export default function MarketStatisticsPage() {
                                                     className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] hover:border-emerald-500/20 transition-all">
                                                     <div className="flex items-center gap-2 mb-5">
                                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center"><PieChart className="w-4 h-4 text-blue-500" /></div>
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">Price Distribution</span>
+                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.priceDistribution')}</span>
                                                     </div>
                                                     <div className="space-y-3">
                                                         {orderedPB.map(([label, bracket], idx) => {
@@ -457,7 +459,7 @@ export default function MarketStatisticsPage() {
                                                     className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
                                                     <div className="flex items-center gap-2 mb-4">
                                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/10 flex items-center justify-center"><Ruler className="w-4 h-4 text-violet-500" /></div>
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">Size Bracket Analysis</span>
+                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.sizeBracket')}</span>
                                                     </div>
                                                     <div className="space-y-3">
                                                         {sizeBrackets.map(([label, bracket]) => (
@@ -474,7 +476,7 @@ export default function MarketStatisticsPage() {
                                                     className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
                                                     <div className="flex items-center gap-2 mb-4">
                                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/10 flex items-center justify-center"><Layers className="w-4 h-4 text-amber-500" /></div>
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">Top Compounds</span>
+                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.topCompounds')}</span>
                                                     </div>
                                                     <div className="space-y-2">
                                                         {compounds.slice(0, 7).map((comp, i) => (
@@ -505,7 +507,7 @@ export default function MarketStatisticsPage() {
                                                     className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
                                                     <div className="flex items-center gap-2 mb-4">
                                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/10 flex items-center justify-center"><BarChart3 className="w-4 h-4 text-blue-500" /></div>
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">Developer &times; Area</span>
+                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.developerArea')}</span>
                                                     </div>
                                                     <div className="space-y-2">
                                                         {topDevLocs.map((entry, i) => (
@@ -522,7 +524,7 @@ export default function MarketStatisticsPage() {
                                                     className="p-6 bg-[var(--color-surface)] rounded-2xl border border-emerald-500/20">
                                                     <div className="flex items-center gap-2 mb-4">
                                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/10 flex items-center justify-center"><Target className="w-4 h-4 text-emerald-500" /></div>
-                                                        <div><span className="text-sm font-bold text-[var(--color-text-primary)]">Best Deals per Area</span><div className="text-[10px] text-[var(--color-text-muted)]">Lowest price/m&sup2; in each location</div></div>
+                                                        <div><span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.bestDeals')}</span><div className="text-[10px] text-[var(--color-text-muted)]">{t('market.bestDealsSubtitle')}</div></div>
                                                     </div>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                         {bestDeals.slice(0, 6).map(([area, deal], i) => (
@@ -544,10 +546,10 @@ export default function MarketStatisticsPage() {
 
                         {/* Footer */}
                         <motion.div variants={slideUp} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-6 border-t border-[var(--color-border)]">
-                            <p className="text-xs text-[var(--color-text-muted)]">Data sourced from Osool property database &middot; {data?.summary?.total_properties?.toLocaleString() || 0} properties analyzed</p>
+                            <p className="text-xs text-[var(--color-text-muted)]">{t('market.dataSourced')} &middot; {data?.summary?.total_properties?.toLocaleString() || 0} {t('market.propertiesAnalyzed')}</p>
                             <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
                                 <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 2 }} className="w-2 h-2 rounded-full bg-emerald-500" />
-                                Live statistics
+                                {t('market.liveStats')}
                             </div>
                         </motion.div>
                     </motion.div>

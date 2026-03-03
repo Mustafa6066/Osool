@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import LanguageToggle from '@/components/LanguageToggle';
 import InvitationModal from '@/components/InvitationModal';
 
 const NAV_ITEMS = [
@@ -28,6 +30,7 @@ export default function SmartNav({ children }: SmartNavProps) {
     const pathname = usePathname();
     const { user, isAuthenticated, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
+    const { language, t } = useLanguage();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
@@ -92,7 +95,7 @@ export default function SmartNav({ children }: SmartNavProps) {
                                                 }`}
                                         >
                                             <Icon className="w-3.5 h-3.5" strokeWidth={2} />
-                                            <span>{item.label}</span>
+                                            <span>{language === 'ar' ? item.labelAr : item.label}</span>
                                         </Link>
                                     );
                                 })}
@@ -100,6 +103,9 @@ export default function SmartNav({ children }: SmartNavProps) {
 
                             {/* Right — Actions */}
                             <div className="hidden md:flex items-center gap-1.5">
+                                {/* Language Toggle */}
+                                <LanguageToggle />
+
                                 {/* Theme */}
                                 <button
                                     onClick={toggleTheme}
@@ -186,18 +192,22 @@ export default function SmartNav({ children }: SmartNavProps) {
                                                 }`}
                                         >
                                             <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-500' : ''}`} strokeWidth={2} />
-                                            <span className="text-sm font-medium">{item.label}</span>
+                                            <span className="text-sm font-medium">{language === 'ar' ? item.labelAr : item.label}</span>
                                         </Link>
                                     );
                                 })}
 
-                                <div className="border-t border-[var(--color-border)] pt-2 mt-2 flex items-center gap-1.5">
+                                <div className="border-t border-[var(--color-border)] pt-2 mt-2 space-y-1.5">
+                                    <div className="px-3 py-2">
+                                        <LanguageToggle />
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
                                     <button
                                         onClick={toggleTheme}
                                         className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors flex-1"
                                     >
                                         {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                                        <span className="text-sm">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+                                        <span className="text-sm">{theme === 'dark' ? t('nav.light') : t('nav.dark')}</span>
                                     </button>
                                     {isAuthenticated && (
                                         <>
@@ -206,17 +216,18 @@ export default function SmartNav({ children }: SmartNavProps) {
                                                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors flex-1"
                                             >
                                                 <Gift className="w-4 h-4" />
-                                                <span className="text-sm">Invite</span>
+                                                <span className="text-sm">{t('nav.invite')}</span>
                                             </button>
                                             <button
                                                 onClick={() => logout()}
-                                                title="Sign out"
+                                                title={t('nav.signOut')}
                                                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
                                             >
                                                 <LogOut className="w-4 h-4" />
                                             </button>
                                         </>
                                     )}
+                                </div>
                                 </div>
                             </nav>
                         </div>
