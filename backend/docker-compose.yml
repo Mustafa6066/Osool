@@ -9,8 +9,8 @@ services:
     container_name: osool_db
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-osool}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-osool_password}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-osool_db}
     ports:
       - "5432:5432"

@@ -38,21 +38,24 @@ if os.getenv("ENVIRONMENT") == "production" and _re.fullmatch(r'[a-z0-9\-]+', SE
     raise ValueError("❌ JWT_SECRET_KEY looks like a weak dev secret. Generate with: openssl rand -hex 32")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 Hours (Phase 6: Reduced from 30 days)
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Security: Short-lived access tokens (use refresh flow)
 REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 Days for refresh tokens
 
-# Token blacklist — Redis-backed for persistence across restarts
-# Falls back to in-memory set if Redis is unavailable.
+# Token blacklist — Redis-backed for persistence across restarts.
+# In production, Redis is REQUIRED for blacklist integrity (fail closed).
 _token_blacklist_memory = set()
+_IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
 
 def _get_redis_client():
-    """Get Redis client for token blacklist, if available."""
+    """Get Redis client for token blacklist. Required in production."""
     try:
         from app.services.cache import cache
         if cache.redis and cache.redis.ping():
             return cache.redis
     except Exception:
         pass
+    if _IS_PRODUCTION:
+        logger.error("Redis unavailable in production — token blacklist degraded")
     return None
 
 # Use direct bcrypt instead of passlib for compatibility

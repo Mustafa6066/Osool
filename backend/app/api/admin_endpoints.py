@@ -23,21 +23,16 @@ router = APIRouter(prefix="/api/admin", tags=["Admin Dashboard"])
 # ADMIN ACCESS CONTROL
 # ═══════════════════════════════════════════════════════════════
 
-ADMIN_EMAILS = [
-    "mustafa@osool.eg",
-    "hani@osool.eg",
-]
-
 
 async def require_admin(user: User = Depends(get_current_user)) -> User:
     """
-    Dependency: Ensures current user is an authorized admin.
-    Only Mustafa@osool.eg and Hani@osool.eg have access.
+    Dependency: Ensures current user has admin role in the database.
+    Database-driven RBAC — no hardcoded email lists.
     """
     if not user or not user.email:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    if user.email.lower() not in [e.lower() for e in ADMIN_EMAILS]:
+    if getattr(user, 'role', None) != 'admin':
         raise HTTPException(status_code=403, detail="Admin access denied")
 
     return user

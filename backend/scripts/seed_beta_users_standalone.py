@@ -64,25 +64,32 @@ class Invitation(Base):
     expires_at = Column(DateTime, nullable=True)
 
 
-BETA_USERS = [
-    # Core Team (4) - Each has unique password - CAN GENERATE UNLIMITED INVITATIONS
-    {"email": "mustafa@osool.eg", "full_name": "Mustafa", "password": "Mustafa@Osool2025!", "role": "admin"},
-    {"email": "hani@osool.eg", "full_name": "Hani", "password": "Hani@Osool2025!", "role": "admin"},
-    {"email": "abady@osool.eg", "full_name": "Abady", "password": "Abady@Osool2025!", "role": "admin"},
-    {"email": "sama@osool.eg", "full_name": "Sama", "password": "Sama@Osool2025!", "role": "admin"},
+import json as _json
 
-    # Beta Testers (10) - Each has unique password - CAN GENERATE 2 INVITATIONS EACH
-    {"email": "tester1@osool.eg", "full_name": "Beta Tester 1", "password": "Tester1@Beta2025", "role": "investor"},
-    {"email": "tester2@osool.eg", "full_name": "Beta Tester 2", "password": "Tester2@Beta2025", "role": "investor"},
-    {"email": "tester3@osool.eg", "full_name": "Beta Tester 3", "password": "Tester3@Beta2025", "role": "investor"},
-    {"email": "tester4@osool.eg", "full_name": "Beta Tester 4", "password": "Tester4@Beta2025", "role": "investor"},
-    {"email": "tester5@osool.eg", "full_name": "Beta Tester 5", "password": "Tester5@Beta2025", "role": "investor"},
-    {"email": "tester6@osool.eg", "full_name": "Beta Tester 6", "password": "Tester6@Beta2025", "role": "investor"},
-    {"email": "tester7@osool.eg", "full_name": "Beta Tester 7", "password": "Tester7@Beta2025", "role": "investor"},
-    {"email": "tester8@osool.eg", "full_name": "Beta Tester 8", "password": "Tester8@Beta2025", "role": "investor"},
-    {"email": "tester9@osool.eg", "full_name": "Beta Tester 9", "password": "Tester9@Beta2025", "role": "investor"},
-    {"email": "tester10@osool.eg", "full_name": "Beta Tester 10", "password": "Tester10@Beta2025", "role": "investor"},
-]
+def _load_beta_users():
+    """
+    SECURITY: Load beta users from BETA_USERS_JSON env var. 
+    No passwords in source code.
+    
+    Format: [{"email": "...", "full_name": "...", "password": "...", "role": "admin|investor"}, ...]
+    """
+    raw = os.environ.get("BETA_USERS_JSON")
+    if not raw:
+        print("[ERROR] BETA_USERS_JSON environment variable not set!")
+        print("   Set it to a JSON array of user objects with email, full_name, password, role")
+        sys.exit(1)
+    try:
+        users = _json.loads(raw)
+        for u in users:
+            if not all(k in u for k in ("email", "full_name", "password", "role")):
+                print(f"[ERROR] Each user must have email, full_name, password, role")
+                sys.exit(1)
+        return users
+    except _json.JSONDecodeError as e:
+        print(f"[ERROR] Invalid JSON in BETA_USERS_JSON: {e}")
+        sys.exit(1)
+
+BETA_USERS = _load_beta_users()
 
 
 async def seed_beta_users():
@@ -175,23 +182,8 @@ if __name__ == "__main__":
     try:
         asyncio.run(seed_beta_users())
         print("[SUCCESS] Seeding successful!")
-        print()
-        print("=" * 60)
-        print("BETA USER CREDENTIALS")
-        print("=" * 60)
-        print()
-        print("ADMIN ACCOUNTS (Unlimited Invitations):")
-        print("  mustafa@osool.eg  | Mustafa@Osool2025!")
-        print("  hani@osool.eg     | Hani@Osool2025!")
-        print("  abady@osool.eg    | Abady@Osool2025!")
-        print("  sama@osool.eg     | Sama@Osool2025!")
-        print()
-        print("TESTER ACCOUNTS (2 Invitations Each):")
-        for i in range(1, 11):
-            print(f"  tester{i}@osool.eg  | Tester{i}@Beta2025")
-        print()
-        print("=" * 60)
-        print()
+        print(f"   Seeded {len(BETA_USERS)} users.")
+        # SECURITY: Never print credentials to stdout
     except Exception as e:
         print(f"[ERROR] Error during seeding: {e}")
         import traceback

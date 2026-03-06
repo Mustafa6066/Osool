@@ -94,8 +94,9 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     secrets:
       - db_password
-    ports:
-      - "5432:5432"
+    # SECURITY: Do NOT expose DB port to host in production
+    # ports:
+    #   - "5432:5432"
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-osool_admin} -d ${POSTGRES_DB:-osool_production}"]
@@ -113,8 +114,9 @@ services:
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
+    # SECURITY: Do NOT expose Redis port to host in production
+    # ports:
+    #   - "6379:6379"
     restart: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

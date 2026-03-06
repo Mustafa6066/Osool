@@ -142,80 +142,9 @@ class ChatRequest(BaseModel):
 # ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
 
-# Security Fix H3: Accept signup data in request body, not query params
-class LegacySignupRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(..., min_length=8)
-    full_name: str = Field(..., min_length=1)
-
-import re as _re_signup
-
-@router.post("/auth/signup")
-async def signup(req: LegacySignupRequest, db: AsyncSession = Depends(get_db)):
-    """User Registration"""
-    from sqlalchemy import select
-    email, password, full_name = req.email, req.password, req.full_name
-
-    # Security: Enforce password complexity
-    if len(password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    if not _re_signup.search(r'[A-Z]', password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
-    if not _re_signup.search(r'[a-z]', password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter")
-    if not _re_signup.search(r'[0-9]', password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one digit")
-
-    result = await db.execute(select(User).filter(User.email == email))
-    user = result.scalar_one_or_none()
-    if user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    new_user = User(
-        email=email,
-        full_name=full_name,
-        password_hash=get_password_hash(password),
-        is_verified=True
-    )
-
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
-
-    logger.info(f"User created: {email}")
-    
-    return {"status": "user_created", "email": email, "id": new_user.id}
-
-@router.post("/auth/login")
-@limiter.limit("10/minute")
-async def login(
-    request: Request,
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Login endpoint. Returns JWT token.
-    """
-    from sqlalchemy import select
-    result = await db.execute(select(User).filter(User.email == form_data.username))
-    user = result.scalar_one_or_none()
-    
-    if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-    
-    # Security Fix: Only include essential claims in JWT (no PII like full_name)
-    access_token = create_access_token(data={
-        "sub": user.email, 
-        "role": user.role,
-    })
-    refresh_token = None
-    try:
-        refresh_token = await create_refresh_token_async(db, user.id)
-    except Exception as token_err:
-        logger.warning(f"Failed to create refresh token for {user.email}: {token_err}")
-
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user_id": user.id}
-
+# SECURITY: Legacy signup/login routes REMOVED.
+# Use auth_endpoints.py routes exclusively (/api/auth/signup, /api/auth/login)
+# to enforce invitation flow and proper validation.
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -391,9 +320,13 @@ async def list_properties(db: AsyncSession = Depends(get_db)):
 # AI CHECKOUT BRIDGE (PHASE 3)
 # ═══════════════════════════════════════════════════════════════
 
+class CheckoutRequest(BaseModel):
+    """Request model for checkout - token in body, not query params (security)."""
+    token: str = Field(..., description="JWT reservation token from AI agent")
+
 @router.post("/checkout")
 async def checkout(
-    token: str,
+    req: CheckoutRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -430,7 +363,7 @@ async def checkout(
             raise HTTPException(status_code=500, detail="JWT secret not configured")
 
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            payload = jwt.decode(req.token, SECRET_KEY, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
             raise HTTPException(status_code=400, detail="Reservation link expired. Please generate a new one.")
         except jwt.InvalidTokenError as e:
@@ -574,16 +507,20 @@ async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: Use
     return paymob_result
 
 @router.post("/webhook/paymob")
-async def paymob_webhook(data: dict, hmac: str, db: AsyncSession = Depends(get_db)):
+async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """
     Secure Webhook Listener for Paymob.
     Verifies HMAC signature then updates transaction status on payment success.
+    SECURITY: Extract HMAC from query parameter (Paymob standard) not body.
     """
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
+    hmac_value = request.query_params.get("hmac", "")
+    data = await request.json()
+
     # 1. Verify source is actually Paymob
-    if not paymob_service.verify_hmac(data, hmac):
+    if not hmac_value or not paymob_service.verify_hmac(data, hmac_value):
          raise HTTPException(status_code=403, detail="HMAC verification failed.")
     
     # 2. Extract Data

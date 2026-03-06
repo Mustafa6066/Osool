@@ -14,8 +14,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageToggle from '@/components/LanguageToggle';
 import InvitationModal from '@/components/InvitationModal';
 
-const ADMIN_EMAILS = ['mustafa@osool.eg', 'hani@osool.eg'];
-
 const NAV_ITEMS = [
     { key: 'chat', label: 'Chat', labelAr: 'محادثة', icon: MessageSquare, href: '/chat' },
     { key: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: LayoutDashboard, href: '/dashboard' },
@@ -61,7 +59,7 @@ export default function SmartNav({ children }: SmartNavProps) {
 
     const activeKey = getActiveKey();
 
-    const isAdminUser = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+    const isAdminUser = user?.role === 'admin';
     const visibleNavItems = isAdminUser
         ? [...NAV_ITEMS, { key: 'admin', label: 'Admin', labelAr: 'الإدارة', icon: Shield, href: '/admin' }]
         : NAV_ITEMS;
