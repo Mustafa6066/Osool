@@ -6,7 +6,10 @@ Raises ValueError if any critical variables are missing in production.
 """
 
 import os
+import logging
 from typing import Optional
+
+logger = logging.getLogger("osool")
 
 
 class Config:
@@ -129,13 +132,9 @@ class Config:
 # Validate configuration on module import
 try:
     config = Config()
-    print(f"✅ Configuration validated for {config.ENVIRONMENT} environment")
+    logger.info(f"✅ Configuration validated for {config.ENVIRONMENT} environment")
 except ValueError as e:
-    print(f"\n{'='*60}")
-    print(f"CONFIGURATION ERROR")
-    print(f"{'='*60}")
-    print(f"{e}")
-    print(f"{'='*60}\n")
+    logger.error(f"CONFIGURATION ERROR: {e}")
     raise
 
 

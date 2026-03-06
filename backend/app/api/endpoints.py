@@ -423,7 +423,7 @@ async def checkout(
         except jwt.ExpiredSignatureError:
             raise HTTPException(status_code=400, detail="Reservation link expired. Please generate a new one.")
         except jwt.InvalidTokenError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid reservation token: {str(e)}")
+            raise HTTPException(status_code=400, detail="Invalid reservation token")
 
         # 2. Validate token type
         if payload.get("type") != "reservation":
@@ -630,7 +630,11 @@ async def paymob_webhook(data: dict, hmac: str, db: AsyncSession = Depends(get_d
 
 @router.post("/ai/analyze-contract")
 @limiter.limit("10/minute")
-def analyze_contract(req: ContractAnalysisRequest, request: Request):
+async def analyze_contract(
+    req: ContractAnalysisRequest,
+    request: Request,
+    user: User = Depends(get_current_user)  # Security Fix: Require authentication
+):
     """
     🕵️ AI Legal Check - The "Killer Feature"
     
@@ -657,7 +661,10 @@ def analyze_contract(req: ContractAnalysisRequest, request: Request):
 
 
 @router.post("/ai/valuation")
-def smart_valuation(req: ValuationRequest):
+async def smart_valuation(
+    req: ValuationRequest,
+    user: User = Depends(get_current_user)  # Security Fix: Require authentication
+):
     """
     📊 AI Property Valuation with Market Reasoning
     
@@ -682,7 +689,10 @@ def smart_valuation(req: ValuationRequest):
 
 
 @router.post("/ai/compare-price")
-def compare_price(req: PriceComparisonRequest):
+async def compare_price(
+    req: PriceComparisonRequest,
+    user: User = Depends(get_current_user)  # Security Fix: Require authentication
+):
     """
     💰 Compare Asking Price vs. Market Value
     
@@ -1121,7 +1131,10 @@ async def chat_stream(
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/ai/hybrid-valuation")
-def hybrid_valuation(req: HybridValuationRequest):
+async def hybrid_valuation(
+    req: HybridValuationRequest,
+    user: User = Depends(get_current_user)  # Security Fix: Require authentication
+):
     """
     🧠 Hybrid AI Valuation (XGBoost + GPT-4o)
     
@@ -1149,7 +1162,10 @@ def hybrid_valuation(req: HybridValuationRequest):
 
 
 @router.post("/ai/audit-contract")
-def audit_contract(req: ContractAnalysisRequest):
+async def audit_contract(
+    req: ContractAnalysisRequest,
+    user: User = Depends(get_current_user)  # Security Fix: Require authentication
+):
     """
     ⚖️ Egyptian Legal Contract Audit
     
@@ -1176,7 +1192,10 @@ def audit_contract(req: ContractAnalysisRequest):
 
 
 @router.post("/ai/compare-asking-price")
-def compare_asking(req: PriceComparisonRequest):
+async def compare_asking(
+    req: PriceComparisonRequest,
+    user: User = Depends(get_current_user)  # Security Fix: Require authentication
+):
     """
     💵 Compare Asking Price (Hybrid Version)
     
@@ -1206,7 +1225,10 @@ def compare_asking(req: PriceComparisonRequest):
 
 
 @router.post("/ai/prod/valuation")
-def production_valuation(req: HybridValuationRequest):
+async def production_valuation(
+    req: HybridValuationRequest,
+    user: User = Depends(get_current_user)  # Security Fix: Require authentication
+):
     """
     🧠 Production Hybrid AI Valuation (MLOps XGBoost + GPT-4o)
     
@@ -1230,7 +1252,10 @@ def production_valuation(req: HybridValuationRequest):
 
 
 @router.post("/ai/prod/audit-contract")
-def production_audit(req: ContractAnalysisRequest):
+async def production_audit(
+    req: ContractAnalysisRequest,
+    user: User = Depends(get_current_user)  # Security Fix: Require authentication
+):
     """
     ⚖️ Production Legal Contract Audit
     
@@ -1615,7 +1640,7 @@ async def get_market_statistics_endpoint(
         }
     except Exception as e:
         logger.error(f"Market statistics error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch market statistics: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while processing your request")
 
 
 @router.get("/market/detailed-stats")
@@ -1662,7 +1687,7 @@ async def get_detailed_qa_statistics(
         }
     except Exception as e:
         logger.error(f"Detailed QA statistics error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch detailed statistics: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while processing your request")
 
 
 @router.get("/market/location/{location}")
@@ -1759,7 +1784,7 @@ async def get_location_analytics(
         }
     except Exception as e:
         logger.error(f"Location analytics error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch location analytics: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while processing your request")
 
 
 @router.get("/market/comparison")

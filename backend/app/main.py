@@ -141,8 +141,8 @@ def is_allowed_origin(origin: str) -> bool:
     return False
 
 # Log CORS origins at startup for debugging
-print(f"[+] CORS Origins configured: {origins}")
-print(f"[+] Vercel preview URLs also allowed via wildcard pattern")
+logger.info(f"CORS Origins configured: {origins}")
+logger.info(f"Vercel preview URLs also allowed via wildcard pattern")
 
 # ═══════════════════════════════════════════════════════════════
 # SECURITY HEADERS MIDDLEWARE (Phase 6)
@@ -299,7 +299,7 @@ async def startup_event():
     """
     import os
 
-    print("[*] Osool Backend Starting...")
+    logger.info("🚀 Osool Backend Starting...")
 
     # Phase 1: Security Validation
     environment = os.getenv("ENVIRONMENT", "development")
@@ -316,16 +316,16 @@ async def startup_event():
 
         if missing_vars:
             error_msg = f"CRITICAL: Missing required environment variables: {', '.join(missing_vars)}"
-            print(f"[!] {error_msg}")
+            logger.error(error_msg)
             raise RuntimeError(error_msg)
 
     # Create missing tables (gamification, etc.) if they don't exist
     try:
         from app.database import init_db
         await init_db()
-        print("    |-- Database tables: VERIFIED")
+        logger.info("✅ Database tables: VERIFIED")
     except Exception as e:
-        print(f"    |-- Database tables: init_db skipped ({e})")
+        logger.warning(f"⚠️ Database tables: init_db skipped ({e})")
 
     # Phase 9: Seed gamification achievements
     try:
@@ -333,17 +333,17 @@ async def startup_event():
         from app.services.gamification import gamification_engine
         async with AsyncSessionLocal() as session:
             await gamification_engine.seed_achievements(session)
-        print("    |-- Gamification Engine: ACHIEVEMENTS SEEDED")
+        logger.info("✅ Gamification Engine: ACHIEVEMENTS SEEDED")
     except Exception as e:
-        print(f"    |-- Gamification Engine: Seed skipped ({e})")
+        logger.warning(f"⚠️ Gamification Engine: Seed skipped ({e})")
 
-    print("    |-- AI Intelligence Layer: READY")
-    print("    |-- AMR Agent (Claude 3.5 Sonnet): READY")
-    print("    |-- Hybrid Brain (XGBoost + GPT-4o): READY")
-    print("    |-- Gamification Engine: READY")
-    print("    +-- Semantic Search (pgvector): READY")
-    print(f"[+] Osool Backend is ONLINE (Environment: {environment})")
-    print(f"[+] Phase 9: AI + Gamification Platform")
+    logger.info("✅ AI Intelligence Layer: READY")
+    logger.info("✅ AMR Agent (Claude 3.5 Sonnet): READY")
+    logger.info("✅ Hybrid Brain (XGBoost + GPT-4o): READY")
+    logger.info("✅ Gamification Engine: READY")
+    logger.info("✅ Semantic Search (pgvector): READY")
+    logger.info(f"🎉 Osool Backend is ONLINE (Environment: {environment})")
+    logger.info(f"🐺 Phase 9: AI + Gamification Platform")
 
 
 if __name__ == "__main__":
