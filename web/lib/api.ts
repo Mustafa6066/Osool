@@ -446,4 +446,114 @@ export const validateInvitation = async (code: string): Promise<InvitationValida
   return data;
 };
 
+// ═══════════════════════════════════════════════════════════════
+// ADMIN API
+// ═══════════════════════════════════════════════════════════════
+
+export interface AdminDashboardData {
+  overview: {
+    total_users: number;
+    total_messages: number;
+    total_properties: number;
+    active_properties: number;
+    total_transactions: number;
+    total_sessions: number;
+  };
+  recent_activity: {
+    new_users_7d: number;
+    messages_24h: number;
+  };
+  admin: { email: string; name: string };
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  full_name: string;
+  role: string;
+  created_at: string | null;
+  is_verified: boolean;
+  kyc_status: string;
+  message_count: number;
+  last_activity: string | null;
+}
+
+export interface AdminConversation {
+  session_id: string;
+  user_id: number;
+  user_email: string;
+  user_name: string;
+  message_count: number;
+  started_at: string | null;
+  last_message_at: string | null;
+  preview: string | null;
+}
+
+export interface AdminMessage {
+  id: number;
+  role: string;
+  content: string;
+  created_at: string | null;
+  properties: any[] | null;
+}
+
+/** Check if current user is admin */
+export const checkAdmin = async (): Promise<{ is_admin: boolean; email: string; name: string }> => {
+  const { data } = await api.get('/api/admin/check');
+  return data;
+};
+
+/** Get admin dashboard overview */
+export const getAdminDashboard = async (): Promise<AdminDashboardData> => {
+  const { data } = await api.get('/api/admin/dashboard');
+  return data;
+};
+
+/** Get all users (admin) */
+export const getAdminUsers = async (limit = 100, offset = 0): Promise<{ total: number; users: AdminUser[] }> => {
+  const { data } = await api.get(`/api/admin/users?limit=${limit}&offset=${offset}`);
+  return data;
+};
+
+/** Get all conversations (admin) */
+export const getAdminConversations = async (limit = 50, offset = 0): Promise<{ total: number; sessions: AdminConversation[] }> => {
+  const { data } = await api.get(`/api/admin/conversations?limit=${limit}&offset=${offset}`);
+  return data;
+};
+
+/** Get full conversation thread (admin) */
+export const getAdminConversation = async (sessionId: string): Promise<{
+  session_id: string;
+  user: { id: number; email: string; full_name: string; role: string } | null;
+  message_count: number;
+  messages: AdminMessage[];
+}> => {
+  const { data } = await api.get(`/api/admin/conversations/${sessionId}`);
+  return data;
+};
+
+/** Get all conversations for a specific user (admin) */
+export const getAdminUserConversations = async (userId: number) => {
+  const { data } = await api.get(`/api/admin/conversations/user/${userId}`);
+  return data;
+};
+
+/** Trigger property scraper (admin) */
+export const triggerPropertyScraper = async () => {
+  const { data } = await api.post('/api/admin/scraper/properties');
+  return data;
+};
+
+/** Trigger economic scraper (admin) */
+export const triggerEconomicScraper = async () => {
+  const { data } = await api.post('/api/admin/scraper/economic');
+  return data;
+};
+
+/** Get market indicators (admin) */
+export const getAdminMarketIndicators = async () => {
+  const { data } = await api.get('/api/admin/market-indicators');
+  return data;
+};
+
 export default api;

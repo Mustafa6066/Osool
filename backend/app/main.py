@@ -51,6 +51,7 @@ logger.info("✅ Market Intel Injection: ENABLED")
 from app.api.endpoints import router as api_router
 from app.api.auth_endpoints import router as auth_router
 from app.api.gamification_endpoints import router as gamification_router
+from app.api.admin_endpoints import router as admin_router
 from app.services.metrics import metrics_endpoint
 
 # ═══════════════════════════════════════════════════════════════
@@ -237,6 +238,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(api_router)
 app.include_router(auth_router)
 app.include_router(gamification_router)
+app.include_router(admin_router)
 
 
 @app.get("/")
@@ -340,6 +342,13 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Gamification Engine: Seed skipped ({e})")
 
+    # Phase 10: Initialize APScheduler for weekly scraping jobs
+    try:
+        from app.services.scheduler import init_scheduler
+        init_scheduler()
+    except Exception as e:
+        logger.warning(f"⚠️ APScheduler: Init skipped ({e})")
+
     logger.info("✅ AI Intelligence Layer: READY")
     logger.info("✅ CoInvestor Agent (Claude 3.5 Sonnet): READY")
     logger.info("✅ Hybrid Brain (XGBoost + GPT-4o): READY")
@@ -348,6 +357,16 @@ async def startup_event():
     logger.info(f"🎉 Osool Backend is ONLINE (Environment: {environment})")
     logger.info(f"🐺 Phase 9: AI + Gamification Platform")
 
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Graceful shutdown: stop scheduled tasks."""
+    try:
+        from app.services.scheduler import shutdown_scheduler
+        shutdown_scheduler()
+    except Exception:
+        pass
+    logger.info("👋 Osool Backend shutting down")
 
 if __name__ == "__main__":
     import uvicorn

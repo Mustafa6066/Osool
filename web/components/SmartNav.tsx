@@ -6,13 +6,15 @@ import { usePathname } from 'next/navigation';
 import {
     MessageSquare, LayoutDashboard, TrendingUp, Building2,
     Heart, LogOut, Sun, Moon, Gift, Menu, X,
-    ChevronDown
+    ChevronDown, Shield
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageToggle from '@/components/LanguageToggle';
 import InvitationModal from '@/components/InvitationModal';
+
+const ADMIN_EMAILS = ['mustafa@osool.eg', 'hani@osool.eg'];
 
 const NAV_ITEMS = [
     { key: 'chat', label: 'Chat', labelAr: 'محادثة', icon: MessageSquare, href: '/chat' },
@@ -53,10 +55,16 @@ export default function SmartNav({ children }: SmartNavProps) {
         if (pathname === '/market') return 'market';
         if (pathname.startsWith('/properties') || pathname.startsWith('/property/')) return 'properties';
         if (pathname === '/favorites') return 'favorites';
+        if (pathname === '/admin') return 'admin';
         return '';
     };
 
     const activeKey = getActiveKey();
+
+    const isAdminUser = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+    const visibleNavItems = isAdminUser
+        ? [...NAV_ITEMS, { key: 'admin', label: 'Admin', labelAr: 'الإدارة', icon: Shield, href: '/admin' }]
+        : NAV_ITEMS;
 
     return (
         <>
@@ -81,7 +89,7 @@ export default function SmartNav({ children }: SmartNavProps) {
 
                             {/* Center Nav — Pill tabs */}
                             <nav className="hidden md:flex items-center gap-0.5 bg-[var(--color-surface)] rounded-full px-1 py-0.5 border border-[var(--color-border)]">
-                                {NAV_ITEMS.map((item) => {
+                                {visibleNavItems.map((item) => {
                                     const isActive = item.key === activeKey;
                                     const Icon = item.icon;
                                     return (
@@ -177,7 +185,7 @@ export default function SmartNav({ children }: SmartNavProps) {
                     {mobileMenuOpen && (
                         <div className="md:hidden border-t border-[var(--color-border)] bg-[var(--color-background)] animate-fade-in">
                             <nav className="px-3 py-2 space-y-0.5">
-                                {NAV_ITEMS.map((item) => {
+                                {visibleNavItems.map((item) => {
                                     const isActive = item.key === activeKey;
                                     const Icon = item.icon;
                                     return (

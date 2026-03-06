@@ -71,5 +71,8 @@ redis>=5.0.0
 # Resilience & Retry
 tenacity>=8.2.0
 
+# Scheduling (weekly scrapers)
+apscheduler>=3.10.0
+
 # Structured Outputs
 pydantic>=2.5.0

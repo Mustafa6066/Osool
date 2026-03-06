@@ -4,11 +4,21 @@ Egyptian Economic Data Scraper
 Collects macroeconomic indicators relevant to real estate investment decisions.
 
 Sources:
-- Trading Economics (scraping attempt)
-- CBE (Central Bank of Egypt) reference
+- Trading Economics (scraping attempt for macro data)
+- Open Exchange Rates / CBE scraping (USD/EGP rate)
+- Gold price scraping
 - Manual fallback data (updated periodically by team)
 
 Stores data in the MarketIndicator table for use by the AI brain.
+
+Indicators collected:
+- USD/EGP exchange rate (official + parallel)
+- Inflation rate
+- Bank CD and mortgage rates
+- Gold price per gram (EGP)
+- Construction cost indices
+- Real estate appreciation rates
+- GDP growth, population growth
 """
 
 import asyncio
@@ -57,6 +67,67 @@ FALLBACK_ECONOMIC_DATA = {
     "population_growth": {"value": 0.017, "source": "CAPMAS Feb 2026 (Manual)", "category": "macro"},
     "urbanization_rate": {"value": 0.432, "source": "World Bank Feb 2026 (Manual)", "category": "macro"},
 }
+
+
+# ═══════════════════════════════════════════════════════════════
+# USD/EGP EXCHANGE RATE SCRAPER
+# ═══════════════════════════════════════════════════════════════
+
+async def scrape_usd_egp_rate() -> Dict[str, Dict]:
+    """
+    Fetch USD/EGP exchange rate from multiple sources with fallback chain.
+    Sources tried in order:
+    1. exchangerate-api.com (free tier, no key required for open endpoint)
+    2. CBE website scraping
+    """
+    indicators = {}
+    timestamp = datetime.now().strftime('%b %Y')
+
+    try:
+        async with httpx.AsyncClient(timeout=15, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        }) as client:
+            # Source 1: Open exchange rate API (exchangerate-api.com open endpoint)
+            try:
+                resp = await client.get("https://open.er-api.com/v6/latest/USD")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get("result") == "success" and "rates" in data:
+                        egp_rate = data["rates"].get("EGP")
+                        if egp_rate and 10 < egp_rate < 200:  # Sanity check
+                            indicators["usd_egp_rate"] = {
+                                "value": round(egp_rate, 2),
+                                "source": f"ExchangeRate-API {timestamp}",
+                            }
+                            logger.info(f"USD/EGP rate fetched: {egp_rate}")
+            except Exception as e:
+                logger.warning(f"ExchangeRate-API failed: {e}")
+
+            # Source 2: Try Google Finance scraping as backup
+            if "usd_egp_rate" not in indicators:
+                try:
+                    resp = await client.get(
+                        "https://www.google.com/finance/quote/USD-EGP",
+                        headers={"Accept-Language": "en-US,en;q=0.9"},
+                    )
+                    if resp.status_code == 200:
+                        soup = BeautifulSoup(resp.text, "html.parser")
+                        # Google Finance shows rate in a data-last-price attribute
+                        price_el = soup.select_one("[data-last-price]")
+                        if price_el:
+                            rate = float(price_el["data-last-price"])
+                            if 10 < rate < 200:
+                                indicators["usd_egp_rate"] = {
+                                    "value": round(rate, 2),
+                                    "source": f"Google Finance {timestamp}",
+                                }
+                except Exception as e:
+                    logger.warning(f"Google Finance scrape failed: {e}")
+
+    except Exception as e:
+        logger.warning(f"USD/EGP scraping failed entirely: {e}")
+
+    return indicators
 
 
 async def scrape_trading_economics() -> Dict[str, Dict]:
@@ -153,25 +224,30 @@ async def update_market_indicators(db_session) -> Dict[str, any]:
     Main entry point: scrape economic data + merge with fallback + store to DB.
 
     Called by:
-    - Admin endpoint: POST /admin/update-economic-data
-    - Cron job (future)
+    - Admin endpoint: POST /admin/scraper/economic
+    - Weekly scheduler (APScheduler cron)
     """
     from app.models import MarketIndicator
     from sqlalchemy import select
 
-    # 1. Try scraping (best-effort)
+    # 1. Try scraping from multiple sources (best-effort, parallel)
     scraped_data = {}
     try:
-        trading_econ, gold_price = await asyncio.gather(
+        results = await asyncio.gather(
             scrape_trading_economics(),
             scrape_gold_price(),
-            return_exceptions=True
+            scrape_usd_egp_rate(),
+            return_exceptions=True,
         )
+
+        trading_econ, gold_price, usd_egp = results
 
         if isinstance(trading_econ, dict):
             scraped_data.update(trading_econ)
         if isinstance(gold_price, dict):
             scraped_data["gold_price_egp_gram"] = gold_price
+        if isinstance(usd_egp, dict):
+            scraped_data.update(usd_egp)
 
     except Exception as e:
         logger.warning(f"Scraping phase failed: {e}")
