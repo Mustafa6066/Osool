@@ -143,10 +143,10 @@ function AIMessage({
                                 {visualizations.map((viz, index) => (
                                     <div
                                         key={`${viz.type}-${index}`}
-                                        className="rounded-xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)]"
+                                        className="rounded-xl overflow-hidden border border-[var(--color-border)]/30 bg-transparent ai-visualization"
                                     >
                                         {viz.chart_reference && (
-                                            <div className={`px-4 py-2 bg-[var(--chatgpt-hover-bg)] border-b border-[var(--color-border)] ${messageIsArabic ? 'text-right' : 'text-left'}`}>
+                                            <div className={`px-4 py-2 bg-transparent border-b border-[var(--color-border)]/30 ${messageIsArabic ? 'text-right' : 'text-left'}`}>
                                                 <p className="text-xs text-[var(--color-text-muted)] font-medium flex items-center gap-2">
                                                     <TrendingUp size={12} />
                                                     {viz.chart_reference}

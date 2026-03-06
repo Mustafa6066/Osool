@@ -309,6 +309,13 @@ body > div:first-child {
     transition: all 0.6s var(--ease-out-expo);
   }
   .hologram-img:hover { filter: contrast(1) brightness(1); }
+
+  /* AI visualizations — render without card backgrounds */
+  .ai-visualization > * {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+  }
 }
 
 /* ============================================

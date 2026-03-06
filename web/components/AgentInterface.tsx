@@ -217,7 +217,7 @@ function getOrCreateSessionId(): string {
 }
 
 /* ─── Typewriter hook ─── */
-function useTypewriter(text: string, enabled: boolean, speed = 12) {
+function useTypewriter(text: string, enabled: boolean, speed = 16) {
     const [displayed, setDisplayed] = useState(text);
     const [done, setDone] = useState(!enabled);
     const idx = useRef(0);
@@ -227,8 +227,9 @@ function useTypewriter(text: string, enabled: boolean, speed = 12) {
         idx.current = 0;
         setDisplayed('');
         setDone(false);
+        const step = text.length > 800 ? 4 : text.length > 400 ? 3 : 2;
         const timer = setInterval(() => {
-            idx.current++;
+            idx.current = Math.min(text.length, idx.current + step);
             if (idx.current >= text.length) {
                 setDisplayed(text);
                 setDone(true);
@@ -245,12 +246,18 @@ function useTypewriter(text: string, enabled: boolean, speed = 12) {
 
 /* ─── Typewriter wrapper for agent messages ─── */
 const TypewriterMarkdown = ({ content, animate }: { content: string; animate: boolean }) => {
-    const { displayed, done } = useTypewriter(content, animate, 8);
+    const { displayed, done } = useTypewriter(content, animate, 16);
+    const msgIsArabic = isArabic(displayed || content);
+    if (done) {
+        return <MarkdownMessage content={content} />;
+    }
     return (
-        <>
-            <MarkdownMessage content={displayed} />
-            {!done && <span className="inline-block w-[2px] h-[1.1em] bg-emerald-500 animate-pulse align-text-bottom ml-0.5" />}
-        </>
+        <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-right' : 'text-left'}>
+            <div className="whitespace-pre-wrap leading-relaxed text-[15px] text-[var(--color-text-secondary)]">
+                {displayed}
+            </div>
+            <span className="inline-block w-[2px] h-[1.1em] bg-emerald-500 animate-pulse align-text-bottom ml-0.5" />
+        </div>
     );
 };
 
@@ -982,7 +989,7 @@ export default function AgentInterface() {
                                                                                         ease: [0.16, 1, 0.3, 1], // easeOutExpo
                                                                                         delay: idx * 0.15 
                                                                                     }}
-                                                                                    className="overflow-hidden"
+                                                                                    className="overflow-hidden ai-visualization"
                                                                                 >
                                                                                     <VisualizationRenderer
                                                                                         type={action.type}

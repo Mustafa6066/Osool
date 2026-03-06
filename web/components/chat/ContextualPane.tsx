@@ -522,11 +522,11 @@ function VisualizationSection({
                 {uiActions.slice(0, 3).map((action, index) => (
                     <div
                         key={`${action.type}-${index}`}
-                        className="viz-item rounded-xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)]"
+                        className="viz-item rounded-xl overflow-hidden border border-[var(--color-border)]/30 bg-transparent ai-visualization"
                         style={{ opacity: 0 }}
                     >
                         {/* Header */}
-                        <div className="px-3 py-2 bg-gradient-to-r from-[var(--color-primary)]/10 to-transparent border-b border-[var(--color-border)] flex items-center justify-between">
+                        <div className="px-3 py-2 bg-transparent border-b border-[var(--color-border)]/30 flex items-center justify-between">
                             <span className="text-xs font-bold text-[var(--color-primary)]">
                                 {isRTL ? getVizLabel(action.type).ar : getVizLabel(action.type).en}
                             </span>

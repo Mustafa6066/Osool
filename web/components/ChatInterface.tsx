@@ -787,10 +787,10 @@ function CompactVisualization({ viz, isRTL }: { viz: any; isRTL: boolean }) {
     };
 
     return (
-        <div className="rounded-xl border border-[var(--color-border-subtle)] overflow-hidden bg-[var(--color-studio-white)]" dir={isRTL ? 'rtl' : 'ltr'}>
+        <div className="rounded-xl border border-[var(--color-border-subtle)]/40 overflow-hidden bg-transparent ai-visualization" dir={isRTL ? 'rtl' : 'ltr'}>
             <button
                 onClick={() => setExpanded(!expanded)}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 hover:from-slate-100 hover:to-slate-50 dark:hover:from-slate-700/50 dark:hover:to-slate-800/50 transition-colors"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 bg-transparent hover:bg-[var(--color-border-subtle)]/20 transition-colors"
             >
                 <div className="size-6 sm:size-7 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
                     <MaterialIcon name={getVizIcon(viz.type)} size="14px" className="text-emerald-600" />
