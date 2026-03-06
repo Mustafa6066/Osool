@@ -300,7 +300,7 @@ export const streamChat = async (
 
           switch (data.type) {
             case 'token':
-              if (data.content) callbacks.onToken(data.content);
+              if (data.content) callbacks.onToken(typeof data.content === 'string' ? data.content : JSON.stringify(data.content));
               break;
             case 'tool_start':
               if (data.tool) callbacks.onToolStart(data.tool);

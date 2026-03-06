@@ -37,22 +37,17 @@ class HealthCheck:
     async def check_database(self) -> Dict:
         """Check database connectivity."""
         try:
-            from app.database import SessionLocal
+            from app.database import AsyncSessionLocal
+            from sqlalchemy import text
 
-            db = SessionLocal()
-            try:
-                # Simple query to test connection
-                db.execute("SELECT 1")
-                db.close()
+            async with AsyncSessionLocal() as db:
+                await db.execute(text("SELECT 1"))
 
-                return {
-                    "status": HealthStatus.HEALTHY,
-                    "message": "Database connection successful",
-                    "response_time_ms": 0  # Would measure actual time
-                }
-            except Exception as e:
-                db.close()
-                raise e
+            return {
+                "status": HealthStatus.HEALTHY,
+                "message": "Database connection successful",
+                "response_time_ms": 0
+            }
 
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
@@ -123,13 +118,12 @@ class HealthCheck:
     async def check_openai_api(self) -> Dict:
         """Check OpenAI API availability."""
         try:
-            import openai
+            from openai import AsyncOpenAI
             import os
 
-            openai.api_key = os.getenv("OPENAI_API_KEY")
+            client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-            # Simple embeddings test (cheaper than completion)
-            response = await openai.Embedding.acreate(
+            response = await client.embeddings.create(
                 input="test",
                 model="text-embedding-3-small"
             )

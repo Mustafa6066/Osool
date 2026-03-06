@@ -403,7 +403,7 @@ async def checkout(
         last_name = current_user.full_name.split()[-1] if current_user.full_name and len(current_user.full_name.split()) > 1 else ""
 
         # 7. Initiate Paymob payment
-        result = paymob_service.initiate_payment(
+        result = await paymob_service.initiate_payment(
             amount_egp=payment_amount,
             user_email=current_user.email or f"user{current_user.id}@osool.com",
             user_phone=current_user.phone_number,
@@ -477,7 +477,7 @@ async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: Use
         raise HTTPException(status_code=400, detail="Property is NOT available associated with this payment request.")
 
     # 2. Initiate Paymob
-    paymob_result = paymob_service.initiate_payment(
+    paymob_result = await paymob_service.initiate_payment(
         amount_egp=req.amount_egp,
         user_email=req.email,
         user_phone=req.phone_number,
@@ -600,7 +600,7 @@ async def analyze_contract(
             detail="Contract text too short. Please provide more content."
         )
     
-    result = osool_ai.analyze_contract_with_egyptian_context(req.text)
+    result = await osool_ai.analyze_contract_with_egyptian_context(req.text)
     
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
@@ -622,7 +622,7 @@ async def smart_valuation(
     - Detailed reasoning based on market trends
     - Investment verdict
     """
-    result = osool_ai.get_smart_valuation(
+    result = await osool_ai.get_smart_valuation(
         location=req.location,
         size_sqm=req.size_sqm,
         finishing=req.finishing,
@@ -649,7 +649,7 @@ async def compare_price(
     - FAIR (within market range)
     - OVERPRICED (negotiate down)
     """
-    result = osool_ai.compare_price_to_market(
+    result = await osool_ai.compare_price_to_market(
         asking_price=req.asking_price,
         location=req.location,
         size_sqm=req.size_sqm,

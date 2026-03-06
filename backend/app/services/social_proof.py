@@ -36,9 +36,13 @@ class SocialProofService:
                 cache.redis.incr(key)
                 cache.redis.expire(key, self.TTL_24H)
             else:
-                # Fallback: in-memory
-                current = cache._memory_fallback.get(key, 0)
-                cache._memory_fallback[key] = current + 1
+                import time
+                entry = cache._memory_fallback.get(key)
+                current = entry.get("value", 0) if isinstance(entry, dict) else 0
+                cache._memory_fallback[key] = {
+                    "value": current + 1,
+                    "expires_at": time.time() + self.TTL_24H,
+                }
         except Exception as e:
             logger.debug(f"Social proof track error: {e}")
 
@@ -50,8 +54,13 @@ class SocialProofService:
                 cache.redis.incr(key)
                 cache.redis.expire(key, self.TTL_24H)
             else:
-                current = cache._memory_fallback.get(key, 0)
-                cache._memory_fallback[key] = current + 1
+                import time
+                entry = cache._memory_fallback.get(key)
+                current = entry.get("value", 0) if isinstance(entry, dict) else 0
+                cache._memory_fallback[key] = {
+                    "value": current + 1,
+                    "expires_at": time.time() + self.TTL_24H,
+                }
         except Exception as e:
             logger.debug(f"Social proof track error: {e}")
 
@@ -63,8 +72,13 @@ class SocialProofService:
                 cache.redis.incr(key)
                 cache.redis.expire(key, self.TTL_24H)
             else:
-                current = cache._memory_fallback.get(key, 0)
-                cache._memory_fallback[key] = current + 1
+                import time
+                entry = cache._memory_fallback.get(key)
+                current = entry.get("value", 0) if isinstance(entry, dict) else 0
+                cache._memory_fallback[key] = {
+                    "value": current + 1,
+                    "expires_at": time.time() + self.TTL_24H,
+                }
         except Exception as e:
             logger.debug(f"Social proof track error: {e}")
 
@@ -78,8 +92,10 @@ class SocialProofService:
                 views = int(cache.redis.get(views_key) or 0)
                 analyzes = int(cache.redis.get(analyzes_key) or 0)
             else:
-                views = cache._memory_fallback.get(views_key, 0)
-                analyzes = cache._memory_fallback.get(analyzes_key, 0)
+                entry = cache._memory_fallback.get(views_key)
+                views = entry.get("value", 0) if isinstance(entry, dict) else 0
+                entry = cache._memory_fallback.get(analyzes_key)
+                analyzes = entry.get("value", 0) if isinstance(entry, dict) else 0
 
             signals = {}
 
@@ -111,7 +127,8 @@ class SocialProofService:
             if cache.redis:
                 activity = int(cache.redis.get(key) or 0)
             else:
-                activity = cache._memory_fallback.get(key, 0)
+                entry = cache._memory_fallback.get(key)
+                activity = entry.get("value", 0) if isinstance(entry, dict) else 0
 
             if activity >= 10:
                 return {

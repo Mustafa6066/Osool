@@ -166,24 +166,12 @@ class AuthResponse(BaseModel):
 #     )
     
 @router.post("/signup_disabled_public") # Renamed to avoid route conflict if enabled later
-async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get_db)):
+async def signup_with_kyc_disabled(req: SignupRequest, db: AsyncSession = Depends(get_db)):
     """
     FRA-Compliant Signup requiring National ID + Phone Verification.
-
-    Flow:
-    1. Validate inputs (phone format, NID length)
-    2. Check for duplicate email/phone/NID
-    3. Create user with unverified status
-    4. Send OTP to phone immediately
-    5. User must verify OTP before login is allowed
-
-    Required Fields:
-    - full_name: User's full name
-    - email: Email address
-    - password: Minimum 8 characters
-    - phone_number: Egyptian phone (+20...)
-    - national_id: 14-digit Egyptian National ID
     """
+    from sqlalchemy import select, or_
+
     # Validation 1: Egyptian phone number format
     if not req.phone_number.startswith('+20'):
         raise HTTPException(
@@ -206,14 +194,18 @@ async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get
         )
 
     # Check for duplicates
-    existing_user = db.query(User).filter(
-        (User.email == req.email) |
-        (User.phone_number == req.phone_number) |
-        (User.national_id == req.national_id)
-    ).first()
+    result = await db.execute(
+        select(User).filter(
+            or_(
+                User.email == req.email,
+                User.phone_number == req.phone_number,
+                User.national_id == req.national_id
+            )
+        )
+    )
+    existing_user = result.scalar_one_or_none()
 
     if existing_user:
-        # Security: Don't reveal which field is duplicate (prevents enumeration)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="An account with these details already exists"
@@ -226,16 +218,16 @@ async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get
         password_hash=get_password_hash(req.password),
         phone_number=req.phone_number,
         national_id=req.national_id,
-        is_verified=False,       # Cannot login until phone verified
-        phone_verified=False,    # Must verify OTP
+        is_verified=False,
+        phone_verified=False,
         email_verified=False,
-        kyc_status="pending",    # KYC pending
+        kyc_status="pending",
         role="investor"
     )
 
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
 
     logger.info(f"✅ Created new user: {req.email} (NID: {req.national_id[:4]}****)")
 
@@ -243,14 +235,12 @@ async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get
     try:
         otp_code = sms_service.send_otp(req.phone_number)
 
-        # Return response
         response = {
             "status": "otp_sent",
             "user_id": new_user.id,
             "message": "Signup successful. Please verify your phone number with the OTP sent to complete registration."
         }
 
-        # In development mode, include OTP for testing
         if os.getenv('ENVIRONMENT') == 'development':
             response["dev_otp"] = otp_code
 
@@ -258,9 +248,8 @@ async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get
 
     except Exception as e:
         logger.error(f"Failed to send OTP during signup: {e}")
-        # Rollback user creation if OTP fails
-        db.delete(new_user)
-        db.commit()
+        await db.delete(new_user)
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send verification code. Please try again."
@@ -449,7 +438,7 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
 async def send_otp(
     request: Request,
     req: OTPSendRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Send OTP code to phone number.
@@ -488,25 +477,20 @@ async def send_otp(
 
 
 @router.post("/otp/verify", response_model=AuthResponse)
-async def verify_otp_login(req: OTPVerifyRequest, db: Session = Depends(get_db)):
+async def verify_otp_login(req: OTPVerifyRequest, db: AsyncSession = Depends(get_db)):
     """
     Verify OTP and complete phone verification.
-
-    This endpoint:
-    1. Verifies the OTP code
-    2. Marks phone_verified = True
-    3. Sets is_verified = True (enables login)
-    4. Returns JWT token for immediate login
     """
-    # Verify OTP
+    from sqlalchemy import select
+
     if not sms_service.verify_otp(req.phone_number, req.otp_code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired OTP code"
         )
 
-    # Find user by phone
-    user = db.query(User).filter(User.phone_number == req.phone_number).first()
+    result = await db.execute(select(User).filter(User.phone_number == req.phone_number))
+    user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(
@@ -514,15 +498,13 @@ async def verify_otp_login(req: OTPVerifyRequest, db: Session = Depends(get_db))
             detail="No account found with this phone number. Please sign up first."
         )
 
-    # Mark phone as verified and enable login
     user.phone_verified = True
-    user.is_verified = True  # Enable login
-    db.commit()
-    db.refresh(user)
+    user.is_verified = True
+    await db.commit()
+    await db.refresh(user)
 
     logger.info(f"✅ Phone verified for user: {user.email} ({user.phone_number})")
 
-    # Generate JWT for immediate login
     access_token = create_access_token(data={
         "sub": user.email or user.phone_number,
         "role": user.role
@@ -532,8 +514,7 @@ async def verify_otp_login(req: OTPVerifyRequest, db: Session = Depends(get_db))
         "access_token": access_token,
         "token_type": "bearer",
         "user_id": user.id,
-        "is_new_user": False,  # User already signed up, just verifying
-        "message": "Phone verified successfully. You can now login."
+        "is_new_user": False,
     }
 
 
@@ -544,17 +525,17 @@ async def verify_otp_login(req: OTPVerifyRequest, db: Session = Depends(get_db))
 @router.post("/send-verification")
 async def send_verification(
     req: EmailVerificationRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Send verification email to user.
-
-    Can be called after signup or to resend verification.
     """
-    user = db.query(User).filter(User.email == req.email).first()
+    from sqlalchemy import select
+
+    result = await db.execute(select(User).filter(User.email == req.email))
+    user = result.scalar_one_or_none()
 
     if not user:
-        # Don't leak if email exists
         return {
             "status": "sent",
             "message": "If the email exists, verification link has been sent."
@@ -566,12 +547,10 @@ async def send_verification(
             "message": "Email is already verified"
         }
 
-    # Generate verification token
     token = create_verification_token()
     user.verification_token = token
-    db.commit()
+    await db.commit()
 
-    # Send email
     try:
         email_service.send_verification_email(req.email, token)
         logger.info(f"✅ Verification email sent to {req.email}")
@@ -590,20 +569,20 @@ async def send_verification(
 
 
 @router.get("/verify-email")
-async def verify_email(token: str, db: Session = Depends(get_db)):
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     """
     Verify email address using token from email link.
-
-    Example: /api/auth/verify-email?token=abc123...
     """
-    # Security: Check token expiry via Redis TTL
+    from sqlalchemy import select
+
     if not is_verification_token_valid(token, purpose="verify"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification token has expired. Please request a new one."
         )
 
-    user = db.query(User).filter(User.verification_token == token).first()
+    result = await db.execute(select(User).filter(User.verification_token == token))
+    user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(
@@ -611,10 +590,9 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
             detail="Invalid or expired verification token"
         )
 
-    # Mark as verified and consume the one-time token
     user.email_verified = True
     user.verification_token = None
-    db.commit()
+    await db.commit()
 
     consume_verification_token(token, purpose="verify")
     logger.info(f"✅ Email verified: {user.email}")
@@ -630,32 +608,30 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/reset-password")
-@limiter.limit("5/hour")  # Prevent abuse
+@limiter.limit("5/hour")
 async def request_reset(
     request: Request,
     req: PasswordResetRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Request password reset link.
-
-    Rate limit: 5 requests per hour per IP.
     """
-    user = db.query(User).filter(User.email == req.email).first()
+    from sqlalchemy import select
 
-    # Don't leak if email exists (security best practice)
+    result = await db.execute(select(User).filter(User.email == req.email))
+    user = result.scalar_one_or_none()
+
     if not user:
         return {
             "status": "sent",
             "message": "If the email exists, password reset link has been sent."
         }
 
-    # Generate reset token with 1-hour TTL (password resets expire quickly)
     token = create_verification_token(purpose="reset", ttl_seconds=3600)
     user.verification_token = token
-    db.commit()
+    await db.commit()
 
-    # Send reset email
     try:
         email_service.send_reset_email(req.email, token)
         logger.info(f"✅ Password reset email sent to {req.email}")
@@ -667,7 +643,6 @@ async def request_reset(
 
     except Exception as e:
         logger.error(f"Failed to send reset email: {e}")
-        # Still return success to not leak email existence
         return {
             "status": "sent",
             "message": "If the email exists, password reset link has been sent."
@@ -675,18 +650,20 @@ async def request_reset(
 
 
 @router.post("/reset-password/confirm")
-async def confirm_reset(req: PasswordResetConfirm, db: Session = Depends(get_db)):
+async def confirm_reset(req: PasswordResetConfirm, db: AsyncSession = Depends(get_db)):
     """
     Confirm password reset with token and new password.
     """
-    # Security: Check token expiry via Redis TTL (1 hour for resets)
+    from sqlalchemy import select
+
     if not is_verification_token_valid(req.token, purpose="reset"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reset token has expired. Please request a new one."
         )
 
-    user = db.query(User).filter(User.verification_token == req.token).first()
+    result = await db.execute(select(User).filter(User.verification_token == req.token))
+    user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(
@@ -694,17 +671,15 @@ async def confirm_reset(req: PasswordResetConfirm, db: Session = Depends(get_db)
             detail="Invalid or expired reset token"
         )
 
-    # Validate password strength
     if len(req.new_password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters long"
         )
 
-    # Update password and consume token
     user.password_hash = get_password_hash(req.new_password)
     user.verification_token = None
-    db.commit()
+    await db.commit()
 
     consume_verification_token(req.token, purpose="reset")
     logger.info(f"✅ Password reset successful for {user.email}")

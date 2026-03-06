@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Flame, TrendingUp, Award, ChevronRight } from 'lucide-react';
-import { InvestorProfile, LEVEL_COLORS, LEVEL_GRADIENTS } from '@/lib/gamification';
+import { InvestorProfile, LEVEL_COLORS, LEVEL_GRADIENTS, getXPProgress } from '@/lib/gamification';
 
 interface InvestorProfileCardProps {
     profile: InvestorProfile;
@@ -20,9 +20,7 @@ export default function InvestorProfileCard({ profile, language = 'en', compact 
     const levelGradient = LEVEL_GRADIENTS[profile.level] || LEVEL_GRADIENTS.curious;
 
     // Calculate XP progress within current level
-    const xpProgress = profile.next_level
-        ? Math.min(((profile.xp - (profile.next_level.xp_required - profile.next_level.xp_remaining)) / profile.next_level.xp_remaining) * 100, 100)
-        : 100;
+    const xpProgress = getXPProgress(profile);
 
     const levelTitle = language === 'ar' ? profile.level_title_ar : profile.level_title_en;
     const nextLevelTitle = profile.next_level

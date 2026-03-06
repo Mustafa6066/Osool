@@ -195,10 +195,10 @@ export default function PropertyDetailsPage() {
         return property.image;
     };
 
-    // AI estimate heuristic: +5% of price (simple approximation for now)
-    const aiEstimate = property ? Math.round(property.price * 1.05) : 0;
-    const priceDiff = property ? aiEstimate - property.price : 0;
-    const priceDiffPercent = property ? ((priceDiff / property.price) * 100).toFixed(1) : '0';
+    // AI estimate: use backend value if available, otherwise don't show
+    const aiEstimate = property ? (property.ai_valuation || property.aiEstimate || null) : null;
+    const priceDiff = (property && aiEstimate) ? aiEstimate - property.price : 0;
+    const priceDiffPercent = (property && aiEstimate && property.price) ? ((priceDiff / property.price) * 100).toFixed(1) : '0';
 
     const area = property ? (property.area || property.bua || property.size || property.sqm || 0) : 0;
 
@@ -488,7 +488,8 @@ export default function PropertyDetailsPage() {
                                 </div>
                             )}
 
-                            {/* AI Estimate */}
+                            {/* AI Estimate - only show if real valuation available */}
+                            {aiEstimate && (
                             <div className="flex items-center gap-2 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 mb-6">
                                 <Sparkles className="w-5 h-5 text-purple-400" />
                                 <div>
@@ -497,9 +498,10 @@ export default function PropertyDetailsPage() {
                                 </div>
                                 <div className={`ml-auto text-sm font-semibold ${priceDiff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     <TrendingUp className="w-4 h-4 inline mr-1" />
-                                    +{priceDiffPercent}%
+                                    {priceDiff >= 0 ? '+' : ''}{priceDiffPercent}%
                                 </div>
                             </div>
+                            )}
 
                             {/* Quick Payment Summary */}
                             {property.paymentPlan && (

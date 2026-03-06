@@ -102,6 +102,28 @@ class RedisClient:
         data = self.get_json(key)
         return data.get("score") if data else None
 
+    def set(self, key: str, value, ttl: int = 3600):
+        """Generic set — wraps any value in a dict for set_json compatibility."""
+        self.set_json(key, {"_v": value}, ttl=ttl)
+
+    def get(self, key: str):
+        """Generic get — unwraps value stored by set()."""
+        data = self.get_json(key)
+        if data is None:
+            return None
+        # Support both wrapped (_v) and direct dict values
+        return data.get("_v", data)
+
+    def delete(self, key: str):
+        """Delete a key from cache."""
+        try:
+            if self.redis:
+                self.redis.delete(key)
+            else:
+                self._memory_fallback.pop(key, None)
+        except Exception as e:
+            print(f"❌ Redis Delete Error: {e}")
+
 
 # Singleton
 cache = RedisClient()

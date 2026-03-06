@@ -76,7 +76,7 @@ async def fetch_nawy_data_async():
         if scraped_properties:
             print(f"✅ Fast Scrape Successful: {len(scraped_properties)} items.")
             cache.set_json("nawy_scraped_data", scraped_properties, ttl=86400)
-            cache.set("nawy_last_update", str(datetime.now().isoformat()), ttl=86400)
+            cache.set_json("nawy_last_update", {"timestamp": datetime.now().isoformat()}, ttl=86400)
             return scraped_properties
             
                 

@@ -107,7 +107,7 @@ class SMSService:
         # Security: Use timing-safe comparison to prevent timing attacks
         if _hmac.compare_digest(stored_code, code):
             # Delete OTP after successful verification (one-time use)
-            cache.redis.delete(cache_key)
+            cache.delete(cache_key)
             logger.info(f"✅ OTP verified for {phone_number}")
             return True
         else:

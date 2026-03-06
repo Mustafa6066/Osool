@@ -18,46 +18,36 @@ class PaymobService:
         # For production, we would authenticate and get a token.
         # For this MVP/mock structure, we'll assume we can check status via a simplified flow or mocking if credentials aren't present.
 
-    def _get_auth_token(self) -> str:
+    async def _get_auth_token(self) -> str:
         """Authenticate with Paymob to get an auth token."""
         if not self.api_key:
             return None
         
         try:
-            response = httpx.post(
-                f"{self.base_url}/auth/tokens",
-                json={"api_key": self.api_key}
-            )
-            response.raise_for_status()
-            return response.json().get("token")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/auth/tokens",
+                    json={"api_key": self.api_key}
+                )
+                response.raise_for_status()
+                return response.json().get("token")
         except Exception as e:
             print(f"[!] Paymob Auth Failed: {e}")
             return None
 
-    def verify_transaction(self, transaction_id_or_ref: str) -> bool:
+    async def verify_transaction(self, transaction_id_or_ref: str) -> bool:
         """
         Verifies if a transaction was successful.
-        
-        Args:
-            transaction_id_or_ref: The transaction ID or merchant order reference.
-            
-        Returns:
-            bool: True if paid and successful, False otherwise.
         """
-        # 1. Quick check for length (Mock behavior preserved for dev without keys)
         if not self.api_key:
-            # Security Fix M7: Block mock verification in production
             if os.getenv("ENVIRONMENT") == "production":
                 print("[!] PAYMOB_API_KEY must be set in production. Blocking mock verification.")
                 return False
             print("[IsMock] Paymob API key missing, falling back to mock verification.")
-            # Standard mock: accepts 8+ chars
             return len(str(transaction_id_or_ref)) >= 8
 
-        # 2. Real API Check
-        token = self._get_auth_token()
+        token = await self._get_auth_token()
         if not token:
-            # Security Fix M7: Fail-safe in production
             if os.getenv("ENVIRONMENT") == "production":
                 print("[!] Could not get Paymob token in production. Failing safe.")
                 return False
@@ -65,34 +55,29 @@ class PaymobService:
             return len(str(transaction_id_or_ref)) >= 8
             
         try:
-            # In Paymob, we usually get a transaction by ID to check its status.
-            # GET /acceptance/transactions/{id}
-            headers = {"Authorization": f"Bearer {token}"}
-            
-            # Using query params or direct ID lookup depending on input type
-            # Assuming input is the Transaction ID for now
-            response = httpx.get(
-                f"{self.base_url}/acceptance/transactions/{transaction_id_or_ref}",
-                headers=headers
-            )
-            
-            if response.status_code == 404:
-                # Might be an Order ID, try looking up orders (simplified for MVP)
-                print(f"Transaction {transaction_id_or_ref} not found.")
-                return False
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                headers = {"Authorization": f"Bearer {token}"}
+                response = await client.get(
+                    f"{self.base_url}/acceptance/transactions/{transaction_id_or_ref}",
+                    headers=headers
+                )
                 
-            response.raise_for_status()
-            data = response.json()
-            
-            is_success = data.get("success", False)
-            is_pending = data.get("pending", False)
-            
-            if is_success and not is_pending:
-                print(f"[+] Paymob verification successful for {transaction_id_or_ref}")
-                return True
-            else:
-                print(f"[-] Paymob transaction {transaction_id_or_ref} status: Success={is_success}, Pending={is_pending}")
-                return False
+                if response.status_code == 404:
+                    print(f"Transaction {transaction_id_or_ref} not found.")
+                    return False
+                    
+                response.raise_for_status()
+                data = response.json()
+                
+                is_success = data.get("success", False)
+                is_pending = data.get("pending", False)
+                
+                if is_success and not is_pending:
+                    print(f"[+] Paymob verification successful for {transaction_id_or_ref}")
+                    return True
+                else:
+                    print(f"[-] Paymob transaction {transaction_id_or_ref} status: Success={is_success}, Pending={is_pending}")
+                    return False
 
         except Exception as e:
             print(f"[!] Paymob Verification Error: {e}")
@@ -151,39 +136,38 @@ class PaymobService:
         
         return hmac.compare_digest(calculated_hmac.lower(), hmac_signature.lower())
 
-    def get_payment_key(self, amount_cents: int, order_id: str, billing_data: dict) -> str:
+    async def get_payment_key(self, amount_cents: int, order_id: str, billing_data: dict) -> str:
         """Step 3: Request Payment Key"""
-        token = self._get_auth_token()
+        token = await self._get_auth_token()
         if not token: return None
 
         try:
-            response = httpx.post(
-                f"{self.base_url}/acceptance/payment_keys",
-                json={
-                    "auth_token": token,
-                    "amount_cents": str(amount_cents),
-                    "expiration": 3600,
-                    "order_id": order_id,
-                    "billing_data": billing_data,
-                    "currency": "EGP",
-                    "integration_id": self.integration_id,
-                    "lock_order_when_paid": "false" # Optional
-                },
-                timeout=10.0
-            )
-            response.raise_for_status()
-            return response.json().get("token")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/acceptance/payment_keys",
+                    json={
+                        "auth_token": token,
+                        "amount_cents": str(amount_cents),
+                        "expiration": 3600,
+                        "order_id": order_id,
+                        "billing_data": billing_data,
+                        "currency": "EGP",
+                        "integration_id": self.integration_id,
+                        "lock_order_when_paid": "false"
+                    }
+                )
+                response.raise_for_status()
+                return response.json().get("token")
         except Exception as e:
             print(f"[!] Paymob Request Key Failed: {e}")
             return None
 
-    def initiate_payment(self, amount_egp: float, user_email: str, user_phone: str, first_name: str, last_name: str) -> dict:
+    async def initiate_payment(self, amount_egp: float, user_email: str, user_phone: str, first_name: str, last_name: str) -> dict:
         """
         Full Flow: Auth -> Register Order -> Get Payment Key
         Returns the payment token and iframe URL.
         """
-        # 1. Auth (Implicit in helpers)
-        token = self._get_auth_token()
+        token = await self._get_auth_token()
         if not token:
             return {"error": "Payment Gateway Authentication Failed"}
             
@@ -191,19 +175,19 @@ class PaymobService:
         
         # 2. Register Order
         try:
-            order_res = httpx.post(
-                f"{self.base_url}/ecommerce/orders",
-                json={
-                    "auth_token": token,
-                    "delivery_needed": "false",
-                    "amount_cents": str(amount_cents),
-                    "currency": "EGP",
-                    "items": [] # Can list property details here
-                },
-                timeout=10.0
-            )
-            order_res.raise_for_status()
-            order_id = order_res.json().get("id")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                order_res = await client.post(
+                    f"{self.base_url}/ecommerce/orders",
+                    json={
+                        "auth_token": token,
+                        "delivery_needed": "false",
+                        "amount_cents": str(amount_cents),
+                        "currency": "EGP",
+                        "items": []
+                    }
+                )
+                order_res.raise_for_status()
+                order_id = order_res.json().get("id")
         except Exception as e:
             print(f"[!] Paymob Order Reg Failed: {e}")
             return {"error": "Failed to create payment order"}
@@ -226,7 +210,7 @@ class PaymobService:
             "state": "Cairo"
         }
         
-        payment_key = self.get_payment_key(amount_cents, str(order_id), billing_data)
+        payment_key = await self.get_payment_key(amount_cents, str(order_id), billing_data)
         
         if not payment_key:
             return {"error": "Failed to generate payment key"}
