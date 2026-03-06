@@ -5,7 +5,7 @@ import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
     Sparkles, MapPin,
     X, ChevronRight,
-    BarChart2, Shield, Search,
+    BarChart2, Shield, Search, TrendingUp,
     Copy, RefreshCw, ArrowUp,
     History, Plus, MessageSquare, Check
 } from 'lucide-react';
@@ -78,12 +78,14 @@ const SUGGESTIONS_AR: Suggestion[] = [
     { icon: BarChart2, label: "تحليل السوق", prompt: "حلل اتجاهات السوق الحالية في القاهرة الجديدة" },
     { icon: Search, label: "فرص استثمارية", prompt: "ابحث عن عقارات عائد مرتفع تحت 5 مليون جنيه" },
     { icon: Shield, label: "تدقيق المطور", prompt: "دقق في سجل تسليمات بالم هيلز" },
+    { icon: TrendingUp, label: "مقارنة الأسعار", prompt: "قارن أسعار المتر في القاهرة الجديدة والشيخ زايد والساحل" },
 ];
 
 const SUGGESTIONS_EN: Suggestion[] = [
     { icon: BarChart2, label: "Market Intelligence", prompt: "Analyze current market trends in New Cairo" },
     { icon: Search, label: "Find Opportunities", prompt: "Find high ROI properties under 5M EGP" },
     { icon: Shield, label: "Developer Audit", prompt: "Audit the delivery history of Palm Hills" },
+    { icon: TrendingUp, label: "Price Comparison", prompt: "Compare price per sqm across New Cairo, Sheikh Zayed, and North Coast" },
 ];
 
 /* Agent Avatar — Clean professional AI mark, no background, animated */
@@ -387,11 +389,7 @@ export default function AgentInterface() {
     const sessionIdRef = useRef<string>(getOrCreateSessionId());
     const hasFetchedHistory = useRef(false);
 
-    const displayName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
-    const greetingText = conversationLanguage === 'ar'
-        ? `أهلاً، ${displayName}`
-        : `Hi, ${displayName}`;
-    const profileLabel = conversationLanguage === 'ar' ? 'ملف المستثمر' : 'Investor profile';
+    const userName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
 
     /* Persist messages to sessionStorage whenever they change */
     useEffect(() => {
@@ -862,18 +860,19 @@ export default function AgentInterface() {
                         {/* Greeting */}
                         {!hasStarted && (
                             <div className="flex flex-col min-h-[calc(100vh-6rem)] justify-center px-4 py-8 relative">
-                                {/* Subtle background glow for depth */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] bg-slate-500/5 blur-[120px] rounded-full pointer-events-none -z-10" />
+                                {/* Decorative background elements for Figma style */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
 
                                 <div className="text-center w-full max-w-3xl mx-auto">
-                                    <h1 className="text-[2.25rem] md:text-[3.5rem] font-semibold tracking-tight leading-[1.15] mb-3 text-[var(--color-text-primary)]" dir="auto">
-                                        {greetingText}
+                                    <div className="flex items-center justify-center gap-3 mb-5">
+                                        <AgentAvatar />
+                                        <span className="text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-widest">Osool AI</span>
+                                    </div>
+                                    <h1 className="text-[2rem] md:text-[3.5rem] font-semibold tracking-tight leading-[1.15] mb-4 md:mb-5 text-[var(--color-text-primary)]" dir="auto">
+                                        {conversationLanguage === 'ar' ? `أهلاً، ${userName}` : `Hello, ${userName}`}
                                     </h1>
-                                    <p className="text-[13px] md:text-[14px] uppercase tracking-[0.2em] text-[var(--color-text-muted)] font-semibold mb-4" dir="auto">
-                                        {profileLabel}
-                                    </p>
-                                    <p className="text-[1rem] md:text-[1.2rem] text-[var(--color-text-muted)] font-medium max-w-2xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
-                                        {conversationLanguage === 'ar' ? 'كيف أقدر أساعدك اليوم؟' : 'How can I help you today?'}
+                                    <p className="text-[1rem] md:text-[1.25rem] text-[var(--color-text-muted)] font-normal max-w-xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
+                                        {conversationLanguage === 'ar' ? 'وكيلك الذكي للعقارات — تحليل السوق، فرص الاستثمار، وتدقيق المطورين' : 'Your AI real estate agent — market analysis, investment opportunities, and developer audits'}<span className="text-emerald-500 font-bold ml-0.5">.</span>
                                     </p>
                                 </div>
 
@@ -882,17 +881,17 @@ export default function AgentInterface() {
                                         <InputBar />
                                     </div>
 
-                                    <div className="w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-6 md:mt-8 px-4">
+                                    <div className="w-full max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 md:mt-8 px-4">
                                         {(conversationLanguage === 'ar' ? SUGGESTIONS_AR : SUGGESTIONS_EN).map((s, i) => (
                                             <button
                                                 key={i}
                                                 onClick={() => handleSendMessage(s.prompt)}
-                                                className="p-5 bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-3xl text-left transition-all duration-300 h-36 flex flex-col justify-between group border border-[var(--color-border)]/50 hover:border-[var(--color-border)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1"
+                                                className="p-4 md:p-5 bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-2xl text-left transition-all duration-300 flex flex-col justify-between group border border-[var(--color-border)]/40 hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
                                             >
-                                                <span className="text-[13px] font-medium text-[var(--color-text-primary)] leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" dir="auto">{s.label}</span>
-                                                <div className="self-end p-2 bg-[var(--color-background)] rounded-xl text-[var(--color-text-muted)] group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
+                                                <div className="p-2 bg-[var(--color-background)] rounded-xl text-[var(--color-text-muted)] group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors w-fit mb-3">
                                                     <s.icon className="w-4 h-4" strokeWidth={1.75} />
                                                 </div>
+                                                <span className="text-[13px] font-semibold text-[var(--color-text-primary)] leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" dir="auto">{s.label}</span>
                                             </button>
                                         ))}
                                     </div>

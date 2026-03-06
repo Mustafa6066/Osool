@@ -14,7 +14,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (accessToken: string, refreshToken?: string) => void;
+  login: (accessToken: string, refreshToken?: string, fullName?: string) => void;
   logout: () => void;
   refreshUser: () => void;
 }
@@ -58,10 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser();
   }, []);
 
-  const login = (accessToken: string, refreshToken?: string) => {
+  const login = (accessToken: string, refreshToken?: string, fullName?: string) => {
     localStorage.setItem('access_token', accessToken);
     if (refreshToken) {
       localStorage.setItem('refresh_token', refreshToken);
+    }
+    if (fullName) {
+      localStorage.setItem('user_full_name', fullName);
     }
     refreshUser();
   };

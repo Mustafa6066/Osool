@@ -168,7 +168,13 @@ export const getCurrentUserFromToken = (): any | null => {
     // Decode JWT payload (base64)
     const payload = token.split('.')[1];
     const decoded = JSON.parse(atob(payload));
-    return decoded;
+    // Map JWT claims to User interface fields
+    const fullName = localStorage.getItem('user_full_name');
+    return {
+      ...decoded,
+      email: decoded.sub || decoded.email,
+      full_name: fullName || decoded.full_name,
+    };
   } catch (e) {
     console.error('Failed to decode JWT:', e);
     return null;
@@ -182,6 +188,7 @@ export const logout = (): void => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_full_name');
     window.location.href = '/login';
   }
 };

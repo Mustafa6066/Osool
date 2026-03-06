@@ -1065,9 +1065,6 @@ export default function ChatInterface() {
     };
 
     const getUserName = (): string => user?.full_name || user?.email?.split('@')[0] || 'User';
-    const displayName = getUserName();
-    const greetingText = isRTL ? `أهلاً، ${displayName}` : `Hi, ${displayName}`;
-    const profileLabel = isRTL ? 'ملف المستثمر' : 'Investor profile';
 
     return (
         <div
@@ -1132,9 +1129,8 @@ export default function ChatInterface() {
                                         className={`absolute mt-2 w-48 sm:w-56 rounded-xl bg-white dark:bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] shadow-xl z-[60] ${isRTL ? 'left-0' : 'right-0'}`}
                                     >
                                         <div className="p-3 border-b border-[var(--color-border-subtle)]">
-                                            <p className="text-sm font-semibold text-[var(--color-text-main)]">{displayName}</p>
-                                            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] mt-1">{profileLabel}</p>
-                                            <p className="text-xs text-[var(--color-text-muted-studio)] truncate mt-2">{user?.email}</p>
+                                            <p className="text-sm font-medium text-[var(--color-text-main)]">{user?.full_name || 'User'}</p>
+                                            <p className="text-xs text-[var(--color-text-muted-studio)] truncate">{user?.email}</p>
                                         </div>
                                         <div className="p-2">
                                             <button
@@ -1185,28 +1181,24 @@ export default function ChatInterface() {
 
                                 {/* Greeting */}
                                 <motion.h2
-                                    initial={{ opacity: 0, y: 16 }}
+                                    initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.45, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                                    className="welcome-title text-xl sm:text-2xl lg:text-3xl font-semibold text-[var(--color-text-main)] mb-2"
+                                    transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                                    className="welcome-title text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--color-text-main)] mb-2"
                                 >
-                                    <span style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : undefined }}>{greetingText}</span>
+                                    {isRTL ? (
+                                        <span style={{ fontFamily: 'Cairo, sans-serif' }}>{translations.ar.chatInterface.welcomeTitle}</span>
+                                    ) : (
+                                        <span className="font-serif italic">{translations.en.chatInterface.welcomeTitle}</span>
+                                    )}
                                 </motion.h2>
                                 <motion.p
-                                    initial={{ opacity: 0, y: 12 }}
+                                    initial={{ opacity: 0, y: 15 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.35, delay: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                                    className="text-[11px] sm:text-[12px] uppercase tracking-[0.2em] text-[var(--color-text-muted-studio)] font-semibold mb-5"
-                                >
-                                    {profileLabel}
-                                </motion.p>
-                                <motion.p
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.35, delay: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                                    transition={{ duration: 0.4, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
                                     className="welcome-subtitle text-sm sm:text-base text-[var(--color-text-muted-studio)] mb-6 sm:mb-8"
                                 >
-                                    {isRTL ? 'كيف أقدر أساعدك اليوم؟' : 'How can I help you today?'}
+                                    {isRTL ? translations.ar.chatInterface.welcomeSubtitle : translations.en.chatInterface.welcomeSubtitle}
                                 </motion.p>
 
                                 {/* Decorative Divider */}

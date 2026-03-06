@@ -56,7 +56,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                 localStorage.setItem("refresh_token", data.refresh_token);
             }
             localStorage.setItem("user_id", data.user_id);
-            contextLogin(data.access_token, data.refresh_token);
+            contextLogin(data.access_token, data.refresh_token, data.full_name || data.display_name);
 
             onSuccess();
             onClose();
