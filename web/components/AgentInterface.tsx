@@ -116,21 +116,74 @@ const isArabic = (text: string): boolean => {
     return !!arabicChars && arabicChars.length > text.length * 0.3;
 };
 
+/* Fix malformed markdown tables so remark-gfm can parse them */
+function fixMarkdownTables(text: string): string {
+    const lines = text.split('\n');
+    const result: string[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+        if (/^\s*\|/.test(line)) {
+            const tableLines: string[] = [];
+            while (i < lines.length && /^\s*\|/.test(lines[i])) {
+                tableLines.push(lines[i]);
+                i++;
+            }
+
+            if (tableLines.length >= 2) {
+                const headerCols = (tableLines[0].match(/\|/g) || []).length - 1;
+                const isSeparator = (l: string) => /^\s*\|[\s\-:|]+\|\s*$/.test(l);
+
+                if (isSeparator(tableLines[1])) {
+                    // Separator exists — rebuild it with correct column count
+                    const sepCols = (tableLines[1].match(/\|/g) || []).length - 1;
+                    if (sepCols !== headerCols) {
+                        tableLines[1] = '| ' + Array(headerCols).fill('---').join(' | ') + ' |';
+                    }
+                } else if (headerCols >= 2) {
+                    // No separator row — insert one after the header
+                    tableLines.splice(1, 0, '| ' + Array(headerCols).fill('---').join(' | ') + ' |');
+                }
+
+                // Pad data rows that have fewer columns
+                for (let r = 2; r < tableLines.length; r++) {
+                    if (isSeparator(tableLines[r])) continue;
+                    const rowCols = (tableLines[r].match(/\|/g) || []).length - 1;
+                    if (rowCols < headerCols) {
+                        tableLines[r] = tableLines[r].trimEnd().replace(/\|$/, '') + '| '.repeat(headerCols - rowCols) + '|';
+                    }
+                }
+
+                result.push(...tableLines);
+            } else {
+                result.push(...tableLines);
+            }
+        } else {
+            result.push(line);
+            i++;
+        }
+    }
+    return result.join('\n');
+}
+
 /* Markdown Renderer */
 const MarkdownMessage = ({ content }: { content: string }) => {
     const msgIsArabic = isArabic(content);
-    const normalized = content
-        .replace(/\r\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .replace(/(?<!\n)\n(?!\n)/gm, (match, offset, str) => {
-            // Don't double-space lines inside markdown tables
-            const before = str.lastIndexOf('\n', offset - 1);
-            const after = str.indexOf('\n', offset + 1);
-            const prevLine = str.slice(before + 1, offset);
-            const nextLine = str.slice(offset + 1, after === -1 ? undefined : after);
-            if (/^\s*\|/.test(prevLine) || /^\s*\|/.test(nextLine)) return match;
-            return '\n\n';
-        });
+    const normalized = fixMarkdownTables(
+        content
+            .replace(/\r\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .replace(/(?<!\n)\n(?!\n)/gm, (match, offset, str) => {
+                // Don't double-space lines inside markdown tables
+                const before = str.lastIndexOf('\n', offset - 1);
+                const after = str.indexOf('\n', offset + 1);
+                const prevLine = str.slice(before + 1, offset);
+                const nextLine = str.slice(offset + 1, after === -1 ? undefined : after);
+                if (/^\s*\|/.test(prevLine) || /^\s*\|/.test(nextLine)) return match;
+                return '\n\n';
+            })
+    );
 
     return (
         <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-right' : 'text-left'}>

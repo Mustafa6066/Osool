@@ -74,13 +74,50 @@ function UserMessage({ content, timestamp, isRTL }: { content: string; timestamp
     );
 }
 
+// Fix malformed markdown tables so remark-gfm can parse them
+function fixMarkdownTables(text: string): string {
+    const lines = text.split('\n');
+    const result: string[] = [];
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+        if (/^\s*\|/.test(line)) {
+            const tableLines: string[] = [];
+            while (i < lines.length && /^\s*\|/.test(lines[i])) { tableLines.push(lines[i]); i++; }
+            if (tableLines.length >= 2) {
+                const headerCols = (tableLines[0].match(/\|/g) || []).length - 1;
+                const isSep = (l: string) => /^\s*\|[\s\-:|]+\|\s*$/.test(l);
+                if (isSep(tableLines[1])) {
+                    const sepCols = (tableLines[1].match(/\|/g) || []).length - 1;
+                    if (sepCols !== headerCols) {
+                        tableLines[1] = '| ' + Array(headerCols).fill('---').join(' | ') + ' |';
+                    }
+                } else if (headerCols >= 2) {
+                    tableLines.splice(1, 0, '| ' + Array(headerCols).fill('---').join(' | ') + ' |');
+                }
+                for (let r = 2; r < tableLines.length; r++) {
+                    if (isSep(tableLines[r])) continue;
+                    const rowCols = (tableLines[r].match(/\|/g) || []).length - 1;
+                    if (rowCols < headerCols) {
+                        tableLines[r] = tableLines[r].trimEnd().replace(/\|$/, '') + '| '.repeat(headerCols - rowCols) + '|';
+                    }
+                }
+                result.push(...tableLines);
+            } else { result.push(...tableLines); }
+        } else { result.push(line); i++; }
+    }
+    return result.join('\n');
+}
+
 // Strip bracketed action annotations from AI responses (e.g. [يفتح حاسبة القوة الشرائية])
 function cleanMessageContent(text: string): string {
-    return text
-        .replace(/\[[\u0600-\u06FF\u0621-\u064A\w\s،,.:()\/\-]+\]/g, '') // Arabic bracket text
-        .replace(/\[\s*[a-zA-Z\s_]+\s*\]/g, '')                               // English bracket actions
-        .replace(/\n{3,}/g, '\n\n')                                            // Collapse excess blank lines
-        .trim();
+    return fixMarkdownTables(
+        text
+            .replace(/\[[\u0600-\u06FF\u0621-\u064A\w\s،,.:()\/-]+\]/g, '') // Arabic bracket text
+            .replace(/\[\s*[a-zA-Z\s_]+\s*\]/g, '')                               // English bracket actions
+            .replace(/\n{3,}/g, '\n\n')                                            // Collapse excess blank lines
+            .trim()
+    );
 }
 
 // AI Message Component - ChatGPT Style (subtle bg, avatar)
