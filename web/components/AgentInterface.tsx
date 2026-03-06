@@ -417,6 +417,8 @@ export default function AgentInterface() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isTyping]);
 
+    const hasStarted = messages.length > 0;
+
     /* Re-focus input after layout transition */
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -714,8 +716,6 @@ export default function AgentInterface() {
         // Re-send the user message
         await handleSendMessage(prevUserMsg.content);
     }, [messages, handleSendMessage]);
-
-    const hasStarted = messages.length > 0;
 
     /* ─── Shared Input Bar component ─── */
     const InputBar = () => (
