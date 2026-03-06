@@ -424,8 +424,8 @@ export default function AgentInterface() {
     /* Re-focus input after layout transition */
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (inputRef.current && !isTyping) inputRef.current.focus();
-        }, 400);
+            if (inputRef.current) inputRef.current.focus();
+        }, 500);
         return () => clearTimeout(timer);
     }, [hasStarted]);
 
@@ -724,36 +724,30 @@ export default function AgentInterface() {
         <motion.div layoutId="input-bar" className="w-full" transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
             <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-[var(--color-border)]/40`}>
 
-                <textarea
-                    dir="auto"
-                    ref={inputRef}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={conversationLanguage === 'ar' ? 'اسأل عن العقارات، بيانات السوق، أو الاستثمار...' : 'Ask about properties, market data, or investments...'}
-                    className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-3 px-4 md:py-4 md:px-6 text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
-                    rows={1}
-                    disabled={isTyping}
-                />
+                <div className="flex items-end gap-2">
+                    <textarea
+                        dir="auto"
+                        ref={inputRef}
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder={conversationLanguage === 'ar' ? 'اسأل عن العقارات، بيانات السوق، أو الاستثمار...' : 'Ask about properties, market data, or investments...'}
+                        className="flex-1 bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-3 px-4 md:py-4 md:px-6 text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
+                        rows={1}
+                        disabled={isTyping}
+                    />
 
-                {(hasStarted || inputValue.trim()) && (
-                    <div className="flex items-center justify-between px-4 pb-3">
-                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)]/60">
-                            {hasStarted && <span><span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">⇧</span> + <span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">↵</span> {conversationLanguage === 'ar' ? 'لسطر جديد' : 'for new line'}</span>}
-                        </div>
-
-                        {inputValue.trim() && (
-                            <button
-                                onClick={() => handleSendMessage()}
-                                disabled={isTyping}
-                                title="Send message"
-                                className="p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none"
-                            >
-                                <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-                            </button>
-                        )}
+                    <div className="flex-shrink-0 pb-3 pr-3">
+                        <button
+                            onClick={() => handleSendMessage()}
+                            disabled={isTyping || !inputValue.trim()}
+                            title="Send message"
+                            className="p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-20 disabled:pointer-events-none"
+                        >
+                            <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                        </button>
                     </div>
-                )}
+                </div>
             </div>
         </motion.div>
     );
@@ -885,7 +879,8 @@ export default function AgentInterface() {
                                         {(conversationLanguage === 'ar' ? SUGGESTIONS_AR : SUGGESTIONS_EN).map((s, i) => (
                                             <button
                                                 key={i}
-                                                onClick={() => handleSendMessage(s.prompt)}
+                                                onMouseDown={(e) => e.preventDefault()}
+                                                onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
                                                 className="p-4 md:p-5 bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-2xl text-left transition-all duration-300 flex flex-col justify-between group border border-[var(--color-border)]/40 hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
                                             >
                                                 <div className="p-2 bg-[var(--color-background)] rounded-xl text-[var(--color-text-muted)] group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors w-fit mb-3">
