@@ -302,7 +302,7 @@ export default function PaymentTimeline({ property, payment }: PaymentTimelinePr
             <div className="mt-6 pt-4 border-t border-white/10">
                 <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                     <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                    <span>Calculated by AMR using CBE rates</span>
+                    <span>Calculated by CoInvestor using CBE rates</span>
                 </div>
             </div>
         </motion.div>

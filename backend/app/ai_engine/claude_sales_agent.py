@@ -1,5 +1,5 @@
 """
-Osool AI Sales Agent - Claude Edition (AMR - Advanced Market Reasoner)
+Osool AI Sales Agent - Claude Edition (CoInvestor - Advanced Market Reasoner)
 ------------------------------------------------------------------------
 Phase 2 Production: World-class AI sales agent powered by Claude 3.5 Sonnet
 with Parallel Hybrid Brain (Claude + GPT-4o + XGBoost).
@@ -36,7 +36,7 @@ from .conversation_memory import ConversationMemory
 
 # Phase 4: Data-First Protocol and Parallel Brain
 from .data_first_enforcer import data_first_enforcer
-from .amr_master_prompt import get_wolf_system_prompt
+from .coinvestor_master_prompt import get_wolf_system_prompt
 
 # Import tools from existing sales_agent
 from .sales_agent import (
@@ -319,7 +319,7 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
 
 class ClaudeSalesAgent:
     """
-    AMR (Advanced Market Reasoner) - Claude-powered sales agent.
+    CoInvestor (Collaborative Investment Partner) - Claude-powered sales agent.
 
     World-class AI sales agent that uses Claude 3.5 Sonnet for:
     - Advanced multi-step reasoning

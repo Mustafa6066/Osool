@@ -22,7 +22,7 @@ from enum import Enum
 from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
 
-from app.ai_engine.amr_master_prompt import AMR_SYSTEM_PROMPT, get_master_system_prompt
+from app.ai_engine.coinvestor_master_prompt import COINVESTOR_SYSTEM_PROMPT, get_master_system_prompt
 from app.ai_engine.xgboost_predictor import xgboost_predictor
 from app.ai_engine.psychology_layer import (
     analyze_psychology,

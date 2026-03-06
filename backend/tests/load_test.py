@@ -69,7 +69,7 @@ OBJECTIONS = [
 
 class OsoolBrowserUser(HttpUser):
     """
-    Simulates a typical user browsing properties and chatting with AMR.
+    Simulates a typical user browsing properties and chatting with CoInvestor.
 
     Wait time: 2-5 seconds between requests (simulates reading/thinking)
     """

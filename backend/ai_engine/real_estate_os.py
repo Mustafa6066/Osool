@@ -38,7 +38,7 @@ class RealEstateOS:
         self.modules["market_intelligence"] = "ACTIVE"
 
     def _init_agent_swarm(self):
-        print("   ├── 🤖 Waking up Amr AI and Specialist Agents...")
+        print("   ├── 🤖 Waking up CoInvestor AI and Specialist Agents...")
         # Placeholder for Multi-Agent negotiation system
         self.modules["agent_swarm"] = "ACTIVE"
 
@@ -58,7 +58,7 @@ class RealEstateOS:
         if "invest" in user_query.lower():
             return self._analyze_investment(user_query)
         else:
-            return {"status": "success", "response": "Query routed to Amr AI."}
+            return {"status": "success", "response": "Query routed to CoInvestor AI."}
 
     def _analyze_investment(self, query: str) -> Dict:
         return {

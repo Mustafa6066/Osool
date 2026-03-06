@@ -35,7 +35,7 @@ sys.modules["app.services.vector_search"].search_properties = AsyncMock(return_v
 
 # Import target modules
 from app.ai_engine.customer_profiles import extract_user_facts, UserProfile, profile_to_context_string
-from app.ai_engine.amr_master_prompt import get_master_system_prompt
+from app.ai_engine.coinvestor_master_prompt import get_master_system_prompt
 # We need to monkeypatch hybrid_brain to use our mocks before importing
 # OsoolHybridBrain was in the now-archived hybrid_brain.py
 # Use WolfBrain from wolf_orchestrator as replacement

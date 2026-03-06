@@ -550,10 +550,10 @@ export default function AgentInterface() {
                         }
                     },
                     onToolStart: (tool) => {
-                        console.log('[AMR] Stream tool start:', tool);
+                        console.log('[CoInvestor] Stream tool start:', tool);
                     },
                     onToolEnd: (tool) => {
-                        console.log('[AMR] Stream tool end:', tool);
+                        console.log('[CoInvestor] Stream tool end:', tool);
                     },
                     onComplete: (data) => {
                         // Process properties into typed objects
@@ -585,8 +585,8 @@ export default function AgentInterface() {
                         let artifacts: Artifacts | null = allProps.length > 0 ? { property: allProps[0] } : null;
 
                         const finalContent = accumulatedText || (conversationLanguage === 'ar'
-                            ? 'أنا AMR، وكيل الذكاء العقاري الخاص بك. كيف أقدر أساعدك النهارده؟'
-                            : "I'm AMR, your real estate intelligence agent. How can I assist you today?");
+                            ? 'أنا CoInvestor، وكيل الذكاء العقاري الخاص بك. كيف أقدر أساعدك النهارده؟'
+                            : "I'm CoInvestor, your real estate intelligence agent. How can I assist you today?");
 
                         // Finalize the streaming message with all metadata
                         setMessages(prev => {
@@ -641,11 +641,11 @@ export default function AgentInterface() {
                         }
                     },
                     onError: (error) => {
-                        console.error('[AMR] Stream Error:', error);
+                        console.error('[CoInvestor] Stream Error:', error);
                         const isArabic = conversationLanguage === 'ar';
                         const errorContent = isArabic
-                            ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟ أنا AMR وجاهز أساعدك في أي استفسار عقاري.'
-                            : "A brief analysis issue occurred. Could you try again? I'm AMR, ready to help with any real estate question.";
+                            ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟ أنا CoInvestor وجاهز أساعدك في أي استفسار عقاري.'
+                            : "A brief analysis issue occurred. Could you try again? I'm CoInvestor, ready to help with any real estate question.";
 
                         setMessages(prev => {
                             const hasMsg = prev.some(m => m.id === aiMsgId);
@@ -663,7 +663,7 @@ export default function AgentInterface() {
             );
         } catch (error: any) {
             // Streaming setup failed entirely — fallback to non-streaming
-            console.warn('[AMR] SSE streaming failed, falling back to POST:', error?.message);
+            console.warn('[CoInvestor] SSE streaming failed, falling back to POST:', error?.message);
             try {
                 const response = await api.post('/api/chat', {
                     message: content,
@@ -701,7 +701,7 @@ export default function AgentInterface() {
                 const aiMsg: Message = {
                     id: aiMsgId,
                     role: 'agent',
-                    content: data.response || data.message || (conversationLanguage === 'ar' ? 'أنا AMR، وكيل الذكاء العقاري الخاص بك.' : "I'm AMR, your real estate intelligence agent."),
+                    content: data.response || data.message || (conversationLanguage === 'ar' ? 'أنا CoInvestor، وكيل الذكاء العقاري الخاص بك.' : "I'm CoInvestor, your real estate intelligence agent."),
                     artifacts: allProps.length > 0 ? { property: allProps[0] } : null,
                     uiActions: data.ui_actions || [],
                     allProperties: allProps,
@@ -721,11 +721,11 @@ export default function AgentInterface() {
                 if (aiMsg.uiActions && aiMsg.uiActions.length > 0) triggerXP(15, 'Used analysis tool');
                 if (allProps.length > 0) setActiveContext({ property: allProps[0] });
             } catch (fallbackErr: any) {
-                console.error('[AMR] Fallback POST also failed:', fallbackErr);
+                console.error('[CoInvestor] Fallback POST also failed:', fallbackErr);
                 const isArabic = conversationLanguage === 'ar';
                 const errorMsg = isArabic
-                    ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟ أنا AMR وجاهز أساعدك في أي استفسار عقاري.'
-                    : "A brief analysis issue occurred. Could you try again? I'm AMR, ready to help with any real estate question.";
+                    ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟ أنا CoInvestor وجاهز أساعدك في أي استفسار عقاري.'
+                    : "A brief analysis issue occurred. Could you try again? I'm CoInvestor, ready to help with any real estate question.";
                 setMessages(prev => [...prev, { id: aiMsgId, role: 'agent' as const, content: errorMsg, artifacts: null }]);
             }
         } finally {
@@ -1230,7 +1230,7 @@ export default function AgentInterface() {
                             {inputBar}
 
                             <div className="text-center mt-3">
-                                <p className="text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">{conversationLanguage === 'ar' ? 'AMR وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'AMR is an AI agent. Please verify critical investment data independently.'}</p>
+                                <p className="text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">{conversationLanguage === 'ar' ? 'CoInvestor وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'CoInvestor is an AI agent. Please verify critical investment data independently.'}</p>
                             </div>
                         </div>
                     </div>

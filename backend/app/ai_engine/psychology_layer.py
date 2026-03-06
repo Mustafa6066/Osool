@@ -2125,7 +2125,7 @@ class ObjectionResolutionTracker:
     - Whether it was resolved
     - Effective resolution tactic
     
-    This enables AMR to:
+    This enables CoInvestor to:
     1. Never repeat a failed tactic
     2. Escalate unresolved objections
     3. Know when to pivot vs. push

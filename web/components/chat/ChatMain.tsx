@@ -34,7 +34,7 @@ type Property = {
 
 type Message = {
     id: string;
-    role: 'user' | 'amr';
+    role: 'user' | 'coinvestor';
     content: string;
     visualizations?: UIAction[];
     properties?: Property[];
@@ -536,16 +536,16 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                 session_id: sessionId
             });
 
-            const amrMessage: Message = {
-                id: `amr-${Date.now()}`,
-                role: 'amr',
+            const coinvestorMessage: Message = {
+                id: `coinvestor-${Date.now()}`,
+                role: 'coinvestor',
                 content: data.response || data.message || (detectedRTL ? "عذراً، حدثت مشكلة. حاول مرة أخرى." : "Sorry, there was an issue. Please try again."),
                 visualizations: data.ui_actions || [],
                 properties: data.properties || [],
                 timestamp: new Date()
             };
 
-            setMessages(prev => [...prev, amrMessage]);
+            setMessages(prev => [...prev, coinvestorMessage]);
 
             if (data.properties && data.properties.length > 0) {
                 handlePropertySelect(data.properties[0], data.ui_actions);
@@ -587,7 +587,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
             console.error("Chat error:", error);
             const errorMessage: Message = {
                 id: `error-${Date.now()}`,
-                role: 'amr',
+                role: 'coinvestor',
                 content: detectedRTL ? "عذراً، حدثت مشكلة في الاتصال. حاول مرة أخرى لاحقاً." : "Sorry, there was a connection issue. Please try again later.",
                 timestamp: new Date()
             };
@@ -622,7 +622,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                             <Sparkles size={24} />
                         </div>
                         <h2 className="chatgpt-empty-title">
-                            {effectiveRTL ? 'مرحباً بك في عمرو' : 'Welcome to AMR AI'}
+                            {effectiveRTL ? 'مرحباً بك في CoInvestor' : 'Welcome to CoInvestor AI'}
                         </h2>
                         <p className="chatgpt-empty-subtitle">
                             {effectiveRTL ? 'مساعدك العقاري الذكي' : 'Your intelligent real estate assistant'}

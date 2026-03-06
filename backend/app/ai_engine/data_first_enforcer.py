@@ -1,7 +1,7 @@
 """
 Data-First Enforcer - The Wolf's Discipline
 --------------------------------------------
-Ensures AMR never assumes, always verifies with data.
+Ensures CoInvestor never assumes, always verifies with data.
 This is the backbone of trustworthy AI responses.
 
 Rules:

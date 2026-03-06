@@ -7,17 +7,17 @@ import { useRouter } from 'next/navigation';
 
 type Message = {
     id: string;
-    role: 'user' | 'amr';
+    role: 'user' | 'coinvestor';
     content: string;
     type: 'text';
 };
 
-export default function AmrDemoChat() {
+export default function CoInvestorDemoChat() {
     const [messages] = useState<Message[]>([
         {
             id: '1',
-            role: 'amr',
-            content: 'Ahlan! I am Amr. I help you protect your wealth through real estate. How can I assist you today?',
+            role: 'coinvestor',
+            content: 'Ahlan! I am CoInvestor. I help you protect your wealth through real estate. How can I assist you today?',
             type: 'text',
         },
     ]);
@@ -56,7 +56,7 @@ export default function AmrDemoChat() {
                 </div>
                 <div>
                     <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                        Amr <ShieldCheck size={16} className="text-green-100" />
+                        CoInvestor <ShieldCheck size={16} className="text-green-100" />
                     </h3>
                     <p className="text-green-50 text-xs opacity-90">AI Wealth Consultant</p>
                 </div>
@@ -93,7 +93,7 @@ export default function AmrDemoChat() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Ask Amr about investment..."
+                        placeholder="Ask CoInvestor about investment..."
                         className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-full py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
                     />
                     <button

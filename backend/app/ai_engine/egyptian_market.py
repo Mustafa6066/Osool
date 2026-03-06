@@ -1,7 +1,7 @@
 """
 Egyptian Real Estate Market Psychology & Sales Strategies
 ---------------------------------------------------------
-Phase 1: Market intelligence for AMR AI agent
+Phase 1: Market intelligence for CoInvestor AI agent
 
 This module contains buyer personas, location psychology, and objection
 handling strategies specifically designed for the Egyptian real estate market.

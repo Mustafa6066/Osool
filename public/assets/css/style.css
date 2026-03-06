@@ -751,7 +751,7 @@ section {
 }
 
 .card-3d.speaking::before {
-    content: '🔊 عمرو يتحدث...';
+    content: '🔊 CoInvestor يتحدث...';
     position: absolute;
     top: -30px;
     left: 50%;

@@ -9,7 +9,7 @@ Architecture:
 2. PARALLEL: Claude reasoning + GPT-4o insights + XGBoost predictions
 3. Claude synthesizes all insights into final Wolf response
 
-This is what makes Amr one-of-a-kind.
+This is what makes CoInvestor one-of-a-kind.
 """
 
 import asyncio
@@ -22,7 +22,7 @@ from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 
 from app.config import config
-from .amr_master_prompt import get_wolf_system_prompt, get_synthesis_prompt
+from .coinvestor_master_prompt import get_wolf_system_prompt, get_synthesis_prompt
 from .data_first_enforcer import DataFirstEnforcer, data_first_enforcer
 from .xgboost_predictor import OsoolXGBoostPredictor
 

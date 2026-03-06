@@ -88,7 +88,7 @@ export default function Home() {
                     </h1>
 
                     <p className="text-[17px] md:text-lg text-[var(--color-text-secondary)] font-medium leading-relaxed max-w-2xl mt-2">
-                        AMR analyzes the Egyptian real estate market with AI precision. Get instant insights on pricing, ROI forecasts, and developer audits.
+                        CoInvestor analyzes the Egyptian real estate market with AI precision. Get instant insights on pricing, ROI forecasts, and developer audits.
                     </p>
 
                     <div className="flex flex-wrap gap-4 mt-6 justify-center">
@@ -130,7 +130,7 @@ export default function Home() {
                         </div>
                         <div className="flex-1 flex justify-center">
                             <div className="px-3 py-0.5 bg-[var(--color-background)] rounded text-[10px] font-mono text-[var(--color-text-muted)]">
-                                amr.osool.ai
+                                coinvestor.osool.ai
                             </div>
                         </div>
                     </div>
@@ -267,9 +267,9 @@ export default function Home() {
                             <div className="flex-1">
                                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/15 mb-4">
                                     <Sparkles size={12} className="text-emerald-500" />
-                                    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">AMR Assistant</span>
+                                    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">CoInvestor Assistant</span>
                                 </div>
-                                <h3 className="text-xl font-medium mb-2">Ask AMR Anything</h3>
+                                <h3 className="text-xl font-medium mb-2">Ask CoInvestor Anything</h3>
                                 <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mb-5">
                                     &ldquo;Average price per meter in Sheikh Zayed?&rdquo;<br />
                                     &ldquo;Compare Zed Towers vs. O West payment plans.&rdquo;
@@ -286,7 +286,7 @@ export default function Home() {
                                     Is it a good time to buy in New Alamein?
                                 </div>
                                 <div className="self-start text-[var(--color-text-secondary)] text-xs p-3 max-w-[90%] leading-relaxed">
-                                    <span className="text-emerald-500 font-medium block mb-1 text-[10px] uppercase tracking-wider">AMR Analysis</span>
+                                    <span className="text-emerald-500 font-medium block mb-1 text-[10px] uppercase tracking-wider">CoInvestor Analysis</span>
                                     Seasonal demand is peaking. Prices rose 8% in Q1 2024. Rental yields averaging 7-9%.
                                 </div>
                             </div>
@@ -302,7 +302,7 @@ export default function Home() {
                         Ready to invest with confidence?
                     </h2>
                     <p className="text-[var(--color-text-secondary)] mb-8 max-w-lg mx-auto">
-                        Join the waiting list for AMR Premium and get exclusive access to off-market opportunities.
+                        Join the waiting list for CoInvestor Premium and get exclusive access to off-market opportunities.
                     </p>
                     {!isAuthenticated && (
                         <Link
@@ -322,7 +322,7 @@ export default function Home() {
                         <div className="w-5 h-5 rounded bg-[var(--color-text-primary)] text-[var(--color-background)] flex items-center justify-center">
                             <span className="text-[7px] font-bold">A</span>
                         </div>
-                        <span className="text-sm font-medium">AMR</span>
+                        <span className="text-sm font-medium">CoInvestor</span>
                     </div>
                     <div className="flex gap-6 text-xs text-[var(--color-text-muted)]">
                         <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Privacy</a>
@@ -330,7 +330,7 @@ export default function Home() {
                         <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Contact</a>
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)]">
-                        © 2024 AMR Intelligence
+                        © 2024 CoInvestor Intelligence
                     </div>
                 </div>
             </footer>

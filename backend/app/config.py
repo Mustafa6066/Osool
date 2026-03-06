@@ -48,7 +48,7 @@ class Config:
     # Claude AI (Phase 1: Advanced Reasoning)
     ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     if not ANTHROPIC_API_KEY:
-        raise ValueError("❌ ANTHROPIC_API_KEY environment variable is required for AMR")
+        raise ValueError("❌ ANTHROPIC_API_KEY environment variable is required for CoInvestor")
 
     # Claude Model Configuration
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")

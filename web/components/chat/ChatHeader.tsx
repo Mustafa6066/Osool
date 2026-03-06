@@ -59,7 +59,7 @@ export default function ChatHeader({ onToggleSidebar, showMenuButton = false, is
                         <Sparkles size={18} />
                     </div>
                     <span className="font-semibold text-[var(--color-text-primary)]">
-                        {isRTL ? 'عمرو' : 'AMR AI'}
+                        {isRTL ? 'CoInvestor' : 'CoInvestor AI'}
                     </span>
                 </Link>
             </div>

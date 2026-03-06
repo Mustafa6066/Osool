@@ -10,7 +10,7 @@ export default function Footer() {
 
     const quickLinks = [
         { href: '/', label: t('nav.home') },
-        { href: '/ai-advisor', label: 'Chat with AMR' },
+        { href: '/ai-advisor', label: 'Chat with CoInvestor' },
         { href: '/properties', label: t('nav.properties') },
     ];
 

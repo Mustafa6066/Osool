@@ -18,8 +18,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from app.ai_engine.wolf_orchestrator import wolf_brain
 from app.ai_engine.lead_scoring import score_lead
-from app.ai_engine.amr_master_prompt import (
-    AMR_SYSTEM_PROMPT, 
+from app.ai_engine.coinvestor_master_prompt import (
+    COINVESTOR_SYSTEM_PROMPT, 
     is_discount_request,
     FRAME_CONTROL_EXAMPLES,
     NEGOTIATION_KEYWORDS
@@ -150,9 +150,9 @@ async def verify_hypered_brain():
         all_passed = False
     
     # =========================================================================
-    # TEST 4: AMR System Prompt Contains All Protocols
+    # TEST 4: CoInvestor System Prompt Contains All Protocols
     # =========================================================================
-    print("\n[TEST 4] AMR System Prompt Verification")
+    print("\n[TEST 4] CoInvestor System Prompt Verification")
     print("-" * 50)
     
     required_sections = [
@@ -168,7 +168,7 @@ async def verify_hypered_brain():
     ]
     
     for name, search_term in required_sections:
-        found = search_term.lower() in AMR_SYSTEM_PROMPT.lower()
+        found = search_term.lower() in COINVESTOR_SYSTEM_PROMPT.lower()
         all_passed = all_passed and found
         print_result(f"{name} in prompt", found)
     

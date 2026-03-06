@@ -739,7 +739,7 @@ def detect_language(text: str) -> str:
             "language": "arabic",
             "confidence": round(arabic_ratio * 100, 1),
             "response_style": "egyptian_arabic",
-            "greeting": "أهلاً وسهلاً! أنا عمرو",
+            "greeting": "أهلاً وسهلاً! أنا CoInvestor",
             "formality": "casual_warm",
             "instructions": "Respond entirely in Egyptian Arabic. Use warm greetings like 'إزيك', 'تمام كده', 'معاك لآخر خطوة'"
         })
@@ -748,7 +748,7 @@ def detect_language(text: str) -> str:
             "language": "english",
             "confidence": round((1 - arabic_ratio) * 100, 1),
             "response_style": "professional_friendly",
-            "greeting": "Welcome! I'm AMR, your AI real estate advisor",
+            "greeting": "Welcome! I'm CoInvestor, your AI real estate advisor",
             "instructions": "Respond in professional English"
         })
 
@@ -865,7 +865,7 @@ class OsoolAgent:
         self.prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
-                """You are **عمرو (AMR)**, Egypt's Most Trusted AI Real Estate Advisor at Osool.
+                """You are **CoInvestor**, Egypt's Most Trusted AI Real Estate Advisor at Osool.
 
 **YOUR MISSION:** Guide Egyptian buyers to make smart, confident real estate decisions.
 
@@ -1020,7 +1020,7 @@ Remember: You're building long-term relationships. A client who trusts you bring
         # Check if conversation is active (avoid repetitive intros)
         is_conversation_active = len(conversation_history) > 2
 
-        base_prompt = f"""You are **Amr**, the "Wolf of Osool" - Egypt's Most Trusted Real Estate Consultant at Osool.
+        base_prompt = f"""You are **CoInvestor**, the "Wolf of Osool" - Egypt's Most Trusted Real Estate Consultant at Osool.
 
 **CURRENT USER STATUS: {user_context}**
 

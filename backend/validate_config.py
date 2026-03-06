@@ -33,7 +33,7 @@ def validate_required_vars():
         "DATABASE_URL": "Database connection string",
         "JWT_SECRET_KEY": "JWT secret for authentication",
         "OPENAI_API_KEY": "OpenAI API key for AI features",
-        "ANTHROPIC_API_KEY": "Claude API key for AMR",
+        "ANTHROPIC_API_KEY": "Claude API key for CoInvestor",
     }
 
     missing = []

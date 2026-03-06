@@ -67,14 +67,14 @@ test.describe('Page Load', () => {
     await expect(sendButton).toBeVisible();
   });
 
-  test('should display initial greeting from AMR', async ({ page }) => {
+  test('should display initial greeting from CoInvestor', async ({ page }) => {
     // Wait for greeting message
     const greeting = page.locator('[data-role="assistant"]').first();
     await expect(greeting).toBeVisible();
 
-    // Should mention AMR or Osool
+    // Should mention CoInvestor or Osool
     const text = await greeting.textContent();
-    expect(text?.toLowerCase()).toMatch(/amr|osool|عمرو/);
+    expect(text?.toLowerCase()).toMatch(/coinvestor|osool|CoInvestor/);
   });
 
   test('should have no console errors on load', async ({ page }) => {

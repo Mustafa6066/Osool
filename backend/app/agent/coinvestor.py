@@ -15,11 +15,11 @@ load_dotenv()
 
 # Logger setup
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("AmrAgent")
+logger = logging.getLogger("CoInvestorAgent")
 
-class AmrAgent:
+class CoInvestorAgent:
     """
-    Amr - The Elite Real Estate Agent.
+    CoInvestor - The Elite Real Estate Agent.
     
     Architecture (Updated v2):
     - CORE: Wolf Brain Orchestrator (wolf_orchestrator.py)
@@ -30,7 +30,7 @@ class AmrAgent:
     def __init__(self):
         # WolfBrain initializes its own clients (Anthropic/OpenAI) internally
         # We just act as the API wrapper here.
-        logger.info("🚀 AmrAgent initialized with Wolf Brain V7")
+        logger.info("🚀 CoInvestorAgent initialized with Wolf Brain V7")
         self.memory_utils = ConversationMemory()  # Utility for loop detection
 
     async def process_message(self, user_input: str, session_id: str, history: List[BaseMessage] = []) -> Dict[str, Any]:
@@ -137,4 +137,4 @@ class AmrAgent:
 
 
 # Singleton
-amr_agent = AmrAgent()
+coinvestor_agent = CoInvestorAgent()

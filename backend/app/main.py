@@ -68,11 +68,11 @@ app = FastAPI(
     ## Features
 
     ### 🤖 AI Intelligence Layer
-    - **AMR AI Agent**: Chat with Claude 3.5 Sonnet for property search in Egyptian Arabic & English
+    - **CoInvestor AI Agent**: Chat with Claude 3.5 Sonnet for property search in Egyptian Arabic & English
     - **Smart Valuation**: XGBoost + GPT-4o hybrid pricing model with market reasoning
     - **Natural Language Search**: Semantic search across 3,274 verified properties
     - **Visual Analytics**: Investment scorecards, payment timelines, market trends, comparison charts
-    - **Proactive Recommendations**: AMR suggests properties and analyses automatically
+    - **Proactive Recommendations**: CoInvestor suggests properties and analyses automatically
 
     ### 🏘️ Property Database
     - 3,274 verified Egyptian properties with semantic search
@@ -248,7 +248,7 @@ def root():
         "status": "online",
         "phase": "1",
         "features": [
-            "amr_ai_agent",
+            "coinvestor_ai_agent",
             "bilingual_chat",
             "semantic_search",
             "hybrid_valuation",
@@ -341,7 +341,7 @@ async def startup_event():
         logger.warning(f"⚠️ Gamification Engine: Seed skipped ({e})")
 
     logger.info("✅ AI Intelligence Layer: READY")
-    logger.info("✅ AMR Agent (Claude 3.5 Sonnet): READY")
+    logger.info("✅ CoInvestor Agent (Claude 3.5 Sonnet): READY")
     logger.info("✅ Hybrid Brain (XGBoost + GPT-4o): READY")
     logger.info("✅ Gamification Engine: READY")
     logger.info("✅ Semantic Search (pgvector): READY")

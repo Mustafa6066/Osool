@@ -10,12 +10,12 @@ import { ErrorBoundaryProvider } from '@/components/ErrorBoundaryProvider';
 
 export const metadata: Metadata = {
   title: "Osool | Your AI Real Estate Advisor for Egypt",
-  description: "Chat with AMR, your AI-powered real estate advisor. Get instant property matches, price analysis, and investment insights from 3,274 verified Egyptian properties. Powered by Claude 3.5 Sonnet.",
-  keywords: ["real estate", "Egypt", "AI", "property", "AMR", "investment", "New Cairo", "Sheikh Zayed", "عقارات", "مصر"],
+  description: "Chat with CoInvestor, your AI-powered real estate advisor. Get instant property matches, price analysis, and investment insights from 3,274 verified Egyptian properties. Powered by Claude 3.5 Sonnet.",
+  keywords: ["real estate", "Egypt", "AI", "property", "CoInvestor", "investment", "New Cairo", "Sheikh Zayed", "عقارات", "مصر"],
   authors: [{ name: "Osool" }],
   openGraph: {
     title: "Osool | Your AI Real Estate Advisor for Egypt",
-    description: "Chat with AMR in Egyptian Arabic or English. Get AI-powered property recommendations, price valuations, and investment analysis.",
+    description: "Chat with CoInvestor in Egyptian Arabic or English. Get AI-powered property recommendations, price valuations, and investment analysis.",
     type: "website",
   },
 };

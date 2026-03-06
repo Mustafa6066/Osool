@@ -1,5 +1,5 @@
 """
-Visualization Data Helpers for AMR - "The Wolf's Visual Arsenal"
+Visualization Data Helpers for CoInvestor - "The Wolf's Visual Arsenal"
 -----------------------------------------------------------------
 Generate structured data for frontend visualization components.
 These helpers transform raw AI analysis into chart-ready formats.

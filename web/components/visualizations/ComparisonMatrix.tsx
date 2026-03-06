@@ -321,7 +321,7 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
             <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
                 <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)]">
                     <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
-                    <span>Powered by AMR Hybrid AI Brain</span>
+                    <span>Powered by CoInvestor Hybrid AI Brain</span>
                 </div>
             </div>
         </motion.div>

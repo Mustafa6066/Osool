@@ -178,13 +178,13 @@ export default function FavoritesPage() {
                                             </div>
                                         )}
 
-                                        {/* Ask AMR button */}
+                                        {/* Ask CoInvestor button */}
                                         <Link
                                             href={`/chat`}
                                             className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-all"
                                         >
                                             <Sparkles className="w-3.5 h-3.5" />
-                                            {t('favorites.askAmr')}
+                                            {t('favorites.askCoInvestor')}
                                         </Link>
                                     </div>
                                 </div>

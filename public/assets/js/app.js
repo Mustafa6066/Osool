@@ -109,7 +109,7 @@ function initPropertyGrid() {
             <div class="ai-insight-popup">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                     <i class="fas fa-brain" style="color: #a78bfa;"></i>
-                    <span style="font-weight: 600;">رؤية عمرو AI</span>
+                    <span style="font-weight: 600;">رؤية CoInvestor AI</span>
                 </div>
                 ${insight}
             </div>
@@ -164,8 +164,8 @@ function initPropertyGrid() {
    3. AI CHAT LOGIC (Real Integration)
    ═══════════════════════════════════════════════════════════════════════════
 */
-const AMR_SYSTEM_PROMPT = `
-You are Amr, an Egyptian Real Estate Expert and Consultant for Osool.
+const COINVESTOR_SYSTEM_PROMPT = `
+You are CoInvestor, an Egyptian Real Estate Expert and Consultant for Osool.
 Your Persona:
 - Authentic, friendly, and uses Egyptian slang (ya habibi, ya basha, ya fandem) naturally but professionally.
 - Deeply knowledgeable about the Egyptian market (New Cairo, Capital, October).
@@ -395,7 +395,7 @@ window.sendMessage = async function () {
         removeTypingIndicator(typingId);
         setOrbState('idle');
         // Fallback response if API fails
-        addMessageToUI("نظام Demo: السيرفر مش متصل. أنا عمرو، المستشار العقاري بتاعك! 🏠 قولي عايز إيه وأنا هساعدك", 'ai');
+        addMessageToUI("نظام Demo: السيرفر مش متصل. أنا CoInvestor، المستشار العقاري بتاعك! 🏠 قولي عايز إيه وأنا هساعدك", 'ai');
     }
 };
 
@@ -831,7 +831,7 @@ function initConversationalCards() {
 
         const title = card.querySelector('h3')?.textContent || 'هذا العقار';
         const price = card.querySelector('[style*="gold-text"]')?.textContent || '';
-        const insight = card.querySelector('.ai-insight-popup')?.textContent?.replace('رؤية عمرو AI', '') || '';
+        const insight = card.querySelector('.ai-insight-popup')?.textContent?.replace('رؤية CoInvestor AI', '') || '';
 
         // Build speech
         const speech = `${title}. السعر ${price}. ${insight}`;
@@ -886,7 +886,7 @@ function showAIWhisper(message) {
     whisper.innerHTML = `
         <div class="whisper-header">
             <i class="fas fa-lightbulb"></i>
-            <span>عمرو يقترح</span>
+            <span>CoInvestor يقترح</span>
         </div>
         <div class="whisper-text">${message}</div>
     `;

@@ -25,7 +25,7 @@ async def test_superhuman_capabilities():
     try:
         from app.ai_engine.wolf_orchestrator import WolfBrain
         from app.ai_engine.psychology_layer import analyze_psychology, PsychologicalState
-        from app.ai_engine.amr_master_prompt import get_master_system_prompt
+        from app.ai_engine.coinvestor_master_prompt import get_master_system_prompt
         
         brain = WolfBrain()
         

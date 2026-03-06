@@ -58,7 +58,7 @@ def sample_session_id():
 
 @pytest.mark.asyncio
 async def test_initial_greeting_response(test_client, sample_session_id):
-    """Test AMR introduces itself correctly on first message"""
+    """Test CoInvestor introduces itself correctly on first message"""
 
     response = await test_client.post("/api/chat", json={
         "session_id": sample_session_id,
@@ -73,9 +73,9 @@ async def test_initial_greeting_response(test_client, sample_session_id):
     assert "session_id" in data
     assert data["session_id"] == sample_session_id
 
-    # Verify AMR introduces itself
+    # Verify CoInvestor introduces itself
     response_text = data["response"].lower()
-    assert "amr" in response_text or "عمرو" in response_text
+    assert "coinvestor" in response_text or "coinvestor" in response_text
 
     # Verify bilingual response (contains both Arabic and English)
     assert any(arabic_char in data["response"] for arabic_char in "أبتثجحخد")
@@ -364,7 +364,7 @@ async def test_reservation_generation_flow(test_client, sample_session_id):
 
 @pytest.mark.asyncio
 async def test_objection_handling_price(test_client, sample_session_id):
-    """Test AMR handles price objection with data"""
+    """Test CoInvestor handles price objection with data"""
 
     response = await test_client.post("/api/chat", json={
         "session_id": sample_session_id,
@@ -401,7 +401,7 @@ async def test_objection_handling_price(test_client, sample_session_id):
 
 @pytest.mark.asyncio
 async def test_objection_handling_competitor(test_client, sample_session_id):
-    """Test AMR handles competitor mention respectfully"""
+    """Test CoInvestor handles competitor mention respectfully"""
 
     response = await test_client.post("/api/chat", json={
         "session_id": sample_session_id,
@@ -435,7 +435,7 @@ async def test_objection_handling_competitor(test_client, sample_session_id):
 
 @pytest.mark.asyncio
 async def test_conversation_memory(test_client, sample_session_id):
-    """Test AMR remembers user preferences across messages"""
+    """Test CoInvestor remembers user preferences across messages"""
 
     # Step 1: User mentions budget
     response1 = await test_client.post("/api/chat", json={
@@ -581,7 +581,7 @@ async def test_cost_limit_enforcement(test_client, sample_session_id):
 
 @pytest.mark.asyncio
 async def test_bilingual_responses(test_client, sample_session_id):
-    """Test AMR responds in both English and Arabic"""
+    """Test CoInvestor responds in both English and Arabic"""
 
     response = await test_client.post("/api/chat", json={
         "session_id": sample_session_id,

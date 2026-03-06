@@ -8,7 +8,7 @@ export default function LoginPage() {
     const router = useRouter();
 
     const handleSuccess = () => {
-        // Redirect to Chat with AMR
+        // Redirect to Chat with CoInvestor
         router.push('/chat');
     };
 

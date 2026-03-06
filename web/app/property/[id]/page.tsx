@@ -536,7 +536,7 @@ export default function PropertyDetailsPage() {
                                     className="w-full btn-secondary flex items-center justify-center gap-2"
                                 >
                                     <Sparkles className="w-5 h-5" />
-                                    {language === 'ar' ? 'اسأل AMR عن هذا العقار' : 'Ask AMR about this property'}
+                                    {language === 'ar' ? 'اسأل CoInvestor عن هذا العقار' : 'Ask CoInvestor about this property'}
                                 </Link>
                             </div>
 

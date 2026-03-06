@@ -54,7 +54,7 @@ export default function Hero() {
                     transition={{ duration: 0.6, delay: 0.2 }}
                     className="text-lg sm:text-xl text-[var(--color-text-secondary)] max-w-3xl mx-auto mb-10 leading-relaxed"
                 >
-                    Chat with AMR, powered by Claude 3.5 Sonnet. Get instant property matches, price analysis,
+                    Chat with CoInvestor, powered by Claude 3.5 Sonnet. Get instant property matches, price analysis,
                     and mortgage calculations from 3,274 verified properties across Egypt.
                 </motion.p>
 
@@ -67,7 +67,7 @@ export default function Hero() {
                 >
                     <Link href="/ai-advisor" className="btn-primary flex items-center gap-2 text-lg px-8 py-4">
                         <Sparkles className="w-5 h-5" />
-                        Chat with AMR
+                        Chat with CoInvestor
                     </Link>
                     <Link href="/properties" className="btn-secondary flex items-center gap-2 text-lg px-8 py-4">
                         Browse Properties

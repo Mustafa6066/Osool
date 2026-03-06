@@ -49,7 +49,7 @@ from .analytical_engine import (
 from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
 from .analytical_actions import generate_analytical_ui_actions
-from .amr_master_prompt import get_wolf_system_prompt, AMR_SYSTEM_PROMPT, is_discount_request, FRAME_CONTROL_EXAMPLES
+from .coinvestor_master_prompt import get_wolf_system_prompt, COINVESTOR_SYSTEM_PROMPT, is_discount_request, FRAME_CONTROL_EXAMPLES
 from .hybrid_brain_prod import hybrid_brain_prod  # The Specialist Tools
 from .conversation_memory import ConversationMemory, CrossSessionIntelligence
 from .lead_scoring import score_lead, LeadTemperature, BehaviorSignal

@@ -54,7 +54,7 @@ function initMap() {
                     <div style="font-weight: bold; color: #059669; margin-top: 4px;">${prop.price.toLocaleString()} EGP</div>
                     <button onclick="document.getElementById('chatInput').value='تفاصيل عن ${prop.compound}'; sendMessage();" 
                         style="background: #059669; color: white; border: none; width: 100%; padding: 6px; border-radius: 4px; margin-top: 8px; cursor: pointer;">
-                        اسأل عمرو
+                        اسأل CoInvestor
                     </button>
                 </div>
             `;

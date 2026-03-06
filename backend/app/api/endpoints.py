@@ -740,7 +740,7 @@ async def chat_with_agent(
     """
     💬 Main AI Chat Endpoint (Phase 1: Claude-Powered with Arabic Support)
 
-    Sends user message to AMR (Claude-powered) AI Agent with conversation memory.
+    Sends user message to CoInvestor (Claude-powered) AI Agent with conversation memory.
     Supports both Arabic and English conversations seamlessly.
     Saves chat history to database for cross-session continuity.
 
@@ -752,7 +752,7 @@ async def chat_with_agent(
     Frontend can render property cards from the `properties` array.
     """
     try:
-        from app.agent.amr import amr_agent  # Wolf Brain V7
+        from app.agent.coinvestor import coinvestor_agent  # Wolf Brain V7
     except Exception as e:
         logger.critical(f"Failed to load Wolf Brain: {e}", exc_info=True)
         raise HTTPException(
@@ -777,7 +777,7 @@ async def chat_with_agent(
         
         print(f"📜 Loaded {len(messages)} messages from DB for session {req.session_id}")
 
-        # Convert to LangChain message format for amr_agent
+        # Convert to LangChain message format for coinvestor_agent
         for msg in reversed(messages):
             if msg.role == "user":
                 from langchain_core.messages import HumanMessage
@@ -798,8 +798,8 @@ async def chat_with_agent(
 
         print(f"📤 Sending {len(chat_history)} history items to Wolf Brain")
         
-        # V7: Use Wolf Brain via amr_agent.process_message
-        ai_result = await amr_agent.process_message(
+        # V7: Use Wolf Brain via coinvestor_agent.process_message
+        ai_result = await coinvestor_agent.process_message(
             user_input=req.message,
             session_id=req.session_id,
             history=chat_history
@@ -1632,7 +1632,7 @@ async def get_market_statistics_endpoint(
     """
     📊 Get real-time market statistics from the database.
     
-    Powers the AMR analytics visualizations with actual database data.
+    Powers the CoInvestor analytics visualizations with actual database data.
     Returns:
     - Location-specific stats (avg price, price/sqm, property counts)
     - Global market overview
@@ -1817,7 +1817,7 @@ async def compare_locations(
     """
     📈 Compare multiple locations for investment analysis.
     
-    Powers the AMR comparison visualizations.
+    Powers the CoInvestor comparison visualizations.
     """
     from sqlalchemy import select, func
     from app.models import Property

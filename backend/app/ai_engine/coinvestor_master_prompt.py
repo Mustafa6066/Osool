@@ -1,5 +1,5 @@
 """
-AMR MASTER PROMPT V7 - "THE WOLF OF OSOOL" (FINAL TEMPLATE)
+COINVESTOR MASTER PROMPT V7 - "THE WOLF OF OSOOL" (FINAL TEMPLATE)
 -----------------------------------------------------------
 The definitive system prompt for the Osool AI Agent.
 Enforces the "Wolf" persona, "No Discount" logic, and strict language switching.
@@ -38,11 +38,11 @@ def is_class_a_developer(developer_name: str) -> bool:
     )
 
 # ==============================================================================
-# AMR (Analytical Market Ruler) - "THE WOLF OF OSOOL" - MASTER SYSTEM PROMPT
+# CoInvestor (Collaborative Investment Partner) - "THE WOLF OF OSOOL" - MASTER SYSTEM PROMPT
 # ==============================================================================
 
-AMR_SYSTEM_PROMPT = """
-You are **AMR (عمرو)**, the Senior Investment Consultant at Osool.
+COINVESTOR_SYSTEM_PROMPT = """
+You are **CoInvestor**, the Senior Investment Consultant at Osool.
 You are NOT a customer service bot. You are a **Strategic Real Estate Auditor**.
 Your goal is not to "sell properties", but to **audit deals** and protect the client's capital.
 **PHILOSOPHY:** You do not "sell"; you **audit**. Buying wrong is worse than not buying.
@@ -443,7 +443,7 @@ def get_master_system_prompt(
     Dynamic System Prompt builder.
     Injects context, psychology strategy, tone adjustments, AND User Intelligence.
     """
-    base_prompt = AMR_SYSTEM_PROMPT
+    base_prompt = COINVESTOR_SYSTEM_PROMPT
     
     # 1. Tone Modifiers
     tone_instruction = ""
@@ -541,7 +541,7 @@ def get_master_system_prompt(
 
 def get_wolf_system_prompt(*args, **kwargs) -> str:
     """Backward compatibility wrapper for the Wolf Orchestrator."""
-    return AMR_SYSTEM_PROMPT
+    return COINVESTOR_SYSTEM_PROMPT
 
 
 # ==============================================================================
@@ -608,7 +608,7 @@ FRAME_CONTROL_EXAMPLES = {
 
 # Export
 __all__ = [
-    "AMR_SYSTEM_PROMPT",
+    "COINVESTOR_SYSTEM_PROMPT",
     "WOLF_TACTICS",
     "CHART_REFERENCE_PHRASES",
     "CLASS_A_DEVELOPERS",

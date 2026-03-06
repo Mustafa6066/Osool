@@ -97,10 +97,10 @@ const CodeBlock = ({ language, value }: { language: string, value: string }) => 
 };
 
 // ============================================
-// AMR AVATAR - Distinctive AI Identity
+// CoInvestor AVATAR - Distinctive AI Identity
 // ============================================
 
-function AmrAvatar({
+function CoInvestorAvatar({
     size = 'sm',
     thinking = false,
     showStatus = true,
@@ -119,20 +119,20 @@ function AmrAvatar({
     const isSuccess = state === 'success';
 
     return (
-        <div className="amr-avatar" data-size={size}>
+        <div className="coinvestor-avatar" data-size={size}>
             {/* Animated pulse ring */}
-            <div className={`amr-avatar-ring ${isThinking || isSearching ? 'active' : ''} ${isSuccess ? 'bg-emerald-500/20' : ''}`} />
+            <div className={`coinvestor-avatar-ring ${isThinking || isSearching ? 'active' : ''} ${isSuccess ? 'bg-emerald-500/20' : ''}`} />
             {/* Main surface with gradient and monogram */}
-            <div className={`amr-avatar-surface ${isThinking ? 'thinking' : ''} ${isSearching ? 'animate-pulse' : ''}`}>
+            <div className={`coinvestor-avatar-surface ${isThinking ? 'thinking' : ''} ${isSearching ? 'animate-pulse' : ''}`}>
                 {isSuccess ? (
-                    <span className="amr-avatar-monogram text-emerald-400"><Check size={18} /></span>
+                    <span className="coinvestor-avatar-monogram text-emerald-400"><Check size={18} /></span>
                 ) : (
-                    <span className="amr-avatar-monogram">A</span>
+                    <span className="coinvestor-avatar-monogram">C</span>
                 )}
             </div>
             {/* Status dot */}
             {showStatus && (
-                <div className={`amr-avatar-status ${isRTL ? 'rtl' : ''}`} />
+                <div className={`coinvestor-avatar-status ${isRTL ? 'rtl' : ''}`} />
             )}
         </div>
     );
@@ -383,7 +383,7 @@ function Sidebar({
             {/* Brand Header */}
             <div className="p-5 pb-4">
                 <div className="flex items-center gap-3 mb-5">
-                    <AmrAvatar size="sm" showStatus={false} />
+                    <CoInvestorAvatar size="sm" showStatus={false} />
                     <div>
                         <p className="text-[12px] font-bold text-[var(--color-text-main)] tracking-wide">
                             {isRTL ? 'ذكاء أصول' : 'Osool Intelligence'}
@@ -638,9 +638,9 @@ function ContextualInsights({
                             {aiInsight && (
                                 <div className="insight-item p-3.5 rounded-xl bg-gradient-to-br from-[var(--osool-deep-teal)] to-[var(--osool-deep-teal)]/80 text-white">
                                     <div className="flex items-center gap-2 mb-2.5">
-                                        <AmrAvatar size="sm" showStatus={false} />
+                                        <CoInvestorAvatar size="sm" showStatus={false} />
                                         <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
-                                            {isRTL ? 'تحليل عمرو' : 'AMR Analysis'}
+                                            {isRTL ? 'تحليل CoInvestor' : 'CoInvestor Analysis'}
                                         </span>
                                     </div>
                                     <p className="text-[11px] leading-relaxed opacity-90 line-clamp-4">
@@ -746,9 +746,9 @@ function ContextualInsights({
                     ) : (
                         /* Empty State with Quick Actions */
                         <div className="flex flex-col items-center justify-center py-8 text-center">
-                            <AmrAvatar size="md" thinking={false} showStatus={false} />
+                            <CoInvestorAvatar size="md" thinking={false} showStatus={false} />
                             <p className="text-[11px] text-[var(--color-text-muted-studio)] mt-4 mb-5">
-                                {isRTL ? 'اسأل عمرو للبدء' : 'Ask AMR to start analyzing'}
+                                {isRTL ? 'اسأل CoInvestor للبدء' : 'Ask CoInvestor to start analyzing'}
                             </p>
                             <div className="grid grid-cols-2 gap-2 w-full">
                                 {[
@@ -1049,7 +1049,7 @@ export default function ChatInterface() {
         setIsTyping(true);
 
         const aiMsgId = (Date.now() + 1).toString();
-        setMessages(prev => [...prev, { role: 'amr', content: '', id: aiMsgId, isTyping: true }]);
+        setMessages(prev => [...prev, { role: 'coinvestor', content: '', id: aiMsgId, isTyping: true }]);
 
         let fullResponse = '';
         // Initialize streaming buffer for this response
@@ -1124,7 +1124,7 @@ export default function ChatInterface() {
                         : (followUp.message_en || followUp.message_ar || '');
                     if (followUpText) {
                         setMessages(prev => [...prev, {
-                            role: 'amr',
+                            role: 'coinvestor',
                             content: followUpText,
                             id: followUpId,
                             isTyping: false,
@@ -1282,14 +1282,14 @@ export default function ChatInterface() {
                                 ref={welcomeRef}
                                 className={`text-center mb-6 sm:mb-10 transition-opacity ${isTransitioning ? 'pointer-events-none' : ''}`}
                             >
-                                {/* AMR Avatar - Large */}
+                                {/* CoInvestor Avatar - Large */}
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.5 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                                     className="welcome-avatar flex justify-center mb-5 sm:mb-6"
                                 >
-                                    <AmrAvatar size="lg" thinking={false} showStatus={true} isRTL={isRTL} />
+                                    <CoInvestorAvatar size="lg" thinking={false} showStatus={true} isRTL={isRTL} />
                                 </motion.div>
 
                                 {/* Greeting */}
@@ -1394,7 +1394,7 @@ export default function ChatInterface() {
                                                 onKeyDown={handleKeyDown}
                                                 rows={1}
                                                 className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-4 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px] text-center"
-                                                placeholder={isRTL ? 'اسأل عمرو عن العقارات...' : 'Ask AMR about properties...'}
+                                                placeholder={isRTL ? 'اسأل CoInvestor عن العقارات...' : 'Ask CoInvestor about properties...'}
                                                 disabled={isTyping || isTransitioning}
                                                 dir="auto"
                                                 autoFocus
@@ -1472,7 +1472,7 @@ export default function ChatInterface() {
                                                         >
                                                             {/* 1. Avatar Column (Sidebar) */}
                                                             <div className="flex-shrink-0 mt-1">
-                                                                <AmrAvatar size="sm" thinking={msg.isTyping} showStatus={false} />
+                                                                <CoInvestorAvatar size="sm" thinking={msg.isTyping} showStatus={false} />
                                                             </div>
 
                                                             {/* 2. Content Stack (Name + Bubble) */}
@@ -1481,7 +1481,7 @@ export default function ChatInterface() {
                                                                 {/* Name Row */}
                                                                 <div className={`flex items-center gap-2 mb-1 ${isMsgRtl ? 'flex-row-reverse' : 'flex-row'}`}>
                                                                     <span className="text-[12px] font-bold text-[var(--osool-deep-teal)] select-none">
-                                                                        {isMsgRtl ? 'عمرو' : 'AMR'}
+                                                                        {isMsgRtl ? 'CoInvestor' : 'CoInvestor'}
                                                                     </span>
                                                                     <span className="text-[9px] text-[var(--color-text-muted-studio)] opacity-50 select-none">
                                                                         {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1652,7 +1652,7 @@ export default function ChatInterface() {
                                                 onKeyDown={handleKeyDown}
                                                 rows={1}
                                                 className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-3.5 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px]"
-                                                placeholder={isRTL ? 'اسأل عمرو...' : 'Ask AMR...'}
+                                                placeholder={isRTL ? 'اسأل CoInvestor...' : 'Ask CoInvestor...'}
                                                 disabled={isTyping}
                                                 dir="auto"
                                             />

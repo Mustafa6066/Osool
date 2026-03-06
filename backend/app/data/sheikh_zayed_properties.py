@@ -1,7 +1,7 @@
 """
 Sheikh Zayed Property Seed Data
 -------------------------------
-Real property data for the AMR AI agent to query.
+Real property data for the CoInvestor AI agent to query.
 City Edge Etapa is located in Sheikh Zayed, not New Cairo.
 
 Note: Prices are in EGP (Egyptian Pounds) as of 2024-2025.

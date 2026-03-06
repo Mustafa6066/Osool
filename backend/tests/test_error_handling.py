@@ -321,7 +321,7 @@ async def test_blockchain_error_graceful_fallback(test_client):
         })
 
         # Should still return 200 (graceful degradation)
-        # AMR should explain blockchain unavailable
+        # CoInvestor should explain blockchain unavailable
         assert response.status_code == 200
         data = response.json()
 

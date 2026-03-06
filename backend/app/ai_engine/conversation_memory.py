@@ -1,7 +1,7 @@
 """
 Osool Conversation Memory Engine V2
 -------------------------------------
-Tracks key facts across conversation turns to make AMR smarter.
+Tracks key facts across conversation turns to make CoInvestor smarter.
 Extracts and remembers budget, preferences, objections, and shown properties.
 
 V2 Enhancements:
@@ -100,7 +100,7 @@ class CrossSessionIntelligence:
 
 
 class ConversationMemory:
-    """Cross-turn and cross-session fact extraction and memory for AMR (V2)."""
+    """Cross-turn and cross-session fact extraction and memory for CoInvestor (V2)."""
 
     def __init__(self):
         self.budget_range: Optional[Dict[str, int]] = None  # {'min': X, 'max': Y}

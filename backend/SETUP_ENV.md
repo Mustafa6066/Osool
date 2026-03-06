@@ -130,7 +130,7 @@ DATABASE_URL=sqlite:///./osool_dev.db
 | `DATABASE_URL` | ✅ Yes | PostgreSQL or SQLite connection |
 | `JWT_SECRET_KEY` | ✅ Yes | Signs access tokens |
 | `OPENAI_API_KEY` | ✅ Yes | OpenAI embeddings & fallback |
-| `ANTHROPIC_API_KEY` | ✅ Yes | Claude AMR reasoning |
+| `ANTHROPIC_API_KEY` | ✅ Yes | Claude CoInvestor reasoning |
 | `WALLET_ENCRYPTION_KEY` | ✅ Yes | Encrypts user wallets (BACKUP THIS!) |
 | `ADMIN_API_KEY` | ⚠️ Recommended | Protects admin endpoints |
 | `SENTRY_DSN` | 🔵 Optional | Error tracking |
