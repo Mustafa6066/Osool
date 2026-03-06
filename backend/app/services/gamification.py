@@ -151,29 +151,39 @@ class GamificationEngine:
 
     async def seed_achievements(self, session: AsyncSession):
         """Seed achievement definitions into the database (idempotent)."""
-        for seed in ACHIEVEMENT_SEEDS:
-            existing = await session.execute(
-                select(Achievement).filter(Achievement.key == seed["key"])
-            )
-            if not existing.scalar_one_or_none():
-                session.add(Achievement(**seed))
-        await session.commit()
-        logger.info(f"Seeded {len(ACHIEVEMENT_SEEDS)} achievements")
+        try:
+            for seed in ACHIEVEMENT_SEEDS:
+                existing = await session.execute(
+                    select(Achievement).filter(Achievement.key == seed["key"])
+                )
+                if not existing.scalar_one_or_none():
+                    session.add(Achievement(**seed))
+            await session.commit()
+            logger.info(f"Seeded {len(ACHIEVEMENT_SEEDS)} achievements")
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to seed achievements: {e}", exc_info=True)
+            raise
 
     async def get_or_create_profile(self, user_id: int, session: AsyncSession) -> InvestorProfile:
         """Get or create an investor profile for a user."""
-        result = await session.execute(
-            select(InvestorProfile).filter(InvestorProfile.user_id == user_id)
-        )
-        profile = result.scalar_one_or_none()
+        try:
+            result = await session.execute(
+                select(InvestorProfile).filter(InvestorProfile.user_id == user_id)
+            )
+            profile = result.scalar_one_or_none()
 
-        if not profile:
-            profile = InvestorProfile(user_id=user_id)
-            session.add(profile)
-            await session.commit()
-            await session.refresh(profile)
+            if not profile:
+                profile = InvestorProfile(user_id=user_id)
+                session.add(profile)
+                await session.commit()
+                await session.refresh(profile)
 
-        return profile
+            return profile
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to get/create profile for user {user_id}: {e}", exc_info=True)
+            raise
 
     async def award_xp(
         self,
@@ -224,11 +234,20 @@ class GamificationEngine:
         except (json.JSONDecodeError, TypeError):
             profile.tools_used = json.dumps({action: 1})
 
-        await session.commit()
-        await session.refresh(profile)
+        try:
+            await session.commit()
+            await session.refresh(profile)
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to commit XP award for user {user_id}, action {action}: {e}", exc_info=True)
+            raise
 
-        # Check achievements
-        achievements = await self.check_achievements(user_id, session)
+        # Check achievements (separate transaction scope)
+        try:
+            achievements = await self.check_achievements(user_id, session)
+        except Exception as e:
+            logger.warning(f"Achievement check failed (non-fatal): {e}")
+            achievements = []
 
         return {
             "xp_awarded": amount,
@@ -284,7 +303,12 @@ class GamificationEngine:
         elif profile.login_streak == 90:
             streak_bonus = await self.award_xp(user_id, "streak_90", session)
 
-        await session.commit()
+        try:
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to commit streak update for user {user_id}: {e}", exc_info=True)
+            raise
 
         return {
             "streak": profile.login_streak,
@@ -303,7 +327,12 @@ class GamificationEngine:
         areas[area] = areas.get(area, 0) + 1
         profile.areas_explored = json.dumps(areas, ensure_ascii=False)
         profile.properties_analyzed += 1
-        await session.commit()
+        try:
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to track area for user {user_id}, area {area}: {e}", exc_info=True)
+            raise
 
     async def check_achievements(self, user_id: int, session: AsyncSession) -> List[Dict]:
         """Check and unlock any newly qualified achievements."""
@@ -391,7 +420,12 @@ class GamificationEngine:
             # Re-check level after achievement XP
             new_level = _get_level_for_xp(profile.xp)
             profile.level = new_level["key"]
-            await session.commit()
+            try:
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to commit achievements for user {user_id}: {e}", exc_info=True)
+                raise
 
         return unlocked
 
@@ -433,7 +467,13 @@ class GamificationEngine:
 
         # Persist
         profile.investment_readiness_score = final_score
-        await session.commit()
+        try:
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to persist readiness score for user {user_id}: {e}", exc_info=True)
+            # Non-critical failure, return calculated score anyway
+            logger.warning(f"Returning calculated readiness score {final_score} despite commit failure")
 
         return final_score
 

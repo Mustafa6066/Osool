@@ -993,7 +993,13 @@ async def chat_stream(
                 content=req.message
             )
             db.add(user_message)
-            await db.commit()
+            try:
+                await db.commit()
+            except Exception as commit_err:
+                await db.rollback()
+                logger.error(f"Failed to save user message: {commit_err}", exc_info=True)
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Database error. Please try again.'}, ensure_ascii=False)}\n\n"
+                return
 
             # Send initial tool indication
             yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'wolf_brain'}, ensure_ascii=False)}\n\n"
@@ -1106,7 +1112,12 @@ async def chat_stream(
                 properties_json=json.dumps(search_results, ensure_ascii=False) if search_results else None
             )
             db.add(ai_message)
-            await db.commit()
+            try:
+                await db.commit()
+            except Exception as commit_err:
+                await db.rollback()
+                logger.error(f"Failed to save AI response (non-fatal, response still delivered): {commit_err}", exc_info=True)
+                # Don't fail the stream, user already got the response
 
             # Send final response with all metadata (including fields needed by frontend)
             readiness_score = card_readiness.get("readiness_score", 0) if card_readiness else 0

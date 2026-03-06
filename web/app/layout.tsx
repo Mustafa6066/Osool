@@ -6,6 +6,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { GamificationProvider } from '@/contexts/GamificationContext';
 import NeuralBackground from '@/components/NeuralBackground';
 import GamificationOverlay from '@/components/GamificationOverlay';
+import { ErrorBoundaryProvider } from '@/components/ErrorBoundaryProvider';
 
 export const metadata: Metadata = {
   title: "Osool | Your AI Real Estate Advisor for Egypt",
@@ -33,36 +34,38 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body>
-        <ThemeProvider>
-          <LanguageProvider>
-            <AuthProvider>
-              <GamificationProvider>
-                {/* Neural Background Layer */}
-                <NeuralBackground />
+        <ErrorBoundaryProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              <AuthProvider>
+                <GamificationProvider>
+                  {/* Neural Background Layer */}
+                  <NeuralBackground />
 
-                {/* Content Layer — inline styles guarantee these can never be overridden */}
-                <div
-                  id="app-root"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    width: '100%',
-                    minHeight: '100vh',
-                    flex: '1 1 0%',
-                    position: 'relative',
-                    zIndex: 10,
-                    overflow: 'auto',
-                  }}
-                >
-                  {children}
-                </div>
+                  {/* Content Layer — inline styles guarantee these can never be overridden */}
+                  <div
+                    id="app-root"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      width: '100%',
+                      minHeight: '100vh',
+                      flex: '1 1 0%',
+                      position: 'relative',
+                      zIndex: 10,
+                      overflow: 'auto',
+                    }}
+                  >
+                    {children}
+                  </div>
 
-                {/* Global Gamification Notifications */}
-                <GamificationOverlay />
-              </GamificationProvider>
-            </AuthProvider>
-          </LanguageProvider>
-        </ThemeProvider>
+                  {/* Global Gamification Notifications */}
+                  <GamificationOverlay />
+                </GamificationProvider>
+              </AuthProvider>
+            </LanguageProvider>
+          </ThemeProvider>
+        </ErrorBoundaryProvider>
       </body>
     </html>
   );
