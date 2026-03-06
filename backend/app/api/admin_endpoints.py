@@ -127,6 +127,10 @@ async def admin_list_users(
     """
     Admin: Get all registered users with chat statistics.
     """
+    # Get total count first
+    count_result = await db.execute(select(func.count(User.id)))
+    total_count = count_result.scalar() or 0
+
     result = await db.execute(
         select(
             User.id,
@@ -140,7 +144,10 @@ async def admin_list_users(
             func.max(ChatMessage.created_at).label("last_activity"),
         )
         .outerjoin(ChatMessage, User.id == ChatMessage.user_id)
-        .group_by(User.id)
+        .group_by(
+            User.id, User.email, User.full_name, User.role,
+            User.created_at, User.is_verified, User.kyc_status,
+        )
         .order_by(User.created_at.desc())
         .limit(limit)
         .offset(offset)
@@ -160,7 +167,7 @@ async def admin_list_users(
             "last_activity": row.last_activity.isoformat() if row.last_activity else None,
         })
 
-    return {"total": len(users), "users": users}
+    return {"total": total_count, "users": users}
 
 
 # ═══════════════════════════════════════════════════════════════

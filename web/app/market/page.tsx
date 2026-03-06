@@ -27,7 +27,7 @@ const itemV = {
 };
 const slideUp = {
     hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' as const } },
 };
 
 /* ---- utilities ---- */
@@ -106,7 +106,7 @@ function AnimatedBar({ pct, delay = 0, color = 'emerald' }: { pct: number; delay
     const g: Record<string, string> = { emerald: 'from-emerald-600 to-emerald-400', amber: 'from-amber-600 to-amber-400', blue: 'from-blue-600 to-blue-400', violet: 'from-violet-600 to-violet-400', rose: 'from-rose-600 to-rose-400' };
     return (
         <div className="h-2 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
-            <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(pct, 100)}%` }} transition={{ duration: 1, delay, ease: 'easeOut' }}
+            <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(pct, 100)}%` }} transition={{ duration: 1, delay, ease: 'easeOut' as const }}
                 className={`h-full bg-gradient-to-r ${g[color] || g.emerald} rounded-full`} />
         </div>
     );
