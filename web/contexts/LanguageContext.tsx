@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { translations } from '@/lib/translations';
 
 type Language = 'en' | 'ar';
 type Direction = 'ltr' | 'rtl';
@@ -14,9 +15,6 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
-
-// Import translations
-import { translations } from '@/lib/translations';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
     const [language, setLanguageState] = useState<Language>('en');
