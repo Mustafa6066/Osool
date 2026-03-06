@@ -26,10 +26,7 @@ from app.models import (
     Transaction,
     PaymentApproval,
     ChatMessage,
-    RefreshToken,
-    LiquidityPool,
-    Trade,
-    LiquidityPosition
+    RefreshToken
 )
 
 # this is the Alembic Config object, which provides

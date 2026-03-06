@@ -1,3 +1,35 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+build/
+dist/
+
+# Node
+node_modules/
+.next/
+/.parcel-cache
+npm-debug.log
+
+# Env
+.env
+.env.*
+*.local
+
+# Editor
+.vscode/
+.idea/
+*.sublime-workspace
+
+# OS
+.DS_Store
+
+# Sensitive local configs
+.claude/
 # Dependencies
 node_modules/
 

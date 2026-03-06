@@ -11,11 +11,16 @@ Features:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 from dotenv import load_dotenv
 import os
 
 # Load environment variables
 load_dotenv()
+
+# Logger
+logger = logging.getLogger("osool")
+logging.basicConfig(level=logging.INFO)
 
 # Phase 5: Sentry Integration for Error Tracking
 SENTRY_DSN = os.getenv("SENTRY_DSN")
@@ -34,13 +39,13 @@ if SENTRY_DSN:
         environment=os.getenv("ENVIRONMENT", "development"),
         release=f"osool-backend@{os.getenv('APP_VERSION', '1.0.0')}",
     )
-    print("✅ Sentry error tracking enabled")
+    logger.info("✅ Sentry error tracking enabled")
 else:
-    print("⚠️ Sentry DSN not configured - error tracking disabled")
+    logger.warning("⚠️ Sentry DSN not configured - error tracking disabled")
 
-print("🐺 WOLF OF OSOOL: PROTOCOL 6 ACTIVATED (New Version Loaded)")
-print("✅ Velvet Rope Gating: ENABLED")
-print("✅ Market Intel Injection: ENABLED")
+logger.info("🐺 WOLF OF OSOOL: PROTOCOL 6 ACTIVATED (New Version Loaded)")
+logger.info("✅ Velvet Rope Gating: ENABLED")
+logger.info("✅ Market Intel Injection: ENABLED")
 
 # Import routers
 from app.api.endpoints import router as api_router
@@ -139,16 +144,6 @@ def is_allowed_origin(origin: str) -> bool:
 print(f"[+] CORS Origins configured: {origins}")
 print(f"[+] Vercel preview URLs also allowed via wildcard pattern")
 
-# Use allow_origin_regex to accept all Vercel preview URLs
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # ═══════════════════════════════════════════════════════════════
 # SECURITY HEADERS MIDDLEWARE (Phase 6)
 # ═══════════════════════════════════════════════════════════════
@@ -186,7 +181,25 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         return response
 
+# Simple in-memory rate limiter (safety net)
+from app.middleware.simple_rate_limiter import SimpleRateLimiterMiddleware
+
+# NOTE: Middleware order matters in FastAPI (LIFO - Last In First Out)
+# Middleware added LAST executes FIRST in the request chain.
+# Order (bottom to top, execution order): Rate Limiter → Security Headers → CORS (must be last!)
+
+app.add_middleware(SimpleRateLimiterMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS MIDDLEWARE - MUST BE ADDED LAST (executes first in middleware chain)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_origin_regex=r"https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -201,7 +214,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     Phase 5: Catches all 500 errors to prevent raw stack traces leaking to user.
     Logs to Sentry for monitoring.
     """
-    print(f"❌ [CRITICAL] 500 ERROR: {exc}")  # Internal Log
+    # Log internal error without exposing details to clients
+    logger.exception("Unhandled exception during request: %s %s", request.method, request.url)
 
     # Phase 5: Send to Sentry if configured
     if SENTRY_DSN:
@@ -210,9 +224,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
     return JSONResponse(
         status_code=500,
-        content={
-            "error": "Osool System Busy - Our agents are notified.",
-        },
+        content={"error": "Osool System Busy - Our agents are notified."},
     )
 
 # ═══════════════════════════════════════════════════════════════
