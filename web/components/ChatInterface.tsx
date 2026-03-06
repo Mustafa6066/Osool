@@ -1488,7 +1488,11 @@ export default function ChatInterface() {
                                                                                             ol: ({ node, ...props }) => <ol className={`list-decimal ${isMsgRtl ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
                                                                                             h2: ({ node, ...props }) => <h2 className={`text-lg font-bold text-[var(--osool-deep-teal)] mt-4 mb-2 ${alignClass}`} {...props} />,
                                                                                             h3: ({ node, ...props }) => <h3 className={`text-base font-bold text-[var(--osool-deep-teal)] mt-3 mb-2 ${alignClass}`} {...props} />,
-                                                                                            table: ({ node, ...props }) => <table className={`w-full border-collapse my-4 text-sm ${alignClass}`} {...props} />,
+                                                                                            table: ({ node, ...props }) => (
+                                                                                                <div className="overflow-x-auto my-4 rounded-lg border border-[var(--color-border-subtle)]">
+                                                                                                    <table className={`w-full border-collapse text-sm ${alignClass}`} {...props} />
+                                                                                                </div>
+                                                                                            ),
                                                                                             th: ({ node, ...props }) => <th className={`border border-[var(--color-border-subtle)] p-2 bg-[var(--ai-surface)] font-bold ${alignClass}`} {...props} />,
                                                                                             td: ({ node, ...props }) => <td className={`border border-[var(--color-border-subtle)] p-2 ${alignClass}`} {...props} />,
                                                                                             code: ({ node, inline, className, children, ...props }: any) => {

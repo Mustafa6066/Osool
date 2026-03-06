@@ -122,7 +122,15 @@ const MarkdownMessage = ({ content }: { content: string }) => {
     const normalized = content
         .replace(/\r\n/g, '\n')
         .replace(/\n{3,}/g, '\n\n')
-        .replace(/(?<!\n)\n(?!\n)/g, '\n\n');
+        .replace(/(?<!\n)\n(?!\n)/gm, (match, offset, str) => {
+            // Don't double-space lines inside markdown tables
+            const before = str.lastIndexOf('\n', offset - 1);
+            const after = str.indexOf('\n', offset + 1);
+            const prevLine = str.slice(before + 1, offset);
+            const nextLine = str.slice(offset + 1, after === -1 ? undefined : after);
+            if (/^\s*\|/.test(prevLine) || /^\s*\|/.test(nextLine)) return match;
+            return '\n\n';
+        });
 
     return (
         <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-right' : 'text-left'}>
