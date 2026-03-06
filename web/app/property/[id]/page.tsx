@@ -196,7 +196,7 @@ export default function PropertyDetailsPage() {
     };
 
     // AI estimate: use backend value if available, otherwise don't show
-    const aiEstimate = property ? (property.ai_valuation || property.aiEstimate || null) : null;
+    const aiEstimate = property ? ((property as Record<string, unknown>).ai_valuation as number || (property as Record<string, unknown>).aiEstimate as number || null) : null;
     const priceDiff = (property && aiEstimate) ? aiEstimate - property.price : 0;
     const priceDiffPercent = (property && aiEstimate && property.price) ? ((priceDiff / property.price) * 100).toFixed(1) : '0';
 
