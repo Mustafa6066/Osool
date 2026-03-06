@@ -1188,6 +1188,7 @@ export default function AgentInterface() {
                         </div>
                         <button
                             onClick={() => setContextPaneOpen(false)}
+                            aria-label={conversationLanguage === 'ar' ? 'إغلاق التفاصيل' : 'Close details pane'}
                             title="Close details pane"
                             className="w-8 h-8 flex items-center justify-center text-[var(--color-text-muted)] hover:text-gray-900 dark:hover:text-white bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all"
                         >
@@ -1357,12 +1358,11 @@ export default function AgentInterface() {
                                                     </span>
                                                 )}
                                             </div>
-                                        <button
-                                            onClick={() => setContextPaneOpen(false)}
-                                            aria-label={conversationLanguage === 'ar' ? 'إغلاق التفاصيل' : 'Close details pane'}
-                                            title="Close details pane"
-                                            className="w-8 h-8 flex items-center justify-center text-[var(--color-text-muted)] hover:text-gray-900 dark:hover:text-white bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all"
-                                        >
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                            <div className="p-3 border-t border-[var(--color-border)]">
                                 <button
                                     onClick={() => { handleNewChat(); setHistoryOpen(false); }}
                                     className="w-full py-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-xl text-[13px] font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
