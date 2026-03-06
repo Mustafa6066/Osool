@@ -39,6 +39,39 @@
   --osool-deep-teal: #267360;
 }
 
+/* Utility fonts */
+.font-cairo {
+  font-family: "Cairo", sans-serif;
+}
+
+/* ChatInterface message styles */
+.user-message-bubble {
+  background: var(--user-surface);
+  color: var(--user-surface-text);
+}
+
+.ai-message-body {
+  border-top-left-radius: 4px;
+  border-top-right-radius: var(--radius-message);
+}
+
+.ai-message-body[data-dir="rtl"] {
+  border-top-left-radius: var(--radius-message);
+  border-top-right-radius: 4px;
+}
+
+.ai-message-body .ai-accent-border {
+  left: 0;
+  right: auto;
+  border-radius: 3px 0 0 3px;
+}
+
+.ai-message-body[data-dir="rtl"] .ai-accent-border {
+  left: auto;
+  right: 0;
+  border-radius: 0 3px 3px 0;
+}
+
 /* ============================================
    LIGHT THEME — Clean White
    ============================================ */
@@ -249,8 +282,8 @@ body > div:first-child {
   /* Glass — Refined */
   .glass-panel {
     background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
     border: 1px solid rgba(0, 0, 0, 0.04);
   }
   .dark .glass-panel, [data-theme="dark"] .glass-panel {
@@ -260,8 +293,8 @@ body > div:first-child {
 
   .glass-header {
     background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
   }
   .dark .glass-header, [data-theme="dark"] .glass-header {
     background: rgba(9, 9, 11, 0.8);
@@ -269,8 +302,8 @@ body > div:first-child {
 
   .glass-input {
     background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
   .dark .glass-input, [data-theme="dark"] .glass-input {
     background: rgba(17, 17, 19, 0.9);
@@ -291,10 +324,10 @@ body > div:first-child {
 
   @media (pointer: coarse) { .touch-target { min-height: 44px; min-width: 44px; } }
 
-  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide { -ms-overflow-style: none; }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar { -ms-overflow-style: none; }
 
   .bg-grid-light { background-image: none; }
   .bg-grid-dark {
@@ -402,8 +435,8 @@ body > div:first-child {
 
 .premium-card {
   background: var(--card-surface);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--card-shadow);
@@ -558,7 +591,8 @@ body > div:first-child {
   width: 340px; flex-shrink: 0;
   border-left: 1px solid var(--color-border);
   background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   overflow-y: auto;
 }
 .dark .contextual-sidebar { background: rgba(9, 9, 11, 0.85); }
@@ -568,7 +602,7 @@ body > div:first-child {
 
 /* Badges */
 .badge-top-pick { background: rgba(255, 255, 255, 0.9); color: var(--color-primary); font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
-.dark .badge-top-pick { background: rgba(0, 0, 0, 0.6); color: var(--color-primary-light); backdrop-filter: blur(8px); }
+.dark .badge-top-pick { background: rgba(0, 0, 0, 0.6); color: var(--color-primary-light); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .badge-high-growth { background: rgba(16, 185, 129, 0.08); color: #10B981; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
 .dark .badge-high-growth { background: rgba(52, 211, 153, 0.12); color: #34D399; }
 

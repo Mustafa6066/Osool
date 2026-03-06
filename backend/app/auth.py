@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
@@ -307,6 +309,29 @@ def get_or_create_user_by_email(db: Session, email: str, full_name: str) -> User
     return user
 
 
+async def get_or_create_user_by_email_async(db: AsyncSession, email: str, full_name: str) -> User:
+    """
+    Async version of get_or_create_user_by_email for AsyncSession.
+    """
+    result = await db.execute(select(User).filter(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        user = User(
+            email=email,
+            full_name=full_name,
+            email_verified=True,
+            is_verified=True,
+            role='investor'
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        logger.info(f"Created new user via email (async): {email}")
+
+    return user
+
+
 # ═══════════════════════════════════════════════════════════════
 # REFRESH TOKEN SYSTEM (Phase 6)
 # ═══════════════════════════════════════════════════════════════
@@ -414,4 +439,65 @@ def revoke_all_user_tokens(db: Session, user_id: int):
     ).update({"is_revoked": True})
     db.commit()
     logger.info(f"🔒 Revoked all refresh tokens for user {user_id}")
+
+
+# ═══════════════════════════════════════════════════════════════
+# ASYNC REFRESH TOKEN HELPERS (for AsyncSession)
+# ═══════════════════════════════════════════════════════════════
+
+async def create_refresh_token_async(db: AsyncSession, user_id: int) -> str:
+    """
+    Create a new refresh token for a user using AsyncSession.
+
+    Returns:
+        Raw refresh token (only time it's available unhashed)
+    """
+    raw_token = secrets.token_urlsafe(32)
+    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
+    expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    refresh_token = RefreshToken(
+        user_id=user_id,
+        token=hashed_token,
+        expires_at=expires_at,
+    )
+    db.add(refresh_token)
+    await db.commit()
+    await db.refresh(refresh_token)
+
+    logger.info(f"✅ Created refresh token (async) for user {user_id}")
+    return raw_token
+
+
+async def verify_refresh_token_async(db: AsyncSession, raw_token: str) -> Optional[int]:
+    """
+    Verify a refresh token and return the user ID if valid (AsyncSession).
+    """
+    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
+    result = await db.execute(
+        select(RefreshToken).filter(
+            RefreshToken.token == hashed_token,
+            RefreshToken.is_revoked == False,
+            RefreshToken.expires_at > datetime.utcnow(),
+        )
+    )
+    token_record = result.scalar_one_or_none()
+    return token_record.user_id if token_record else None
+
+
+async def revoke_refresh_token_async(db: AsyncSession, raw_token: str) -> bool:
+    """
+    Revoke a refresh token (AsyncSession).
+    """
+    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
+    result = await db.execute(
+        select(RefreshToken).filter(RefreshToken.token == hashed_token)
+    )
+    token_record = result.scalar_one_or_none()
+    if token_record:
+        token_record.is_revoked = True
+        await db.commit()
+        logger.info(f"🔒 Revoked refresh token (async) for user {token_record.user_id}")
+        return True
+    return False
 

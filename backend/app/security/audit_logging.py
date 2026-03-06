@@ -198,8 +198,20 @@ class AuditLogger:
     
     def _send_to_siem(self, event: AuditEvent):
         """Send critical events to SIEM system."""
-        # TODO: Integrate with Sentry, Datadog, or other SIEM
-        # For now, just log to separate critical log
+        # If Sentry is configured, send critical audit events
+        try:
+            if os.getenv("SENTRY_DSN"):
+                import sentry_sdk
+                sentry_sdk.capture_message(
+                    "Critical audit event",
+                    level="error",
+                    extra={"audit_event": json.loads(event.to_json())}
+                )
+                return
+        except Exception as e:
+            logger.warning(f"Sentry capture failed for audit event: {e}")
+
+        # Fallback: log to separate critical log
         try:
             log_dir = os.getenv("AUDIT_LOG_DIR", "/var/log/osool/audit")
             with open(f"{log_dir}/critical.log", "a") as f:

@@ -757,6 +757,7 @@ export default function AgentInterface() {
                         <button
                             onClick={() => handleSendMessage()}
                             disabled={isTyping || !inputValue.trim()}
+                            aria-label={conversationLanguage === 'ar' ? 'إرسال الرسالة' : 'Send message'}
                             title="Send message"
                             className="p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-20 disabled:pointer-events-none"
                         >
@@ -838,6 +839,7 @@ export default function AgentInterface() {
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => setHistoryOpen(true)}
+                                        aria-label={conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past conversations'}
                                         className="p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
                                         title={conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past Conversations'}
                                     >
@@ -845,6 +847,7 @@ export default function AgentInterface() {
                                     </button>
                                     <button
                                         onClick={handleNewChat}
+                                        aria-label={conversationLanguage === 'ar' ? 'محادثة جديدة' : 'New chat'}
                                         className="p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
                                         title={conversationLanguage === 'ar' ? 'محادثة جديدة' : 'New Chat'}
                                     >
@@ -1319,7 +1322,12 @@ export default function AgentInterface() {
                         >
                             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
                                 <span className="text-[15px] font-semibold text-[var(--color-text-primary)]">{conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past Conversations'}</span>
-                                <button onClick={() => setHistoryOpen(false)} title="Close" className="p-1.5 hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors">
+                                <button
+                                    onClick={() => setHistoryOpen(false)}
+                                    aria-label={conversationLanguage === 'ar' ? 'إغلاق' : 'Close'}
+                                    title="Close"
+                                    className="p-1.5 hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors"
+                                >
                                     <X className="w-4 h-4 text-[var(--color-text-muted)]" />
                                 </button>
                             </div>
@@ -1349,11 +1357,12 @@ export default function AgentInterface() {
                                                     </span>
                                                 )}
                                             </div>
-                                        </button>
-                                    ))
-                                )}
-                            </div>
-                            <div className="p-3 border-t border-[var(--color-border)]">
+                                        <button
+                                            onClick={() => setContextPaneOpen(false)}
+                                            aria-label={conversationLanguage === 'ar' ? 'إغلاق التفاصيل' : 'Close details pane'}
+                                            title="Close details pane"
+                                            className="w-8 h-8 flex items-center justify-center text-[var(--color-text-muted)] hover:text-gray-900 dark:hover:text-white bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all"
+                                        >
                                 <button
                                     onClick={() => { handleNewChat(); setHistoryOpen(false); }}
                                     className="w-full py-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-xl text-[13px] font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"

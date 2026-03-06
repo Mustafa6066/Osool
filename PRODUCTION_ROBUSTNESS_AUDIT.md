@@ -393,3 +393,27 @@ No broken functionality was found - all "issues" were incomplete implementations
 2. Monitor error rates post-deployment
 3. Implement P1 recommendations within 2 weeks
 4. Schedule P2 improvements for next sprint
+
+---
+
+## 9. Additional Production Hardening (Mar 6, 2026)
+
+### ✅ Auth Refresh Flow Completed
+- Added async refresh token helpers in `auth.py` for AsyncSession
+- Added `/api/auth/refresh` and `/api/auth/logout` endpoints
+- Login now returns refresh tokens for both standard and Google auth
+- Frontend now calls correct refresh endpoint (`/api/auth/refresh`) and revokes refresh token on logout
+
+### ✅ Accessibility: Icon Button Labels
+- Added `aria-label` to icon-only buttons in Chat UI and Agent UI
+- Added `aria-label` to modal close button
+- Added `aria-label` for Smart Insights pagination arrows
+
+### ✅ Audit Logging: SIEM Integration
+- Critical audit events now forward to Sentry when `SENTRY_DSN` is configured
+- File-based fallback remains for compliance logging
+
+### ✅ CSS Compatibility Improvements
+- Standardized `-webkit-backdrop-filter` placement for Safari
+- Added missing `-webkit-backdrop-filter` to dark badge blur
+- Added chat message styling classes to remove inline style lint warnings

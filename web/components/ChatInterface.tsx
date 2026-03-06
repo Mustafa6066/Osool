@@ -35,8 +35,16 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const MaterialIcon = ({ name, className = '', size = '20px' }: { name: string, className?: string, size?: string }) => {
     if (!name) return null;
+    const sizeClassMap: Record<string, string> = {
+        '14px': 'text-[14px]',
+        '16px': 'text-[16px]',
+        '18px': 'text-[18px]',
+        '20px': 'text-[20px]',
+        '24px': 'text-[24px]',
+    };
+    const sizeClass = sizeClassMap[size] || 'text-[20px]';
     return (
-        <span className={`material-symbols-outlined select-none ${className}`} style={{ fontSize: size }}>{name}</span>
+        <span className={`material-symbols-outlined select-none ${sizeClass} ${className}`}>{name}</span>
     );
 };
 
@@ -305,6 +313,7 @@ function FeaturedPropertyCard({
                         </button>
                         <button
                             onClick={onBookmark}
+                            aria-label={isRTL ? 'إضافة للمفضلة' : 'Bookmark property'}
                             className="size-10 sm:size-12 border border-[var(--color-border-subtle)] flex items-center justify-center hover:bg-[var(--color-studio-gray)] transition-colors rounded sm:rounded-none"
                         >
                             <Bookmark size={18} className="text-[var(--color-text-muted-studio)]" />
@@ -435,10 +444,16 @@ function Sidebar({
             <div className="p-4 border-t border-[var(--color-border-subtle)]">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 text-[var(--color-text-muted-studio)]">
-                        <button className="hover:text-[var(--color-text-main)] transition-colors">
+                        <button
+                            aria-label={isRTL ? 'الإعدادات' : 'Settings'}
+                            className="hover:text-[var(--color-text-main)] transition-colors"
+                        >
                             <MaterialIcon name="settings" size="18px" />
                         </button>
-                        <button className="hover:text-[var(--color-text-main)] transition-colors">
+                        <button
+                            aria-label={isRTL ? 'مساعدة' : 'Help'}
+                            className="hover:text-[var(--color-text-main)] transition-colors"
+                        >
                             <MaterialIcon name="help_outline" size="18px" />
                         </button>
                     </div>
@@ -587,6 +602,8 @@ function ContextualInsights({
                                 <button
                                     onClick={onPrev}
                                     disabled={currentIndex === 0}
+                                    aria-label={isRTL ? 'السابق' : 'Previous'}
+                                    title={isRTL ? 'السابق' : 'Previous'}
                                     className="p-1 rounded hover:bg-[var(--sidebar-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 >
                                     <ChevronLeft size={14} className="text-[var(--color-text-muted-studio)]" />
@@ -597,6 +614,8 @@ function ContextualInsights({
                                 <button
                                     onClick={onNext}
                                     disabled={currentIndex === properties.length - 1}
+                                    aria-label={isRTL ? 'التالي' : 'Next'}
+                                    title={isRTL ? 'التالي' : 'Next'}
                                     className="p-1 rounded hover:bg-[var(--sidebar-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 >
                                     <ChevronRight size={14} className="text-[var(--color-text-muted-studio)]" />
@@ -1154,6 +1173,7 @@ export default function ChatInterface() {
 
                     <button
                         onClick={toggleTheme}
+                        aria-label={theme === 'dark' ? (isRTL ? 'تفعيل الوضع الفاتح' : 'Switch to light mode') : (isRTL ? 'تفعيل الوضع الداكن' : 'Switch to dark mode')}
                         className="p-1.5 sm:p-2 rounded-full border border-[var(--color-border-subtle)] hover:bg-[var(--color-studio-white)] transition-colors text-[var(--color-text-muted-studio)]"
                     >
                         <MaterialIcon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size="16px" />
@@ -1171,6 +1191,7 @@ export default function ChatInterface() {
                         <div className="relative">
                             <button
                                 onClick={() => setUserMenuOpen(!isUserMenuOpen)}
+                                aria-label={isRTL ? 'قائمة المستخدم' : 'User menu'}
                                 className="size-8 sm:size-10 rounded-full bg-cover bg-center border border-[var(--color-border-subtle)] hover:opacity-80 transition-opacity flex items-center justify-center text-[var(--color-text-muted-studio)]"
                             >
                                 <User size={16} />
@@ -1242,7 +1263,7 @@ export default function ChatInterface() {
                                     className="welcome-title text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--color-text-main)] mb-2"
                                 >
                                     {isRTL ? (
-                                        <span style={{ fontFamily: 'Cairo, sans-serif' }}>{translations.ar.chatInterface.welcomeTitle}</span>
+                                        <span className="font-cairo">{translations.ar.chatInterface.welcomeTitle}</span>
                                     ) : (
                                         <span className="font-serif italic">{translations.en.chatInterface.welcomeTitle}</span>
                                     )}
@@ -1321,7 +1342,10 @@ export default function ChatInterface() {
                                     >
                                         <div className="relative flex items-center">
                                             {/* Plus button - absolute left */}
-                                            <button className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10">
+                                            <button
+                                                aria-label={isRTL ? 'إضافة' : 'Add'}
+                                                className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10"
+                                            >
                                                 <Plus size={18} />
                                             </button>
 
@@ -1341,12 +1365,16 @@ export default function ChatInterface() {
 
                                             {/* Right buttons - absolute right */}
                                             <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
-                                                <button className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors">
+                                                <button
+                                                    aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
+                                                    className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors"
+                                                >
                                                     <Mic size={18} />
                                                 </button>
                                                 <button
                                                     onClick={handleSend}
                                                     disabled={!input.trim() || isTyping || isTransitioning}
+                                                    aria-label={isRTL ? 'إرسال الرسالة' : 'Send message'}
                                                     className="osool-send-btn"
                                                 >
                                                     <Send size={16} />
@@ -1386,14 +1414,10 @@ export default function ChatInterface() {
                                                         <div className="flex justify-end">
                                                             <div className="max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%] flex flex-col items-end">
                                                                 <div
-                                                                    className={`px-5 sm:px-6 py-3 sm:py-4 shadow-md ${isRTL
+                                                                    className={`user-message-bubble px-5 sm:px-6 py-3 sm:py-4 shadow-md ${isRTL
                                                                         ? 'rounded-t-[var(--radius-message)] rounded-br-[var(--radius-message)] rounded-bl-[4px]'
                                                                         : 'rounded-t-[var(--radius-message)] rounded-bl-[var(--radius-message)] rounded-br-[4px]'
                                                                         }`}
-                                                                    style={{
-                                                                        background: 'var(--user-surface)',
-                                                                        color: 'var(--user-surface-text)',
-                                                                    }}
                                                                 >
                                                                     <p className="text-[13px] sm:text-[14px] leading-relaxed font-normal" dir="auto">
                                                                         {msg.content}
@@ -1430,21 +1454,10 @@ export default function ChatInterface() {
                                                                 {/* Message body */}
                                                                 <div
                                                                     className={`ai-message-body w-full ${msg.isTyping && !msg.content ? 'streaming' : ''} ${marginClass}`}
-                                                                    // Force border radius logic inline to override global CSS dependence on [dir]
-                                                                    style={{
-                                                                        borderTopLeftRadius: isMsgRtl ? 'var(--radius-message)' : '4px',
-                                                                        borderTopRightRadius: isMsgRtl ? '4px' : 'var(--radius-message)'
-                                                                    }}
+                                                                    data-dir={isMsgRtl ? 'rtl' : 'ltr'}
                                                                 >
                                                                     {/* Accent border - positioned based on direction */}
-                                                                    <div
-                                                                        className="ai-accent-border"
-                                                                        style={{
-                                                                            left: isMsgRtl ? 'auto' : 0,
-                                                                            right: isMsgRtl ? 0 : 'auto',
-                                                                            borderRadius: isMsgRtl ? '0 3px 3px 0' : '3px 0 0 3px'
-                                                                        }}
-                                                                    />
+                                                                    <div className="ai-accent-border" />
 
                                                                     <div className={`p-4 sm:p-5 ${isMsgRtl ? 'pr-5 sm:pr-6' : 'pl-5 sm:pl-6'}`}>
                                                                         {msg.isTyping && !msg.content ? (
@@ -1473,7 +1486,6 @@ export default function ChatInterface() {
                                                                                             strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
                                                                                             ul: ({ node, ...props }) => <ul className={`list-disc ${isMsgRtl ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
                                                                                             ol: ({ node, ...props }) => <ol className={`list-decimal ${isMsgRtl ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
-                                                                                            li: ({ node, ...props }) => <li className="mb-1" {...props} />,
                                                                                             h2: ({ node, ...props }) => <h2 className={`text-lg font-bold text-[var(--osool-deep-teal)] mt-4 mb-2 ${alignClass}`} {...props} />,
                                                                                             h3: ({ node, ...props }) => <h3 className={`text-base font-bold text-[var(--osool-deep-teal)] mt-3 mb-2 ${alignClass}`} {...props} />,
                                                                                             table: ({ node, ...props }) => <table className={`w-full border-collapse my-4 text-sm ${alignClass}`} {...props} />,
@@ -1584,7 +1596,10 @@ export default function ChatInterface() {
                                     >
                                         <div className="relative flex items-center">
                                             {/* Plus button - absolute left */}
-                                            <button className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10">
+                                            <button
+                                                aria-label={isRTL ? 'إضافة' : 'Add'}
+                                                className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10"
+                                            >
                                                 <Plus size={18} />
                                             </button>
 
@@ -1603,12 +1618,16 @@ export default function ChatInterface() {
 
                                             {/* Right buttons - absolute right */}
                                             <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
-                                                <button className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors">
+                                                <button
+                                                    aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
+                                                    className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors"
+                                                >
                                                     <Mic size={18} />
                                                 </button>
                                                 <button
                                                     onClick={handleSend}
                                                     disabled={!input.trim() || isTyping}
+                                                    aria-label={isRTL ? 'إرسال الرسالة' : 'Send message'}
                                                     className="osool-send-btn"
                                                 >
                                                     <Send size={16} />

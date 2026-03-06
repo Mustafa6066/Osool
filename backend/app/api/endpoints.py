@@ -20,7 +20,7 @@ from app.ai_engine.wolf_orchestrator import wolf_brain as hybrid_brain  # Backwa
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.claude_sales_agent import claude_sales_agent
 from app.services.paymob_service import paymob_service
-from app.auth import create_access_token, get_current_user, get_password_hash, verify_password
+from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, create_refresh_token_async
 from app.database import get_db
 from app.models import User, Property, Transaction, PaymentApproval
 from sqlalchemy.orm import Session
@@ -208,7 +208,13 @@ async def login(
         "sub": user.email, 
         "role": user.role,
     })
-    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
+    refresh_token = None
+    try:
+        refresh_token = await create_refresh_token_async(db, user.id)
+    except Exception as token_err:
+        logger.warning(f"Failed to create refresh token for {user.email}: {token_err}")
+
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user_id": user.id}
 
 
 

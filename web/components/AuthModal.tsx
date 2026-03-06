@@ -78,7 +78,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
                         {t('auth.welcomeBack')}
                     </h2>
-                    <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
+                    <button
+                        onClick={onClose}
+                        aria-label={t('auth.close') || 'Close'}
+                        className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                    >
                         <X size={24} />
                     </button>
                 </div>

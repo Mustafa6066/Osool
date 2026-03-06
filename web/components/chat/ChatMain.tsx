@@ -125,7 +125,6 @@ function AIMessage({
                                 p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
                                 ul: ({ node, ...props }) => <ul className={`list-disc mb-3 ${messageIsArabic ? 'pr-6' : 'pl-6'}`} {...props} />,
                                 ol: ({ node, ...props }) => <ol className={`list-decimal mb-3 ${messageIsArabic ? 'pr-6' : 'pl-6'}`} {...props} />,
-                                li: ({ node, ...props }) => <li className="mb-1" {...props} />,
                                 strong: ({ node, ...props }) => <strong className="font-bold text-[var(--color-primary)] dark:text-[var(--color-teal-accent)]" {...props} />,
                                 h1: ({ node, ...props }) => <h1 className={`text-xl font-bold mb-2 mt-4 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
                                 h2: ({ node, ...props }) => <h2 className={`text-lg font-bold mb-2 mt-3 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
@@ -249,9 +248,9 @@ function TypingIndicator({ isRTL }: { isRTL: boolean }) {
                     <Sparkles size={16} className="animate-pulse" />
                 </div>
                 <div className="flex items-center gap-1 py-2">
-                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce" />
+                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-2 h-2 bg-[var(--color-text-muted)] rounded-full animate-bounce [animation-delay:300ms]" />
                 </div>
             </div>
         </div>
@@ -282,6 +281,7 @@ function ChatInput({
                 <div className={`chatgpt-input ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <button
                         className="chatgpt-input-btn"
+                        aria-label={isRTL ? 'إرفاق ملف' : 'Attach file'}
                         title={isRTL ? 'إرفاق ملف' : 'Attach file'}
                     >
                         <Plus size={20} />
@@ -297,6 +297,7 @@ function ChatInput({
                     />
                     <button
                         className="chatgpt-input-btn"
+                        aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
                         title={isRTL ? 'إدخال صوتي' : 'Voice Input'}
                     >
                         <Mic size={20} />
@@ -304,6 +305,7 @@ function ChatInput({
                     <button
                         onClick={onSend}
                         disabled={!value.trim() || isTyping}
+                        aria-label={isRTL ? 'إرسال الرسالة' : 'Send message'}
                         className="chatgpt-send-btn"
                     >
                         {isTyping ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className={isRTL ? 'rotate-180' : ''} />}

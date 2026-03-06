@@ -17,6 +17,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -25,10 +26,14 @@ from app.models import User, Invitation
 from app.auth import (
     verify_google_token,
     get_or_create_user_by_email,
+    get_or_create_user_by_email_async,
     create_access_token,
     get_password_hash,
     verify_password,
-    get_current_user
+    get_current_user,
+    create_refresh_token_async,
+    verify_refresh_token_async,
+    revoke_refresh_token_async,
 )
 from app.services.sms_service import sms_service
 from app.services.email_service import email_service, create_verification_token, is_verification_token_valid, consume_verification_token
@@ -120,6 +125,14 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
 
 
 class SignupRequest(BaseModel):
@@ -300,10 +313,17 @@ async def login_with_verification(
         "role": user.role,
     })
 
+    refresh_token = None
+    try:
+        refresh_token = await create_refresh_token_async(db, user.id)
+    except Exception as token_err:
+        logger.warning(f"Failed to create refresh token for {user.email}: {token_err}")
+
     logger.info(f"Login successful: {user.email} (Display: {display_name})")
 
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "user_id": user.id,
         "full_name": user.full_name,
@@ -311,12 +331,61 @@ async def login_with_verification(
     }
 
 
+@router.post("/refresh")
+async def refresh_access_token(req: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Refresh access token using refresh token from request body.
+    Rotates refresh token on every use.
+    """
+    if not req.refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token provided")
+
+    user_id = await verify_refresh_token_async(db, req.refresh_token)
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    # Revoke old token and issue a new one
+    await revoke_refresh_token_async(db, req.refresh_token)
+
+    from sqlalchemy import select
+    result = await db.execute(select(User).filter(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    access_token = create_access_token(data={
+        "sub": user.email,
+        "role": user.role,
+    })
+    new_refresh_token = await create_refresh_token_async(db, user.id)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer",
+    }
+
+
+@router.post("/logout")
+async def logout(req: LogoutRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Revoke refresh token on logout (best-effort).
+    """
+    if req.refresh_token:
+        try:
+            await revoke_refresh_token_async(db, req.refresh_token)
+        except Exception as err:
+            logger.warning(f"Failed to revoke refresh token on logout: {err}")
+
+    return {"status": "ok"}
+
+
 # ═══════════════════════════════════════════════════════════════
 # GOOGLE OAUTH
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/google", response_model=AuthResponse)
-async def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
+async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
     """
     Authenticate with Google OAuth.
 
@@ -334,7 +403,7 @@ async def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db))
         name = user_info.get('name', 'Google User')
 
         # Get or create user
-        user = get_or_create_user_by_email(db, email, name)
+        user = await get_or_create_user_by_email_async(db, email, name)
 
         # Check if this is a new user
         is_new = user.full_name == 'Google User'
@@ -345,10 +414,17 @@ async def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db))
             "role": user.role
         })
 
+        refresh_token = None
+        try:
+            refresh_token = await create_refresh_token_async(db, user.id)
+        except Exception as token_err:
+            logger.warning(f"Failed to create refresh token for Google user {email}: {token_err}")
+
         logger.info(f"Google OAuth successful for {email}")
 
         return {
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
             "user_id": user.id,
             "is_new_user": is_new

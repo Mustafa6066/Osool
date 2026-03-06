@@ -106,7 +106,7 @@ api.interceptors.response.use(
 
       try {
         // Call refresh endpoint to get new access token
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
+        const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {
           refresh_token: refreshToken,
         });
 
@@ -186,6 +186,10 @@ export const getCurrentUserFromToken = (): any | null => {
  */
 export const logout = (): void => {
   if (typeof window !== 'undefined') {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (refreshToken) {
+      api.post('/api/auth/logout', { refresh_token: refreshToken }).catch(() => undefined);
+    }
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_full_name');
