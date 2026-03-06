@@ -112,7 +112,7 @@ export default function CertificatesVsProperty({
             initial={{ opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5, type: "spring", stiffness: 100, damping: 18 }}
-            className="bg-[var(--color-surface)]/80 backdrop-blur-sm rounded-2xl p-6 border border-[var(--color-border)] shadow-xl overflow-hidden"
+            className="bg-[var(--color-surface)]/80 backdrop-blur-sm rounded-2xl p-6 border border-[var(--color-border)] shadow-xl"
             dir={isRTL ? 'rtl' : 'ltr'}
         >
             {/* Header */}
@@ -160,7 +160,7 @@ export default function CertificatesVsProperty({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.25, duration: 0.5 }}
-                className="h-64 w-full mb-6"
+                className="h-64 w-full mb-6" dir="ltr"
             >
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -175,7 +175,21 @@ export default function CertificatesVsProperty({
                             dataKey="name"
                             type="category"
                             width={200}
-                            tick={{ fill: 'var(--color-text-muted)', fontSize: 11, direction: isRTL ? 'rtl' : 'ltr' }}
+                            tick={(props: any) => {
+                                const { x, y, payload } = props;
+                                return (
+                                    <text
+                                        x={x}
+                                        y={y}
+                                        dy={4}
+                                        textAnchor="end"
+                                        fill="var(--color-text-muted)"
+                                        fontSize={11}
+                                    >
+                                        {payload.value}
+                                    </text>
+                                );
+                            }}
                             tickLine={false}
                             axisLine={false}
                         />
