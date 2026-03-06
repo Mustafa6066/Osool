@@ -166,7 +166,7 @@ export default function CertificatesVsProperty({
                     <BarChart
                         data={comparisonData}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                         barSize={40}
                     >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-[var(--color-border)]" />
@@ -174,8 +174,10 @@ export default function CertificatesVsProperty({
                         <YAxis
                             dataKey="name"
                             type="category"
-                            width={isRTL ? 150 : 180}
-                            tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
+                            width={200}
+                            tick={{ fill: 'var(--color-text-muted)', fontSize: 11, direction: isRTL ? 'rtl' : 'ltr' }}
+                            tickLine={false}
+                            axisLine={false}
                         />
                         <Tooltip
                             cursor={{ fill: 'transparent' }}
@@ -200,7 +202,7 @@ export default function CertificatesVsProperty({
                                 return null;
                             }}
                         />
-                        <Bar animationDuration={2500}  animationDuration={2500} animationDuration={2000} animationEasing="ease-out" dataKey="value" radius={[0, 4, 4, 0]}>
+                        <Bar animationDuration={2000} animationEasing="ease-out" dataKey="value" radius={[0, 4, 4, 0]}>
                             {comparisonData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
