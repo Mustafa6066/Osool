@@ -98,6 +98,22 @@ const PriceGrowthChart = dynamic(() => import("./PriceGrowthChart"), {
     ssr: false,
 });
 
+// V10: Data Tables
+const DataTable = dynamic(() => import("./DataTable").then(mod => mod.default), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
+const FinancialComparisonTable = dynamic(() => import("./FinancialComparisonTable").then(mod => mod.FinancialComparisonTable), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
+const BankVsPropertyComparisonTable = dynamic(() => import("./FinancialComparisonTable").then(mod => mod.BankVsPropertyComparisonTable), {
+    loading: () => <VisualizationSkeleton />,
+    ssr: false,
+});
+
 // Loading skeleton
 function VisualizationSkeleton() {
     return (
@@ -389,6 +405,67 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         // Property cards are rendered by ChatMain.tsx via the properties field
         case "property_cards":
             return null;
+
+        // V10: Generic Data Table
+        case "data_table":
+        case "table": {
+            if (!data.columns || !Array.isArray(data.columns) || !data.data || !Array.isArray(data.data)) {
+                return null;
+            }
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <DataTable
+                        title={data.title}
+                        subtitle={data.subtitle}
+                        columns={data.columns}
+                        data={data.data}
+                        isRTL={isRTL}
+                        colorScheme={data.colorScheme || 'neutral'}
+                        icon={data.icon}
+                        maxHeight={data.maxHeight}
+                        onRowClick={data.onRowClick}
+                    />
+                </Suspense>
+            );
+        }
+
+        // V10: Financial Comparison Table (Bank vs Property, etc.)
+        case "financial_comparison_table":
+        case "comparison_table": {
+            if (!data.rows || !Array.isArray(data.rows) || data.rows.length === 0) {
+                return null;
+            }
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <FinancialComparisonTable
+                        title={data.title || 'المقارنة المالية'}
+                        subtitle={data.subtitle}
+                        rows={data.rows}
+                        isRTL={isRTL}
+                        colorScheme={data.colorScheme || 'info'}
+                        showTrends={data.showTrends !== false}
+                    />
+                </Suspense>
+            );
+        }
+
+        // Specific: Bank vs Property Comparison
+        case "bank_vs_property_table": {
+            if (!data.bankMonthly || !data.propertyMonthly) {
+                return null;
+            }
+            return (
+                <Suspense fallback={<VisualizationSkeleton />}>
+                    <BankVsPropertyComparisonTable
+                        bankMonthly={data.bankMonthly}
+                        bankActual={data.bankActual || data.bankMonthly}
+                        propertyMonthly={data.propertyMonthly}
+                        propertyActual={data.propertyActual || data.propertyMonthly}
+                        isRTL={isRTL}
+                    />
+                </Suspense>
+            );
+        }
 
         default:
             return null;

@@ -19,13 +19,19 @@ class SimpleRateLimiterMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.max_requests = int(max_requests or os.getenv("RATE_LIMIT_REQUESTS", "120"))
         self.window = int(window_seconds or os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+        self.trust_proxy_headers = os.getenv("TRUST_PROXY_HEADERS", "false").lower() == "true"
         # store timestamps per client IP
         self._clients = {}  # ip -> deque[timestamps]
 
     async def dispatch(self, request: Request, call_next):
-        # Identify client by IP (use X-Forwarded-For if behind proxy)
+        # Identify client by IP. Only trust proxy headers when explicitly enabled.
         xf = request.headers.get("x-forwarded-for")
-        client_ip = (xf.split(",")[0].strip() if xf else request.client.host) or "unknown"
+        if self.trust_proxy_headers and xf:
+            # Use right-most IP added by trusted proxy to avoid spoofing.
+            client_ip = xf.split(",")[-1].strip()
+        else:
+            client_ip = request.client.host
+        client_ip = client_ip or "unknown"
 
         now = time.time()
         dq = self._clients.get(client_ip)

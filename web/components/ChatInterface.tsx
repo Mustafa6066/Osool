@@ -137,31 +137,44 @@ function AmrAvatar({
 function useTypewriter(text: string, speed: number = 25) {
     const [displayedText, setDisplayedText] = useState('');
     const [isComplete, setIsComplete] = useState(false);
-    const index = useRef(0);
-    const previousText = useRef('');
+    // Keep latest text in a ref so the interval callback always reads current value
+    // without needing the effect to re-run (and restart the interval) on every text change
+    const textRef = useRef(text);
+    const indexRef = useRef(0);
+    const speedRef = useRef(speed);
 
+    // Sync refs without causing effect re-runs
+    useEffect(() => { textRef.current = text; }, [text]);
+    useEffect(() => { speedRef.current = speed; }, [speed]);
+
+    // Reset when text shrinks (new message) — stable dependency
+    const prevLenRef = useRef(0);
     useEffect(() => {
-        // Reset only if text is completely new (not an append/stream update)
-        if (!text.startsWith(previousText.current) && previousText.current !== '' && text.length < previousText.current.length) {
-            index.current = 0;
+        if (text.length < prevLenRef.current) {
+            indexRef.current = 0;
             setDisplayedText('');
             setIsComplete(false);
         }
-        previousText.current = text;
+        prevLenRef.current = text.length;
+    }, [text]);
 
+    // Single long-lived interval — reads current refs each tick
+    useEffect(() => {
         const interval = setInterval(() => {
-            if (index.current < text.length) {
-                index.current++;
-                setDisplayedText(text.slice(0, index.current));
+            const target = textRef.current;
+            if (indexRef.current < target.length) {
+                // Advance by up to 3 chars per tick for faster catch-up on long bursts
+                indexRef.current = Math.min(indexRef.current + 3, target.length);
+                setDisplayedText(target.slice(0, indexRef.current));
                 setIsComplete(false);
-            } else {
+            } else if (indexRef.current >= target.length && target.length > 0) {
                 setIsComplete(true);
-                clearInterval(interval);
             }
-        }, speed);
+        }, speedRef.current);
 
         return () => clearInterval(interval);
-    }, [text, speed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // intentionally empty — interval lives for the lifetime of the component
 
     return { displayedText, isComplete };
 }
@@ -822,6 +835,15 @@ function CompactVisualization({ viz, isRTL }: { viz: any; isRTL: boolean }) {
     );
 }
 
+// Strip bracketed action annotations from AI responses (e.g. [يفتح حاسبة القوة الشرائية])
+function cleanMessageContent(text: string): string {
+    return text
+        .replace(/\[[\u0600-\u06FF\u0621-\u064A\w\s،,.:()\/\-]+\]/g, '') // Arabic bracket text
+        .replace(/\[\s*[a-zA-Z\s_]+\s*\]/g, '')                               // English bracket actions
+        .replace(/\n{3,}/g, '\n\n')                                            // Collapse excess blank lines
+        .trim();
+}
+
 // ============================================
 // MAIN CHAT INTERFACE
 // ============================================
@@ -856,6 +878,12 @@ export default function ChatInterface() {
     const centeredInputRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const isRTL = language === 'ar';
+
+    // Streaming token buffer — accumulates tokens without triggering renders,
+    // flushed to state via requestAnimationFrame for smooth 60fps display
+    const streamBufferRef = useRef('');
+    const streamMsgIdRef = useRef<string | null>(null);
+    const rafIdRef = useRef<number | null>(null);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -968,18 +996,41 @@ export default function ChatInterface() {
         setMessages(prev => [...prev, { role: 'amr', content: '', id: aiMsgId, isTyping: true }]);
 
         let fullResponse = '';
+        // Initialize streaming buffer for this response
+        streamBufferRef.current = '';
+        streamMsgIdRef.current = aiMsgId;
+        if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+
+        const flushStreamBuffer = () => {
+            const buffered = streamBufferRef.current;
+            if (buffered !== '') {
+                setMessages(prev => prev.map(m =>
+                    m.id === streamMsgIdRef.current ? { ...m, content: buffered } : m
+                ));
+            }
+            rafIdRef.current = null;
+        };
+
         try {
             await streamChat(userMsg.content, sessionId, {
                 onToken: (token) => {
                     fullResponse += token;
-                    setMessages(prev => prev.map(m =>
-                        m.id === aiMsgId ? { ...m, content: fullResponse } : m
-                    ));
+                    streamBufferRef.current = fullResponse;
                     updateContextFromResponse(fullResponse);
+                    // Schedule a single RAF flush — if one is already pending, skip
+                    if (rafIdRef.current === null) {
+                        rafIdRef.current = requestAnimationFrame(flushStreamBuffer);
+                    }
                 },
                 onToolStart: () => { },
                 onToolEnd: () => { },
                 onComplete: (data) => {
+                    // Cancel any pending RAF and do final authoritative update
+                    if (rafIdRef.current !== null) {
+                        cancelAnimationFrame(rafIdRef.current);
+                        rafIdRef.current = null;
+                    }
                     setMessages(prev => prev.map(m =>
                         m.id === aiMsgId ? {
                             ...m,
@@ -1027,6 +1078,10 @@ export default function ChatInterface() {
                     }
                 },
                 onError: () => {
+                    if (rafIdRef.current !== null) {
+                        cancelAnimationFrame(rafIdRef.current);
+                        rafIdRef.current = null;
+                    }
                     setMessages(prev => prev.map(m =>
                         m.id === aiMsgId ? { ...m, content: fullResponse + '\n\n[Error]', isTyping: false } : m
                     ));
@@ -1439,7 +1494,7 @@ export default function ChatInterface() {
                                                                                             )
                                                                                         }}
                                                                                     >
-                                                                                        {msg.content}
+                                                                                        {cleanMessageContent(msg.content)}
                                                                                     </ReactMarkdown>
                                                                                 </div>
 

@@ -187,7 +187,12 @@ async def signup(req: LegacySignupRequest, db: AsyncSession = Depends(get_db)):
     return {"status": "user_created", "email": email, "id": new_user.id}
 
 @router.post("/auth/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db)
+):
     """
     Login endpoint. Returns JWT token.
     """

@@ -74,6 +74,15 @@ function UserMessage({ content, timestamp, isRTL }: { content: string; timestamp
     );
 }
 
+// Strip bracketed action annotations from AI responses (e.g. [يفتح حاسبة القوة الشرائية])
+function cleanMessageContent(text: string): string {
+    return text
+        .replace(/\[[\u0600-\u06FF\u0621-\u064A\w\s،,.:()\/\-]+\]/g, '') // Arabic bracket text
+        .replace(/\[\s*[a-zA-Z\s_]+\s*\]/g, '')                               // English bracket actions
+        .replace(/\n{3,}/g, '\n\n')                                            // Collapse excess blank lines
+        .trim();
+}
+
 // AI Message Component - ChatGPT Style (subtle bg, avatar)
 function AIMessage({
     content,
@@ -125,9 +134,24 @@ function AIMessage({
                                     <blockquote className={`${messageIsArabic ? 'border-r-4 pr-4 rounded-l' : 'border-l-4 pl-4 rounded-r'} border-[var(--color-primary)] py-1 my-2 bg-[var(--color-surface-hover)]`} {...props} />
                                 ),
                                 a: ({ node, ...props }) => <a className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                table: ({ node, ...props }) => (
+                                    <div className="overflow-x-auto my-4 rounded-xl border border-[var(--color-border)]/40">
+                                        <table className={`w-full border-collapse text-sm ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />
+                                    </div>
+                                ),
+                                thead: ({ node, ...props }) => <thead className="bg-[var(--color-surface)]/50" {...props} />,
+                                th: ({ node, ...props }) => (
+                                    <th className={`border border-[var(--color-border)]/40 px-3 py-2 font-semibold text-[var(--color-primary)] bg-[var(--color-surface)]/30 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />
+                                ),
+                                td: ({ node, ...props }) => (
+                                    <td className={`border border-[var(--color-border)]/40 px-3 py-2 text-[var(--color-text-secondary)] ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />
+                                ),
+                                tr: ({ node, ...props }) => (
+                                    <tr className="even:bg-[var(--color-surface)]/10 hover:bg-[var(--color-surface)]/20 transition-colors" {...props} />
+                                ),
                             }}
                         >
-                            {content}
+                            {cleanMessageContent(content)}
                         </ReactMarkdown>
                         {isStreaming && <span className="chatgpt-cursor" />}
                     </div>

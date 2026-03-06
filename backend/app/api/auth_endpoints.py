@@ -255,7 +255,9 @@ async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get
 
 
 @router.post("/login")
+@limiter.limit("10/minute")
 async def login_with_verification(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):

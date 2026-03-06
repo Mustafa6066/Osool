@@ -126,6 +126,9 @@ origins = [
     "https://osool.eg",  # Production (Core)
 ]
 
+if os.getenv("ENVIRONMENT") == "production":
+    origins = [o for o in origins if not o.startswith("http://localhost")]
+
 # Add all Vercel preview URLs dynamically
 # Vercel creates preview URLs like: osool-xxx-mustafas-projects-xxx.vercel.app
 import re

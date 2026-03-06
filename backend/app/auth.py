@@ -90,6 +90,9 @@ async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme
         from sqlalchemy import select
         
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+        if jti and is_token_blacklisted(jti):
+            return None
         username: str = payload.get("sub")
         
         if username is None:

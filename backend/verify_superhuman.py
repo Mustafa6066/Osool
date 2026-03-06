@@ -11,9 +11,13 @@ logger = logging.getLogger("Verification")
 # Add app to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
-# Mock Env Vars for Verification
-os.environ["OPENAI_API_KEY"] = "sk-dummy-openai-key"
-os.environ["ANTHROPIC_API_KEY"] = "sk-dummy-anthropic-key"
+# Require explicit env vars (or opt-in dummy keys) for verification
+if os.getenv("ALLOW_DUMMY_KEYS", "false").lower() == "true":
+     os.environ.setdefault("OPENAI_API_KEY", "DUMMY")
+     os.environ.setdefault("ANTHROPIC_API_KEY", "DUMMY")
+else:
+     if not os.getenv("OPENAI_API_KEY") or not os.getenv("ANTHROPIC_API_KEY"):
+          raise RuntimeError("OPENAI_API_KEY and ANTHROPIC_API_KEY must be set (or set ALLOW_DUMMY_KEYS=true) for verification.")
 
 async def test_superhuman_capabilities():
     print("\n🚀 STARTING SUPERHUMAN VERIFICATION (WolfBrain V6) 🚀\n")
