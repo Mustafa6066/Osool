@@ -216,6 +216,14 @@ function getOrCreateSessionId(): string {
     return id;
 }
 
+function sanitizeAgentContent(text: string): string {
+    if (!text) return text;
+    return text
+        .replace(/^\s*\[[^\n\]]+\]\s*$/gm, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 /* ─── Typewriter hook ─── */
 function useTypewriter(text: string, enabled: boolean, speed = 16) {
     const [displayed, setDisplayed] = useState(text);
@@ -246,10 +254,11 @@ function useTypewriter(text: string, enabled: boolean, speed = 16) {
 
 /* ─── Typewriter wrapper for agent messages ─── */
 const TypewriterMarkdown = ({ content, animate }: { content: string; animate: boolean }) => {
-    const { displayed, done } = useTypewriter(content, animate, 16);
-    const msgIsArabic = isArabic(displayed || content);
+    const sanitized = sanitizeAgentContent(content);
+    const { displayed, done } = useTypewriter(sanitized, animate, 16);
+    const msgIsArabic = isArabic(displayed || sanitized);
     if (done) {
-        return <MarkdownMessage content={content} />;
+        return <MarkdownMessage content={sanitized} />;
     }
     return (
         <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-right' : 'text-left'}>
