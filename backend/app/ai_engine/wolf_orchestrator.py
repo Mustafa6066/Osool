@@ -624,19 +624,32 @@ class WolfBrain:
 
             # HUMAN HANDOFF CHECK
             if "loop_detected" in lead_data.get("signals", []):
+                if language == "ar":
+                    loop_response = (
+                        "لاحظت إن سؤالك بيتكرر، وده معناه إني ممكن ما كنتش واضح كفاية في ردي.\n\n"
+                        "ممكن تصيغلي السؤال بشكل مختلف عشان أقدر أفيدك أكتر؟\n"
+                        "أو لو محتاج مساعدة متخصصة، تقدر تتواصل مع فريق أوصول مباشرة."
+                    )
+                    loop_suggestions = ["صياغة السؤال بشكل مختلف", "ابدأ محادثة جديدة", "عرض ملخص المحادثة"]
+                else:
+                    loop_response = (
+                        "I noticed your question is coming up repeatedly, which means I may not have been clear enough.\n\n"
+                        "Could you rephrase your question so I can help you better?\n"
+                        "Or if you need specialized assistance, you can reach the Osool team directly."
+                    )
+                    loop_suggestions = ["Rephrase my question", "Start a new conversation", "View conversation summary"]
+
                 return {
-                    "response": "لقد لاحظت تكرار الأسئلة، وهذا يتطلب تدخلاً من خبير بشري لتحليل الوضع بدقة.\n\n"
-                                "سأقوم بتحويلك الآن لمستشار أول (Senior Consultant) لمراجعة حالتك.\n"
-                                "تم فتح تذكرة #URGENT-882.",
+                    "response": loop_response,
                     "properties": [],
-                    "ui_actions": [{"type": "handoff_alert", "priority": "high"}],
+                    "ui_actions": [],
                     "psychology": psychology.to_dict(),
-                    "handoff": True,
-                    "suggestions": ["تواصل مع مستشار", "ابدأ محادثة جديدة", "عرض ملخص المحادثة"],
-                    "detected_language": "ar",
+                    "handoff": False,
+                    "suggestions": loop_suggestions,
+                    "detected_language": language,
                     "lead_score": lead_score,
                     "card_readiness": card_readiness,
-                    "intent": intent.intent if hasattr(intent, 'intent') else "handoff"
+                    "intent": intent.intent if hasattr(intent, 'intent') else "loop_detected"
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

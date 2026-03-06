@@ -818,15 +818,11 @@ def escalate_to_human(reason: str, user_contact: str) -> str:
     - Repeated objections (3+ times same concern)
 
     Returns:
-        Confirmation message with ticket ID
+        Confirmation message
     """
-    ticket_id = f"TKT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
     return json.dumps({
         "status": "escalated",
-        "ticket_id": ticket_id,
-        "estimated_response": "Within 2 hours",
-        "message": f"I've connected you with our senior property consultant who specializes in {reason}. They'll reach out to {user_contact} within 2 hours. In the meantime, would you like me to prepare a detailed property report for them?"
+        "message": f"Your request has been noted. A property consultant specializing in {reason} will contact you at {user_contact} shortly. In the meantime, feel free to ask me any other questions."
     })
 
 
