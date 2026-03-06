@@ -50,7 +50,20 @@ api.interceptors.request.use(
 /**
  * Response Interceptor: Handle 401 and Refresh Token
  * Automatically refreshes access token on 401 Unauthorized
+ * Uses a lock to prevent parallel refresh calls
  */
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
 api.interceptors.response.use(
   (response) => {
     // Pass through successful responses
@@ -62,6 +75,18 @@ api.interceptors.response.use(
     // Check if error is 401 Unauthorized and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+
+      // If already refreshing, queue this request to retry after refresh
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          addRefreshSubscriber((token: string) => {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+            resolve(api(originalRequest));
+          });
+        });
+      }
 
       // Get refresh token from localStorage
       const refreshToken = typeof window !== 'undefined'
@@ -76,6 +101,8 @@ api.interceptors.response.use(
         }
         return Promise.reject(error);
       }
+
+      isRefreshing = true;
 
       try {
         // Call refresh endpoint to get new access token
@@ -93,6 +120,9 @@ api.interceptors.response.use(
           }
         }
 
+        isRefreshing = false;
+        onTokenRefreshed(data.access_token);
+
         // Retry original request with new token
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
@@ -100,6 +130,8 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch (refreshError) {
+        isRefreshing = false;
+        refreshSubscribers = [];
         // Refresh failed - clear tokens and redirect to login
         if (typeof window !== 'undefined') {
           localStorage.clear();
@@ -218,6 +250,9 @@ export const streamChat = async (
 ): Promise<AbortController> => {
   const controller = new AbortController();
 
+  // Auto-timeout after 2 minutes to prevent hung connections
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
   try {
     const accessToken = typeof window !== 'undefined'
       ? localStorage.getItem('access_token')
@@ -319,6 +354,8 @@ export const streamChat = async (
     } else {
       callbacks.onError((error as Error).message);
     }
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   return controller;

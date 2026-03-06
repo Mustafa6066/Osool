@@ -59,7 +59,8 @@ export const staggerFadeIn = (target: string | HTMLElement[], startDelay = 0) =>
 // CHART & VISUALIZATION ANIMATIONS
 // ============================================
 
-export const drawLine = (path: SVGPathElement, duration = 1500) => {
+export const drawLine = (path: SVGPathElement | null, duration = 1500) => {
+    if (!path) return null;
     const length = path.getTotalLength();
     path.style.strokeDasharray = `${length}`;
     path.style.strokeDashoffset = `${length}`;
@@ -96,7 +97,7 @@ export const countUp = (
         duration,
         update: function () {
             if (suffix) {
-                target.innerHTML = target.innerHTML + suffix;
+                target.textContent = target.textContent + suffix;
             }
         }
     });

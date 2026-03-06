@@ -36,19 +36,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Backward compatibility migration
-    // Phase 2: Migrate old token names to new standardized names
-    const oldToken = localStorage.getItem('osool_jwt');
-    const oldUserId = localStorage.getItem('osool_user_id');
+    try {
+      // Backward compatibility migration
+      // Phase 2: Migrate old token names to new standardized names
+      const oldToken = localStorage.getItem('osool_jwt');
+      const oldUserId = localStorage.getItem('osool_user_id');
 
-    if (oldToken && !localStorage.getItem('access_token')) {
-      localStorage.setItem('access_token', oldToken);
-      localStorage.removeItem('osool_jwt');
-    }
+      if (oldToken && !localStorage.getItem('access_token')) {
+        localStorage.setItem('access_token', oldToken);
+        localStorage.removeItem('osool_jwt');
+      }
 
-    if (oldUserId && !localStorage.getItem('user_id')) {
-      localStorage.setItem('user_id', oldUserId);
-      localStorage.removeItem('osool_user_id');
+      if (oldUserId && !localStorage.getItem('user_id')) {
+        localStorage.setItem('user_id', oldUserId);
+        localStorage.removeItem('osool_user_id');
+      }
+    } catch {
+      // localStorage unavailable (e.g. Safari private browsing)
     }
 
     refreshUser();
@@ -63,8 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    apiLogout();
     setUser(null);
+    apiLogout();
   };
 
   return (

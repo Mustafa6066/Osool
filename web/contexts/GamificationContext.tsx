@@ -59,6 +59,14 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(false);
     const [xpQueue, setXpQueue] = useState<XPNotification[]>([]);
     const [achievementQueue, setAchievementQueue] = useState<AchievementNotification[]>([]);
+    const pendingTimers = React.useRef<ReturnType<typeof setTimeout>[]>([]);
+
+    // Cleanup timers on unmount
+    useEffect(() => {
+        return () => {
+            pendingTimers.current.forEach(clearTimeout);
+        };
+    }, []);
 
     // Fetch profile on auth change
     const refreshProfile = useCallback(async () => {
@@ -93,7 +101,8 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
         setXpQueue(prev => [...prev, { id, amount, action }]);
 
         // Auto-refresh profile after XP award to update level/XP display
-        setTimeout(() => refreshProfile(), 1000);
+        const timer = setTimeout(() => refreshProfile(), 1000);
+        pendingTimers.current.push(timer);
     }, [refreshProfile]);
 
     // Queue achievement notification
@@ -102,7 +111,8 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
         setAchievementQueue(prev => [...prev, { id, ...data }]);
 
         // Refresh to update achievements list
-        setTimeout(() => refreshProfile(), 1500);
+        const timer = setTimeout(() => refreshProfile(), 1500);
+        pendingTimers.current.push(timer);
     }, [refreshProfile]);
 
     // Dismiss handlers

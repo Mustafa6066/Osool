@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import SmartNav from '@/components/SmartNav';
 import PropertyFilter from '@/components/PropertyFilter';
-import { toggleFavorite } from '@/lib/gamification';
+import { toggleFavorite, fetchFavorites } from '@/lib/gamification';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { MapPin, Bed, Bath, Maximize, Sparkles, Heart, Grid3X3, Map, SlidersHorizontal, Loader2, Building2 } from 'lucide-react';
@@ -338,6 +338,17 @@ export default function PropertiesPage() {
     useEffect(() => {
         fetchProperties();
     }, [fetchProperties]);
+
+    // Load user's favorites from API
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        fetchFavorites()
+            .then(data => {
+                const ids = new Set(data.favorites.map(f => String(f.property_id)));
+                setFavoriteIds(ids);
+            })
+            .catch(() => { /* non-critical */ });
+    }, [isAuthenticated]);
 
     // Client-side filtering and sorting
     const filteredProperties = useMemo(() => {

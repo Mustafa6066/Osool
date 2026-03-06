@@ -7,6 +7,7 @@
 
 // XP Float Animation (CSS class injection)
 export function showXPToast(amount: number, element?: HTMLElement) {
+    if (typeof window === 'undefined') return;
     const toast = document.createElement('div');
     toast.className = 'xp-float-toast';
     toast.textContent = `+${amount} XP`;
@@ -35,6 +36,7 @@ export function showXPToast(amount: number, element?: HTMLElement) {
 
 // Achievement Unlock Sound (subtle click)
 export function playAchievementSound() {
+    if (typeof window === 'undefined') return;
     try {
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
@@ -60,6 +62,7 @@ export function playAchievementSound() {
 
 // Level Up Particle Effect
 export function triggerLevelUpEffect() {
+    if (typeof window === 'undefined') return;
     const container = document.createElement('div');
     container.className = 'level-up-overlay';
 
@@ -83,6 +86,7 @@ export function triggerLevelUpEffect() {
 
 // Streak Fire Effect (emoji burst)
 export function triggerStreakCelebration(days: number) {
+    if (typeof window === 'undefined') return;
     const emojis = days >= 90 ? ['💎', '👑', '🔥'] : days >= 30 ? ['🔥', '⚡', '🎯'] : ['🔥', '✨'];
     const container = document.createElement('div');
     container.className = 'streak-burst';

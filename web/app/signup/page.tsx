@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface InvitationStatus {
     valid: boolean;
@@ -18,8 +20,16 @@ interface InvitationStatus {
 function SignupContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { login: contextLogin } = useAuth();
+    const { login: contextLogin, isAuthenticated } = useAuth();
     const { t, language } = useLanguage();
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+    // Redirect if already authenticated
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.replace('/dashboard');
+        }
+    }, [isAuthenticated, router]);
 
     // Form state
     const [fullName, setFullName] = useState('');
@@ -40,18 +50,21 @@ function SignupContent() {
             setInvitationCode(inviteCode);
             validateInvitation(inviteCode);
         }
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
     }, [searchParams]);
 
-    // Validate invitation code
+    // Validate invitation code (with debounce for manual input)
     const validateInvitation = async (code: string) => {
-        if (!code) {
+        if (!code || code.length < 4) {
             setInvitationStatus(null);
             return;
         }
 
         setIsValidating(true);
         try {
-            const res = await fetch(`${API_URL}/api/auth/invitation/validate/${code}`);
+            const res = await fetch(`${API_URL}/api/auth/invitation/validate/${encodeURIComponent(code)}`);
             const data = await res.json();
             setInvitationStatus(data);
         } catch (err) {
@@ -64,6 +77,12 @@ function SignupContent() {
         }
     };
 
+    const handleInvitationChange = (code: string) => {
+        setInvitationCode(code);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => validateInvitation(code), 500);
+    };
+
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -74,12 +93,12 @@ function SignupContent() {
             setError('Please enter your full name');
             return;
         }
-        if (!email.trim()) {
-            setError('Please enter your email');
+        if (!email.trim() || !EMAIL_REGEX.test(email)) {
+            setError('Please enter a valid email address');
             return;
         }
-        if (password.length < 8) {
-            setError('Password must be at least 8 characters');
+        if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+            setError('Password must be at least 8 characters with 1 uppercase letter and 1 number');
             return;
         }
         if (!invitationCode.trim()) {
@@ -231,12 +250,7 @@ function SignupContent() {
                             <input
                                 type="text"
                                 value={invitationCode}
-                                onChange={(e) => {
-                                    setInvitationCode(e.target.value);
-                                    if (e.target.value.length > 10) {
-                                        validateInvitation(e.target.value);
-                                    }
-                                }}
+                                onChange={(e) => handleInvitationChange(e.target.value)}
                                 placeholder="Enter invitation code"
                                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />

@@ -114,12 +114,11 @@ export const TIER_COLORS: Record<string, string> = {
 
 export function getXPProgress(profile: InvestorProfile): number {
     if (!profile.next_level) return 100;
-    const currentLevelXP = profile.xp - (profile.next_level.xp_required - profile.next_level.xp_remaining - profile.xp);
-    const levelRange = profile.next_level.xp_required;
-    // Simpler: how far through current level
-    const prevLevelXP = profile.next_level.xp_required - profile.next_level.xp_remaining;
-    if (prevLevelXP <= 0) return 0;
-    return Math.min(((profile.xp - (profile.next_level.xp_required - profile.next_level.xp_remaining)) / profile.next_level.xp_remaining) * 100, 100);
+    if (profile.next_level.xp_remaining <= 0) return 100;
+    const xpIntoLevel = profile.next_level.xp_required - profile.next_level.xp_remaining;
+    if (xpIntoLevel <= 0) return 0;
+    const progress = (xpIntoLevel / profile.next_level.xp_required) * 100;
+    return Math.min(Math.max(progress, 0), 100);
 }
 
 // ═══════════════════════════════════════════════════════════════

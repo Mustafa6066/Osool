@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from 'next/navigation';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -12,6 +12,7 @@ function VerifyEmailContent() {
     const searchParams = useSearchParams();
     const { language } = useLanguage();
     const token = searchParams.get('token');
+    const verifiedRef = useRef(false);
 
     const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'no-token'>('loading');
     const [message, setMessage] = useState('');
@@ -27,9 +28,13 @@ function VerifyEmailContent() {
             return;
         }
 
+        // Prevent duplicate verification calls (React Strict Mode)
+        if (verifiedRef.current) return;
+        verifiedRef.current = true;
+
         const verify = async () => {
             try {
-                const res = await api.get(`/api/auth/verify-email?token=${token}`);
+                const res = await api.get(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
                 if (res.data.status === 'verified') {
                     setStatus('success');
                     setMessage(
