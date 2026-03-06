@@ -387,7 +387,11 @@ export default function AgentInterface() {
     const sessionIdRef = useRef<string>(getOrCreateSessionId());
     const hasFetchedHistory = useRef(false);
 
-    const userName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
+    const displayName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
+    const greetingText = conversationLanguage === 'ar'
+        ? `أهلاً، ${displayName}`
+        : `Hi, ${displayName}`;
+    const profileLabel = conversationLanguage === 'ar' ? 'ملف المستثمر' : 'Investor profile';
 
     /* Persist messages to sessionStorage whenever they change */
     useEffect(() => {
@@ -858,15 +862,18 @@ export default function AgentInterface() {
                         {/* Greeting */}
                         {!hasStarted && (
                             <div className="flex flex-col min-h-[calc(100vh-6rem)] justify-center px-4 py-8 relative">
-                                {/* Decorative background elements for Figma style */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+                                {/* Subtle background glow for depth */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] bg-slate-500/5 blur-[120px] rounded-full pointer-events-none -z-10" />
 
                                 <div className="text-center w-full max-w-3xl mx-auto">
-                                    <h1 className="text-[2.5rem] md:text-[4.5rem] font-semibold tracking-tight leading-[1.1] mb-4 md:mb-5 text-[var(--color-text-primary)]" dir="auto">
-                                        {conversationLanguage === 'ar' ? `أهلاً، ${userName}` : `Hello, ${userName}`}
+                                    <h1 className="text-[2.25rem] md:text-[3.5rem] font-semibold tracking-tight leading-[1.15] mb-3 text-[var(--color-text-primary)]" dir="auto">
+                                        {greetingText}
                                     </h1>
-                                    <p className="text-[1.1rem] md:text-[1.5rem] text-[var(--color-text-muted)] font-medium max-w-2xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
-                                        {conversationLanguage === 'ar' ? 'إزاي أقدر أساعدك النهارده' : 'What can I help you with'}<span className="text-emerald-500 font-bold ml-0.5">?</span>
+                                    <p className="text-[13px] md:text-[14px] uppercase tracking-[0.2em] text-[var(--color-text-muted)] font-semibold mb-4" dir="auto">
+                                        {profileLabel}
+                                    </p>
+                                    <p className="text-[1rem] md:text-[1.2rem] text-[var(--color-text-muted)] font-medium max-w-2xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
+                                        {conversationLanguage === 'ar' ? 'كيف أقدر أساعدك اليوم؟' : 'How can I help you today?'}
                                     </p>
                                 </div>
 
