@@ -4,7 +4,6 @@ Osool Backend - Main FastAPI Application
 State-of-the-art Real Estate Platform for Egyptian Market
 
 Features:
-- Legal-compliant blockchain registry (CBE Law 194)
 - AI-powered contract analysis (Egyptian Real Estate Law)
 - Smart property valuation with market reasoning
 - EGP payment verification (InstaPay/Fawry)
@@ -53,6 +52,9 @@ from app.services.metrics import metrics_endpoint
 # APPLICATION SETUP
 # ═══════════════════════════════════════════════════════════════
 
+# Security: Disable API documentation in production
+_is_production = os.getenv("ENVIRONMENT") == "production"
+
 app = FastAPI(
     title="Osool API",
     description="""
@@ -80,8 +82,8 @@ app = FastAPI(
     - Cultural context and family-focused recommendations
     """,
     version="1.0.0",
-    docs_url=None,
-    redoc_url=None
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc"
 )
 
 # ═══════════════════════════════════════════════════════════════
@@ -116,7 +118,6 @@ origins = [
     "https://osoool.vercel.app",  # Vercel deployment (triple o)
     "https://osool-one.vercel.app", # Specific Vercel deployment
     "https://osool-ten.vercel.app", # Latest Vercel deployment
-    "https://osool-cu8lynoku-mustafas-projects-948a09fa.vercel.app",  # Current preview
     "https://osool.eg",  # Production (Core)
 ]
 
@@ -166,10 +167,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
 
-        # CSP: Content Security Policy (adjust as needed for your frontend)
+        # Security Fix M2: Tightened CSP — removed unsafe-eval, kept unsafe-inline
+        # for styles only (Next.js requires it). Scripts restricted to self + CDN.
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+            "script-src 'self' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
@@ -247,15 +249,28 @@ def health():
     return {"status": "healthy", "service": "osool-backend"}
 
 
+# Security Fix H4: Lazy import of verify_api_key to protect metrics
+from fastapi import Depends as _Depends
+from fastapi.security import APIKeyHeader as _APIKeyHeader
+
+_metrics_api_key_header = _APIKeyHeader(name="X-Admin-Key", auto_error=False)
+
+async def _verify_metrics_key(api_key: str = _Depends(_metrics_api_key_header)):
+    import secrets as _sec
+    admin_key = os.getenv("ADMIN_API_KEY")
+    if not admin_key or not _sec.compare_digest(api_key or "", admin_key):
+        from fastapi import HTTPException as _HTTPExc
+        raise _HTTPExc(status_code=403, detail="Invalid API Key")
+
 @app.get("/metrics")
-def metrics():
+def metrics(_key: str = _Depends(_verify_metrics_key)):
     """
     Prometheus metrics endpoint - Phase 4.1: Monitoring
 
     Returns metrics in Prometheus format for scraping.
     Includes: API requests, OpenAI usage, database performance, business metrics.
 
-    Access: Internal only (should be restricted in production via firewall/API key)
+    Access: Protected with X-Admin-Key header.
     """
     return metrics_endpoint()
 
@@ -269,8 +284,6 @@ async def startup_event():
     """
     Startup validation with security checks.
     Fails fast if critical environment variables are missing.
-
-    Phase 1: Security Hardening - Validates wallet encryption in production
     """
     import os
 

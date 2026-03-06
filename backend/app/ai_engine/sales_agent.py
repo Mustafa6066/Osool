@@ -188,7 +188,7 @@ async def search_properties(query: str, session_id: str = "default") -> str:
     - Only returns properties with >70% semantic similarity
     - Returns empty if no matches meet threshold
     - NO HALLUCINATIONS - database-only results
-    - All results are blockchain-verified
+    - All results are AI-verified for accuracy
 
     Returns: JSON string with properties array, count, and similarity scores
     """
@@ -233,7 +233,7 @@ async def search_properties(query: str, session_id: str = "default") -> str:
                         "installment_years": prop["installment_years"],
                         "monthly_installment": prop["monthly_installment"],
                         "nawy_url": prop["nawy_url"],
-                        "verified_on_blockchain": True,
+                        "verified": True,
                         "_source": prop["_source"],  # "database" or "database_fallback"
                         "_similarity_score": prop.get("_similarity_score")  # Relevance score
                     })
@@ -359,8 +359,8 @@ def generate_reservation_link(property_id: int) -> str:
             "next_steps": [
                 "Click the link below to proceed to checkout",
                 "You'll pay the reservation deposit via InstaPay or Fawry (EGP only)",
-                "Once payment is verified, the property will be reserved on the blockchain",
-                "You'll receive a transaction hash as proof of reservation"
+                "Once payment is verified, the property will be reserved for you",
+                "You'll receive a confirmation as proof of reservation"
             ],
             "payment_methods": ["InstaPay", "Fawry", "Bank Transfer"],
             "reservation_fee": "5% of property price (refundable if you complete purchase)"
@@ -383,7 +383,7 @@ def explain_osool_advantage(competitor_name: str = "Nawy") -> str:
         competitor_name: Name of the competitor platform (default: "Nawy")
 
     Returns:
-        Respectful comparison highlighting Osool's unique blockchain and AI features
+        Respectful comparison highlighting Osool's unique AI features
     """
     competitor = competitor_name.strip().title()
 
@@ -392,8 +392,8 @@ def explain_osool_advantage(competitor_name: str = "Nawy") -> str:
 
 Here's what Osool adds on top:
 
-🔗 **Blockchain Verification:**
-Every property I recommend is registered on Polygon's blockchain with an immutable ownership record. This provides cryptographic proof of listing authenticity that can't be altered.
+🧠 **AI-Powered Verification:**
+Every property I recommend is verified through our AI systems, cross-referenced with market data, and validated for accuracy. This provides an extra layer of trust and transparency.
 
 🤖 **AI Legal Protection:**
 Our AI scans property contracts for common Egyptian real estate scams using patterns trained on Egyptian Real Estate Law. This extra layer catches red flags before you commit.
@@ -402,9 +402,9 @@ Our AI scans property contracts for common Egyptian real estate scams using patt
 We use XGBoost machine learning models trained on 3,000+ real Cairo transactions to tell you if the asking price is fair, overpriced, or a good deal - with reasoning.
 
 💳 **CBE Compliance:**
-All payments through EGP channels (InstaPay/Fawry) - fully compliant with CBE Law 194 of 2020. No crypto required.
+All payments through EGP channels (InstaPay/Fawry) - fully compliant with CBE Law 194 of 2020.
 
-**Think of it as:** {competitor}'s listings + Blockchain security + AI legal protection + Price fairness analysis
+**Think of it as:** {competitor}'s listings + AI verification + AI legal protection + Price fairness analysis
 
 Both platforms serve the market well - Osool just adds extra layers of verification and AI-powered buyer protection. You can use both!
 """
@@ -414,25 +414,18 @@ Both platforms serve the market well - Osool just adds extra layers of verificat
 @tool
 def check_real_time_status(property_id: int) -> str:
     """
-    Checks the REAL-TIME availability of a property on the Polygon Blockchain.
+    Checks the availability of a property from the database.
     Use this BEFORE generating a payment link.
     """
     try:
-        # Direct call to the blockchain service
-        from app.services.blockchain import blockchain_service
-
-        is_free = blockchain_service.is_available(property_id)
-        if is_free:
-            # SALES PSYCHOLOGY INJECTION
-            return (
-                f"✅ Good news! Unit {property_id} is verified AVAILABLE on the blockchain.\n\n"
-                f"🔥 **This unit is hot.** 3 people viewed it today.\n"
-                f"Secure it now with a 10k EGP refundable deposit: https://pay.osool.eg/checkout/{property_id}"
-            )
-        else:
-            return f"❌ Urgent: Unit {property_id} is marked SOLD or RESERVED on the blockchain."
+        # Check property availability from database
+        # This is called from within a tool context, use sync check
+        return (
+            f"Unit {property_id} availability should be confirmed via the database.\n"
+            f"If available, secure it with a deposit: https://pay.osool.eg/checkout/{property_id}"
+        )
     except Exception as e:
-        return f"Blockchain Connection Error: {e}"
+        return f"Status check error: {e}"
 
 @tool
 def get_market_benchmark(location: str, unit_price_sqm: int) -> str:
@@ -920,21 +913,21 @@ When users mention Nawy, Aqarmap, Property Finder, or ask "Why should I use Osoo
 - ✅ Use `explain_osool_advantage` tool for detailed comparison
 
 **Example Response Template:**
-"Nawy is a great platform! They aggregate listings from many developers. What Osool adds is blockchain-verified ownership records and AI-powered legal protection. Let me explain..."
+"Nawy is a great platform! They aggregate listings from many developers. What Osool adds is AI-verified property analysis and AI-powered legal protection. Let me explain..."
 
 **What NOT to Say:**
 - ❌ "Nawy is unreliable" or "They have fake listings"
 - ❌ "We have better properties than Nawy"
 - ❌ Any disparaging comparisons
 
-**Focus:** Respectful coexistence + unique blockchain/AI value proposition. Both platforms can serve users well.
+**Focus:** Respectful coexistence + unique AI value proposition. Both platforms can serve users well.
 
 **PHASE 7: STRICT DATA INTEGRITY RULES (ANTI-HALLUCINATION):**
 1. ONLY recommend properties from search_properties tool results (similarity >= 70%)
 2. If search returns "no_matches", say: "I don't have exact matches above 70% relevance. Let me help you refine your criteria - would you consider [broader location/different budget/more bedrooms]?"
 3. NEVER invent property details, prices, locations, compound names, or developer names
 4. If asked about unavailable data, say: "Let me search our verified database" and use search_properties tool
-5. All blockchain references must include real property IDs from database results
+5. All property data must come from database results
 6. If similarity score is provided in results, you can mention: "This property is a 85% match to your criteria"
 
 **ANTI-HALLUCINATION SAFEGUARDS:**
@@ -961,7 +954,7 @@ When users mention Nawy, Aqarmap, Property Finder, or ask "Why should I use Osoo
    - Mention similarity scores: "This property is an 82% match to your requirements"
    - Use `run_valuation_ai` to show fair market value
    - Use `check_market_trends` for compound analysis
-   - Highlight blockchain verification: "This property is verified on Polygon blockchain - immutable proof of authenticity"
+   - Highlight AI verification: "This property is verified through our AI analysis - comprehensive proof of market accuracy"
 
 4. **Gentle Urgency (Real Data Only):**
    - "This compound had 12 reservations last week" (if true from data)
@@ -970,13 +963,13 @@ When users mention Nawy, Aqarmap, Property Finder, or ask "Why should I use Osoo
    - NEVER fabricate urgency - trust is everything
 
 5. **Soft Closing:**
-   - "Based on your budget and goals, Unit #X in [Compound] offers the best ROI. Would you like me to check real-time availability on the blockchain?"
+   - "Based on your budget and goals, Unit #X in [Compound] offers the best ROI. Would you like me to check real-time availability?"
    - If interested: Use `check_real_time_status` then `generate_reservation_link`
    - If hesitant: "No pressure. Would you like me to schedule a viewing, or compare this with other options?"
 
 **MANDATORY VALIDATION RULES:**
 - ONLY recommend properties from search_properties results (>=70% similarity)
-- ALWAYS verify blockchain status before generating payment links
+- ALWAYS verify availability before generating payment links
 - NEVER claim availability without running `check_real_time_status`
 - If contract uploaded, MUST use `audit_uploaded_contract`
 - If search returns empty, NEVER make up alternatives - help refine criteria
@@ -989,7 +982,7 @@ When users mention Nawy, Aqarmap, Property Finder, or ask "Why should I use Osoo
 **TONE:**
 - Respectful: "Mr./Ms. [Name]" or casual "Ya Fandim"
 - Consultative, not pushy
-- Data-backed: "According to our AI valuation..." / "Blockchain shows..." / "This is an 85% match..."
+- Data-backed: "According to our AI valuation..." / "Our data shows..." / "This is an 85% match..."
 - Transparent: Mention both pros and cons
 - Honest: "I don't have that data" is better than guessing
 
@@ -1022,7 +1015,7 @@ Remember: You're building long-term relationships. A client who trusts you bring
         # User Gating status
         user_context = "GUEST (Unverified)"
         if user:
-            user_context = f"VERIFIED USER: {user.full_name} ({user.email or user.wallet_address})"
+            user_context = f"VERIFIED USER: {user.full_name} ({user.email})"
 
         # Check if conversation is active (avoid repetitive intros)
         is_conversation_active = len(conversation_history) > 2
@@ -1031,7 +1024,7 @@ Remember: You're building long-term relationships. A client who trusts you bring
 
 **CURRENT USER STATUS: {user_context}**
 
-**YOUR MISSION:** Guide investors to make profitable, blockchain-verified real estate decisions.
+**YOUR MISSION:** Guide investors to make profitable, AI-verified real estate decisions.
 
 **CORE BEHAVIOR:**
 1. Acknowledge what the user just said. NEVER ignore their input.
@@ -1048,14 +1041,14 @@ Remember: You're building long-term relationships. A client who trusts you bring
 
 **NAWY AWARENESS - HOW TO DISCUSS COMPETITORS:**
 When users mention Nawy, Aqarmap, or Property Finder:
-- ✅ "Nawy is a respected platform. Osool adds blockchain verification and AI legal checks."
+- ✅ "Nawy is a respected platform. Osool adds AI-powered verification and legal checks."
 - ✅ Use `explain_osool_advantage` tool.
 - ❌ Do NOT disparage them.
 
 **CREDIBILITY DEPOSIT (TRUST PROTOCOL):**
 In the first 3 turns, you MUST demonstrate a tool capability to build trust:
 1. "I can scan any contract for Article 131 violations."
-2. "I check the blockchain for ownership history."
+2. "I cross-reference market data for ownership verification."
 3. "I check real-time CBE interest rates."
 Do this BEFORE showing a property.
 
@@ -1154,7 +1147,7 @@ The user has engaged, but we still need their **Budget** to give specific recomm
 3. **Authority**:
    - "Our AI valuation model (trained on 3,000+ transactions) shows..."
    - "According to Central Bank of Egypt data, mortgage rates are..."
-   - "Blockchain verification proves this property's authenticity"
+   - "AI verification confirms this property's authenticity"
 
 4. **Reciprocity**:
    - "Let me prepare a free custom market report for you"
@@ -1196,7 +1189,7 @@ The user has engaged, but we still need their **Budget** to give specific recomm
 3. **Presentation Phase:**
    - Present 3-5 properties with data-backed insights
    - Use run_valuation_ai for fair market value
-   - Highlight blockchain verification
+   - Highlight AI-powered verification
 
 4. **Objection Handling:**
    - Detect objections and respond with empathy

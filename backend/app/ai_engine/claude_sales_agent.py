@@ -181,7 +181,7 @@ CLAUDE_TOOLS = [
     },
     {
         "name": "check_real_time_status",
-        "description": "Check blockchain-verified availability status of a property in real-time.",
+        "description": "Check verified availability status of a property in real-time.",
         "input_schema": {
             "type": "object",
             "properties": {

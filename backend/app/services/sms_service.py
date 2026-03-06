@@ -5,7 +5,7 @@ Handles OTP generation and sending via Twilio for phone verification.
 """
 
 import os
-import random
+import secrets as _secrets
 import logging
 from twilio.rest import Client
 from dotenv import load_dotenv
@@ -39,24 +39,26 @@ class SMSService:
             phone_number: Egyptian phone number in E.164 format (+201234567890)
 
         Returns:
-            The OTP code (for development testing only)
+            The OTP code in development mode, "sent" in production.
 
         Raises:
             Exception if SMS send fails
         """
-        # Generate 6-digit OTP
-        code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        # Security Fix H1: Use cryptographically secure random for OTP
+        code = ''.join([str(_secrets.randbelow(10)) for _ in range(6)])
 
         # Store in Redis with 5-minute TTL
         from app.services.cache import cache
         cache_key = f"otp:{phone_number}"
         cache.set_json(cache_key, {"code": code}, ttl=300)
 
+        is_dev = os.getenv('ENVIRONMENT') == 'development'
+
         # Send SMS via Twilio
         if not self.client:
             logger.error("Twilio client not initialized")
             # In development, return code without sending
-            if os.getenv('ENVIRONMENT') == 'development':
+            if is_dev:
                 logger.info(f"[DEV MODE] OTP for {phone_number}: {code}")
                 return code
             else:
@@ -70,7 +72,10 @@ class SMSService:
             )
 
             logger.info(f"✅ OTP sent to {phone_number} - SID: {message.sid}")
-            return code  # Return for dev testing
+            # Security Fix H2: Only return OTP code in development
+            if is_dev:
+                return code
+            return "sent"
 
         except Exception as e:
             logger.error(f"❌ Failed to send OTP to {phone_number}: {e}")
@@ -87,6 +92,7 @@ class SMSService:
         Returns:
             True if OTP matches and is not expired, False otherwise
         """
+        import hmac as _hmac
         from app.services.cache import cache
         cache_key = f"otp:{phone_number}"
 
@@ -96,9 +102,10 @@ class SMSService:
             logger.warning(f"⚠️ OTP not found or expired for {phone_number}")
             return False
 
-        stored_code = stored_data.get('code')
+        stored_code = stored_data.get('code', '')
 
-        if stored_code == code:
+        # Security: Use timing-safe comparison to prevent timing attacks
+        if _hmac.compare_digest(stored_code, code):
             # Delete OTP after successful verification (one-time use)
             cache.redis.delete(cache_key)
             logger.info(f"✅ OTP verified for {phone_number}")

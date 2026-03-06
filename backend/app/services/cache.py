@@ -14,6 +14,7 @@ _MAX_MEMORY_ENTRIES = 500
 
 class RedisClient:
     def __init__(self):
+        self._memory_fallback: dict = {}  # {key: {"value": ..., "expires_at": float}}
         try:
             self.redis = redis.from_url(REDIS_URL, decode_responses=True)
             self.redis.ping()
@@ -21,7 +22,6 @@ class RedisClient:
         except Exception as e:
             print(f"⚠️ [Cache] Redis Connection Failed: {e}. using Memory Fallback.")
             self.redis = None
-            self._memory_fallback: dict = {}  # {key: {"value": ..., "expires_at": float}}
 
     def set_json(self, key: str, value: dict, ttl: int = 3600):
         """Stores a dict as JSON string with TTL."""

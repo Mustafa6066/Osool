@@ -28,11 +28,10 @@ from app.auth import (
     create_access_token,
     get_password_hash,
     verify_password,
-    create_custodial_wallet,
     get_current_user
 )
 from app.services.sms_service import sms_service
-from app.services.email_service import email_service, create_verification_token
+from app.services.email_service import email_service, create_verification_token, is_verification_token_valid, consume_verification_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -64,7 +63,7 @@ def get_display_name(user: User) -> str:
     if user.email and user.email.lower() in DISPLAY_NAME_MAPPING:
         return DISPLAY_NAME_MAPPING[user.email.lower()]
 
-    if user.full_name and user.full_name != "Wallet User":
+    if user.full_name:
         return user.full_name
 
     # Fallback to email username
@@ -201,22 +200,11 @@ async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get
     ).first()
 
     if existing_user:
-        # Don't leak which field is duplicate for security
-        if existing_user.email == req.email:
-            detail = "Email already registered"
-        elif existing_user.phone_number == req.phone_number:
-            detail = "Phone number already registered"
-        else:
-            detail = "National ID already registered"
-
+        # Security: Don't reveal which field is duplicate (prevents enumeration)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=detail
+            detail="An account with these details already exists"
         )
-
-    # Create custodial wallet
-    # Phase 1 Security: Returns encrypted private key
-    wallet = create_custodial_wallet()
 
     # Create user with unverified status
     new_user = User(
@@ -225,8 +213,6 @@ async def signup_with_kyc_disabled(req: SignupRequest, db: Session = Depends(get
         password_hash=get_password_hash(req.password),
         phone_number=req.phone_number,
         national_id=req.national_id,
-        wallet_address=wallet["address"],
-        encrypted_private_key=wallet["encrypted_private_key"], # Phase 1: Store encrypted key
         is_verified=False,       # Cannot login until phone verified
         phone_verified=False,    # Must verify OTP
         email_verified=False,
@@ -306,15 +292,10 @@ async def login_with_verification(
     # Get the proper display name using mapping rules
     display_name = get_display_name(user)
 
-    # Generate JWT with full_name and display_name included
+    # Security Fix M3: Only include essential claims in JWT
     access_token = create_access_token(data={
         "sub": user.email,
-        "email": user.email,     # Explicit email claim for frontend
-        "id": user.id,           # User ID for frontend
-        "wallet": user.wallet_address,
         "role": user.role,
-        "full_name": user.full_name,
-        "display_name": display_name  # Mapped display name
     })
 
     logger.info(f"Login successful: {user.email} (Display: {display_name})")
@@ -359,11 +340,10 @@ async def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db))
         # Generate JWT
         access_token = create_access_token(data={
             "sub": user.email,
-            "wallet": user.wallet_address,
             "role": user.role
         })
 
-        logger.info(f"✅ Google OAuth successful for {email}")
+        logger.info(f"Google OAuth successful for {email}")
 
         return {
             "access_token": access_token,
@@ -467,7 +447,6 @@ async def verify_otp_login(req: OTPVerifyRequest, db: Session = Depends(get_db))
     # Generate JWT for immediate login
     access_token = create_access_token(data={
         "sub": user.email or user.phone_number,
-        "wallet": user.wallet_address,
         "role": user.role
     })
 
@@ -539,6 +518,13 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 
     Example: /api/auth/verify-email?token=abc123...
     """
+    # Security: Check token expiry via Redis TTL
+    if not is_verification_token_valid(token, purpose="verify"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification token has expired. Please request a new one."
+        )
+
     user = db.query(User).filter(User.verification_token == token).first()
 
     if not user:
@@ -547,11 +533,12 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
             detail="Invalid or expired verification token"
         )
 
-    # Mark as verified
+    # Mark as verified and consume the one-time token
     user.email_verified = True
     user.verification_token = None
     db.commit()
 
+    consume_verification_token(token, purpose="verify")
     logger.info(f"✅ Email verified: {user.email}")
 
     return {
@@ -585,8 +572,8 @@ async def request_reset(
             "message": "If the email exists, password reset link has been sent."
         }
 
-    # Generate reset token
-    token = create_verification_token()
+    # Generate reset token with 1-hour TTL (password resets expire quickly)
+    token = create_verification_token(purpose="reset", ttl_seconds=3600)
     user.verification_token = token
     db.commit()
 
@@ -614,6 +601,13 @@ async def confirm_reset(req: PasswordResetConfirm, db: Session = Depends(get_db)
     """
     Confirm password reset with token and new password.
     """
+    # Security: Check token expiry via Redis TTL (1 hour for resets)
+    if not is_verification_token_valid(req.token, purpose="reset"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset token has expired. Please request a new one."
+        )
+
     user = db.query(User).filter(User.verification_token == req.token).first()
 
     if not user:
@@ -629,11 +623,12 @@ async def confirm_reset(req: PasswordResetConfirm, db: Session = Depends(get_db)
             detail="Password must be at least 8 characters long"
         )
 
-    # Update password
+    # Update password and consume token
     user.password_hash = get_password_hash(req.new_password)
     user.verification_token = None
     db.commit()
 
+    consume_verification_token(req.token, purpose="reset")
     logger.info(f"✅ Password reset successful for {user.email}")
 
     return {
@@ -880,11 +875,8 @@ async def signup_with_invitation(
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="An account with these details already exists"
         )
-
-    # Create custodial wallet
-    wallet = create_custodial_wallet()
 
     # Create user (pre-verified via invitation, email verification sent separately)
     verification_token = create_verification_token()
@@ -892,8 +884,6 @@ async def signup_with_invitation(
         full_name=req.full_name,
         email=req.email,
         password_hash=get_password_hash(req.password),
-        wallet_address=wallet["address"],
-        encrypted_private_key=wallet["encrypted_private_key"],
         is_verified=True,   # Can login immediately (invited user)
         email_verified=False,  # Must verify email separately
         verification_token=verification_token,
@@ -938,15 +928,10 @@ async def signup_with_invitation(
 
     logger.info(f"✅ New user signed up via invitation: {req.email} (Display: {display_name})")
 
-    # Generate JWT for immediate login with display_name
+    # Security Fix M3: Only include essential claims in JWT
     access_token = create_access_token(data={
         "sub": new_user.email,
-        "email": new_user.email,
-        "id": new_user.id,
-        "wallet": new_user.wallet_address,
         "role": new_user.role,
-        "full_name": new_user.full_name,
-        "display_name": display_name
     })
 
     return {
@@ -1002,25 +987,26 @@ class SeedBetaUsersRequest(BaseModel):
     admin_secret: str
 
 
-# Beta accounts configuration
-BETA_ACCOUNTS = [
-    # Admin accounts (Core Team) - Unlimited invitations
-    {"full_name": "Mustafa", "email": "mustafa@osool.eg", "password": "Mustafa@Osool2025!", "role": "admin"},
-    {"full_name": "Hani", "email": "hani@osool.eg", "password": "Hani@Osool2025!", "role": "admin"},
-    {"full_name": "Abady", "email": "abady@osool.eg", "password": "Abady@Osool2025!", "role": "admin"},
-    {"full_name": "Mrs. Mustafa", "email": "sama@osool.eg", "password": "Sama@Osool2025!", "role": "admin"},
-    # Tester accounts - 2 invitations each
-    {"full_name": "Tester One", "email": "tester1@osool.eg", "password": "Tester1@Beta2025", "role": "investor"},
-    {"full_name": "Tester Two", "email": "tester2@osool.eg", "password": "Tester2@Beta2025", "role": "investor"},
-    {"full_name": "Tester Three", "email": "tester3@osool.eg", "password": "Tester3@Beta2025", "role": "investor"},
-    {"full_name": "Tester Four", "email": "tester4@osool.eg", "password": "Tester4@Beta2025", "role": "investor"},
-    {"full_name": "Tester Five", "email": "tester5@osool.eg", "password": "Tester5@Beta2025", "role": "investor"},
-    {"full_name": "Tester Six", "email": "tester6@osool.eg", "password": "Tester6@Beta2025", "role": "investor"},
-    {"full_name": "Tester Seven", "email": "tester7@osool.eg", "password": "Tester7@Beta2025", "role": "investor"},
-    {"full_name": "Tester Eight", "email": "tester8@osool.eg", "password": "Tester8@Beta2025", "role": "investor"},
-    {"full_name": "Tester Nine", "email": "tester9@osool.eg", "password": "Tester9@Beta2025", "role": "investor"},
-    {"full_name": "Tester Ten", "email": "tester10@osool.eg", "password": "Tester10@Beta2025", "role": "investor"},
-]
+# Security Fix C2: Beta accounts loaded from env var instead of hardcoded passwords.
+# Set BETA_ACCOUNTS_JSON env var with base64-encoded JSON array of account objects.
+# Each object: {"full_name": "...", "email": "...", "password": "...", "role": "admin|investor"}
+import json as _json
+import secrets as _secrets
+
+def _load_beta_accounts() -> list:
+    """Load beta accounts from BETA_ACCOUNTS_JSON env var (base64-encoded JSON)."""
+    import base64
+    raw = os.getenv("BETA_ACCOUNTS_JSON")
+    if not raw:
+        logger.info("BETA_ACCOUNTS_JSON not set — no beta accounts configured")
+        return []
+    try:
+        return _json.loads(base64.b64decode(raw))
+    except Exception as e:
+        logger.error(f"Failed to parse BETA_ACCOUNTS_JSON: {e}")
+        return []
+
+BETA_ACCOUNTS = _load_beta_accounts()
 
 
 @router.post("/admin/seed-beta-users")
@@ -1031,19 +1017,33 @@ async def seed_beta_users(
     """
     Seed beta users into the database.
     
-    Requires admin_secret that matches JWT_SECRET_KEY environment variable.
+    Requires admin_secret that matches ADMIN_API_KEY environment variable.
     This is a one-time operation for production setup.
     """
     from sqlalchemy import select
     import hashlib
     
-    # Verify admin secret (use JWT_SECRET_KEY as the admin secret)
-    admin_secret = os.getenv("JWT_SECRET_KEY", "")
-    if not admin_secret or req.admin_secret != admin_secret:
+    # Security Fix C3: Use ADMIN_API_KEY with timing-safe comparison
+    admin_key = os.getenv("ADMIN_API_KEY")
+    if not admin_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="ADMIN_API_KEY not configured"
+        )
+    if not _secrets.compare_digest(req.admin_secret, admin_key):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin secret"
         )
+    
+    if not BETA_ACCOUNTS:
+        return {
+            "status": "skipped",
+            "message": "No beta accounts configured. Set BETA_ACCOUNTS_JSON env var.",
+            "created": 0,
+            "updated": 0,
+            "total": 0
+        }
     
     created = 0
     updated = 0
@@ -1064,15 +1064,10 @@ async def seed_beta_users(
             updated += 1
             logger.info(f"[SEED] Updated: {account['email']}")
         else:
-            # Generate wallet address
-            wallet_hash = hashlib.sha256(account["email"].encode()).hexdigest()[:40]
-            wallet_address = f"0x{wallet_hash}"
-            
             new_user = User(
                 full_name=account["full_name"],
                 email=account["email"],
                 password_hash=get_password_hash(account["password"]),
-                wallet_address=wallet_address,
                 is_verified=True,
                 email_verified=True,
                 kyc_status="approved",
@@ -1089,7 +1084,7 @@ async def seed_beta_users(
     
     return {
         "status": "success",
-        "message": f"Beta users seeded successfully",
+        "message": "Beta users seeded successfully",
         "created": created,
         "updated": updated,
         "total": len(BETA_ACCOUNTS)

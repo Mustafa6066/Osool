@@ -148,20 +148,6 @@ class ValidationError(OsoolException):
         )
 
 
-class BlockchainError(OsoolException):
-    """Blockchain service error."""
-    def __init__(self, operation: str, reason: str):
-        super().__init__(
-            message=f"Blockchain {operation} failed: {reason}",
-            message_ar=f"فشلت عملية البلوكتشين {operation}: {reason}",
-            user_message="There was an issue verifying on the blockchain. Our team will resolve this shortly.",
-            user_message_ar="حدثت مشكلة في التحقق عبر البلوكتشين. سيقوم فريقنا بحل هذا قريباً.",
-            error_code="BLOCKCHAIN_ERROR",
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            details={"operation": operation, "reason": reason}
-        )
-
-
 class DatabaseError(OsoolException):
     """Database operation error."""
     def __init__(self, operation: str, reason: str):
@@ -310,18 +296,3 @@ def handle_database_error(operation: str, error: Exception) -> None:
         raise DatabaseError(operation, "Query timeout")
     else:
         raise DatabaseError(operation, error_msg)
-
-
-def handle_blockchain_error(operation: str, error: Exception) -> None:
-    """Raise appropriate error for blockchain failures."""
-    error_msg = str(error)
-
-    # Check for specific error types
-    if "network" in error_msg.lower() or "connection" in error_msg.lower():
-        raise BlockchainError(operation, "Network connection failed")
-    elif "gas" in error_msg.lower():
-        raise BlockchainError(operation, "Insufficient gas")
-    elif "revert" in error_msg.lower():
-        raise BlockchainError(operation, "Transaction reverted")
-    else:
-        raise BlockchainError(operation, error_msg)

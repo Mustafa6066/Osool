@@ -1,5 +1,6 @@
 """Seed a test user and invitation for local testing."""
 import asyncio
+import os
 import secrets
 from app.database import AsyncSessionLocal
 from app.models import User, Invitation
@@ -8,16 +9,18 @@ from app.api.auth_endpoints import get_password_hash
 async def seed():
     async with AsyncSessionLocal() as session:
         # Create a test user
+        # Security: Generate a random password instead of hardcoding
+        import secrets as _sec
+        seed_password = os.getenv("SEED_ADMIN_PASSWORD", _sec.token_urlsafe(24))
         user = User(
             full_name="Test Admin",
             email="admin@osool.ai",
-            password_hash=get_password_hash("password123"),
+            password_hash=get_password_hash(seed_password),
             is_verified=True,
             email_verified=True,
-            role="admin",
-            wallet_address="0x" + secrets.token_hex(20),
-            encrypted_private_key="test_key"
+            role="admin"
         )
+        print(f"Generated admin password: {seed_password}")
         session.add(user)
         await session.flush()
         user_id = user.id

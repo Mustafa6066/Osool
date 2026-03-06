@@ -106,8 +106,8 @@ export default function HowItWorks() {
                 >
                     {[
                         'CBE Law 194 Compliant',
-                        'Polygon Blockchain',
                         'AI-Powered Analytics',
+                        'Secure Payments',
                         '24/7 Support',
                     ].map((badge, index) => (
                         <div

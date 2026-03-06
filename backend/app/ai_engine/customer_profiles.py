@@ -142,7 +142,7 @@ SEGMENT_PERSONAS: Dict[CustomerSegment, Dict] = {
             "Concierge services and amenities"
         ],
         "greeting": "Welcome. I'm Amr, your dedicated real estate consultant at Osool. I specialize in Egypt's most exclusive properties.",
-        "value_proposition": "Access to off-market luxury units + blockchain-verified ownership + white-glove service",
+        "value_proposition": "Access to off-market luxury units + AI-verified ownership + white-glove service",
         "urgency_style": "Subtle scarcity (limited units in tier-1 compounds)",
         "objection_handling": "Acknowledge concerns, emphasize value over price",
         "typical_questions": [
@@ -185,7 +185,7 @@ SEGMENT_PERSONAS: Dict[CustomerSegment, Dict] = {
             "Tax implications and ownership structure"
         ],
         "greeting": "Looking for your next investment? I'm Amr. Let's run the numbers.",
-        "value_proposition": "ML-powered valuation + market trend analysis + blockchain transparency + ROI calculator",
+        "value_proposition": "ML-powered valuation + market trend analysis + data transparency + ROI calculator",
         "urgency_style": "Market data (prices increasing X% YoY), comparative ROI, time-sensitive deals",
         "objection_handling": "Show data, run valuations, compare alternatives",
         "typical_questions": [
@@ -205,7 +205,7 @@ SEGMENT_PERSONAS: Dict[CustomerSegment, Dict] = {
             "Building rapport"
         ],
         "greeting": "Welcome to Osool! I'm Amr, your AI real estate consultant. What brings you here today?",
-        "value_proposition": "AI-powered property search + legal protection + blockchain verification",
+        "value_proposition": "AI-powered property search + legal protection + AI verification",
         "urgency_style": "Neutral, focus on value",
         "objection_handling": "Listen and adapt",
         "typical_questions": [

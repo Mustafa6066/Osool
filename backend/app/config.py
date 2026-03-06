@@ -66,31 +66,6 @@ class Config:
     ENABLE_VISION_CONTRACTS: bool = os.getenv("ENABLE_VISION_CONTRACTS", "true").lower() == "true"
 
     # ═══════════════════════════════════════════════════════════════
-    # BLOCKCHAIN (OPTIONAL - Phase 1+)
-    # ═══════════════════════════════════════════════════════════════
-
-    PRIVATE_KEY: Optional[str] = os.getenv("PRIVATE_KEY")
-    ALCHEMY_RPC_URL: Optional[str] = os.getenv("ALCHEMY_RPC_URL")
-
-    # Feature flag: Enable blockchain features (Phase 2+)
-    BLOCKCHAIN_ENABLED: bool = os.getenv("ENABLE_BLOCKCHAIN", "false").lower() == "true"
-
-    if ENVIRONMENT == "production" and BLOCKCHAIN_ENABLED:
-        if not PRIVATE_KEY:
-            raise ValueError("❌ PRIVATE_KEY required when blockchain is enabled")
-
-        if not ALCHEMY_RPC_URL:
-            raise ValueError("❌ ALCHEMY_RPC_URL required when blockchain is enabled for Polygon Mainnet")
-
-        # Verify it's a mainnet URL
-        if "polygon-mainnet" not in ALCHEMY_RPC_URL and "polygon-rpc.com" not in ALCHEMY_RPC_URL:
-            raise ValueError("❌ ALCHEMY_RPC_URL must be Polygon Mainnet in production")
-
-    # Contract Addresses
-    OSOOL_REGISTRY_ADDRESS: Optional[str] = os.getenv("OSOOL_REGISTRY_ADDRESS")
-    ELITE_PLATFORM_ADDRESS: Optional[str] = os.getenv("ELITE_PLATFORM_ADDRESS")
-
-    # ═══════════════════════════════════════════════════════════════
     # PAYMENT VERIFICATION (OPTIONAL - Phase 2+)
     # ═══════════════════════════════════════════════════════════════
 

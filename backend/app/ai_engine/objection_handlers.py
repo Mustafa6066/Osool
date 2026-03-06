@@ -82,7 +82,7 @@ If price is the main concern, I can show you lower-tier options, but I don't rec
 
 Here's what makes Osool different:
 1. **AI Legal Scanner**: We check contracts against Egyptian Law 114 - no other platform does this
-2. **Blockchain Verification**: Tamper-proof ownership records on Polygon
+2. **AI Verification**: Comprehensive ownership and market verification
 3. **No Hidden Fees**: We show you the real total cost upfront
 
 [Will call explain_osool_advantage tool for detailed comparison]
@@ -93,7 +93,7 @@ Would you like me to check that specific property you saw?""",
 
 **Osool Advantage:**
 - ML-powered valuation (not agent estimates)
-- Blockchain ownership verification = faster resale
+- AI-verified ownership = faster resale
 - Historical ROI data for compounds
 - Legal AI scanner = risk protection
 
@@ -105,7 +105,7 @@ Most importantly: Our prices come directly from developers. Other platforms add 
 
 What differentiates Osool:
 - Direct developer relationships (no middleman markup)
-- Blockchain-verified ownership (critical for high-value assets)
+- AI-verified ownership records (critical for high-value assets)
 - White-glove concierge service
 - AI-powered legal protection
 
@@ -231,7 +231,7 @@ Many of our clients had similar concerns initially, but the compound's amenities
 
 **Osool Protection:**
 1. **AI Contract Scanner**: Checks against Egyptian Law 114
-2. **Blockchain Verification**: Every transaction recorded immutably
+2. **AI Verification**: Every transaction recorded and verified
 3. **Escrow Protection**: Your deposit is secured
 
 [Will call audit_uploaded_contract if contract available]

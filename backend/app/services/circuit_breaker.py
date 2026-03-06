@@ -2,7 +2,7 @@
 Circuit Breaker - Phase 4: API Resilience
 ------------------------------------------
 Implements the Circuit Breaker pattern to prevent cascading failures
-when external APIs (OpenAI, Paymob, Blockchain RPC) become unavailable.
+when external APIs (OpenAI, Paymob) become unavailable.
 """
 
 import time
@@ -189,5 +189,4 @@ def circuit(failure_threshold: int = 5, timeout: int = 60):
 openai_breaker = CircuitBreaker(failure_threshold=3, timeout=30)
 claude_breaker = CircuitBreaker(failure_threshold=3, timeout=30)
 paymob_breaker = CircuitBreaker(failure_threshold=5, timeout=60)
-blockchain_breaker = CircuitBreaker(failure_threshold=5, timeout=120)
 database_breaker = CircuitBreaker(failure_threshold=5, timeout=10)

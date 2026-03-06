@@ -28,7 +28,6 @@ class HealthCheck:
     - Redis connectivity
     - Claude API availability
     - OpenAI API availability
-    - Blockchain service status
     """
 
     def __init__(self):
@@ -149,28 +148,6 @@ class HealthCheck:
                 "error": str(e)
             }
 
-    async def check_blockchain(self) -> Dict:
-        """Check blockchain service connectivity."""
-        try:
-            from app.services.blockchain_prod import blockchain_service_prod
-
-            # Simple connectivity check
-            # In production, you'd check actual RPC connection
-
-            return {
-                "status": HealthStatus.HEALTHY,
-                "message": "Blockchain service available",
-                "network": "testnet"
-            }
-
-        except Exception as e:
-            logger.warning(f"Blockchain health check failed: {e}")
-            return {
-                "status": HealthStatus.DEGRADED,
-                "message": "Blockchain service unavailable (non-critical)",
-                "error": str(e)
-            }
-
     async def run_all_checks(self) -> Dict:
         """
         Run all health checks in parallel.
@@ -186,7 +163,6 @@ class HealthCheck:
             self.check_redis(),
             self.check_claude_api(),
             self.check_openai_api(),
-            self.check_blockchain(),
             return_exceptions=True
         )
 
@@ -207,10 +183,6 @@ class HealthCheck:
             "openai_api": results[3] if not isinstance(results[3], Exception) else {
                 "status": HealthStatus.UNHEALTHY,
                 "error": str(results[3])
-            },
-            "blockchain": results[4] if not isinstance(results[4], Exception) else {
-                "status": HealthStatus.DEGRADED,
-                "error": str(results[4])
             }
         }
 

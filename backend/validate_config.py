@@ -80,7 +80,6 @@ def validate_database():
 def check_optional_features():
     """Check optional features and their requirements."""
     features = {
-        "ENABLE_BLOCKCHAIN": ["PRIVATE_KEY", "ALCHEMY_RPC_URL"],
         "ENABLE_PAYMENTS": ["PAYMOB_API_KEY"],
         "ENABLE_SMS": ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"],
         "ENABLE_EMAIL": ["SENDGRID_API_KEY"],

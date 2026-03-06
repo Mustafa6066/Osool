@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 CORE_USERS = ["Mustafa", "Hani", "Abady", "Sama"]
 TESTERS = [f"Tester{i:02d}" for i in range(1, 11)]
 
-COMMON_PASSWORD = "Pass123!@#"
+# Security: Never hardcode passwords. Use env var or generate at runtime.
+import secrets as _secrets
+COMMON_PASSWORD = os.getenv("SEED_PASSWORD", _secrets.token_urlsafe(24))
 
 async def seed_users():
     async with AsyncSessionLocal() as session:

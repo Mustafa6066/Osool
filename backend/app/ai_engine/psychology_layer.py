@@ -1813,7 +1813,7 @@ def determine_strategy(
                 "Don't sign anything yet. Send me the contract first; I'll run my Legal Scanner on it.",
                 "I utilize a Law 114 Legal Scanner to detect contract loopholes.",
                 "This developer has a 95% on-time delivery record. Zero legal violations.",
-                "My protocol requires verification on Polygon before I recommend this.",
+                "My protocol requires full verification before I recommend this.",
             ]
             
     elif objection == ObjectionType.MARKET:
@@ -1894,7 +1894,7 @@ def determine_strategy(
         angle = "proof"
         talking_points = [
             "Before we talk prices, I want to show you the transaction history.",
-            "I don't want you to trust me. I want you to trust the data. Here is the Blockchain Verification link for the last unit we sold...",
+            "I don't want you to trust me. I want you to trust the data. Here is the verification report for the last unit we sold...",
             "Send me any contract you have—I'll run my Law 114 Scanner on it for free."
         ]
         

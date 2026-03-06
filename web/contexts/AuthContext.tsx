@@ -6,7 +6,6 @@ import { isAuthenticated, getCurrentUserFromToken, logout as apiLogout } from '@
 interface User {
   id: string;
   email?: string;
-  wallet_address?: string;
   full_name?: string;
   role?: string;
 }

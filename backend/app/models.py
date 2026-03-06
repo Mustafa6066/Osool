@@ -24,7 +24,7 @@ class User(Base):
     User Model - Phase 1: Simplified for email/password auth
 
     Phase 1: Email, password, full_name (required)
-    Phase 2: Will add back wallet_address, national_id, phone_number for KYC
+    Phase 2: Will add national_id, phone_number for KYC
     """
     __tablename__ = "users"
 
@@ -36,11 +36,10 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String)
     role: Mapped[str] = mapped_column(String, default="investor") # investor, admin
 
-    # Phase 2: KYC & Web3 Fields (kept for database compatibility, not used in Phase 1)
+    # Phase 2: KYC Fields (kept for database compatibility, not used in Phase 1)
     national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
     phone_number: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
-    wallet_address: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
-    encrypted_private_key: Mapped[str] = mapped_column(Text, nullable=True)
+    # wallet_address and encrypted_private_key columns removed (deprecated)
 
     # Verification Status
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)  # Master verification flag
@@ -108,15 +107,14 @@ class Property(Base):
     # Vector Embedding for Semantic Search (1536 dim for OpenAI text-embedding-3-small)
     embedding: Mapped[Vector] = mapped_column(Vector(1536), nullable=True)
 
-    # Blockchain Integration
-    blockchain_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=True) # ID on Smart Contract
+    # Availability
     is_available: Mapped[bool] = mapped_column(Boolean, default=True)
 
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Transaction(Base):
-    """Phase 2: Blockchain transaction tracking"""
+    """Payment transaction tracking"""
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -127,11 +125,10 @@ class Transaction(Base):
     currency: Mapped[str] = mapped_column(String, default="EGP")
     
     # Status
-    status: Mapped[str] = mapped_column(String, default="pending") # pending, paid, blockchain_confirmed, failed
+    status: Mapped[str] = mapped_column(String, default="pending") # pending, paid, confirmed, failed
     
     # External References
     paymob_order_id: Mapped[str] = mapped_column(String, nullable=True)
-    blockchain_tx_hash: Mapped[str] = mapped_column(String, nullable=True)
     
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -141,7 +138,7 @@ class Transaction(Base):
 class PaymentApproval(Base):
     """
     Phase 2: Manual Bank Transfer Approvals
-    Admins must verify these before blockchain transfer.
+    Admins must verify these before confirming the transaction.
     """
     __tablename__ = "payment_approvals"
 
@@ -190,74 +187,6 @@ class RefreshToken(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User")
-
-
-class LiquidityPool(Base):
-    """
-    Phase 2: AMM Liquidity Pools for Property Token Trading
-    Each property can have a liquidity pool for instant token trading.
-    """
-    __tablename__ = "liquidity_pools"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), unique=True, index=True)
-    pool_address: Mapped[str] = mapped_column(String, unique=True)  # Smart contract address
-    token_reserve: Mapped[float] = mapped_column(Float, default=0)  # Property tokens in pool
-    egp_reserve: Mapped[float] = mapped_column(Float, default=0)  # EGP in pool (OEGP stablecoin)
-    total_lp_tokens: Mapped[float] = mapped_column(Float, default=0)  # Total LP tokens issued
-    total_volume_24h: Mapped[float] = mapped_column(Float, default=0)  # 24h trading volume
-    total_fees_earned: Mapped[float] = mapped_column(Float, default=0)  # Total fees accumulated
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    property = relationship("Property")
-
-
-class Trade(Base):
-    """
-    Phase 2: Trading History for AMM Swaps
-    Records all property token swaps through liquidity pools.
-    """
-    __tablename__ = "trades"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    pool_id: Mapped[int] = mapped_column(ForeignKey("liquidity_pools.id"), index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    trade_type: Mapped[str] = mapped_column(String)  # 'BUY' or 'SELL'
-    token_amount: Mapped[float] = mapped_column(Float)  # Amount of property tokens
-    egp_amount: Mapped[float] = mapped_column(Float)  # Amount of EGP
-    execution_price: Mapped[float] = mapped_column(Float)  # Price at execution (EGP per token)
-    slippage_percent: Mapped[float] = mapped_column(Float)  # Actual slippage
-    fee_amount: Mapped[float] = mapped_column(Float)  # Fee paid (0.3%)
-    tx_hash: Mapped[str] = mapped_column(String, nullable=True)  # Blockchain transaction hash
-    status: Mapped[str] = mapped_column(String, default="pending")  # pending, completed, failed
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    pool = relationship("LiquidityPool")
-    user = relationship("User")
-
-
-class LiquidityPosition(Base):
-    """
-    Phase 2: Liquidity Provider Positions
-    Tracks user LP token holdings and their value.
-    """
-    __tablename__ = "liquidity_positions"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    pool_id: Mapped[int] = mapped_column(ForeignKey("liquidity_pools.id"), index=True)
-    lp_tokens: Mapped[float] = mapped_column(Float)  # Amount of LP tokens owned
-    initial_token_amount: Mapped[float] = mapped_column(Float)  # Tokens deposited initially
-    initial_egp_amount: Mapped[float] = mapped_column(Float)  # EGP deposited initially
-    fees_earned: Mapped[float] = mapped_column(Float, default=0)  # Accumulated fees
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
-
-    user = relationship("User")
-    pool = relationship("LiquidityPool")
-
 
 
 class MarketIndicator(Base):

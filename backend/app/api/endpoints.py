@@ -1,19 +1,18 @@
 """
 Osool API Endpoints
 -------------------
-FastAPI routes for property reservation and blockchain integration.
+FastAPI routes for AI-powered real estate platform.
 
 Payment Flow:
 1. User pays via InstaPay/Fawry (EGP)
 2. User submits payment reference to this API
 3. Backend verifies payment
-4. Backend updates blockchain status
-5. User receives TX hash as proof
+4. Backend updates transaction status
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
 from app.ai_engine.openai_service import osool_ai
@@ -21,8 +20,7 @@ from app.ai_engine.wolf_orchestrator import wolf_brain as hybrid_brain  # Backwa
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.claude_sales_agent import claude_sales_agent
 from app.services.paymob_service import paymob_service
-from app.tasks import reserve_property_task
-from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, verify_wallet_signature, get_or_create_user_by_wallet, create_custodial_wallet
+from app.auth import create_access_token, get_current_user, get_password_hash, verify_password
 from app.database import get_db
 from app.models import User, Property, Transaction, PaymentApproval
 from sqlalchemy.orm import Session
@@ -52,19 +50,18 @@ import os
 # ═══════════════════════════════════════════════════════════════
 
 class ReservationRequest(BaseModel):
-    property_id: int = Field(..., description="On-chain property ID")
-    user_address: str = Field(..., description="Buyer's wallet address")
+    property_id: int = Field(..., description="Property ID")
     payment_reference: str = Field(..., description="InstaPay/Fawry transaction reference")
     payment_amount_egp: float = Field(..., description="Payment amount in EGP")
 
 
 class SaleFinalizationRequest(BaseModel):
-    property_id: int = Field(..., description="On-chain property ID")
+    property_id: int = Field(..., description="Property ID")
     bank_transfer_reference: str = Field(..., description="Bank transfer reference")
 
 
 class CancellationRequest(BaseModel):
-    property_id: int = Field(..., description="On-chain property ID")
+    property_id: int = Field(..., description="Property ID")
     reason: str = Field(..., description="Cancellation reason")
 
 
@@ -108,13 +105,6 @@ class PaymentInitiateRequest(BaseModel):
     last_name: str = Field(..., description="User last name")
 
 
-class FractionalInvestmentRequest(BaseModel):
-    """Request model for fractional property investment."""
-    property_id: int = Field(..., description="Property ID to invest in")
-    investor_address: str = Field(..., description="Investor wallet address")
-    investment_amount_egp: float = Field(..., description="Investment amount in EGP")
-
-
 # ---------------------------------------------------------------------------
 # SECURITY DEPENDENCIES
 # ---------------------------------------------------------------------------
@@ -127,14 +117,16 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
     """
     Phase 4: Protects Admin/Ingest endpoints with secure API key validation.
     CRITICAL: No hardcoded fallback - fails fast if not configured.
+    Security Fix M6: Uses timing-safe comparison.
     """
+    import secrets as _sec
     ADMIN_KEY = os.getenv("ADMIN_API_KEY")
     if not ADMIN_KEY:
         raise HTTPException(
             status_code=500,
             detail="ADMIN_API_KEY environment variable not configured. Server misconfiguration."
         )
-    if api_key != ADMIN_KEY:
+    if not _sec.compare_digest(api_key or "", ADMIN_KEY):
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return api_key
 
@@ -150,26 +142,39 @@ class ChatRequest(BaseModel):
 # ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
 
+# Security Fix H3: Accept signup data in request body, not query params
+class LegacySignupRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    full_name: str = Field(..., min_length=1)
+
+import re as _re_signup
+
 @router.post("/auth/signup")
-async def signup(email: str, password: str, full_name: str, db: AsyncSession = Depends(get_db)):
+async def signup(req: LegacySignupRequest, db: AsyncSession = Depends(get_db)):
     """User Registration"""
     from sqlalchemy import select
+    email, password, full_name = req.email, req.password, req.full_name
+
+    # Security: Enforce password complexity
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if not _re_signup.search(r'[A-Z]', password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+    if not _re_signup.search(r'[a-z]', password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter")
+    if not _re_signup.search(r'[0-9]', password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one digit")
+
     result = await db.execute(select(User).filter(User.email == email))
     user = result.scalar_one_or_none()
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # 1. Generate Custodial Wallet (Bridge to Web3)
-    # Phase 1 Security: Returns encrypted private key
-    wallet = create_custodial_wallet()
-
-    # 2. Create User
     new_user = User(
         email=email,
         full_name=full_name,
         password_hash=get_password_hash(password),
-        wallet_address=wallet["address"], # Assigned Custodial Wallet
-        encrypted_private_key=wallet["encrypted_private_key"], # Phase 1: Store encrypted key
         is_verified=True
     )
 
@@ -177,10 +182,9 @@ async def signup(email: str, password: str, full_name: str, db: AsyncSession = D
     await db.commit()
     await db.refresh(new_user)
 
-    # Security: Private key is encrypted and stored, never logged or exposed
-    print(f"Custodial Wallet Created for {email}: {wallet['address']}")
+    logger.info(f"User created: {email}")
     
-    return {"status": "user_created", "email": email, "id": new_user.id, "wallet": wallet["address"]}
+    return {"status": "user_created", "email": email, "id": new_user.id}
 
 @router.post("/auth/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
@@ -194,80 +198,14 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
+    # Security Fix: Only include essential claims in JWT (no PII like full_name)
     access_token = create_access_token(data={
         "sub": user.email, 
-        "wallet": user.wallet_address, 
         "role": user.role,
-        "full_name": user.full_name  # Include full_name for frontend display
     })
     return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
 
-
-class WalletLoginRequest(BaseModel):
-    address: str
-    signature: str
-    message: str
-
-@router.post("/auth/verify-wallet")
-def verify_wallet(req: WalletLoginRequest, db: Session = Depends(get_db)):
-    """
-    🔐 Web3 Login (SIWE) - Production
-    Verifies signature and issues JWT.
-    Returns is_new_user flag for profile completion flow.
-    """
-    # 1. Verify Signature
-    is_valid = verify_wallet_signature(req.address, req.message, req.signature)
-    if not is_valid:
-        raise HTTPException(status_code=400, detail="Invalid wallet signature")
-    
-    # 2. Get or Create User
-    user = get_or_create_user_by_wallet(db, req.address)
-    
-    # 3. Check if profile is complete
-    is_new_user = user.full_name == "Wallet User" or not user.phone_number
-    
-    # 4. Issue Token
-    access_token = create_access_token(data={"wallet": user.wallet_address, "sub": user.email, "role": user.role})
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer", 
-        "user_id": user.id,
-        "is_new_user": is_new_user
-    }
-
-@router.post("/auth/link-wallet")
-def link_wallet(req: WalletLoginRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    🔗 Link a Web3 Wallet to an existing Email Account.
-    Protected endpoint: Requires valid Email JWT.
-    """
-    # 1. Verify Signature
-    is_valid = verify_wallet_signature(req.address, req.message, req.signature)
-    if not is_valid:
-        raise HTTPException(status_code=400, detail="Invalid wallet signature")
-
-    # 2. Check if wallet uses a different account
-    if current_user.wallet_address == req.address:
-        return {"status": "already_linked"}
-
-    success = bind_wallet_to_user(db, current_user.id, req.address)
-    if not success:
-        raise HTTPException(status_code=400, detail="Wallet already linked to another user.")
-    
-    # 3. Issue Enriched Token
-    db.refresh(current_user)
-    access_token = create_access_token(data={
-        "sub": current_user.email, 
-        "wallet": current_user.wallet_address,
-        "role": current_user.role
-    })
-    
-    return {
-        "status": "linked",
-        "access_token": access_token,
-        "user_id": current_user.id
-    }
 
 class ProfileUpdateRequest(BaseModel):
     """Request model for profile completion."""
@@ -276,21 +214,24 @@ class ProfileUpdateRequest(BaseModel):
     email: Optional[str] = Field(None, description="Email for account binding")
 
 @router.post("/auth/update-profile")
-def update_profile(req: ProfileUpdateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def update_profile(req: ProfileUpdateRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """
-    📝 Complete User Profile
-    Called after wallet connection. Binds email if provided.
+    Complete User Profile.
+    Binds email if provided.
     """
+    from sqlalchemy import select
+    
     current_user.full_name = req.full_name
     current_user.phone_number = req.phone_number
     if req.email:
-        # Check if email is available
-        existing = db.query(User).filter(User.email == req.email).first()
+        # Check if email is available (async)
+        result = await db.execute(select(User).filter(User.email == req.email))
+        existing = result.scalar_one_or_none()
         if existing and existing.id != current_user.id:
              raise HTTPException(status_code=400, detail="Email already in use")
         current_user.email = req.email
         
-    db.commit()
+    await db.commit()
     
     return {
         "status": "success",
@@ -302,12 +243,11 @@ def update_profile(req: ProfileUpdateRequest, current_user: User = Depends(get_c
 @router.get("/health")
 async def health_check(db: AsyncSession = Depends(get_db)):
     """
-    Phase 5: Comprehensive health check for all services.
+    Comprehensive health check for all services.
 
     Checks:
     - Database connectivity
     - Redis cache
-    - Blockchain connection
     - OpenAI API
 
     Returns:
@@ -369,15 +309,10 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/metrics")
-def prometheus_metrics():
+async def prometheus_metrics(_key: str = Depends(verify_api_key)):
     """
     Phase 5: Prometheus metrics endpoint for monitoring.
-
-    Exposes metrics in Prometheus format for:
-    - API requests and latency
-    - OpenAI usage and costs
-    - Circuit breaker states
-    - Business metrics (searches, reservations)
+    SECURITY: Protected with X-Admin-Key header (duplicated from main.py).
     """
     from app.services.metrics import metrics_endpoint
     return metrics_endpoint()
@@ -420,53 +355,25 @@ async def get_property(property_id: int, db: AsyncSession = Depends(get_db)):
 @router.get("/properties")
 async def list_properties(db: AsyncSession = Depends(get_db)):
     """
-    🏠 List all available properties.
-    Used by the Fractional Investment Dashboard.
+    List all available properties.
     """
     from sqlalchemy import select
     result = await db.execute(select(Property).filter(Property.is_available == True))
     props = result.scalars().all()
     
-    # Enrich with computed fields (Mocking AI score/Funding for MVP if not in DB)
     results = []
-    
     for p in props:
-        # Calculate funding based on blockchain if possible, else mock for display
-        # In prod, query smart contract: blockchain_service.get_funding(p.blockchain_id)
-        
         results.append({
             "id": p.id,
             "name": p.title,
             "location": p.location,
             "totalPrice": p.price,
-            "minimumInvestment": p.price * 0.05, # 5% minimum
-            "expectedReturn": 20 + (p.id % 5), # Random-ish but deterministic
-            "expectedExitDate": "Dec 2028",
-            "fundingPercentage": 0, # TODO: Sync with Smart Contract
-            "aiRiskScore": 10 + (p.id * 2),
-            "aiValuation": p.price * 1.1,
+            "minimumInvestment": p.price * 0.05,
             "description": p.description,
-            "image": f"/assets/property{1 + (p.id % 3)}.jpg" # Placeholder rotation
+            "image": f"/assets/property{1 + (p.id % 3)}.jpg"
         })
         
     return results
-
-
-# Phase 1: Blockchain endpoints removed (Phase 2 feature)
-# @router.post("/reserve") - Reserved for Phase 2
-# @router.post("/finalize-sale") - Reserved for Phase 2
-# @router.post("/cancel-reservation") - Reserved for Phase 2
-
-# Kept for reference - will be re-enabled in Phase 2:
-"""
-class CancellationRequest(BaseModel):
-    property_id: int
-    reason: str
-"""
-
-# Phase 1: Simplified - No blockchain reservation for now
-# When user wants to reserve, they chat with AMR who guides them
-# Blockchain integration will return in Phase 2
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -474,10 +381,10 @@ class CancellationRequest(BaseModel):
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/checkout")
-def checkout(
+async def checkout(
     token: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     🧠 Phase 3: AI Checkout Bridge - Converts JWT reservation tokens to payment sessions
@@ -503,9 +410,7 @@ def checkout(
     """
     import jwt
     from datetime import datetime
-    import logging
-
-    logger = logging.getLogger(__name__)
+    from sqlalchemy import select
 
     try:
         # 1. Decode JWT token
@@ -529,8 +434,9 @@ def checkout(
         if not property_id:
             raise HTTPException(status_code=400, detail="Property ID missing from token")
 
-        # 4. Fetch property and verify availability
-        property = db.query(Property).filter(Property.id == property_id).first()
+        # 4. Fetch property and verify availability (F9: async)
+        result = await db.execute(select(Property).filter(Property.id == property_id))
+        property = result.scalar_one_or_none()
         if not property:
             raise HTTPException(status_code=404, detail=f"Property {property_id} not found")
 
@@ -564,7 +470,7 @@ def checkout(
         if "error" in result:
             raise HTTPException(status_code=500, detail=result["error"])
 
-        # 8. Store transaction for webhook tracking
+        # 8. Store transaction for webhook tracking (F9: async)
         try:
             new_tx = Transaction(
                 user_id=current_user.id,
@@ -574,7 +480,7 @@ def checkout(
                 status="pending"
             )
             db.add(new_tx)
-            db.commit()
+            await db.commit()
 
             logger.info(f"✅ Checkout: User {current_user.id} → Property {property_id} → Order {result.get('order_id')}")
         except Exception as e:
@@ -598,7 +504,8 @@ def checkout(
         raise
     except Exception as e:
         logger.error(f"❌ Checkout failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Checkout error: {str(e)}")
+        # Security Fix L1: Don't leak internal error details
+        raise HTTPException(status_code=500, detail="Checkout error. Please try again.")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -606,25 +513,27 @@ def checkout(
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/payment/initiate")
-def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """
     💳 Start Payment Flow (Paymob)
     Creates a Transaction Record + Paymob Order.
     """
+    from sqlalchemy import select
     
     # 1. STRICT KYC CHECK
     if not current_user.phone_number:
          raise HTTPException(status_code=403, detail="Verified phone number required for payments.")
          
-    # 1.5 AVAILABILITY CHECK
-    property = db.query(Property).filter(Property.id == req.property_id).first()
+    # 1.5 AVAILABILITY CHECK (F12: async db)
+    result = await db.execute(select(Property).filter(Property.id == req.property_id))
+    property = result.scalar_one_or_none()
     if not property:
         raise HTTPException(status_code=404, detail="Property not found")
     if not property.is_available:
         raise HTTPException(status_code=400, detail="Property is NOT available associated with this payment request.")
 
     # 2. Initiate Paymob
-    result = paymob_service.initiate_payment(
+    paymob_result = paymob_service.initiate_payment(
         amount_egp=req.amount_egp,
         user_email=req.email,
         user_phone=req.phone_number,
@@ -632,39 +541,39 @@ def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: User = De
         last_name=req.last_name
     )
     
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
+    if "error" in paymob_result:
+        raise HTTPException(status_code=500, detail=paymob_result["error"])
         
-    # 3. Store Transaction for internal tracking
+    # 3. Store Transaction for internal tracking (F12: async)
     # CRITICAL: Webhook needs this to link Order ID -> User/Property
     try:
         new_tx = Transaction(
             user_id=current_user.id, 
             property_id=req.property_id,
             amount=req.amount_egp, 
-            paymob_order_id=str(result.get("order_id")),
+            paymob_order_id=str(paymob_result.get("order_id")),
             status="pending"
         )
         db.add(new_tx)
-        db.commit()
+        await db.commit()
     except Exception as e:
-        print(f"❌ Failed to save transaction: {e}")
-        # We proceed but warn. In strict mode, maybe fail?
-        # If we fail here, user paid but we don't know.
-        # Ideally transaction is created BEFORE paymob, then updated with order_id.
-        # But for now, we do this.
+        logger.error(f"❌ Failed to save transaction: {e}")
+        # Proceed but warn — payment was already initiated
     
-    return result
+    return paymob_result
 
 @router.post("/webhook/paymob")
-async def paymob_webhook(data: dict, hmac: str, db: Session = Depends(get_db)):
+async def paymob_webhook(data: dict, hmac: str, db: AsyncSession = Depends(get_db)):
     """
-    🔐 Secure Webhook Listener for Paymob.
-    Verifies HMAC signature then triggers Blockchain actions on payment success.
+    Secure Webhook Listener for Paymob.
+    Verifies HMAC signature then updates transaction status on payment success.
     """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     # 1. Verify source is actually Paymob
     if not paymob_service.verify_hmac(data, hmac):
-         raise HTTPException(status_code=403, detail="Nice try, hacker. HMAC verification failed.")
+         raise HTTPException(status_code=403, detail="HMAC verification failed.")
     
     # 2. Extract Data
     try:
@@ -676,108 +585,40 @@ async def paymob_webhook(data: dict, hmac: str, db: Session = Depends(get_db)):
         if not success:
             return {"status": "ignored", "reason": "transaction_failed"}
             
-        print(f"✅ Webhook: Payment SUCCESS (Order: {order_id}). Triggering Blockchain...")
+        logger.info(f"Webhook: Payment SUCCESS (Order: {order_id})")
 
-        # 3. Lookup Transaction in DB to get Property & User
-        # We need to find the pending transaction associated with this order
-        transaction = db.query(Transaction).filter(Transaction.paymob_order_id == order_id).first()
+        # 3. Lookup Transaction in DB
+        result = await db.execute(
+            select(Transaction)
+            .options(selectinload(Transaction.user))
+            .filter(Transaction.paymob_order_id == order_id)
+        )
+        transaction = result.scalar_one_or_none()
         
         if not transaction:
-             print(f"⚠️ Webhook: Unknown Order ID {order_id}. Manual check required.")
+             logger.warning(f"Webhook: Unknown Order ID {order_id}. Manual check required.")
              return {"status": "accepted_but_unknown_order"}
              
-        # Update transaction status
+        # 4. Update transaction status to paid
         transaction.status = "paid"
-        db.commit()
 
-        # 4. Determine Transaction Type & Trigger Appropriate Blockchain Action
+        # 5. If this is a property reservation, mark the property as unavailable
         if transaction.property_id:
-             user = transaction.user
-             wallet_address = user.wallet_address
+            prop_result = await db.execute(
+                select(Property).filter(Property.id == transaction.property_id)
+            )
+            property = prop_result.scalar_one_or_none()
+            if property:
+                property.is_available = False
+                logger.info(f"Property {property.id} marked as reserved after payment")
 
-             if not wallet_address:
-                  print("⚠️ User has no wallet address. Cannot process blockchain action.")
-                  return {"status": "user_no_wallet"}
-
-             # Fetch property to determine transaction type
-             property = db.query(Property).filter(Property.id == transaction.property_id).first()
-
-             if not property:
-                  print(f"⚠️ Property {transaction.property_id} not found.")
-                  return {"status": "property_not_found"}
-
-             # HEURISTIC: If payment >= 10% of property price, it's a RESERVATION deposit
-             # Otherwise, it's a FRACTIONAL investment
-             is_reservation_deposit = (transaction.amount >= property.price * 0.10)
-
-             if is_reservation_deposit:
-                  # This is a RESERVATION deposit - call markReserved()
-                  print(f"🔒 Detected RESERVATION deposit ({transaction.amount} EGP >= 10% of {property.price} EGP)")
-
-                  try:
-                      # Call blockchain to mark property as reserved
-                      blockchain_id = property.blockchain_id or property.id
-                      result = blockchain_service_prod.reserve_property(
-                          property_id=blockchain_id,
-                          buyer_address=wallet_address
-                      )
-
-                      if result.get("success"):
-                          tx_hash = result.get("tx_hash")
-                          transaction.blockchain_tx_hash = tx_hash
-                          transaction.status = "blockchain_confirmed"
-
-                          # Update property status in DB (for consistency)
-                          property.is_available = False  # Mark as no longer available
-
-                          db.commit()
-                          print(f"✅ Property {property.id} reserved on-chain: {tx_hash}")
-                      else:
-                          # Blockchain call failed - queue for retry
-                          print(f"❌ Blockchain reservation failed: {result.get('error')}")
-                          transaction.status = "blockchain_pending"
-                          db.commit()
-
-                          # TODO: Queue for Celery retry (implemented in tasks.py)
-                          # from app.tasks import reserve_property_task
-                          # reserve_property_task.apply_async(
-                          #     args=[blockchain_id, wallet_address],
-                          #     countdown=60
-                          # )
-
-                          return {"status": "payment_confirmed_blockchain_pending", "error": result.get('error')}
-
-                  except Exception as e:
-                      print(f"❌ Exception during blockchain reservation: {e}")
-                      transaction.status = "blockchain_pending"
-                      db.commit()
-                      return {"status": "payment_confirmed_blockchain_error", "error": str(e)}
-
-             else:
-                  # This is a FRACTIONAL investment - mint fractional shares
-                  print(f"💎 Detected FRACTIONAL investment ({transaction.amount} EGP)")
-                  shares = int(transaction.amount * 100)  # 1 EGP = 100 Shares
-
-                  blockchain_id = property.blockchain_id or property.id
-                  result = blockchain_service_prod.mint_fractional_shares(
-                      property_id=blockchain_id,
-                      investor_address=wallet_address,
-                      amount=shares
-                  )
-
-                  if result.get("success"):
-                      transaction.blockchain_tx_hash = result.get("tx_hash")
-                      transaction.status = "blockchain_confirmed"
-                      db.commit()
-                      print(f"✅ Minted {shares} fractional shares")
-                  else:
-                      transaction.status = "blockchain_pending"
-                      db.commit()
-                      print(f"❌ Minting failed: {result.get('error')}")
+        await db.commit()
+        logger.info(f"Transaction {transaction.id} marked as paid")
         
     except Exception as e:
-        print(f"Webhook Error: {e}")
-        raise HTTPException(status_code=500, detail="Processing error")
+        logger.error(f"Webhook Error: {e}")
+        # Security: Don't leak internal error details in webhook response
+        raise HTTPException(status_code=500, detail="Internal processing error")
     
     return {"status": "success"}
 
@@ -971,7 +812,7 @@ async def chat_with_agent(
             db.add(ai_message)
             await db.commit()
         except Exception as save_err:
-            print(f"⚠️ Failed to persist AI response (non-fatal): {save_err}")
+            logger.warning(f"Failed to persist AI response (non-fatal): {save_err}")
             try:
                 await db.rollback()
             except Exception:
@@ -1074,7 +915,8 @@ async def chat_with_agent(
         except Exception:
             pass  # Connection may already be dead
         print(f"❌ Chat Error: {e}")
-        raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
+        # Security Fix L1: Don't leak internal error details
+        raise HTTPException(status_code=500, detail="AI is temporarily unavailable. Please try again.")
 
 
 @router.post("/chat/stream")
@@ -1209,6 +1051,7 @@ async def chat_stream(
                 response_text = clean_response_text(accumulated_text)
             else:
                 # ── FALLBACK: fake streaming (split pre-generated text) ──
+                logger.warning("Stream context unavailable, falling back to simulated streaming")
                 response_text = clean_response_text(ai_result.get("response", ""))
                 import re as re_module
                 chunks = re_module.findall(r'[^\s]+(?:\s+|$)', response_text)
@@ -1362,74 +1205,6 @@ def compare_asking(req: PriceComparisonRequest):
     return result
 
 
-# ═══════════════════════════════════════════════════════════════
-# FRACTIONAL INVESTMENT ENDPOINTS (Production)
-# ═══════════════════════════════════════════════════════════════
-
-@router.post("/fractional/invest")
-def fractional_invest(req: FractionalInvestmentRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    🏢 Fractional Property Investment (Production)
-    
-    Flow:
-    1. Verify EGP payment (assume initiated previously or verified check)
-    2. Fetch REAL Property Price from DB
-    3. Calculate Precise Ownership %
-    4. Mint fractional shares on blockchain
-    """
-    
-    # Step 1: Validate wallet address
-    if not req.investor_address.startswith("0x") or len(req.investor_address) != 42:
-        raise HTTPException(status_code=400, detail="Invalid wallet address format")
-    
-    # Step 2: Fetch Property Data (The Logic Upgrade)
-    property_record = db.query(Property).filter(Property.id == req.property_id).first()
-    if not property_record:
-        raise HTTPException(status_code=404, detail="Property not found")
-        
-    total_price = property_record.price
-    if total_price <= 0:
-        raise HTTPException(status_code=500, detail="Invalid property price in database")
-
-    # Step 3: Calculate Precise Ownership
-    ownership_percentage = (req.investment_amount_egp / total_price) * 100
-    
-    # Calculate Shares (Example: Total Tokens = Total Price * 100? Or 1 Token = 1 EGP?)
-    # Let's assume 1 Share = 1 EGP for simplicity or 100 Shares = 1 EGP (Penny stocks style)
-    # The user request said "precise calculated amount". 
-    # Let's use 1 Share = 1 EGP for standard tokenization logic usually
-    # But earlier code used amount * 100. We will stick to amount * 100 (Cents representation perhaps?)
-    shares_to_mint = int(req.investment_amount_egp * 100)
-    
-    # Step 4: Mint fractional shares
-    try:
-        blockchain_result = blockchain_service_prod.mint_fractional_shares(
-            property_id=req.property_id,
-            investor_address=req.investor_address,
-            amount=shares_to_mint
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Blockchain Error: {str(e)}")
-    
-    if "error" in blockchain_result:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Blockchain minting failed: {blockchain_result['error']}"
-        )
-    
-    return {
-        "status": "success",
-        "message": "🎉 Investment confirmed! Ownership transferred.",
-        "property_id": req.property_id,
-        "invested_amount": req.investment_amount_egp,
-        "total_property_value": total_price,
-        "ownership_percentage": round(ownership_percentage, 4),
-        "shares_minted": shares_to_mint,
-        "tx_hash": blockchain_result.get("tx_hash", ""),
-        "blockchain_proof": f"https://amoy.polygonscan.com/tx/{blockchain_result.get('tx_hash', '')}"
-    }
-
-
 @router.post("/ai/prod/valuation")
 def production_valuation(req: HybridValuationRequest):
     """
@@ -1488,15 +1263,6 @@ def trigger_ingestion(background_tasks: BackgroundTasks, api_key: str = Depends(
     from app.services.nawy_scraper import ingest_nawy_data
     background_tasks.add_task(ingest_nawy_data)
     return {"status": "Ingestion started in background"}
-
-@router.post("/admin/withdraw-fees")
-def admin_withdraw_fees(api_key: str = Depends(verify_api_key)):
-    """
-    Admin: Withdraws platform fees from Smart Contract.
-    """
-    # Logic to call blockchain_service.withdraw_fees() would go here
-    return {"status": "Not implemented yet"}
-
 
 @router.post("/admin/update-economic-data")
 async def admin_update_economic_data(

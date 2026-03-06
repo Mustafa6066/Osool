@@ -1,7 +1,7 @@
 """
 Osool Authentication Module
 ---------------------------
-Handles JWT generation, password hashing, and Web3 Wallet Verification (SIWE).
+Handles JWT generation, password hashing, and user authentication.
 Phase 2: Enhanced with Google OAuth, Email Verification, Password Reset.
 Phase 4: Security hardening - no hardcoded fallbacks.
 """
@@ -12,8 +12,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from eth_account import Account
-from eth_account.messages import encode_defunct
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -32,13 +30,28 @@ if not SECRET_KEY:
 if len(SECRET_KEY) < 32:
     raise ValueError(f"❌ JWT_SECRET_KEY must be at least 32 characters long for security (got {len(SECRET_KEY)} characters)")
 
+# Security Fix H5: Reject weak dev-style secrets in production
+import re as _re
+if os.getenv("ENVIRONMENT") == "production" and _re.fullmatch(r'[a-z0-9\-]+', SECRET_KEY):
+    raise ValueError("❌ JWT_SECRET_KEY looks like a weak dev secret. Generate with: openssl rand -hex 32")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 Hours (Phase 6: Reduced from 30 days)
 REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 Days for refresh tokens
 
-# Token blacklist (for logout functionality)
-# In production, use Redis for distributed blacklist
-_token_blacklist = set()  # Stores invalidated token JTI (JWT ID)
+# Token blacklist — Redis-backed for persistence across restarts
+# Falls back to in-memory set if Redis is unavailable.
+_token_blacklist_memory = set()
+
+def _get_redis_client():
+    """Get Redis client for token blacklist, if available."""
+    try:
+        from app.services.cache import cache
+        if cache.redis and cache.redis.ping():
+            return cache.redis
+    except Exception:
+        pass
+    return None
 
 # Use direct bcrypt instead of passlib for compatibility
 import bcrypt
@@ -78,16 +91,12 @@ async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme
         
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
-        wallet: str = payload.get("wallet")
         
-        if username is None and wallet is None:
+        if username is None:
             return None
             
         if username:
             result = await db.execute(select(User).filter(User.email == username))
-            user = result.scalar_one_or_none()
-        elif wallet:
-            result = await db.execute(select(User).filter(User.wallet_address == wallet))
             user = result.scalar_one_or_none()
         else:
             return None
@@ -130,15 +139,20 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 def invalidate_token(token: str):
     """
     Add token to blacklist (logout functionality).
-
-    In production, use Redis with TTL matching token expiration.
+    Uses Redis with TTL if available, falls back to in-memory set.
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         jti = payload.get("jti")
 
         if jti:
-            _token_blacklist.add(jti)
+            redis = _get_redis_client()
+            if redis:
+                # Store in Redis with 24h TTL (matching max token lifetime)
+                redis.sadd("token_blacklist", jti)
+                redis.expire("token_blacklist", 86400)
+            else:
+                _token_blacklist_memory.add(jti)
             logger.info(f"Token {jti[:8]}... invalidated")
             return True
         return False
@@ -150,66 +164,14 @@ def invalidate_token(token: str):
 def is_token_blacklisted(jti: str) -> bool:
     """
     Check if token is blacklisted.
-
-    Args:
-        jti: JWT ID from token payload
-
-    Returns:
-        True if token is blacklisted (invalidated)
+    Checks Redis first, falls back to in-memory set.
     """
-    return jti in _token_blacklist
+    redis = _get_redis_client()
+    if redis:
+        return redis.sismember("token_blacklist", jti)
+    return jti in _token_blacklist_memory
 
-# ═══════════════════════════════════════════════════════════════
-# WEB3 AUTHENTICATION (SIWE)
-# ═══════════════════════════════════════════════════════════════
 
-def verify_wallet_signature(address: str, message: str, signature: str) -> bool:
-    """
-    Verifies that a message was signed by the owner of the address.
-    Uses EIP-191 standard (eth_account).
-    """
-    try:
-        # Encode message as "defunct" (Ethereum standard prefix)
-        encoded_msg = encode_defunct(text=message)
-        
-        # Recover address from signature
-        recovered_address = Account.recover_message(encoded_msg, signature=signature)
-        
-        # Case-insensitive comparison
-        return recovered_address.lower() == address.lower()
-    except Exception as e:
-        print(f"Signature Verification Failed: {e}")
-        return False
-
-def get_or_create_user_by_wallet(db: Session, wallet_address: str, email: Optional[str] = None):
-    """
-    Finds a user by wallet. If not found, creates one.
-    If email is provided, links it.
-    """
-    user = db.query(User).filter(User.wallet_address == wallet_address).first()
-    
-    if not user:
-        # Check if email exists (Linking scenario)
-        if email:
-            user = db.query(User).filter(User.email == email).first()
-            if user:
-                user.wallet_address = wallet_address
-                db.commit()
-                return user
-
-        # Create new anonymous wallet user
-        user = User(
-            wallet_address=wallet_address,
-            email=email, # Might be None
-            full_name="Wallet User",
-            role="investor",
-            is_verified=True # Wallet ownership proves identity effectively
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        
-    return user
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get_db)):
     from sqlalchemy import select
@@ -232,154 +194,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # Token can contain 'sub' (email) or 'wallet' (address)
         username: str = payload.get("sub")
-        wallet: str = payload.get("wallet")
 
-        if username is None and wallet is None:
+        if username is None:
             raise credentials_exception
 
-        token_data = {"sub": username, "wallet": wallet}
+        token_data = {"sub": username}
     except JWTError:
         raise credentials_exception
         
-    # Find user by either metric (async pattern)
-    if token_data["sub"]:
-        result = await db.execute(select(User).filter(User.email == token_data["sub"]))
-        user = result.scalar_one_or_none()
-    elif token_data["wallet"]:
-        result = await db.execute(select(User).filter(User.wallet_address == token_data["wallet"]))
-        user = result.scalar_one_or_none()
-    else:
-        user = None
+    # Find user by email
+    result = await db.execute(select(User).filter(User.email == token_data["sub"]))
+    user = result.scalar_one_or_none()
         
     if user is None:
         raise credentials_exception
     return user
 
-def bind_wallet_to_user(db: Session, user_id: int, wallet_address: str) -> bool:
-    """
-    Binds a wallet address to an existing user (for KYC).
-    Returns True if successful, False if wallet already bound to another user.
-    """
-    # Check if wallet already bound to another user
-    existing = db.query(User).filter(User.wallet_address == wallet_address).first()
-    if existing and existing.id != user_id:
-        return False  # Wallet belongs to someone else
-    
-    user = db.query(User).filter(User.id == user_id).first()
-    if user:
-        user.wallet_address = wallet_address
-        db.commit()
-        return True
-    return False
 
-# ═══════════════════════════════════════════════════════════════
-# CUSTODIAL WALLETS (Email Users)
-# ═══════════════════════════════════════════════════════════════
-
-def create_custodial_wallet() -> dict:
-    """
-    Create encrypted custodial wallet for new users.
-    Private keys are encrypted using Fernet (AES-128-CBC) before storage.
-
-    Returns:
-        dict: {
-            "address": str - Ethereum address (0x...)
-            "encrypted_private_key": str - Fernet-encrypted private key
-        }
-
-    Security Implementation:
-        - Uses Fernet symmetric encryption (NIST approved AES-128-CBC)
-        - Encryption key stored in WALLET_ENCRYPTION_KEY environment variable
-        - Compliant with CBE Law 194 of 2020 Article 8 (Data Protection)
-        - Keys never logged or exposed in plaintext
-
-    Raises:
-        ValueError: If WALLET_ENCRYPTION_KEY is not set
-
-    Production Notes:
-        - Store WALLET_ENCRYPTION_KEY in AWS KMS / Azure Key Vault / GCP Secret Manager
-        - Never commit encryption keys to version control
-        - Rotate encryption keys periodically
-    """
-    acct = Account.create()
-
-    # Encrypt private key before returning
-    encrypted_pk = encrypt_private_key(acct.key.hex())
-
-    return {
-        "address": acct.address,
-        "encrypted_private_key": encrypted_pk
-    }
-
-def encrypt_private_key(private_key: str) -> str:
-    """
-    Encrypt wallet private key before database storage using Fernet (AES-128-CBC).
-
-    Args:
-        private_key: Unencrypted private key (hex string)
-
-    Returns:
-        Encrypted private key as base64 string
-
-    Raises:
-        ValueError: If WALLET_ENCRYPTION_KEY is not set in environment
-
-    Security Notes:
-        - Uses Fernet symmetric encryption (AES-128 in CBC mode)
-        - Encryption key MUST be stored securely (AWS KMS, Azure Key Vault, etc.)
-        - Never commit encryption keys to version control
-        - Rotate encryption keys periodically in production
-    """
-    from cryptography.fernet import Fernet
-
-    encryption_key = os.getenv("WALLET_ENCRYPTION_KEY")
-    if not encryption_key:
-        raise ValueError(
-            "WALLET_ENCRYPTION_KEY environment variable must be set for production. "
-            "Generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
-        )
-
-    try:
-        fernet = Fernet(encryption_key.encode())
-        encrypted = fernet.encrypt(private_key.encode())
-        return encrypted.decode()
-    except Exception as e:
-        logger.error(f"Wallet encryption failed: {e}")
-        raise ValueError(f"Failed to encrypt private key: {str(e)}")
-
-def decrypt_private_key(encrypted_key: str) -> str:
-    """
-    Decrypt wallet private key for transaction signing.
-
-    Args:
-        encrypted_key: Encrypted private key (base64 string from database)
-
-    Returns:
-        Decrypted private key as hex string
-
-    Raises:
-        ValueError: If WALLET_ENCRYPTION_KEY is not set or decryption fails
-
-    Security Notes:
-        - Only decrypt in-memory when needed for transaction signing
-        - Never log or return decrypted keys in API responses
-        - Clear decrypted key from memory immediately after use
-    """
-    from cryptography.fernet import Fernet
-
-    encryption_key = os.getenv("WALLET_ENCRYPTION_KEY")
-    if not encryption_key:
-        raise ValueError("WALLET_ENCRYPTION_KEY environment variable must be set")
-
-    try:
-        fernet = Fernet(encryption_key.encode())
-        decrypted = fernet.decrypt(encrypted_key.encode())
-        return decrypted.decode()
-    except Exception as e:
-        logger.error(f"Wallet decryption failed: {e}")
-        raise ValueError(f"Failed to decrypt private key: {str(e)}")
 
 # ═══════════════════════════════════════════════════════════════
 # GOOGLE OAUTH (Phase 2)
@@ -412,9 +244,14 @@ async def verify_google_token(id_token: str) -> dict:
 
             user_info = response.json()
 
-            # Verify token is for our app (if GOOGLE_CLIENT_ID is set)
+            # Security Fix L2: Require GOOGLE_CLIENT_ID (fail if not configured)
             expected_client_id = os.getenv('GOOGLE_CLIENT_ID')
-            if expected_client_id and user_info.get('aud') != expected_client_id:
+            if not expected_client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Google OAuth is not properly configured"
+                )
+            if user_info.get('aud') != expected_client_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Token not issued for this application"
@@ -451,15 +288,9 @@ def get_or_create_user_by_email(db: Session, email: str, full_name: str) -> User
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
-        # Create custodial wallet for email users
-        # Phase 1 Security: Returns encrypted private key
-        wallet = create_custodial_wallet()
-
         user = User(
             email=email,
             full_name=full_name,
-            wallet_address=wallet['address'],
-            encrypted_private_key=wallet['encrypted_private_key'], # Phase 1: Store encrypted key
             email_verified=True,  # Google/OAuth users are pre-verified
             is_verified=True,
             role='investor'
@@ -468,7 +299,7 @@ def get_or_create_user_by_email(db: Session, email: str, full_name: str) -> User
         db.commit()
         db.refresh(user)
 
-        logger.info(f"✅ Created new user via email: {email}")
+        logger.info(f"Created new user via email: {email}")
 
     return user
 

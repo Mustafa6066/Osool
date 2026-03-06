@@ -12,7 +12,6 @@ from app.services.circuit_breaker import (
     claude_breaker,
     openai_breaker,
     database_breaker,
-    blockchain_breaker,
     CircuitState
 )
 from app.monitoring.cost_tracker import cost_tracker
@@ -88,17 +87,12 @@ async def circuit_breaker_status():
                 "state": database_breaker.state.value,
                 "failure_count": database_breaker.failure_count,
                 "threshold": database_breaker.failure_threshold
-            },
-            "blockchain": {
-                "state": blockchain_breaker.state.value,
-                "failure_count": blockchain_breaker.failure_count,
-                "threshold": blockchain_breaker.failure_threshold
             }
         },
         "summary": {
             "all_closed": all(
                 b.state == CircuitState.CLOSED
-                for b in [claude_breaker, openai_breaker, database_breaker, blockchain_breaker]
+                for b in [claude_breaker, openai_breaker, database_breaker]
             )
         }
     }
@@ -187,7 +181,6 @@ async def version_info():
         "features": {
             "claude_ai": True,
             "openai_embeddings": True,
-            "blockchain_verification": True,
             "visualizations": True,
             "cost_tracking": True,
             "circuit_breakers": True

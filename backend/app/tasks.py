@@ -1,40 +1,29 @@
 """
 Celery Tasks for Osool
 ----------------------
-Background workers for long-running blockchain transactions.
+Background workers for long-running tasks.
 """
 
 from app.celery_app import celery_app
-from app.services.blockchain import blockchain_service
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @celery_app.task(bind=True, max_retries=3)
-def reserve_property_task(self, property_id: int, user_address: str):
+def send_notification_task(self, user_id: int, message: str, notification_type: str = "info"):
     """
-    Background task to reserve property on blockchain.
+    Background task to send notifications to users.
     
     Args:
-        property_id (int): ID of the property.
-        user_address (str): Wallet address of the buyer.
-        
-    Returns:
-        dict: Result of the blockchain transaction.
+        user_id: ID of the user to notify.
+        message: Notification message.
+        notification_type: Type of notification (info, payment, alert).
     """
     try:
-        # Check connection first
-        if not blockchain_service.is_connected():
-            raise Exception("Blockchain not connected")
-            
-        print(f"[Worker] Starting reservation for Property {property_id} by {user_address}")
-        
-        # This is the blocking call that takes 15-30 seconds
-        result = blockchain_service.reserve_property(property_id, user_address)
-        
-        if "error" in result:
-            raise Exception(result["error"])
-            
-        return result
-        
+        logger.info(f"[Worker] Sending {notification_type} notification to user {user_id}")
+        # TODO: Implement notification delivery (email/SMS/push)
+        return {"status": "sent", "user_id": user_id, "type": notification_type}
     except Exception as e:
-        print(f"[Worker] Task failed: {e}")
-        # Retry with exponential backoff
+        logger.error(f"[Worker] Notification task failed: {e}")
         raise self.retry(exc=e, countdown=10)

@@ -10,8 +10,20 @@ export default async function handler(req, res) {
 
     console.log(`🔀 Proxying chat request to: ${API_ENDPOINT}`);
 
-    // CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // CORS headers - restrict to known origins
+    const ALLOWED_ORIGINS = [
+        'https://osool.vercel.app',
+        'https://osoool.vercel.app',
+        'https://osool-one.vercel.app',
+        'https://osool-ten.vercel.app',
+        'https://osool.eg',
+        'http://localhost:3000',
+    ];
+    const origin = req.headers.origin || '';
+    const isVercelPreview = /^https:\/\/osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app$/.test(origin);
+    if (ALLOWED_ORIGINS.includes(origin) || isVercelPreview) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 

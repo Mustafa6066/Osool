@@ -21,7 +21,7 @@ export const translations = {
         hero: {
             badge: "Powered by Claude 3.5 Sonnet AI",
             title: "AI-Powered Real Estate Platform",
-            subtitle: "Discover your dream property with intelligent insights, blockchain verification, and AI-driven valuations for the Egyptian market.",
+            subtitle: "Discover your dream property with intelligent insights, AI-driven valuations, and expert analysis for the Egyptian market.",
             ctaExplore: "Explore Properties",
             ctaAI: "Try AI Advisor",
         },
@@ -79,7 +79,7 @@ export const translations = {
             },
             step2: {
                 title: "Analyze & Verify",
-                description: "Get AI valuations, legal checks, and blockchain verification.",
+                description: "Get AI valuations, legal checks, and market verification.",
             },
             step3: {
                 title: "Invest with Confidence",

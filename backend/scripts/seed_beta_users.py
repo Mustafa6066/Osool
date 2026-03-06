@@ -49,25 +49,31 @@ def get_password_hash(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-# Beta accounts configuration with UNIQUE passwords
-BETA_ACCOUNTS = [
-    # Admin accounts (Core Team) - Each has unique password
-    {"full_name": "Mustafa", "email": "mustafa@osool.eg", "password": "Mustafa@Osool2025!", "role": "admin"},
-    {"full_name": "Hani", "email": "hani@osool.eg", "password": "Hani@Osool2025!", "role": "admin"},
-    {"full_name": "Abady", "email": "abady@osool.eg", "password": "Abady@Osool2025!", "role": "admin"},
-    {"full_name": "Sama", "email": "sama@osool.eg", "password": "Sama@Osool2025!", "role": "admin"},
+import secrets as _secrets
 
-    # Tester accounts - Each has unique password
-    {"full_name": "Tester One", "email": "tester1@osool.eg", "password": "Tester1@Beta2025", "role": "investor"},
-    {"full_name": "Tester Two", "email": "tester2@osool.eg", "password": "Tester2@Beta2025", "role": "investor"},
-    {"full_name": "Tester Three", "email": "tester3@osool.eg", "password": "Tester3@Beta2025", "role": "investor"},
-    {"full_name": "Tester Four", "email": "tester4@osool.eg", "password": "Tester4@Beta2025", "role": "investor"},
-    {"full_name": "Tester Five", "email": "tester5@osool.eg", "password": "Tester5@Beta2025", "role": "investor"},
-    {"full_name": "Tester Six", "email": "tester6@osool.eg", "password": "Tester6@Beta2025", "role": "investor"},
-    {"full_name": "Tester Seven", "email": "tester7@osool.eg", "password": "Tester7@Beta2025", "role": "investor"},
-    {"full_name": "Tester Eight", "email": "tester8@osool.eg", "password": "Tester8@Beta2025", "role": "investor"},
-    {"full_name": "Tester Nine", "email": "tester9@osool.eg", "password": "Tester9@Beta2025", "role": "investor"},
-    {"full_name": "Tester Ten", "email": "tester10@osool.eg", "password": "Tester10@Beta2025", "role": "investor"},
+def _generate_seed_password() -> str:
+    """Generate a unique random password for each seed account."""
+    return _secrets.token_urlsafe(24)
+
+# Beta accounts configuration - passwords generated at runtime, never hardcoded
+BETA_ACCOUNTS = [
+    # Admin accounts (Core Team)
+    {"full_name": "Mustafa", "email": "mustafa@osool.eg", "password": os.getenv("SEED_ADMIN_PASSWORD", _generate_seed_password()), "role": "admin"},
+    {"full_name": "Hani", "email": "hani@osool.eg", "password": os.getenv("SEED_ADMIN_PASSWORD", _generate_seed_password()), "role": "admin"},
+    {"full_name": "Abady", "email": "abady@osool.eg", "password": os.getenv("SEED_ADMIN_PASSWORD", _generate_seed_password()), "role": "admin"},
+    {"full_name": "Sama", "email": "sama@osool.eg", "password": os.getenv("SEED_ADMIN_PASSWORD", _generate_seed_password()), "role": "admin"},
+
+    # Tester accounts
+    {"full_name": "Tester One", "email": "tester1@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Two", "email": "tester2@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Three", "email": "tester3@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Four", "email": "tester4@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Five", "email": "tester5@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Six", "email": "tester6@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Seven", "email": "tester7@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Eight", "email": "tester8@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Nine", "email": "tester9@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
+    {"full_name": "Tester Ten", "email": "tester10@osool.eg", "password": os.getenv("SEED_TESTER_PASSWORD", _generate_seed_password()), "role": "investor"},
 ]
 
 

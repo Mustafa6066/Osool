@@ -46,6 +46,10 @@ class PaymobService:
         """
         # 1. Quick check for length (Mock behavior preserved for dev without keys)
         if not self.api_key:
+            # Security Fix M7: Block mock verification in production
+            if os.getenv("ENVIRONMENT") == "production":
+                print("[!] PAYMOB_API_KEY must be set in production. Blocking mock verification.")
+                return False
             print("[IsMock] Paymob API key missing, falling back to mock verification.")
             # Standard mock: accepts 8+ chars
             return len(str(transaction_id_or_ref)) >= 8
@@ -53,8 +57,11 @@ class PaymobService:
         # 2. Real API Check
         token = self._get_auth_token()
         if not token:
-            print("[!] Could not get Paymob token. Failing safe (or Mocking).")
-            # Fallback to mock if auth fails in dev
+            # Security Fix M7: Fail-safe in production
+            if os.getenv("ENVIRONMENT") == "production":
+                print("[!] Could not get Paymob token in production. Failing safe.")
+                return False
+            print("[!] Could not get Paymob token. Falling back to mock (dev only).")
             return len(str(transaction_id_or_ref)) >= 8
             
         try:

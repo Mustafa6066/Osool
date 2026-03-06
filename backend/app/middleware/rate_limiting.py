@@ -90,12 +90,16 @@ def get_forwarded_ip(request: Request) -> str:
     """
     Get real IP address from headers (for proxied requests).
 
-    Checks X-Forwarded-For and X-Real-IP headers.
+    Security: Only trust X-Forwarded-For from known proxies (Railway, Vercel).
+    An attacker can spoof X-Forwarded-For to bypass rate limiting if we blindly trust it.
+    We take the LAST (rightmost) IP added by the trusted proxy, not the first (client-controlled).
     """
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        # X-Forwarded-For can contain multiple IPs, take the first
-        return forwarded.split(",")[0].strip()
+        # Take the LAST IP in the chain — added by the nearest trusted proxy.
+        # The first IP is client-controlled and can be spoofed.
+        ips = [ip.strip() for ip in forwarded.split(",")]
+        return ips[-1] if ips else get_remote_address(request)
 
     real_ip = request.headers.get("X-Real-IP")
     if real_ip:

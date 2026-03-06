@@ -38,10 +38,7 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
         if (email === 'sama@osool.eg') return 'Mrs. Mustafa';
 
         // Enhanced fallback logic
-        if (user.full_name && user.full_name !== 'Wallet User') return user.full_name;
-        if (user.full_name === 'Wallet User' && user.wallet_address) {
-            return `${user.wallet_address.substring(0, 6)}...${user.wallet_address.substring(38)}`;
-        }
+        if (user.full_name) return user.full_name;
         return user.email?.split('@')[0] || 'User';
     };
 

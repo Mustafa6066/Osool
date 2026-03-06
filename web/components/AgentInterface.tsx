@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
     Sparkles, MapPin,
     X, ChevronRight,
     BarChart2, Shield, Search,
-    Copy, RefreshCw, Wallet, ArrowUp,
+    Copy, RefreshCw, ArrowUp,
     History, Plus, MessageSquare, Check
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -77,14 +77,12 @@ interface Suggestion {
 const SUGGESTIONS_AR: Suggestion[] = [
     { icon: BarChart2, label: "تحليل السوق", prompt: "حلل اتجاهات السوق الحالية في القاهرة الجديدة" },
     { icon: Search, label: "فرص استثمارية", prompt: "ابحث عن عقارات عائد مرتفع تحت 5 مليون جنيه" },
-    { icon: Wallet, label: "تقييم السيولة", prompt: "احسب إمكانية السيولة لوحدتي" },
     { icon: Shield, label: "تدقيق المطور", prompt: "دقق في سجل تسليمات بالم هيلز" },
 ];
 
 const SUGGESTIONS_EN: Suggestion[] = [
     { icon: BarChart2, label: "Market Intelligence", prompt: "Analyze current market trends in New Cairo" },
     { icon: Search, label: "Find Opportunities", prompt: "Find high ROI properties under 5M EGP" },
-    { icon: Wallet, label: "Liquidity Check", prompt: "Calculate liquidity potential for my unit" },
     { icon: Shield, label: "Developer Audit", prompt: "Audit the delivery history of Palm Hills" },
 ];
 
@@ -279,7 +277,7 @@ const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
                  baseSteps.push({ label: 'تصفية أفضل الخيارات...', icon: Sparkles, duration: 5000 });
             } else if (content.includes('استثمار') || content.includes('عائد') || content.includes('roi') || content.includes('تضخم') || content.includes('فلوس')) {
                  baseSteps.push({ label: 'تحليل بيانات الاستثمار...', icon: BarChart2, duration: 3000 });
-                 baseSteps.push({ label: 'حساب العوائد المتوقعة...', icon: Wallet, duration: 5000 });
+                 baseSteps.push({ label: 'حساب العوائد المتوقعة...', icon: BarChart2, duration: 5000 });
             } else if (content.includes('مطور') || content.includes('شركة') || content.includes('تسليم')) {
                  baseSteps.push({ label: 'فحص سجل المطورين...', icon: Shield, duration: 3000 });
                  baseSteps.push({ label: 'تقييم المخاطر...', icon: BarChart2, duration: 5000 });
@@ -295,7 +293,7 @@ const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
                  baseSteps.push({ label: 'Filtering best matches...', icon: Sparkles, duration: 5000 });
             } else if (content.includes('invest') || content.includes('roi') || content.includes('yield') || content.includes('inflation') || content.includes('money')) {
                  baseSteps.push({ label: 'Analyzing investment data...', icon: BarChart2, duration: 3000 });
-                 baseSteps.push({ label: 'Calculating projected returns...', icon: Wallet, duration: 5000 });
+                 baseSteps.push({ label: 'Calculating projected returns...', icon: BarChart2, duration: 5000 });
             } else if (content.includes('developer') || content.includes('company') || content.includes('delivery')) {
                  baseSteps.push({ label: 'Auditing developer record...', icon: Shield, duration: 3000 });
                  baseSteps.push({ label: 'Evaluating risk factors...', icon: BarChart2, duration: 5000 });
@@ -418,6 +416,14 @@ export default function AgentInterface() {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isTyping]);
+
+    /* Re-focus input after layout transition */
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (inputRef.current && !isTyping) inputRef.current.focus();
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [hasStarted]);
 
     const handleSendMessage = useCallback(async (text?: string) => {
         const content = text || inputValue;
@@ -711,6 +717,45 @@ export default function AgentInterface() {
 
     const hasStarted = messages.length > 0;
 
+    /* ─── Shared Input Bar component ─── */
+    const InputBar = () => (
+        <motion.div layoutId="input-bar" className="w-full" transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
+            <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-[var(--color-border)]/40`}>
+
+                <textarea
+                    dir="auto"
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={conversationLanguage === 'ar' ? 'اسأل عن العقارات، بيانات السوق، أو الاستثمار...' : 'Ask about properties, market data, or investments...'}
+                    className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-3 px-4 md:py-4 md:px-6 text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
+                    rows={1}
+                    disabled={isTyping}
+                />
+
+                {(hasStarted || inputValue.trim()) && (
+                    <div className="flex items-center justify-between px-4 pb-3">
+                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)]/60">
+                            {hasStarted && <span><span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">⇧</span> + <span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">↵</span> {conversationLanguage === 'ar' ? 'لسطر جديد' : 'for new line'}</span>}
+                        </div>
+
+                        {inputValue.trim() && (
+                            <button
+                                onClick={() => handleSendMessage()}
+                                disabled={isTyping}
+                                title="Send message"
+                                className="p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none"
+                            >
+                                <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+
     const generateSuggestions = (msg: Message): string[] => {
         const content = msg.content.toLowerCase();
         const hasProperties = msg.allProperties && msg.allProperties.length > 0;
@@ -764,6 +809,7 @@ export default function AgentInterface() {
     };
 
     return (
+        <LayoutGroup>
         <div className="flex h-full min-h-0 w-full bg-[var(--color-background)] text-[var(--color-text-primary)] overflow-hidden selection:bg-emerald-500/15 relative">
 
             {/* Main Chat */}
@@ -811,7 +857,7 @@ export default function AgentInterface() {
 
                         {/* Greeting */}
                         {!hasStarted && (
-                            <div className="flex flex-col min-h-[calc(100vh-12rem)] justify-center px-4 py-8 relative">
+                            <div className="flex flex-col min-h-[calc(100vh-6rem)] justify-center px-4 py-8 relative">
                                 {/* Decorative background elements for Figma style */}
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
 
@@ -824,7 +870,12 @@ export default function AgentInterface() {
                                     </p>
                                 </div>
 
-                                    <div className="w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-8 md:mt-12 px-4">
+                                    {/* Centered Input Bar */}
+                                    <div className="w-full max-w-[800px] mx-auto mt-8 px-4">
+                                        <InputBar />
+                                    </div>
+
+                                    <div className="w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-6 md:mt-8 px-4">
                                         {(conversationLanguage === 'ar' ? SUGGESTIONS_AR : SUGGESTIONS_EN).map((s, i) => (
                                             <button
                                                 key={i}
@@ -1091,48 +1142,18 @@ export default function AgentInterface() {
                     </div>
                 </div>
 
-                {/* Input Bar - Floating Figma Style */}
-                <div className="sticky bottom-0 left-0 right-0 z-40 px-3 md:px-6 pb-4 md:pb-6 pt-8 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
-                    <div className="max-w-[800px] mx-auto relative pointer-events-auto">
-                        <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)]`}>
+                {/* Input Bar - Floating Figma Style (only shown after conversation starts) */}
+                {hasStarted && (
+                    <div className="sticky bottom-0 left-0 right-0 z-40 px-3 md:px-6 pb-4 md:pb-6 pt-8 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
+                        <div className="max-w-[800px] mx-auto relative pointer-events-auto">
+                            <InputBar />
 
-                            <textarea
-                                dir="auto"
-                                ref={inputRef}
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder={conversationLanguage === 'ar' ? 'اسأل عن العقارات، بيانات السوق، أو الاستثمار...' : 'Ask about properties, market data, or investments...'}
-                                className="w-full bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-3 px-4 md:py-4 md:px-6 text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
-                                rows={1}
-                                disabled={isTyping}
-                            />
-
-                            {(hasStarted || inputValue.trim()) && (
-                                <div className="flex items-center justify-between px-4 pb-3">
-                                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)]/60">
-                                        {hasStarted && <span><span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">⇧</span> + <span className="font-mono bg-[var(--color-background)] px-1 py-0.5 rounded border border-[var(--color-border)] opacity-80">↵</span> {conversationLanguage === 'ar' ? 'لسطر جديد' : 'for new line'}</span>}
-                                    </div>
-
-                                    {inputValue.trim() && (
-                                        <button
-                                            onClick={() => handleSendMessage()}
-                                            disabled={isTyping}
-                                            title="Send message"
-                                            className="p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none"
-                                        >
-                                            <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className={`text-center mt-3 transition-all duration-300 ${!hasStarted ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
-                            <p className="text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">{conversationLanguage === 'ar' ? 'AMR وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'AMR is an AI agent. Please verify critical investment data independently.'}</p>
+                            <div className="text-center mt-3">
+                                <p className="text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">{conversationLanguage === 'ar' ? 'AMR وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'AMR is an AI agent. Please verify critical investment data independently.'}</p>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
             </main>
 
@@ -1329,5 +1350,6 @@ export default function AgentInterface() {
                 )}
             </AnimatePresence>
         </div>
+        </LayoutGroup>
     );
 }

@@ -21,7 +21,7 @@ export default function ChatHeader({ onToggleSidebar, showMenuButton = false, is
         if (email === 'abady@osool.eg') return 'Mr.Abady';
         if (email === 'sama@osool.eg') return 'Mrs.Sama';
 
-        if (user?.full_name && user.full_name !== 'Wallet User') return user.full_name;
+        if (user?.full_name) return user.full_name;
         return user?.email?.split('@')[0] || 'User';
     };
 

@@ -162,14 +162,63 @@ class EmailService:
             return False
 
 
-def create_verification_token() -> str:
+def create_verification_token(purpose: str = "verify", ttl_seconds: int = 86400) -> str:
     """
     Generate a secure random token for email verification or password reset.
+    Also stores the token in Redis with an expiry TTL for time-limited validity.
+
+    Args:
+        purpose: "verify" (24h) or "reset" (1h)
+        ttl_seconds: Time-to-live in seconds (default: 24 hours for verification)
 
     Returns:
         URL-safe token string
     """
-    return secrets.token_urlsafe(32)
+    token = secrets.token_urlsafe(32)
+
+    # Store in Redis with TTL so tokens auto-expire
+    try:
+        from app.services.cache import cache
+        cache_key = f"email_token:{purpose}:{token}"
+        cache.set_json(cache_key, {"valid": True}, ttl=ttl_seconds)
+    except Exception:
+        # If Redis unavailable, token still works via DB but without expiry
+        logger.warning("Redis unavailable for email token TTL — token will not auto-expire")
+
+    return token
+
+
+def is_verification_token_valid(token: str, purpose: str = "verify") -> bool:
+    """
+    Check if a verification/reset token is still valid (not expired).
+
+    Args:
+        token: The token to validate
+        purpose: "verify" or "reset"
+
+    Returns:
+        True if valid (exists in Redis and not expired)
+    """
+    try:
+        from app.services.cache import cache
+        cache_key = f"email_token:{purpose}:{token}"
+        data = cache.get_json(cache_key)
+        if data and data.get("valid"):
+            return True
+    except Exception:
+        # If Redis is unavailable, allow the token (DB-only fallback)
+        return True
+    return False
+
+
+def consume_verification_token(token: str, purpose: str = "verify"):
+    """Delete a used token from Redis (one-time use)."""
+    try:
+        from app.services.cache import cache
+        cache_key = f"email_token:{purpose}:{token}"
+        cache.redis.delete(cache_key)
+    except Exception:
+        pass
 
 
 # Singleton instance
