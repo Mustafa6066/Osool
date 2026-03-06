@@ -719,8 +719,8 @@ export default function AgentInterface() {
         await handleSendMessage(prevUserMsg.content);
     }, [messages, handleSendMessage]);
 
-    /* ─── Shared Input Bar component ─── */
-    const InputBar = () => (
+    /* ─── Shared Input Bar ─── */
+    const inputBar = (
         <motion.div layoutId="input-bar" className="w-full" transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
             <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-[var(--color-border)]/40`}>
 
@@ -872,7 +872,7 @@ export default function AgentInterface() {
 
                                     {/* Centered Input Bar */}
                                     <div className="w-full max-w-[800px] mx-auto mt-8 px-4">
-                                        <InputBar />
+                                        {inputBar}
                                     </div>
 
                                     <div className="w-full max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 md:mt-8 px-4">
@@ -1147,7 +1147,7 @@ export default function AgentInterface() {
                 {hasStarted && (
                     <div className="sticky bottom-0 left-0 right-0 z-40 px-3 md:px-6 pb-4 md:pb-6 pt-8 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
                         <div className="max-w-[800px] mx-auto relative pointer-events-auto">
-                            <InputBar />
+                            {inputBar}
 
                             <div className="text-center mt-3">
                                 <p className="text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">{conversationLanguage === 'ar' ? 'AMR وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'AMR is an AI agent. Please verify critical investment data independently.'}</p>
