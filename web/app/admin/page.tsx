@@ -50,6 +50,7 @@ export default function AdminPage() {
     const [loadingData, setLoadingData] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [scraperStatus, setScraperStatus] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     // Check admin access
     useEffect(() => {
@@ -67,6 +68,7 @@ export default function AdminPage() {
     const loadTabData = useCallback(async () => {
         if (!isAdmin) return;
         setLoadingData(true);
+        setLoadError(null);
         try {
             switch (activeTab) {
                 case 'overview':
@@ -88,6 +90,7 @@ export default function AdminPage() {
             }
         } catch (err) {
             console.error('Failed to load admin data:', err);
+            setLoadError(activeTab === 'users' ? 'Failed to load users. Please refresh or check backend logs.' : 'Failed to load admin data.');
         } finally {
             setLoadingData(false);
         }
@@ -394,6 +397,12 @@ export default function AdminPage() {
                         {/* USERS TAB */}
                         {activeTab === 'users' && (
                             <div>
+                                {loadError && (
+                                    <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                                        <AlertCircle className="w-4 h-4" />
+                                        <span>{loadError}</span>
+                                    </div>
+                                )}
                                 <div className="mb-4 relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
                                     <input
@@ -449,6 +458,13 @@ export default function AdminPage() {
                                                     </td>
                                                 </tr>
                                             ))}
+                                            {!loadingData && filteredUsers.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={6} className="py-6 px-3 text-center text-sm text-[var(--color-text-muted)]">
+                                                        No users found.
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>

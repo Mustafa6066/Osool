@@ -131,27 +131,46 @@ async def admin_list_users(
     count_result = await db.execute(select(func.count(User.id)))
     total_count = count_result.scalar() or 0
 
-    result = await db.execute(
-        select(
-            User.id,
-            User.email,
-            User.full_name,
-            User.role,
-            User.created_at,
-            User.is_verified,
-            User.kyc_status,
-            func.count(ChatMessage.id).label("message_count"),
-            func.max(ChatMessage.created_at).label("last_activity"),
+    try:
+        result = await db.execute(
+            select(
+                User.id,
+                User.email,
+                User.full_name,
+                User.role,
+                User.created_at,
+                User.is_verified,
+                User.kyc_status,
+                func.count(ChatMessage.id).label("message_count"),
+                func.max(ChatMessage.created_at).label("last_activity"),
+            )
+            .outerjoin(ChatMessage, User.id == ChatMessage.user_id)
+            .group_by(
+                User.id, User.email, User.full_name, User.role,
+                User.created_at, User.is_verified, User.kyc_status,
+            )
+            .order_by(User.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
-        .outerjoin(ChatMessage, User.id == ChatMessage.user_id)
-        .group_by(
-            User.id, User.email, User.full_name, User.role,
-            User.created_at, User.is_verified, User.kyc_status,
+    except Exception as e:
+        # Backward-compatibility fallback for partially migrated DBs
+        logger.warning(f"Admin users full query failed; using fallback columns. Error: {e}")
+        result = await db.execute(
+            select(
+                User.id,
+                User.email,
+                User.full_name,
+                User.created_at,
+                func.count(ChatMessage.id).label("message_count"),
+                func.max(ChatMessage.created_at).label("last_activity"),
+            )
+            .outerjoin(ChatMessage, User.id == ChatMessage.user_id)
+            .group_by(User.id, User.email, User.full_name, User.created_at)
+            .order_by(User.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
-        .order_by(User.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
 
     users = []
     for row in result.all():
@@ -159,10 +178,10 @@ async def admin_list_users(
             "id": row.id,
             "email": row.email,
             "full_name": row.full_name,
-            "role": row.role,
+            "role": getattr(row, "role", "investor") or "investor",
             "created_at": row.created_at.isoformat() if row.created_at else None,
-            "is_verified": row.is_verified,
-            "kyc_status": row.kyc_status,
+            "is_verified": bool(getattr(row, "is_verified", False)),
+            "kyc_status": getattr(row, "kyc_status", "unknown") or "unknown",
             "message_count": row.message_count or 0,
             "last_activity": row.last_activity.isoformat() if row.last_activity else None,
         })
