@@ -20,6 +20,7 @@ import {
     triggerPropertyScraper,
     triggerEconomicScraper,
     getAdminMarketIndicators,
+    updateUserRole,
     AdminDashboardData,
     AdminUser,
     AdminConversation,
@@ -51,6 +52,19 @@ export default function AdminPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [scraperStatus, setScraperStatus] = useState<string | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [roleUpdating, setRoleUpdating] = useState<number | null>(null);
+
+    const handleRoleChange = async (userId: number, newRole: string) => {
+        setRoleUpdating(userId);
+        try {
+            const updated = await updateUserRole(userId, newRole);
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: updated.role } : u));
+        } catch (err) {
+            console.error('Failed to update role:', err);
+        } finally {
+            setRoleUpdating(null);
+        }
+    };
 
     // Check admin access
     useEffect(() => {
@@ -427,20 +441,31 @@ export default function AdminPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredUsers.map(u => (
+                                            {filteredUsers.map(u => {
+                                                const isOsoolAdmin = u.email === 'mustafa@osool.eg' || u.email === 'hani@osool.eg';
+                                                return (
                                                 <tr key={u.id} className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors">
                                                     <td className="py-2.5 px-3">
                                                         <div className="text-[var(--color-text-primary)] font-medium">{u.full_name || '-'}</div>
                                                         <div className="text-[11px] text-[var(--color-text-muted)]">{u.email}</div>
                                                     </td>
                                                     <td className="py-2.5 px-3">
-                                                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${
-                                                            u.role === 'admin'
-                                                                ? 'bg-emerald-500/10 text-emerald-500'
-                                                                : 'bg-blue-500/10 text-blue-500'
-                                                        }`}>
-                                                            {u.role}
-                                                        </span>
+                                                        {isOsoolAdmin ? (
+                                                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">
+                                                                admin
+                                                            </span>
+                                                        ) : (
+                                                            <select
+                                                                value={u.role === 'admin' ? 'investor' : u.role}
+                                                                disabled={roleUpdating === u.id}
+                                                                onChange={e => handleRoleChange(u.id, e.target.value)}
+                                                                className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border-none outline-none cursor-pointer disabled:opacity-50"
+                                                            >
+                                                                <option value="investor">investor</option>
+                                                                <option value="agent">agent</option>
+                                                                <option value="analyst">analyst</option>
+                                                            </select>
+                                                        )}
                                                     </td>
                                                     <td className="py-2.5 px-3 text-[var(--color-text-muted)]">{u.message_count}</td>
                                                     <td className="py-2.5 px-3">
@@ -457,7 +482,8 @@ export default function AdminPage() {
                                                         {u.last_activity ? new Date(u.last_activity).toLocaleDateString() : 'Never'}
                                                     </td>
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                             {!loadingData && filteredUsers.length === 0 && (
                                                 <tr>
                                                     <td colSpan={6} className="py-6 px-3 text-center text-sm text-[var(--color-text-muted)]">

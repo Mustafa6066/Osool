@@ -245,6 +245,37 @@ async def admin_list_users(
 
 
 # ═══════════════════════════════════════════════════════════════
+# USER ROLE MANAGEMENT
+# ═══════════════════════════════════════════════════════════════
+
+@router.patch("/users/{user_id}/role")
+async def admin_update_user_role(
+    user_id: int,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Admin: Change a user's role (investor / agent / analyst).
+    Mustafa and Hani are managed by email — their DB role is irrelevant.
+    """
+    VALID_ROLES = {"investor", "agent", "analyst"}
+    new_role = (body.get("role") or "").strip().lower()
+    if new_role not in VALID_ROLES:
+        raise HTTPException(status_code=422, detail=f"Role must be one of: {', '.join(sorted(VALID_ROLES))}")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target.role = new_role
+    await db.commit()
+    logger.info("Admin %s changed role of %s (id=%s) to %s", admin.email, target.email, user_id, new_role)
+    return {"id": target.id, "email": target.email, "role": target.role}
+
+
+# ═══════════════════════════════════════════════════════════════
 # CONVERSATION MONITORING (CoInvestor AI Chats)
 # ═══════════════════════════════════════════════════════════════
 

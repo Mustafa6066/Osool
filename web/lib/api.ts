@@ -532,6 +532,12 @@ export const getAdminConversation = async (sessionId: string): Promise<{
   return data;
 };
 
+/** Update a user's role (admin) */
+export const updateUserRole = async (userId: number, role: string): Promise<{ id: number; email: string; role: string }> => {
+  const { data } = await api.patch(`/api/admin/users/${userId}/role`, { role });
+  return data;
+};
+
 /** Get all conversations for a specific user (admin) */
 export const getAdminUserConversations = async (userId: number) => {
   const { data } = await api.get(`/api/admin/conversations/user/${userId}`);
