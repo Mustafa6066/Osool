@@ -1292,56 +1292,8 @@ async def get_public_market_stats(
 # ═══════════════════════════════════════════════════════════════
 # ADMIN CHAT MANAGEMENT ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
-
-@router.get("/admin/users")
-async def admin_get_all_users(
-    db: AsyncSession = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
-):
-    """
-    🔐 Admin: Get all registered users with chat statistics.
-    Protected by X-Admin-Key header.
-
-    Returns list of users with:
-    - Basic info (id, email, name, role)
-    - Total message count
-    - Last activity timestamp
-    """
-    from sqlalchemy import select, func
-    from app.models import ChatMessage
-
-    # Get all users with chat counts
-    result = await db.execute(
-        select(
-            User.id,
-            User.email,
-            User.full_name,
-            User.role,
-            User.created_at,
-            func.count(ChatMessage.id).label("message_count"),
-            func.max(ChatMessage.created_at).label("last_activity")
-        )
-        .outerjoin(ChatMessage, User.id == ChatMessage.user_id)
-        .group_by(User.id)
-        .order_by(User.created_at.desc())
-    )
-
-    users = []
-    for row in result.all():
-        users.append({
-            "id": row.id,
-            "email": row.email,
-            "full_name": row.full_name,
-            "role": row.role,
-            "created_at": row.created_at.isoformat() if row.created_at else None,
-            "message_count": row.message_count or 0,
-            "last_activity": row.last_activity.isoformat() if row.last_activity else None
-        })
-
-    return {
-        "total_users": len(users),
-        "users": users
-    }
+# NOTE: GET /admin/users is handled by admin_endpoints.py (JWT-protected).
+# Only the chat-specific endpoints remain here (X-Admin-Key protected).
 
 
 @router.get("/admin/chats/{user_id}")
