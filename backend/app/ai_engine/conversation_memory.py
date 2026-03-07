@@ -215,6 +215,21 @@ class ConversationMemory:
         # Visit: once scheduled, stays true
         if other.visit_scheduled:
             self.visit_scheduled = True
+        # Properties liked/rejected with reasons: union by title
+        existing_liked_titles = {p.get("title") for p in self.properties_liked_with_reasons}
+        for entry in other.properties_liked_with_reasons:
+            if entry.get("title") not in existing_liked_titles:
+                self.properties_liked_with_reasons.append(entry)
+        existing_rejected_titles = {p.get("title") for p in self.properties_rejected_with_reasons}
+        for entry in other.properties_rejected_with_reasons:
+            if entry.get("title") not in existing_rejected_titles:
+                self.properties_rejected_with_reasons.append(entry)
+        # Shown properties: union by id/title to avoid re-showing
+        existing_shown_ids = {p.get("id", p.get("title", "")) for p in self.shown_properties}
+        for prop in other.shown_properties:
+            prop_key = prop.get("id", prop.get("title", ""))
+            if prop_key and prop_key not in existing_shown_ids:
+                self.shown_properties.append(prop)
         # Cross-session: carry over
         if not self.last_session_time and other.last_session_time:
             self.last_session_time = other.last_session_time

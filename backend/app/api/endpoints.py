@@ -1509,6 +1509,37 @@ async def get_session_messages(
     }
 
 
+@router.delete("/chat/history/{session_id}")
+async def delete_chat_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """
+    🗑️ Delete all messages in a chat session belonging to the authenticated user.
+    """
+    from sqlalchemy import delete as sql_delete
+    from app.models import ChatMessage
+
+    # Verify ownership before deleting
+    check = await db.execute(
+        select(ChatMessage.id)
+        .filter(ChatMessage.session_id == session_id, ChatMessage.user_id == user.id)
+        .limit(1)
+    )
+    if not check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Session not found or access denied")
+
+    await db.execute(
+        sql_delete(ChatMessage).where(
+            ChatMessage.session_id == session_id,
+            ChatMessage.user_id == user.id
+        )
+    )
+    await db.commit()
+    return {"deleted": True, "session_id": session_id}
+
+
 # ═══════════════════════════════════════════════════════════════
 # MARKET ANALYTICS ENDPOINTS (V5: Real-time Dashboard Data)
 # ═══════════════════════════════════════════════════════════════

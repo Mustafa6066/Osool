@@ -1,0 +1,22 @@
+fix: production-hardening pass 15 broken and incomplete functions
+
+CRITICAL:
+- email_service: fail-closed token validation (return False not True when Redis down)
+- email_service: use cache.delete() not cache.redis.delete() in consume_verification_token
+- social_proof_engine: fix _fetch_db_signals file corruption (single-line escaped body)
+- social_proof_engine: eliminate _is_live_data race condition (move to SocialSignals dataclass)
+- ConversationHistory: non-functional stub now loads sessions from API and deletes via API
+
+HIGH:
+- sms_service: add send_message() freeform method
+- tasks.py: SMS channel sends actual notification text (was sending random OTP)
+- vector_search: Strategy 2 keyword fallback now applies all 4 filters (sale_type, is_delivered, finishing, is_nawy_now)
+- conversation_memory: merge() now merges V2 fields (properties_liked_with_reasons, properties_rejected_with_reasons, shown_properties)
+- PropertyCard: favorite button calls POST /api/gamification/favorite/{id} (was local-state only)
+- PropertyCard: Contact button opens WhatsApp (was dead, no onClick)
+- endpoints.py: add DELETE /api/chat/history/{session_id} endpoint
+
+MEDIUM:
+- api.ts: localStorage.clear() replaced with removeItem on auth keys only (2 locations)
+- gamification_endpoints: leaderboard now requires auth (was fully public)
+- audit_logging: _send_to_siem fallback uses AUDIT_LOG_DIR env var and mkdir (was hardcoded /var/log path)

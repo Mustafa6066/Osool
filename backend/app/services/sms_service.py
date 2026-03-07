@@ -81,6 +81,38 @@ class SMSService:
             logger.error(f"❌ Failed to send OTP to {phone_number}: {e}")
             raise Exception(f"SMS send failed: {str(e)}")
 
+    def send_message(self, phone_number: str, message: str) -> bool:
+        """
+        Send a freeform SMS message (not an OTP).
+
+        Args:
+            phone_number: E.164 formatted phone number (+201234567890)
+            message: Message body to send
+
+        Returns:
+            True on success, False on failure
+        """
+        is_dev = os.getenv('ENVIRONMENT') == 'development'
+
+        if not self.client:
+            if is_dev:
+                logger.info(f"[DEV MODE] SMS to {phone_number}: {message}")
+                return True
+            logger.error("Twilio client not initialized — cannot send SMS")
+            return False
+
+        try:
+            self.client.messages.create(
+                body=message,
+                from_=self.from_number,
+                to=phone_number
+            )
+            logger.info(f"✅ SMS sent to {phone_number}")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Failed to send SMS to {phone_number}: {e}")
+            return False
+
     def verify_otp(self, phone_number: str, code: str) -> bool:
         """
         Verify OTP code against stored value in Redis.

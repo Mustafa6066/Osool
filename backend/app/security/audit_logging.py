@@ -123,27 +123,37 @@ class AuditLogger:
         self._setup_audit_file_handler()
     
     def _setup_audit_file_handler(self):
-        """Set up file handler for audit logs."""
+        """Set up file handler for audit logs. Falls back to stderr if directory is not writable."""
         # Audit logs should be stored separately from application logs
-        log_dir = os.getenv("AUDIT_LOG_DIR", "/var/log/osool/audit")
-        os.makedirs(log_dir, exist_ok=True)
+        # Default to a writable location inside the app directory for containers
+        log_dir = os.getenv("AUDIT_LOG_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs", "audit"))
         
-        # Rotate daily, keep for 7 years (compliance requirement)
-        from logging.handlers import TimedRotatingFileHandler
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+            
+            # Rotate daily, keep for 7 years (compliance requirement)
+            from logging.handlers import TimedRotatingFileHandler
+            
+            handler = TimedRotatingFileHandler(
+                filename=f"{log_dir}/audit.log",
+                when="midnight",
+                interval=1,
+                backupCount=365 * 7,  # 7 years
+                encoding="utf-8"
+            )
+            
+            # Structured JSON format
+            formatter = logging.Formatter('%(message)s')
+            handler.setFormatter(formatter)
+            
+            self.logger.addHandler(handler)
+        except (PermissionError, OSError) as e:
+            # On containers/Railway, file system may be read-only; fall back to stream logging
+            logging.getLogger(__name__).warning(f"Cannot create audit log directory {log_dir}: {e}. Using stream handler.")
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter('%(message)s'))
+            self.logger.addHandler(handler)
         
-        handler = TimedRotatingFileHandler(
-            filename=f"{log_dir}/audit.log",
-            when="midnight",
-            interval=1,
-            backupCount=365 * 7,  # 7 years
-            encoding="utf-8"
-        )
-        
-        # Structured JSON format
-        formatter = logging.Formatter('%(message)s')
-        handler.setFormatter(formatter)
-        
-        self.logger.addHandler(handler)
         self.logger.setLevel(logging.INFO)
     
     def log_event(
@@ -211,10 +221,11 @@ class AuditLogger:
         except Exception as e:
             logger.warning(f"Sentry capture failed for audit event: {e}")
 
-        # Fallback: log to separate critical log
+        # Fallback: log to separate critical log, respecting AUDIT_LOG_DIR env
         try:
-            log_dir = os.getenv("AUDIT_LOG_DIR", "/var/log/osool/audit")
-            with open(f"{log_dir}/critical.log", "a") as f:
+            log_dir = os.getenv("AUDIT_LOG_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs", "audit"))
+            os.makedirs(log_dir, exist_ok=True)
+            with open(os.path.join(log_dir, "critical.log"), "a") as f:
                 f.write(event.to_json() + "\n")
         except Exception as e:
             logger.error(f"Failed to write critical audit log: {e}")

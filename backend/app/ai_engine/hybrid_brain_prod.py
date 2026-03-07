@@ -7,6 +7,7 @@ with GPT-4o for market reasoning and legal context.
 
 import os
 import json
+import asyncio
 import requests
 from typing import Dict, Any, List
 from openai import OpenAI
@@ -280,6 +281,21 @@ class OsoolHybridBrainProd:
             "message_arabic": message,
             "market_context": valuation.get("reasoning_bullets", [])
         }
+
+
+    async def get_valuation_async(self, location: str, size: int, finishing: int,
+                                   floor: int = 3, is_compound: int = 1) -> Dict[str, Any]:
+        """Async wrapper for get_valuation — runs in a thread to avoid blocking the event loop."""
+        return await asyncio.to_thread(self.get_valuation, location, size, finishing, floor, is_compound)
+
+    async def audit_contract_async(self, contract_text: str) -> Dict[str, Any]:
+        """Async wrapper for audit_contract — runs in a thread to avoid blocking the event loop."""
+        return await asyncio.to_thread(self.audit_contract, contract_text)
+
+    async def compare_asking_price_async(self, asking_price: int, location: str,
+                                         size: int, finishing: int) -> Dict[str, Any]:
+        """Async wrapper for compare_asking_price — runs in a thread."""
+        return await asyncio.to_thread(self.compare_asking_price, asking_price, location, size, finishing)
 
 
 # Singleton instance for production use

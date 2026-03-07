@@ -147,7 +147,8 @@ class AccountLockoutManager:
             try:
                 locked_until_str = self._redis_client.get(f"{key}:locked_until")
                 if locked_until_str:
-                    locked_until = datetime.fromisoformat(locked_until_str.decode())
+                    # Redis returns str when decode_responses=True, no .decode() needed
+                    locked_until = datetime.fromisoformat(locked_until_str if isinstance(locked_until_str, str) else locked_until_str.decode())
                     if now < locked_until:
                         return True, locked_until
                     else:

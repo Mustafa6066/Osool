@@ -58,7 +58,7 @@ class PaymentService:
             else:
                 logger.warning("[!] PAYMOB_API_KEY not configured — using dev mock verification")
 
-    def verify_egp_deposit(self, reference: str, expected_amount: float) -> Dict[str, Any]:
+    async def verify_egp_deposit(self, reference: str, expected_amount: float) -> Dict[str, Any]:
         """
         Verifies a reservation deposit payment via the EGP gateway API.
         
@@ -98,7 +98,7 @@ class PaymentService:
         if self.api_key:
             try:
                 from app.services.paymob_service import paymob_service
-                is_verified = paymob_service.verify_transaction(reference)
+                is_verified = await paymob_service.verify_transaction(reference)
                 
                 if not is_verified:
                     logger.warning(f"Payment verification FAILED for reference: {reference}")

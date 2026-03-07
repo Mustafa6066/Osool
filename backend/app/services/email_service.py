@@ -206,8 +206,9 @@ def is_verification_token_valid(token: str, purpose: str = "verify") -> bool:
         if data and data.get("valid"):
             return True
     except Exception:
-        # If Redis is unavailable, allow the token (DB-only fallback)
-        return True
+        # Fail closed — never grant access when validity can't be confirmed
+        logger.warning("Redis unavailable during token validation — rejecting token")
+        return False
     return False
 
 
@@ -216,7 +217,7 @@ def consume_verification_token(token: str, purpose: str = "verify"):
     try:
         from app.services.cache import cache
         cache_key = f"email_token:{purpose}:{token}"
-        cache.redis.delete(cache_key)
+        cache.delete(cache_key)
     except Exception:
         pass
 

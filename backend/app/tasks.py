@@ -53,18 +53,18 @@ def send_notification_task(self, user_id: int, message: str, notification_type: 
                         result = await session.execute(select(User).filter(User.id == user_id))
                         user = result.scalar_one_or_none()
                         if user and user.email:
-                            await email_service.send_email(
+                            # _send_email is sync (SendGrid SDK), call directly
+                            sent = email_service._send_email(
                                 to_email=user.email,
                                 subject=f"Osool {notification_type.title()} Notification",
-                                html_body=f"<p>{message}</p>",
-                                text_body=message
+                                html_content=f"<p>{message}</p>"
                             )
-                            return True
+                            return sent
                         else:
                             logger.warning(f"User {user_id} has no email, skipping email delivery")
                             return False
                 
-                # Run async function in sync context
+                # Run async function in sync context (needed for DB access)
                 email_sent = asyncio.run(send_email())
                 results["channels"]["email"] = "sent" if email_sent else "skipped_no_email"
                 
@@ -86,8 +86,8 @@ def send_notification_task(self, user_id: int, message: str, notification_type: 
                         result = await session.execute(select(User).filter(User.id == user_id))
                         user = result.scalar_one_or_none()
                         if user and user.phone_number:
-                            await sms_service.send_sms(phone=user.phone_number, message=message)
-                            return True
+                            sent = sms_service.send_message(user.phone_number, message)
+                            return sent
                         else:
                             logger.warning(f"User {user_id} has no phone, skipping SMS")
                             return False

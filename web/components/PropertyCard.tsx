@@ -3,8 +3,10 @@
 import { MapPin, Bed, Ruler, ArrowRight, Heart, Share2, ExternalLink, TrendingUp, Calendar } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import api from "@/lib/api";
 
 interface PropertyProps {
+    id?: number;
     title: string;
     location: string;
     price: number;
@@ -22,6 +24,25 @@ interface PropertyProps {
 export default function PropertyCard({ property }: { property: PropertyProps }) {
     const [isFavorite, setIsFavorite] = useState(false);
     const [imageError, setImageError] = useState(false);
+
+    const handleToggleFavorite = async () => {
+        const next = !isFavorite;
+        setIsFavorite(next); // optimistic update
+        try {
+            if (property.id) {
+                await api.post(`/api/gamification/favorite/${property.id}`);
+            }
+        } catch {
+            setIsFavorite(!next); // revert on failure
+        }
+    };
+
+    const handleContact = () => {
+        const message = encodeURIComponent(
+            `مرحباً، أنا مهتم بعقار: ${property.title} في ${property.location} بسعر ${(property.price / 1_000_000).toFixed(2)}M EGP`
+        );
+        window.open(`https://wa.me/201000000000?text=${message}`, "_blank");
+    };
 
     const handleShare = async () => {
         if (navigator.share && property.url) {
@@ -74,7 +95,8 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                 {/* Action Buttons */}
                 <div className="absolute top-3 right-3 flex gap-2">
                     <button
-                        onClick={() => setIsFavorite(!isFavorite)}
+                        onClick={handleToggleFavorite}
+                        aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
                         className="p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all"
                     >
                         <Heart
@@ -84,6 +106,7 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                     </button>
                     <button
                         onClick={handleShare}
+                        aria-label="Share property"
                         className="p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all"
                     >
                         <Share2 size={16} className="text-white" />
@@ -169,6 +192,7 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                     </button>
                     <button
                         className="bg-white/10 hover:bg-white/20 border border-white/20 hover:border-blue-500/50 text-white text-sm py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 font-semibold"
+                        onClick={handleContact}
                     >
                         Contact
                         <ArrowRight size={14} />

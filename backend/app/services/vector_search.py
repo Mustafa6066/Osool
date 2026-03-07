@@ -12,26 +12,27 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Property
 from app.database import get_db
-from openai import OpenAI
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 async def get_embedding(text: str) -> Optional[List[float]]:
     """
     Phase 4: Generate embedding for text using OpenAI with circuit breaker and cost monitoring.
     Returns None on failure to allow fallback to text search.
+    Uses AsyncOpenAI to avoid blocking the event loop.
     """
     try:
         from app.services.circuit_breaker import openai_breaker
         from app.services.cost_monitor import cost_monitor
 
-        # Wrap OpenAI call with circuit breaker
-        def _generate_embedding():
-            response = client.embeddings.create(
+        # Async wrapper for circuit breaker
+        async def _generate_embedding():
+            response = await _async_client.embeddings.create(
                 input=text,
                 model="text-embedding-3-small"
             )
@@ -47,8 +48,8 @@ async def get_embedding(text: str) -> Optional[List[float]]:
 
             return response.data[0].embedding
 
-        # Execute with circuit breaker protection
-        embedding = openai_breaker.call(_generate_embedding)
+        # Execute with circuit breaker protection (async version)
+        embedding = await openai_breaker.call_async(_generate_embedding)
         return embedding
 
     except Exception as e:
@@ -268,11 +269,19 @@ async def search_properties(
                     or_(*conditions)
                 )
                 
-                # Apply price filters if specified
+                # Apply all filters (mirror Strategy 1 logic)
                 if price_min is not None:
                     stmt = stmt.filter(Property.price >= price_min)
                 if price_max is not None:
                     stmt = stmt.filter(Property.price <= price_max)
+                if sale_type is not None:
+                    stmt = stmt.filter(Property.sale_type == sale_type)
+                if is_delivered is not None:
+                    stmt = stmt.filter(Property.is_delivered == is_delivered)
+                if finishing is not None:
+                    stmt = stmt.filter(Property.finishing.ilike(f"%{finishing}%"))
+                if is_nawy_now is not None:
+                    stmt = stmt.filter(Property.is_nawy_now == is_nawy_now)
                 
                 stmt = stmt.limit(limit)
                 

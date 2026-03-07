@@ -280,7 +280,7 @@ export default function PropertiesPage() {
             locationAr: p.locationAr || p.location || '',
             city: inferCity(p.location || ''),
             price: p.price || p.totalPrice || 0,
-            aiEstimate: p.aiValuation || p.aiEstimate || (p.price || 0) * 1.05,
+            aiEstimate: p.aiValuation || p.aiEstimate || 0,
             bedrooms: p.bedrooms ?? 0,
             bathrooms: p.bathrooms ?? 0,
             area: p.area || p.size || p.sqm || p.bua || p.size_sqm || 0,
@@ -305,10 +305,24 @@ export default function PropertiesPage() {
         return 'other';
     }
 
-    // Load properties from static data file (fast, no backend dependency)
+    // Load properties from backend API, fall back to static data then hardcoded
     const fetchProperties = useCallback(async () => {
         try {
             setLoading(true);
+            // Try backend API first
+            const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+            const apiRes = await fetch(`${API_URL}/api/properties`);
+            if (apiRes.ok) {
+                const apiData = await apiRes.json();
+                if (Array.isArray(apiData) && apiData.length > 0) {
+                    const normalized = apiData.map(normalizeProperty);
+                    setProperties(normalized);
+                    setUsingFallback(false);
+                    return;
+                }
+            }
+
+            // Fallback: static data file
             const res = await fetch('/assets/js/data.js');
             const txt = await res.text();
             const start = txt.indexOf('{');
@@ -323,7 +337,7 @@ export default function PropertiesPage() {
                     return;
                 }
             }
-            // Fallback if data.js parse fails
+            // Final fallback: hardcoded properties
             setProperties(fallbackProperties);
             setUsingFallback(true);
         } catch (err) {
@@ -489,10 +503,12 @@ export default function PropertiesPage() {
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
+                                            {property.aiEstimate > 0 && (
                                             <div className="absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/90 backdrop-blur-sm text-white text-xs font-semibold">
                                                 <Sparkles className="w-3.5 h-3.5" />
                                                 AI Verified
                                             </div>
+                                            )}
 
                                             <button
                                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(property.id); }}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MessageSquare, Search, Trash2, Clock, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ClientOnly from "./ClientOnly";
+import { getUserChatSessions, deleteChatSession } from "@/lib/api";
 
 interface Conversation {
     id: string;
@@ -12,7 +13,6 @@ interface Conversation {
     timestamp: Date;
     messageCount: number;
 }
-
 interface ConversationHistoryProps {
     isOpen: boolean;
     onClose: () => void;
@@ -33,15 +33,40 @@ export default function ConversationHistory({
     const [searchQuery, setSearchQuery] = useState("");
     const [conversations, setConversations] = useState<Conversation[]>([]);
 
+    const loadSessions = useCallback(async () => {
+        try {
+            const sessions = await getUserChatSessions();
+            setConversations(sessions.map(s => ({
+                id: s.session_id,
+                title: s.preview ? s.preview.slice(0, 50) : s.session_id,
+                preview: s.preview ?? "",
+                timestamp: new Date(s.last_message_at ?? s.started_at ?? Date.now()),
+                messageCount: s.message_count,
+            })));
+        } catch {
+            // Silently fail — sidebar stays empty rather than crashing
+        }
+    }, []);
+
+    useEffect(() => {
+        loadSessions();
+    }, [loadSessions]);
+
+    const handleDelete = async (conversationId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setConversations(prev => prev.filter(c => c.id !== conversationId));
+        try {
+            await deleteChatSession(conversationId);
+        } catch {
+            // Re-load to restore accurate state if delete failed
+            loadSessions();
+        }
+    };
+
     const filteredConversations = conversations.filter(conv =>
         conv.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         conv.preview.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
-    const handleDelete = (conversationId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setConversations(prev => prev.filter(c => c.id !== conversationId));
-    };
 
     const formatTimestamp = (date: Date) => {
         const now = new Date();
@@ -115,6 +140,7 @@ export default function ConversationHistory({
 
                                 {/* Delete Button */}
                                 <button
+                                    aria-label="Delete conversation"
                                     onClick={(e) => handleDelete(conv.id, e)}
                                     className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-xl hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500"
                                 >
@@ -159,6 +185,7 @@ export default function ConversationHistory({
                                         Conversations
                                     </h2>
                                     <button
+                                        aria-label="Close"
                                         onClick={onClose}
                                         className="md:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1.5 rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors"
                                     >
@@ -240,6 +267,7 @@ export default function ConversationHistory({
 
                                             {/* Delete Button */}
                                             <button
+                                                aria-label="Delete conversation"
                                                 onClick={(e) => handleDelete(conv.id, e)}
                                                 className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-xl hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500"
                                             >

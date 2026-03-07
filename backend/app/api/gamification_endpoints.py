@@ -88,6 +88,7 @@ async def get_all_achievements(
 
 @router.get("/leaderboard")
 async def get_leaderboard(
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """

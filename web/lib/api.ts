@@ -96,7 +96,8 @@ api.interceptors.response.use(
       if (!refreshToken) {
         // No refresh token available - redirect to login
         if (typeof window !== 'undefined') {
-          localStorage.clear();
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
           window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -132,9 +133,10 @@ api.interceptors.response.use(
       } catch (refreshError) {
         isRefreshing = false;
         refreshSubscribers = [];
-        // Refresh failed - clear tokens and redirect to login
+        // Refresh failed - clear auth tokens only and redirect to login
         if (typeof window !== 'undefined') {
-          localStorage.clear();
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
@@ -391,6 +393,25 @@ export const sendChatMessage = async (
 }> => {
   const { data } = await api.post('/api/chat', { message, session_id: sessionId, language });
   return data;
+};
+
+export interface ChatSession {
+  session_id: string;
+  message_count: number;
+  started_at: string | null;
+  last_message_at: string | null;
+  preview: string | null;
+}
+
+/** Get current user's chat sessions */
+export const getUserChatSessions = async (): Promise<ChatSession[]> => {
+  const { data } = await api.get('/api/chat/history');
+  return data.sessions ?? [];
+};
+
+/** Delete a chat session owned by the current user */
+export const deleteChatSession = async (sessionId: string): Promise<void> => {
+  await api.delete(`/api/chat/history/${sessionId}`);
 };
 
 // ═══════════════════════════════════════════════════════════════
