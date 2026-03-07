@@ -280,7 +280,7 @@ export function PaymentPlansComparison() {
       key: 'down_payment_percent',
       header: '% المقدم',
       align: 'center' as const,
-      format: (v) => `${v}%`
+      format: (v: number) => `${v}%`
     },
     {
       key: 'down_payment_amount',
@@ -292,7 +292,7 @@ export function PaymentPlansComparison() {
       key: 'installment_years',
       header: 'المدة',
       align: 'center' as const,
-      format: (v) => `${v} سنوات`
+      format: (v: number) => `${v} سنوات`
     },
     {
       key: 'monthly_installment',
@@ -403,7 +403,7 @@ export function MarketAnalysisTable() {
       key: 'demand',
       header: 'الطلب',
       align: 'center' as const,
-      format: (v) => (
+      format: (v: string) => (
         <span className={v === 'عالي' ? 'text-green-400' : v === 'متوسط' ? 'text-yellow-400' : 'text-red-400'}>
           {v}
         </span>

@@ -22,7 +22,7 @@ function SignupContent() {
     const searchParams = useSearchParams();
     const { login: contextLogin, isAuthenticated } = useAuth();
     const { t, language } = useLanguage();
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Redirect if already authenticated
     useEffect(() => {

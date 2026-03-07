@@ -964,7 +964,7 @@ export default function AgentInterface() {
                                                 className="p-4 md:p-5 bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-2xl text-left transition-all duration-300 flex flex-col justify-between group border border-[var(--color-border)]/40 hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
                                             >
                                                 <div className="p-2 bg-[var(--color-background)] rounded-xl text-[var(--color-text-muted)] group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors w-fit mb-3">
-                                                    <s.icon className="w-4 h-4" strokeWidth={1.75} />
+                                                    <s.icon className="w-4 h-4" />
                                                 </div>
                                                 <span className="text-[13px] font-semibold text-[var(--color-text-primary)] leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" dir="auto">{s.label}</span>
                                             </button>

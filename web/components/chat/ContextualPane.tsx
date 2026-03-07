@@ -769,7 +769,7 @@ export default function ContextualPane({
                                             id: 'risk',
                                             label: isRTL ? 'المخاطر' : 'Risk',
                                             value: isRTL ?
-                                                { 'Low': 'منخفض', 'Medium': 'متوسط', 'High': 'مرتفع' }[riskLevel] || riskLevel :
+                                                ({ 'Low': 'منخفض', 'Medium': 'متوسط', 'High': 'مرتفع' } as Record<string, string>)[String(riskLevel)] || riskLevel :
                                                 riskLevel,
                                             highlight: riskLevel === 'Low' ? 'success' as const : riskLevel === 'High' ? 'danger' as const : 'warning' as const
                                         }] : []),

@@ -104,7 +104,7 @@ const DataTable = dynamic(() => import("./DataTable").then(mod => mod.default), 
     ssr: false,
 });
 
-const FinancialComparisonTable = dynamic(() => import("./FinancialComparisonTable").then(mod => mod.FinancialComparisonTable), {
+const FinancialComparisonTable = dynamic(() => import("./FinancialComparisonTable").then(mod => mod.default), {
     loading: () => <VisualizationSkeleton />,
     ssr: false,
 });
