@@ -7,7 +7,7 @@ Provides full system control: user management, conversation monitoring, scraper 
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, text
 from typing import Optional
 import logging
 
@@ -156,21 +156,69 @@ async def admin_list_users(
     except Exception as e:
         # Backward-compatibility fallback for partially migrated DBs
         logger.warning(f"Admin users full query failed; using fallback columns. Error: {e}")
-        result = await db.execute(
-            select(
-                User.id,
-                User.email,
-                User.full_name,
-                User.created_at,
-                func.count(ChatMessage.id).label("message_count"),
-                func.max(ChatMessage.created_at).label("last_activity"),
+        # Schema-aware raw SQL fallback: avoid referencing ORM columns that may not exist yet.
+        col_result = await db.execute(text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'users'
+        """))
+        user_cols = {row[0] for row in col_result.fetchall()}
+
+        table_result = await db.execute(text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'chat_messages'
             )
-            .outerjoin(ChatMessage, User.id == ChatMessage.user_id)
-            .group_by(User.id, User.email, User.full_name, User.created_at)
-            .order_by(User.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
+        """))
+        has_chat_messages = bool(table_result.scalar())
+
+        def col_or_null(column_name: str, cast_type: str = "text") -> str:
+            if column_name in user_cols:
+                return f"u.{column_name}"
+            return f"NULL::{cast_type}"
+
+        created_at_expr = col_or_null("created_at", "timestamptz")
+        order_expr = "u.created_at DESC" if "created_at" in user_cols else "u.id DESC"
+
+        if has_chat_messages:
+            fallback_sql = f"""
+                SELECT
+                    u.id AS id,
+                    {col_or_null('email')} AS email,
+                    {col_or_null('full_name')} AS full_name,
+                    {col_or_null('role')} AS role,
+                    {created_at_expr} AS created_at,
+                    {col_or_null('is_verified', 'boolean')} AS is_verified,
+                    {col_or_null('kyc_status')} AS kyc_status,
+                    COALESCE(cm.message_count, 0) AS message_count,
+                    cm.last_activity AS last_activity
+                FROM users u
+                LEFT JOIN (
+                    SELECT user_id, COUNT(*) AS message_count, MAX(created_at) AS last_activity
+                    FROM chat_messages
+                    GROUP BY user_id
+                ) cm ON cm.user_id = u.id
+                ORDER BY {order_expr}
+                LIMIT :limit OFFSET :offset
+            """
+        else:
+            fallback_sql = f"""
+                SELECT
+                    u.id AS id,
+                    {col_or_null('email')} AS email,
+                    {col_or_null('full_name')} AS full_name,
+                    {col_or_null('role')} AS role,
+                    {created_at_expr} AS created_at,
+                    {col_or_null('is_verified', 'boolean')} AS is_verified,
+                    {col_or_null('kyc_status')} AS kyc_status,
+                    0::bigint AS message_count,
+                    NULL::timestamptz AS last_activity
+                FROM users u
+                ORDER BY {order_expr}
+                LIMIT :limit OFFSET :offset
+            """
+
+        result = await db.execute(text(fallback_sql), {"limit": limit, "offset": offset})
 
     users = []
     for row in result.all():
