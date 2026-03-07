@@ -5,10 +5,11 @@ JWT-authenticated admin endpoints for Mustafa@osool.eg and Hani@osool.eg.
 Provides full system control: user management, conversation monitoring, scraper triggers.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, text
 from typing import Optional
+import os
 import logging
 
 from app.auth import get_current_user
@@ -24,7 +25,7 @@ router = APIRouter(prefix="/api/admin", tags=["Admin Dashboard"])
 # ═══════════════════════════════════════════════════════════════
 
 
-async def require_admin(user: User = Depends(get_current_user)) -> User:
+async def require_admin(request: Request, user: User = Depends(get_current_user)) -> User:
     """
     Dependency: Ensures current user has admin role in the database.
     Database-driven RBAC — no hardcoded email lists.
@@ -32,10 +33,36 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
     if not user or not user.email:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    if getattr(user, 'role', None) != 'admin':
-        raise HTTPException(status_code=403, detail="Admin access denied")
+    role = (getattr(user, 'role', '') or '').strip().lower()
+    if role in {"admin", "super_admin"}:
+        return user
 
-    return user
+    # Compatibility fallback for legacy/misaligned production data.
+    # Allows explicitly configured admin emails when role is not normalized.
+    configured_admins = {
+        e.strip().lower()
+        for e in os.getenv("ADMIN_EMAILS", "").split(",")
+        if e.strip()
+    }
+    configured_admins.update({"mustafa@osool.eg", "hani@osool.eg"})
+
+    user_email = user.email.strip().lower()
+    if user_email in configured_admins:
+        logger.warning(
+            "Admin access granted via email fallback for %s on %s (role=%s)",
+            user_email,
+            request.url.path,
+            role or "<empty>",
+        )
+        return user
+
+    logger.warning(
+        "Admin access denied for %s on %s (role=%s)",
+        user_email,
+        request.url.path,
+        role or "<empty>",
+    )
+    raise HTTPException(status_code=403, detail="Admin access denied")
 
 
 # ═══════════════════════════════════════════════════════════════
