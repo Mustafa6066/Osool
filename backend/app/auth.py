@@ -46,16 +46,26 @@ REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 Days for refresh tokens
 _token_blacklist_memory = set()
 _IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
 
+_redis_client_cache = None
+_redis_checked = False
+
 def _get_redis_client():
-    """Get Redis client for token blacklist. Required in production."""
+    """Get Redis client for token blacklist. Required in production. Cached after first check."""
+    global _redis_client_cache, _redis_checked
+    if _redis_checked:
+        return _redis_client_cache
     try:
         from app.services.cache import cache
-        if cache.redis and cache.redis.ping():
-            return cache.redis
+        if cache.redis:
+            cache.redis.ping()
+            _redis_client_cache = cache.redis
+            _redis_checked = True
+            return _redis_client_cache
     except Exception:
         pass
     if _IS_PRODUCTION:
         logger.error("Redis unavailable in production — token blacklist degraded")
+    _redis_checked = True
     return None
 
 # Use direct bcrypt instead of passlib for compatibility
@@ -156,9 +166,8 @@ def invalidate_token(token: str):
         if jti:
             redis = _get_redis_client()
             if redis:
-                # Store in Redis with 24h TTL (matching max token lifetime)
-                redis.sadd("token_blacklist", jti)
-                redis.expire("token_blacklist", 86400)
+                # Store each JTI as its own key with TTL matching token lifetime
+                redis.setex(f"blacklist:{jti}", 86400, "1")
             else:
                 _token_blacklist_memory.add(jti)
             logger.info(f"Token {jti[:8]}... invalidated")
@@ -176,7 +185,7 @@ def is_token_blacklisted(jti: str) -> bool:
     """
     redis = _get_redis_client()
     if redis:
-        return redis.sismember("token_blacklist", jti)
+        return bool(redis.get(f"blacklist:{jti}"))
     return jti in _token_blacklist_memory
 
 
@@ -217,6 +226,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get
         
     if user is None:
         raise credentials_exception
+
+    if getattr(user, 'role', '') == 'blocked':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account suspended. Contact support.",
+        )
+
     return user
 
 

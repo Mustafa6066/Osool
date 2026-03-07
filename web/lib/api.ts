@@ -532,9 +532,15 @@ export const getAdminConversation = async (sessionId: string): Promise<{
   return data;
 };
 
-/** Update a user's role (admin) */
+/** Update a user's role (Mustafa only) */
 export const updateUserRole = async (userId: number, role: string): Promise<{ id: number; email: string; role: string }> => {
   const { data } = await api.patch(`/api/admin/users/${userId}/role`, { role });
+  return data;
+};
+
+/** Block or unblock a user account (Mustafa only) */
+export const blockUser = async (userId: number, blocked: boolean): Promise<{ id: number; email: string; blocked: boolean }> => {
+  const { data } = await api.patch(`/api/admin/users/${userId}/block`, { blocked });
   return data;
 };
 

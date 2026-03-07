@@ -281,6 +281,12 @@ async def login_with_verification(
             detail="Incorrect email or password"
         )
 
+    if getattr(user, 'role', '') == 'blocked':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account suspended. Contact support."
+        )
+
     # For beta users (pre-verified), skip phone verification check
     # CRITICAL: In production, require phone verification
     if not user.is_verified and not user.email_verified:

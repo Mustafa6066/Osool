@@ -24,23 +24,37 @@ router = APIRouter(prefix="/api/admin", tags=["Admin Dashboard"])
 # ═══════════════════════════════════════════════════════════════
 
 
+OWNER_EMAIL = "mustafa@osool.eg"
+HANI_EMAIL = "hani@osool.eg"
+
+
 async def require_admin(request: Request, user: User = Depends(get_current_user)) -> User:
     """
-    Dependency: Restricts access to Mustafa and Hani only.
+    Grants access to: Mustafa, Hani, and any user whose DB role == 'admin'.
     """
     if not user or not user.email:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    ALLOWED_ADMINS = {"mustafa@osool.eg", "hani@osool.eg"}
     user_email = user.email.strip().lower()
+    role = (getattr(user, 'role', '') or '').strip().lower()
 
-    if user_email not in ALLOWED_ADMINS:
-        logger.warning(
-            "Admin access denied for %s on %s",
-            user_email,
-            request.url.path,
-        )
-        raise HTTPException(status_code=403, detail="Admin access denied")
+    if user_email in {OWNER_EMAIL, HANI_EMAIL} or role == 'admin':
+        return user
+
+    logger.warning("Admin access denied for %s on %s", user_email, request.url.path)
+    raise HTTPException(status_code=403, detail="Admin access denied")
+
+
+async def require_super_admin(request: Request, user: User = Depends(get_current_user)) -> User:
+    """
+    Grants access to Mustafa only. Used for destructive management actions.
+    """
+    if not user or not user.email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    if user.email.strip().lower() != OWNER_EMAIL:
+        logger.warning("Super-admin action blocked for %s on %s", user.email, request.url.path)
+        raise HTTPException(status_code=403, detail="Owner-only action")
 
     return user
 
@@ -253,13 +267,12 @@ async def admin_update_user_role(
     user_id: int,
     body: dict,
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_super_admin),
 ):
     """
-    Admin: Change a user's role (investor / agent / analyst).
-    Mustafa and Hani are managed by email — their DB role is irrelevant.
+    Mustafa only: Change a user's role (investor / agent / analyst / admin).
     """
-    VALID_ROLES = {"investor", "agent", "analyst"}
+    VALID_ROLES = {"investor", "agent", "analyst", "admin"}
     new_role = (body.get("role") or "").strip().lower()
     if new_role not in VALID_ROLES:
         raise HTTPException(status_code=422, detail=f"Role must be one of: {', '.join(sorted(VALID_ROLES))}")
@@ -268,11 +281,40 @@ async def admin_update_user_role(
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
+    if target.email.strip().lower() in {OWNER_EMAIL, HANI_EMAIL}:
+        raise HTTPException(status_code=422, detail="Cannot change role of owner accounts")
 
     target.role = new_role
     await db.commit()
-    logger.info("Admin %s changed role of %s (id=%s) to %s", admin.email, target.email, user_id, new_role)
+    logger.info("%s changed role of %s (id=%s) to %s", admin.email, target.email, user_id, new_role)
     return {"id": target.id, "email": target.email, "role": target.role}
+
+
+@router.patch("/users/{user_id}/block")
+async def admin_block_user(
+    user_id: int,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_super_admin),
+):
+    """
+    Mustafa only: Block or unblock a user account.
+    Blocked users cannot log in or use the API.
+    """
+    blocked: bool = bool(body.get("blocked", True))
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.email.strip().lower() in {OWNER_EMAIL, HANI_EMAIL}:
+        raise HTTPException(status_code=422, detail="Cannot block owner accounts")
+
+    target.role = "blocked" if blocked else "investor"
+    await db.commit()
+    action = "blocked" if blocked else "unblocked"
+    logger.info("%s %s user %s (id=%s)", admin.email, action, target.email, user_id)
+    return {"id": target.id, "email": target.email, "blocked": blocked}
 
 
 # ═══════════════════════════════════════════════════════════════

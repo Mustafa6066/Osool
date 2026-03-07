@@ -21,6 +21,7 @@ import {
     triggerEconomicScraper,
     getAdminMarketIndicators,
     updateUserRole,
+    blockUser,
     AdminDashboardData,
     AdminUser,
     AdminConversation,
@@ -53,6 +54,9 @@ export default function AdminPage() {
     const [scraperStatus, setScraperStatus] = useState<string | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [roleUpdating, setRoleUpdating] = useState<number | null>(null);
+    const [blockUpdating, setBlockUpdating] = useState<number | null>(null);
+
+    const isSuperAdmin = user?.email?.toLowerCase() === 'mustafa@osool.eg';
 
     const handleRoleChange = async (userId: number, newRole: string) => {
         setRoleUpdating(userId);
@@ -63,6 +67,21 @@ export default function AdminPage() {
             console.error('Failed to update role:', err);
         } finally {
             setRoleUpdating(null);
+        }
+    };
+
+    const handleBlockToggle = async (userId: number, currentlyBlocked: boolean) => {
+        setBlockUpdating(userId);
+        try {
+            await blockUser(userId, !currentlyBlocked);
+            setUsers(prev => prev.map(u => u.id === userId
+                ? { ...u, role: !currentlyBlocked ? 'blocked' : 'investor' }
+                : u
+            ));
+        } catch (err) {
+            console.error('Failed to toggle block:', err);
+        } finally {
+            setBlockUpdating(null);
         }
     };
 
@@ -438,13 +457,15 @@ export default function AdminPage() {
                                                 <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">KYC</th>
                                                 <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Joined</th>
                                                 <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Last Active</th>
+                                                {isSuperAdmin && <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Actions</th>}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {filteredUsers.map(u => {
                                                 const isOsoolAdmin = u.email === 'mustafa@osool.eg' || u.email === 'hani@osool.eg';
+                                                const isBlocked = u.role === 'blocked';
                                                 return (
-                                                <tr key={u.id} className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors">
+                                                <tr key={u.id} className={`border-b border-[var(--color-border)] transition-colors ${isBlocked ? 'opacity-50' : 'hover:bg-[var(--color-surface)]'}`}>
                                                     <td className="py-2.5 px-3">
                                                         <div className="text-[var(--color-text-primary)] font-medium">{u.full_name || '-'}</div>
                                                         <div className="text-[11px] text-[var(--color-text-muted)]">{u.email}</div>
@@ -454,9 +475,13 @@ export default function AdminPage() {
                                                             <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">
                                                                 admin
                                                             </span>
-                                                        ) : (
+                                                        ) : isBlocked ? (
+                                                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">
+                                                                blocked
+                                                            </span>
+                                                        ) : isSuperAdmin ? (
                                                             <select
-                                                                value={u.role === 'admin' ? 'investor' : u.role}
+                                                                value={u.role}
                                                                 disabled={roleUpdating === u.id}
                                                                 onChange={e => handleRoleChange(u.id, e.target.value)}
                                                                 className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border-none outline-none cursor-pointer disabled:opacity-50"
@@ -464,7 +489,12 @@ export default function AdminPage() {
                                                                 <option value="investor">investor</option>
                                                                 <option value="agent">agent</option>
                                                                 <option value="analyst">analyst</option>
+                                                                <option value="admin">admin</option>
                                                             </select>
+                                                        ) : (
+                                                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500">
+                                                                {u.role}
+                                                            </span>
                                                         )}
                                                     </td>
                                                     <td className="py-2.5 px-3 text-[var(--color-text-muted)]">{u.message_count}</td>
@@ -481,6 +511,23 @@ export default function AdminPage() {
                                                     <td className="py-2.5 px-3 text-[11px] text-[var(--color-text-muted)]">
                                                         {u.last_activity ? new Date(u.last_activity).toLocaleDateString() : 'Never'}
                                                     </td>
+                                                    {isSuperAdmin && (
+                                                        <td className="py-2.5 px-3">
+                                                            {!isOsoolAdmin && (
+                                                                <button
+                                                                    disabled={blockUpdating === u.id}
+                                                                    onClick={() => handleBlockToggle(u.id, isBlocked)}
+                                                                    className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors disabled:opacity-50 ${
+                                                                        isBlocked
+                                                                            ? 'border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10'
+                                                                            : 'border-red-500/40 text-red-400 hover:bg-red-500/10'
+                                                                    }`}
+                                                                >
+                                                                    {blockUpdating === u.id ? '...' : isBlocked ? 'Unblock' : 'Block'}
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    )}
                                                 </tr>
                                                 );
                                             })}
