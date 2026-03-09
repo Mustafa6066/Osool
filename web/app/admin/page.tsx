@@ -314,6 +314,7 @@ export default function AdminPage() {
 
                         {/* OVERVIEW TAB */}
                         {activeTab === 'overview' && dashboard && (
+                            <>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {[
                                     { label: 'Total Users', value: dashboard.overview.total_users, icon: Users, color: 'text-blue-500' },
@@ -363,6 +364,7 @@ export default function AdminPage() {
                                     </a>
                                 ))}
                             </div>
+                            </>
                         )}
 
                         {/* CONVERSATIONS TAB */}
