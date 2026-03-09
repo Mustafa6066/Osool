@@ -93,7 +93,7 @@ export default async function AreaPage({ params }: Props) {
                         {ph.price_per_m2.toLocaleString()}
                       </td>
                       <td className="text-right py-2 px-3 text-[var(--color-text-muted)]">
-                        {ph.transaction_count}
+                        {ph.transaction_count ?? '—'}
                       </td>
                     </tr>
                   ))}

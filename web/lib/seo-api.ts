@@ -74,6 +74,7 @@ export interface PriceHistory {
   project_id?: number;
   date: string;
   price_per_m2: number;
+  transaction_count?: number;
 }
 
 export interface SEOPage {
