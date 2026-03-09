@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -6,6 +7,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { GamificationProvider } from '@/contexts/GamificationContext';
 import NeuralBackground from '@/components/NeuralBackground';
 import GamificationOverlay from '@/components/GamificationOverlay';
+import OrchestratorTracker from '@/components/OrchestratorTracker';
 import { ErrorBoundaryProvider } from '@/components/ErrorBoundaryProvider';
 import { organizationJsonLd } from '@/lib/json-ld';
 
@@ -46,6 +48,11 @@ export default function RootLayout({
                 <GamificationProvider>
                   {/* Neural Background Layer */}
                   <NeuralBackground />
+
+                  {/* Orchestrator Analytics (page views + ad attribution) */}
+                  <Suspense fallback={null}>
+                    <OrchestratorTracker />
+                  </Suspense>
 
                   {/* Content Layer — inline styles guarantee these can never be overridden */}
                   <div
