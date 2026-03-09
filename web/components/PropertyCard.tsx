@@ -41,7 +41,7 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
         const message = encodeURIComponent(
             `مرحباً، أنا مهتم بعقار: ${property.title} في ${property.location} بسعر ${(property.price / 1_000_000).toFixed(2)}M EGP`
         );
-        window.open(`https://wa.me/201000000000?text=${message}`, "_blank");
+        window.open(`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "201000000000"}?text=${message}`, "_blank");
     };
 
     const handleShare = async () => {

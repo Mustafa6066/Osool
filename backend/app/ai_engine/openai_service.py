@@ -140,6 +140,8 @@ class OsoolAI:
             ai_result = {
                 "risk_score": 0,
                 "ai_verdict": "Unknown (AI Offline)",
+                "contract_type": "Unknown",
+                "legal_summary_arabic": "تعذر تحليل العقد. يُرجى المحاولة مجدداً.",
                 "red_flags": [],
                 "missing_essential_clauses": []
             }

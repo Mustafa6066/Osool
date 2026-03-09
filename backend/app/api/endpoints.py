@@ -309,12 +309,13 @@ async def list_properties(db: AsyncSession = Depends(get_db)):
     for p in props:
         results.append({
             "id": p.id,
-            "name": p.title,
+            "title": p.title,
             "location": p.location,
+            "price": p.price,
             "totalPrice": p.price,
             "minimumInvestment": p.price * 0.05,
             "description": p.description,
-            "image": f"/assets/property{1 + (p.id % 3)}.jpg"
+            "image_url": p.image_url,
         })
         
     return results

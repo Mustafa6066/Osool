@@ -2,32 +2,52 @@
 Integration Tests for Claude Sales Agent
 -----------------------------------------
 Tests full conversation flows from greeting to reservation.
+
+These tests require a running database and AI service (ANTHROPIC_API_KEY,
+OPENAI_API_KEY). Set INTEGRATION_TESTS=1 to enable.
 """
 
 import pytest
 import sys
 import os
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from unittest.mock import Mock, patch, AsyncMock
 import asyncio
+
+# Skip entire module unless integration mode enabled
+pytestmark = pytest.mark.skipif(
+    not os.getenv("INTEGRATION_TESTS"),
+    reason="Integration tests require INTEGRATION_TESTS=1 and live services",
+)
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.main import app
+from app.auth import get_current_user
 from app.ai_engine.claude_sales_agent import ClaudeSalesAgent
-from app.services.property_search import search_properties_semantic
 
 
 # ---------------------------------------------------------------------------
 # FIXTURES
 # ---------------------------------------------------------------------------
 
+class _FakeUser:
+    """Minimal user object for test auth override."""
+    id = 1
+    email = "test@osool.eg"
+    full_name = "Test User"
+    role = "investor"
+    phone_verified = True
+
+
 @pytest.fixture
 async def test_client():
-    """Create test client for API requests"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    """Create test client with auth dependency overridden."""
+    app.dependency_overrides[get_current_user] = lambda: _FakeUser()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.fixture

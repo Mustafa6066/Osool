@@ -11,6 +11,8 @@ from unittest.mock import MagicMock, AsyncMock, patch
 # Ensure we're in dev/test mode
 os.environ["ENVIRONMENT"] = "development"
 os.environ["BLOCKCHAIN_SIMULATION_MODE"] = "true"
+# JWT secret must be set before auth module is imported (it validates at import time)
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest-minimum-32-chars-long")
 
 
 @pytest.fixture

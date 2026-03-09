@@ -91,6 +91,28 @@ def get_password_hash(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
+# Alias for backward compatibility
+hash_password = get_password_hash
+
+
+def verify_token(token: str) -> Optional[dict]:
+    """Decode and verify a JWT token. Returns payload dict or None."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+        if jti and is_token_blacklisted(jti):
+            return None
+        # Extract user_id from 'sub' claim for convenience
+        sub = payload.get("sub")
+        if sub is not None:
+            try:
+                payload["user_id"] = int(sub)
+            except (ValueError, TypeError):
+                payload["user_id"] = sub
+        return payload
+    except JWTError:
+        return None
+
 
 async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme_optional), db = Depends(get_db)) -> Optional[User]:
     """
@@ -328,9 +350,13 @@ def get_or_create_user_by_email(db: Session, email: str, full_name: str) -> User
     return user
 
 
-async def get_or_create_user_by_email_async(db: AsyncSession, email: str, full_name: str) -> User:
+async def get_or_create_user_by_email_async(
+    db: AsyncSession, email: str, full_name: str
+) -> tuple["User", bool]:
     """
     Async version of get_or_create_user_by_email for AsyncSession.
+    Returns (user, created) where `created` is True when the account was
+    created during this call rather than fetched from an existing record.
     """
     result = await db.execute(select(User).filter(User.email == email))
     user = result.scalar_one_or_none()
@@ -347,8 +373,9 @@ async def get_or_create_user_by_email_async(db: AsyncSession, email: str, full_n
         await db.commit()
         await db.refresh(user)
         logger.info(f"Created new user via email (async): {email}")
+        return user, True
 
-    return user
+    return user, False
 
 
 # ═══════════════════════════════════════════════════════════════

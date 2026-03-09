@@ -40,74 +40,84 @@ class TestVerifyEgpDeposit:
 
     # --- Input Validation Tests ---
 
-    def test_rejects_empty_reference(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_rejects_empty_reference(self, service_dev):
         """Empty reference should fail."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit("", 50000)
+        result = await service_dev.verify_egp_deposit("", 50000)
         assert result["status"] == PaymentStatus.FAILED
         assert "Invalid reference" in result["message"]
 
-    def test_rejects_short_reference(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_rejects_short_reference(self, service_dev):
         """Reference shorter than 10 chars should fail."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit("EGP-123", 50000)
+        result = await service_dev.verify_egp_deposit("EGP-123", 50000)
         assert result["status"] == PaymentStatus.FAILED
 
-    def test_rejects_non_egp_prefix(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_rejects_non_egp_prefix(self, service_dev):
         """Reference without EGP prefix should fail."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit("USD-1234567890", 50000)
+        result = await service_dev.verify_egp_deposit("USD-1234567890", 50000)
         assert result["status"] == PaymentStatus.FAILED
         assert "EGP-prefixed" in result["message"]
 
-    def test_rejects_amount_below_minimum(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_rejects_amount_below_minimum(self, service_dev):
         """Amount below 10,000 EGP should fail."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit("EGP-1234567890", 5000)
+        result = await service_dev.verify_egp_deposit("EGP-1234567890", 5000)
         assert result["status"] == PaymentStatus.FAILED
         assert "Minimum deposit" in result["message"]
 
-    def test_rejects_none_reference(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_rejects_none_reference(self, service_dev):
         """None reference should fail."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit(None, 50000)
+        result = await service_dev.verify_egp_deposit(None, 50000)
         assert result["status"] == PaymentStatus.FAILED
 
     # --- Dev Mode (Mock) ---
 
-    def test_dev_mode_verifies_valid_input(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_dev_mode_verifies_valid_input(self, service_dev):
         """Dev mode: valid input should return VERIFIED (mock)."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit("EGP-1234567890", 50000)
+        result = await service_dev.verify_egp_deposit("EGP-1234567890", 50000)
         assert result["status"] == PaymentStatus.VERIFIED
         assert "DEV" in result["message"]
         assert result["tx_id"] is not None
         assert result["verified_amount"] == 50000
 
-    def test_dev_mode_generates_deterministic_tx_id(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_dev_mode_generates_deterministic_tx_id(self, service_dev):
         """Dev mode: same reference should always produce same tx_id."""
-        r1 = service_dev.verify_egp_deposit("EGP-1234567890", 50000)
-        r2 = service_dev.verify_egp_deposit("EGP-1234567890", 50000)
+        r1 = await service_dev.verify_egp_deposit("EGP-1234567890", 50000)
+        r2 = await service_dev.verify_egp_deposit("EGP-1234567890", 50000)
         assert r1["tx_id"] == r2["tx_id"]
 
-    def test_dev_mode_different_refs_different_tx_ids(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_dev_mode_different_refs_different_tx_ids(self, service_dev):
         """Dev mode: different references should produce different tx_ids."""
-        r1 = service_dev.verify_egp_deposit("EGP-1234567890", 50000)
-        r2 = service_dev.verify_egp_deposit("EGP-0987654321", 50000)
+        r1 = await service_dev.verify_egp_deposit("EGP-1234567890", 50000)
+        r2 = await service_dev.verify_egp_deposit("EGP-0987654321", 50000)
         assert r1["tx_id"] != r2["tx_id"]
 
     # --- Production Mode (No Key) ---
 
-    def test_production_fails_without_api_key(self, service_prod):
+    @pytest.mark.asyncio
+    async def test_production_fails_without_api_key(self, service_prod):
         """F4: Production mode without API key should FAIL (not mock-verify)."""
         from app.services.payment_service import PaymentStatus
-        result = service_prod.verify_egp_deposit("EGP-1234567890", 50000)
+        result = await service_prod.verify_egp_deposit("EGP-1234567890", 50000)
         assert result["status"] == PaymentStatus.FAILED
         assert "not configured" in result["message"]
 
     # --- Production Mode (With Key) ---
 
-    def test_gateway_verification_success(self, service_with_key):
+    @pytest.mark.asyncio
+    async def test_gateway_verification_success(self, service_with_key):
         """With API key + successful gateway verification → VERIFIED."""
         from app.services.payment_service import PaymentStatus
 
@@ -116,12 +126,13 @@ class TestVerifyEgpDeposit:
 
         with patch.dict('sys.modules', {'app.services.paymob_service': MagicMock(paymob_service=mock_paymob)}):
             import sys
-            result = service_with_key.verify_egp_deposit("EGP-1234567890", 50000)
+            result = await service_with_key.verify_egp_deposit("EGP-1234567890", 50000)
             assert result["status"] == PaymentStatus.VERIFIED
             assert result["tx_id"] == "TX-EGP-1234567890"
             assert result["verified_amount"] == 50000
 
-    def test_gateway_verification_failure(self, service_with_key):
+    @pytest.mark.asyncio
+    async def test_gateway_verification_failure(self, service_with_key):
         """With API key + failed gateway verification → FAILED."""
         from app.services.payment_service import PaymentStatus
 
@@ -129,11 +140,12 @@ class TestVerifyEgpDeposit:
         mock_paymob.verify_transaction.return_value = False
 
         with patch.dict('sys.modules', {'app.services.paymob_service': MagicMock(paymob_service=mock_paymob)}):
-            result = service_with_key.verify_egp_deposit("EGP-1234567890", 50000)
+            result = await service_with_key.verify_egp_deposit("EGP-1234567890", 50000)
             assert result["status"] == PaymentStatus.FAILED
             assert result["tx_id"] is None
 
-    def test_gateway_exception_returns_failed(self, service_with_key):
+    @pytest.mark.asyncio
+    async def test_gateway_exception_returns_failed(self, service_with_key):
         """If gateway throws an exception → FAILED (not crash)."""
         from app.services.payment_service import PaymentStatus
 
@@ -141,28 +153,31 @@ class TestVerifyEgpDeposit:
         mock_paymob.verify_transaction.side_effect = Exception("Gateway timeout")
 
         with patch.dict('sys.modules', {'app.services.paymob_service': MagicMock(paymob_service=mock_paymob)}):
-            result = service_with_key.verify_egp_deposit("EGP-1234567890", 50000)
+            result = await service_with_key.verify_egp_deposit("EGP-1234567890", 50000)
             assert result["status"] == PaymentStatus.FAILED
             assert "unavailable" in result["message"]
 
     # --- Boundary Values ---
 
-    def test_minimum_valid_amount(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_minimum_valid_amount(self, service_dev):
         """Exactly 10,000 EGP should pass."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit("EGP-1234567890", 10000)
+        result = await service_dev.verify_egp_deposit("EGP-1234567890", 10000)
         assert result["status"] == PaymentStatus.VERIFIED
 
-    def test_just_below_minimum_amount(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_just_below_minimum_amount(self, service_dev):
         """9,999 EGP should fail."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit("EGP-1234567890", 9999)
+        result = await service_dev.verify_egp_deposit("EGP-1234567890", 9999)
         assert result["status"] == PaymentStatus.FAILED
 
-    def test_exactly_10_char_reference(self, service_dev):
+    @pytest.mark.asyncio
+    async def test_exactly_10_char_reference(self, service_dev):
         """Reference with exactly 10 chars should pass."""
         from app.services.payment_service import PaymentStatus
-        result = service_dev.verify_egp_deposit("EGP-123456", 50000)
+        result = await service_dev.verify_egp_deposit("EGP-123456", 50000)
         assert result["status"] == PaymentStatus.VERIFIED
 
 

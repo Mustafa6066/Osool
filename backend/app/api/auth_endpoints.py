@@ -328,11 +328,9 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
         email = user_info['email']
         name = user_info.get('name', 'Google User')
 
-        # Get or create user
-        user = await get_or_create_user_by_email_async(db, email, name)
-
-        # Check if this is a new user
-        is_new = user.full_name == 'Google User'
+        # Get or create user; `created` is True only when the account
+        # was just inserted — not for returning users who kept the default name.
+        user, is_new = await get_or_create_user_by_email_async(db, email, name)
 
         # Generate JWT
         access_token = create_access_token(data={

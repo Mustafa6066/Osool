@@ -31,6 +31,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
 
 import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -221,50 +222,62 @@ IMPACT_MAPPING: Dict[str, Dict[str, Any]] = {
 # ═══════════════════════════════════════════════════════════════
 
 async def _fetch_rss_feed(client: httpx.AsyncClient, source: Dict[str, str]) -> List[Dict[str, str]]:
-    """Fetch and parse a single RSS feed. Returns list of article dicts."""
+    """Fetch and parse a single RSS feed with retry. Returns list of article dicts."""
     articles: List[Dict[str, str]] = []
-    try:
-        resp = await client.get(source["url"], timeout=15)
-        if resp.status_code != 200:
-            logger.warning(f"RSS fetch failed for {source['name']}: HTTP {resp.status_code}")
-            return articles
+    last_error = None
 
-        root = ET.fromstring(resp.text)
+    for attempt in range(3):
+        try:
+            resp = await client.get(source["url"], timeout=15)
+            if resp.status_code != 200:
+                logger.warning(f"RSS fetch failed for {source['name']}: HTTP {resp.status_code} (attempt {attempt+1}/3)")
+                if attempt < 2:
+                    await asyncio.sleep(2 ** attempt)
+                continue
 
-        # Handle both RSS 2.0 (<channel><item>) and Atom (<entry>) formats
-        items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
+            root = ET.fromstring(resp.text)
 
-        for item in items[:30]:  # Limit to newest 30 per source
-            title_el = item.find("title") or item.find("{http://www.w3.org/2005/Atom}title")
-            desc_el = (
-                item.find("description")
-                or item.find("{http://www.w3.org/2005/Atom}summary")
-                or item.find("{http://www.w3.org/2005/Atom}content")
-            )
-            link_el = item.find("link") or item.find("{http://www.w3.org/2005/Atom}link")
-            pub_el = item.find("pubDate") or item.find("{http://www.w3.org/2005/Atom}published")
+            # Handle both RSS 2.0 (<channel><item>) and Atom (<entry>) formats
+            items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
 
-            title = title_el.text.strip() if title_el is not None and title_el.text else ""
-            description = desc_el.text.strip() if desc_el is not None and desc_el.text else ""
-            link = ""
-            if link_el is not None:
-                link = link_el.get("href", "") or (link_el.text.strip() if link_el.text else "")
-            pub_date = pub_el.text.strip() if pub_el is not None and pub_el.text else ""
+            for item in items[:30]:  # Limit to newest 30 per source
+                title_el = item.find("title") or item.find("{http://www.w3.org/2005/Atom}title")
+                desc_el = (
+                    item.find("description")
+                    or item.find("{http://www.w3.org/2005/Atom}summary")
+                    or item.find("{http://www.w3.org/2005/Atom}content")
+                )
+                link_el = item.find("link") or item.find("{http://www.w3.org/2005/Atom}link")
+                pub_el = item.find("pubDate") or item.find("{http://www.w3.org/2005/Atom}published")
 
-            if title:
-                articles.append({
-                    "title": title,
-                    "description": _strip_html(description),
-                    "link": link,
-                    "pub_date": pub_date,
-                    "source_name": source["name"],
-                    "region": source["region"],
-                })
+                title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                description = desc_el.text.strip() if desc_el is not None and desc_el.text else ""
+                link = ""
+                if link_el is not None:
+                    link = link_el.get("href", "") or (link_el.text.strip() if link_el.text else "")
+                pub_date = pub_el.text.strip() if pub_el is not None and pub_el.text else ""
 
-    except ET.ParseError as e:
-        logger.warning(f"XML parse error for {source['name']}: {e}")
-    except Exception as e:
-        logger.warning(f"RSS fetch error for {source['name']}: {e}")
+                if title:
+                    articles.append({
+                        "title": title,
+                        "description": _strip_html(description),
+                        "link": link,
+                        "pub_date": pub_date,
+                        "source_name": source["name"],
+                        "region": source["region"],
+                    })
+
+            return articles  # Success — return immediately
+
+        except ET.ParseError as e:
+            logger.warning(f"XML parse error for {source['name']}: {e}")
+            last_error = e
+            break  # XML parse errors won't be fixed by retrying
+        except Exception as e:
+            logger.warning(f"RSS fetch error for {source['name']} (attempt {attempt+1}/3): {e}")
+            last_error = e
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
 
     return articles
 

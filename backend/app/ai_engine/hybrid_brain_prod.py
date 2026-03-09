@@ -8,12 +8,15 @@ with GPT-4o for market reasoning and legal context.
 import os
 import json
 import asyncio
+import logging
 import requests
 from typing import Dict, Any, List, Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # Configuration for MLOps and AI services
 MLOPS_INFERENCE_URL = os.getenv("MLOPS_INFERENCE_URL", "http://localhost:8080/v1/models/xgboost:predict")

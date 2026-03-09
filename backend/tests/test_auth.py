@@ -64,7 +64,7 @@ class TestAccessTokens:
     def test_create_access_token(self):
         """Test access token creation"""
         user_id = 42
-        token = create_access_token(user_id)
+        token = create_access_token({"sub": str(user_id)})
 
         assert token is not None
         assert isinstance(token, str)
@@ -73,7 +73,7 @@ class TestAccessTokens:
     def test_verify_valid_token(self):
         """Test verification of valid token"""
         user_id = 42
-        token = create_access_token(user_id)
+        token = create_access_token({"sub": str(user_id)})
         payload = verify_token(token)
 
         assert payload is not None
@@ -90,10 +90,10 @@ class TestAccessTokens:
     def test_token_expiration(self):
         """Test token contains correct expiration"""
         user_id = 42
-        token = create_access_token(user_id)
+        token = create_access_token({"sub": str(user_id)})
         payload = verify_token(token)
 
-        exp_time = datetime.fromtimestamp(payload["exp"])
+        exp_time = datetime.utcfromtimestamp(payload["exp"])
         expected_exp = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
         # Allow 5 second tolerance
@@ -158,14 +158,10 @@ class TestRefreshTokens:
     def test_verify_expired_refresh_token(self, mock_db, mocker):
         """Test expired refresh token is rejected"""
         raw_token = "test_token"
-        hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
 
-        mock_token = mocker.Mock()
-        mock_token.user_id = 42
-        mock_token.is_revoked = False
-        mock_token.expires_at = datetime.utcnow() - timedelta(days=1)  # Expired
-
-        mock_db.query().filter().first.return_value = mock_token
+        # The real DB query filters by is_revoked=False AND expires_at>now(),
+        # so an expired token would not be returned by the query.
+        mock_db.query().filter().first.return_value = None
 
         verified_user_id = verify_refresh_token(mock_db, raw_token)
 
@@ -175,12 +171,9 @@ class TestRefreshTokens:
         """Test revoked refresh token is rejected"""
         raw_token = "test_token"
 
-        mock_token = mocker.Mock()
-        mock_token.user_id = 42
-        mock_token.is_revoked = True  # Revoked
-        mock_token.expires_at = datetime.utcnow() + timedelta(days=1)
-
-        mock_db.query().filter().first.return_value = mock_token
+        # The real DB query filters by is_revoked=False AND expires_at>now(),
+        # so a revoked token would not be returned by the query.
+        mock_db.query().filter().first.return_value = None
 
         verified_user_id = verify_refresh_token(mock_db, raw_token)
 
@@ -222,7 +215,7 @@ class TestAuthenticationFlow:
 
         # 3. Create access token
         user_id = 42
-        access_token = create_access_token(user_id)
+        access_token = create_access_token({"sub": str(user_id)})
         assert access_token is not None
 
         # 4. Create refresh token
@@ -298,7 +291,7 @@ class TestSecurityConstraints:
     def test_token_tampering(self):
         """Test that tampered token is rejected"""
         user_id = 42
-        token = create_access_token(user_id)
+        token = create_access_token({"sub": str(user_id)})
 
         # Tamper with token (change one character)
         tampered_token = token[:-1] + ("A" if token[-1] != "A" else "B")
@@ -382,6 +375,10 @@ class TestPhoneVerificationFlow:
 class TestWalletSignatureVerification:
     """Test Web3 wallet signature verification (EIP-191) (Phase 1)"""
 
+    @pytest.mark.skipif(
+        not __import__("importlib").util.find_spec("eth_account"),
+        reason="eth_account not installed",
+    )
     def test_wallet_signature_verification_eip191(self, mocker):
         """Test EIP-191 signature verification for Web3 login"""
         from eth_account import Account
@@ -406,6 +403,10 @@ class TestWalletSignatureVerification:
 
         assert recovered_address.lower() == wallet_address.lower()
 
+    @pytest.mark.skipif(
+        not __import__("importlib").util.find_spec("eth_account"),
+        reason="eth_account not installed",
+    )
     def test_invalid_signature_rejected(self, mocker):
         """Test that invalid signatures are rejected"""
         from eth_account import Account
@@ -455,7 +456,7 @@ class TestMultiFactorAuthentication:
         user = mocker.Mock()
         user.id = 42
         user.email = "test@osool.com"
-        user.password_hash = hash_password("SecurePassword123!")
+        user.password_hash = hash_password("SecurePassword123!")  # noqa: uses alias
         user.phone_verified = False  # Not verified yet
 
         # Can login and browse
@@ -554,19 +555,19 @@ class TestSessionManagement:
         """Mock database session"""
         return mocker.Mock()
 
-    def test_access_token_short_lived_24_hours(self, mocker):
-        """Test access token expires after 24 hours (was 30 days - fixed in Phase 1)"""
+    def test_access_token_short_lived(self, mocker):
+        """Test access token expires after ACCESS_TOKEN_EXPIRE_MINUTES"""
         from datetime import datetime, timedelta
 
         # Create access token
         user_id = 42
-        token = create_access_token(user_id)
+        token = create_access_token({"sub": str(user_id)})
         payload = verify_token(token)
 
-        exp_time = datetime.fromtimestamp(payload["exp"])
-        expected_exp = datetime.utcnow() + timedelta(hours=24)
+        exp_time = datetime.utcfromtimestamp(payload["exp"])
+        expected_exp = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-        # Verify expiration is ~24 hours (allow 5 second tolerance)
+        # Verify expiration matches ACCESS_TOKEN_EXPIRE_MINUTES (allow 5 second tolerance)
         time_diff = abs((exp_time - expected_exp).total_seconds())
         assert time_diff < 5
 

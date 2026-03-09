@@ -110,6 +110,21 @@ else:
 
 from app.services.cache import cache
 
+
+def validate_property_data(property_data: dict) -> bool:
+    """Validate that a property dict has all required fields with valid values."""
+    if not isinstance(property_data, dict):
+        return False
+    required = ("id", "title", "price")
+    for field in required:
+        if field not in property_data:
+            return False
+    price = property_data.get("price")
+    if not isinstance(price, (int, float)) or price <= 0:
+        return False
+    return True
+
+
 def store_session_results(session_id: str, results: list):
     """Stores search results for a specific session."""
     cache.store_session_results(session_id, results)

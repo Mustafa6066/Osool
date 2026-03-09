@@ -7,7 +7,7 @@ Tests multi-tier rate limiting, abuse detection, and security measures.
 import pytest
 import sys
 import os
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from unittest.mock import Mock, patch
 import time
 import asyncio
@@ -34,7 +34,7 @@ from app.middleware.rate_limiting import (
 @pytest.fixture
 async def test_client():
     """Create test client"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 

@@ -27,6 +27,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,7 @@ FALLBACK_ECONOMIC_DATA = {
 # USD/EGP EXCHANGE RATE SCRAPER
 # ═══════════════════════════════════════════════════════════════
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10), reraise=True)
 async def scrape_usd_egp_rate() -> Dict[str, Dict]:
     """
     Fetch USD/EGP exchange rate from multiple sources with fallback chain.
@@ -130,6 +132,7 @@ async def scrape_usd_egp_rate() -> Dict[str, Dict]:
     return indicators
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10), reraise=True)
 async def scrape_trading_economics() -> Dict[str, Dict]:
     """
     Attempt to scrape Trading Economics for Egyptian economic indicators.
@@ -189,6 +192,7 @@ async def scrape_trading_economics() -> Dict[str, Dict]:
     return indicators
 
 
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, max=8), reraise=True)
 async def scrape_gold_price() -> Optional[Dict]:
     """Attempt to get current gold price in EGP."""
     try:

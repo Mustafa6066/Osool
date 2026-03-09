@@ -1,8 +1,12 @@
 import re
 import asyncio
+import logging
 from datetime import datetime
 from playwright.async_api import async_playwright
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from app.models import Property
+
+logger = logging.getLogger(__name__)
 
 
 # Target URLs (Compounds)
@@ -43,16 +47,28 @@ async def fetch_nawy_data_async():
     scraped_properties = []
     print("🕸️ Starting Nawy Scraper...")
     
-    # 2. Try Requests + BeautifulSoup (Fast & Static)
+    # 2. Try Requests + BeautifulSoup (Fast & Static) with retry
     try:
         if not HAS_BS4:
             raise ImportError("BS4 not installed")
 
-        print("   |-- Attempting Fast Scrape (Requests)...")
+        logger.info("Attempting Fast Scrape (Requests)...")
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
         
         for url in TARGET_URLS:
-            res = requests.get(url, headers=headers, timeout=5)
+            for attempt in range(3):
+                try:
+                    res = requests.get(url, headers=headers, timeout=10)
+                    if res.status_code == 200:
+                        break
+                    logger.warning(f"HTTP {res.status_code} for {url} (attempt {attempt+1}/3)")
+                except requests.RequestException as e:
+                    logger.warning(f"Request error for {url} (attempt {attempt+1}/3): {e}")
+                    if attempt < 2:
+                        await asyncio.sleep(2 ** attempt)  # 1s, 2s backoff
+                    continue
+            else:
+                continue  # All 3 attempts failed for this URL
             if res.status_code == 200:
                 soup = BeautifulSoup(res.text, 'html.parser')
                 # Try to find cards (adjust selector to reality)
@@ -81,7 +97,7 @@ async def fetch_nawy_data_async():
             
                 
     except Exception as e:
-        print(f"⚠️ Fast Scrape Failed: {e}. Switching to Browser...")
+        logger.warning(f"Fast Scrape Failed: {e}. Switching to Browser...")
 
     # 3. Playwright (Browserless / Local)
     # Reset scraped_properties for Playwright attempt if fast scrape failed
@@ -102,7 +118,7 @@ async def fetch_nawy_data_async():
             
             for url in TARGET_URLS:
                 try:
-                    await page.goto(url, timeout=15000) # Increased timeout
+                    await page.goto(url, timeout=30000)  # 30s timeout for slow pages
                     # ... (Existing Extraction Logic preserved below if we kept it, 
                     # but here we are rewriting the block. I'll condense the extraction logic 
                     # for brevity while keeping the core functionality.)
@@ -134,7 +150,7 @@ async def fetch_nawy_data_async():
                 return scraped_properties
 
     except Exception as e:
-         print(f"❌ Browser Scrape Failed: {e}")
+         logger.error(f"Browser Scrape Failed: {e}")
 
     # 4. FALLBACK LOGIC (Existing)
     if not scraped_properties:
