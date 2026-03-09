@@ -26,7 +26,10 @@ from app.models import (
     Transaction,
     PaymentApproval,
     ChatMessage,
-    RefreshToken
+    RefreshToken,
+    Ticket,
+    TicketReply,
+    GeopoliticalEvent,
 )
 
 # this is the Alembic Config object, which provides

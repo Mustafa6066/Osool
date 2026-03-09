@@ -7,7 +7,7 @@ import {
     Shield, Users, MessageSquare, Building2, TrendingUp,
     Loader2, ChevronRight, Search, RefreshCw, Eye,
     Activity, Clock, ArrowLeft, Bot, User as UserIcon,
-    Database, Zap, AlertCircle
+    Database, Zap, AlertCircle, Ticket as TicketIcon, Send
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import SmartNav from '@/components/SmartNav';
@@ -22,13 +22,21 @@ import {
     getAdminMarketIndicators,
     updateUserRole,
     blockUser,
+    getAdminTickets,
+    getAdminTicketDetail,
+    getTicketStats,
+    updateTicketStatus,
+    addAdminTicketReply,
     AdminDashboardData,
     AdminUser,
     AdminConversation,
     AdminMessage,
+    AdminTicket,
+    AdminTicketDetail,
+    TicketStats,
 } from '@/lib/api';
 
-type Tab = 'overview' | 'conversations' | 'users' | 'scrapers';
+type Tab = 'overview' | 'conversations' | 'users' | 'scrapers' | 'tickets';
 
 export default function AdminPage() {
     const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -48,6 +56,14 @@ export default function AdminPage() {
         messages: AdminMessage[];
     } | null>(null);
     const [indicators, setIndicators] = useState<any[]>([]);
+
+    // Ticket states
+    const [adminTickets, setAdminTickets] = useState<AdminTicket[]>([]);
+    const [ticketStats, setTicketStats] = useState<TicketStats | null>(null);
+    const [selectedTicket, setSelectedTicket] = useState<AdminTicketDetail | null>(null);
+    const [ticketStatusFilter, setTicketStatusFilter] = useState<string>('');
+    const [ticketReplyContent, setTicketReplyContent] = useState('');
+    const [ticketReplying, setTicketReplying] = useState(false);
 
     const [loadingData, setLoadingData] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -120,6 +136,14 @@ export default function AdminPage() {
                     const m = await getAdminMarketIndicators();
                     setIndicators(m.indicators);
                     break;
+                case 'tickets':
+                    const [ts, tl] = await Promise.all([
+                        getTicketStats(),
+                        getAdminTickets({ status: ticketStatusFilter || undefined }),
+                    ]);
+                    setTicketStats(ts);
+                    setAdminTickets(tl.tickets);
+                    break;
             }
         } catch (err) {
             console.error('Failed to load admin data:', err);
@@ -131,7 +155,12 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (isAdmin) loadTabData();
-    }, [isAdmin, loadTabData]);
+    }, [activeTab, isAdmin]);
+
+    // Reload tickets when status filter changes
+    useEffect(() => {
+        if (isAdmin && activeTab === 'tickets') loadTabData();
+    }, [ticketStatusFilter]);
 
     const openConversation = async (sessionId: string) => {
         setLoadingData(true);
@@ -159,6 +188,20 @@ export default function AdminPage() {
             setScraperStatus(`${type} scraper failed. Check logs.`);
         }
         setTimeout(() => setScraperStatus(null), 5000);
+    };
+
+    const handleAdminReply = async () => {
+        if (!ticketReplyContent.trim() || ticketReplying || !selectedTicket) return;
+        setTicketReplying(true);
+        try {
+            const newReply = await addAdminTicketReply(selectedTicket.id, ticketReplyContent.trim());
+            setSelectedTicket(prev => prev ? { ...prev, replies: [...prev.replies, newReply] } : prev);
+            setTicketReplyContent('');
+        } catch (err) {
+            console.error('Failed to send admin reply:', err);
+        } finally {
+            setTicketReplying(false);
+        }
     };
 
     // Loading & Access Denied states
@@ -209,6 +252,7 @@ export default function AdminPage() {
         { key: 'overview', label: 'Overview', icon: Activity },
         { key: 'conversations', label: 'Conversations', icon: MessageSquare },
         { key: 'users', label: 'Users', icon: Users },
+        { key: 'tickets', label: 'Tickets', icon: TicketIcon },
         { key: 'scrapers', label: 'Scrapers & Data', icon: Database },
     ];
 
@@ -300,6 +344,24 @@ export default function AdminPage() {
                                         </motion.div>
                                     );
                                 })}
+                            </div>
+
+                            {/* Dual-Engine Quick Links */}
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {[
+                                    { label: 'Analytics Dashboard', desc: 'Lead intelligence & intent trends', href: '/admin/analytics', color: 'text-purple-500' },
+                                    { label: 'Lead Pipeline', desc: 'Manage leads from chat', href: '/admin/leads', color: 'text-red-500' },
+                                    { label: 'Ad Campaigns', desc: 'Meta & Google ad management', href: '/admin/campaigns', color: 'text-blue-500' },
+                                ].map((link) => (
+                                    <a
+                                        key={link.href}
+                                        href={link.href}
+                                        className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 hover:border-emerald-500/50 transition-all group"
+                                    >
+                                        <p className={`text-sm font-semibold group-hover:text-emerald-500 transition-colors ${link.color}`}>{link.label}</p>
+                                        <p className="text-xs text-[var(--color-text-muted)] mt-1">{link.desc}</p>
+                                    </a>
+                                ))}
                             </div>
                         )}
 
@@ -481,6 +543,7 @@ export default function AdminPage() {
                                                             </span>
                                                         ) : isSuperAdmin ? (
                                                             <select
+                                                                title="Change user role"
                                                                 value={u.role}
                                                                 disabled={roleUpdating === u.id}
                                                                 onChange={e => handleRoleChange(u.id, e.target.value)}
@@ -541,6 +604,205 @@ export default function AdminPage() {
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* TICKETS TAB */}
+                        {activeTab === 'tickets' && (
+                            <div className="space-y-4">
+                                {/* Ticket Stats */}
+                                {ticketStats && !selectedTicket && (
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                        {[
+                                            { label: 'Open', value: ticketStats.open, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                                            { label: 'In Progress', value: ticketStats.in_progress, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                                            { label: 'Resolved', value: ticketStats.resolved, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                                            { label: 'Closed', value: ticketStats.closed, color: 'text-gray-500', bg: 'bg-gray-500/10' },
+                                            { label: 'Total', value: ticketStats.total, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                                        ].map(s => (
+                                            <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center`}>
+                                                <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                                                <p className="text-[11px] text-[var(--color-text-muted)]">{s.label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Selected Ticket Detail */}
+                                {selectedTicket ? (
+                                    <div className="space-y-4">
+                                        <button
+                                            onClick={() => setSelectedTicket(null)}
+                                            className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                                        >
+                                            <ArrowLeft className="w-4 h-4" />
+                                            Back to Tickets
+                                        </button>
+
+                                        {/* Ticket Info Card */}
+                                        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{selectedTicket.subject}</h3>
+                                                    <div className="flex items-center gap-2 mt-1 text-xs text-[var(--color-text-muted)]">
+                                                        <span>#{selectedTicket.id}</span>
+                                                        <span>{selectedTicket.user?.name} ({selectedTicket.user?.email})</span>
+                                                        <span>{selectedTicket.category}</span>
+                                                        <span className={selectedTicket.priority === 'urgent' ? 'text-red-500 font-medium' : selectedTicket.priority === 'high' ? 'text-orange-500' : ''}>{selectedTicket.priority}</span>
+                                                        {selectedTicket.created_at && <span>{new Date(selectedTicket.created_at).toLocaleDateString()}</span>}
+                                                    </div>
+                                                </div>
+                                                {/* Status dropdown */}
+                                                <select
+                                                    title="Change ticket status"
+                                                    value={selectedTicket.status}
+                                                    onChange={async (e) => {
+                                                        const newStatus = e.target.value;
+                                                        try {
+                                                            await updateTicketStatus(selectedTicket.id, newStatus);
+                                                            setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : prev);
+                                                            setAdminTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: newStatus } : t));
+                                                        } catch (err) { console.error('Failed to update status:', err); }
+                                                    }}
+                                                    className="text-xs px-2 py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+                                                >
+                                                    <option value="open">Open</option>
+                                                    <option value="in_progress">In Progress</option>
+                                                    <option value="resolved">Resolved</option>
+                                                    <option value="closed">Closed</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Description */}
+                                            <div className="mt-3 p-3 rounded-lg bg-[var(--color-background)] text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">
+                                                {selectedTicket.description}
+                                            </div>
+                                        </div>
+
+                                        {/* Replies Thread */}
+                                        <div className="space-y-3">
+                                            {selectedTicket.replies.map(reply => (
+                                                <div key={reply.id} className={`p-3 rounded-xl border ${reply.is_admin_reply ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+                                                    <div className="flex items-center gap-2 mb-1.5">
+                                                        <span className={`text-xs font-medium ${reply.is_admin_reply ? 'text-emerald-500' : 'text-[var(--color-text-primary)]'}`}>
+                                                            {reply.user_name} {reply.is_admin_reply && '(Admin)'}
+                                                        </span>
+                                                        {reply.created_at && <span className="text-[11px] text-[var(--color-text-muted)]">{new Date(reply.created_at).toLocaleString()}</span>}
+                                                    </div>
+                                                    <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{reply.content}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Admin Reply Input */}
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={ticketReplyContent}
+                                                onChange={(e) => setTicketReplyContent(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey && ticketReplyContent.trim()) {
+                                                        e.preventDefault();
+                                                        handleAdminReply();
+                                                    }
+                                                }}
+                                                placeholder="Reply as admin..."
+                                                className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-emerald-500/50"
+                                            />
+                                            <button
+                                                onClick={handleAdminReply}
+                                                disabled={!ticketReplyContent.trim() || ticketReplying}
+                                                className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
+                                            >
+                                                {ticketReplying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                                Reply
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Status Filter */}
+                                        <div className="flex gap-1">
+                                            {[
+                                                { key: '', label: 'All' },
+                                                { key: 'open', label: 'Open' },
+                                                { key: 'in_progress', label: 'In Progress' },
+                                                { key: 'resolved', label: 'Resolved' },
+                                                { key: 'closed', label: 'Closed' },
+                                            ].map(f => (
+                                                <button
+                                                    key={f.key}
+                                                    onClick={() => setTicketStatusFilter(f.key)}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${ticketStatusFilter === f.key ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] border border-transparent'}`}
+                                                >
+                                                    {f.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Tickets Table */}
+                                        {adminTickets.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left text-sm">
+                                                    <thead>
+                                                        <tr className="border-b border-[var(--color-border)]">
+                                                            <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">ID</th>
+                                                            <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Subject</th>
+                                                            <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">User</th>
+                                                            <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Category</th>
+                                                            <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Priority</th>
+                                                            <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Status</th>
+                                                            <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Replies</th>
+                                                            <th className="py-2 px-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase">Created</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {adminTickets.map(ticket => {
+                                                            const priorityColors: Record<string, string> = { low: 'text-gray-400', medium: 'text-blue-400', high: 'text-orange-500', urgent: 'text-red-500 font-medium' };
+                                                            const statusColors: Record<string, string> = { open: 'text-blue-500 bg-blue-500/10', in_progress: 'text-amber-500 bg-amber-500/10', resolved: 'text-emerald-500 bg-emerald-500/10', closed: 'text-gray-500 bg-gray-500/10' };
+                                                            const statusLabel: Record<string, string> = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+
+                                                            return (
+                                                                <tr
+                                                                    key={ticket.id}
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            const detail = await getAdminTicketDetail(ticket.id);
+                                                                            setSelectedTicket(detail);
+                                                                            setTicketReplyContent('');
+                                                                        } catch (err) { console.error('Failed to load ticket:', err); }
+                                                                    }}
+                                                                    className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer"
+                                                                >
+                                                                    <td className="py-2 px-3 text-[var(--color-text-muted)] text-xs">#{ticket.id}</td>
+                                                                    <td className="py-2 px-3 text-[var(--color-text-primary)] font-medium max-w-[200px] truncate">{ticket.subject}</td>
+                                                                    <td className="py-2 px-3">
+                                                                        <div className="text-xs text-[var(--color-text-primary)]">{ticket.user_name}</div>
+                                                                        <div className="text-[11px] text-[var(--color-text-muted)]">{ticket.user_email}</div>
+                                                                    </td>
+                                                                    <td className="py-2 px-3 text-xs text-[var(--color-text-muted)] capitalize">{ticket.category}</td>
+                                                                    <td className={`py-2 px-3 text-xs capitalize ${priorityColors[ticket.priority] || ''}`}>{ticket.priority}</td>
+                                                                    <td className="py-2 px-3">
+                                                                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[ticket.status] || ''}`}>
+                                                                            {statusLabel[ticket.status] || ticket.status}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="py-2 px-3 text-xs text-[var(--color-text-muted)]">{ticket.replies_count}</td>
+                                                                    <td className="py-2 px-3 text-[11px] text-[var(--color-text-muted)]">{ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : '-'}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : !loadingData ? (
+                                            <div className="text-center py-12">
+                                                <TicketIcon className="w-10 h-10 mx-auto text-[var(--color-text-muted)] opacity-30 mb-3" />
+                                                <p className="text-sm text-[var(--color-text-muted)]">No tickets found</p>
+                                            </div>
+                                        ) : null}
+                                    </>
+                                )}
                             </div>
                         )}
 

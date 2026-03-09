@@ -17,6 +17,9 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 import re
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -349,15 +352,42 @@ if __name__ == "__main__":
 
 def mock_crm_lookup(phone_number: str) -> Optional[Dict]:
     """
-    Simulate a CRM lookup to find existing customers.
-    In production, this would call Hubspot/Salesforce API.
+    CRM lookup to find existing customers.
+    In production: reads from CRM integration (HubSpot, Salesforce, etc.) via env-configured API.
+    Falls back to None when CRM is not configured — callers handle the None gracefully.
     """
-    mock_db = {
-        "+201000000001": {"name": "Ahmed", "last_seen": "2 days ago", "interest": "New Cairo Villas", "status": "bouncing"},
-        "+201222222222": {"name": "Sarah", "last_seen": "1 week ago", "interest": "Zayed Apartments", "status": "warm"},
-        "+201111111111": {"name": "Dr. Mohamed", "last_seen": "3 months ago", "interest": "Investment", "status": "churned"},
-    }
-    return mock_db.get(phone_number)
+    import os
+    import httpx
+
+    crm_api_url = os.getenv("CRM_API_URL")
+    crm_api_key = os.getenv("CRM_API_KEY")
+
+    if not crm_api_url or not crm_api_key:
+        # CRM not configured — return None so caller shows generic welcome
+        return None
+
+    try:
+        response = httpx.get(
+            f"{crm_api_url}/contacts/search",
+            headers={"Authorization": f"Bearer {crm_api_key}"},
+            params={"phone": phone_number},
+            timeout=3.0
+        )
+        if response.status_code == 200:
+            data = response.json()
+            contacts = data.get("results", [])
+            if contacts:
+                c = contacts[0]
+                return {
+                    "name": c.get("properties", {}).get("firstname", ""),
+                    "last_seen": c.get("properties", {}).get("lastmodifieddate", ""),
+                    "interest": c.get("properties", {}).get("hs_latest_source_data_1", ""),
+                    "status": c.get("properties", {}).get("lifecyclestage", "lead"),
+                }
+    except Exception as e:
+        logger.warning(f"CRM lookup failed for {phone_number}: {e}")
+
+    return None
 
 
 def get_personalized_welcome(phone_number: Optional[str]) -> str:

@@ -115,3 +115,94 @@ def send_notification_task(self, user_id: int, message: str, notification_type: 
         logger.error(f"[Worker] Critical notification task failure: {e}", exc_info=True)
         # Retry with exponential backoff
         raise self.retry(exc=e, countdown=min(2 ** self.request.retries * 10, 600))
+
+
+# ═══════════════════════════════════════════════════════════════
+# DUAL-ENGINE TASKS
+# ═══════════════════════════════════════════════════════════════
+
+@celery_app.task(bind=True, max_retries=2)
+def process_drip_emails_task(self):
+    """Run the drip email engine — scheduled via beat."""
+    import asyncio
+    from app.database import AsyncSessionLocal
+    from app.services.drip_engine import process_drip_queue
+
+    async def _run():
+        async with AsyncSessionLocal() as session:
+            return await process_drip_queue(session)
+
+    try:
+        count = asyncio.run(_run())
+        logger.info("[DripEngine] Processed %d drip emails", count)
+        return {"sent": count}
+    except Exception as e:
+        logger.error("[DripEngine] Failed: %s", e)
+        raise self.retry(exc=e, countdown=300)
+
+
+@celery_app.task(bind=True, max_retries=1)
+def generate_seo_content_task(self, page_id: int):
+    """Generate AI content for a single SEO page."""
+    import asyncio
+    from app.database import AsyncSessionLocal
+    from app.models import SEOPage, Developer, Area, SEOProject, PageStatus
+    from app.ai_engine.seo_page_generator import (
+        generate_comparison_content, generate_project_content
+    )
+    from sqlalchemy import select
+
+    async def _run():
+        async with AsyncSessionLocal() as session:
+            page = (await session.execute(
+                select(SEOPage).where(SEOPage.id == page_id)
+            )).scalar_one_or_none()
+            if not page:
+                return {"error": "Page not found"}
+
+            import json as _json
+            content_meta = {}
+            if page.content_json:
+                try:
+                    content_meta = _json.loads(page.content_json)
+                except (_json.JSONDecodeError, TypeError):
+                    pass
+
+            if content_meta.get("type") == "developer_comparison":
+                d1 = (await session.execute(
+                    select(Developer).where(Developer.slug == content_meta["developer_1"])
+                )).scalar_one_or_none()
+                d2 = (await session.execute(
+                    select(Developer).where(Developer.slug == content_meta["developer_2"])
+                )).scalar_one_or_none()
+                if d1 and d2:
+                    content = await generate_comparison_content(
+                        dev1={c.key: getattr(d1, c.key) for c in d1.__table__.columns},
+                        dev2={c.key: getattr(d2, c.key) for c in d2.__table__.columns},
+                    )
+                    page.content_json = _json.dumps({**content_meta, "generated": content}, default=str)
+                    page.status = PageStatus.PUBLISHED.value
+
+            elif content_meta.get("type") == "area_comparison":
+                a1 = (await session.execute(
+                    select(Area).where(Area.slug == content_meta["area_1"])
+                )).scalar_one_or_none()
+                a2 = (await session.execute(
+                    select(Area).where(Area.slug == content_meta["area_2"])
+                )).scalar_one_or_none()
+                if a1 and a2:
+                    content = await generate_comparison_content(
+                        area1={c.key: getattr(a1, c.key) for c in a1.__table__.columns},
+                        area2={c.key: getattr(a2, c.key) for c in a2.__table__.columns},
+                    )
+                    page.content_json = _json.dumps({**content_meta, "generated": content}, default=str)
+                    page.status = PageStatus.PUBLISHED.value
+
+            await session.commit()
+            return {"status": "generated", "page_id": page_id}
+
+    try:
+        return asyncio.run(_run())
+    except Exception as e:
+        logger.error("[SEOContent] Failed for page %d: %s", page_id, e)
+        raise self.retry(exc=e, countdown=60)

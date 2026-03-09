@@ -589,4 +589,154 @@ export const getAdminMarketIndicators = async () => {
   return data;
 };
 
+
+// ═══════════════════════════════════════════════════════════════
+// TICKET SYSTEM API
+// ═══════════════════════════════════════════════════════════════
+
+export interface Ticket {
+  id: number;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  replies_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface TicketReply {
+  id: number;
+  content: string;
+  user_name: string;
+  is_admin_reply: boolean;
+  created_at: string | null;
+}
+
+export interface TicketDetail {
+  id: number;
+  subject: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  created_at: string | null;
+  updated_at: string | null;
+  closed_at: string | null;
+  replies: TicketReply[];
+}
+
+export interface AdminTicket {
+  id: number;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  user_name: string;
+  user_email: string;
+  assigned_to_name: string | null;
+  replies_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface AdminTicketDetail extends TicketDetail {
+  user: { name: string; email: string };
+  assigned_to_name: string | null;
+}
+
+export interface TicketStats {
+  open: number;
+  in_progress: number;
+  resolved: number;
+  closed: number;
+  total: number;
+}
+
+// --- User Ticket Functions ---
+
+/** Create a new support ticket */
+export const createTicket = async (data: {
+  subject: string;
+  description: string;
+  category?: string;
+  priority?: string;
+}): Promise<TicketDetail> => {
+  const { data: res } = await api.post('/api/tickets', data);
+  return res;
+};
+
+/** Get current user's tickets */
+export const getMyTickets = async (
+  status?: string,
+  limit = 20,
+  offset = 0
+): Promise<{ total: number; tickets: Ticket[] }> => {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  params.append('limit', String(limit));
+  params.append('offset', String(offset));
+  const { data } = await api.get(`/api/tickets?${params.toString()}`);
+  return data;
+};
+
+/** Get ticket detail with replies */
+export const getTicketDetail = async (id: number): Promise<TicketDetail> => {
+  const { data } = await api.get(`/api/tickets/${id}`);
+  return data;
+};
+
+/** Add a reply to own ticket */
+export const addTicketReply = async (ticketId: number, content: string): Promise<TicketReply> => {
+  const { data } = await api.post(`/api/tickets/${ticketId}/replies`, { content });
+  return data;
+};
+
+// --- Admin Ticket Functions ---
+
+/** Admin: get ticket statistics */
+export const getTicketStats = async (): Promise<TicketStats> => {
+  const { data } = await api.get('/api/admin/tickets/stats');
+  return data;
+};
+
+/** Admin: list all tickets */
+export const getAdminTickets = async (
+  filters: { status?: string; priority?: string; category?: string; search?: string; limit?: number; offset?: number } = {}
+): Promise<{ total: number; tickets: AdminTicket[] }> => {
+  const params = new URLSearchParams();
+  if (filters.status) params.append('status', filters.status);
+  if (filters.priority) params.append('priority', filters.priority);
+  if (filters.category) params.append('category', filters.category);
+  if (filters.search) params.append('search', filters.search);
+  params.append('limit', String(filters.limit || 50));
+  params.append('offset', String(filters.offset || 0));
+  const { data } = await api.get(`/api/admin/tickets?${params.toString()}`);
+  return data;
+};
+
+/** Admin: get full ticket detail */
+export const getAdminTicketDetail = async (id: number): Promise<AdminTicketDetail> => {
+  const { data } = await api.get(`/api/admin/tickets/${id}`);
+  return data;
+};
+
+/** Admin: update ticket status */
+export const updateTicketStatus = async (id: number, status: string): Promise<{ id: number; status: string }> => {
+  const { data } = await api.patch(`/api/admin/tickets/${id}/status`, { status });
+  return data;
+};
+
+/** Admin: assign ticket to admin */
+export const assignTicket = async (id: number, adminId: number | null): Promise<{ id: number; assigned_to: number | null }> => {
+  const { data } = await api.patch(`/api/admin/tickets/${id}/assign`, { admin_id: adminId });
+  return data;
+};
+
+/** Admin: reply to ticket as admin */
+export const addAdminTicketReply = async (ticketId: number, content: string): Promise<TicketReply> => {
+  const { data } = await api.post(`/api/admin/tickets/${ticketId}/replies`, { content });
+  return data;
+};
+
 export default api;

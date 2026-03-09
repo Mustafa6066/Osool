@@ -48,6 +48,7 @@ from .analytical_engine import (
 )
 from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
+from .geopolitical_layer import GeopoliticalLayer
 from .analytical_actions import generate_analytical_ui_actions
 from .coinvestor_master_prompt import get_wolf_system_prompt, COINVESTOR_SYSTEM_PROMPT, is_discount_request, FRAME_CONTROL_EXAMPLES
 from .hybrid_brain_prod import hybrid_brain_prod  # The Specialist Tools
@@ -458,6 +459,9 @@ class WolfBrain:
             # Initialize Market Analytics Layer (Session Scope)
             market_layer = MarketAnalyticsLayer(session)
             
+            # Initialize Geopolitical Awareness Layer (Session Scope)
+            geo_layer = GeopoliticalLayer(session)
+            
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 1: FAST ROUTE (Regex Gate - 0ms Latency)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -702,6 +706,18 @@ class WolfBrain:
             analytics_context = await self._build_analytics_context(intent, session, market_layer)
             if analytics_context.get("has_analytics"):
                 logger.info(f"📊 ANALYTICS ENRICHMENT: Built context for {analytics_context.get('location', 'N/A')}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # STEP 4A.0: GEOPOLITICAL AWARENESS (Always-On Intelligence)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            geopolitical_context: Optional[str] = None
+            try:
+                geopolitical_context = await geo_layer.get_geopolitical_context(language=language)
+                if geopolitical_context:
+                    logger.info(f"🌍 GEOPOLITICAL LAYER: Injecting macro-awareness ({len(geopolitical_context)} chars)")
+            except Exception as e:
+                logger.warning(f"⚠️ Geopolitical layer error (non-fatal): {e}")
+                geopolitical_context = None
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 4A.1: CHAIN-OF-THOUGHT REASONING (V3)
@@ -1111,6 +1127,7 @@ class WolfBrain:
                 developer_insight=developer_insight,
                 reasoning_chain=reasoning_chain,
                 db_session=session,
+                geopolitical_context=geopolitical_context,
             )
 
             # ── STREAMING MODE: return context for real SSE streaming ──
@@ -2316,6 +2333,7 @@ class WolfBrain:
         analytics_context: Optional[Dict] = None,
         reasoning_chain: Optional[ReasoningChain] = None,
         db_session: Optional[Any] = None,
+        geopolitical_context: Optional[str] = None,
         _return_context: bool = False,
     ):
         """
@@ -2529,6 +2547,10 @@ End with: "Do you prefer a specific area, or shall I pick the best value?"
             # 0. Inject Economic Context (Always-On from Analytics Enrichment)
             if analytics_context and analytics_context.get("economic_brief"):
                 wolf_insight_instruction += analytics_context["economic_brief"]
+
+            # 0.5 Inject Geopolitical Intelligence (Always-On Macro Awareness)
+            if geopolitical_context:
+                wolf_insight_instruction += geopolitical_context
 
             # 1. Inject Live Market Pulse (Real-Time DB Data)
             # This overrides hardcoded assumptions with fresh data

@@ -299,6 +299,9 @@ class ProactiveAlertEngine:
 
     def _create_escalation_alert(self, reason_en: str, reason_ar: str) -> Dict[str, Any]:
         """Create standard escalation alert."""
+        import os
+        whatsapp_number = os.getenv("SUPPORT_WHATSAPP_NUMBER", "201000000000")
+        whatsapp_link = f"https://wa.me/{whatsapp_number}?text=I+need+assistance"
         return ProactiveAlert(
             type=AlertType.CRITICAL, # Assuming AlertType has CRITICAL, if not use HIGH
             priority=AlertPriority.CRITICAL.value,
@@ -306,7 +309,7 @@ class ProactiveAlertEngine:
             message_en=f"⚠️ {reason_en}. Connecting you to Senior Consultant...",
             data={
                 "action": "escalate",
-                "contact": "whatsapp_link_placeholder"
+                "contact": whatsapp_link
             },
             action_cta_ar="تواصل واتساب مباشر",
             action_cta_en="Chat on WhatsApp"

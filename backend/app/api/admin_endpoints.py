@@ -5,19 +5,49 @@ JWT-authenticated admin endpoints for Mustafa@osool.eg and Hani@osool.eg.
 Provides full system control: user management, conversation monitoring, scraper triggers.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, text
 from typing import Optional
+from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import logging
+
+limiter = Limiter(key_func=get_remote_address)
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import User, ChatMessage, Property, Transaction, MarketIndicator, ConversationAnalytics
+from app.models import User, ChatMessage, Property, Transaction, MarketIndicator, ConversationAnalytics, Ticket, TicketReply, GeopoliticalEvent
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["Admin Dashboard"])
+
+
+# ═══════════════════════════════════════════════════════════════
+# REQUEST MODELS (SECURITY FIX V3: Validated inputs)
+# ═══════════════════════════════════════════════════════════════
+
+class UpdateRoleRequest(BaseModel):
+    """SECURITY: Strict validation for role updates."""
+    role: str = Field(..., pattern="^(investor|agent|analyst|admin|blocked)$")
+
+
+class BlockUserRequest(BaseModel):
+    """SECURITY: Validated block/unblock request."""
+    action: str = Field(..., pattern="^(block|unblock)$")
+
+
+class UpdateTicketStatusRequest(BaseModel):
+    """Validated ticket status update."""
+    status: str = Field(..., pattern="^(open|in_progress|resolved|closed)$")
+
+
+class AssignTicketRequest(BaseModel):
+    """Assign ticket to an admin user."""
+    admin_id: Optional[int] = None
+
 
 # ═══════════════════════════════════════════════════════════════
 # ADMIN ACCESS CONTROL
@@ -142,8 +172,8 @@ async def admin_dashboard(
 async def admin_list_users(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(default=100, ge=1, le=1000, description="Max 1000 results per page"),
+    offset: int = Query(default=0, ge=0, le=1000000, description="Max offset 1M to prevent abuse"),
 ):
     """
     Admin: Get all registered users with chat statistics.
@@ -175,71 +205,46 @@ async def admin_list_users(
             .offset(offset)
         )
     except Exception as e:
-        # Backward-compatibility fallback for partially migrated DBs
-        logger.warning(f"Admin users full query failed; using fallback columns. Error: {e}")
-        # Schema-aware raw SQL fallback: avoid referencing ORM columns that may not exist yet.
-        col_result = await db.execute(text("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'users'
-        """))
-        user_cols = {row[0] for row in col_result.fetchall()}
-
-        table_result = await db.execute(text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.tables
-                WHERE table_schema = 'public' AND table_name = 'chat_messages'
+        # SECURITY FIX V1: Removed dynamic SQL to prevent SQL injection
+        # If query fails, return minimal safe data instead of using raw SQL
+        logger.error(f"Admin users query failed - database schema may be incomplete: {e}")
+        
+        # Safe fallback: Return minimal user list without joins
+        # Uses ORM exclusively - no string interpolation
+        try:
+            minimal_result = await db.execute(
+                select(User.id, User.email)
+                .order_by(User.id.desc())
+                .limit(limit)
+                .offset(offset)
             )
-        """))
-        has_chat_messages = bool(table_result.scalar())
-
-        def col_or_null(column_name: str, cast_type: str = "text") -> str:
-            if column_name in user_cols:
-                return f"u.{column_name}"
-            return f"NULL::{cast_type}"
-
-        created_at_expr = col_or_null("created_at", "timestamptz")
-        order_expr = "u.created_at DESC" if "created_at" in user_cols else "u.id DESC"
-
-        if has_chat_messages:
-            fallback_sql = f"""
-                SELECT
-                    u.id AS id,
-                    {col_or_null('email')} AS email,
-                    {col_or_null('full_name')} AS full_name,
-                    {col_or_null('role')} AS role,
-                    {created_at_expr} AS created_at,
-                    {col_or_null('is_verified', 'boolean')} AS is_verified,
-                    {col_or_null('kyc_status')} AS kyc_status,
-                    COALESCE(cm.message_count, 0) AS message_count,
-                    cm.last_activity AS last_activity
-                FROM users u
-                LEFT JOIN (
-                    SELECT user_id, COUNT(*) AS message_count, MAX(created_at) AS last_activity
-                    FROM chat_messages
-                    GROUP BY user_id
-                ) cm ON cm.user_id = u.id
-                ORDER BY {order_expr}
-                LIMIT :limit OFFSET :offset
-            """
-        else:
-            fallback_sql = f"""
-                SELECT
-                    u.id AS id,
-                    {col_or_null('email')} AS email,
-                    {col_or_null('full_name')} AS full_name,
-                    {col_or_null('role')} AS role,
-                    {created_at_expr} AS created_at,
-                    {col_or_null('is_verified', 'boolean')} AS is_verified,
-                    {col_or_null('kyc_status')} AS kyc_status,
-                    0::bigint AS message_count,
-                    NULL::timestamptz AS last_activity
-                FROM users u
-                ORDER BY {order_expr}
-                LIMIT :limit OFFSET :offset
-            """
-
-        result = await db.execute(text(fallback_sql), {"limit": limit, "offset": offset})
+            users = [
+                {
+                    "id": row.id,
+                    "email": row.email,
+                    "full_name": None,
+                    "role": None,
+                    "created_at": None,
+                    "is_verified": None,
+                    "kyc_status": None,
+                    "message_count": 0,
+                    "last_activity": None,
+                }
+                for row in minimal_result.all()
+            ]
+            return {
+                "total": total_count,
+                "users": users,
+                "limit": limit,
+                "offset": offset,
+                "warning": "Schema incomplete - showing minimal data"
+            }
+        except Exception as fallback_error:
+            logger.critical(f"Even minimal query failed: {fallback_error}")
+            raise HTTPException(
+                status_code=500,
+                detail="Database schema error - contact system administrator"
+            )
 
     users = []
     for row in result.all():
@@ -293,15 +298,15 @@ async def admin_update_user_role(
 @router.patch("/users/{user_id}/block")
 async def admin_block_user(
     user_id: int,
-    body: dict,
+    body: BlockUserRequest,  # SECURITY FIX V3: Validated input
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_super_admin),
 ):
     """
     Mustafa only: Block or unblock a user account.
-    Blocked users cannot log in or use the API.
+    SECURITY: Now uses validated Pydantic model.
     """
-    blocked: bool = bool(body.get("blocked", True))
+    blocked: bool = (body.action == "block")
 
     result = await db.execute(select(User).where(User.id == user_id))
     target = result.scalar_one_or_none()
@@ -436,10 +441,11 @@ async def admin_get_conversation(
 async def admin_get_user_conversations(
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_super_admin),  # SECURITY FIX V2: Only Mustafa can access arbitrary user chats
 ):
     """
-    Admin: Get all conversations for a specific user.
+    SECURITY: Restricted to super-admin only to prevent IDOR attacks.
+    View all chat sessions for a specific user.
     """
     # Verify user exists
     user_result = await db.execute(select(User).where(User.id == user_id))
@@ -485,7 +491,9 @@ async def admin_get_user_conversations(
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/scraper/properties")
+@limiter.limit("2/minute")  # SECURITY: Prevents repeated triggering of expensive scrape jobs
 async def admin_trigger_property_scraper(
+    request: Request,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -500,7 +508,9 @@ async def admin_trigger_property_scraper(
 
 
 @router.post("/scraper/economic")
+@limiter.limit("2/minute")  # SECURITY: Each call executes external scraping + DB writes
 async def admin_trigger_economic_scraper(
+    request: Request,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -578,3 +588,348 @@ async def admin_scheduler_status(admin: User = Depends(require_admin)):
         return {"running": scheduler.running, "jobs": jobs}
     except Exception as e:
         return {"running": False, "error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════════════
+# ADMIN TICKET MANAGEMENT
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/tickets/stats")
+async def admin_ticket_stats(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Get ticket statistics by status."""
+    result = await db.execute(
+        select(Ticket.status, func.count(Ticket.id)).group_by(Ticket.status)
+    )
+    counts = dict(result.all())
+    return {
+        "open": counts.get("open", 0),
+        "in_progress": counts.get("in_progress", 0),
+        "resolved": counts.get("resolved", 0),
+        "closed": counts.get("closed", 0),
+        "total": sum(counts.values()),
+    }
+
+
+@router.get("/tickets")
+async def admin_list_tickets(
+    status: Optional[str] = Query(None, pattern="^(open|in_progress|resolved|closed)$"),
+    priority: Optional[str] = Query(None, pattern="^(low|medium|high|urgent)$"),
+    category: Optional[str] = Query(None, pattern="^(general|payment|property|technical|account)$"),
+    search: Optional[str] = Query(None, max_length=200),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """List all tickets with optional filters. Admin only."""
+    query = select(Ticket)
+
+    if status:
+        query = query.where(Ticket.status == status)
+    if priority:
+        query = query.where(Ticket.priority == priority)
+    if category:
+        query = query.where(Ticket.category == category)
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(Ticket.subject.ilike(search_pattern))
+
+    # Total count
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Get tickets with user info via join
+    query = query.order_by(desc(Ticket.created_at)).limit(limit).offset(offset)
+    result = await db.execute(query)
+    tickets = result.scalars().all()
+
+    # Fetch user names and assigned admin names
+    user_ids = list(set([t.user_id for t in tickets] + [t.assigned_to for t in tickets if t.assigned_to]))
+    user_names = {}
+    if user_ids:
+        users_result = await db.execute(
+            select(User.id, User.full_name, User.email).where(User.id.in_(user_ids))
+        )
+        for uid, name, email in users_result.all():
+            user_names[uid] = {"name": name, "email": email}
+
+    # Reply counts
+    ticket_ids = [t.id for t in tickets]
+    reply_counts = {}
+    if ticket_ids:
+        rc_result = await db.execute(
+            select(TicketReply.ticket_id, func.count(TicketReply.id))
+            .where(TicketReply.ticket_id.in_(ticket_ids))
+            .group_by(TicketReply.ticket_id)
+        )
+        reply_counts = dict(rc_result.all())
+
+    return {
+        "total": total,
+        "tickets": [
+            {
+                "id": t.id,
+                "subject": t.subject,
+                "category": t.category,
+                "priority": t.priority,
+                "status": t.status,
+                "user_name": user_names.get(t.user_id, {}).get("name", "Unknown"),
+                "user_email": user_names.get(t.user_id, {}).get("email", ""),
+                "assigned_to_name": user_names.get(t.assigned_to, {}).get("name") if t.assigned_to else None,
+                "replies_count": reply_counts.get(t.id, 0),
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            }
+            for t in tickets
+        ],
+    }
+
+
+@router.get("/tickets/{ticket_id}")
+async def admin_get_ticket(
+    ticket_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Get full ticket details with all replies. Admin only."""
+    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    ticket = result.scalar_one_or_none()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    # Get ticket creator info
+    user_result = await db.execute(
+        select(User.full_name, User.email).where(User.id == ticket.user_id)
+    )
+    ticket_user = user_result.one_or_none()
+
+    # Assigned admin info
+    assigned_name = None
+    if ticket.assigned_to:
+        assigned_result = await db.execute(
+            select(User.full_name).where(User.id == ticket.assigned_to)
+        )
+        assigned_name = assigned_result.scalar_one_or_none()
+
+    # Load replies
+    replies_result = await db.execute(
+        select(TicketReply)
+        .where(TicketReply.ticket_id == ticket_id)
+        .order_by(TicketReply.created_at)
+    )
+    replies = replies_result.scalars().all()
+
+    # Get reply user names
+    reply_user_ids = list(set(r.user_id for r in replies))
+    reply_user_names = {}
+    if reply_user_ids:
+        ru_result = await db.execute(
+            select(User.id, User.full_name).where(User.id.in_(reply_user_ids))
+        )
+        reply_user_names = dict(ru_result.all())
+
+    return {
+        "id": ticket.id,
+        "subject": ticket.subject,
+        "description": ticket.description,
+        "category": ticket.category,
+        "priority": ticket.priority,
+        "status": ticket.status,
+        "user": {
+            "name": ticket_user[0] if ticket_user else "Unknown",
+            "email": ticket_user[1] if ticket_user else "",
+        },
+        "assigned_to_name": assigned_name,
+        "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+        "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+        "closed_at": ticket.closed_at.isoformat() if ticket.closed_at else None,
+        "replies": [
+            {
+                "id": r.id,
+                "content": r.content,
+                "user_name": reply_user_names.get(r.user_id, "Unknown"),
+                "is_admin_reply": r.is_admin_reply,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in replies
+        ],
+    }
+
+
+@router.patch("/tickets/{ticket_id}/status")
+async def admin_update_ticket_status(
+    ticket_id: int,
+    req: UpdateTicketStatusRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Update a ticket's status. Admin only."""
+    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    ticket = result.scalar_one_or_none()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    ticket.status = req.status
+    if req.status == "closed":
+        ticket.closed_at = func.now()
+    elif req.status == "open":
+        ticket.closed_at = None
+
+    await db.commit()
+    await db.refresh(ticket)
+
+    return {
+        "id": ticket.id,
+        "status": ticket.status,
+        "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+    }
+
+
+@router.patch("/tickets/{ticket_id}/assign")
+async def admin_assign_ticket(
+    ticket_id: int,
+    req: AssignTicketRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Assign a ticket to an admin user. Admin only."""
+    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    ticket = result.scalar_one_or_none()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    if req.admin_id:
+        # Verify the target user exists and is an admin
+        admin_result = await db.execute(select(User).where(User.id == req.admin_id))
+        target_admin = admin_result.scalar_one_or_none()
+        if not target_admin:
+            raise HTTPException(status_code=404, detail="Admin user not found")
+        target_email = (target_admin.email or "").strip().lower()
+        target_role = (getattr(target_admin, 'role', '') or '').strip().lower()
+        if target_email not in {OWNER_EMAIL, HANI_EMAIL} and target_role != 'admin':
+            raise HTTPException(status_code=400, detail="Target user is not an admin")
+
+    ticket.assigned_to = req.admin_id
+    await db.commit()
+    await db.refresh(ticket)
+
+    return {
+        "id": ticket.id,
+        "assigned_to": ticket.assigned_to,
+        "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+    }
+
+
+@router.post("/tickets/{ticket_id}/replies")
+async def admin_add_ticket_reply(
+    ticket_id: int,
+    req: dict,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Add an admin reply to any ticket. Admin only."""
+    content = (req.get("content") or "").strip()
+    if not content or len(content) > 5000:
+        raise HTTPException(status_code=422, detail="Reply content is required (max 5000 chars)")
+
+    result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    ticket = result.scalar_one_or_none()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    reply = TicketReply(
+        ticket_id=ticket_id,
+        user_id=admin.id,
+        content=content,
+        is_admin_reply=True,
+    )
+    db.add(reply)
+
+    # Auto-set status to in_progress if it was open
+    if ticket.status == "open":
+        ticket.status = "in_progress"
+
+    await db.commit()
+    await db.refresh(reply)
+
+    return {
+        "id": reply.id,
+        "content": reply.content,
+        "user_name": admin.full_name,
+        "is_admin_reply": True,
+        "created_at": reply.created_at.isoformat() if reply.created_at else None,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# GEOPOLITICAL EVENTS
+# ═══════════════════════════════════════════════════════════════
+
+@router.post("/scraper/geopolitical")
+@limiter.limit("2/minute")  # SECURITY: Each run calls GPT-4o-mini per article — cost abuse risk
+async def admin_trigger_geopolitical_scraper(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Admin: Manually trigger the geopolitical & macro events scraper.
+    Runs inline (typically < 30s).
+    """
+    from app.services.geopolitical_scraper import scrape_geopolitical_events
+    result = await scrape_geopolitical_events(db, use_llm=True)
+    return {"status": "Geopolitical scraper completed", "triggered_by": admin.email, **result}
+
+
+@router.get("/geopolitical-events")
+async def admin_get_geopolitical_events(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    category: Optional[str] = Query(None, pattern="^(conflict|monetary_policy|currency|oil_energy|inflation|construction_costs|foreign_investment|fiscal_policy|regulation)$"),
+    impact_level: Optional[str] = Query(None, pattern="^(high|medium|low)$"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """
+    Admin: View recent geopolitical events with optional filters.
+    """
+    query = select(GeopoliticalEvent).where(GeopoliticalEvent.is_active == True)
+
+    if category:
+        query = query.where(GeopoliticalEvent.category == category)
+    if impact_level:
+        query = query.where(GeopoliticalEvent.impact_level == impact_level)
+
+    query = query.order_by(desc(GeopoliticalEvent.event_date)).limit(limit)
+    result = await db.execute(query)
+    events = result.scalars().all()
+
+    return {
+        "total": len(events),
+        "events": [
+            {
+                "id": e.id,
+                "title": e.title,
+                "summary": e.summary,
+                "source": e.source,
+                "source_url": e.source_url,
+                "event_date": e.event_date.isoformat() if e.event_date else None,
+                "category": e.category,
+                "region": e.region,
+                "impact_level": e.impact_level,
+                "impact_tags": e.impact_tags,
+                "real_estate_impact": e.real_estate_impact,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+                "expires_at": e.expires_at.isoformat() if e.expires_at else None,
+            }
+            for e in events
+        ],
+    }

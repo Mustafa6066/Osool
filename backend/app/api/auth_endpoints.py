@@ -166,94 +166,16 @@ class AuthResponse(BaseModel):
 #     )
     
 @router.post("/signup_disabled_public") # Renamed to avoid route conflict if enabled later
-async def signup_with_kyc_disabled(req: SignupRequest, db: AsyncSession = Depends(get_db)):
+async def signup_with_kyc_disabled(req: SignupRequest):
     """
-    FRA-Compliant Signup requiring National ID + Phone Verification.
+    PUBLIC SIGNUP — PERMANENTLY DISABLED.
+    Registration is by invitation only.
+    Returns 410 Gone so callers know this endpoint will not be re-enabled.
     """
-    from sqlalchemy import select, or_
-
-    # Validation 1: Egyptian phone number format
-    if not req.phone_number.startswith('+20'):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Egyptian phone numbers only. Use E.164 format: +201234567890"
-        )
-
-    # Validation 2: National ID length (14 digits)
-    if len(req.national_id) != 14 or not req.national_id.isdigit():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="National ID must be exactly 14 digits"
-        )
-
-    # Validation 3: Password strength
-    if len(req.password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 8 characters long"
-        )
-
-    # Check for duplicates
-    result = await db.execute(
-        select(User).filter(
-            or_(
-                User.email == req.email,
-                User.phone_number == req.phone_number,
-                User.national_id == req.national_id
-            )
-        )
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Public registration is not available. Please use an invitation link."
     )
-    existing_user = result.scalar_one_or_none()
-
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="An account with these details already exists"
-        )
-
-    # Create user with unverified status
-    new_user = User(
-        full_name=req.full_name,
-        email=req.email,
-        password_hash=get_password_hash(req.password),
-        phone_number=req.phone_number,
-        national_id=req.national_id,
-        is_verified=False,
-        phone_verified=False,
-        email_verified=False,
-        kyc_status="pending",
-        role="investor"
-    )
-
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
-
-    logger.info(f"✅ Created new user: {req.email} (NID: {req.national_id[:4]}****)")
-
-    # Send OTP immediately
-    try:
-        otp_code = sms_service.send_otp(req.phone_number)
-
-        response = {
-            "status": "otp_sent",
-            "user_id": new_user.id,
-            "message": "Signup successful. Please verify your phone number with the OTP sent to complete registration."
-        }
-
-        if os.getenv('ENVIRONMENT') == 'development':
-            response["dev_otp"] = otp_code
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Failed to send OTP during signup: {e}")
-        await db.delete(new_user)
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send verification code. Please try again."
-        )
 
 
 @router.post("/login")
@@ -394,6 +316,15 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
         # Verify Google token
         user_info = await verify_google_token(request.id_token)
 
+        # SECURITY: Reject Google accounts whose email has not been verified by Google.
+        # Without this, an attacker can create a Google account with an unverified email
+        # and gain access to the platform under that address.
+        if not user_info.get('email_verified'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Google account email is not verified. Please verify your Google account first."
+            )
+
         email = user_info['email']
         name = user_info.get('name', 'Google User')
 
@@ -451,11 +382,13 @@ async def send_otp(
 
     Rate limit: 3 requests per hour per IP to prevent abuse.
     """
-    # Validate Egyptian phone number
-    if not req.phone_number.startswith('+20'):
+    from app.utils.input_sanitization import validate_egyptian_phone
+
+    # SECURITY FIX V10: Strict Egyptian phone validation
+    if not validate_egyptian_phone(req.phone_number):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid Egyptian phone number format. Use E.164: +201234567890"
+            detail="Invalid Egyptian mobile number. Use E.164 format: +201XXXXXXXXX (Vodafone/Orange/Etisalat/WE)"
         )
 
     try:

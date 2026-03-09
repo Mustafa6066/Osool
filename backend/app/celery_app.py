@@ -44,10 +44,35 @@ def scrape_nawy_task():
     from app.services.nawy_scraper import ingest_nawy_data
     return ingest_nawy_data()
 
+
+@celery_app.task(name="scrape_geopolitical", bind=True, max_retries=2, autoretry_for=(Exception,), retry_backoff=True)
+def scrape_geopolitical_task(self):
+    """
+    Daily geopolitical & macroeconomic event scraper.
+    Fetches RSS feeds, filters for RE relevance, summarizes impact via LLM,
+    and stores in GeopoliticalEvent table.
+    """
+    import asyncio
+    from app.services.geopolitical_scraper import run_geopolitical_scraper
+    logger = __import__('logging').getLogger(__name__)
+    logger.info("🌍 [CELERY] Starting geopolitical scraper task")
+    result = asyncio.get_event_loop().run_until_complete(run_geopolitical_scraper())
+    logger.info(f"🌍 [CELERY] Geopolitical scraper complete: {result}")
+    return result
+
+
 celery_app.conf.beat_schedule = {
     "scrape-every-6-hours": {
         "task": "scrape_nawy",
         "schedule": 21600.0, # 6 hours in seconds
+    },
+    "scrape-geopolitical-daily": {
+        "task": "scrape_geopolitical",
+        "schedule": 86400.0,  # 24 hours in seconds
+    },
+    "drip-emails-every-hour": {
+        "task": "app.tasks.process_drip_emails_task",
+        "schedule": 3600.0,  # 1 hour
     },
 }
 

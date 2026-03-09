@@ -12,8 +12,11 @@ Phase 3: AI Personality Enhancement
 
 from datetime import datetime
 from typing import Dict, List, Optional
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON, select
 from sqlalchemy.sql import func
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Note: This model should be added to backend/app/models.py
 # Including it here for reference
@@ -476,19 +479,57 @@ class ConversationAnalyticsService:
     ) -> None:
         """
         Track that a user was exposed to a specific A/B test variant.
+        Persisted via the conversation_analytics custom_data JSON column.
         """
-        # In a real DB, you'd have an 'ab_tests' table or a JSON column.
-        # For now, we'll log it or assume 'updates' handles it via 'custom_data' JSON if we added it.
-        # This is a placeholder for the actual implementation.
-        pass
+        try:
+            result = await self.db.execute(
+                select(ConversationAnalytics).filter(
+                    ConversationAnalytics.session_id == session_id
+                ).order_by(ConversationAnalytics.created_at.desc()).limit(1)
+            )
+            record = result.scalar_one_or_none()
+            if record:
+                custom_data = record.custom_data or {}
+                ab_tests = custom_data.get("ab_tests", {})
+                ab_tests[test_name] = variant
+                custom_data["ab_tests"] = ab_tests
+                record.custom_data = custom_data
+                await self.db.commit()
+        except Exception as e:
+            logger.warning(f"Failed to track A/B test exposure: {e}")
 
     async def get_best_variant(self, test_name: str) -> str:
         """
         Get the winning variant for a test based on conversion rate.
-        Placeholder logic.
+        Queries all sessions that were exposed to this test and picks the 
+        variant with higher lead score progression.
         """
-        # Mock logic
-        return "variant_B"
+        try:
+            result = await self.db.execute(
+                select(ConversationAnalytics).filter(
+                    ConversationAnalytics.custom_data.isnot(None)
+                )
+            )
+            records = result.scalars().all()
+
+            variant_scores: Dict[str, List[float]] = {}
+            for record in records:
+                ab_tests = (record.custom_data or {}).get("ab_tests", {})
+                if test_name in ab_tests:
+                    variant = ab_tests[test_name]
+                    score = record.lead_score_end or record.lead_score_start or 0
+                    variant_scores.setdefault(variant, []).append(score)
+
+            if not variant_scores:
+                return "variant_A"  # Default when no data
+
+            # Pick variant with highest mean lead score
+            best = max(variant_scores, key=lambda v: sum(variant_scores[v]) / len(variant_scores[v]))
+            return best
+
+        except Exception as e:
+            logger.warning(f"Failed to get best A/B variant: {e}")
+            return "variant_A"
 
 
 # Example usage

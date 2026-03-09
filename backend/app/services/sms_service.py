@@ -127,6 +127,18 @@ class SMSService:
         import hmac as _hmac
         from app.services.cache import cache
         cache_key = f"otp:{phone_number}"
+        attempt_key = f"otp_attempts:{phone_number}"
+        MAX_ATTEMPTS = 5
+
+        # SECURITY: Block after MAX_ATTEMPTS failed guesses to prevent brute force.
+        # A 6-digit code has 1,000,000 combinations — limiting to 5 tries makes
+        # guessing statistically impossible within the 5-minute TTL.
+        attempts_data = cache.get_json(attempt_key)
+        attempts = attempts_data.get("count", 0) if attempts_data else 0
+
+        if attempts >= MAX_ATTEMPTS:
+            logger.warning(f"⛔ OTP for {phone_number} is locked after {attempts} failed attempts")
+            return False
 
         stored_data = cache.get_json(cache_key)
 
@@ -138,12 +150,15 @@ class SMSService:
 
         # Security: Use timing-safe comparison to prevent timing attacks
         if _hmac.compare_digest(stored_code, code):
-            # Delete OTP after successful verification (one-time use)
+            # Delete OTP and reset attempt counter after successful verification (one-time use)
             cache.delete(cache_key)
+            cache.delete(attempt_key)
             logger.info(f"✅ OTP verified for {phone_number}")
             return True
         else:
-            logger.warning(f"❌ Invalid OTP for {phone_number}")
+            # Increment attempt counter; TTL matches OTP lifetime so it auto-expires with the OTP
+            cache.set_json(attempt_key, {"count": attempts + 1}, ttl=300)
+            logger.warning(f"❌ Invalid OTP for {phone_number} (attempt {attempts + 1}/{MAX_ATTEMPTS})")
             return False
 
 

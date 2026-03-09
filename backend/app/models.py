@@ -1,14 +1,70 @@
 """
 Osool Database Models
 ---------------------
-Defines the schema for Users, Properties, and Transactions.
+Defines the schema for Users, Properties, Transactions, and Dual-Engine models
+(Developers, Areas, Projects, Intents, Leads, SEO Pages, Campaigns, Email Events).
 Includes pgvector support for AI semantic search (when available).
 """
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text
+import enum
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, JSON
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 from app.database import Base
+
+
+# ═══════════════════════════════════════════════════════════════
+# DUAL-ENGINE ENUMS
+# ═══════════════════════════════════════════════════════════════
+
+class ProjectType(str, enum.Enum):
+    RESIDENTIAL = "residential"
+    COMMERCIAL = "commercial"
+    MIXED_USE = "mixed_use"
+    RESORT = "resort"
+
+
+class ProjectStatus(str, enum.Enum):
+    PRE_LAUNCH = "pre_launch"
+    UNDER_CONSTRUCTION = "under_construction"
+    DELIVERED = "delivered"
+    PARTIALLY_DELIVERED = "partially_delivered"
+
+
+class IntentType(str, enum.Enum):
+    COMPARISON = "comparison"
+    PRICE_CHECK = "price_check"
+    ROI_FORECAST = "roi_forecast"
+    DEVELOPER_REVIEW = "developer_review"
+    AREA_ANALYSIS = "area_analysis"
+    PAYMENT_PLAN = "payment_plan"
+    GENERAL_ADVICE = "general_advice"
+    DELIVERY_STATUS = "delivery_status"
+
+
+class EmailStatus(str, enum.Enum):
+    QUEUED = "queued"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    OPENED = "opened"
+    CLICKED = "clicked"
+    BOUNCED = "bounced"
+    FAILED = "failed"
+
+
+class SEOPageType(str, enum.Enum):
+    COMPARISON = "comparison"
+    ROI_TRACKER = "roi_tracker"
+    PROJECT_DEEPDIVE = "project_deepdive"
+    PILLAR_GUIDE = "pillar_guide"
+
+
+class PageStatus(str, enum.Enum):
+    DRAFT = "draft"
+    QUEUED = "queued"
+    PUBLISHED = "published"
+    ARCHIVED = "archived"
 
 # Try to import pgvector, fallback to Text if not available
 PGVECTOR_AVAILABLE = False
@@ -351,6 +407,61 @@ class InvestorProfile(Base):
     user = relationship("User")
 
 
+# ═══════════════════════════════════════════════════════════════
+# TICKETING SYSTEM MODELS
+# ═══════════════════════════════════════════════════════════════
+
+class Ticket(Base):
+    """
+    Support Ticket System
+    ---------------------
+    Users create tickets for support inquiries.
+    Only admins can see all tickets; users see only their own.
+    """
+    __tablename__ = "tickets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+
+    subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(50), default="general")  # general, payment, property, technical, account
+    priority: Mapped[str] = mapped_column(String(20), default="medium")  # low, medium, high, urgent
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)  # open, in_progress, resolved, closed
+
+    assigned_to: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    closed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], backref="tickets")
+    assigned_admin = relationship("User", foreign_keys=[assigned_to])
+    replies = relationship("TicketReply", back_populates="ticket", order_by="TicketReply.created_at")
+
+
+class TicketReply(Base):
+    """
+    Ticket Reply / Message Thread
+    Each reply belongs to a ticket, from either the user or an admin.
+    """
+    __tablename__ = "ticket_replies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_admin_reply: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    ticket = relationship("Ticket", back_populates="replies")
+    user = relationship("User")
+
+
 class Achievement(Base):
     """Achievement badge definitions. Seeded on startup."""
     __tablename__ = "achievements"
@@ -407,6 +518,349 @@ class SavedSearch(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_checked_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
     match_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
+# ═══════════════════════════════════════════════════════════════
+# GEOPOLITICAL & MACROECONOMIC AWARENESS LAYER
+# ═══════════════════════════════════════════════════════════════
+
+class GeopoliticalEvent(Base):
+    """
+    Geopolitical & Macroeconomic Events
+    ------------------------------------
+    Stores curated geopolitical and macro-economic events that affect
+    Egyptian real estate investment decisions. Fed by the geopolitical
+    scraper and consumed by the GeopoliticalLayer in the AI engine.
+
+    Impact mapping examples:
+    - Red Sea tensions → construction materials cost ↑ → off-plan advantage
+    - CBE rate decisions → mortgage affordability shifts
+    - USD/EGP movements → foreign investment inflow / capital preservation plays
+    - Oil price spikes → cement/rebar cost → developer price adjustments
+    """
+    __tablename__ = "geopolitical_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    # Core Event Data
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String(200), nullable=True)  # e.g., "Reuters", "CBE", "Trading Economics"
+    source_url: Mapped[str] = mapped_column(Text, nullable=True)
+    event_date: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Classification
+    category: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Categories: conflict, monetary_policy, currency, oil_energy, trade, inflation,
+    #             fiscal_policy, foreign_investment, construction_costs, regulation
+
+    region: Mapped[str] = mapped_column(String(50), default="middle_east")
+    # Regions: egypt, middle_east, global
+
+    impact_level: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    # Impact: high, medium, low
+
+    # Real Estate Impact Tags (JSON array stored as text)
+    # e.g. '["inflation_hedge", "construction_costs", "currency_devaluation", "supply_chain"]'
+    impact_tags: Mapped[str] = mapped_column(Text, nullable=True)
+
+    # AI-generated real estate advisory based on this event
+    real_estate_impact: Mapped[str] = mapped_column(Text, nullable=True)
+
+    # Metadata
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# ═══════════════════════════════════════════════════════════════
+# DUAL-ENGINE: MARKETING & SEO PLATFORM MODELS
+# ═══════════════════════════════════════════════════════════════
+
+class Developer(Base):
+    """
+    Real estate developer profiles for programmatic SEO comparison pages.
+    Stores scores, Arabic names, and aggregated metrics.
+    """
+    __tablename__ = "developers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    name_ar: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(200), unique=True, nullable=False, index=True)
+    logo: Mapped[str] = mapped_column(Text, nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    description_ar: Mapped[str] = mapped_column(Text, nullable=True)
+    founded_year: Mapped[int] = mapped_column(Integer, nullable=True)
+    total_projects: Mapped[int] = mapped_column(Integer, default=0)
+    avg_delivery_score: Mapped[float] = mapped_column(Float, default=0)  # 0-100
+    avg_finish_quality: Mapped[float] = mapped_column(Float, default=0)  # 0-100
+    avg_resale_retention: Mapped[float] = mapped_column(Float, default=0)  # percentage
+    payment_flexibility: Mapped[float] = mapped_column(Float, default=0)  # 0-100
+    overall_score: Mapped[float] = mapped_column(Float, default=0)  # composite 0-100
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    seo_projects = relationship("SEOProject", back_populates="developer")
+
+
+class Area(Base):
+    """
+    Neighborhood/area profiles for ROI tracker SEO pages.
+    Stores price metrics, growth data, and Arabic translations.
+    """
+    __tablename__ = "areas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    name_ar: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(200), unique=True, nullable=False, index=True)
+    city: Mapped[str] = mapped_column(String(100), nullable=False)  # Cairo, Alexandria, North Coast
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    description_ar: Mapped[str] = mapped_column(Text, nullable=True)
+    avg_price_per_meter: Mapped[float] = mapped_column(Float, default=0)
+    price_growth_ytd: Mapped[float] = mapped_column(Float, default=0)
+    predicted_roi_5y: Mapped[float] = mapped_column(Float, default=0)
+    rental_yield: Mapped[float] = mapped_column(Float, default=0)
+    liquidity_score: Mapped[float] = mapped_column(Float, default=0)  # 0-100
+    demand_score: Mapped[float] = mapped_column(Float, default=0)  # 0-100
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    seo_projects = relationship("SEOProject", back_populates="area")
+    price_history = relationship("PriceHistory", back_populates="area")
+
+
+class SEOProject(Base):
+    """
+    Curated project records for programmatic SEO deep-dive pages.
+    Named SEOProject to avoid collision with existing Property model.
+    Links to Developer and Area for relational queries.
+    """
+    __tablename__ = "seo_projects"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    name_ar: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(200), unique=True, nullable=False, index=True)
+    developer_id: Mapped[int] = mapped_column(ForeignKey("developers.id"), nullable=False, index=True)
+    area_id: Mapped[int] = mapped_column(ForeignKey("areas.id"), nullable=False, index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    description_ar: Mapped[str] = mapped_column(Text, nullable=True)
+    project_type: Mapped[str] = mapped_column(String(30), default=ProjectType.RESIDENTIAL.value)
+    status: Mapped[str] = mapped_column(String(30), default=ProjectStatus.UNDER_CONSTRUCTION.value)
+    launch_date: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    expected_delivery: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    actual_delivery: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    min_price_per_meter: Mapped[float] = mapped_column(Float, default=0)
+    max_price_per_meter: Mapped[float] = mapped_column(Float, default=0)
+    avg_price_per_meter: Mapped[float] = mapped_column(Float, default=0)
+    min_unit_size: Mapped[float] = mapped_column(Float, nullable=True)  # sqm
+    max_unit_size: Mapped[float] = mapped_column(Float, nullable=True)
+    down_payment_min: Mapped[float] = mapped_column(Float, nullable=True)  # percentage
+    installment_years: Mapped[int] = mapped_column(Integer, nullable=True)
+    predicted_roi_1y: Mapped[float] = mapped_column(Float, default=0)
+    predicted_roi_3y: Mapped[float] = mapped_column(Float, default=0)
+    predicted_roi_5y: Mapped[float] = mapped_column(Float, default=0)
+    resale_value_retention: Mapped[float] = mapped_column(Float, default=0)
+    construction_progress: Mapped[float] = mapped_column(Float, default=0)  # 0-100
+    unit_types: Mapped[str] = mapped_column(Text, nullable=True)  # JSON array string
+    amenities: Mapped[str] = mapped_column(Text, nullable=True)  # JSON array string
+    images: Mapped[str] = mapped_column(Text, nullable=True)  # JSON array string
+    lat: Mapped[float] = mapped_column(Float, nullable=True)
+    lng: Mapped[float] = mapped_column(Float, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    developer = relationship("Developer", back_populates="seo_projects")
+    area = relationship("Area", back_populates="seo_projects")
+    price_history = relationship("PriceHistory", back_populates="project")
+
+
+class PriceHistory(Base):
+    """
+    Historical price/m² data for projects and areas.
+    Used for trend charts on ROI and project pages.
+    """
+    __tablename__ = "price_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("seo_projects.id"), nullable=True, index=True)
+    area_id: Mapped[int] = mapped_column(ForeignKey("areas.id"), nullable=True, index=True)
+    price_per_m2: Mapped[float] = mapped_column(Float, nullable=False)
+    date: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    project = relationship("SEOProject", back_populates="price_history")
+    area = relationship("Area", back_populates="price_history")
+
+
+class ChatIntent(Base):
+    """
+    Structured intent extracted from chat messages.
+    Fed by the intent extractor after each user message.
+    Consumed by the intent aggregator cron and admin heatmap.
+    """
+    __tablename__ = "chat_intents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    session_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    intent_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    entities: Mapped[str] = mapped_column(Text, nullable=True)  # JSON: {developers, areas, projects, priceRange}
+    segment: Mapped[str] = mapped_column(String(50), nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, default=0)
+    raw_query: Mapped[str] = mapped_column(Text, nullable=False)
+    processed: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class LeadProfile(Base):
+    """
+    Lead scoring and segmentation profile.
+    One per user, updated after each chat interaction.
+    Drives email drip sequences and retargeting.
+    """
+    __tablename__ = "lead_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    score: Mapped[float] = mapped_column(Float, default=0)  # 0-100
+    stage: Mapped[str] = mapped_column(String(30), default="new")  # new, engaged, hot, qualified, converted, lost
+    segment: Mapped[str] = mapped_column(String(50), nullable=True)  # expat_investor, domestic_hnw, first_time, institutional
+    budget_min: Mapped[float] = mapped_column(Float, nullable=True)
+    budget_max: Mapped[float] = mapped_column(Float, nullable=True)
+    preferred_areas: Mapped[str] = mapped_column(Text, nullable=True)  # JSON array
+    preferred_types: Mapped[str] = mapped_column(Text, nullable=True)  # JSON array
+    timeline: Mapped[str] = mapped_column(String(50), nullable=True)  # immediate, 3months, 6months, 1year
+    risk_appetite: Mapped[str] = mapped_column(String(50), nullable=True)  # conservative, moderate, aggressive
+    investment_goal: Mapped[str] = mapped_column(String(50), nullable=True)  # primary_residence, investment, retirement, rental
+    interaction_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_interaction: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_sequence_step: Mapped[int] = mapped_column(Integer, default=0)
+    converted_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class EmailEvent(Base):
+    """
+    Tracks all email events for drip sequence management.
+    Updated via Resend webhooks (delivery, open, click, bounce).
+    """
+    __tablename__ = "email_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    template_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    email_type: Mapped[str] = mapped_column(String(100), nullable=True)  # welcome, drip_1, drip_2, drip_3, price_alert, report, custom
+    subject: Mapped[str] = mapped_column(String(500), nullable=True)
+    resend_id: Mapped[str] = mapped_column(String(200), nullable=True, index=True)  # Resend API message ID
+    status: Mapped[str] = mapped_column(String(20), default=EmailStatus.QUEUED.value)
+    sent_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    opened_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    clicked_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=True)  # JSON for extra data
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
+class SEOPage(Base):
+    """
+    Tracks programmatic SEO pages: generation source, status, and performance.
+    Pages are auto-generated from intent aggregation or manually created.
+    """
+    __tablename__ = "seo_pages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    page_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    slug: Mapped[str] = mapped_column(String(500), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    title_ar: Mapped[str] = mapped_column(String(500), nullable=True)
+    meta_desc: Mapped[str] = mapped_column(Text, nullable=False)
+    meta_desc_ar: Mapped[str] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default=PageStatus.DRAFT.value, index=True)
+    generated_from: Mapped[str] = mapped_column(String(50), nullable=True)  # intent_aggregation, manual, seed
+    source_intents: Mapped[str] = mapped_column(Text, nullable=True)  # JSON array of intent IDs
+    view_count: Mapped[int] = mapped_column(Integer, default=0)
+    chat_conv_rate: Mapped[float] = mapped_column(Float, default=0)  # % of viewers who engaged chat
+    content_json: Mapped[str] = mapped_column(Text, nullable=True)  # JSON: generated page content
+    last_built: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AdCampaign(Base):
+    """
+    Ad campaign performance tracker for Meta, Google, LinkedIn.
+    Updated by the weekly ad optimizer cron and manual input.
+    """
+    __tablename__ = "ad_campaigns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    platform: Mapped[str] = mapped_column(String(30), nullable=False)  # meta, google, linkedin
+    campaign_id: Mapped[str] = mapped_column(String(200), nullable=False)  # external platform ID
+    name: Mapped[str] = mapped_column(String(300), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="active")
+    target_segment: Mapped[str] = mapped_column(String(100), nullable=True)
+    budget: Mapped[float] = mapped_column(Float, nullable=True)
+    spend: Mapped[float] = mapped_column(Float, default=0)
+    impressions: Mapped[int] = mapped_column(Integer, default=0)
+    clicks: Mapped[int] = mapped_column(Integer, default=0)
+    conversions: Mapped[int] = mapped_column(Integer, default=0)
+    roas: Mapped[float] = mapped_column(Float, default=0)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RetargetingRule(Base):
+    """
+    Behavior-based retargeting rules that map user actions to ad audiences.
+    E.g., visited comparison page but no chat → audience:comparison_browsers
+    """
+    __tablename__ = "retargeting_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    trigger_type: Mapped[str] = mapped_column(String(50), nullable=False)  # page_visit, chat_drop, chat_topic, repeat_visit
+    trigger_config: Mapped[str] = mapped_column(Text, nullable=True)  # JSON: {page, minVisits, topic}
+    ad_template: Mapped[str] = mapped_column(String(200), nullable=True)
+    audience: Mapped[str] = mapped_column(String(200), nullable=True)  # Meta/Google audience ID
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WaitlistEntry(Base):
+    """Premium waitlist signups from marketing pages."""
+    __tablename__ = "waitlist_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=True)
+    phone: Mapped[str] = mapped_column(String(50), nullable=True)
+    segment: Mapped[str] = mapped_column(String(50), nullable=True)
+    source: Mapped[str] = mapped_column(String(200), nullable=True)  # utm_source or referral
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Report(Base):
+    """Generated personalized ROI reports for users."""
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    report_type: Mapped[str] = mapped_column(String(50), nullable=False)  # roi_comparison, area_analysis, developer_audit
+    content: Mapped[str] = mapped_column(Text, nullable=True)  # JSON structured report data
+    pdf_url: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User")

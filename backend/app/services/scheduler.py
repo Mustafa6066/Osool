@@ -1,11 +1,12 @@
 """
 Osool Scheduled Tasks
 ---------------------
-APScheduler-based weekly cron jobs for data ingestion.
+APScheduler-based cron jobs for data ingestion.
 
 Jobs:
 1. Property Scraper (Nawy) — Sundays at 03:00 UTC
 2. Economic Indicators — Sundays at 03:30 UTC
+3. Geopolitical Events — Daily at 04:00 UTC
 
 Runs in-process with the FastAPI app. No separate worker needed.
 """
@@ -45,6 +46,23 @@ async def run_economic_scraper():
         logger.error(f"❌ [CRON] Economic scraper failed: {e}")
 
 
+async def run_geopolitical_scraper():
+    """Daily geopolitical & macroeconomic event scraper job."""
+    logger.info("⏰ [CRON] Starting daily geopolitical scraper...")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.geopolitical_scraper import scrape_geopolitical_events
+
+        async with AsyncSessionLocal() as db:
+            result = await scrape_geopolitical_events(db, use_llm=True)
+            logger.info(
+                f"✅ [CRON] Geopolitical scraper completed: "
+                f"stored={result.get('stored', 0)}, relevant={result.get('relevant', 0)}"
+            )
+    except Exception as e:
+        logger.error(f"❌ [CRON] Geopolitical scraper failed: {e}")
+
+
 def init_scheduler():
     """
     Initialize and start the APScheduler with weekly cron jobs.
@@ -70,10 +88,21 @@ def init_scheduler():
         misfire_grace_time=3600,
     )
 
+    # Geopolitical scraper: Daily at 04:00 UTC
+    scheduler.add_job(
+        run_geopolitical_scraper,
+        trigger=CronTrigger(hour=4, minute=0),
+        id="daily_geopolitical_scraper",
+        name="Daily Geopolitical Events Scraper",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     scheduler.start()
-    logger.info("✅ APScheduler started with weekly cron jobs:")
+    logger.info("✅ APScheduler started with cron jobs:")
     logger.info("   📅 Property Scraper: Sundays 03:00 UTC")
     logger.info("   📅 Economic Scraper: Sundays 03:30 UTC")
+    logger.info("   📅 Geopolitical Scraper: Daily 04:00 UTC")
 
     # Log next run times
     for job in scheduler.get_jobs():

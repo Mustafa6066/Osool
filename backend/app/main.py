@@ -52,6 +52,13 @@ from app.api.endpoints import router as api_router
 from app.api.auth_endpoints import router as auth_router
 from app.api.gamification_endpoints import router as gamification_router
 from app.api.admin_endpoints import router as admin_router
+from app.api.ticket_endpoints import router as ticket_router
+from app.api.seo_endpoints import router as seo_router
+from app.api.intent_endpoints import router as intent_router
+from app.api.lead_endpoints import router as lead_router
+from app.api.email_endpoints import router as email_router
+from app.api.analytics_endpoints import router as analytics_router
+from app.api.campaign_endpoints import router as campaign_router
 from app.services.metrics import metrics_endpoint
 
 # ═══════════════════════════════════════════════════════════════
@@ -168,13 +175,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Security Fix M2: Tightened CSP — removed unsafe-eval, kept unsafe-inline
         # for styles only (Next.js requires it). Scripts restricted to self + CDN.
+        # wss:// restricted to explicit known hostnames (bare wss:// is a wildcard).
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
-            "connect-src 'self' https://api.openai.com wss://"
+            "connect-src 'self' https://api.openai.com wss://osool.eg wss://osool.vercel.app"
         )
 
         # Referrer Policy
@@ -239,25 +247,21 @@ app.include_router(api_router)
 app.include_router(auth_router)
 app.include_router(gamification_router)
 app.include_router(admin_router)
+app.include_router(ticket_router)
+app.include_router(seo_router)
+app.include_router(intent_router)
+app.include_router(lead_router)
+app.include_router(email_router)
+app.include_router(analytics_router)
+app.include_router(campaign_router)
 
 
 @app.get("/")
 def root():
     """Root endpoint - API status"""
-    return {
-        "name": "Osool API - AI-First Real Estate Platform",
-        "version": "1.0.0",
-        "status": "online",
-        "phase": "1",
-        "features": [
-            "coinvestor_ai_agent",
-            "bilingual_chat",
-            "semantic_search",
-            "hybrid_valuation",
-            "visual_analytics",
-            "proactive_recommendations"
-        ]
-    }
+    # SECURITY: Never expose version, phase, or internal feature names.
+    # Attackers use version strings to look up known CVEs.
+    return {"status": "online", "service": "Osool API"}
 
 
 @app.get("/health")

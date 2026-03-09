@@ -315,6 +315,44 @@ export default function Home() {
                 </div>
             </section>
 
+            {/* Explore SEO Section */}
+            <section className="py-16 border-t border-[var(--color-border)]">
+                <div className="max-w-5xl mx-auto px-4">
+                    <h2 className="text-2xl font-medium mb-6 text-center tracking-tight">
+                        Explore the Egyptian Market
+                    </h2>
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <Link
+                            href="/developers"
+                            className="group p-5 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all bg-[var(--color-surface)]"
+                        >
+                            <p className="font-semibold group-hover:text-emerald-500 transition-colors">Top Developers</p>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                Compare 14+ Egyptian developers by delivery, quality, and resale scores.
+                            </p>
+                        </Link>
+                        <Link
+                            href="/areas"
+                            className="group p-5 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all bg-[var(--color-surface)]"
+                        >
+                            <p className="font-semibold group-hover:text-emerald-500 transition-colors">Investment Areas</p>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                12 high-growth areas with price trends, rental yields, and project availability.
+                            </p>
+                        </Link>
+                        <Link
+                            href="/projects"
+                            className="group p-5 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all bg-[var(--color-surface)]"
+                        >
+                            <p className="font-semibold group-hover:text-emerald-500 transition-colors">Verified Projects</p>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                30+ compounds, resorts, and towers with pricing and payment plans.
+                            </p>
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
             {/* Footer */}
             <footer className="border-t border-[var(--color-border)] py-10">
                 <div className="max-w-5xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -325,9 +363,11 @@ export default function Home() {
                         <span className="text-sm font-medium">CoInvestor</span>
                     </div>
                     <div className="flex gap-6 text-xs text-[var(--color-text-muted)]">
+                        <Link href="/developers" className="hover:text-[var(--color-text-primary)] transition-colors">Developers</Link>
+                        <Link href="/areas" className="hover:text-[var(--color-text-primary)] transition-colors">Areas</Link>
+                        <Link href="/projects" className="hover:text-[var(--color-text-primary)] transition-colors">Projects</Link>
                         <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Privacy</a>
                         <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Terms</a>
-                        <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Contact</a>
                     </div>
                     <div className="text-xs text-[var(--color-text-muted)]">
                         © 2024 CoInvestor Intelligence

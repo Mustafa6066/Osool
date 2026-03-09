@@ -45,7 +45,9 @@ langchain-core>=0.1.0,<0.2.0  # Core functionality
 langchain-anthropic>=0.1.0,<0.2.0  # Claude integration for LangChain
 psycopg2-binary>=2.9.0
 
-# Security
+# Security hardening
+bleach==6.1.0  # XSS protection via HTML sanitization
+cryptography>=42.0.0  # Security updates
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 bcrypt>=4.0.1

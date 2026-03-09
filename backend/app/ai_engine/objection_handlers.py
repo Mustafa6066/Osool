@@ -9,6 +9,9 @@ Phase 3: AI Personality Enhancement
 from typing import Dict, List, Optional
 from enum import Enum
 from .customer_profiles import CustomerSegment
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ObjectionType(Enum):
@@ -474,16 +477,17 @@ def should_escalate_to_human(objection_type: ObjectionType, objection_count: int
 
 def track_objection(session_id: str, objection_type: ObjectionType):
     """
-    Track objection in analytics (to be implemented).
-
-    Args:
-        session_id: User session ID
-        objection_type: The detected objection type
-
-    TODO: Store in conversation_analytics table
+    Track objection occurrence for a session.
+    Logs structured event for observability; callers with DB access should
+    additionally use ConversationAnalyticsService.track_objection().
     """
-    # Placeholder for analytics integration
-    pass
+    logger.info(
+        "objection_detected",
+        extra={
+            "session_id": session_id,
+            "objection_type": objection_type.value,
+        }
+    )
 
 
 # Example usage and testing

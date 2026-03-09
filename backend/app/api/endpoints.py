@@ -62,11 +62,11 @@ class SaleFinalizationRequest(BaseModel):
 
 class CancellationRequest(BaseModel):
     property_id: int = Field(..., description="Property ID")
-    reason: str = Field(..., description="Cancellation reason")
+    reason: str = Field(..., max_length=1000, description="Cancellation reason")  # SECURITY FIX V7: Length limit
 
 
 class ContractAnalysisRequest(BaseModel):
-    text: str = Field(..., description="Contract text in Arabic or English")
+    text: str = Field(..., min_length=50, max_length=50000, description="Contract text in Arabic or English")  # SECURITY FIX V7: Length limits
 
 
 class ValuationRequest(BaseModel):
@@ -132,9 +132,9 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
 
 class ChatRequest(BaseModel):
     """Request model for AI chat."""
-    message: str = Field(..., description="User message to the AI agent")
-    session_id: str = Field(default="default", description="Chat session ID for history")
-    language: str = Field(default="auto", description="User's preferred language: 'ar' (Arabic), 'en' (English), or 'auto' (detect)")
+    message: str = Field(..., min_length=1, max_length=4000, description="User message to the AI agent")  # SECURITY FIX V5 & V7: XSS + Length limit
+    session_id: str = Field(default="default", max_length=100, description="Chat session ID for history")  # SECURITY FIX V7: Length limit
+    language: str = Field(default="auto", max_length=10, description="User's preferred language: 'ar' (Arabic), 'en' (English), or 'auto' (detect)")  # SECURITY FIX V7: Length limit
 
 
 
@@ -210,7 +210,10 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         await db.execute(text("SELECT 1"))
         health_status["checks"]["database"] = {"status": "healthy", "message": "Connected"}
     except Exception as e:
-        health_status["checks"]["database"] = {"status": "unhealthy", "error": str(e)}
+        # SECURITY: Log internally, never expose raw exception text to unauthenticated callers.
+        # Raw error strings can reveal DB host names, driver versions, or schema details.
+        logger.error("Health check — database error: %s", e)
+        health_status["checks"]["database"] = {"status": "unhealthy", "error": "Database connection failed"}
         health_status["status"] = "unhealthy"
 
     # 2. Redis Cache Check
@@ -219,7 +222,8 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         cache.redis.ping()
         health_status["checks"]["redis"] = {"status": "healthy", "message": "Connected"}
     except Exception as e:
-        health_status["checks"]["redis"] = {"status": "degraded", "error": str(e)}
+        logger.error("Health check — redis error: %s", e)
+        health_status["checks"]["redis"] = {"status": "degraded", "error": "Cache connection failed"}
         if health_status["status"] == "healthy":
             health_status["status"] = "degraded"
 
@@ -723,12 +727,16 @@ async def chat_with_agent(
                 from langchain_core.messages import AIMessage
                 chat_history.append(AIMessage(content=msg.content))
 
+        # SECURITY FIX V5: Sanitize user message before saving to prevent XSS
+        from app.utils.input_sanitization import sanitize_user_message
+        sanitized_message = sanitize_user_message(req.message)
+
         # Save user message to database (linked to authenticated user)
         user_message = ChatMessage(
             session_id=req.session_id,
             user_id=user.id,  # Link message to authenticated user
             role="user",
-            content=req.message
+            content=sanitized_message  # SECURITY: Sanitized content
         )
         db.add(user_message)
         await db.commit()
@@ -737,7 +745,7 @@ async def chat_with_agent(
         
         # V7: Use Wolf Brain via coinvestor_agent.process_message
         ai_result = await coinvestor_agent.process_message(
-            user_input=req.message,
+            user_input=sanitized_message,  # SECURITY: Use sanitized message
             session_id=req.session_id,
             history=chat_history
         )
@@ -849,6 +857,79 @@ async def chat_with_agent(
                 show_trends=show_trends
             )
             visualizations.update(legacy_viz)
+
+        # ── Dual-Engine: fire-and-forget intent extraction ──────────
+        import asyncio
+        async def _extract_intent_bg(msg: str, uid: int, sid: str):
+            """Background task: extract intent & upsert lead profile."""
+            try:
+                from app.ai_engine.intent_extractor import extract_intent
+                from app.models import ChatIntent, LeadProfile
+                from app.database import AsyncSessionLocal
+                from sqlalchemy import select
+                import json as _json
+
+                intent_data = await extract_intent(msg)
+                extracted = intent_data.get("extracted", {})
+
+                async with AsyncSessionLocal() as bg_db:
+                    # Save ChatIntent row
+                    intent_row = ChatIntent(
+                        user_id=uid,
+                        session_id=sid,
+                        raw_query=msg[:1000],
+                        intent_type=intent_data.get("intent_type", "GENERAL"),
+                        confidence=intent_data.get("confidence", 0.0),
+                        entities=_json.dumps(extracted),
+                    )
+                    bg_db.add(intent_row)
+
+                    # Upsert LeadProfile
+                    result = await bg_db.execute(
+                        select(LeadProfile).filter(LeadProfile.user_id == uid)
+                    )
+                    lead = result.scalar_one_or_none()
+                    if not lead:
+                        lead = LeadProfile(user_id=uid, stage="new")
+                        bg_db.add(lead)
+
+                    # Merge extracted data into lead profile
+                    if extracted.get("budget_min"):
+                        lead.budget_min = extracted["budget_min"]
+                    if extracted.get("budget_max"):
+                        lead.budget_max = extracted["budget_max"]
+                    if extracted.get("areas"):
+                        try:
+                            existing = set(_json.loads(lead.preferred_areas or "[]"))
+                        except (TypeError, _json.JSONDecodeError):
+                            existing = set()
+                        existing.update(extracted["areas"])
+                        lead.preferred_areas = _json.dumps(list(existing))
+                    if extracted.get("property_types"):
+                        try:
+                            existing = set(_json.loads(lead.preferred_types or "[]"))
+                        except (TypeError, _json.JSONDecodeError):
+                            existing = set()
+                        existing.update(extracted["property_types"])
+                        lead.preferred_types = _json.dumps(list(existing))
+                    if extracted.get("timeline"):
+                        lead.timeline = extracted["timeline"]
+                    lead.interaction_count = (lead.interaction_count or 0) + 1
+
+                    # Auto-promote stage based on signals
+                    if lead.stage == "new" and (extracted.get("budget_min") or extracted.get("areas")):
+                        lead.stage = "engaged"
+                    if lead.stage == "engaged" and intent_data.get("intent_type") in ("PURCHASE", "COMPARE"):
+                        lead.stage = "hot"
+
+                    await bg_db.commit()
+            except Exception as exc:
+                logger.warning("Background intent extraction failed (non-fatal): %s", exc)
+
+        asyncio.create_task(
+            _extract_intent_bg(sanitized_message, user.id, req.session_id)
+        )
+        # ── End dual-engine integration ──────────────────────────────
 
         return {
             "response": response_text,
@@ -1510,7 +1591,9 @@ async def get_session_messages(
 
 
 @router.delete("/chat/history/{session_id}")
+@limiter.limit("10/minute")  # SECURITY FIX V4: Rate limit session deletion to prevent DoS
 async def delete_chat_session(
+    request: Request,  # Required by slowapi limiter
     session_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user)
@@ -1518,7 +1601,7 @@ async def delete_chat_session(
     """
     🗑️ Delete all messages in a chat session belonging to the authenticated user.
     """
-    from sqlalchemy import delete as sql_delete
+    from sqlalchemy import select, delete as sql_delete
     from app.models import ChatMessage
 
     # Verify ownership before deleting

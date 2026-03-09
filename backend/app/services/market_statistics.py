@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Cache for statistics (refreshed periodically)
 _market_stats_cache: Optional[Dict] = None
 _market_stats_timestamp: float = 0.0
-_STATS_TTL_SECONDS: int = 300  # 5-minute TTL
+_STATS_TTL_SECONDS: int = 3600  # 1-hour TTL — market stats are expensive aggregation queries
 
 
 async def compute_market_statistics(db: AsyncSession) -> Dict:

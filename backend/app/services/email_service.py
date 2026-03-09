@@ -42,7 +42,10 @@ class EmailService:
         Returns:
             True if sent successfully, False otherwise
         """
-        verification_link = f"{self.frontend_url}/verify-email?token={token}"
+        from urllib.parse import quote
+        # SECURITY FIX V9: URL-encode token to prevent injection attacks
+        encoded_token = quote(token, safe='')
+        verification_link = f"{self.frontend_url}/verify-email?token={encoded_token}"
 
         html_content = f"""
         <html>
@@ -91,7 +94,10 @@ class EmailService:
         Returns:
             True if sent successfully, False otherwise
         """
-        reset_link = f"{self.frontend_url}/reset-password?token={token}"
+        from urllib.parse import quote
+        # SECURITY FIX V9: URL-encode token to prevent injection attacks
+        encoded_token = quote(token, safe='')
+        reset_link = f"{self.frontend_url}/reset-password?token={encoded_token}"
 
         html_content = f"""
         <html>
@@ -139,11 +145,15 @@ class EmailService:
             html_content: HTML body
 
         Returns:
-            True if sent successfully
+            True if sent successfully, False otherwise
         """
         if not self.client:
+            is_production = os.getenv("ENVIRONMENT") == "production"
+            if is_production:
+                logger.error(f"[EMAIL] SendGrid not configured in production — email NOT sent to {to_email}: {subject}")
+                return False
             logger.warning(f"[DEV MODE] Would send email to {to_email}: {subject}")
-            return True  # Return success in dev mode
+            return True  # Acceptable only in dev/staging
 
         try:
             message = Mail(

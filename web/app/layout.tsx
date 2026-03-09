@@ -7,6 +7,7 @@ import { GamificationProvider } from '@/contexts/GamificationContext';
 import NeuralBackground from '@/components/NeuralBackground';
 import GamificationOverlay from '@/components/GamificationOverlay';
 import { ErrorBoundaryProvider } from '@/components/ErrorBoundaryProvider';
+import { organizationJsonLd } from '@/lib/json-ld';
 
 export const metadata: Metadata = {
   title: "Osool | Your AI Real Estate Advisor for Egypt",
@@ -28,6 +29,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />

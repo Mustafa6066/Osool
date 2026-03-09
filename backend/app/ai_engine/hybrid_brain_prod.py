@@ -9,7 +9,7 @@ import os
 import json
 import asyncio
 import requests
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -30,10 +30,15 @@ class OsoolHybridBrainProd:
     
     def __init__(self):
         self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        # Egyptian real estate location encodings for the XGBoost model.
+        # Covers the major investment corridors. Unknown locations handled explicitly.
         self.location_map = {
-            "New Cairo": 0, "Mostakbal City": 1, "Sheikh Zayed": 2, 
-            "6th of October": 3, "New Capital": 4, "Maadi": 5, 
-            "Nasr City": 6, "Heliopolis": 7
+            "New Cairo": 0, "Mostakbal City": 1, "Sheikh Zayed": 2,
+            "6th of October": 3, "New Capital": 4, "Maadi": 5,
+            "Nasr City": 6, "Heliopolis": 7,
+            # Extended coverage — add new entries as model is retrained
+            "El Shorouk": 8, "Obour": 9, "Badr City": 10,
+            "North Coast": 11, "Ain Sokhna": 12,
         }
         # Simple in-memory cache for valuation results
         self._cache: Dict[str, Dict] = {}
@@ -42,35 +47,49 @@ class OsoolHybridBrainProd:
         """Generate a cache key from input data."""
         return f"{data.get('location')}-{data.get('size')}-{data.get('finishing')}-{data.get('floor')}-{data.get('is_compound')}"
 
-    def _get_xgboost_prediction(self, data: Dict[str, Any]) -> float:
+    def _get_xgboost_prediction(self, data: Dict[str, Any]) -> Optional[float]:
         """
-        Calls the dedicated MLOps inference endpoint for the hard number.
-        Falls back to 0.0 if MLOps service is unavailable.
+        Calls the dedicated MLOps inference endpoint for a statistical valuation.
+
+        Returns:
+            Predicted price (float) if the call succeeds and location is known,
+            or None if the service is unavailable or the location is not in the
+            training distribution (prevents silently using wrong encodings).
         """
+        location = data.get("location", "")
+        if location not in self.location_map:
+            # Do NOT fall back to encoding 0 — that would silently predict prices
+            # for "New Cairo" when the user asked about an unknown location.
+            logger.warning(f"[MLOps] Location '{location}' not in model training set — skipping XGBoost prediction")
+            return None
+
         try:
-            # Prepare data for the MLOps endpoint (e.g., a standardized JSON format)
             input_data = {
                 "instances": [{
-                    "location_encoded": self.location_map.get(data["location"], 0),
+                    "location_encoded": self.location_map[location],
                     "size_sqm": data["size"],
                     "finishing": data["finishing"],
                     "floor": data["floor"],
                     "is_compound": data["is_compound"]
                 }]
             }
-            
+
             response = requests.post(MLOPS_INFERENCE_URL, json=input_data, timeout=5)
             response.raise_for_status()
-            
+
             predictions = response.json().get("predictions", [])
-            if predictions:
-                return round(predictions[0], 0)
-            
-            return 0.0
-            
+            if predictions and predictions[0] > 0:
+                return round(float(predictions[0]), 0)
+
+            logger.warning("[MLOps] Empty or zero prediction returned")
+            return None
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"[MLOps] Inference timeout for {location} — proceeding without XGBoost")
+            return None
         except requests.exceptions.RequestException as e:
-            print(f"[!] MLOps Inference Failed: {e}")
-            return 0.0
+            logger.warning(f"[MLOps] Inference failed for {location}: {e} — proceeding without XGBoost")
+            return None
 
     def get_valuation(self, location: str, size: int, finishing: int, 
                       floor: int = 3, is_compound: int = 1) -> Dict[str, Any]:
@@ -92,10 +111,13 @@ class OsoolHybridBrainProd:
             print(f"[+] Cache hit for {cache_key}")
             return self._cache[cache_key]
         
-        # Step 1: Get the hard number from the MLOps service
-        predicted_price = self._get_xgboost_prediction(input_data)
-        
-        price_context = f"Our statistical model has valued this property at **{predicted_price:,} EGP**." if predicted_price > 0 else "We need to estimate a fair price for this property."
+        # Step 1: Get the hard number from the MLOps service (returns None if unavailable/unknown location)
+        predicted_price: Optional[float] = self._get_xgboost_prediction(input_data)
+
+        if predicted_price is not None:
+            price_context = f"Our statistical model has valued this property at **{predicted_price:,.0f} EGP**."
+        else:
+            price_context = "We need to estimate a fair price for this property based on market comparables."
         
         # Step 2: Use GPT-4o for market context and reasoning
         system_prompt = """
@@ -120,7 +142,7 @@ class OsoolHybridBrainProd:
         
         Return JSON:
         {{
-            "predicted_price": {predicted_price if predicted_price > 0 else "int (your estimate)"},
+            "predicted_price": {int(predicted_price) if predicted_price is not None else "int (your estimate based on comparables)"},
             "price_per_sqm": int,
             "market_status": "Hot" or "Stable" or "Cool",
             "reasoning_bullets": ["reason 1", "reason 2", "reason 3"],
@@ -157,12 +179,13 @@ class OsoolHybridBrainProd:
 
             result = openai_breaker.call(_gpt_valuation)
 
-            # Ensure the XGBoost price is the final source of truth if available
-            if predicted_price > 0:
-                result["predicted_price"] = predicted_price
+            # XGBoost is the authoritative price source when available.
+            # If not available (service down or unknown location), GPT estimate is used.
+            if predicted_price is not None:
+                result["predicted_price"] = int(predicted_price)
                 result["source"] = "XGBoost (MLOps) + GPT-4o Hybrid"
             else:
-                result["source"] = "GPT-4o Estimation (MLOps Offline)"
+                result["source"] = "GPT-4o Market Estimation (MLOps Offline or Unknown Location)"
 
             # Cache the result
             self._cache[cache_key] = result
@@ -170,11 +193,15 @@ class OsoolHybridBrainProd:
             return result
 
         except Exception as e:
+            fallback_price = int(predicted_price) if predicted_price is not None else 0
             return {
-                "predicted_price": predicted_price,
+                "predicted_price": fallback_price,
                 "market_status": "Unknown",
-                "reasoning_bullets": ["AI reasoning unavailable, but price is statistically calculated." if predicted_price > 0 else "Unable to calculate price."],
-                "source": "XGBoost Only" if predicted_price > 0 else "Error",
+                "reasoning_bullets": [
+                    "AI reasoning unavailable; price is statistically calculated." if fallback_price > 0
+                    else "Unable to calculate price — both MLOps and AI unavailable."
+                ],
+                "source": "XGBoost Only" if fallback_price > 0 else "Error",
                 "error": str(e)
             }
 
@@ -254,8 +281,8 @@ class OsoolHybridBrainProd:
         
         # Get fair value using hybrid method
         valuation = self.get_valuation(location, size, finishing)
-        
-        if "error" in valuation or valuation.get("predicted_price", 0) == 0:
+
+        if "error" in valuation or not valuation.get("predicted_price"):
             return {"error": "Could not calculate fair price"}
         
         fair_price = valuation["predicted_price"]

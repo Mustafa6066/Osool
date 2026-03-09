@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
     MessageSquare, LayoutDashboard, TrendingUp, Building2,
     Heart, LogOut, Sun, Moon, Gift, Menu, X,
-    ChevronDown, Shield
+    ChevronDown, Shield, MapPin, Landmark
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -19,6 +19,8 @@ const NAV_ITEMS = [
     { key: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: LayoutDashboard, href: '/dashboard' },
     { key: 'market', label: 'Market', labelAr: 'السوق', icon: TrendingUp, href: '/market' },
     { key: 'properties', label: 'Properties', labelAr: 'العقارات', icon: Building2, href: '/properties' },
+    { key: 'developers', label: 'Developers', labelAr: 'المطورين', icon: Landmark, href: '/developers' },
+    { key: 'areas', label: 'Areas', labelAr: 'المناطق', icon: MapPin, href: '/areas' },
     { key: 'favorites', label: 'Saved', labelAr: 'المفضلة', icon: Heart, href: '/favorites' },
 ];
 
