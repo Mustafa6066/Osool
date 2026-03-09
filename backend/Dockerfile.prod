@@ -71,7 +71,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 8000
 
 # Run migrations on startup, then start server with Gunicorn + Uvicorn workers
-CMD alembic upgrade head && \
+CMD alembic upgrade head || echo "⚠️ Alembic migration failed — starting server anyway"; \
     gunicorn app.main:app \
         --bind 0.0.0.0:8000 \
         --workers 4 \

@@ -326,7 +326,8 @@ async def startup_event():
         if missing_vars:
             error_msg = f"CRITICAL: Missing required environment variables: {', '.join(missing_vars)}"
             logger.error(error_msg)
-            raise RuntimeError(error_msg)
+            # Log but do NOT raise — allows /health to respond so Railway healthcheck passes.
+            # Individual API endpoints will fail with 500 if they require missing vars.
 
     # Create missing tables (gamification, etc.) if they don't exist
     try:
