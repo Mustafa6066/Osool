@@ -58,7 +58,7 @@ export default function Navigation() {
                             <HelpCircle size={16} />
                             <span className="hidden sm:inline">Support</span>
                         </Link>
-                    )
+                    )}
 
                     {/* New Session Button */}
                     <button
