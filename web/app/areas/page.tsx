@@ -9,7 +9,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AreasPage() {
-  const areas = await getAreas();
+  let areas: Awaited<ReturnType<typeof getAreas>> = [];
+  try {
+    areas = await getAreas();
+  } catch {
+    // backend unavailable or empty — show empty state
+  }
 
   return (
     <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
@@ -22,6 +27,12 @@ export default async function AreasPage() {
           for every major investment zone.
         </p>
 
+        {areas.length === 0 && (
+          <div className="text-center py-20 text-[var(--color-text-muted)]">
+            <p className="text-lg font-medium mb-2">No area data available</p>
+            <p className="text-sm">Check back soon — data is being updated.</p>
+          </div>
+        )}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {areas.map((area) => (
             <Link

@@ -23,7 +23,12 @@ function ScoreBar({ value, label }: { value: number; label: string }) {
 }
 
 export default async function DevelopersPage() {
-  const developers = await getDevelopers();
+  let developers: Awaited<ReturnType<typeof getDevelopers>> = [];
+  try {
+    developers = await getDevelopers();
+  } catch {
+    // backend unavailable or empty — show empty state
+  }
 
   return (
     <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
@@ -36,6 +41,12 @@ export default async function DevelopersPage() {
           Data updated monthly by Osool&apos;s AI analytics engine.
         </p>
 
+        {developers.length === 0 && (
+          <div className="text-center py-20 text-[var(--color-text-muted)]">
+            <p className="text-lg font-medium mb-2">No developer data available</p>
+            <p className="text-sm">Check back soon — data is being updated.</p>
+          </div>
+        )}
         <div className="grid md:grid-cols-2 gap-6">
           {developers.map((dev, i) => (
             <Link

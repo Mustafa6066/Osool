@@ -141,19 +141,47 @@ export default function MarketStatisticsPage() {
     const [exp, setExp] = useState<Record<string, boolean>>({ area: true, developer: true, type: true, rooms: true, intel: true });
     const toggle = (k: string) => setExp(p => ({ ...p, [k]: !p[k] }));
 
+    const parseDataJsPayload = (txt: string): { properties?: any[] } => {
+        const candidates: string[] = [];
+
+        // 1) Plain JSON file case
+        candidates.push(txt.trim());
+
+        // 2) Wrapped JS assignment case: const foo = { ... };
+        const assignMatch = txt.match(/=\s*(\{[\s\S]*\})\s*;?\s*$/);
+        if (assignMatch?.[1]) candidates.push(assignMatch[1]);
+
+        // 3) Broad fallback: first object-like payload
+        const start = txt.indexOf('{');
+        const end = txt.lastIndexOf('}');
+        if (start !== -1 && end !== -1 && end > start) {
+            candidates.push(txt.substring(start, end + 1));
+        }
+
+        for (const candidate of candidates) {
+            try {
+                const parsed = JSON.parse(candidate) as { properties?: any[] };
+                if (Array.isArray(parsed?.properties)) {
+                    return parsed;
+                }
+            } catch {
+                // Try next candidate
+            }
+        }
+
+        throw new Error('Failed to parse data.js payload');
+    };
+
     useEffect(() => {
         (async () => {
             try {
                 setLoading(true);
                 const res = await fetch('/assets/js/data.js');
+                if (!res.ok) throw new Error(`data.js HTTP ${res.status}`);
                 const txt = await res.text();
-                // Fast parse: find the JSON object start/end without heavy regex
-                const start = txt.indexOf('{');
-                const end = txt.lastIndexOf('}');
-                if (start === -1 || end === -1) throw new Error('parse');
-                const raw = JSON.parse(txt.substring(start, end + 1));
+                const raw = parseDataJsPayload(txt);
                 const props = raw.properties || [];
-                if (!props.length) throw new Error('empty');
+                if (!props.length) throw new Error('No properties in dataset');
                 setData(computeDetailedStats(props));
             } catch (e) {
                 console.error(e);
@@ -161,14 +189,13 @@ export default function MarketStatisticsPage() {
                 setTimeout(async () => {
                     try {
                         const res = await fetch('/assets/js/data.js');
+                        if (!res.ok) throw new Error(`data.js HTTP ${res.status}`);
                         const txt = await res.text();
-                        const start = txt.indexOf('{');
-                        const end = txt.lastIndexOf('}');
-                        if (start !== -1 && end !== -1) {
-                            const raw = JSON.parse(txt.substring(start, end + 1));
-                            setData(computeDetailedStats(raw.properties || []));
-                            setError(null);
-                        }
+                        const raw = parseDataJsPayload(txt);
+                        const props = raw.properties || [];
+                        if (!props.length) throw new Error('No properties in dataset');
+                        setData(computeDetailedStats(props));
+                        setError(null);
                     } catch { /* noop */ }
                 }, 2000);
             } finally { setLoading(false); }

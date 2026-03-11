@@ -54,6 +54,8 @@ export default function SmartNav({ children }: SmartNavProps) {
         if (pathname === '/dashboard') return 'dashboard';
         if (pathname === '/market') return 'market';
         if (pathname.startsWith('/properties') || pathname.startsWith('/property/')) return 'properties';
+        if (pathname.startsWith('/developers')) return 'developers';
+        if (pathname.startsWith('/areas')) return 'areas';
         if (pathname === '/favorites') return 'favorites';
         if (pathname === '/admin') return 'admin';
         return '';

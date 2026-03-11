@@ -348,15 +348,24 @@ export default function AdminPage() {
                             </div>
 
                             {/* Dual-Engine Quick Links */}
-                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
                                 {[
                                     { label: 'Analytics Dashboard', desc: 'Lead intelligence & intent trends', href: '/admin/analytics', color: 'text-purple-500' },
                                     { label: 'Lead Pipeline', desc: 'Manage leads from chat', href: '/admin/leads', color: 'text-red-500' },
                                     { label: 'Ad Campaigns', desc: 'Meta & Google ad management', href: '/admin/campaigns', color: 'text-blue-500' },
+                                    { 
+                                        label: 'Advanced SEO Engine ↗', 
+                                        desc: 'Manage Keywords, Funnels, and Agent specific intents', 
+                                        href: process.env.NEXT_PUBLIC_ADMIN_URL || '#', 
+                                        color: 'text-emerald-500',
+                                        external: true
+                                    },
                                 ].map((link) => (
                                     <a
                                         key={link.href}
                                         href={link.href}
+                                        target={link.external ? "_blank" : "_self"}
+                                        rel={link.external ? "noopener noreferrer" : undefined}
                                         className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 hover:border-emerald-500/50 transition-all group"
                                     >
                                         <p className={`text-sm font-semibold group-hover:text-emerald-500 transition-colors ${link.color}`}>{link.label}</p>

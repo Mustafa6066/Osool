@@ -8,12 +8,19 @@
 # BACKEND API URL (From Railway)
 # ─────────────────────────────────────────────────────────────
 # Get this URL from Railway after deploying backend
-NEXT_PUBLIC_API_URL=https://osool-backend-production.up.railway.app
+NEXT_PUBLIC_API_URL=https://osool-production.up.railway.app
 
 # IMPORTANT:
 # - NO trailing slash!
 # - Must be the full Railway URL
 # - Update this after deploying to Railway
+
+# ─────────────────────────────────────────────────────────────
+# OSOOL ORCHESTRATOR ADMIN URL (Optional)
+# ─────────────────────────────────────────────────────────────
+# The deployed URL of the @osool/admin Vite app (e.g. from Railway)
+# This powers the "Advanced SEO Engine" link in the frontend admin dashboard
+NEXT_PUBLIC_ADMIN_URL=https://your-admin-domain.railway.app
 
 # ─────────────────────────────────────────────────────────────
 # THIRDWEB (Web3 Wallet)
