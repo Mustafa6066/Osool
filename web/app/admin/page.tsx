@@ -356,7 +356,7 @@ export default function AdminPage() {
                                     { 
                                         label: 'Advanced SEO Engine ↗', 
                                         desc: 'Manage Keywords, Funnels, and Agent specific intents', 
-                                        href: process.env.NEXT_PUBLIC_ADMIN_URL || '#', 
+                                        href: process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://osoolorchestrator-production.up.railway.app', 
                                         color: 'text-emerald-500',
                                         external: true
                                     },
