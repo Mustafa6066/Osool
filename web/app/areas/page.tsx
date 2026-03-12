@@ -1,6 +1,7 @@
 import { getAreas } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import SmartNav from '@/components/SmartNav';
 
 export const metadata: Metadata = {
   title: 'Best Investment Areas in Egypt — Prices, Growth & Yield | Osool',
@@ -17,8 +18,9 @@ export default async function AreasPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
-      <div className="max-w-6xl mx-auto px-4 py-16">
+    <SmartNav>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)] pb-20 md:pb-0">
+      <div className="max-w-6xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-bold mb-2">
           Best Investment Areas in Egypt
         </h1>
@@ -72,5 +74,6 @@ export default async function AreasPage() {
         </div>
       </div>
     </main>
+    </SmartNav>
   );
 }
