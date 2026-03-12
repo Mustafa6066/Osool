@@ -357,8 +357,6 @@ export default function AdminPage() {
                                     <a
                                         key={link.href}
                                         href={link.href}
-                                        target={link.external ? "_blank" : "_self"}
-                                        rel={link.external ? "noopener noreferrer" : undefined}
                                         className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 hover:border-emerald-500/50 transition-all group"
                                     >
                                         <p className={`text-sm font-semibold group-hover:text-emerald-500 transition-colors ${link.color}`}>{link.label}</p>
