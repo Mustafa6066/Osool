@@ -365,29 +365,15 @@ export default function AdminPage() {
                                         <p className="text-xs text-[var(--color-text-muted)] mt-1">{link.desc}</p>
                                     </a>
                                 ))}
-                                {/* SEO Engine — only shown when admin URL is configured */}
-                                {(() => {
-                                    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
-                                    return adminUrl ? (
-                                        <a
-                                            href={adminUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 hover:border-emerald-500/50 transition-all group"
-                                        >
-                                            <p className="text-sm font-semibold group-hover:text-emerald-500 transition-colors text-emerald-500">Advanced SEO Engine ↗</p>
-                                            <p className="text-xs text-[var(--color-text-muted)] mt-1">Manage Keywords, Funnels, and Agent specific intents</p>
-                                        </a>
-                                    ) : (
-                                        <div
-                                            title="Set NEXT_PUBLIC_ADMIN_URL in Vercel to enable this"
-                                            className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 opacity-50 cursor-not-allowed"
-                                        >
-                                            <p className="text-sm font-semibold text-[var(--color-text-muted)]">Advanced SEO Engine ↗</p>
-                                            <p className="text-xs text-[var(--color-text-muted)] mt-1">Set NEXT_PUBLIC_ADMIN_URL in Vercel to enable</p>
-                                        </div>
-                                    );
-                                })()}
+                                <a
+                                    href={process.env.NEXT_PUBLIC_ADMIN_URL || 'https://osooladmin-production.up.railway.app'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 hover:border-emerald-500/50 transition-all group"
+                                >
+                                    <p className="text-sm font-semibold group-hover:text-emerald-500 transition-colors text-emerald-500">Advanced SEO Engine ↗</p>
+                                    <p className="text-xs text-[var(--color-text-muted)] mt-1">Manage Keywords, Funnels, and Agent specific intents</p>
+                                </a>
                             </div>
                             </>
                         )}
