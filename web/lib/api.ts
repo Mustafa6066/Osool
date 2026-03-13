@@ -158,6 +158,7 @@ export const isAuthenticated = (): boolean => {
 
 /**
  * Helper: Get current user from JWT (decode without verification)
+ * Returns null if the token is missing or expired.
  * WARNING: This is NOT secure validation - backend must verify token
  */
 export const getCurrentUserFromToken = (): any | null => {
@@ -170,6 +171,13 @@ export const getCurrentUserFromToken = (): any | null => {
     // Decode JWT payload (base64)
     const payload = token.split('.')[1];
     const decoded = JSON.parse(atob(payload));
+
+    // Discard expired tokens so auth-gated components don't fire for invalid sessions
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+      localStorage.removeItem('access_token');
+      return null;
+    }
+
     // Map JWT claims to User interface fields
     const fullName = localStorage.getItem('user_full_name');
     return {

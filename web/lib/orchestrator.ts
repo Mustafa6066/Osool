@@ -12,28 +12,23 @@
  * so they never impact the user experience.
  */
 
-const ORCHESTRATOR_URL = (
-    process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || ''
-).replace(/\/$/, '');
+/**
+ * Webhooks are sent to our own Next.js proxy route (/api/webhooks/...) which
+ * adds the ORCHESTRATOR_WEBHOOK_SECRET server-side and forwards to the Orchestrator.
+ * This keeps the secret out of the browser bundle entirely.
+ */
+const ORCHESTRATOR_CONFIGURED = !!(
+    process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
+);
 
-const WEBHOOK_SECRET = process.env.ORCHESTRATOR_WEBHOOK_SECRET || '';
-
-/** Check if orchestrator is configured */
-function isConfigured(): boolean {
-    return !!ORCHESTRATOR_URL;
-}
-
-/** Send a fire-and-forget webhook to the orchestrator */
+/** Send a fire-and-forget webhook via the server-side proxy */
 async function sendWebhook(path: string, payload: Record<string, unknown>): Promise<void> {
-    if (!isConfigured()) return;
+    if (!ORCHESTRATOR_CONFIGURED) return;
 
     try {
-        fetch(`${ORCHESTRATOR_URL}/webhooks${path}`, {
+        fetch(`/api/webhooks${path}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(WEBHOOK_SECRET ? { 'x-webhook-secret': WEBHOOK_SECRET } : {}),
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
             keepalive: true,
         }).catch(() => {

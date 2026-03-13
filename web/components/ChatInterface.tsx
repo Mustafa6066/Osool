@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { streamChat } from '@/lib/api';
+import { trackChatMessage, trackSessionEnd } from '@/lib/orchestrator';
+import { getAnonymousId } from '@/lib/session';
 import { analyticsEngine, type AnalyticsMatch } from '@/lib/AnalyticsRulesEngine';
 import {
     emptyChatToActiveTransition,
@@ -1045,6 +1047,15 @@ export default function ChatInterface() {
             analytics: analyticsContext
         };
         setMessages(prev => [...prev, userMsg]);
+
+        // Fire-and-forget to orchestrator — intent classification + lead scoring
+        trackChatMessage({
+            sessionId,
+            anonymousId: getAnonymousId(),
+            userId: user?.id,
+            message: { role: 'user', content: input },
+        });
+
         setInput('');
         setIsTyping(true);
 
@@ -1115,6 +1126,14 @@ export default function ChatInterface() {
                     }
 
                     setIsTyping(false);
+
+                    // Notify orchestrator of the AI response
+                    trackChatMessage({
+                        sessionId,
+                        anonymousId: getAnonymousId(),
+                        userId: user?.id,
+                        message: { role: 'assistant', content: fullResponse },
+                    });
                 },
                 onFollowUp: (followUp) => {
                     // Create a delayed follow-up AI message
@@ -1157,6 +1176,15 @@ export default function ChatInterface() {
     };
 
     const handleNewSession = () => {
+        // Notify orchestrator that session ended
+        if (messages.length > 0) {
+            trackSessionEnd({
+                sessionId,
+                anonymousId: getAnonymousId(),
+                userId: user?.id,
+                messageCount: messages.length,
+            });
+        }
         setMessages([]);
         setContextProperties([]);
         setContextPropertyIndex(0);
