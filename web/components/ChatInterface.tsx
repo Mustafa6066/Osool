@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { streamChat } from '@/lib/api';
-import { trackChatMessage, trackSessionEnd } from '@/lib/orchestrator';
+import { trackChatMessage, trackChatSessionEnd } from '@/lib/orchestrator';
 import { getAnonymousId } from '@/lib/session';
 import { analyticsEngine, type AnalyticsMatch } from '@/lib/AnalyticsRulesEngine';
 import {
@@ -1178,7 +1178,7 @@ export default function ChatInterface() {
     const handleNewSession = () => {
         // Notify orchestrator that session ended
         if (messages.length > 0) {
-            trackSessionEnd({
+            trackChatSessionEnd({
                 sessionId,
                 anonymousId: getAnonymousId(),
                 userId: user?.id,
