@@ -13,7 +13,10 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Base URL from environment or default to localhost (strip trailing slash)
-const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+// Upgrade http:// to https:// for any non-localhost URL to prevent mixed-content errors
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+  .replace(/\/$/, '')
+  .replace(/^http:\/\/(?!localhost)/, 'https://');
 
 // Create axios instance
 const api = axios.create({
