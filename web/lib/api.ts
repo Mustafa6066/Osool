@@ -13,8 +13,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Base URL from environment or default to localhost (strip trailing slash)
-// Upgrade http:// to https:// for any non-localhost URL to prevent mixed-content errors
-const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+// Force HTTPS for any non-localhost URL to prevent mixed-content blocks on Vercel
+const envUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const BASE_URL = envUrl
   .replace(/\/$/, '')
   .replace(/^http:\/\/(?!localhost)/, 'https://');
 
