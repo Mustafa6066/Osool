@@ -915,6 +915,7 @@ export default function ChatInterface() {
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [sessionId, setSessionId] = useState(() => `session-${Date.now()}`);
+    const [sessionStartTime] = useState(() => Date.now());
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isInvitationModalOpen, setInvitationModalOpen] = useState(false);
     const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
@@ -1183,6 +1184,7 @@ export default function ChatInterface() {
                 anonymousId: getAnonymousId(),
                 userId: user?.id,
                 messageCount: messages.length,
+                durationSeconds: Math.floor((Date.now() - sessionStartTime) / 1000),
             });
         }
         setMessages([]);
