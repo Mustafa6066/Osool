@@ -17,14 +17,15 @@ const WEBHOOK_SECRET = process.env.ORCHESTRATOR_WEBHOOK_SECRET || '';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   if (!ORCHESTRATOR_URL) {
     // Orchestrator not configured — silently accept so the frontend never errors
     return NextResponse.json({}, { status: 202 });
   }
 
-  const path = params.path.join('/');
+  const { path: pathSegments } = await params;
+  const path = pathSegments.join('/');
   const targetUrl = `${ORCHESTRATOR_URL}/webhooks/${path}`;
 
   const headers: Record<string, string> = {

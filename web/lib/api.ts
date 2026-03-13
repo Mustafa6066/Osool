@@ -73,10 +73,11 @@ api.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _skipAuthRedirect?: boolean };
 
     // Check if error is 401 Unauthorized and we haven't retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Skip the redirect flow for background/non-critical calls that set _skipAuthRedirect
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._skipAuthRedirect) {
       originalRequest._retry = true;
 
       // If already refreshing, queue this request to retry after refresh
@@ -97,11 +98,17 @@ api.interceptors.response.use(
         : null;
 
       if (!refreshToken) {
-        // No refresh token available - redirect to login
+        // No refresh token available — clear stale token and redirect to login
+        // Guard: avoid redirect loop if already on login/register page
         if (typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
+          const onAuthPage = ['/login', '/register', '/signup'].some(p =>
+            window.location.pathname.startsWith(p)
+          );
+          if (!onAuthPage) {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }
@@ -136,11 +143,17 @@ api.interceptors.response.use(
       } catch (refreshError) {
         isRefreshing = false;
         refreshSubscribers = [];
-        // Refresh failed - clear auth tokens only and redirect to login
+        // Refresh failed — clear auth tokens and redirect to login
+        // Guard: avoid redirect loop if already on login/register page
         if (typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
+          const onAuthPage = ['/login', '/register', '/signup'].some(p =>
+            window.location.pathname.startsWith(p)
+          );
+          if (!onAuthPage) {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(refreshError);
       }
@@ -531,7 +544,9 @@ export interface AdminMessage {
 
 /** Check if current user is admin */
 export const checkAdmin = async (): Promise<{ is_admin: boolean; email: string; name: string }> => {
-  const { data } = await api.get('/api/admin/check');
+  // _skipAuthRedirect: admin check failing (401) should not force a redirect;
+  // the admin page handles 401 by setting isAdmin=false and showing access-denied UI.
+  const { data } = await api.get('/api/admin/check', { _skipAuthRedirect: true } as any);
   return data;
 };
 

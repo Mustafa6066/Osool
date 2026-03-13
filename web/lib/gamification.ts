@@ -126,12 +126,12 @@ export function getXPProgress(profile: InvestorProfile): number {
 // ═══════════════════════════════════════════════════════════════
 
 export async function fetchInvestorProfile(): Promise<InvestorProfile> {
-    const response = await api.get('/api/gamification/profile');
+    const response = await api.get('/api/gamification/profile', { _skipAuthRedirect: true } as any);
     return response.data;
 }
 
 export async function fetchAchievements(): Promise<{ total: number; unlocked: number; achievements: AchievementDefinition[] }> {
-    const response = await api.get('/api/gamification/achievements');
+    const response = await api.get('/api/gamification/achievements', { _skipAuthRedirect: true } as any);
     return response.data;
 }
 
