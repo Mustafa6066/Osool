@@ -43,6 +43,7 @@ CSRF_EXEMPT_PATHS = {
     "/api/auth/login",  # First request, no cookie yet
     "/api/auth/signup",  # First request, no cookie yet
     "/api/auth/google",  # OAuth flow
+    "/api/seo/admin/seed",  # Admin seed trigger (key-protected)
     "/health",  # Health check
     "/metrics",  # Monitoring
     "/docs",  # API docs
