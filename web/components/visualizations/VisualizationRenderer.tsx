@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense } from "react";
+import { Suspense, type ComponentProps } from "react";
 
 // Lazy load visualization components for better performance
 const InvestmentScorecard = dynamic(() => import("./InvestmentScorecard"), {
@@ -125,10 +125,69 @@ function VisualizationSkeleton() {
     );
 }
 
-interface VisualizationRendererProps {
+export interface VisualizationRendererProps {
     type: string;
-    data: any;
+    data: VisualizationData;
     isRTL?: boolean;
+}
+
+interface ProjectionPoint {
+    cash?: number;
+    cash_real_value?: number;
+    property?: number;
+    property_total?: number;
+}
+
+interface TrendDataPoint {
+    month?: string;
+    price_index?: number;
+    volume?: number;
+}
+
+interface AreaVisualizationData extends Record<string, unknown> {
+    name?: string;
+    avg_price_per_sqm?: number;
+    avg_price_sqm?: number;
+    demand_level?: string;
+    best_for?: unknown[];
+}
+
+interface VisualizationData {
+    projections?: unknown[];
+    properties?: Array<Record<string, unknown>>;
+    capabilities?: unknown;
+    result?: unknown;
+    trust_badges?: unknown;
+    status?: unknown;
+    cta?: unknown;
+    summary?: unknown;
+    data_points?: unknown[];
+    verdict?: unknown;
+    areas?: AreaVisualizationData[];
+    area?: AreaVisualizationData | null;
+    comparison?: unknown;
+    price_heatmap?: unknown;
+    heatmap?: unknown;
+    developers?: Array<Record<string, unknown>>;
+    developer?: Record<string, unknown> | null;
+    metrics?: unknown;
+    types?: unknown[];
+    plans?: unknown[];
+    recommendation?: unknown;
+    assumptions?: unknown;
+    trend_data?: TrendDataPoint[];
+    price_growth_ytd?: number;
+    location?: string;
+    demand_index?: string;
+    payment?: unknown;
+    property?: Record<string, unknown> | null;
+    best_value_id?: string | number;
+    recommended_id?: string | number;
+    best_plans?: Record<string, unknown>;
+    resale?: Record<string, unknown>;
+    locations?: Array<Record<string, unknown>>;
+    area_context?: Record<string, unknown>;
+    [key: string]: unknown;
 }
 
 /**
@@ -144,7 +203,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
     }
 
     // Helper to check if data has meaningful content
-    const hasContent = (obj: any, keys: string[]): boolean => {
+    const hasContent = (obj: VisualizationData | null | undefined, keys: string[]): boolean => {
         if (!obj) return false;
         return keys.some(key => {
             const val = obj[key];
@@ -155,7 +214,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
     };
 
     // Helper: check if value is a valid non-NaN number > 0
-    const isValidNum = (v: any): boolean => typeof v === 'number' && isFinite(v) && v > 0;
+    const isValidNum = (v: unknown): boolean => typeof v === 'number' && isFinite(v) && v > 0;
 
     // Route to appropriate component based on type
     switch (type) {
@@ -165,12 +224,15 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!hasContent(data, ['projections', 'data_points', 'summary', 'summary_cards', 'initial_investment', 'property_value', 'years'])) return null;
             // Extra guard: ensure projections have actual numeric values
             if (data.projections && data.projections.length > 0) {
-                const hasRealData = data.projections.some((p: any) => isValidNum(p.cash) || isValidNum(p.cash_real_value) || isValidNum(p.property) || isValidNum(p.property_total));
+                const hasRealData = data.projections.some((point) => {
+                    const projection = typeof point === 'object' && point !== null ? point as ProjectionPoint : undefined;
+                    return isValidNum(projection?.cash) || isValidNum(projection?.cash_real_value) || isValidNum(projection?.property) || isValidNum(projection?.property_total);
+                });
                 if (!hasRealData) return null;
             }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <InflationKillerChart {...data} />
+                    <InflationKillerChart {...(data as unknown as ComponentProps<typeof InflationKillerChart>)} />
                 </Suspense>
             );
 
@@ -179,7 +241,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!hasContent(data, ['properties']) || !data.properties?.length) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <La2taAlert {...data} isRTL={isRTL} />
+                    <La2taAlert {...(data as unknown as ComponentProps<typeof La2taAlert>)} isRTL={isRTL} />
                 </Suspense>
             );
 
@@ -188,7 +250,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!hasContent(data, ['capabilities', 'result', 'trust_badges', 'status', 'cta'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <Law114Guardian {...data} />
+                    <Law114Guardian {...(data as unknown as ComponentProps<typeof Law114Guardian>)} />
                 </Suspense>
             );
 
@@ -196,7 +258,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!hasContent(data, ['alternatives', 'message_ar', 'message_en'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <RealityCheck {...data} isRTL={isRTL} />
+                    <RealityCheck {...(data as unknown as ComponentProps<typeof RealityCheck>)} isRTL={isRTL} />
                 </Suspense>
             );
 
@@ -204,7 +266,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!hasContent(data, ['summary', 'data_points', 'verdict'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <CertificatesVsProperty {...data} isRTL={isRTL} />
+                    <CertificatesVsProperty {...(data as unknown as ComponentProps<typeof CertificatesVsProperty>)} isRTL={isRTL} />
                 </Suspense>
             );
 
@@ -222,7 +284,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!areaData.area.name || (!isValidNum(aPrice) && !areaData.area.demand_level && !areaData.area.best_for?.length)) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <AreaAnalysis {...areaData} />
+                    <AreaAnalysis {...(areaData as unknown as ComponentProps<typeof AreaAnalysis>)} />
                 </Suspense>
             );
         }
@@ -235,7 +297,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!devData.developer) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <DeveloperAnalysis {...devData} />
+                        <DeveloperAnalysis {...(devData as unknown as ComponentProps<typeof DeveloperAnalysis>)} />
                 </Suspense>
             );
         }
@@ -248,7 +310,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!typeData.analysis) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <PropertyTypeAnalysis {...typeData} />
+                        <PropertyTypeAnalysis {...(typeData as unknown as ComponentProps<typeof PropertyTypeAnalysis>)} />
                 </Suspense>
             );
         }
@@ -264,7 +326,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!planData.plans?.length) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <PaymentPlanComparison {...planData} />
+                        <PaymentPlanComparison {...(planData as unknown as ComponentProps<typeof PaymentPlanComparison>)} />
                 </Suspense>
             );
         }
@@ -281,13 +343,13 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
                     developer_avg_price: data.developer?.avg_price || 0,
                     resale_avg_price_per_sqm: data.resale?.avg_price_per_sqm || 0,
                     developer_avg_price_per_sqm: data.developer?.avg_price_per_sqm || 0,
-                    resale_ready: data.resale?.pros?.includes('جاهز للتسليم') || true,
-                    developer_payment_plan: data.developer?.pros?.includes('تقسيط طويل') || true
+                    resale_ready: (data.resale?.pros as unknown[] | undefined)?.includes('جاهز للتسليم') || true,
+                    developer_payment_plan: (data.developer?.pros as unknown[] | undefined)?.includes('تقسيط طويل') || true
                 }
             };
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <ResaleVsDeveloper {...resaleData} />
+                        <ResaleVsDeveloper {...(resaleData as unknown as ComponentProps<typeof ResaleVsDeveloper>)} />
                 </Suspense>
             );
         }
@@ -300,7 +362,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!roiData.roi) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <ROICalculator {...roiData} />
+                        <ROICalculator {...(roiData as unknown as ComponentProps<typeof ROICalculator>)} />
                 </Suspense>
             );
         }
@@ -309,7 +371,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!data.locations?.length) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <PriceHeatmap {...data} />
+                    <PriceHeatmap {...(data as unknown as ComponentProps<typeof PriceHeatmap>)} />
                 </Suspense>
             );
 
@@ -318,10 +380,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!data.property && !data.analysis) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <InvestmentScorecard
-                        property={data.property}
-                        analysis={data.analysis}
-                    />
+                    <InvestmentScorecard {...({ property: data.property, analysis: data.analysis } as unknown as ComponentProps<typeof InvestmentScorecard>)} />
                 </Suspense>
             );
 
@@ -329,11 +388,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!data.properties?.length) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <ComparisonMatrix
-                        properties={data.properties}
-                        bestValueId={data.best_value_id}
-                        recommendedId={data.recommended_id}
-                    />
+                    <ComparisonMatrix {...({ properties: data.properties, bestValueId: data.best_value_id, recommendedId: data.recommended_id } as unknown as ComponentProps<typeof ComparisonMatrix>)} />
                 </Suspense>
             );
 
@@ -341,40 +396,39 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!data.property && !data.payment) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <PaymentTimeline
-                        property={data.property}
-                        payment={data.payment}
-                    />
+                    <PaymentTimeline {...({ property: data.property, payment: data.payment } as unknown as ComponentProps<typeof PaymentTimeline>)} />
                 </Suspense>
             );
 
-        case "market_trend_chart":
+        case "market_trend_chart": {
             if (!data.trend_data?.length && !data.price_growth_ytd) return null;
+            const trendChartData = {
+                location: data.location || "Market",
+                data: {
+                    historical: data.trend_data?.map((d) => ({
+                        period: d.month,
+                        avg_price: (d.price_index ?? 0) * 1000,
+                        volume: d.volume
+                    })) || [],
+                    current_price: (data.trend_data?.[data.trend_data.length - 1]?.price_index ?? 0) * 1000 || 0,
+                    trend: (data.price_growth_ytd ?? 0) > 15 ? "Bullish" : (data.price_growth_ytd ?? 0) > 8 ? "Stable" : "Bearish",
+                    yoy_change: data.price_growth_ytd || 0,
+                    momentum: data.demand_index || "Medium"
+                }
+            };
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <MarketTrendChart
-                        location={data.location || "Market"}
-                        data={{
-                            historical: data.trend_data?.map((d: any) => ({
-                                period: d.month,
-                                avg_price: d.price_index * 1000,
-                                volume: d.volume
-                            })) || [],
-                            current_price: data.trend_data?.[data.trend_data.length - 1]?.price_index * 1000 || 0,
-                            trend: data.price_growth_ytd > 15 ? "Bullish" : data.price_growth_ytd > 8 ? "Stable" : "Bearish",
-                            yoy_change: data.price_growth_ytd || 0,
-                            momentum: data.demand_index || "Medium"
-                        }}
-                    />
+                    <MarketTrendChart {...(trendChartData as unknown as ComponentProps<typeof MarketTrendChart>)} />
                 </Suspense>
             );
+        }
 
         // Bank vs Property comparison (alias for certificates_vs_property)
         case "bank_vs_property":
             if (!hasContent(data, ['data_points', 'summary', 'verdict', 'assumptions'])) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <CertificatesVsProperty {...data} isRTL={isRTL} />
+                    <CertificatesVsProperty {...(data as unknown as ComponentProps<typeof CertificatesVsProperty>)} isRTL={isRTL} />
                 </Suspense>
             );
 
@@ -384,7 +438,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!data.data_points?.length || data.data_points.length < 2) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <PriceGrowthChart {...data} />
+                    <PriceGrowthChart {...(data as unknown as ComponentProps<typeof PriceGrowthChart>)} />
                 </Suspense>
             );
         }
@@ -397,7 +451,7 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             if (!isValidNum(mbPrice)) return null;
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <MarketBenchmarkChart {...data} isRTL={isRTL} />
+                    <MarketBenchmarkChart {...(data as unknown as ComponentProps<typeof MarketBenchmarkChart>)} isRTL={isRTL} />
                 </Suspense>
             );
         }
@@ -414,17 +468,17 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <DataTable
-                        title={data.title}
-                        subtitle={data.subtitle}
-                        columns={data.columns}
-                        data={data.data}
-                        isRTL={isRTL}
-                        colorScheme={data.colorScheme || 'neutral'}
-                        icon={data.icon}
-                        maxHeight={data.maxHeight}
-                        onRowClick={data.onRowClick}
-                    />
+                    <DataTable {...({
+                        title: data.title,
+                        subtitle: data.subtitle,
+                        columns: data.columns,
+                        data: data.data,
+                        isRTL,
+                        colorScheme: data.colorScheme || 'neutral',
+                        icon: data.icon,
+                        maxHeight: data.maxHeight,
+                        onRowClick: data.onRowClick
+                    } as unknown as ComponentProps<typeof DataTable>)} />
                 </Suspense>
             );
         }
@@ -437,14 +491,14 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <FinancialComparisonTable
-                        title={data.title || 'المقارنة المالية'}
-                        subtitle={data.subtitle}
-                        rows={data.rows}
-                        isRTL={isRTL}
-                        colorScheme={data.colorScheme || 'info'}
-                        showTrends={data.showTrends !== false}
-                    />
+                    <FinancialComparisonTable {...({
+                        title: data.title || 'المقارنة المالية',
+                        subtitle: data.subtitle,
+                        rows: data.rows,
+                        isRTL,
+                        colorScheme: data.colorScheme || 'info',
+                        showTrends: data.showTrends !== false
+                    } as unknown as ComponentProps<typeof FinancialComparisonTable>)} />
                 </Suspense>
             );
         }
@@ -456,13 +510,13 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
             }
             return (
                 <Suspense fallback={<VisualizationSkeleton />}>
-                    <BankVsPropertyComparisonTable
-                        bankMonthly={data.bankMonthly}
-                        bankActual={data.bankActual || data.bankMonthly}
-                        propertyMonthly={data.propertyMonthly}
-                        propertyActual={data.propertyActual || data.propertyMonthly}
-                        isRTL={isRTL}
-                    />
+                    <BankVsPropertyComparisonTable {...({
+                        bankMonthly: data.bankMonthly,
+                        bankActual: data.bankActual || data.bankMonthly,
+                        propertyMonthly: data.propertyMonthly,
+                        propertyActual: data.propertyActual || data.propertyMonthly,
+                        isRTL
+                    } as unknown as ComponentProps<typeof BankVsPropertyComparisonTable>)} />
                 </Suspense>
             );
         }

@@ -17,6 +17,9 @@
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
+type ApiPayload = Record<string, unknown>;
+type ApiPayloadOrNull = ApiPayload | null;
+
 // Base URL from environment
 let BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 // Enforce HTTPS in production to prevent mixed-content errors
@@ -135,7 +138,7 @@ api.interceptors.response.use(
     
     // Handle 403 CSRF error - fetch new token
     if (error.response?.status === 403) {
-      const errorData = error.response.data as any;
+      const errorData = error.response.data as { error?: string } | undefined;
       
       if (errorData?.error === 'CSRF token missing or invalid' || errorData?.error === 'CSRF token mismatch') {
         // Fetch new CSRF token
@@ -184,7 +187,7 @@ export const isAuthenticated = async (): Promise<boolean> => {
  * ------------------------
  * Fetch user data from API (cookies are automatically sent).
  */
-export const getCurrentUser = async (): Promise<any | null> => {
+export const getCurrentUser = async (): Promise<ApiPayloadOrNull> => {
   try {
     const response = await api.get('/api/auth/me');
     return response.data;
@@ -198,7 +201,7 @@ export const getCurrentUser = async (): Promise<any | null> => {
  * -------------
  * Server will set httpOnly cookies on successful login.
  */
-export const login = async (email: string, password: string): Promise<any> => {
+export const login = async (email: string, password: string): Promise<ApiPayload> => {
   const formData = new URLSearchParams();
   formData.append('username', email);
   formData.append('password', password);
@@ -248,7 +251,7 @@ export const signup = async (userData: {
   password: string;
   phone_number: string;
   national_id: string;
-}): Promise<any> => {
+}): Promise<ApiPayload> => {
   const response = await api.post('/api/auth/signup', userData);
   
   // Extract CSRF token

@@ -95,10 +95,20 @@ interface PropertyMapProps {
     formatPrice: (price: number) => string;
 }
 
+type MapInstance = {
+    remove: () => void;
+    fitBounds: (...args: unknown[]) => unknown;
+};
+
+type MarkerInstance = {
+    remove: () => void;
+    on: (event: 'click', handler: () => void) => void;
+};
+
 export default function PropertyMap({ properties, language, formatPrice }: PropertyMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
-    const mapInstanceRef = useRef<any>(null);
-    const markersRef = useRef<any[]>([]);
+    const mapInstanceRef = useRef<MapInstance | null>(null);
+    const markersRef = useRef<MarkerInstance[]>([]);
     const [selectedProperty, setSelectedProperty] = useState<PropertyItem | null>(null);
     const [mapReady, setMapReady] = useState(false);
 
@@ -108,7 +118,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
         // Dynamic import of Leaflet (client-only)
         import('leaflet').then((L) => {
             // Fix default marker icons for webpack/next
-            delete (L.Icon.Default.prototype as any)._getIconUrl;
+            delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
             L.Icon.Default.mergeOptions({
                 iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
                 iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -131,7 +141,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                 maxZoom: 19,
             }).addTo(map);
 
-            mapInstanceRef.current = map;
+            mapInstanceRef.current = map as unknown as MapInstance;
             setMapReady(true);
         });
 
@@ -148,7 +158,8 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
         if (!mapReady || !mapInstanceRef.current) return;
 
         import('leaflet').then((L) => {
-            const map = mapInstanceRef.current;
+            const map = mapInstanceRef.current as unknown as { fitBounds: (...args: unknown[]) => unknown };
+            const layerTarget = mapInstanceRef.current as unknown as Parameters<ReturnType<typeof L.marker>['addTo']>[0];
 
             // Remove old markers
             markersRef.current.forEach((m) => m.remove());
@@ -183,9 +194,9 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                     iconAnchor: [40, 16],
                 });
 
-                const marker = L.marker([lat, lng], { icon }).addTo(map);
+                const marker = L.marker([lat, lng], { icon }).addTo(layerTarget);
                 marker.on('click', () => setSelectedProperty(prop));
-                markersRef.current.push(marker);
+                markersRef.current.push(marker as unknown as MarkerInstance);
             });
 
             // Fit map to show all pins

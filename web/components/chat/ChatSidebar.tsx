@@ -22,6 +22,8 @@ interface RecentSearch {
     timestamp: Date;
 }
 
+type SearchDisplayItem = RecentSearch & { isSearch: true };
+
 interface ChatSidebarProps {
     isOpen?: boolean;
     onClose?: () => void;
@@ -46,17 +48,17 @@ function getSearchIcon(type: RecentSearch['type']) {
 }
 
 // Group conversations by date
-function groupByDate(items: (Conversation | RecentSearch)[], isRTL: boolean) {
+function groupByDate<T extends { timestamp: Date }>(items: T[], isRTL: boolean) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today.getTime() - 86400000);
     const weekAgo = new Date(today.getTime() - 7 * 86400000);
 
-    const groups: { title: string; items: typeof items }[] = [];
-    const todayItems: typeof items = [];
-    const yesterdayItems: typeof items = [];
-    const weekItems: typeof items = [];
-    const olderItems: typeof items = [];
+    const groups: { title: string; items: T[] }[] = [];
+    const todayItems: T[] = [];
+    const yesterdayItems: T[] = [];
+    const weekItems: T[] = [];
+    const olderItems: T[] = [];
 
     items.forEach(item => {
         const itemDate = new Date(item.timestamp);
@@ -103,11 +105,11 @@ export default function ChatSidebar({
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
     // Combine conversations and recent searches for display
-    const allItems = [
+    const allItems: SearchDisplayItem[] = [
         ...recentSearches.map(s => ({ ...s, isSearch: true as const })),
     ];
 
-    const groupedItems = groupByDate(allItems as any, isRTL);
+    const groupedItems = groupByDate(allItems, isRTL);
 
     const sidebarContent = (
         <>
@@ -138,18 +140,17 @@ export default function ChatSidebar({
                     groupedItems.map((group, groupIndex) => (
                         <div key={group.title} className="chatgpt-conv-group">
                             <p className="chatgpt-conv-group-title">{group.title}</p>
-                            {group.items.map((item: any) => {
-                                const isSearch = 'query' in item;
-                                const IconComponent = isSearch ? getSearchIcon(item.type) : MessageSquare;
-                                const title = isSearch ? item.query : item.title;
-                                const isActive = !isSearch && item.id === activeConversationId;
+                            {group.items.map((item) => {
+                                const IconComponent = getSearchIcon(item.type);
+                                const title = item.query;
+                                const isActive = false;
                                 const isHovered = hoveredItem === item.id;
 
                                 return (
                                     <div
                                         key={item.id}
                                         className={`chatgpt-conv-item ${isActive ? 'active' : ''}`}
-                                        onClick={() => isSearch ? onSearchClick?.(item) : onSelectConversation?.(item.id)}
+                                        onClick={() => onSearchClick?.(item)}
                                         onMouseEnter={() => setHoveredItem(item.id)}
                                         onMouseLeave={() => setHoveredItem(null)}
                                         dir={isRTL ? 'rtl' : 'ltr'}

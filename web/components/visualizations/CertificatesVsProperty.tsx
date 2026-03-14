@@ -175,7 +175,7 @@ export default function CertificatesVsProperty({
                             dataKey="name"
                             type="category"
                             width={200}
-                            tick={(props: any) => {
+                            tick={(props: { x?: number; y?: number; payload?: { value?: string } }) => {
                                 const { x, y, payload } = props;
                                 return (
                                     <text
@@ -186,7 +186,7 @@ export default function CertificatesVsProperty({
                                         fill="var(--color-text-muted)"
                                         fontSize={11}
                                     >
-                                        {payload.value}
+                                            {payload?.value ?? ''}
                                     </text>
                                 );
                             }}

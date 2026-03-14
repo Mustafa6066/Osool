@@ -189,6 +189,36 @@ interface PropertyItem {
     } | null;
 }
 
+interface RawProperty {
+    id?: string | number;
+    title?: string;
+    name?: string;
+    titleAr?: string;
+    location?: string;
+    locationAr?: string;
+    price?: number;
+    totalPrice?: number;
+    aiValuation?: number;
+    aiEstimate?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    area?: number;
+    size?: number;
+    sqm?: number;
+    bua?: number;
+    size_sqm?: number;
+    image?: string;
+    image_url?: string;
+    type?: string;
+    dateAdded?: string;
+    created_at?: string;
+    developer?: string;
+    pricePerSqm?: number;
+    price_per_sqm?: number;
+    saleType?: string;
+    paymentPlan?: PropertyItem['paymentPlan'];
+}
+
 interface Filters {
     location: string;
     type: string;
@@ -279,7 +309,7 @@ export default function PropertiesPage() {
     };
 
     // Normalize API property to our internal format
-    const normalizeProperty = useCallback((p: any): PropertyItem => {
+    const normalizeProperty = useCallback((p: RawProperty): PropertyItem => {
         return {
             id: String(p.id),
             title: p.title || p.name || '',
@@ -340,7 +370,7 @@ export default function PropertiesPage() {
             const end = txt.lastIndexOf('}');
             if (start !== -1 && end !== -1) {
                 const raw = JSON.parse(txt.substring(start, end + 1));
-                const props = (raw.properties || []) as any[];
+                const props = (raw.properties || []) as RawProperty[];
                 if (props.length > 0) {
                     const normalized = props.map(normalizeProperty);
                     setProperties(normalized);
@@ -377,7 +407,7 @@ export default function PropertiesPage() {
 
     // Client-side filtering and sorting
     const filteredProperties = useMemo(() => {
-        let result = properties.filter((p) => {
+        const result = properties.filter((p) => {
             if (filters.location !== 'all' && p.city !== filters.location) return false;
             if (filters.type !== 'all' && p.type !== filters.type) return false;
             if (p.price < filters.minPrice || p.price > filters.maxPrice) return false;

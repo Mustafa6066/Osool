@@ -67,6 +67,29 @@ const PRIORITIES = [
   },
 ] as const;
 
+function getApiDetail(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof error.response === 'object' &&
+    error.response !== null &&
+    'data' in error.response &&
+    typeof error.response.data === 'object' &&
+    error.response.data !== null &&
+    'detail' in error.response.data &&
+    typeof error.response.data.detail === 'string'
+  ) {
+    return error.response.data.detail;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 function getPriorityTone(priority: string): string {
   switch (priority) {
     case 'urgent':
@@ -123,8 +146,8 @@ export default function NewTicketPage() {
         priority,
       });
       router.push(`/tickets/${ticket.id}`);
-    } catch (submitError: any) {
-      setError(submitError?.response?.data?.detail || 'Failed to create ticket. Please try again.');
+    } catch (submitError: unknown) {
+      setError(getApiDetail(submitError, 'Failed to create ticket. Please try again.'));
     } finally {
       setSubmitting(false);
     }

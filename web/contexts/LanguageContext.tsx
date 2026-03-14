@@ -23,12 +23,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const direction: Direction = language === 'ar' ? 'rtl' : 'ltr';
 
     useEffect(() => {
-        setMounted(true);
-        // Check localStorage
-        const savedLang = localStorage.getItem('osool-language') as Language | null;
-        if (savedLang) {
-            setLanguageState(savedLang);
-        }
+        const timer = setTimeout(() => {
+            setMounted(true);
+            const savedLang = localStorage.getItem('osool-language') as Language | null;
+            if (savedLang) {
+                setLanguageState(savedLang);
+            }
+        }, 0);
+
+        return () => clearTimeout(timer);
     }, []);
 
     useEffect(() => {

@@ -18,6 +18,14 @@ interface InvitationStatus {
     invited_by?: string;
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return fallback;
+}
+
 function SignupContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -137,8 +145,8 @@ function SignupContent() {
 
             // Redirect to chat
             router.push('/chat');
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, 'Signup failed'));
         } finally {
             setIsLoading(false);
         }

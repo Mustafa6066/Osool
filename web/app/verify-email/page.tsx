@@ -15,23 +15,44 @@ import PublicPageNav from '@/components/PublicPageNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 import api from '@/lib/api';
 
+function getApiDetail(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof error.response === 'object' &&
+    error.response !== null &&
+    'data' in error.response &&
+    typeof error.response.data === 'object' &&
+    error.response.data !== null &&
+    'detail' in error.response.data &&
+    typeof error.response.data.detail === 'string'
+  ) {
+    return error.response.data.detail;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const { language } = useLanguage();
   const token = searchParams.get('token');
   const verifiedRef = useRef(false);
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'no-token'>('loading');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  const missingTokenMessage =
+    language === 'ar'
+      ? 'رابط التحقق غير صالح أو ناقص. استخدم الرابط الأصلي من البريد الإلكتروني.'
+      : 'The verification link is missing or invalid. Use the original link from your email.';
 
   useEffect(() => {
     if (!token) {
-      setStatus('no-token');
-      setMessage(
-        language === 'ar'
-          ? 'رابط التحقق غير صالح أو ناقص. استخدم الرابط الأصلي من البريد الإلكتروني.'
-          : 'The verification link is missing or invalid. Use the original link from your email.'
-      );
       return;
     }
 
@@ -55,14 +76,14 @@ function VerifyEmailContent() {
 
         setStatus('error');
         setMessage(response.data.message || (language === 'ar' ? 'تعذر التحقق من البريد.' : 'Email verification could not be completed.'));
-      } catch (error: any) {
+      } catch (error: unknown) {
         setStatus('error');
-        const detail = error?.response?.data?.detail;
         setMessage(
-          detail ||
+          getApiDetail(error,
             (language === 'ar'
               ? 'انتهت صلاحية رابط التحقق أو لم يعد صالحًا. اطلب رابطًا جديدًا من إعدادات الحساب.'
               : 'The verification link expired or is no longer valid. Request a new link from account settings.')
+          )
         );
       }
     };
@@ -70,9 +91,12 @@ function VerifyEmailContent() {
     void verify();
   }, [language, token]);
 
+  const effectiveStatus = token ? status : 'no-token';
+  const displayMessage = effectiveStatus === 'no-token' ? missingTokenMessage : message;
+
   const title = useMemo(() => {
     if (language === 'ar') {
-      switch (status) {
+      switch (effectiveStatus) {
         case 'loading':
           return 'جارٍ التحقق من البريد';
         case 'success':
@@ -84,7 +108,7 @@ function VerifyEmailContent() {
       }
     }
 
-    switch (status) {
+    switch (effectiveStatus) {
       case 'loading':
         return 'Verifying your email';
       case 'success':
@@ -94,10 +118,10 @@ function VerifyEmailContent() {
       default:
         return 'Invalid link';
     }
-  }, [language, status]);
+  }, [effectiveStatus, language]);
 
   const tone = useMemo(() => {
-    switch (status) {
+    switch (effectiveStatus) {
       case 'success':
         return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300';
       case 'error':
@@ -107,10 +131,10 @@ function VerifyEmailContent() {
       default:
         return 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]';
     }
-  }, [status]);
+  }, [effectiveStatus]);
 
   const icon = useMemo(() => {
-    switch (status) {
+    switch (effectiveStatus) {
       case 'success':
         return <CheckCircle2 className="h-10 w-10" />;
       case 'error':
@@ -119,7 +143,7 @@ function VerifyEmailContent() {
       default:
         return <Loader2 className="h-10 w-10 animate-spin" />;
     }
-  }, [status]);
+  }, [effectiveStatus]);
 
   return (
     <PublicPageNav>
@@ -154,10 +178,10 @@ function VerifyEmailContent() {
                 {title}
               </div>
 
-              <p className="mt-6 text-base leading-7 text-[var(--color-text-secondary)]">{message}</p>
+              <p className="mt-6 text-base leading-7 text-[var(--color-text-secondary)]">{displayMessage}</p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                {status === 'success' ? (
+                {effectiveStatus === 'success' ? (
                   <>
                     <Link
                       href="/dashboard"

@@ -12,6 +12,19 @@
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
+type JsonObject = Record<string, unknown>;
+
+interface JwtPayload extends JsonObject {
+  sub?: string;
+  email?: string;
+  full_name?: string;
+}
+
+type StreamProperty = JsonObject;
+type StreamUiAction = JsonObject;
+type StreamPsychology = JsonObject;
+type FollowUpPayload = JsonObject;
+
 // Base URL from environment or default to localhost (strip trailing slash)
 let BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 // Enforce HTTPS in production to prevent mixed-content errors
@@ -164,7 +177,7 @@ export const isAuthenticated = (): boolean => {
  * Helper: Get current user from JWT (decode without verification)
  * WARNING: This is NOT secure validation - backend must verify token
  */
-export const getCurrentUserFromToken = (): any | null => {
+export const getCurrentUserFromToken = (): JwtPayload | null => {
   if (typeof window === 'undefined') return null;
 
   const token = localStorage.getItem('access_token');
@@ -173,7 +186,7 @@ export const getCurrentUserFromToken = (): any | null => {
   try {
     // Decode JWT payload (base64)
     const payload = token.split('.')[1];
-    const decoded = JSON.parse(atob(payload));
+    const decoded = JSON.parse(atob(payload)) as JwtPayload;
     // Map JWT claims to User interface fields
     const fullName = localStorage.getItem('user_full_name');
     return {
@@ -223,12 +236,17 @@ export type StreamEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'fo
 
 export interface StreamEvent {
   type: StreamEventType;
-  content?: string | Record<string, any>;
+  content?: string | JsonObject;
   tool?: string;
-  properties?: any[];
-  ui_actions?: any[];
-  psychology?: any;
+  properties?: StreamProperty[];
+  ui_actions?: StreamUiAction[];
+  psychology?: StreamPsychology;
   message?: string;
+  suggestions?: string[];
+  lead_score?: number;
+  readiness_score?: number;
+  detected_language?: string;
+  showing_strategy?: string;
 }
 
 export interface StreamChatCallbacks {
@@ -236,16 +254,16 @@ export interface StreamChatCallbacks {
   onToolStart: (tool: string) => void;
   onToolEnd: (tool: string) => void;
   onComplete: (data: {
-    properties: any[];
-    ui_actions: any[];
-    psychology?: any;
+    properties: StreamProperty[];
+    ui_actions: StreamUiAction[];
+    psychology?: StreamPsychology;
     suggestions?: string[];
     lead_score?: number;
     readiness_score?: number;
     detected_language?: string;
     showing_strategy?: string;
   }) => void;
-  onFollowUp?: (followUp: any) => void;
+  onFollowUp?: (followUp: FollowUpPayload) => void;
   onError: (error: string) => void;
 }
 
@@ -319,16 +337,16 @@ export const streamChat = async (
                 properties: data.properties || [],
                 ui_actions: data.ui_actions || [],
                 psychology: data.psychology,
-                suggestions: (data as any).suggestions || [],
-                lead_score: (data as any).lead_score || 0,
-                readiness_score: (data as any).readiness_score || 0,
-                detected_language: (data as any).detected_language || 'ar',
-                showing_strategy: (data as any).showing_strategy || 'NONE',
+                suggestions: data.suggestions || [],
+                lead_score: data.lead_score || 0,
+                readiness_score: data.readiness_score || 0,
+                detected_language: data.detected_language || 'ar',
+                showing_strategy: data.showing_strategy || 'NONE',
               });
               break;
             case 'follow_up':
               if (callbacks.onFollowUp && data.content) {
-                callbacks.onFollowUp(data.content);
+                callbacks.onFollowUp(typeof data.content === 'string' ? { text: data.content } : data.content);
               }
               break;
             case 'error':
@@ -391,9 +409,9 @@ export const sendChatMessage = async (
   language: 'ar' | 'en' | 'auto' = 'auto'
 ): Promise<{
   response: string;
-  properties: any[];
-  ui_actions: any[];
-  psychology?: any;
+  properties: StreamProperty[];
+  ui_actions: StreamUiAction[];
+  psychology?: StreamPsychology;
 }> => {
   const { data } = await api.post('/api/chat', { message, session_id: sessionId, language });
   return data;
@@ -519,7 +537,7 @@ export interface AdminMessage {
   role: string;
   content: string;
   created_at: string | null;
-  properties: any[] | null;
+  properties: StreamProperty[] | null;
 }
 
 /** Check if current user is admin */

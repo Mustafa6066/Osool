@@ -7,13 +7,16 @@ import {
     ArrowTrendingUpIcon,
     ArrowTrendingDownIcon
 } from "@heroicons/react/24/outline";
-import { useMemo, useState } from "react";
+import { isValidElement, useMemo, useState, type ReactNode } from "react";
+
+type DataTableRow = Record<string, unknown>;
+type ColumnFormatter = { bivarianceHack(value: unknown): ReactNode }['bivarianceHack'];
 
 interface Column {
     key: string;
     header: string;
     align?: 'left' | 'center' | 'right';
-    format?: (value: any) => string | React.ReactNode;
+    format?: ColumnFormatter;
     width?: string;
 }
 
@@ -21,7 +24,7 @@ interface DataTableProps {
     title?: string;
     subtitle?: string;
     columns: Column[];
-    data: Record<string, any>[];
+    data: DataTableRow[];
     sortable?: boolean;
     striped?: boolean;
     hoverable?: boolean;
@@ -31,8 +34,28 @@ interface DataTableProps {
     maxHeight?: string;
     defaultSortKey?: string;
     defaultSortOrder?: 'asc' | 'desc';
-    onRowClick?: (row: Record<string, any>, index: number) => void;
+    onRowClick?: (row: DataTableRow, index: number) => void;
     emptyMessage?: string;
+}
+
+function renderCellValue(value: unknown): ReactNode {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    if (isValidElement(value)) {
+        return value;
+    }
+
+    if (value instanceof Date) {
+        return value.toLocaleDateString('en-EG');
+    }
+
+    if (typeof value === 'object') {
+        return JSON.stringify(value);
+    }
+
+    return String(value);
 }
 
 export default function DataTable({
@@ -211,7 +234,7 @@ export default function DataTable({
                                         >
                                             {col.format
                                                 ? col.format(row[col.key])
-                                                : row[col.key]
+                                                : renderCellValue(row[col.key])
                                             }
                                         </td>
                                     ))}

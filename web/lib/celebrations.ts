@@ -38,7 +38,12 @@ export function showXPToast(amount: number, element?: HTMLElement) {
 export function playAchievementSound() {
     if (typeof window === 'undefined') return;
     try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AudioContextConstructor = window.AudioContext || (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextConstructor) {
+            return;
+        }
+
+        const audioContext = new AudioContextConstructor();
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
 

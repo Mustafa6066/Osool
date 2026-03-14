@@ -112,8 +112,6 @@ function TypingText({ text, speed = 18 }: { text: string; speed?: number }) {
     const idx = useRef(0);
 
     useEffect(() => {
-        setDisplayed('');
-        setDone(false);
         idx.current = 0;
         const timer = setInterval(() => {
             if (idx.current < text.length) {

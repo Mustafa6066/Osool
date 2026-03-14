@@ -12,13 +12,7 @@ import api from '@/lib/api';
 import VisualizationRenderer from '../visualizations/VisualizationRenderer';
 
 // Types
-type UIAction = {
-    type: string;
-    priority: number;
-    data: any;
-    trigger_reason?: string;
-    chart_reference?: string;
-};
+type UIAction = UIActionData;
 
 type Property = {
     id: number;
@@ -29,7 +23,7 @@ type Property = {
     bedrooms: number;
     wolf_score?: number;
     developer?: string;
-    [key: string]: any;
+    [key: string]: unknown;
 };
 
 type Message = {

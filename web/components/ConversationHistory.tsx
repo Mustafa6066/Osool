@@ -49,7 +49,11 @@ export default function ConversationHistory({
     }, []);
 
     useEffect(() => {
-        loadSessions();
+        const timer = setTimeout(() => {
+            void loadSessions();
+        }, 0);
+
+        return () => clearTimeout(timer);
     }, [loadSessions]);
 
     const handleDelete = async (conversationId: string, e: React.MouseEvent) => {

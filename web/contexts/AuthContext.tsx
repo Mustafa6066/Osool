@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = () => {
     if (isAuthenticated()) {
       const userData = getCurrentUserFromToken();
-      setUser(userData);
+      setUser(userData ? { id: userData.sub || '', email: userData.email, full_name: userData.full_name, role: userData.role as string | undefined } : null);
     } else {
       setUser(null);
     }
@@ -55,7 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // localStorage unavailable (e.g. Safari private browsing)
     }
 
-    refreshUser();
+    const timer = setTimeout(() => {
+      refreshUser();
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const login = (accessToken: string, refreshToken?: string, fullName?: string) => {

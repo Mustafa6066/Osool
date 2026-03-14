@@ -12,6 +12,7 @@ import {
     ResponsiveContainer,
     Legend,
     ReferenceLine,
+    type TooltipProps,
 } from "recharts";
 
 // Color palette for developer lines
@@ -50,7 +51,35 @@ interface PriceGrowthChartProps {
     current_growth_rate?: number;
 }
 
-const safeNum = (v: any, fallback = 0): number => {
+type ChartRow = Record<string, number | string | null>;
+
+function PriceGrowthTooltip({ active, payload, label }: TooltipProps<number, string>) {
+    if (!active || !payload?.length) return null;
+
+    return (
+        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 shadow-xl text-xs" dir="rtl">
+            <p className="font-bold text-[var(--color-text-primary)] mb-1.5">{label}</p>
+            {payload.map((entry, i) => {
+                const value = typeof entry.value === "number" ? entry.value : Number(entry.value);
+
+                return (
+                    <div key={i} className="flex items-center gap-2 mb-0.5">
+                        <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: entry.color }}
+                        />
+                        <span className="text-[var(--color-text-muted)]">{entry.name}:</span>
+                        <span className="font-semibold text-[var(--color-text-primary)] tabular-nums">
+                            {fmtPriceFull(value)} EGP/م²
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+const safeNum = (v: unknown, fallback = 0): number => {
     const n = typeof v === "number" ? v : Number(v);
     return isFinite(n) ? n : fallback;
 };
@@ -85,7 +114,7 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
 
     // Build chart data — merge area data + developer lines into one dataset
     const chartData = data_points.map((dp) => {
-        const row: any = {
+        const row: ChartRow = {
             year: dp.year,
             area_price: safeNum(dp.price_sqm),
             yoy: safeNum(dp.yoy_growth),
@@ -103,28 +132,6 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
         current_growth_rate && current_growth_rate < 10
             ? (current_growth_rate * 100).toFixed(0)
             : safeNum(current_growth_rate).toFixed(0);
-
-    // Custom tooltip
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (!active || !payload?.length) return null;
-        return (
-            <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 shadow-xl text-xs" dir="rtl">
-                <p className="font-bold text-[var(--color-text-primary)] mb-1.5">{label}</p>
-                {payload.map((entry: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 mb-0.5">
-                        <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: entry.color }}
-                        />
-                        <span className="text-[var(--color-text-muted)]">{entry.name}:</span>
-                        <span className="font-semibold text-[var(--color-text-primary)] tabular-nums">
-                            {fmtPriceFull(entry.value)} EGP/م²
-                        </span>
-                    </div>
-                ))}
-            </div>
-        );
-    };
 
     return (
         <motion.div
@@ -188,7 +195,7 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
                                 tickFormatter={(v) => fmtPrice(v)}
                                 width={50}
                             />
-                            <Tooltip content={<CustomTooltip />} />
+                            <Tooltip content={<PriceGrowthTooltip />} />
                             <Legend
                                 wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
                                 iconType="circle"

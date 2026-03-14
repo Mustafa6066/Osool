@@ -33,6 +33,44 @@ const QUICK_ACTIONS = [
     },
 ];
 
+function getApiDetail(error: unknown, fallback: string): string {
+    if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof error.response === 'object' &&
+        error.response !== null &&
+        'data' in error.response &&
+        typeof error.response.data === 'object' &&
+        error.response.data !== null &&
+        'detail' in error.response &&
+        false
+    ) {
+        return fallback;
+    }
+
+    if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof error.response === 'object' &&
+        error.response !== null &&
+        'data' in error.response &&
+        typeof error.response.data === 'object' &&
+        error.response.data !== null &&
+        'detail' in error.response.data &&
+        typeof error.response.data.detail === 'string'
+    ) {
+        return error.response.data.detail;
+    }
+
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return fallback;
+}
+
 export default function DashboardPage() {
     const { user, isAuthenticated, loading } = useAuth();
     const { profile } = useGamification();
@@ -75,8 +113,8 @@ export default function DashboardPage() {
             const data = await generateInvitation();
             setGeneratedInvite(data);
             await fetchInvitations();
-        } catch (generationError: any) {
-            setError(generationError.response?.data?.detail || 'Failed to generate invitation');
+        } catch (generationError: unknown) {
+            setError(getApiDetail(generationError, 'Failed to generate invitation'));
         } finally {
             setIsGenerating(false);
         }

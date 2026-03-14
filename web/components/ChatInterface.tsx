@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -23,7 +23,7 @@ import {
     suggestionCardUnhover,
     quickActionsEnter
 } from '@/lib/animations';
-import VisualizationRenderer from './visualizations/VisualizationRenderer';
+import VisualizationRenderer, { type VisualizationRendererProps } from './visualizations/VisualizationRenderer';
 import UnifiedAnalytics from './visualizations/UnifiedAnalytics';
 import InvitationModal from './InvitationModal';
 import { User, LogOut, Gift, PlusCircle, History, Send, Mic, Plus, Bookmark, Copy, Check, ChevronLeft, ChevronRight, Terminal } from 'lucide-react';
@@ -194,6 +194,7 @@ function useTypewriter(text: string, speed: number = 25) {
 // ============================================
 
 interface Property {
+    id?: string | number;
     title: string;
     location: string;
     price: number;
@@ -202,9 +203,51 @@ interface Property {
     bathrooms?: number;
     image_url?: string;
     roi?: number;
+    annual_return?: number;
     wolf_score?: number;
     developer?: string;
 }
+
+interface VisualizationMetricData {
+    properties?: Array<Property & { savings?: number }>;
+    property?: { wolf_score?: number };
+    analysis?: { match_score?: number };
+    protection_rate?: number;
+    trend?: string;
+    data?: { trend?: string };
+    area?: { avg_price_per_sqm?: number; yearly_growth?: number; pros?: string[] };
+    areas?: Array<{ avg_price_per_sqm?: number; yearly_growth?: number; pros?: string[] }>;
+    developer?: { trust_score?: number };
+    developers?: Array<{ trust_score?: number }>;
+    roi?: { annual_return?: number };
+    plans?: unknown[];
+    recommendation?: { recommendation?: string };
+    alternatives?: Array<{ label_ar?: string; label_en?: string }>;
+    [key: string]: unknown;
+}
+
+interface VisualizationPayload {
+    type: string;
+    data?: VisualizationMetricData;
+    priority?: number;
+    [key: string]: unknown;
+}
+
+interface ChatMessage {
+    id: string;
+    role: string;
+    content: string;
+    isTyping?: boolean;
+    properties?: Property[];
+    visualizations?: VisualizationPayload[];
+    [key: string]: unknown;
+}
+
+type MarkdownCodeProps = HTMLAttributes<HTMLElement> & {
+    inline?: boolean;
+    className?: string;
+    children?: ReactNode;
+};
 
 function FeaturedPropertyCard({
     property,
@@ -486,7 +529,7 @@ function ContextualInsights({
     onPrev: () => void;
     onNext: () => void;
     aiInsight: string | null;
-    visualizations: any[];
+    visualizations: VisualizationPayload[];
     isRTL: boolean;
 }) {
     const property = properties[currentIndex] || null;
@@ -550,7 +593,7 @@ function ContextualInsights({
         return icons[type] || 'auto_awesome';
     };
 
-    const getKeyMetric = (viz: any): string => {
+    const getKeyMetric = (viz: VisualizationPayload): string => {
         const { type, data } = viz;
         if (!data) return '—';
         switch (type) {
@@ -777,7 +820,7 @@ function ContextualInsights({
 // COMPACT VISUALIZATION WRAPPER FOR CHAT
 // ============================================
 
-function CompactVisualization({ viz, isRTL }: { viz: any; isRTL: boolean }) {
+function CompactVisualization({ viz, isRTL }: { viz: VisualizationPayload; isRTL: boolean }) {
     const [expanded, setExpanded] = useState(false);
 
     const getVizName = (type: string): string => {
@@ -846,7 +889,7 @@ function CompactVisualization({ viz, isRTL }: { viz: any; isRTL: boolean }) {
                 className="overflow-hidden relative"
             >
                 <div className={`${expanded ? '' : 'max-h-40'} overflow-y-auto`}>
-                    <VisualizationRenderer type={viz.type} data={viz.data} isRTL={isRTL} />
+                    <VisualizationRenderer type={viz.type} data={(viz.data || {}) as VisualizationRendererProps['data']} isRTL={isRTL} />
                 </div>
                 {!expanded && (
                     <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[var(--color-studio-white)] to-transparent pointer-events-none" />
@@ -911,7 +954,7 @@ export default function ChatInterface() {
     const { language } = useLanguage();
     const { theme, toggleTheme } = useTheme();
 
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
@@ -928,7 +971,7 @@ export default function ChatInterface() {
     const [contextProperties, setContextProperties] = useState<Property[]>([]);
     const [contextPropertyIndex, setContextPropertyIndex] = useState(0);
     const [contextInsight, setContextInsight] = useState<string | null>(null);
-    const [contextVisualizations, setContextVisualizations] = useState<any[]>([]);
+    const [contextVisualizations, setContextVisualizations] = useState<VisualizationPayload[]>([]);
     const [, setDetectedAnalytics] = useState<AnalyticsMatch[]>([]);
 
     // Refs
@@ -1103,22 +1146,22 @@ export default function ChatInterface() {
                         m.id === aiMsgId ? {
                             ...m,
                             content: fullResponse,
-                            properties: data.properties,
-                            visualizations: data.ui_actions,
+                            properties: data.properties as unknown as Property[],
+                            visualizations: data.ui_actions as unknown as VisualizationPayload[],
                             isTyping: false
                         } : m
                     ));
 
-                    if (data.properties?.length > 0) {
-                        setContextProperties(data.properties);
+                    if ((data.properties?.length ?? 0) > 0) {
+                        setContextProperties(data.properties as unknown as Property[]);
                         setContextPropertyIndex(0);
                     }
 
-                    if (data.ui_actions?.length > 0) {
+                    if ((data.ui_actions?.length ?? 0) > 0) {
                         const prioritizedAnalytics = data.ui_actions
-                            .sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0))
+                            .sort((a, b) => ((b as VisualizationPayload).priority || 0) - ((a as VisualizationPayload).priority || 0))
                             .slice(0, 3);
-                        setContextVisualizations(prioritizedAnalytics);
+                        setContextVisualizations(prioritizedAnalytics as unknown as VisualizationPayload[]);
                     }
 
                     const insight = extractInsight(fullResponse);
@@ -1139,9 +1182,10 @@ export default function ChatInterface() {
                 onFollowUp: (followUp) => {
                     // Create a delayed follow-up AI message
                     const followUpId = (Date.now() + 2).toString();
+                    const followUpMessage = followUp as { message_ar?: string; message_en?: string };
                     const followUpText = isRTL
-                        ? (followUp.message_ar || followUp.message_en || '')
-                        : (followUp.message_en || followUp.message_ar || '');
+                        ? (followUpMessage.message_ar || followUpMessage.message_en || '')
+                        : (followUpMessage.message_en || followUpMessage.message_ar || '');
                     if (followUpText) {
                         setMessages(prev => [...prev, {
                             role: 'coinvestor',
@@ -1562,7 +1606,7 @@ export default function ChatInterface() {
                                                                                             ),
                                                                                             th: ({ node, ...props }) => <th className={`border border-[var(--color-border-subtle)] p-2 bg-[var(--ai-surface)] font-bold ${alignClass}`} {...props} />,
                                                                                             td: ({ node, ...props }) => <td className={`border border-[var(--color-border-subtle)] p-2 ${alignClass}`} {...props} />,
-                                                                                            code: ({ node, inline, className, children, ...props }: any) => {
+                                                                                            code: ({ inline, className, children, ...props }: MarkdownCodeProps) => {
                                                                                                 const match = /language-(\w+)/.exec(className || '');
                                                                                                 return !inline && match ? (
                                                                                                     <CodeBlock language={match[1]} value={String(children).replace(/\n$/, '')} />
@@ -1604,14 +1648,14 @@ export default function ChatInterface() {
 
                                                                 {/* Featured Property Cards - Show ALL recommended properties */}
                                                                 <AnimatePresence>
-                                                                    {msg.properties?.length > 0 && (
+                                                                    {(msg.properties?.length ?? 0) > 0 && (
                                                                         <motion.div
                                                                             initial={{ opacity: 0, height: 0 }}
                                                                             animate={{ opacity: 1, height: 'auto' }}
                                                                             transition={{ duration: 0.4, ease: 'easeOut' }}
                                                                             className={`mt-3 space-y-3 overflow-hidden ${marginClass}`}
                                                                         >
-                                                                            {msg.properties.map((property: any, propIdx: number) => (
+                                                                            {msg.properties?.map((property, propIdx: number) => (
                                                                                 <motion.div
                                                                                     key={property.id || propIdx}
                                                                                     initial={{ opacity: 0, y: 10 }}
@@ -1632,14 +1676,14 @@ export default function ChatInterface() {
 
                                                                 {/* Compact Visualizations */}
                                                                 <AnimatePresence>
-                                                                    {msg.visualizations?.length > 0 && (
+                                                                    {(msg.visualizations?.length ?? 0) > 0 && (
                                                                         <motion.div
                                                                             initial={{ opacity: 0, height: 0 }}
                                                                             animate={{ opacity: 1, height: 'auto' }}
                                                                             transition={{ duration: 0.4, ease: 'easeOut', delay: 0.15 }}
                                                                             className={`mt-3 space-y-2 sm:space-y-3 overflow-hidden ${marginClass}`}
                                                                         >
-                                                                            <UnifiedAnalytics visualizations={msg.visualizations} isRTL={isMsgRtl} />
+                                                                            <UnifiedAnalytics visualizations={msg.visualizations || []} isRTL={isMsgRtl} />
                                                                         </motion.div>
                                                                     )}
                                                                 </AnimatePresence>

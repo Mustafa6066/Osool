@@ -33,8 +33,12 @@ export default function SmartNav({ children }: SmartNavProps) {
     const [showInviteModal, setShowInviteModal] = useState(false);
 
     useEffect(() => {
-        setMobileMenuOpen(false);
-        setUserMenuOpen(false);
+        const timer = window.setTimeout(() => {
+            setMobileMenuOpen(false);
+            setUserMenuOpen(false);
+        }, 0);
+
+        return () => window.clearTimeout(timer);
     }, [pathname]);
 
     useEffect(() => {

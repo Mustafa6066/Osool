@@ -16,6 +16,7 @@ import api from '@/lib/api';
 import { streamChat } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
+import type { VisualizationRendererProps } from '@/components/visualizations/VisualizationRenderer';
 import dynamic from 'next/dynamic';
 import SuggestionChips from '@/components/SuggestionChips';
 import FunnelIndicator from '@/components/FunnelIndicator';
@@ -49,9 +50,90 @@ interface Property {
     status: string;
 }
 
+interface ChatPropertyPayload {
+    id?: string | number;
+    title?: string;
+    name?: string;
+    location?: string;
+    address?: string;
+    price?: number;
+    size_sqm?: number;
+    size?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    wolf_score?: number;
+    projected_roi?: number;
+    roi?: number;
+    price_per_sqm?: number;
+    liquidity_rating?: string;
+    image_url?: string;
+    image?: string;
+    developer?: string;
+    tags?: string[];
+    status?: string;
+}
+
+interface UiActionArea {
+    name?: string;
+    avg_price_sqm?: number;
+    avg_price_per_sqm?: number;
+}
+
+interface UiActionData {
+    area?: UiActionArea;
+    areas?: UiActionArea[];
+    projections?: unknown[];
+    data_points?: unknown[];
+    summary?: {
+        cash_final?: number;
+    };
+    final_values?: {
+        cash_real_value?: number;
+    };
+    area_context?: {
+        avg_price_sqm?: number;
+    };
+    avg_price_sqm?: number;
+    [key: string]: unknown;
+}
+
+interface UiAction {
+    type: string;
+    data?: UiActionData;
+    [key: string]: unknown;
+}
+
+interface AnalyticsContext {
+    has_analytics?: boolean;
+    avg_price_sqm?: number;
+    growth_rate?: number;
+    rental_yield?: number;
+    [key: string]: unknown;
+}
+
+interface ChatHistoryMessagePayload {
+    id?: number;
+    role?: string;
+    content?: string;
+    properties?: Property[];
+}
+
+interface ChatResponsePayload {
+    properties?: ChatPropertyPayload[];
+    ui_actions?: UiAction[];
+    suggestions?: string[];
+    lead_score?: number;
+    readiness_score?: number;
+    detected_language?: string;
+    showing_strategy?: string;
+    analytics_context?: AnalyticsContext | null;
+    response?: string;
+    message?: string;
+}
+
 interface Artifacts {
     property?: Property;
-    chart?: { type: string; data: any };
+    chart?: { type: string; data: unknown };
 }
 
 interface Message {
@@ -59,8 +141,8 @@ interface Message {
     role: 'user' | 'agent';
     content: string;
     artifacts?: Artifacts | null;
-    uiActions?: any[];
-    analyticsContext?: any;
+    uiActions?: UiAction[];
+    analyticsContext?: AnalyticsContext | null;
     showingStrategy?: string;
     allProperties?: Property[];
     leadScore?: number;
@@ -264,7 +346,7 @@ function loadFromStorage<T>(key: string, fallback: T): T {
     } catch { return fallback; }
 }
 
-function saveToStorage(key: string, value: any) {
+function saveToStorage(key: string, value: unknown) {
     if (typeof window === 'undefined') return;
     try { sessionStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
@@ -293,22 +375,34 @@ function useTypewriter(text: string, enabled: boolean, speed = 16) {
     const idx = useRef(0);
 
     useEffect(() => {
-        if (!enabled) { setDisplayed(text); setDone(true); return; }
-        idx.current = 0;
-        setDisplayed('');
-        setDone(false);
-        const step = text.length > 800 ? 4 : text.length > 400 ? 3 : 2;
-        const timer = setInterval(() => {
-            idx.current = Math.min(text.length, idx.current + step);
-            if (idx.current >= text.length) {
+        let interval: ReturnType<typeof setInterval> | null = null;
+        const timer = window.setTimeout(() => {
+            if (!enabled) {
                 setDisplayed(text);
                 setDone(true);
-                clearInterval(timer);
-            } else {
-                setDisplayed(text.slice(0, idx.current));
+                return;
             }
-        }, speed);
-        return () => clearInterval(timer);
+
+            idx.current = 0;
+            setDisplayed('');
+            setDone(false);
+            const step = text.length > 800 ? 4 : text.length > 400 ? 3 : 2;
+            interval = setInterval(() => {
+                idx.current = Math.min(text.length, idx.current + step);
+                if (idx.current >= text.length) {
+                    setDisplayed(text);
+                    setDone(true);
+                    if (interval) clearInterval(interval);
+                } else {
+                    setDisplayed(text.slice(0, idx.current));
+                }
+            }, speed);
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timer);
+            if (interval) clearInterval(interval);
+        };
     }, [text, enabled, speed]);
 
     return { displayed, done };
@@ -340,6 +434,70 @@ interface PastSession {
     last_message_at: string | null;
 }
 
+interface ThinkingStep {
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    duration: number;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return fallback;
+}
+
+function mapChatPropertyToProperty(prop: ChatPropertyPayload): Property {
+    return {
+        id: prop.id?.toString() || `prop_${Date.now()}_${Math.random()}`,
+        title: prop.title || prop.name || 'Property',
+        location: prop.location || prop.address || 'Location',
+        price: prop.price || 0,
+        currency: 'EGP',
+        metrics: {
+            size: prop.size_sqm || prop.size || 0,
+            bedrooms: prop.bedrooms || 0,
+            bathrooms: prop.bathrooms || 0,
+            wolf_score: prop.wolf_score || 0,
+            roi: prop.projected_roi || prop.roi || 0,
+            price_per_sqm: prop.price_per_sqm || 0,
+            liquidity_rating: prop.liquidity_rating || 'Medium',
+        },
+        image: prop.image_url || prop.image || 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=800',
+        developer: prop.developer || 'Developer',
+        tags: Array.isArray(prop.tags) ? prop.tags.filter((tag): tag is string => typeof tag === 'string') : [],
+        status: prop.status || 'Available',
+    };
+}
+
+function shouldRenderUiAction(action: UiAction): boolean {
+    if (action.type === 'property_cards') return false;
+    if (!action.data) return false;
+
+    const data = action.data;
+    if (action.type === 'area_analysis') {
+        const area = data.area || data.areas?.[0];
+        if (!area?.name || (area.avg_price_sqm || area.avg_price_per_sqm || 0) === 0) return false;
+    }
+
+    if (action.type === 'inflation_killer') {
+        const hasProjections = (data.projections?.length || 0) > 0 || (data.data_points?.length || 0) > 0;
+        const hasSummary = (data.summary?.cash_final || 0) > 0 || (data.final_values?.cash_real_value || 0) > 0;
+        if (!hasProjections && !hasSummary) return false;
+    }
+
+    if (action.type === 'market_benchmark' && !data.avg_price_sqm && !data.area_context?.avg_price_sqm) {
+        return false;
+    }
+
+    if (action.type === 'price_growth_chart' && (!data.data_points?.length || data.data_points.length < 2)) {
+        return false;
+    }
+
+    return true;
+}
+
 /* ─── Thinking Steps — shows AI processing stages while waiting ─── */
 const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
     const [visibleSteps, setVisibleSteps] = useState(0);
@@ -348,7 +506,7 @@ const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
     // Generate dynamic steps based on the user's message
     const steps = React.useMemo(() => {
         const content = (lastUserMessage || '').toLowerCase();
-        let baseSteps = [];
+        const baseSteps: ThinkingStep[] = [];
         
         if (msgIsArabic) {
             baseSteps.push({ label: 'تحليل الطلب...', icon: Search, duration: 1200 });
@@ -387,11 +545,14 @@ const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
     }, [lastUserMessage, msgIsArabic]);
 
     useEffect(() => {
-        setVisibleSteps(0);
+        const resetTimer = window.setTimeout(() => setVisibleSteps(0), 0);
         const timers = steps.map((step, i) =>
-            setTimeout(() => setVisibleSteps(i + 1), step.duration)
+            window.setTimeout(() => setVisibleSteps(i + 1), step.duration)
         );
-        return () => timers.forEach(clearTimeout);
+        return () => {
+            window.clearTimeout(resetTimer);
+            timers.forEach(window.clearTimeout);
+        };
     }, [steps]);
 
     return (
@@ -559,33 +720,9 @@ export default function AgentInterface() {
                         console.log('[CoInvestor] Stream tool end:', tool);
                     },
                     onComplete: (data) => {
-                        // Process properties into typed objects
-                        const allProps: Property[] = [];
-                        if (data.properties && data.properties.length > 0) {
-                            data.properties.forEach((prop: any) => {
-                                allProps.push({
-                                    id: prop.id?.toString() || `prop_${Date.now()}_${Math.random()}`,
-                                    title: prop.title || prop.name || 'Property',
-                                    location: prop.location || prop.address || 'Location',
-                                    price: prop.price || 0,
-                                    currency: 'EGP',
-                                    metrics: {
-                                        size: prop.size_sqm || prop.size || 0,
-                                        bedrooms: prop.bedrooms || 0,
-                                        bathrooms: prop.bathrooms || 0,
-                                        wolf_score: prop.wolf_score || 0,
-                                        roi: prop.projected_roi || prop.roi || 0,
-                                        price_per_sqm: prop.price_per_sqm || 0,
-                                        liquidity_rating: prop.liquidity_rating || 'Medium'
-                                    },
-                                    image: prop.image_url || prop.image || "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=800",
-                                    developer: prop.developer || 'Developer',
-                                    tags: prop.tags || [],
-                                    status: prop.status || 'Available'
-                                });
-                            });
-                        }
-                        let artifacts: Artifacts | null = allProps.length > 0 ? { property: allProps[0] } : null;
+                        const allProps = Array.isArray(data.properties) ? data.properties.map(mapChatPropertyToProperty) : [];
+                        const uiActions = Array.isArray(data.ui_actions) ? (data.ui_actions as UiAction[]) : [];
+                        const artifacts: Artifacts | null = allProps.length > 0 ? { property: allProps[0] } : null;
 
                         const finalContent = accumulatedText || (conversationLanguage === 'ar'
                             ? 'أنا CoInvestor، وكيل الذكاء العقاري الخاص بك. كيف أقدر أساعدك النهارده؟'
@@ -601,7 +738,7 @@ export default function AgentInterface() {
                                     role: 'agent' as const,
                                     content: finalContent,
                                     artifacts,
-                                    uiActions: data.ui_actions || [],
+                                    uiActions,
                                     allProperties: allProps,
                                     suggestions: data.suggestions || [],
                                     leadScore: data.lead_score || 0,
@@ -615,7 +752,7 @@ export default function AgentInterface() {
                                     ...m,
                                     content: finalContent,
                                     artifacts,
-                                    uiActions: data.ui_actions || [],
+                                    uiActions,
                                     allProperties: allProps,
                                     suggestions: data.suggestions || [],
                                     leadScore: data.lead_score || 0,
@@ -664,49 +801,26 @@ export default function AgentInterface() {
                 },
                 'auto'
             );
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Streaming setup failed entirely — fallback to non-streaming
-            console.warn('[CoInvestor] SSE streaming failed, falling back to POST:', error?.message);
+            console.warn('[CoInvestor] SSE streaming failed, falling back to POST:', getErrorMessage(error, 'Unknown streaming error'));
             try {
                 const response = await api.post('/api/chat', {
                     message: content,
                     session_id: sessionIdRef.current,
                     language: 'auto'
                 }, { timeout: 120000 });
-                const data = response.data;
+                const data = response.data as ChatResponsePayload;
 
-                const allProps: Property[] = [];
-                if (data.properties && data.properties.length > 0) {
-                    data.properties.forEach((prop: any) => {
-                        allProps.push({
-                            id: prop.id?.toString() || `prop_${Date.now()}_${Math.random()}`,
-                            title: prop.title || prop.name || 'Property',
-                            location: prop.location || prop.address || 'Location',
-                            price: prop.price || 0,
-                            currency: 'EGP',
-                            metrics: {
-                                size: prop.size_sqm || prop.size || 0,
-                                bedrooms: prop.bedrooms || 0,
-                                bathrooms: prop.bathrooms || 0,
-                                wolf_score: prop.wolf_score || 0,
-                                roi: prop.projected_roi || prop.roi || 0,
-                                price_per_sqm: prop.price_per_sqm || 0,
-                                liquidity_rating: prop.liquidity_rating || 'Medium'
-                            },
-                            image: prop.image_url || prop.image || "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=800",
-                            developer: prop.developer || 'Developer',
-                            tags: prop.tags || [],
-                            status: prop.status || 'Available'
-                        });
-                    });
-                }
+                const allProps = Array.isArray(data.properties) ? data.properties.map(mapChatPropertyToProperty) : [];
+                const uiActions = Array.isArray(data.ui_actions) ? data.ui_actions : [];
 
                 const aiMsg: Message = {
                     id: aiMsgId,
                     role: 'agent',
                     content: data.response || data.message || (conversationLanguage === 'ar' ? 'أنا CoInvestor، وكيل الذكاء العقاري الخاص بك.' : "I'm CoInvestor, your real estate intelligence agent."),
                     artifacts: allProps.length > 0 ? { property: allProps[0] } : null,
-                    uiActions: data.ui_actions || [],
+                    uiActions,
                     allProperties: allProps,
                     suggestions: data.suggestions || [],
                     leadScore: data.lead_score || 0,
@@ -723,7 +837,7 @@ export default function AgentInterface() {
                 triggerXP(5, 'Asked a question');
                 if (aiMsg.uiActions && aiMsg.uiActions.length > 0) triggerXP(15, 'Used analysis tool');
                 if (allProps.length > 0) setActiveContext({ property: allProps[0] });
-            } catch (fallbackErr: any) {
+            } catch (fallbackErr: unknown) {
                 console.error('[CoInvestor] Fallback POST also failed:', fallbackErr);
                 const isArabic = conversationLanguage === 'ar';
                 const errorMsg = isArabic
@@ -791,10 +905,10 @@ export default function AgentInterface() {
     const loadSession = useCallback(async (sessionId: string) => {
         try {
             const res = await api.get(`/api/chat/history/${sessionId}`);
-            const msgs: Message[] = (res.data?.messages || []).map((m: any, i: number) => ({
+            const msgs: Message[] = ((res.data?.messages || []) as ChatHistoryMessagePayload[]).map((m, i: number) => ({
                 id: m.id || Date.now() + i,
                 role: m.role === 'user' ? 'user' : 'agent',
-                content: m.content,
+                content: m.content || '',
                 artifacts: null,
                 allProperties: m.properties || [],
             }));
@@ -1063,28 +1177,8 @@ export default function AgentInterface() {
                                                             <div className="mt-5 space-y-3" dir="ltr">
                                                                     <AnimatePresence>
                                                                         {msg.uiActions
-                                                                            .filter((action: any) => {
-                                                                                if (action.type === 'property_cards') return false;
-                                                                                if (!action.data) return false;
-                                                                                const d = action.data;
-                                                                                if (action.type === 'area_analysis') {
-                                                                                    const area = d.area || d.areas?.[0] || d;
-                                                                                    if (!area?.name || (area?.avg_price_sqm || area?.avg_price_per_sqm || 0) === 0) return false;
-                                                                                }
-                                                                                if (action.type === 'inflation_killer') {
-                                                                                    const hasP = d.projections?.length > 0 || d.data_points?.length > 0;
-                                                                                    const hasS = d.summary?.cash_final > 0 || d.final_values?.cash_real_value > 0;
-                                                                                    if (!hasP && !hasS) return false;
-                                                                                }
-                                                                                if (action.type === 'market_benchmark') {
-                                                                                    if (!d.avg_price_sqm && !d.area_context?.avg_price_sqm) return false;
-                                                                                }
-                                                                                if (action.type === 'price_growth_chart') {
-                                                                                    if (!d.data_points?.length || d.data_points.length < 2) return false;
-                                                                                }
-                                                                                return true;
-                                                                            })
-                                                                            .map((action: any, idx: number) => (
+                                                                            .filter(shouldRenderUiAction)
+                                                                            .map((action: UiAction, idx: number) => (
                                                                                 <motion.div 
                                                                                     key={idx}
                                                                                     initial={{ opacity: 0, height: 0, scale: 0.95, filter: 'blur(4px)' }}
@@ -1098,7 +1192,7 @@ export default function AgentInterface() {
                                                                                 >
                                                                                     <VisualizationRenderer
                                                                                         type={action.type}
-                                                                                        data={action.data || action}
+                                                                                        data={(action.data || action) as VisualizationRendererProps['data']}
                                                                                         isRTL={isArabic(msg.content)}
                                                                                     />
                                                                                 </motion.div>
@@ -1123,7 +1217,7 @@ export default function AgentInterface() {
                                                                     <span className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-widest pl-1">Market Intelligence</span>
                                                                 </div>
                                                                 <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
-                                                                    {msg.analyticsContext.avg_price_sqm > 0 && (
+                                                                    {(msg.analyticsContext.avg_price_sqm ?? 0) > 0 && (
                                                                         <div>
                                                                             <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">Avg Price/m²</div>
                                                                             <div className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">
@@ -1131,19 +1225,19 @@ export default function AgentInterface() {
                                                                             </div>
                                                                         </div>
                                                                     )}
-                                                                    {msg.analyticsContext.growth_rate > 0 && (
+                                                                    {(msg.analyticsContext.growth_rate ?? 0) > 0 && (
                                                                         <div>
                                                                             <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">Growth Rate</div>
                                                                             <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
-                                                                                +{(msg.analyticsContext.growth_rate * 100).toFixed(0)}% <span className="text-[13px] font-medium text-[var(--color-text-muted)] tracking-normal">YoY</span>
+                                                                                +{((msg.analyticsContext.growth_rate ?? 0) * 100).toFixed(0)}% <span className="text-[13px] font-medium text-[var(--color-text-muted)] tracking-normal">YoY</span>
                                                                             </div>
                                                                         </div>
                                                                     )}
-                                                                    {msg.analyticsContext.rental_yield > 0 && (
+                                                                    {(msg.analyticsContext.rental_yield ?? 0) > 0 && (
                                                                         <div>
                                                                             <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">Rental Yield</div>
                                                                             <div className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">
-                                                                                {(msg.analyticsContext.rental_yield * 100).toFixed(1)}%
+                                                                                {((msg.analyticsContext.rental_yield ?? 0) * 100).toFixed(1)}%
                                                                             </div>
                                                                         </div>
                                                                     )}
