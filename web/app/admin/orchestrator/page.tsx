@@ -12,7 +12,11 @@ import {
 } from 'lucide-react';
 import { checkAdmin } from '@/lib/api';
 
-const ORCHESTRATOR_ADMIN_URL = (process.env.NEXT_PUBLIC_ORCHESTRATOR_ADMIN_URL || '').replace(/\/$/, '');
+const ORCHESTRATOR_ADMIN_URL = (
+  process.env.NEXT_PUBLIC_ORCHESTRATOR_ADMIN_URL ||
+  process.env.NEXT_PUBLIC_ADMIN_URL ||
+  ''
+).replace(/\/$/, '');
 
 export default function OrchestratorConsolePage() {
   const router = useRouter();
@@ -120,7 +124,7 @@ export default function OrchestratorConsolePage() {
               <div>
                 <h2 className="text-lg font-semibold mb-2">Missing orchestrator admin URL</h2>
                 <p className="text-sm text-[var(--color-text-muted)] mb-3">
-                  Set NEXT_PUBLIC_ORCHESTRATOR_ADMIN_URL in the frontend deployment to your orchestrator admin app URL.
+                  Set NEXT_PUBLIC_ORCHESTRATOR_ADMIN_URL, or reuse NEXT_PUBLIC_ADMIN_URL, in the frontend deployment to your orchestrator admin app URL.
                 </p>
                 <code className="block rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-3 text-sm overflow-x-auto">
                   NEXT_PUBLIC_ORCHESTRATOR_ADMIN_URL=https://your-orchestrator-admin-domain
