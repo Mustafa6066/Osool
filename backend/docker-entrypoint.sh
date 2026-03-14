@@ -16,7 +16,7 @@ echo -e "${GREEN}[*] Osool Backend Starting...${NC}"
 # ==========================================
 # 1. Wait for Database
 # ==========================================
-echo -e "${YELLOW}[1/5] Waiting for PostgreSQL...${NC}"
+echo -e "${YELLOW}[1/7] Waiting for PostgreSQL...${NC}"
 
 if command -v psql >/dev/null 2>&1 && [ -n "$POSTGRES_HOST" ]; then
     # Traditional docker-compose environment with psql available
@@ -35,7 +35,7 @@ fi
 # ==========================================
 # 2. Wait for Redis
 # ==========================================
-echo -e "${YELLOW}[2/5] Checking Redis...${NC}"
+echo -e "${YELLOW}[2/7] Checking Redis...${NC}"
 
 if [ -n "$REDIS_URL" ]; then
     if command -v redis-cli >/dev/null 2>&1 && [ -n "$REDIS_HOST" ]; then
@@ -58,7 +58,7 @@ fi
 # ==========================================
 # 3. Run Database Migrations
 # ==========================================
-echo -e "${YELLOW}[3/5] Running database migrations...${NC}"
+echo -e "${YELLOW}[3/7] Running database migrations...${NC}"
 
 alembic upgrade head
 
@@ -72,7 +72,7 @@ fi
 # ==========================================
 # 4. Data Ingestion (if database is empty)
 # ==========================================
-echo -e "${YELLOW}[4/6] Checking property data ingestion...${NC}"
+echo -e "${YELLOW}[4/7] Checking property data ingestion...${NC}"
 
 PROPERTY_COUNT=$(python -c "
 from app.database import SessionLocal
@@ -106,10 +106,42 @@ else
 fi
 
 # ==========================================
-# 5. Environment Validation (Production Only)
+# 5. SEO & Marketing Seed Data (if empty)
+# ==========================================
+echo -e "${YELLOW}[5/7] Checking SEO seed data...${NC}"
+
+SEO_DEV_COUNT=$(python -c "
+import asyncio
+from app.database import AsyncSessionLocal
+from sqlalchemy import select, func
+from app.models import Developer
+async def check():
+    async with AsyncSessionLocal() as s:
+        r = await s.execute(select(func.count(Developer.id)))
+        return r.scalar() or 0
+print(asyncio.run(check()))
+" 2>/dev/null || echo "0")
+
+echo "Developers in database: ${SEO_DEV_COUNT}"
+
+if [ "$SEO_DEV_COUNT" -eq "0" ]; then
+    echo -e "${YELLOW}SEO tables empty - running full seed...${NC}"
+    python -m scripts.seed_all
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ SEO seed data loaded${NC}"
+    else
+        echo -e "${RED}✗ SEO seed failed - continuing anyway${NC}"
+    fi
+else
+    echo -e "${GREEN}✓ SEO data already seeded (${SEO_DEV_COUNT} developers)${NC}"
+fi
+
+# ==========================================
+# 6. Environment Validation (Production Only)
 # ==========================================
 if [ "${ENVIRONMENT}" = "production" ]; then
-    echo -e "${YELLOW}[5/6] Validating production environment...${NC}"
+    echo -e "${YELLOW}[6/7] Validating production environment...${NC}"
 
     REQUIRED_VARS=(
         "WALLET_ENCRYPTION_KEY"
@@ -134,13 +166,13 @@ if [ "${ENVIRONMENT}" = "production" ]; then
 
     echo -e "${GREEN}✓ All required environment variables present${NC}"
 else
-    echo -e "${YELLOW}[5/6] Running in ${ENVIRONMENT} mode - skipping strict validation${NC}"
+    echo -e "${YELLOW}[6/7] Running in ${ENVIRONMENT} mode - skipping strict validation${NC}"
 fi
 
 # ==========================================
-# 6. Start Application
+# 7. Start Application
 # ==========================================
-echo -e "${YELLOW}[6/6] Starting application server...${NC}"
+echo -e "${YELLOW}[7/7] Starting application server...${NC}"
 echo -e "${GREEN}[+] Osool Backend is ONLINE${NC}"
 
 # Production: Use Gunicorn with Uvicorn workers
