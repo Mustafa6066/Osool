@@ -1,4 +1,5 @@
 import { getAreas } from '@/lib/seo-api';
+import type { Area } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function AreasPage() {
-  let areas = [];
+  let areas: Area[] = [];
   let loadError = false;
 
   try {

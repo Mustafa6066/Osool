@@ -1,4 +1,5 @@
 import { getDevelopers } from '@/lib/seo-api';
+import type { Developer } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -25,7 +26,7 @@ function ScoreBar({ value, label }: { value: number; label: string }) {
 }
 
 export default async function DevelopersPage() {
-  let developers = [];
+  let developers: Developer[] = [];
   let loadError = false;
 
   try {
