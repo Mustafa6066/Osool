@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import PublicPageNav from '@/components/PublicPageNav';
+import SmartNav from '@/components/SmartNav';
 import { ArrowRight, BarChart3, Building2, Compass, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
 
 const PATHS = [
@@ -37,7 +37,8 @@ const INSIGHTS = [
 
 export default function ExplorePage() {
   return (
-    <PublicPageNav>
+    <SmartNav>
+      <div className="h-full overflow-y-auto bg-[var(--color-background)]">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.04)] sm:p-10">
@@ -113,6 +114,7 @@ export default function ExplorePage() {
           </div>
         </section>
       </div>
-    </PublicPageNav>
+      </div>
+    </SmartNav>
   );
 }

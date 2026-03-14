@@ -2,7 +2,7 @@ import { getAreas } from '@/lib/seo-api';
 import type { Area } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import PublicPageNav from '@/components/PublicPageNav';
+import SmartNav from '@/components/SmartNav';
 import { areaBrief, formatRate } from '@/lib/decision-support';
 
 export const metadata: Metadata = {
@@ -24,7 +24,7 @@ export default async function AreasPage() {
   }
 
   return (
-    <PublicPageNav>
+    <SmartNav>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
@@ -116,6 +116,6 @@ export default async function AreasPage() {
         )}
       </div>
     </main>
-    </PublicPageNav>
+    </SmartNav>
   );
 }

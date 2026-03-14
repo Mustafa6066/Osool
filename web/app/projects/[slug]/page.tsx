@@ -3,7 +3,7 @@ import { projectJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import PublicPageNav from '@/components/PublicPageNav';
+import SmartNav from '@/components/SmartNav';
 import { areaBrief, developerBrief, formatPriceBand, formatRate, projectBrief } from '@/lib/decision-support';
 
 interface Props {
@@ -52,8 +52,8 @@ export default async function ProjectDetailPage({ params }: Props) {
   const areaSummary = area ? areaBrief(area) : null;
 
   return (
-    <PublicPageNav>
-    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
+    <SmartNav>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(projectJsonLd(project)) }}
@@ -233,7 +233,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
       </div>
     </main>
-    </PublicPageNav>
+    </SmartNav>
   );
 }
 

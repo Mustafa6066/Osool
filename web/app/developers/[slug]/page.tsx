@@ -3,7 +3,7 @@ import { developerJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import PublicPageNav from '@/components/PublicPageNav';
+import SmartNav from '@/components/SmartNav';
 import { developerBrief } from '@/lib/decision-support';
 
 const fmt = (n: number) => n.toLocaleString('en-EG');
@@ -52,8 +52,8 @@ export default async function DeveloperPage({ params }: Props) {
   const brief = developerBrief(dev);
 
   return (
-    <PublicPageNav>
-    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
+    <SmartNav>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(developerJsonLd(dev)) }}
@@ -160,6 +160,6 @@ export default async function DeveloperPage({ params }: Props) {
         </div>
       </div>
     </main>
-    </PublicPageNav>
+    </SmartNav>
   );
 }

@@ -1,7 +1,7 @@
 import { getProjects } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import PublicPageNav from '@/components/PublicPageNav';
+import SmartNav from '@/components/SmartNav';
 import { formatPriceBand, projectBrief } from '@/lib/decision-support';
 
 export const metadata: Metadata = {
@@ -14,8 +14,8 @@ export default async function ProjectsPage() {
   const projects = await getProjects().catch(() => []);
 
   return (
-    <PublicPageNav>
-    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
+    <SmartNav>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
@@ -85,6 +85,6 @@ export default async function ProjectsPage() {
         </div>
       </div>
     </main>
-    </PublicPageNav>
+    </SmartNav>
   );
 }

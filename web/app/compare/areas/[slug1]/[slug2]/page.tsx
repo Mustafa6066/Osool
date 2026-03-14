@@ -3,7 +3,7 @@ import { comparisonJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import PublicPageNav from '@/components/PublicPageNav';
+import SmartNav from '@/components/SmartNav';
 import { areaBrief, formatRate, pickWinnerLabel } from '@/lib/decision-support';
 
 interface Props {
@@ -95,8 +95,8 @@ export default async function AreaComparisonPage({ params }: Props) {
   ];
 
   return (
-    <PublicPageNav>
-    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
+    <SmartNav>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6 flex items-center gap-1">
@@ -216,7 +216,7 @@ export default async function AreaComparisonPage({ params }: Props) {
         </div>
       </div>
     </main>
-    </PublicPageNav>
+    </SmartNav>
   );
 }
 
