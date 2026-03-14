@@ -108,7 +108,7 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
 # AD CAMPAIGNS
 # ═══════════════════════════════════════════════════════════════
 
-@router.get("/", response_model=List[CampaignOut])
+@router.get("", response_model=List[CampaignOut])
 async def list_campaigns(
     platform: Optional[str] = None,
     status: Optional[str] = None,
@@ -125,7 +125,7 @@ async def list_campaigns(
     return result.scalars().all()
 
 
-@router.post("/", response_model=CampaignOut)
+@router.post("", response_model=CampaignOut)
 async def create_campaign(
     body: CampaignCreate,
     admin: User = Depends(require_admin),

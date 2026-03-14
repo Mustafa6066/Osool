@@ -71,7 +71,7 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
 # ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
 
-@router.get("/", response_model=List[LeadOut])
+@router.get("", response_model=List[LeadOut])
 async def list_leads(
     stage: Optional[str] = None,
     min_score: Optional[int] = None,
