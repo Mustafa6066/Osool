@@ -5,7 +5,10 @@ Public (non-auth) endpoints for SEO pages, project listings,
 developer profiles, and area guides.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+import hmac
+import os
+
+from fastapi import APIRouter, HTTPException, Depends, Query, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Optional, List
@@ -407,3 +410,34 @@ async def compare_areas(
         "area_1": area_dict(area1, p1.scalar()),
         "area_2": area_dict(area2, p2.scalar()),
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# ADMIN: SEED TRIGGER
+# ═══════════════════════════════════════════════════════════════
+
+@router.post("/admin/seed")
+async def trigger_seed(x_admin_key: str = Header(..., alias="X-Admin-Key")):
+    """Run the SEO bootstrap seed. Requires ADMIN_API_KEY in X-Admin-Key header."""
+    admin_key = os.getenv("ADMIN_API_KEY", "")
+    if not admin_key or not hmac.compare_digest(x_admin_key, admin_key):
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+
+    from scripts.seed_bootstrap import main as run_bootstrap
+    try:
+        await run_bootstrap()
+    except Exception as exc:
+        logger.exception("Seed trigger failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    # Return fresh counts
+    from app.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as session:
+        counts = {
+            "developers": (await session.execute(select(func.count(Developer.id)))).scalar() or 0,
+            "areas": (await session.execute(select(func.count(Area.id)))).scalar() or 0,
+            "projects": (await session.execute(select(func.count(SEOProject.id)))).scalar() or 0,
+            "price_history": (await session.execute(select(func.count(PriceHistory.id)))).scalar() or 0,
+            "seo_pages": (await session.execute(select(func.count(SEOPage.id)))).scalar() or 0,
+        }
+    return {"status": "ok", "counts": counts}
