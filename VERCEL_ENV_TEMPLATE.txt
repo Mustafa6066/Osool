@@ -10,6 +10,10 @@
 # Get this URL from Railway after deploying backend
 NEXT_PUBLIC_API_URL=https://osool-backend-production.up.railway.app
 
+# Optional: same-frontend entry point for the Orchestrator admin console
+# This powers /admin/orchestrator inside the main Osool frontend.
+NEXT_PUBLIC_ORCHESTRATOR_ADMIN_URL=https://your-orchestrator-admin-domain
+
 # IMPORTANT:
 # - NO trailing slash!
 # - Must be the full Railway URL

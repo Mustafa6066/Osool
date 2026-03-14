@@ -348,11 +348,12 @@ export default function AdminPage() {
                             </div>
 
                             {/* Dual-Engine Quick Links */}
-                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 {[
                                     { label: 'Analytics Dashboard', desc: 'Lead intelligence & intent trends', href: '/admin/analytics', color: 'text-purple-500' },
                                     { label: 'Lead Pipeline', desc: 'Manage leads from chat', href: '/admin/leads', color: 'text-red-500' },
                                     { label: 'Ad Campaigns', desc: 'Meta & Google ad management', href: '/admin/campaigns', color: 'text-blue-500' },
+                                    { label: 'Orchestrator Console', desc: 'Open the orchestration admin inside Osool', href: '/admin/orchestrator', color: 'text-emerald-500' },
                                 ].map((link) => (
                                     <a
                                         key={link.href}
