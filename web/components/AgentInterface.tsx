@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
     Sparkles, MapPin,
@@ -448,6 +449,7 @@ const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
 export default function AgentInterface() {
     const { user } = useAuth();
     const { profile, triggerXP } = useGamification();
+    const searchParams = useSearchParams();
     const [messages, setMessages] = useState<Message[]>(() => loadFromStorage(STORAGE_KEYS.MESSAGES, []));
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -465,6 +467,7 @@ export default function AgentInterface() {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const sessionIdRef = useRef<string>(getOrCreateSessionId());
     const hasFetchedHistory = useRef(false);
+    const seededPromptRef = useRef<string | null>(null);
 
     const userName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
 
@@ -740,7 +743,7 @@ export default function AgentInterface() {
         }
     };
 
-    const handleNewChat = () => {
+    const handleNewChat = useCallback(() => {
         setMessages([]);
         setContextPaneOpen(false);
         setActiveContext(null);
@@ -753,7 +756,36 @@ export default function AgentInterface() {
         sessionIdRef.current = newId;
         sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, newId);
         sessionStorage.removeItem(STORAGE_KEYS.MESSAGES);
-    };
+    }, []);
+
+    useEffect(() => {
+        const prompt = searchParams.get('prompt');
+        if (!prompt || isTyping || seededPromptRef.current === prompt) {
+            return;
+        }
+
+        const autostart = searchParams.get('autostart') === '1';
+        seededPromptRef.current = prompt;
+
+        if (messages.length > 0) {
+            handleNewChat();
+        }
+
+        if (autostart) {
+            const timer = window.setTimeout(() => {
+                void handleSendMessage(prompt);
+            }, 40);
+
+            return () => window.clearTimeout(timer);
+        }
+
+        setInputValue(prompt);
+        const focusTimer = window.setTimeout(() => {
+            inputRef.current?.focus();
+        }, 60);
+
+        return () => window.clearTimeout(focusTimer);
+    }, [searchParams, messages.length, isTyping, handleNewChat, handleSendMessage]);
 
     /* Load a past session's messages from the backend */
     const loadSession = useCallback(async (sessionId: string) => {
@@ -865,8 +897,8 @@ export default function AgentInterface() {
 
         if (hasProperties) {
             const opts = isAr
-                ? ['قارن العقارات دي', 'تحليل العائد', 'خطة السداد؟', 'تفاصيل أكتر عن الوحدة', 'وحدات مشابهة أرخص', 'التقييم القانوني']
-                : ['Compare these properties', 'Show ROI analysis', 'Payment plan options?', 'More details on this unit', 'Similar but cheaper?', 'Legal assessment'];
+                ? ['قارن العقارات دي', 'تحليل العائد', 'خطة السداد؟', 'تفاصيل أكتر عن الوحدة', 'وحدات مشابهة أرخص', 'مخاطر القرار']
+                : ['Compare these properties', 'Show ROI analysis', 'Payment plan options?', 'More details on this unit', 'Similar but cheaper?', 'Decision risks'];
             return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
         } else if (hasAnalytics) {
             const opts = isAr

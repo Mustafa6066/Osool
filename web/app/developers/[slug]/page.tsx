@@ -3,6 +3,8 @@ import { developerJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import PublicPageNav from '@/components/PublicPageNav';
+import { developerBrief } from '@/lib/decision-support';
 
 const fmt = (n: number) => n.toLocaleString('en-EG');
 
@@ -47,13 +49,16 @@ export default async function DeveloperPage({ params }: Props) {
     notFound();
   }
 
+  const brief = developerBrief(dev);
+
   return (
+    <PublicPageNav>
     <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(developerJsonLd(dev)) }}
       />
-      <div className="max-w-5xl mx-auto px-4 py-16">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
           <Link href="/developers" className="hover:text-emerald-500">Developers</Link>
@@ -61,22 +66,55 @@ export default async function DeveloperPage({ params }: Props) {
           <span>{dev.name}</span>
         </nav>
 
-        <h1 className="text-3xl font-bold mb-2">{dev.name}</h1>
-        {dev.name_ar && (
-          <p className="text-lg text-[var(--color-text-muted)] mb-4" dir="rtl">{dev.name_ar}</p>
-        )}
-        <p className="text-[var(--color-text-secondary)] max-w-3xl mb-8">
-          {dev.description}
-        </p>
+        <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
+          <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
+              {brief.trustLabel}
+            </div>
+            <h1 className="mt-4 text-4xl font-semibold tracking-tight">{dev.name}</h1>
+            {dev.name_ar && (
+              <p className="mt-2 text-lg text-[var(--color-text-muted)]" dir="rtl">{dev.name_ar}</p>
+            )}
+            <p className="mt-5 max-w-3xl text-base leading-7 text-[var(--color-text-secondary)]">
+              {dev.description || brief.verdict}
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Best for</div>
+              <div className="mt-2 text-base font-semibold">{brief.bestFor}</div>
+            </div>
+            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Main watch-out</div>
+              <div className="mt-2 text-base font-semibold">{brief.risk}</div>
+            </div>
+          </div>
+        </section>
 
         {/* Score Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Stat label="Overall Score" value={dev.overall_score} suffix="/100" />
           <Stat label="Delivery" value={dev.avg_delivery_score} suffix="/100" />
           <Stat label="Finish Quality" value={dev.avg_finish_quality} suffix="/100" />
           <Stat label="Resale Retention" value={dev.avg_resale_retention} suffix="%" />
           <Stat label="Payment Flex" value={dev.payment_flexibility} suffix="/100" />
         </div>
+
+        <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Why this score profile matters</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
+              Delivery helps reduce anxiety around execution and handover discipline.
+            </div>
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
+              Resale strength matters more when the exit path and liquidity premium are part of the thesis.
+            </div>
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
+              Payment flexibility can widen the buyer pool, but it should not override trust and pricing quality.
+            </div>
+          </div>
+        </section>
 
         {/* Projects */}
         <h2 className="text-xl font-semibold mb-4">
@@ -122,5 +160,6 @@ export default async function DeveloperPage({ params }: Props) {
         </div>
       </div>
     </main>
+    </PublicPageNav>
   );
 }

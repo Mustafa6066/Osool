@@ -57,16 +57,33 @@ export default function FavoritesPage() {
     return (
         <SmartNav>
             <div className="h-full overflow-y-auto">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <h1 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)] flex items-center gap-3">
-                            <Heart className="w-7 h-7 text-red-400" />
-                            {t('favorites.title')}
-                        </h1>
-                        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                            {t('favorites.subtitle')}
-                        </p>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
+                    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start mb-8">
+                        <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-7">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                                <Heart className="h-3.5 w-3.5" />
+                                Saved workspace
+                            </div>
+                            <h1 className="mt-5 text-3xl font-semibold tracking-tight md:text-4xl">Your shortlist should feel like a working board, not a passive bookmark list.</h1>
+                            <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">
+                                Keep high-conviction opportunities in one place, move them back into Osool Advisor, and compare what deserves action next.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Saved items</div>
+                                <div className="mt-2 text-3xl font-semibold">{favorites.length}</div>
+                            </div>
+                            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Ready to review</div>
+                                <div className="mt-2 text-3xl font-semibold">{favorites.filter((fav) => fav.price_per_sqm > 0).length}</div>
+                            </div>
+                            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Next move</div>
+                                <div className="mt-2 text-sm font-semibold">Compare, ask Osool, or keep refining.</div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Loading State */}
@@ -78,7 +95,7 @@ export default function FavoritesPage() {
 
                     {/* Empty State */}
                     {!loading && favorites.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="flex flex-col items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-20 text-center">
                             <div className="w-20 h-20 rounded-2xl bg-[var(--color-surface-elevated)] flex items-center justify-center mb-4">
                                 <Heart className="w-10 h-10 text-[var(--color-text-muted)]" />
                             </div>
@@ -88,22 +105,37 @@ export default function FavoritesPage() {
                             <p className="text-sm text-[var(--color-text-muted)] max-w-md mb-6">
                                 {t('favorites.browsePrompt')}
                             </p>
-                            <Link
-                                href="/properties"
-                                className="px-6 py-2.5 bg-[var(--color-primary)] text-white rounded-full text-sm font-medium hover:bg-[var(--color-primary)]/90 transition-colors"
-                            >
-                                {t('favorites.explore')}
-                            </Link>
+                            <div className="flex flex-wrap justify-center gap-3">
+                                <Link
+                                    href="/explore"
+                                    className="px-6 py-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-full text-sm font-medium"
+                                >
+                                    Explore opportunities
+                                </Link>
+                                <Link
+                                    href="/chat"
+                                    className="px-6 py-2.5 border border-[var(--color-border)] rounded-full text-sm font-medium hover:border-emerald-500/40"
+                                >
+                                    Ask Osool to build a shortlist
+                                </Link>
+                            </div>
                         </div>
                     )}
 
                     {/* Favorites Grid */}
                     {!loading && favorites.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-5">
+                            <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-muted)]">
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">Most promising</span>
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">Highest conviction</span>
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">Need follow-up</span>
+                            </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                             {favorites.map((fav) => (
                                 <div
                                     key={fav.id}
-                                    className="group bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden hover:border-[var(--color-primary)]/30 hover:shadow-lg transition-all duration-300"
+                                    className="group bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[28px] overflow-hidden hover:border-emerald-500/30 hover:shadow-lg transition-all duration-300"
                                 >
                                     {/* Image */}
                                     <div className="relative aspect-[16/10] bg-[var(--color-surface-elevated)] overflow-hidden">
@@ -137,6 +169,10 @@ export default function FavoritesPage() {
                                         <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-white text-sm font-bold">
                                             {(fav.price / 1000000).toFixed(1)}M EGP
                                         </div>
+
+                                        <div className="absolute top-3 left-3 rounded-full bg-emerald-500/90 px-3 py-1 text-[11px] font-semibold text-white">
+                                            Saved for review
+                                        </div>
                                     </div>
 
                                     {/* Info */}
@@ -150,7 +186,10 @@ export default function FavoritesPage() {
                                             {fav.developer && ` · ${fav.developer}`}
                                         </p>
 
-                                        {/* Specs */}
+                                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-xs text-[var(--color-text-secondary)] mb-3">
+                                            {fav.notes ? fav.notes : 'Use this as a comparison candidate or pull it back into Osool Advisor for valuation, fit, and next-step guidance.'}
+                                        </div>
+
                                         <div className="flex items-center gap-4 text-xs text-[var(--color-text-secondary)]">
                                             {fav.bedrooms > 0 && (
                                                 <span className="flex items-center gap-1">
@@ -171,24 +210,25 @@ export default function FavoritesPage() {
                                             )}
                                         </div>
 
-                                        {/* Notes */}
-                                        {fav.notes && (
-                                            <div className="mt-3 text-xs text-[var(--color-text-muted)] bg-[var(--color-surface-elevated)] rounded-lg px-3 py-2 italic">
-                                                {fav.notes}
-                                            </div>
-                                        )}
-
-                                        {/* Ask CoInvestor button */}
-                                        <Link
-                                            href={`/chat`}
-                                            className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-all"
-                                        >
-                                            <Sparkles className="w-3.5 h-3.5" />
-                                            {t('favorites.askCoInvestor')}
-                                        </Link>
+                                        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                            <Link
+                                                href={`/chat?property=${encodeURIComponent(fav.title)}`}
+                                                className="flex items-center justify-center gap-2 rounded-xl bg-[var(--color-text-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-background)]"
+                                            >
+                                                <Sparkles className="w-3.5 h-3.5" />
+                                                {t('favorites.askCoInvestor')}
+                                            </Link>
+                                            <Link
+                                                href={`/property/${fav.property_id}`}
+                                                className="flex items-center justify-center rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] hover:border-emerald-500/40"
+                                            >
+                                                Open detail
+                                            </Link>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
+                        </div>
                         </div>
                     )}
                 </div>

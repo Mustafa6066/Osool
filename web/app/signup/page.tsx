@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import PublicPageNav from '@/components/PublicPageNav';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
@@ -144,14 +145,40 @@ function SignupContent() {
     };
 
     return (
-        <div style={{ width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem' }} className="bg-[var(--color-background)]">
-            <div style={{ width: '100%', maxWidth: '28rem' }} className="bg-[var(--color-surface)] rounded-3xl shadow-xl border border-[var(--color-border)] p-8 space-y-6">
-                {/* Header */}
-                <div className="text-center space-y-2">
-                    <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
+        <PublicPageNav>
+        <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:py-14">
+            <section className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-10">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Save your progress
+                </div>
+                <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Create your Osool workspace so research becomes a working decision flow.</h1>
+                <p className="mt-4 text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
+                    Turn browsing into a saved shortlist, continue your advisor sessions, and keep track of the next best action across areas, developers, and projects.
+                </p>
+
+                <div className="mt-8 space-y-3">
+                    {[
+                      'Save shortlists and comparisons',
+                      'Return to your market and advisor context',
+                      'Unlock personalized next-step guidance',
+                    ].map((point) => (
+                      <div key={point} className="flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          <Sparkles className="h-4 w-4" />
+                        </div>
+                        <div className="text-sm leading-6 text-[var(--color-text-primary)]">{point}</div>
+                      </div>
+                    ))}
+                </div>
+            </section>
+
+            <section className="bg-[var(--color-surface)] rounded-[36px] shadow-xl border border-[var(--color-border)] p-8 space-y-6">
+                <div className="space-y-2">
+                    <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center">
                         <UserPlus className="w-8 h-8 text-emerald-500" />
                     </div>
-                    <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">{t('auth.joinTitle')}</h1>
+                    <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">{t('auth.joinTitle')}</h2>
                     <p className="text-[var(--color-text-muted)] text-sm">
                         {t('auth.joinSubtitle')}
                     </p>
@@ -280,7 +307,6 @@ function SignupContent() {
                     </button>
                 </form>
 
-                {/* Footer */}
                 <div className="pt-4 text-center border-t border-[var(--color-border)]">
                     <p className="text-sm text-[var(--color-text-muted)]">
                         {t('auth.alreadyHaveAccount')}{' '}
@@ -289,8 +315,9 @@ function SignupContent() {
                         </Link>
                     </p>
                 </div>
-            </div>
+            </section>
         </div>
+        </PublicPageNav>
     );
 }
 

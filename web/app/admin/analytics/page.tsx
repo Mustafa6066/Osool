@@ -1,21 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft,
-  TrendingUp,
-  Users,
-  Target,
-  Mail,
   BarChart3,
   Loader2,
+  Mail,
   RefreshCw,
+  Target,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import AdminShell from '@/components/AdminShell';
 import api from '@/lib/api';
-
-/* ── Types ───────────────────────────────────────────────── */
 
 interface DashboardKPIs {
   total_leads: number;
@@ -50,13 +46,17 @@ interface MarketSnapshot {
   total_interactions: number;
 }
 
-/* ── Main Component ──────────────────────────────────────── */
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat('en-EG').format(Math.round(value));
+}
+
+function formatPercent(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
+}
 
 export default function AnalyticsDashboard() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const router = useRouter();
-
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [funnel, setFunnel] = useState<FunnelStage[]>([]);
   const [trends, setTrends] = useState<IntentTrend[]>([]);
@@ -64,209 +64,196 @@ export default function AnalyticsDashboard() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [kRes, fRes, tRes, mRes] = await Promise.all([
+      const [kpiResponse, funnelResponse, trendResponse, marketResponse] = await Promise.all([
         api.get('/api/analytics/dashboard').catch(() => ({ data: null })),
         api.get('/api/analytics/funnel').catch(() => ({ data: [] })),
         api.get('/api/analytics/intent-trends?days=30').catch(() => ({ data: [] })),
         api.get('/api/analytics/market-snapshot').catch(() => ({ data: null })),
       ]);
-      setKpis(kRes.data);
-      setFunnel(fRes.data);
-      setTrends(tRes.data);
-      setMarket(mRes.data);
+
+      setKpis(kpiResponse.data);
+      setFunnel(funnelResponse.data || []);
+      setTrends(trendResponse.data || []);
+      setMarket(marketResponse.data);
+    } catch (loadError) {
+      console.error(loadError);
+      setError('Analytics data could not be loaded.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!isAuthenticated) {
-      router.push('/');
-      return;
+    void fetchAll();
+  }, [fetchAll]);
+
+  const latestPurchaseTrend = useMemo(() => {
+    if (!trends.length) {
+      return 0;
     }
-    fetchAll();
-  }, [authLoading, isAuthenticated, router, fetchAll]);
-
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-      </div>
-    );
-  }
-
-  const fmt = (n: number) => new Intl.NumberFormat('en-EG').format(Math.round(n));
-  const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
+    return trends.slice(-7).reduce((sum: number, item: IntentTrend) => sum + item.PURCHASE, 0);
+  }, [trends]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/admin')}
-              className="p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold">Dual-Engine Analytics</h1>
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Lead intelligence, intent trends, and marketing performance
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={fetchAll}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-emerald-500/50 transition-colors text-sm"
-          >
-            <RefreshCw className="w-4 h-4" /> Refresh
-          </button>
+    <AdminShell
+      eyebrow="Admin analytics"
+      title="Read lead demand, funnel movement, and campaign signal in one place."
+      subtitle="This route condenses lead generation, intent quality, and market demand into an operating view for the admin team."
+      actions={
+        <button
+          onClick={() => void fetchAll()}
+          className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh data
+        </button>
+      }
+    >
+      {loading ? (
+        <div className="flex items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         </div>
+      ) : error ? (
+        <div className="rounded-[32px] border border-red-500/20 bg-red-500/10 p-6 text-sm text-red-500">{error}</div>
+      ) : (
+        <div className="space-y-6">
+          {kpis && (
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard icon={Users} label="Total leads" value={formatNumber(kpis.total_leads)} detail={`+${kpis.new_leads_7d} in the last 7 days`} />
+              <MetricCard icon={Target} label="Hot leads" value={formatNumber(kpis.hot_leads)} detail={`${formatPercent(kpis.avg_confidence)} average confidence`} />
+              <MetricCard icon={BarChart3} label="Intent volume" value={formatNumber(kpis.total_intents)} detail={`${latestPurchaseTrend} purchase-intent events in the last 7 days`} />
+              <MetricCard icon={Mail} label="Email performance" value={formatNumber(kpis.emails_sent)} detail={`${formatPercent(kpis.open_rate)} open rate`} />
+            </section>
+          )}
 
-        {/* KPI Cards */}
-        {kpis && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <KPICard icon={Users} label="Total Leads" value={fmt(kpis.total_leads)} sub={`+${kpis.new_leads_7d} this week`} />
-            <KPICard icon={Target} label="Hot Leads" value={String(kpis.hot_leads)} color="text-red-500" />
-            <KPICard icon={BarChart3} label="Total Intents" value={fmt(kpis.total_intents)} sub={`${pct(kpis.avg_confidence)} avg confidence`} />
-            <KPICard icon={Mail} label="Emails Sent" value={fmt(kpis.emails_sent)} sub={`${pct(kpis.open_rate)} open rate`} />
-          </div>
-        )}
-
-        {/* Lead Funnel */}
-        {funnel.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-500" /> Lead Funnel
-            </h2>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="space-y-3">
-                {funnel.map((s) => {
-                  const max = Math.max(...funnel.map((f) => f.count), 1);
-                  const width = (s.count / max) * 100;
-                  return (
-                    <div key={s.stage}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="capitalize font-medium">{s.stage}</span>
-                        <span className="text-[var(--color-text-muted)]">{s.count}</span>
+          <section className="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
+            <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Lead funnel</div>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">Where opportunities are actually progressing</h2>
+              <div className="mt-6 space-y-4">
+                {funnel.length ? (
+                  funnel.map((stage: FunnelStage) => {
+                    const max = Math.max(...funnel.map((item: FunnelStage) => item.count), 1);
+                    const width = (stage.count / max) * 100;
+                    return (
+                      <div key={stage.stage}>
+                        <div className="mb-2 flex items-center justify-between text-sm">
+                          <span className="font-medium capitalize text-[var(--color-text-primary)]">{stage.stage}</span>
+                          <span className="text-[var(--color-text-muted)]">{formatNumber(stage.count)}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-[var(--color-background)]">
+                          <div className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400" style={{ width: `${width}%` }} />
+                        </div>
                       </div>
-                      <div className="h-3 rounded-full bg-[var(--color-border)]/50 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-emerald-500 transition-all"
-                          style={{ width: `${width}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-[var(--color-text-secondary)]">No funnel data is available.</p>
+                )}
               </div>
             </div>
-          </section>
-        )}
 
-        {/* Intent Trends Table */}
-        {trends.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">Intent Trends (30 days)</h2>
-            <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
-              <table className="w-full text-sm">
-                <thead className="bg-[var(--color-surface)]">
-                  <tr>
-                    <th className="p-3 text-left font-medium">Date</th>
-                    <th className="p-3 text-right font-medium">Search</th>
-                    <th className="p-3 text-right font-medium">Compare</th>
-                    <th className="p-3 text-right font-medium">Purchase</th>
-                    <th className="p-3 text-right font-medium">Valuation</th>
-                    <th className="p-3 text-right font-medium">General</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trends.slice(-14).map((t) => (
-                    <tr key={t.date} className="border-t border-[var(--color-border)]">
-                      <td className="p-3">{t.date}</td>
-                      <td className="p-3 text-right font-mono">{t.SEARCH}</td>
-                      <td className="p-3 text-right font-mono">{t.COMPARE}</td>
-                      <td className="p-3 text-right font-mono text-emerald-500 font-bold">{t.PURCHASE}</td>
-                      <td className="p-3 text-right font-mono">{t.VALUATION}</td>
-                      <td className="p-3 text-right font-mono text-[var(--color-text-muted)]">{t.GENERAL}</td>
+            <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Market signal</div>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">What users are asking for right now</h2>
+              {market ? (
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-[var(--color-background)] p-5">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Average budget</div>
+                    <div className="mt-2 text-xl font-semibold text-[var(--color-text-primary)]">
+                      EGP {formatNumber(market.avg_budget_min / 1_000_000)}M - {formatNumber(market.avg_budget_max / 1_000_000)}M
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-[var(--color-background)] p-5">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Top intent</div>
+                    <div className="mt-2 text-xl font-semibold text-emerald-600 dark:text-emerald-300">{market.top_intent || 'N/A'}</div>
+                  </div>
+                  <div className="rounded-2xl bg-[var(--color-background)] p-5 sm:col-span-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Top searched areas</div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {market.top_areas?.length ? (
+                        market.top_areas.map((area, index) => (
+                          <div key={area.area} className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3">
+                            <div className="text-sm font-medium text-[var(--color-text-primary)]">{index + 1}. {area.area}</div>
+                            <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-300">{formatNumber(area.count)}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-[var(--color-text-secondary)]">No area signal is available.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-6 text-sm text-[var(--color-text-secondary)]">No market snapshot is available.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+              <TrendingUp className="h-4 w-4" />
+              Intent trends
+            </div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">Recent demand pattern by intent type</h2>
+            {trends.length ? (
+              <div className="mt-6 overflow-x-auto rounded-2xl border border-[var(--color-border)]">
+                <table className="w-full text-sm">
+                  <thead className="bg-[var(--color-background)]">
+                    <tr>
+                      <th className="p-3 text-left font-medium">Date</th>
+                      <th className="p-3 text-right font-medium">Search</th>
+                      <th className="p-3 text-right font-medium">Compare</th>
+                      <th className="p-3 text-right font-medium">Purchase</th>
+                      <th className="p-3 text-right font-medium">Valuation</th>
+                      <th className="p-3 text-right font-medium">General</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-        {/* Market Snapshot */}
-        {market && (
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">Market Snapshot</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                <h3 className="text-sm font-medium text-[var(--color-text-muted)] mb-3">Top Searched Areas</h3>
-                <div className="space-y-2">
-                  {market.top_areas?.map((a, i) => (
-                    <div key={a.area} className="flex items-center justify-between text-sm">
-                      <span>
-                        <span className="text-[var(--color-text-muted)] mr-2">{i + 1}.</span>
-                        {a.area}
-                      </span>
-                      <span className="font-mono text-emerald-500">{a.count}</span>
-                    </div>
-                  ))}
-                </div>
+                  </thead>
+                  <tbody>
+                    {trends.slice(-14).map((trend) => (
+                      <tr key={trend.date} className="border-t border-[var(--color-border)]">
+                        <td className="p-3 text-[var(--color-text-primary)]">{trend.date}</td>
+                        <td className="p-3 text-right font-mono">{trend.SEARCH}</td>
+                        <td className="p-3 text-right font-mono">{trend.COMPARE}</td>
+                        <td className="p-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-300">{trend.PURCHASE}</td>
+                        <td className="p-3 text-right font-mono">{trend.VALUATION}</td>
+                        <td className="p-3 text-right font-mono text-[var(--color-text-muted)]">{trend.GENERAL}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-4">
-                <div>
-                  <p className="text-xs text-[var(--color-text-muted)]">Average Budget Range</p>
-                  <p className="text-lg font-bold">
-                    EGP {fmt(market.avg_budget_min / 1_000_000)}M – {fmt(market.avg_budget_max / 1_000_000)}M
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[var(--color-text-muted)]">Top Intent Type</p>
-                  <p className="text-lg font-bold text-emerald-500">{market.top_intent}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-[var(--color-text-muted)]">Total Interactions</p>
-                  <p className="text-lg font-bold">{fmt(market.total_interactions)}</p>
-                </div>
-              </div>
-            </div>
+            ) : (
+              <p className="mt-6 text-sm text-[var(--color-text-secondary)]">No trend data is available.</p>
+            )}
           </section>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </AdminShell>
   );
 }
 
-/* ── Sub-components ──────────────────────────────────────── */
-
-function KPICard({
+function MetricCard({
   icon: Icon,
   label,
   value,
-  sub,
-  color,
+  detail,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: typeof Users;
   label: string;
   value: string;
-  sub?: string;
-  color?: string;
+  detail: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 ${color || 'text-emerald-500'}`} />
-        <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
+    <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{label}</div>
+        <Icon className="h-4 w-4 text-emerald-500" />
       </div>
-      <p className={`text-2xl font-bold ${color || ''}`}>{value}</p>
-      {sub && <p className="text-xs text-[var(--color-text-muted)] mt-1">{sub}</p>}
+      <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{value}</div>
+      <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{detail}</div>
     </div>
   );
 }

@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { User, ChevronDown, LogOut, Gift } from 'lucide-react';
+import { User, ChevronDown, LogOut, Gift, LayoutDashboard, Heart } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProfileDropdownProps {
-    onGenerateInvitation: () => void;
+    onGenerateInvitation?: () => void;
 }
 
 export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdownProps) {
@@ -84,13 +84,31 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
                         <button
                             onClick={() => {
                                 setIsOpen(false);
-                                onGenerateInvitation();
+                                onGenerateInvitation?.();
                             }}
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition-colors"
                         >
                             <Gift size={18} />
                             <span className="font-medium">Invite a Friend</span>
                         </button>
+
+                        <Link
+                            href="/dashboard"
+                            onClick={() => setIsOpen(false)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            <LayoutDashboard size={18} />
+                            <span>Workspace</span>
+                        </Link>
+
+                        <Link
+                            href="/favorites"
+                            onClick={() => setIsOpen(false)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            <Heart size={18} />
+                            <span>Saved shortlist</span>
+                        </Link>
 
                         <Link
                             href="/chat"

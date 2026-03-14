@@ -14,6 +14,7 @@ import {
     ArrowLeft, Loader2, AlertCircle, Banknote, Percent
 } from 'lucide-react';
 import { toggleFavorite } from '@/lib/gamification';
+import { buildAdvisorPrompt, formatCompactPrice, propertyBrief } from '@/lib/decision-support';
 
 // ── Types ────────────────────────────────────────────────────
 interface PaymentPlan {
@@ -203,6 +204,34 @@ export default function PropertyDetailsPage() {
     const priceDiffPercent = (property && aiEstimate && property.price) ? ((priceDiff / property.price) * 100).toFixed(1) : '0';
 
     const area = property ? (property.area || property.bua || property.size || property.sqm || 0) : 0;
+    const decision = property ? propertyBrief({
+        title: property.title,
+        location: property.location,
+        price: property.price,
+        aiEstimate,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        area,
+        type: property.type,
+        developer: property.developer,
+        saleType: property.saleType,
+        pricePerSqm: property.pricePerSqm,
+        paymentPlan: property.paymentPlan,
+    }) : null;
+    const advisorPrompt = property ? buildAdvisorPrompt({
+        title: property.title,
+        location: property.location,
+        price: property.price,
+        aiEstimate,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        area,
+        type: property.type,
+        developer: property.developer,
+        saleType: property.saleType,
+        pricePerSqm: property.pricePerSqm,
+        paymentPlan: property.paymentPlan,
+    }) : '';
 
     // ── Loading state ─────────────────────────────────────────
     if (loading) {
@@ -254,6 +283,44 @@ export default function PropertyDetailsPage() {
                     <span>/</span>
                     <span className="text-[var(--color-text-primary)] truncate max-w-[200px]">{property.title}</span>
                 </nav>
+
+                {decision && (
+                    <section className="mb-8 grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
+                        <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
+                                {decision.confidenceLabel}
+                            </div>
+                            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">{property.title}</h1>
+                            <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--color-text-secondary)]">
+                                {decision.thesis}
+                            </p>
+                            <div className="mt-5 flex flex-wrap gap-3 text-sm text-[var(--color-text-muted)]">
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">
+                                    {formatCompactPrice(property.price)}
+                                </span>
+                                {property.pricePerSqm > 0 && (
+                                    <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">
+                                        {Math.round(property.pricePerSqm).toLocaleString()} EGP/m²
+                                    </span>
+                                )}
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">
+                                    {decision.priceSignal}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Best for</div>
+                                <div className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">{decision.bestFor}</div>
+                            </div>
+                            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Main watch-out</div>
+                                <div className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">{decision.risk}</div>
+                            </div>
+                        </div>
+                    </section>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* ═══ Main Content ═══ */}
@@ -347,6 +414,19 @@ export default function PropertyDetailsPage() {
                                     </span>
                                 )}
                             </div>
+
+                            {decision && (
+                                <div className="mb-6 grid gap-3 sm:grid-cols-2">
+                                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Decision angle</div>
+                                        <div className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">{decision.thesis}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Why keep it on the board</div>
+                                        <div className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">{decision.bestFor}</div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Key Specs */}
                             <div className="flex flex-wrap gap-6 pb-6 border-b border-[var(--color-border)]">
@@ -490,13 +570,21 @@ export default function PropertyDetailsPage() {
                                 </div>
                             )}
 
+                            {decision && (
+                                <div className="mb-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Decision summary</div>
+                                    <div className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">{decision.confidenceLabel}</div>
+                                    <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{decision.priceSignal}</div>
+                                </div>
+                            )}
+
                             {/* AI Estimate - only show if real valuation available */}
                             {aiEstimate && (
-                            <div className="flex items-center gap-2 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 mb-6">
-                                <Sparkles className="w-5 h-5 text-purple-400" />
+                            <div className="flex items-center gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mb-6">
+                                <Sparkles className="w-5 h-5 text-emerald-500" />
                                 <div>
-                                    <div className="text-sm text-purple-400 font-medium">{t('property.aiEstimate')}</div>
-                                    <div className="text-lg font-bold text-purple-300">{formatPrice(aiEstimate)}</div>
+                                    <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{t('property.aiEstimate')}</div>
+                                    <div className="text-lg font-bold text-[var(--color-text-primary)]">{formatPrice(aiEstimate)}</div>
                                 </div>
                                 <div className={`ml-auto text-sm font-semibold ${priceDiff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     <TrendingUp className="w-4 h-4 inline mr-1" />
@@ -536,11 +624,11 @@ export default function PropertyDetailsPage() {
                                     {t('property.contactSeller')}
                                 </button>
                                 <Link
-                                    href={`/chat?property=${encodeURIComponent(property.title)}`}
+                                    href={`/chat?prompt=${encodeURIComponent(advisorPrompt)}&autostart=1`}
                                     className="w-full btn-secondary flex items-center justify-center gap-2"
                                 >
                                     <Sparkles className="w-5 h-5" />
-                                    {language === 'ar' ? 'اسأل CoInvestor عن هذا العقار' : 'Ask CoInvestor about this property'}
+                                    {language === 'ar' ? 'اطلب تحليل هذا العقار من Osool' : 'Ask Osool to review this property'}
                                 </Link>
                             </div>
 

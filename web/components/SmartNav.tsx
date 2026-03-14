@@ -4,9 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-    MessageSquare, LayoutDashboard, TrendingUp, Building2,
-    Heart, LogOut, Sun, Moon, Gift, Menu, X,
-    ChevronDown, Shield, MapPin, Landmark
+    MessageSquare, LayoutDashboard, Heart, LogOut, Sun, Moon, Gift, Menu, X,
+    ChevronDown, Shield, Compass, Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -15,13 +14,9 @@ import LanguageToggle from '@/components/LanguageToggle';
 import InvitationModal from '@/components/InvitationModal';
 
 const NAV_ITEMS = [
-    { key: 'chat', label: 'Chat', labelAr: 'محادثة', icon: MessageSquare, href: '/chat' },
-    { key: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: LayoutDashboard, href: '/dashboard' },
-    { key: 'market', label: 'Market', labelAr: 'السوق', icon: TrendingUp, href: '/market' },
-    { key: 'properties', label: 'Properties', labelAr: 'العقارات', icon: Building2, href: '/properties' },
-    { key: 'developers', label: 'Developers', labelAr: 'المطورين', icon: Landmark, href: '/developers' },
-    { key: 'areas', label: 'Areas', labelAr: 'المناطق', icon: MapPin, href: '/areas' },
-    { key: 'favorites', label: 'Saved', labelAr: 'المفضلة', icon: Heart, href: '/favorites' },
+    { key: 'advisor', label: 'Advisor', labelAr: 'المستشار', icon: MessageSquare, href: '/chat' },
+    { key: 'explore', label: 'Explore', labelAr: 'استكشف', icon: Compass, href: '/explore' },
+    { key: 'saved', label: 'Saved', labelAr: 'المحفوظات', icon: Heart, href: '/favorites' },
 ];
 
 interface SmartNavProps {
@@ -50,13 +45,18 @@ export default function SmartNav({ children }: SmartNavProps) {
     }, [userMenuOpen]);
 
     const getActiveKey = () => {
-        if (pathname === '/chat') return 'chat';
-        if (pathname === '/dashboard') return 'dashboard';
-        if (pathname === '/market') return 'market';
-        if (pathname.startsWith('/properties') || pathname.startsWith('/property/')) return 'properties';
-        if (pathname.startsWith('/developers')) return 'developers';
-        if (pathname.startsWith('/areas')) return 'areas';
-        if (pathname === '/favorites') return 'favorites';
+        if (pathname === '/chat') return 'advisor';
+        if (
+            pathname === '/explore' ||
+            pathname === '/market' ||
+            pathname.startsWith('/properties') ||
+            pathname.startsWith('/property/') ||
+            pathname.startsWith('/developers') ||
+            pathname.startsWith('/areas') ||
+            pathname.startsWith('/projects') ||
+            pathname.startsWith('/compare')
+        ) return 'explore';
+        if (pathname === '/favorites') return 'saved';
         if (pathname.startsWith('/admin')) return 'admin';
         return '';
     };
@@ -80,17 +80,20 @@ export default function SmartNav({ children }: SmartNavProps) {
                         <div className="flex items-center justify-between h-12">
 
                             {/* Logo */}
-                            <Link href="/chat" className="flex items-center gap-2 flex-shrink-0 group">
-                                <div className="w-7 h-7 rounded-lg bg-[var(--color-text-primary)] flex items-center justify-center text-[var(--color-background)] transition-transform group-hover:scale-105">
-                                    <Building2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            <Link href={isAuthenticated ? '/dashboard' : '/'} className="flex items-center gap-2 flex-shrink-0 group">
+                                <div className="w-8 h-8 rounded-2xl bg-[var(--color-text-primary)] flex items-center justify-center text-[var(--color-background)] transition-transform group-hover:scale-105">
+                                    <Sparkles className="w-4 h-4" strokeWidth={2.5} />
                                 </div>
-                                <span className="text-[var(--color-text-primary)] text-sm font-semibold tracking-tight hidden sm:block">
+                                <div className="hidden sm:block">
+                                  <span className="text-[var(--color-text-primary)] text-sm font-semibold tracking-tight block">
                                     Osool<span className="text-emerald-500">.ai</span>
-                                </span>
+                                  </span>
+                                  <span className="text-[10px] text-[var(--color-text-muted)]">Decision workspace</span>
+                                </div>
                             </Link>
 
                             {/* Center Nav — Pill tabs */}
-                            <nav className="hidden md:flex items-center gap-0.5 bg-[var(--color-surface)] rounded-full px-1 py-0.5 border border-[var(--color-border)]">
+                            <nav className="hidden md:flex items-center gap-0.5 bg-[var(--color-surface)] rounded-full px-1 py-1 border border-[var(--color-border)]">
                                 {visibleNavItems.map((item) => {
                                     const isActive = item.key === activeKey;
                                     const Icon = item.icon;
@@ -98,7 +101,7 @@ export default function SmartNav({ children }: SmartNavProps) {
                                         <Link
                                             key={item.key}
                                             href={item.href}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium transition-all duration-150
+                                            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-150
                                                 ${isActive
                                                     ? 'bg-[var(--color-text-primary)] text-[var(--color-background)] shadow-sm'
                                                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
@@ -113,6 +116,14 @@ export default function SmartNav({ children }: SmartNavProps) {
 
                             {/* Right — Actions */}
                             <div className="hidden md:flex items-center gap-1.5">
+                                <Link
+                                    href="/dashboard"
+                                    className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-medium transition-colors ${pathname === '/dashboard' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]'}`}
+                                >
+                                    <LayoutDashboard className="w-4 h-4" />
+                                    <span>{language === 'ar' ? 'مساحة العمل' : 'Workspace'}</span>
+                                </Link>
+
                                 {/* Language Toggle */}
                                 <LanguageToggle />
 
@@ -208,6 +219,14 @@ export default function SmartNav({ children }: SmartNavProps) {
                                 })}
 
                                 <div className="border-t border-[var(--color-border)] pt-2 mt-2 space-y-1.5">
+                                    <Link
+                                        href="/dashboard"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors"
+                                    >
+                                        <LayoutDashboard className="w-4 h-4" />
+                                        <span className="text-sm">{language === 'ar' ? 'مساحة العمل' : 'Workspace'}</span>
+                                    </Link>
                                     <div className="px-3 py-2">
                                         <LanguageToggle />
                                     </div>

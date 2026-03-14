@@ -3,6 +3,8 @@ import { projectJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import PublicPageNav from '@/components/PublicPageNav';
+import { areaBrief, developerBrief, formatPriceBand, formatRate, projectBrief } from '@/lib/decision-support';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -45,13 +47,18 @@ export default async function ProjectDetailPage({ params }: Props) {
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-EG').format(Math.round(n));
 
+  const brief = projectBrief(project);
+  const developerSummary = developer ? developerBrief(developer) : null;
+  const areaSummary = area ? areaBrief(area) : null;
+
   return (
+    <PublicPageNav>
     <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(projectJsonLd(project)) }}
       />
-      <div className="max-w-4xl mx-auto px-4 py-16">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6 flex items-center gap-1">
           <Link href="/" className="hover:text-emerald-500">Home</Link>
@@ -62,7 +69,8 @@ export default async function ProjectDetailPage({ params }: Props) {
         </nav>
 
         {/* Header */}
-        <div className="mb-8">
+        <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
+        <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
           <div className="flex items-center gap-2 mb-2">
             {project.project_type && (
               <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/10 text-emerald-600 font-medium">
@@ -81,6 +89,7 @@ export default async function ProjectDetailPage({ params }: Props) {
               {project.name_ar}
             </p>
           )}
+          <p className="mt-5 text-base leading-7 text-[var(--color-text-secondary)]">{brief.thesis}</p>
 
           {/* Developer & Area links */}
           <div className="flex flex-wrap gap-4 mt-3 text-sm text-[var(--color-text-secondary)]">
@@ -97,8 +106,20 @@ export default async function ProjectDetailPage({ params }: Props) {
           </div>
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+          <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Best for</div>
+            <div className="mt-2 text-base font-semibold">{brief.bestFor}</div>
+          </div>
+          <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Main watch-out</div>
+            <div className="mt-2 text-base font-semibold">{brief.risk}</div>
+          </div>
+        </div>
+        </section>
+
         {/* KPI Cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {project.min_price_per_meter && project.max_price_per_meter && (
             <StatCard
               label="Price/m²"
@@ -123,6 +144,23 @@ export default async function ProjectDetailPage({ params }: Props) {
           )}
         </div>
 
+        <section className="grid gap-4 md:grid-cols-2">
+          {developerSummary && (
+            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Developer context</div>
+              <div className="mt-2 text-lg font-semibold">{developerSummary.verdict}</div>
+              <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{developerSummary.bestFor}</div>
+            </div>
+          )}
+          {areaSummary && (
+            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Area context</div>
+              <div className="mt-2 text-lg font-semibold">{areaSummary.thesis}</div>
+              <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{areaSummary.bestFor}</div>
+            </div>
+          )}
+        </section>
+
         {/* Amenities */}
         {project.amenities && (() => {
           let items: string[] = [];
@@ -146,8 +184,11 @@ export default async function ProjectDetailPage({ params }: Props) {
 
         {/* Price History Table */}
         {priceHistory.length > 0 && (
-          <section className="mb-10">
+          <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
             <h2 className="text-xl font-semibold mb-4">Price History (EGP/m²)</h2>
+            <p className="mb-4 text-sm leading-6 text-[var(--color-text-secondary)]">
+              Use this as price context. The decision still depends on project quality, developer trust, area strength, and how the payment plan fits your timeline.
+            </p>
             <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
               <table className="w-full text-sm">
                 <thead className="bg-[var(--color-surface)]">
@@ -181,10 +222,10 @@ export default async function ProjectDetailPage({ params }: Props) {
             Interested in {project.name}?
           </h3>
           <p className="text-sm text-[var(--color-text-muted)] mb-4">
-            Ask our AI assistant for personalized pricing, availability, and investment analysis.
+            Ask Osool Advisor for a personalized recommendation, valuation context, and next-step guidance.
           </p>
           <Link
-            href="/#chat"
+            href="/chat"
             className="inline-block px-6 py-2 bg-emerald-500 text-white rounded-full font-medium hover:bg-emerald-600 transition-colors"
           >
             Chat with Osool AI
@@ -192,6 +233,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
       </div>
     </main>
+    </PublicPageNav>
   );
 }
 

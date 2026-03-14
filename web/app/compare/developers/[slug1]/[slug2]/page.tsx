@@ -3,6 +3,8 @@ import { comparisonJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import PublicPageNav from '@/components/PublicPageNav';
+import { developerBrief, pickWinnerLabel } from '@/lib/decision-support';
 
 interface Props {
   params: Promise<{ slug1: string; slug2: string }>;
@@ -37,6 +39,26 @@ export default async function DeveloperComparisonPage({ params }: Props) {
     getDeveloperProjects(slug2).catch(() => []),
   ]);
 
+  const brief1 = developerBrief(d1);
+  const brief2 = developerBrief(d2);
+  const summaryCards = [
+    {
+      label: 'Best delivery confidence',
+      winner: pickWinnerLabel(d1.avg_delivery_score ?? 0, d2.avg_delivery_score ?? 0, d1.name, d2.name),
+      detail: `${d1.name}: ${(d1.avg_delivery_score ?? 0).toFixed(1)} • ${d2.name}: ${(d2.avg_delivery_score ?? 0).toFixed(1)}`,
+    },
+    {
+      label: 'Best resale strength',
+      winner: pickWinnerLabel(d1.avg_resale_retention ?? 0, d2.avg_resale_retention ?? 0, d1.name, d2.name),
+      detail: `${d1.name}: ${(d1.avg_resale_retention ?? 0).toFixed(1)} • ${d2.name}: ${(d2.avg_resale_retention ?? 0).toFixed(1)}`,
+    },
+    {
+      label: 'Best payment flexibility',
+      winner: pickWinnerLabel(d1.payment_flexibility ?? 0, d2.payment_flexibility ?? 0, d1.name, d2.name),
+      detail: `${d1.name}: ${(d1.payment_flexibility ?? 0).toFixed(1)} • ${d2.name}: ${(d2.payment_flexibility ?? 0).toFixed(1)}`,
+    },
+  ];
+
   const metrics = [
     { label: 'Delivery Score', key: 'avg_delivery_score' as const },
     { label: 'Finish Quality', key: 'avg_finish_quality' as const },
@@ -46,8 +68,9 @@ export default async function DeveloperComparisonPage({ params }: Props) {
   ];
 
   return (
+    <PublicPageNav>
     <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
-      <div className="max-w-5xl mx-auto px-4 py-16">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6 flex items-center gap-1">
           <Link href="/" className="hover:text-emerald-500">Home</Link>
@@ -67,6 +90,29 @@ export default async function DeveloperComparisonPage({ params }: Props) {
         <p className="text-[var(--color-text-muted)] mb-10">
           Side-by-side developer comparison based on delivery, quality, and value retention.
         </p>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          {summaryCards.map((card) => (
+            <div key={card.label} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{card.label}</div>
+              <div className="mt-2 text-lg font-semibold">{card.winner}</div>
+              <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{card.detail}</div>
+            </div>
+          ))}
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <div className="text-sm font-semibold text-[var(--color-text-primary)]">{d1.name}</div>
+            <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{brief1.verdict}</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">Best for: {brief1.bestFor}</div>
+          </div>
+          <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <div className="text-sm font-semibold text-[var(--color-text-primary)]">{d2.name}</div>
+            <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{brief2.verdict}</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">Best for: {brief2.bestFor}</div>
+          </div>
+        </section>
 
         {/* Score Comparison Table */}
         <div className="rounded-2xl border border-[var(--color-border)] overflow-hidden mb-10">
@@ -135,7 +181,7 @@ export default async function DeveloperComparisonPage({ params }: Props) {
             Our AI advisor can give you a personalized recommendation based on your budget and preferences.
           </p>
           <Link
-            href="/#chat"
+            href="/chat"
             className="inline-block px-6 py-2 bg-emerald-500 text-white rounded-full font-medium hover:bg-emerald-600 transition-colors"
           >
             Get AI Recommendation
@@ -143,6 +189,7 @@ export default async function DeveloperComparisonPage({ params }: Props) {
         </div>
       </div>
     </main>
+    </PublicPageNav>
   );
 }
 
