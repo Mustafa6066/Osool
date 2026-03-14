@@ -83,7 +83,8 @@ async def list_leads(
     db: AsyncSession = Depends(get_db),
 ):
     """List all leads (admin only)."""
-    q = select(LeadProfile)
+    from sqlalchemy.orm import selectinload
+    q = select(LeadProfile).options(selectinload(LeadProfile.user))
     if stage:
         q = q.where(LeadProfile.stage == stage)
     if min_score is not None:
@@ -92,7 +93,27 @@ async def list_leads(
     col = getattr(LeadProfile, sort, LeadProfile.score)
     order_col = col.desc() if order == "desc" else col.asc()
     result = await db.execute(q.order_by(order_col).limit(limit).offset(offset))
-    return result.scalars().all()
+    leads = result.scalars().all()
+    return [
+        {
+            "id": lp.id,
+            "user_id": lp.user_id,
+            "email": lp.user.email if lp.user else None,
+            "phone": lp.user.phone if lp.user and hasattr(lp.user, 'phone') else None,
+            "stage": lp.stage,
+            "score": lp.score,
+            "segment": lp.segment,
+            "budget_min": lp.budget_min,
+            "budget_max": lp.budget_max,
+            "preferred_areas": lp.preferred_areas,
+            "preferred_types": lp.preferred_types,
+            "timeline": lp.timeline,
+            "interaction_count": lp.interaction_count,
+            "created_at": str(lp.created_at) if lp.created_at else None,
+            "updated_at": str(lp.updated_at) if lp.updated_at else None,
+        }
+        for lp in leads
+    ]
 
 
 @router.get("/stats")

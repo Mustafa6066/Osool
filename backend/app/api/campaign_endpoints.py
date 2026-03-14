@@ -32,7 +32,7 @@ class CampaignOut(BaseModel):
     campaign_id: Optional[str] = None
     status: Optional[str] = None
     budget: Optional[float] = None
-    spend: Optional[float] = None
+    spent: Optional[float] = Field(None, alias="spend")
     impressions: Optional[int] = None
     clicks: Optional[int] = None
     conversions: Optional[int] = None
@@ -42,6 +42,13 @@ class CampaignOut(BaseModel):
 
     class Config:
         from_attributes = True
+        populate_by_name = True
+
+
+class CampaignUpdate(BaseModel):
+    status: Optional[str] = Field(None, pattern="^(active|paused|draft|completed)$")
+    budget: Optional[float] = Field(None, ge=0)
+    name: Optional[str] = Field(None, max_length=200)
 
 
 class CampaignCreate(BaseModel):
@@ -165,6 +172,25 @@ async def campaign_stats(
         }
         for r in rows
     ]
+
+
+@router.patch("/{campaign_id}", response_model=CampaignOut)
+async def update_campaign(
+    campaign_id: int,
+    body: CampaignUpdate,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update campaign fields (status, budget, name)."""
+    result = await db.execute(select(AdCampaign).where(AdCampaign.id == campaign_id))
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(campaign, field, value)
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
 
 
 # ═══════════════════════════════════════════════════════════════

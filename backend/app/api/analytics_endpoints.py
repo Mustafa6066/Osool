@@ -50,38 +50,38 @@ async def dashboard_overview(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Main dashboard KPIs."""
+    """Main dashboard KPIs — flat shape expected by the frontend."""
     now = datetime.utcnow()
-    last_30d = now - timedelta(days=30)
     last_7d = now - timedelta(days=7)
 
-    total_users = (await db.execute(select(func.count(User.id)))).scalar()
-    new_users_30d = (await db.execute(
-        select(func.count(User.id)).where(User.created_at >= last_30d)
-    )).scalar()
-
-    total_leads = (await db.execute(select(func.count(LeadProfile.id)))).scalar()
+    total_leads = (await db.execute(select(func.count(LeadProfile.id)))).scalar() or 0
+    new_leads_7d = (await db.execute(
+        select(func.count(LeadProfile.id)).where(LeadProfile.created_at >= last_7d)
+    )).scalar() or 0
     hot_leads = (await db.execute(
         select(func.count(LeadProfile.id)).where(LeadProfile.score >= 70)
-    )).scalar()
+    )).scalar() or 0
 
-    total_intents_7d = (await db.execute(
-        select(func.count(ChatIntent.id)).where(ChatIntent.created_at >= last_7d)
-    )).scalar()
+    total_intents = (await db.execute(select(func.count(ChatIntent.id)))).scalar() or 0
+    avg_confidence = (await db.execute(
+        select(func.avg(ChatIntent.confidence))
+    )).scalar() or 0.0
 
-    total_emails = (await db.execute(select(func.count(EmailEvent.id)))).scalar()
-
-    total_projects = (await db.execute(select(func.count(SEOProject.id)))).scalar()
-
-    waitlist = (await db.execute(select(func.count(WaitlistEntry.id)))).scalar()
+    total_emails = (await db.execute(select(func.count(EmailEvent.id)))).scalar() or 0
+    emails_opened = (await db.execute(
+        select(func.count(EmailEvent.id)).where(EmailEvent.status == "opened")
+    )).scalar() or 0
+    open_rate = (emails_opened / total_emails) if total_emails > 0 else 0.0
 
     return {
-        "users": {"total": total_users, "new_30d": new_users_30d},
-        "leads": {"total": total_leads, "hot": hot_leads},
-        "intents_7d": total_intents_7d,
+        "total_leads": total_leads,
+        "new_leads_7d": new_leads_7d,
+        "hot_leads": hot_leads,
+        "total_intents": total_intents,
+        "avg_confidence": avg_confidence,
         "emails_sent": total_emails,
-        "projects_listed": total_projects,
-        "waitlist_entries": waitlist,
+        "emails_opened": emails_opened,
+        "open_rate": open_rate,
     }
 
 
@@ -94,7 +94,7 @@ async def lead_funnel(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lead pipeline funnel breakdown."""
+    """Lead pipeline funnel breakdown — returns flat array of {stage, count}."""
     stages = (await db.execute(
         select(LeadProfile.stage, func.count(LeadProfile.id))
         .group_by(LeadProfile.stage)
@@ -103,13 +103,10 @@ async def lead_funnel(
     funnel_order = ["new", "engaged", "hot", "qualified", "converted", "lost"]
     stage_map = {s: c for s, c in stages if s}
 
-    return {
-        "funnel": [
-            {"stage": s, "count": stage_map.get(s, 0)}
-            for s in funnel_order
-        ],
-        "total": sum(stage_map.values()),
-    }
+    return [
+        {"stage": s, "count": stage_map.get(s, 0)}
+        for s in funnel_order
+    ]
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -122,7 +119,7 @@ async def intent_trends(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Daily intent counts over past N days."""
+    """Daily intent counts pivoted by type."""
     since = datetime.utcnow() - timedelta(days=days)
     result = await db.execute(
         select(
@@ -135,10 +132,19 @@ async def intent_trends(
         .order_by("day")
     )
     rows = result.all()
-    return [
-        {"date": str(day), "intent_type": str(it), "count": c}
-        for day, it, c in rows
-    ]
+
+    # Pivot into {date, SEARCH, COMPARE, PURCHASE, VALUATION, GENERAL}
+    from collections import OrderedDict
+    intent_types = ["SEARCH", "COMPARE", "PURCHASE", "VALUATION", "GENERAL"]
+    day_map: dict = OrderedDict()
+    for day, it, c in rows:
+        d = str(day)
+        if d not in day_map:
+            day_map[d] = {"date": d, **{t: 0 for t in intent_types}}
+        key = str(it).upper() if it else "GENERAL"
+        if key in day_map[d]:
+            day_map[d][key] = c
+    return list(day_map.values())
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -150,24 +156,45 @@ async def market_snapshot(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Latest price data per area."""
+    """Aggregated market snapshot for the dashboard."""
     from app.models import Area
 
-    areas = (await db.execute(select(Area).order_by(Area.name))).scalars().all()
-    snapshot = []
-    for area in areas:
-        latest = await db.execute(
-            select(PriceHistory)
-            .where(PriceHistory.area_id == area.id)
-            .order_by(PriceHistory.date.desc())
-            .limit(1)
-        )
-        ph = latest.scalar_one_or_none()
-        snapshot.append({
-            "area": area.name,
-            "slug": area.slug,
-            "avg_price_per_meter": ph.price_per_m2 if ph else area.avg_price_per_meter,
-            "price_growth_ytd": area.price_growth_ytd,
-            "rental_yield": area.rental_yield,
-        })
-    return snapshot
+    # Top searched areas (from chat intents mentioning areas, or fall back to areas by search count)
+    top_areas_result = await db.execute(
+        select(Area.name, Area.avg_price_per_meter)
+        .order_by(Area.avg_price_per_meter.desc())
+        .limit(5)
+    )
+    top_areas = [
+        {"area": name, "count": int(price or 0)}
+        for name, price in top_areas_result.all()
+    ]
+
+    # Average budget from lead profiles
+    budget = await db.execute(
+        select(func.avg(LeadProfile.budget_min), func.avg(LeadProfile.budget_max))
+    )
+    budget_row = budget.one()
+    avg_budget_min = float(budget_row[0] or 0)
+    avg_budget_max = float(budget_row[1] or 0)
+
+    # Top intent type
+    top_intent_result = await db.execute(
+        select(ChatIntent.intent_type, func.count(ChatIntent.id).label("cnt"))
+        .group_by(ChatIntent.intent_type)
+        .order_by(func.count(ChatIntent.id).desc())
+        .limit(1)
+    )
+    top_intent_row = top_intent_result.first()
+    top_intent = str(top_intent_row[0]) if top_intent_row else "N/A"
+
+    # Total interactions
+    total_interactions = (await db.execute(select(func.count(ChatIntent.id)))).scalar() or 0
+
+    return {
+        "top_areas": top_areas,
+        "avg_budget_min": avg_budget_min,
+        "avg_budget_max": avg_budget_max,
+        "top_intent": top_intent,
+        "total_interactions": total_interactions,
+    }
