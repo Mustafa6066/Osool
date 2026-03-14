@@ -1,0 +1,13 @@
+# Railway Configuration for Nawy Scraper Cron Service
+# =====================================================
+# Weekly scraper that collects property listings from nawy.com
+# Runs every Sunday at 3:00 AM UTC 
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "scraper/Dockerfile"
+
+[deploy]
+# Weekly cron: every Sunday at 03:00 UTC
+cronSchedule = "0 3 * * 0"
+restartPolicyType = "NEVER"

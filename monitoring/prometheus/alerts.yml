@@ -1,0 +1,250 @@
+# Prometheus Alerting Rules for Osool Platform
+# Phase 4.1: Production Monitoring
+# ----------------------------------------------
+
+groups:
+  # API Health Alerts
+  - name: api_health
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          rate(osool_api_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          category: api
+        annotations:
+          summary: "High API error rate detected"
+          description: "API error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.95, rate(osool_api_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency is {{ $value }}s (threshold: 2s)"
+
+      - alert: APIDown
+        expr: up{job="osool-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Osool Backend API is down"
+          description: "Backend API has been down for more than 1 minute"
+
+  # OpenAI Cost Alerts
+  - name: openai_costs
+    interval: 1h
+    rules:
+      - alert: HighOpenAICost
+        expr: |
+          increase(osool_openai_cost_usd_total[1d]) > 100
+        labels:
+          severity: warning
+          category: costs
+        annotations:
+          summary: "High OpenAI API costs detected"
+          description: "OpenAI costs in last 24h: ${{ $value }} (threshold: $100)"
+
+      - alert: OpenAICostSpike
+        expr: |
+          rate(osool_openai_cost_usd_total[1h]) > 10
+        for: 30m
+        labels:
+          severity: warning
+          category: costs
+        annotations:
+          summary: "Sudden spike in OpenAI costs"
+          description: "OpenAI cost rate: ${{ $value }}/hour (threshold: $10/hour)"
+
+  # Database Alerts
+  - name: database_health
+    interval: 30s
+    rules:
+      - alert: DatabaseDown
+        expr: up{job="postgresql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "Database has been unreachable for more than 1 minute"
+
+      - alert: HighDatabaseConnections
+        expr: |
+          osool_database_connections > 40
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "High number of database connections"
+          description: "Current connections: {{ $value }} (threshold: 40)"
+
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95, rate(osool_database_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query time: {{ $value }}s (threshold: 1s)"
+
+  # Redis Alerts
+  - name: redis_health
+    interval: 30s
+    rules:
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: cache
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis has been unreachable for more than 1 minute"
+
+      - alert: RedisHighMemory
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis memory usage: {{ $value | humanizePercentage }} (threshold: 90%)"
+
+  # System Resource Alerts
+  - name: system_resources
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage: {{ $value }}% (threshold: 80%)"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage: {{ $value }}% (threshold: 85%)"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "Low disk space"
+          description: "Available disk space: {{ $value }}% (threshold: 15%)"
+
+  # Circuit Breaker Alerts
+  - name: circuit_breakers
+    interval: 30s
+    rules:
+      - alert: CircuitBreakerOpen
+        expr: |
+          osool_circuit_breaker_state{service=~"openai|blockchain|paymob"} == 2
+        for: 2m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Circuit breaker is open for {{ $labels.service }}"
+          description: "External service {{ $labels.service }} is unavailable"
+
+      - alert: HighCircuitBreakerFailures
+        expr: |
+          rate(osool_circuit_breaker_failures_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "High failure rate for {{ $labels.service }}"
+          description: "Failure rate: {{ $value }} failures/sec"
+
+  # Business Metrics Alerts
+  - name: business_metrics
+    interval: 5m
+    rules:
+      - alert: LowTrafficAnomaly
+        expr: |
+          rate(osool_api_requests_total[10m]) < 0.1
+        for: 15m
+        labels:
+          severity: info
+          category: business
+        annotations:
+          summary: "Unusually low traffic detected"
+          description: "Request rate: {{ $value }} req/sec (expected: >0.1)"
+
+      - alert: NoReservationsInLast24Hours
+        expr: |
+          increase(osool_reservations_total[24h]) == 0
+        labels:
+          severity: info
+          category: business
+        annotations:
+          summary: "No property reservations in last 24 hours"
+          description: "This may indicate a problem with the reservation flow"
+
+      - alert: HighReservationFailureRate
+        expr: |
+          rate(osool_reservations_total{status="failed"}[1h]) / rate(osool_reservations_total[1h]) > 0.2
+        for: 30m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High reservation failure rate"
+          description: "Failure rate: {{ $value | humanizePercentage }} (threshold: 20%)"
+
+  # Liquidity Marketplace Alerts (Phase 6)
+  - name: liquidity_marketplace
+    interval: 1m
+    rules:
+      - alert: LowPoolLiquidity
+        expr: |
+          liquidity_pool_egp_reserve < 10000
+        labels:
+          severity: warning
+          category: liquidity
+        annotations:
+          summary: "Low liquidity in pool {{ $labels.property_id }}"
+          description: "Pool liquidity: {{ $value }} EGP (threshold: 10,000 EGP)"
+
+      - alert: HighTradingSlippage
+        expr: |
+          avg_over_time(liquidity_trade_slippage_percent[5m]) > 5
+        for: 10m
+        labels:
+          severity: warning
+          category: liquidity
+        annotations:
+          summary: "High trading slippage detected"
+          description: "Average slippage: {{ $value }}% (threshold: 5%)"

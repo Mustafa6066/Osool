@@ -1,0 +1,105 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+build/
+dist/
+
+# Node
+node_modules/
+.next/
+/.parcel-cache
+npm-debug.log
+
+# Env
+.env
+.env.*
+*.local
+
+# Editor
+.vscode/
+.idea/
+*.sublime-workspace
+
+# OS
+.DS_Store
+
+# Sensitive local configs
+.claude/
+# Dependencies
+node_modules/
+
+# Environment variables (NEVER commit secrets!)
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.local
+
+# Vercel
+.vercel
+
+# Next.js
+.next/
+
+# Build output directories (may contain bundled env vars)
+web/.next/
+web/out/
+web/build/
+
+# Hardhat
+artifacts/
+cache/
+coverage/
+coverage.json
+typechain/
+typechain-types/
+.hardhat/
+
+# Deployments (keep to track history, but ignore localhost for cleaner repo)
+deployments/localhost*.json
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.pkl
+
+# Temp / patch / diff files
+*.patch
+*.bak
+diff*.txt
+*_diff.txt
+*_diff.patch
+temp_*
+
+# Data outputs
+data/scrape_summary.json
+
+# Test artifacts
+backend/test_db.py
+test_scraper.py
+backend/debug_output.txt
+backend/tmpclaude-*
+
+# Utility / one-off scripts
+patch_smartnav.py
+patch_smartnav_2.py
+web/parse_html.py
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Security Fix M1: Secrets directory (never commit)
+secrets/
+
+# Security Fix L4: Database files
+*.db

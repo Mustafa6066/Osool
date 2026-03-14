@@ -1,0 +1,9 @@
+backend/
+node_modules/
+.venv/
+*.pkl
+*.xlsx
+artifacts/
+cache/
+.git/
+deployments/

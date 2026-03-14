@@ -1,0 +1,23 @@
+{
+  "name": "osool-real-estate",
+  "version": "1.0.0",
+  "description": "AI-Powered Real Estate Platform for the Egyptian Market",
+  "scripts": {
+    "build": "cd web && npm install && npm run build",
+    "vercel-build": "cd web && npm install && npm run build"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1"
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "real-estate",
+    "proptech",
+    "ai",
+    "egypt"
+  ],
+  "author": "Osool Team",
+  "license": "MIT"
+}
