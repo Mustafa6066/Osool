@@ -138,7 +138,7 @@ export default function AnalyticsDashboard() {
         )}
 
         {/* Lead Funnel */}
-        {funnel && funnel.length > 0 && (
+        {funnel.length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-emerald-500" /> Lead Funnel
@@ -169,7 +169,7 @@ export default function AnalyticsDashboard() {
         )}
 
         {/* Intent Trends Table */}
-        {trends && trends.length > 0 && (
+        {trends.length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-semibold mb-4">Intent Trends (30 days)</h2>
             <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
@@ -209,7 +209,7 @@ export default function AnalyticsDashboard() {
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <h3 className="text-sm font-medium text-[var(--color-text-muted)] mb-3">Top Searched Areas</h3>
                 <div className="space-y-2">
-                  {market.top_areas?.map((a, i) => (
+                  {market.top_areas.map((a, i) => (
                     <div key={a.area} className="flex items-center justify-between text-sm">
                       <span>
                         <span className="text-[var(--color-text-muted)] mr-2">{i + 1}.</span>

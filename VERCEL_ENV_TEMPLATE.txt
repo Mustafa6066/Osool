@@ -8,30 +8,12 @@
 # BACKEND API URL (From Railway)
 # ─────────────────────────────────────────────────────────────
 # Get this URL from Railway after deploying backend
-NEXT_PUBLIC_API_URL=https://osool-production.up.railway.app
+NEXT_PUBLIC_API_URL=https://osool-backend-production.up.railway.app
 
 # IMPORTANT:
 # - NO trailing slash!
 # - Must be the full Railway URL
 # - Update this after deploying to Railway
-
-# ─────────────────────────────────────────────────────────────
-# OSOOL ORCHESTRATOR (Webhook + Data enrichment)
-# ─────────────────────────────────────────────────────────────
-# The deployed URL of the orchestrator API (Railway)
-NEXT_PUBLIC_ORCHESTRATOR_URL=https://your-orchestrator.railway.app
-# Must match WEBHOOK_SECRET set in the orchestrator Railway service
-# Generate with: openssl rand -hex 32
-ORCHESTRATOR_WEBHOOK_SECRET=<same-value-as-orchestrator-WEBHOOK_SECRET>
-# Must match API_KEY set in the orchestrator Railway service
-ORCHESTRATOR_API_KEY=<same-value-as-orchestrator-API_KEY>
-
-# ─────────────────────────────────────────────────────────────
-# OSOOL ORCHESTRATOR ADMIN URL (Optional)
-# ─────────────────────────────────────────────────────────────
-# The deployed URL of the @osool/admin Vite app (e.g. from Railway)
-# This powers the "Advanced SEO Engine" link in the frontend admin dashboard
-NEXT_PUBLIC_ADMIN_URL=https://your-admin-domain.railway.app
 
 # ─────────────────────────────────────────────────────────────
 # THIRDWEB (Web3 Wallet)

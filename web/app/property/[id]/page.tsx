@@ -108,41 +108,18 @@ export default function PropertyDetailsPage() {
 
     const propertyId = params.id as string;
 
-    const parseDataJsPayload = (txt: string): { properties?: RawProperty[] } => {
-        const candidates: string[] = [];
-
-        candidates.push(txt.trim());
-
-        const assignMatch = txt.match(/=\s*(\{[\s\S]*\})\s*;?\s*$/);
-        if (assignMatch?.[1]) candidates.push(assignMatch[1]);
-
-        const start = txt.indexOf('{');
-        const end = txt.lastIndexOf('}');
-        if (start !== -1 && end !== -1 && end > start) {
-            candidates.push(txt.substring(start, end + 1));
-        }
-
-        for (const candidate of candidates) {
-            try {
-                const parsed = JSON.parse(candidate) as { properties?: RawProperty[] };
-                if (Array.isArray(parsed?.properties)) return parsed;
-            } catch {
-                // Try next strategy
-            }
-        }
-
-        throw new Error('Failed to parse property dataset');
-    };
-
     // ── Fetch real property data from data.js ─────────────────
     const fetchProperty = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
             const res = await fetch('/assets/js/data.js');
-            if (!res.ok) throw new Error(`data.js HTTP ${res.status}`);
             const txt = await res.text();
-            const raw = parseDataJsPayload(txt);
+            const start = txt.indexOf('{');
+            const end = txt.lastIndexOf('}');
+            if (start === -1 || end === -1) throw new Error('Data parse error');
+
+            const raw = JSON.parse(txt.substring(start, end + 1));
             const props = (raw.properties || []) as RawProperty[];
             const found = props.find(p => String(p.id) === propertyId);
 

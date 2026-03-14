@@ -44,13 +44,6 @@ interface PipelineStats {
   lost: number;
 }
 
-// The backend /api/leads/stats returns a different shape — map it here
-interface StatsApiResponse {
-  total_leads: number;
-  hot_leads: number;
-  by_stage: Record<string, number>;
-}
-
 /* ── Stages ─────────────────────────────────────────────── */
 
 const STAGES = ['new', 'engaged', 'hot', 'converted', 'lost'] as const;
@@ -81,21 +74,10 @@ export default function LeadsPage() {
       const params = stageFilter ? `?stage=${stageFilter}` : '';
       const [lRes, sRes] = await Promise.all([
         api.get(`/api/leads${params}`).catch(() => ({ data: [] })),
-        api.get('/api/leads/stats').catch(() => ({ data: null })),
+        api.get('/api/leads/pipeline').catch(() => ({ data: null })),
       ]);
       setLeads(lRes.data);
-      const raw: StatsApiResponse | null = sRes.data;
-      if (raw) {
-        const by = raw.by_stage ?? {};
-        setStats({
-          total: raw.total_leads ?? 0,
-          new: by.new ?? 0,
-          engaged: by.engaged ?? 0,
-          hot: by.hot ?? 0,
-          converted: by.converted ?? 0,
-          lost: by.lost ?? 0,
-        });
-      }
+      setStats(sRes.data);
     } finally {
       setLoading(false);
     }
@@ -137,7 +119,6 @@ export default function LeadsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/admin')}
-              title="Back to admin"
               className="p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />

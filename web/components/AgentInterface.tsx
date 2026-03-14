@@ -473,9 +473,8 @@ export default function AgentInterface() {
         if (messages.length > 0) saveToStorage(STORAGE_KEYS.MESSAGES, messages);
     }, [messages]);
 
-    /* Fetch past sessions from backend on first mount — only for authenticated users */
+    /* Fetch past sessions from backend on first mount */
     useEffect(() => {
-        if (!user) return;
         if (hasFetchedHistory.current) return;
         hasFetchedHistory.current = true;
         api.get('/api/chat/history').then(res => {
@@ -484,7 +483,7 @@ export default function AgentInterface() {
             );
             setPastSessions(sessions);
         }).catch(() => {});
-    }, [user]);
+    }, []);
 
     useEffect(() => {
         if (inputRef.current) {

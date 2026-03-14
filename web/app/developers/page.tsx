@@ -1,7 +1,6 @@
 import { getDevelopers } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
 
 export const metadata: Metadata = {
   title: 'Top Egyptian Real Estate Developers — Ranked & Scored | Osool',
@@ -24,17 +23,11 @@ function ScoreBar({ value, label }: { value: number; label: string }) {
 }
 
 export default async function DevelopersPage() {
-  let developers: Awaited<ReturnType<typeof getDevelopers>> = [];
-  try {
-    developers = await getDevelopers();
-  } catch {
-    // backend unavailable or empty — show empty state
-  }
+  const developers = await getDevelopers();
 
   return (
-    <SmartNav>
-    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)] pb-20 md:pb-0">
-      <div className="max-w-6xl mx-auto px-4 py-10">
+    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
+      <div className="max-w-6xl mx-auto px-4 py-16">
         <h1 className="text-3xl font-bold mb-2">
           Top Egyptian Real Estate Developers
         </h1>
@@ -43,12 +36,6 @@ export default async function DevelopersPage() {
           Data updated monthly by Osool&apos;s AI analytics engine.
         </p>
 
-        {developers.length === 0 && (
-          <div className="text-center py-20 text-[var(--color-text-muted)]">
-            <p className="text-lg font-medium mb-2">No developer data available</p>
-            <p className="text-sm">Check back soon — data is being updated.</p>
-          </div>
-        )}
         <div className="grid md:grid-cols-2 gap-6">
           {developers.map((dev, i) => (
             <Link
@@ -84,6 +71,5 @@ export default async function DevelopersPage() {
         </div>
       </div>
     </main>
-    </SmartNav>
   );
 }

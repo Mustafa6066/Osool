@@ -106,12 +106,6 @@ else
 fi
 
 # ==========================================
-# 4.5. Seed Developers & Areas (if empty)
-# ==========================================
-echo -e "${YELLOW}[4.5/6] Seeding developers & areas data if missing...${NC}"
-python check_and_seed.py && echo -e "${GREEN}✓ Developers & areas seeding complete${NC}" || echo -e "${YELLOW}⚠ Developer/area seed warning - continuing anyway${NC}"
-
-# ==========================================
 # 5. Environment Validation (Production Only)
 # ==========================================
 if [ "${ENVIRONMENT}" = "production" ]; then

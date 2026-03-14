@@ -13,11 +13,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Base URL from environment or default to localhost (strip trailing slash)
-// Force HTTPS for any non-localhost URL to prevent mixed-content blocks on Vercel
-const envUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const BASE_URL = envUrl
-  .replace(/\/$/, '')
-  .replace(/^http:\/\/(?!localhost)/, 'https://');
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 // Create axios instance
 const api = axios.create({
@@ -74,11 +70,10 @@ api.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _skipAuthRedirect?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     // Check if error is 401 Unauthorized and we haven't retried yet
-    // Skip the redirect flow for background/non-critical calls that set _skipAuthRedirect
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._skipAuthRedirect) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       // If already refreshing, queue this request to retry after refresh
@@ -99,17 +94,11 @@ api.interceptors.response.use(
         : null;
 
       if (!refreshToken) {
-        // No refresh token available — clear stale token and redirect to login
-        // Guard: avoid redirect loop if already on login/register page
+        // No refresh token available - redirect to login
         if (typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          const onAuthPage = ['/login', '/register', '/signup'].some(p =>
-            window.location.pathname.startsWith(p)
-          );
-          if (!onAuthPage) {
-            window.location.href = '/login';
-          }
+          window.location.href = '/login';
         }
         return Promise.reject(error);
       }
@@ -144,17 +133,11 @@ api.interceptors.response.use(
       } catch (refreshError) {
         isRefreshing = false;
         refreshSubscribers = [];
-        // Refresh failed — clear auth tokens and redirect to login
-        // Guard: avoid redirect loop if already on login/register page
+        // Refresh failed - clear auth tokens only and redirect to login
         if (typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          const onAuthPage = ['/login', '/register', '/signup'].some(p =>
-            window.location.pathname.startsWith(p)
-          );
-          if (!onAuthPage) {
-            window.location.href = '/login';
-          }
+          window.location.href = '/login';
         }
         return Promise.reject(refreshError);
       }
@@ -175,7 +158,6 @@ export const isAuthenticated = (): boolean => {
 
 /**
  * Helper: Get current user from JWT (decode without verification)
- * Returns null if the token is missing or expired.
  * WARNING: This is NOT secure validation - backend must verify token
  */
 export const getCurrentUserFromToken = (): any | null => {
@@ -188,13 +170,6 @@ export const getCurrentUserFromToken = (): any | null => {
     // Decode JWT payload (base64)
     const payload = token.split('.')[1];
     const decoded = JSON.parse(atob(payload));
-
-    // Discard expired tokens so auth-gated components don't fire for invalid sessions
-    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-      localStorage.removeItem('access_token');
-      return null;
-    }
-
     // Map JWT claims to User interface fields
     const fullName = localStorage.getItem('user_full_name');
     return {
@@ -545,9 +520,7 @@ export interface AdminMessage {
 
 /** Check if current user is admin */
 export const checkAdmin = async (): Promise<{ is_admin: boolean; email: string; name: string }> => {
-  // _skipAuthRedirect: admin check failing (401) should not force a redirect;
-  // the admin page handles 401 by setting isAdmin=false and showing access-denied UI.
-  const { data } = await api.get('/api/admin/check', { _skipAuthRedirect: true } as any);
+  const { data } = await api.get('/api/admin/check');
   return data;
 };
 

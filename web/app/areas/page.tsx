@@ -1,7 +1,6 @@
 import { getAreas } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
 
 export const metadata: Metadata = {
   title: 'Best Investment Areas in Egypt — Prices, Growth & Yield | Osool',
@@ -10,17 +9,11 @@ export const metadata: Metadata = {
 };
 
 export default async function AreasPage() {
-  let areas: Awaited<ReturnType<typeof getAreas>> = [];
-  try {
-    areas = await getAreas();
-  } catch {
-    // backend unavailable or empty — show empty state
-  }
+  const areas = await getAreas();
 
   return (
-    <SmartNav>
-    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)] pb-20 md:pb-0">
-      <div className="max-w-6xl mx-auto px-4 py-10">
+    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
+      <div className="max-w-6xl mx-auto px-4 py-16">
         <h1 className="text-3xl font-bold mb-2">
           Best Investment Areas in Egypt
         </h1>
@@ -29,12 +22,6 @@ export default async function AreasPage() {
           for every major investment zone.
         </p>
 
-        {areas.length === 0 && (
-          <div className="text-center py-20 text-[var(--color-text-muted)]">
-            <p className="text-lg font-medium mb-2">No area data available</p>
-            <p className="text-sm">Check back soon — data is being updated.</p>
-          </div>
-        )}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {areas.map((area) => (
             <Link
@@ -74,6 +61,5 @@ export default async function AreasPage() {
         </div>
       </div>
     </main>
-    </SmartNav>
   );
 }

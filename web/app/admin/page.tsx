@@ -348,7 +348,7 @@ export default function AdminPage() {
                             </div>
 
                             {/* Dual-Engine Quick Links */}
-                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 {[
                                     { label: 'Analytics Dashboard', desc: 'Lead intelligence & intent trends', href: '/admin/analytics', color: 'text-purple-500' },
                                     { label: 'Lead Pipeline', desc: 'Manage leads from chat', href: '/admin/leads', color: 'text-red-500' },
@@ -363,15 +363,6 @@ export default function AdminPage() {
                                         <p className="text-xs text-[var(--color-text-muted)] mt-1">{link.desc}</p>
                                     </a>
                                 ))}
-                                <a
-                                    href={process.env.NEXT_PUBLIC_ADMIN_URL || 'https://osooladmin-production.up.railway.app'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 hover:border-emerald-500/50 transition-all group"
-                                >
-                                    <p className="text-sm font-semibold group-hover:text-emerald-500 transition-colors text-emerald-500">Advanced SEO Engine ↗</p>
-                                    <p className="text-xs text-[var(--color-text-muted)] mt-1">Manage Keywords, Funnels, and Agent specific intents</p>
-                                </a>
                             </div>
                             </>
                         )}

@@ -12,7 +12,6 @@ import ProfileDropdown from '@/components/ProfileDropdown';
 import InvitationModal from '@/components/InvitationModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
-import AICapabilityShowcase from '@/components/AICapabilityShowcase';
 
 export default function Home() {
     const { isAuthenticated, loading, user } = useAuth();
@@ -295,9 +294,6 @@ export default function Home() {
                     </div>
                 </div>
             </section>
-
-            {/* AI Capability Showcase */}
-            <AICapabilityShowcase />
 
             {/* CTA */}
             <section className="py-24 border-t border-[var(--color-border)]">
