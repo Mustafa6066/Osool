@@ -10,7 +10,7 @@
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile.prod"
+dockerfilePath = "backend/Dockerfile.prod"
 
 [deploy]
 healthcheckPath = "/health"

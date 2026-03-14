@@ -60,6 +60,9 @@ WORKDIR /app
 # Copy application code
 COPY --chown=osool:osool . /app
 
+# Ensure the startup script is executable inside the image.
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Switch to non-root user
 USER osool
 
@@ -70,15 +73,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Run migrations on startup, then start server with Gunicorn + Uvicorn workers
-CMD alembic upgrade head || echo "⚠️ Alembic migration failed — starting server anyway"; \
-    gunicorn app.main:app \
-        --bind 0.0.0.0:8000 \
-        --workers 4 \
-        --worker-class uvicorn.workers.UvicornWorker \
-        --timeout 120 \
-        --keep-alive 5 \
-        --log-level info \
-        --access-logfile - \
-        --error-logfile - \
-        --preload
+# Run the production entrypoint, which handles migrations, ingestion, seed data, and startup.
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
