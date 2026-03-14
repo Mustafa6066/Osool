@@ -1,15 +1,20 @@
 "use client";
 
+import { Suspense } from "react";
 import AgentInterface from "@/components/AgentInterface";
 import SmartNav from "@/components/SmartNav";
+import { Loader2 } from "lucide-react";
 
 /**
  * Chat Page — accessible to anon users (3 free messages) and full access for authenticated users.
+ * Suspense boundary required because AgentInterface uses useSearchParams().
  */
 export default function ChatPage() {
     return (
         <SmartNav>
-            <AgentInterface />
+            <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-emerald-500" /></div>}>
+                <AgentInterface />
+            </Suspense>
         </SmartNav>
     );
 }
