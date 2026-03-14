@@ -106,27 +106,33 @@ else
 fi
 
 # ==========================================
-# 5. SEO & Marketing Seed Data (if empty)
+# 5. SEO & Marketing Seed Data (if incomplete)
 # ==========================================
 echo -e "${YELLOW}[5/7] Checking SEO seed data...${NC}"
 
-SEO_DEV_COUNT=$(python -c "
+SEO_COUNTS=$(python -c "
 import asyncio
 from app.database import AsyncSessionLocal
 from sqlalchemy import select, func
-from app.models import Developer
+from app.models import Developer, Area, SEOProject
 async def check():
     async with AsyncSessionLocal() as s:
-        r = await s.execute(select(func.count(Developer.id)))
-        return r.scalar() or 0
+        devs = (await s.execute(select(func.count(Developer.id)))).scalar() or 0
+        areas = (await s.execute(select(func.count(Area.id)))).scalar() or 0
+        projects = (await s.execute(select(func.count(SEOProject.id)))).scalar() or 0
+        return f'{devs},{areas},{projects}'
 print(asyncio.run(check()))
-" 2>/dev/null || echo "0")
+" 2>/dev/null || echo "0,0,0")
 
-echo "Developers in database: ${SEO_DEV_COUNT}"
+IFS=',' read -r SEO_DEV_COUNT SEO_AREA_COUNT SEO_PROJECT_COUNT <<EOF
+${SEO_COUNTS}
+EOF
 
-if [ "$SEO_DEV_COUNT" -eq "0" ]; then
-    echo -e "${YELLOW}SEO tables empty - running full seed...${NC}"
-    python -m scripts.seed_all
+echo "SEO dataset counts: developers=${SEO_DEV_COUNT}, areas=${SEO_AREA_COUNT}, projects=${SEO_PROJECT_COUNT}"
+
+if [ "$SEO_DEV_COUNT" -eq "0" ] || [ "$SEO_AREA_COUNT" -eq "0" ] || [ "$SEO_PROJECT_COUNT" -eq "0" ]; then
+    echo -e "${YELLOW}SEO dataset incomplete - running bootstrap seed...${NC}"
+    python -m scripts.seed_bootstrap
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ SEO seed data loaded${NC}"
@@ -134,7 +140,7 @@ if [ "$SEO_DEV_COUNT" -eq "0" ]; then
         echo -e "${RED}✗ SEO seed failed - continuing anyway${NC}"
     fi
 else
-    echo -e "${GREEN}✓ SEO data already seeded (${SEO_DEV_COUNT} developers)${NC}"
+    echo -e "${GREEN}✓ SEO data already seeded (${SEO_DEV_COUNT} developers, ${SEO_AREA_COUNT} areas, ${SEO_PROJECT_COUNT} projects)${NC}"
 fi
 
 # ==========================================

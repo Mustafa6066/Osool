@@ -107,7 +107,7 @@ async function seoFetch<T>(path: string, revalidate: number = 3600): Promise<T> 
 // ═══════════════════════════════════════════════════════════════
 
 export const getDevelopers = (sort = 'overall_score', order = 'desc') =>
-  seoFetch<Developer[]>(`/api/seo/developers?sort=${sort}&order=${order}`);
+  seoFetch<Developer[]>(`/api/seo/developers?sort=${sort}&order=${order}`, 60);
 
 export const getDeveloper = (slug: string) =>
   seoFetch<Developer>(`/api/seo/developers/${slug}`);
@@ -120,7 +120,7 @@ export const getDeveloperProjects = (slug: string) =>
 // ═══════════════════════════════════════════════════════════════
 
 export const getAreas = (sort = 'avg_price_per_meter', order = 'desc') =>
-  seoFetch<Area[]>(`/api/seo/areas?sort=${sort}&order=${order}`);
+  seoFetch<Area[]>(`/api/seo/areas?sort=${sort}&order=${order}`, 60);
 
 export const getArea = (slug: string) =>
   seoFetch<Area>(`/api/seo/areas/${slug}`);

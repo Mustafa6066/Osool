@@ -8,6 +8,8 @@ export const metadata: Metadata = {
     'Compare Egypt\'s top property developers: Emaar Misr, Sodic, Orascom, Palm Hills, Mountain View, TMG & more. Delivery scores, finish quality, and resale retention.',
 };
 
+export const revalidate = 60;
+
 function ScoreBar({ value, label }: { value: number; label: string }) {
   const color =
     value >= 85 ? 'bg-emerald-500' : value >= 70 ? 'bg-yellow-500' : 'bg-red-400';
@@ -23,7 +25,14 @@ function ScoreBar({ value, label }: { value: number; label: string }) {
 }
 
 export default async function DevelopersPage() {
-  const developers = await getDevelopers().catch(() => []);
+  let developers = [];
+  let loadError = false;
+
+  try {
+    developers = await getDevelopers();
+  } catch {
+    loadError = true;
+  }
 
   return (
     <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
@@ -36,39 +45,50 @@ export default async function DevelopersPage() {
           Data updated monthly by Osool&apos;s AI analytics engine.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {developers.map((dev, i) => (
-            <Link
-              key={dev.id}
-              href={`/developers/${dev.slug}`}
-              className="group block p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/50 transition-all"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-emerald-500">#{i + 1}</span>
-                    <h2 className="text-lg font-semibold group-hover:text-emerald-500 transition-colors">
-                      {dev.name}
-                    </h2>
+        {developers.length > 0 ? (
+          <div className="grid md:grid-cols-2 gap-6">
+            {developers.map((dev, i) => (
+              <Link
+                key={dev.id}
+                href={`/developers/${dev.slug}`}
+                className="group block p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/50 transition-all"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-emerald-500">#{i + 1}</span>
+                      <h2 className="text-lg font-semibold group-hover:text-emerald-500 transition-colors">
+                        {dev.name}
+                      </h2>
+                    </div>
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                      Est. {dev.founded_year} · {dev.total_projects} projects
+                    </p>
                   </div>
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    Est. {dev.founded_year} · {dev.total_projects} projects
-                  </p>
+                  <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 font-bold text-lg">
+                    {dev.overall_score}
+                  </div>
                 </div>
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 font-bold text-lg">
-                  {dev.overall_score}
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <ScoreBar value={dev.avg_delivery_score ?? 0} label="Delivery" />
-                <ScoreBar value={dev.avg_finish_quality ?? 0} label="Quality" />
-                <ScoreBar value={dev.avg_resale_retention ?? 0} label="Resale" />
-                <ScoreBar value={dev.payment_flexibility ?? 0} label="Payments" />
-              </div>
-            </Link>
-          ))}
-        </div>
+                <div className="space-y-2">
+                  <ScoreBar value={dev.avg_delivery_score ?? 0} label="Delivery" />
+                  <ScoreBar value={dev.avg_finish_quality ?? 0} label="Quality" />
+                  <ScoreBar value={dev.avg_resale_retention ?? 0} label="Resale" />
+                  <ScoreBar value={dev.payment_flexibility ?? 0} label="Payments" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
+            <h2 className="text-lg font-semibold mb-2">Developer data is not available yet</h2>
+            <p className="text-sm text-[var(--color-text-muted)] max-w-2xl mx-auto">
+              {loadError
+                ? 'The public SEO API could not be loaded. A fresh deploy will retry the seed and page fetch.'
+                : 'The backend returned no developer records. The seed bootstrap will repopulate this dataset on the next deploy.'}
+            </p>
+          </div>
+        )}
       </div>
     </main>
   );
