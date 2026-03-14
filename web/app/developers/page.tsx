@@ -23,7 +23,7 @@ function ScoreBar({ value, label }: { value: number; label: string }) {
 }
 
 export default async function DevelopersPage() {
-  const developers = await getDevelopers();
+  const developers = await getDevelopers().catch(() => []);
 
   return (
     <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">

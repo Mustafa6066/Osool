@@ -209,7 +209,7 @@ export default function AnalyticsDashboard() {
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <h3 className="text-sm font-medium text-[var(--color-text-muted)] mb-3">Top Searched Areas</h3>
                 <div className="space-y-2">
-                  {market.top_areas.map((a, i) => (
+                  {market.top_areas?.map((a, i) => (
                     <div key={a.area} className="flex items-center justify-between text-sm">
                       <span>
                         <span className="text-[var(--color-text-muted)] mr-2">{i + 1}.</span>

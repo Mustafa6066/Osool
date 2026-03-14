@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AreasPage() {
-  const areas = await getAreas();
+  const areas = await getAreas().catch(() => []);
 
   return (
     <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">

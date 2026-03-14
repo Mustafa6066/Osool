@@ -358,7 +358,7 @@ export default function PropertiesPage() {
         if (!isAuthenticated) return;
         fetchFavorites()
             .then(data => {
-                const ids = new Set(data.favorites.map(f => String(f.property_id)));
+                const ids = new Set((data.favorites || []).map(f => String(f.property_id)));
                 setFavoriteIds(ids);
             })
             .catch(() => { /* non-critical */ });

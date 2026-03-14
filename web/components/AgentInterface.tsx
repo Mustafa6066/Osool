@@ -1342,7 +1342,7 @@ export default function AgentInterface() {
                         </div>
 
                         {/* Tags */}
-                        {activeContext.property.tags.length > 0 && (
+                        {activeContext.property.tags?.length > 0 && (
                             <div className="flex flex-wrap gap-2 pt-2">
                                 {activeContext.property.tags.map((tag, i) => (
                                     <span key={i} className="text-[12px] font-medium bg-gray-100 dark:bg-gray-800 text-[var(--color-text-primary)] px-3.5 py-1.5 rounded-full border border-gray-200 dark:border-gray-700">

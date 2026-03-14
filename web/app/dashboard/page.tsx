@@ -113,8 +113,8 @@ export default function DashboardPage() {
         );
     }
 
-    const usedCount = invitationsData?.invitations.filter(i => i.is_used).length || 0;
-    const pendingCount = invitationsData?.invitations.filter(i => !i.is_used).length || 0;
+    const usedCount = invitationsData?.invitations?.filter(i => i.is_used).length || 0;
+    const pendingCount = invitationsData?.invitations?.filter(i => !i.is_used).length || 0;
     const totalInvites = invitationsData?.total_invitations || 0;
     const isUnlimited = invitationsData?.invitations_remaining === 'unlimited';
 
@@ -388,14 +388,14 @@ export default function DashboardPage() {
                                                     <tr>
                                                         <td colSpan={5} className="p-8 text-center text-[var(--color-text-muted)]">{t('dashboard.loadingInvitations')}</td>
                                                     </tr>
-                                                ) : invitationsData?.invitations.length === 0 ? (
+                                                ) : invitationsData?.invitations?.length === 0 ? (
                                                     <tr>
                                                         <td colSpan={5} className="p-8 text-center text-[var(--color-text-muted)]">
                                                             {t('dashboard.noInvitationsYet')}
                                                         </td>
                                                     </tr>
                                                 ) : (
-                                                    invitationsData?.invitations.map((invite, idx) => (
+                                                    invitationsData?.invitations?.map((invite, idx) => (
                                                         <tr key={idx} className="hover:bg-[var(--color-surface-elevated)] transition-colors group">
                                                             <td className="p-4">
                                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${invite.is_used

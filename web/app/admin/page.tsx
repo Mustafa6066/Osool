@@ -456,7 +456,7 @@ export default function AdminPage() {
 
                                 {/* Messages */}
                                 <div className="space-y-3">
-                                    {selectedConversation.messages.map((msg) => (
+                                    {(selectedConversation.messages || []).map((msg) => (
                                         <div
                                             key={msg.id}
                                             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -683,7 +683,7 @@ export default function AdminPage() {
 
                                         {/* Replies Thread */}
                                         <div className="space-y-3">
-                                            {selectedTicket.replies.map(reply => (
+                                            {(selectedTicket.replies || []).map(reply => (
                                                 <div key={reply.id} className={`p-3 rounded-xl border ${reply.is_admin_reply ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
                                                     <div className="flex items-center gap-2 mb-1.5">
                                                         <span className={`text-xs font-medium ${reply.is_admin_reply ? 'text-emerald-500' : 'text-[var(--color-text-primary)]'}`}>

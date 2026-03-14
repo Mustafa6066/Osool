@@ -73,7 +73,7 @@ export default async function AreaPage({ params }: Props) {
         </div>
 
         {/* Price History Table */}
-        {priceHistory.length > 0 && (
+        {priceHistory?.length > 0 && (
           <section className="mb-12">
             <h2 className="text-xl font-semibold mb-4">Price History (Last 12 Months)</h2>
             <div className="overflow-x-auto">
@@ -105,10 +105,10 @@ export default async function AreaPage({ params }: Props) {
 
         {/* Projects in Area */}
         <h2 className="text-xl font-semibold mb-4">
-          Projects in {area.name} ({projects.length})
+          Projects in {area.name} ({(projects || []).length})
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          {projects.map((p) => (
+          {(projects || []).map((p) => (
             <Link
               key={p.id}
               href={`/projects/${p.slug}`}

@@ -37,7 +37,7 @@ export default function FinancialComparisonTable({
 
     // Extract column names from first row
     const firstRow = rows[0];
-    const columnHeaders = firstRow.values.map(v => v.name);
+    const columnHeaders = (firstRow.values || []).map(v => v.name);
 
     return (
         <motion.div

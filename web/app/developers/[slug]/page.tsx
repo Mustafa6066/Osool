@@ -80,10 +80,10 @@ export default async function DeveloperPage({ params }: Props) {
 
         {/* Projects */}
         <h2 className="text-xl font-semibold mb-4">
-          Projects by {dev.name} ({projects.length})
+          Projects by {dev.name} ({(projects || []).length})
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          {projects.map((p) => (
+          {(projects || []).map((p) => (
             <Link
               key={p.id}
               href={`/projects/${p.slug}`}
