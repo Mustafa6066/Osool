@@ -60,8 +60,8 @@ WORKDIR /app
 # Copy application code
 COPY --chown=osool:osool . /app
 
-# Ensure the startup script is executable inside the image.
-RUN chmod +x /app/docker-entrypoint.sh
+# Fix Windows line-endings and make the startup script executable.
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 
 # Switch to non-root user
 USER osool
