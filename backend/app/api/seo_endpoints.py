@@ -8,6 +8,8 @@ developer profiles, and area guides.
 import hmac
 import os
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, Depends, Query, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -81,7 +83,7 @@ class ProjectOut(BaseModel):
     avg_price_per_meter: Optional[float] = None
     down_payment_min: Optional[float] = None
     installment_years: Optional[int] = None
-    expected_delivery: Optional[str] = None
+    expected_delivery: Optional[datetime] = None
     min_unit_size: Optional[float] = None
     max_unit_size: Optional[float] = None
     amenities: Optional[str] = None
@@ -99,7 +101,7 @@ class PriceHistoryOut(BaseModel):
     id: int
     area_id: Optional[int] = None
     project_id: Optional[int] = None
-    date: Optional[str] = None
+    date: Optional[datetime] = None
     price_per_m2: Optional[float] = None
     source: Optional[str] = None
 
