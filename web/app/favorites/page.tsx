@@ -93,31 +93,52 @@ export default function FavoritesPage() {
                         </div>
                     )}
 
-                    {/* Empty State */}
+                    {/* Empty State — teach & motivate */}
                     {!loading && favorites.length === 0 && (
-                        <div className="flex flex-col items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-20 text-center">
-                            <div className="w-20 h-20 rounded-2xl bg-[var(--color-surface-elevated)] flex items-center justify-center mb-4">
-                                <Heart className="w-10 h-10 text-[var(--color-text-muted)]" />
-                            </div>
-                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
-                                {t('favorites.noSaved')}
-                            </h2>
-                            <p className="text-sm text-[var(--color-text-muted)] max-w-md mb-6">
-                                {t('favorites.browsePrompt')}
-                            </p>
-                            <div className="flex flex-wrap justify-center gap-3">
-                                <Link
-                                    href="/explore"
-                                    className="px-6 py-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-full text-sm font-medium"
-                                >
-                                    Explore opportunities
-                                </Link>
-                                <Link
-                                    href="/chat"
-                                    className="px-6 py-2.5 border border-[var(--color-border)] rounded-full text-sm font-medium hover:border-emerald-500/40"
-                                >
-                                    Ask Osool to build a shortlist
-                                </Link>
+                        <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-12">
+                            <div className="mx-auto max-w-lg text-center">
+                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-500/10">
+                                    <Heart className="h-10 w-10 text-emerald-500" />
+                                </div>
+                                <h2 className="mt-6 text-2xl font-semibold text-[var(--color-text-primary)]">
+                                    Your shortlist is your working board.
+                                </h2>
+                                <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">
+                                    The best investors don&rsquo;t just browse — they shortlist, compare, and strike.
+                                    Start by asking the advisor for recommendations, then save the ones worth deeper analysis.
+                                </p>
+
+                                {/* Mini-roadmap */}
+                                <div className="mx-auto mt-8 grid max-w-sm gap-3 text-left">
+                                    <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">1</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">Ask the advisor: <span className="font-medium text-[var(--color-text-primary)]">&ldquo;Show me apartments in New Cairo under 5M&rdquo;</span></div>
+                                    </div>
+                                    <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">2</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">Tap the <Heart className="inline h-3.5 w-3.5 text-emerald-500" /> icon on any property card to save it here</div>
+                                    </div>
+                                    <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">3</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">Come back here to compare, run valuations, and decide</div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex flex-wrap justify-center gap-3">
+                                    <Link
+                                        href="/chat"
+                                        className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-background)]"
+                                    >
+                                        <Sparkles className="h-4 w-4" />
+                                        Open advisor chat
+                                    </Link>
+                                    <Link
+                                        href="/explore"
+                                        className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-6 py-3 text-sm font-medium hover:border-emerald-500/40"
+                                    >
+                                        Explore market
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     )}

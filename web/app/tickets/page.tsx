@@ -237,26 +237,31 @@ export default function TicketsPage() {
                   </div>
                 ) : tickets.length === 0 ? (
                   <div className="rounded-[28px] border border-dashed border-[var(--color-border)] bg-[var(--color-background)] px-6 py-14 text-center">
-                    <MessageSquare className="mx-auto h-10 w-10 text-[var(--color-text-muted)]" />
-                    <h3 className="mt-4 text-xl font-semibold text-[var(--color-text-primary)]">
-                      {statusFilter ? 'No tickets match this status.' : 'No support threads yet.'}
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                    </div>
+                    <h3 className="mt-5 text-xl font-semibold text-[var(--color-text-primary)]">
+                      {statusFilter ? 'No tickets match this filter.' : 'Everything running smoothly?'}
                     </h3>
                     <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--color-text-secondary)]">
-                      Open a ticket when the issue needs tracking, a human reply, or a clear audit trail across multiple messages.
+                      {statusFilter
+                        ? 'Try a different filter or create a new ticket.'
+                        : 'If you have questions about a property, try asking the advisor first — it handles most inquiries instantly. Open a ticket when you need tracking or a human reply.'}
                     </p>
                     <div className="mt-6 flex flex-wrap justify-center gap-3">
+                      <Link
+                        href="/chat"
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Ask Advisor first
+                      </Link>
                       <Link
                         href="/tickets/new"
                         className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]"
                       >
                         <Plus className="h-4 w-4" />
-                        Create first ticket
-                      </Link>
-                      <Link
-                        href="/dashboard"
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
-                      >
-                        Back to workspace
+                        Create ticket
                       </Link>
                     </div>
                   </div>

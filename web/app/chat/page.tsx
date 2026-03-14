@@ -1,18 +1,15 @@
 "use client";
 
 import AgentInterface from "@/components/AgentInterface";
-import ProtectedRoute from "@/components/ProtectedRoute";
 import SmartNav from "@/components/SmartNav";
 
 /**
- * Chat Page - Protected Route with Smart Navigation
+ * Chat Page — accessible to anon users (3 free messages) and full access for authenticated users.
  */
 export default function ChatPage() {
     return (
-        <ProtectedRoute>
-            <SmartNav>
-                <AgentInterface />
-            </SmartNav>
-        </ProtectedRoute>
+        <SmartNav>
+            <AgentInterface />
+        </SmartNav>
     );
 }

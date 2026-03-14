@@ -6,6 +6,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { GamificationProvider } from '@/contexts/GamificationContext';
 import NeuralBackground from '@/components/NeuralBackground';
 import GamificationOverlay from '@/components/GamificationOverlay';
+import CommandPalette from '@/components/CommandPalette';
 import { ErrorBoundaryProvider } from '@/components/ErrorBoundaryProvider';
 import { organizationJsonLd } from '@/lib/json-ld';
 
@@ -66,6 +67,9 @@ export default function RootLayout({
 
                   {/* Global Gamification Notifications */}
                   <GamificationOverlay />
+
+                  {/* Global Command Palette (Ctrl+K / ⌘K) */}
+                  <CommandPalette />
                 </GamificationProvider>
               </AuthProvider>
             </LanguageProvider>

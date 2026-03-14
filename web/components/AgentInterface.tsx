@@ -16,6 +16,9 @@ import api from '@/lib/api';
 import { streamChat } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
+import Link from 'next/link';
+import { Lock, Heart, BarChart3, Scale } from 'lucide-react';
+import { toggleFavorite } from '@/lib/gamification';
 import type { VisualizationRendererProps } from '@/components/visualizations/VisualizationRenderer';
 import dynamic from 'next/dynamic';
 import SuggestionChips from '@/components/SuggestionChips';
@@ -606,6 +609,47 @@ const ThinkingSteps = ({ lastUserMessage }: { lastUserMessage: string }) => {
     );
 };
 
+const FREE_MESSAGE_LIMIT = 3;
+
+/* Anonymous Gate — shown after free messages are used up */
+const AnonymousChatGate = ({ language }: { language: string }) => {
+    const isAr = language === 'ar';
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto max-w-lg text-center py-10 px-6"
+            dir={isAr ? 'rtl' : 'ltr'}
+        >
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                <Lock className="h-6 w-6 text-emerald-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
+                {isAr ? 'عجبك اللي شوفته؟' : "Liked what you've seen?"}
+            </h3>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-6 leading-relaxed">
+                {isAr
+                    ? 'سجّل دلوقتي عشان تكمّل المحادثة وتحفظ تحليلاتك — وده مجاني تماماً.'
+                    : 'Sign up to continue the conversation, save your analyses, and unlock full access — completely free.'}
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Link
+                    href="/signup"
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-sm font-semibold transition-colors shadow-lg shadow-emerald-500/20"
+                >
+                    {isAr ? 'إنشاء حساب' : 'Create Account'}
+                </Link>
+                <Link
+                    href="/login"
+                    className="px-6 py-3 border border-[var(--color-border)] hover:border-emerald-500/40 rounded-full text-sm font-medium text-[var(--color-text-primary)] transition-colors"
+                >
+                    {isAr ? 'تسجيل الدخول' : 'Sign In'}
+                </Link>
+            </div>
+        </motion.div>
+    );
+};
+
 /* Main Component */
 export default function AgentInterface() {
     const { user } = useAuth();
@@ -623,6 +667,8 @@ export default function AgentInterface() {
     const [lastAiMsgId, setLastAiMsgId] = useState<number | null>(null);
     const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [anonGateShown, setAnonGateShown] = useState(false);
+    const [savedPropertyIds, setSavedPropertyIds] = useState<Set<string>>(new Set());
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -630,7 +676,7 @@ export default function AgentInterface() {
     const hasFetchedHistory = useRef(false);
     const seededPromptRef = useRef<string | null>(null);
 
-    const userName = user?.full_name || user?.email?.split('@')[0] || 'Investor';
+    const userName = user?.full_name || user?.email?.split('@')[0] || (conversationLanguage === 'ar' ? 'مستثمر' : 'there');
 
     /* Persist messages to sessionStorage whenever they change */
     useEffect(() => {
@@ -670,9 +716,23 @@ export default function AgentInterface() {
         return () => clearTimeout(timer);
     }, [hasStarted]);
 
+    // Count user messages for anonymous gate
+    const userMessageCount = messages.filter(m => m.role === 'user').length;
+    const isAnonymous = !user;
+    const isGated = isAnonymous && userMessageCount >= FREE_MESSAGE_LIMIT;
+
     const handleSendMessage = useCallback(async (text?: string) => {
         const content = text || inputValue;
         if (!content.trim() || isTyping) return;
+
+        // Anonymous gate: block after FREE_MESSAGE_LIMIT messages
+        if (!user) {
+            const currentUserMsgCount = messages.filter(m => m.role === 'user').length;
+            if (currentUserMsgCount >= FREE_MESSAGE_LIMIT) {
+                setAnonGateShown(true);
+                return;
+            }
+        }
 
         setRecentQueries(prev => {
             const updated = [content.slice(0, 40), ...prev.filter(q => q !== content.slice(0, 40))];
@@ -848,7 +908,7 @@ export default function AgentInterface() {
         } finally {
             setIsTyping(false);
         }
-    }, [inputValue, isTyping]);
+    }, [inputValue, isTyping, user, messages]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -941,6 +1001,45 @@ export default function AgentInterface() {
         // Re-send the user message
         await handleSendMessage(prevUserMsg.content);
     }, [messages, handleSendMessage]);
+
+    /* ─── Chat-native property actions ─── */
+    const handleSaveProperty = useCallback(async (prop: Property, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!user) return;
+        const propId = parseInt(String(prop.id), 10);
+        if (isNaN(propId)) return;
+        try {
+            await toggleFavorite(propId);
+            setSavedPropertyIds(prev => {
+                const next = new Set(prev);
+                if (next.has(String(prop.id))) {
+                    next.delete(String(prop.id));
+                } else {
+                    next.add(String(prop.id));
+                    triggerXP(10, 'Saved a property');
+                }
+                return next;
+            });
+        } catch (err) {
+            console.warn('[Chat] Failed to toggle favorite:', err);
+        }
+    }, [user, triggerXP]);
+
+    const handleInlineValuation = useCallback((prop: Property, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const prompt = conversationLanguage === 'ar'
+            ? `شغّل تقييم AI على "${prop.title}" في ${prop.location} - سعره ${(prop.price / 1000000).toFixed(1)} مليون جنيه`
+            : `Run AI valuation on "${prop.title}" in ${prop.location} - listed at ${(prop.price / 1000000).toFixed(1)}M EGP`;
+        void handleSendMessage(prompt);
+    }, [conversationLanguage, handleSendMessage]);
+
+    const handleInlineCompare = useCallback((prop: Property, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const prompt = conversationLanguage === 'ar'
+            ? `قارن "${prop.title}" مع وحدات مشابهة في ${prop.location} في نفس النطاق السعري`
+            : `Compare "${prop.title}" with similar units in ${prop.location} in the same price range`;
+        void handleSendMessage(prompt);
+    }, [conversationLanguage, handleSendMessage]);
 
     /* ─── Shared Input Bar ─── */
     const inputBar = (
@@ -1294,8 +1393,35 @@ export default function AgentInterface() {
                                                                             )}
                                                                         </div>
 
-                                                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors self-center shadow-sm">
-                                                                            <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
+                                                                        {/* Inline Action Buttons */}
+                                                                        <div className="flex flex-col items-center gap-1.5 self-center flex-shrink-0">
+                                                                            {user && (
+                                                                                <button
+                                                                                    onClick={(e) => handleSaveProperty(prop, e)}
+                                                                                    className={`p-1.5 rounded-lg transition-colors ${
+                                                                                        savedPropertyIds.has(String(prop.id))
+                                                                                            ? 'text-red-500 bg-red-500/10'
+                                                                                            : 'text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10'
+                                                                                    }`}
+                                                                                    title={savedPropertyIds.has(String(prop.id)) ? 'Saved' : 'Save'}
+                                                                                >
+                                                                                    <Heart className="w-3.5 h-3.5" fill={savedPropertyIds.has(String(prop.id)) ? 'currentColor' : 'none'} />
+                                                                                </button>
+                                                                            )}
+                                                                            <button
+                                                                                onClick={(e) => handleInlineValuation(prop, e)}
+                                                                                className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                                                                                title="Run Valuation"
+                                                                            >
+                                                                                <BarChart3 className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={(e) => handleInlineCompare(prop, e)}
+                                                                                className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
+                                                                                title="Compare"
+                                                                            >
+                                                                                <Scale className="w-3.5 h-3.5" />
+                                                                            </button>
                                                                         </div>
                                                                     </div>
                                                                 ))}
@@ -1343,14 +1469,19 @@ export default function AgentInterface() {
                                     <ThinkingSteps lastUserMessage={messages.length > 0 ? messages[messages.length - 1].content : ''} />
                                 )}
 
+                                {/* Anonymous gate — shown after free messages exhausted */}
+                                {(isGated || anonGateShown) && (
+                                    <AnonymousChatGate language={conversationLanguage} />
+                                )}
+
                                 <div ref={messagesEndRef} />
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Input Bar - Floating Figma Style (only shown after conversation starts) */}
-                {hasStarted && (
+                {/* Input Bar - Floating Figma Style (only shown after conversation starts, hidden when gated) */}
+                {hasStarted && !isGated && !anonGateShown && (
                     <div className="sticky bottom-0 left-0 right-0 z-40 px-3 md:px-6 pb-4 md:pb-6 pt-8 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
                         <div className="max-w-[800px] mx-auto relative pointer-events-auto">
                             {inputBar}
