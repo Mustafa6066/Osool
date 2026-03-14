@@ -18,6 +18,8 @@ interface JwtPayload extends JsonObject {
   sub?: string;
   email?: string;
   full_name?: string;
+  role?: string;
+  exp?: number;
 }
 
 type StreamProperty = JsonObject;
@@ -166,11 +168,46 @@ api.interceptors.response.use(
 );
 
 /**
- * Helper: Check if user is authenticated
+ * Helper: Check if user is authenticated and token is not expired
  */
 export const isAuthenticated = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return !!localStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token');
+  if (!token) return false;
+  try {
+    const payload = token.split('.')[1];
+    const decoded = JSON.parse(atob(payload)) as { exp?: number };
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+      return false; // Token is expired
+    }
+  } catch {
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Helper: Silently refresh the access token using the stored refresh token.
+ * Returns true on success, false on failure (clears tokens on failure).
+ */
+export const refreshAccessToken = async (): Promise<boolean> => {
+  if (typeof window === 'undefined') return false;
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) return false;
+  try {
+    const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {
+      refresh_token: refreshToken,
+    });
+    localStorage.setItem('access_token', data.access_token as string);
+    if (data.refresh_token) {
+      localStorage.setItem('refresh_token', data.refresh_token as string);
+    }
+    return true;
+  } catch {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    return false;
+  }
 };
 
 /**

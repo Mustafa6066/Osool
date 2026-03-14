@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { isAuthenticated, getCurrentUserFromToken, logout as apiLogout } from '@/lib/api';
+import { isAuthenticated, getCurrentUserFromToken, refreshAccessToken, logout as apiLogout } from '@/lib/api';
 
 interface User {
   id: string;
@@ -26,13 +26,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refreshUser = () => {
-    if (isAuthenticated()) {
+    void (async () => {
+      if (!isAuthenticated()) {
+        // Access token is missing or expired — try a silent refresh first
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+      }
       const userData = getCurrentUserFromToken();
       setUser(userData ? { id: userData.sub || '', email: userData.email, full_name: userData.full_name, role: userData.role as string | undefined } : null);
-    } else {
-      setUser(null);
-    }
-    setLoading(false);
+      setLoading(false);
+    })();
   };
 
   useEffect(() => {
