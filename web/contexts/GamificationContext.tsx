@@ -77,12 +77,16 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
         }
         setLoading(true);
         try {
-            const [profileData, achievementsData] = await Promise.all([
+            const [profileResult, achievementsResult] = await Promise.allSettled([
                 fetchInvestorProfile(),
                 fetchAchievements(),
             ]);
-            setProfile(profileData);
-            setAchievements(achievementsData.achievements || []);
+            if (profileResult.status === 'fulfilled') {
+                setProfile(profileResult.value);
+            }
+            if (achievementsResult.status === 'fulfilled') {
+                setAchievements(achievementsResult.value.achievements || []);
+            }
         } catch (err) {
             // Silently fail - gamification is non-critical
             console.warn('[Gamification] Failed to load profile:', err);

@@ -56,11 +56,18 @@ function setCsrfToken(token: string) {
   }
 }
 
-// Initialize CSRF token from sessionStorage
+// Initialize CSRF token from sessionStorage, or fetch a fresh one
 if (typeof window !== 'undefined') {
   const storedToken = sessionStorage.getItem('csrf_token');
   if (storedToken) {
     csrfToken = storedToken;
+  } else {
+    // Auto-fetch CSRF token on first load so POST requests don't fail
+    axios.get(`${BASE_URL}/api/auth/csrf-token`, { withCredentials: true })
+      .then(({ data }) => {
+        if (data.csrf_token) setCsrfToken(data.csrf_token);
+      })
+      .catch(() => { /* Non-critical — interceptor will retry on 403 */ });
   }
 }
 

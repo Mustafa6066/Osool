@@ -325,6 +325,8 @@ export const streamChat = async (
   // Auto-timeout after 2 minutes to prevent hung connections
   const timeoutId = setTimeout(() => controller.abort(), 120000);
 
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+
   try {
     const accessToken = typeof window !== 'undefined'
       ? localStorage.getItem('access_token')
@@ -341,10 +343,17 @@ export const streamChat = async (
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Try to extract backend error message
+      let errorMsg = `Server error (${response.status})`;
+      try {
+        const errBody = await response.json();
+        if (errBody.detail) errorMsg = errBody.detail;
+        else if (errBody.message) errorMsg = errBody.message;
+      } catch { /* use default */ }
+      throw new Error(errorMsg);
     }
 
-    const reader = response.body?.getReader();
+    reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
     if (!reader) {
@@ -424,10 +433,12 @@ export const streamChat = async (
     if ((error as Error).name === 'AbortError') {
       console.log('Stream cancelled by user');
     } else {
-      callbacks.onError((error as Error).message);
+      callbacks.onError((error as Error).message || 'Connection lost — please try again.');
     }
   } finally {
     clearTimeout(timeoutId);
+    // Release the reader to prevent connection leaks
+    try { reader?.releaseLock(); } catch { /* already released */ }
   }
 
   return controller;

@@ -92,6 +92,14 @@ function SignupContent() {
         debounceRef.current = setTimeout(() => validateInvitation(code), 500);
     };
 
+    // Real-time password strength
+    const passwordChecks = {
+        length: password.length >= 8,
+        uppercase: /[A-Z]/.test(password),
+        number: /[0-9]/.test(password),
+    };
+    const passwordValid = passwordChecks.length && passwordChecks.uppercase && passwordChecks.number;
+
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -106,7 +114,7 @@ function SignupContent() {
             setError('Please enter a valid email address');
             return;
         }
-        if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+        if (!passwordValid) {
             setError('Password must be at least 8 characters with 1 uppercase letter and 1 number');
             return;
         }
@@ -274,7 +282,20 @@ function SignupContent() {
                                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
-                        <p className="text-xs text-[var(--color-text-muted)]">{t('auth.minChars')}</p>
+                        {password.length > 0 && (
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                                <span className={`text-xs flex items-center gap-1 ${passwordChecks.length ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
+                                    {passwordChecks.length ? '✓' : '○'} 8+ chars
+                                </span>
+                                <span className={`text-xs flex items-center gap-1 ${passwordChecks.uppercase ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
+                                    {passwordChecks.uppercase ? '✓' : '○'} Uppercase
+                                </span>
+                                <span className={`text-xs flex items-center gap-1 ${passwordChecks.number ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
+                                    {passwordChecks.number ? '✓' : '○'} Number
+                                </span>
+                            </div>
+                        )}
+                        {!password.length && <p className="text-xs text-[var(--color-text-muted)]">{t('auth.minChars')}</p>}
                     </div>
 
                     {/* Invitation Code */}

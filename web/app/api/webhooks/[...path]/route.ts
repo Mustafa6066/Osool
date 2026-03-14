@@ -51,8 +51,12 @@ export async function POST(
     // Return the Orchestrator's response status (202, 400, etc.)
     const responseBody = await response.text();
     return new NextResponse(responseBody, { status: response.status });
-  } catch {
-    // Orchestrator unreachable — silently accept so the frontend never errors
-    return NextResponse.json({}, { status: 202 });
+  } catch (err) {
+    // Orchestrator unreachable — log for monitoring, but don't fail the client
+    console.error(`[Webhook] Orchestrator unreachable at ${targetUrl}:`, err instanceof Error ? err.message : err);
+    return NextResponse.json(
+      { error: 'orchestrator_unreachable', target: path },
+      { status: 502 }
+    );
   }
 }

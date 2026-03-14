@@ -41,12 +41,15 @@ export default function FavoritesPage() {
     };
 
     const handleRemove = async (propertyId: number) => {
+        if (removing !== null) return; // guard against double-click
         setRemoving(propertyId);
+        const previous = favorites; // snapshot for rollback
+        setFavorites(prev => prev.filter(f => f.property_id !== propertyId)); // optimistic
         try {
             await toggleFavorite(propertyId);
-            setFavorites(prev => prev.filter(f => f.property_id !== propertyId));
         } catch (err) {
             console.error('[Favorites] Failed to remove:', err);
+            setFavorites(previous); // rollback on failure
         } finally {
             setRemoving(null);
         }

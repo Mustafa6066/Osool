@@ -110,7 +110,7 @@ export default function AdminPage() {
   const isSuperAdmin = user?.email?.toLowerCase() === 'mustafa@osool.eg';
 
   const loadTabData = useCallback(async () => {
-    if (authLoading || !isAuthenticated) {
+    if (authLoading || !isAuthenticated || loadingData) {
       return;
     }
 
@@ -154,31 +154,38 @@ export default function AdminPage() {
     } finally {
       setLoadingData(false);
     }
-  }, [activeTab, authLoading, isAuthenticated, ticketStatusFilter]);
+  }, [activeTab, authLoading, isAuthenticated, loadingData, ticketStatusFilter]);
 
   useEffect(() => {
     void loadTabData();
   }, [loadTabData]);
 
+  const VALID_ROLES = ['investor', 'agent', 'admin', 'blocked'];
+
   const handleRoleChange = async (userId: number, nextRole: string) => {
+    if (!VALID_ROLES.includes(nextRole)) return; // reject invalid roles
+    if (roleUpdating !== null) return; // prevent concurrent updates
     setRoleUpdating(userId);
     try {
       const updated = await updateUserRole(userId, nextRole);
       setUsers((current: AdminUser[]) => current.map((entry: AdminUser) => (entry.id === userId ? { ...entry, role: updated.role } : entry)));
     } catch (error) {
       console.error(error);
+      setLoadError('Failed to update role. Please try again.');
     } finally {
       setRoleUpdating(null);
     }
   };
 
   const handleBlockToggle = async (userId: number, blocked: boolean) => {
+    if (blockUpdating !== null) return; // prevent concurrent updates
     setBlockUpdating(userId);
     try {
       await blockUser(userId, !blocked);
       setUsers((current: AdminUser[]) => current.map((entry: AdminUser) => (entry.id === userId ? { ...entry, role: blocked ? 'investor' : 'blocked' } : entry)));
     } catch (error) {
       console.error(error);
+      setLoadError('Failed to update block status. Please try again.');
     } finally {
       setBlockUpdating(null);
     }
@@ -223,6 +230,7 @@ export default function AdminPage() {
       setTicketReplyContent('');
     } catch (error) {
       console.error(error);
+      setLoadError('Failed to send reply. Please try again.');
     } finally {
       setTicketReplying(false);
     }
@@ -253,11 +261,10 @@ export default function AdminPage() {
         return true;
       }
       const query = searchQuery.toLowerCase();
-      return (
-        conversation.user_email?.toLowerCase().includes(query) ||
-        conversation.user_name?.toLowerCase().includes(query) ||
-        conversation.preview?.toLowerCase().includes(query)
-      );
+      const email = conversation.user_email?.toLowerCase() || '';
+      const name = conversation.user_name?.toLowerCase() || '';
+      const preview = conversation.preview?.toLowerCase() || '';
+      return email.includes(query) || name.includes(query) || preview.includes(query);
     });
   }, [conversations, searchQuery]);
 

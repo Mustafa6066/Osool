@@ -91,6 +91,8 @@ export default function DashboardPage() {
     const [shortlist, setShortlist] = useState<FavoriteProperty[]>([]);
     const [isLoadingShortlist, setIsLoadingShortlist] = useState(true);
 
+    const [shortlistError, setShortlistError] = useState(false);
+
     useEffect(() => {
         if (!loading && !isAuthenticated) {
             router.push('/login');
@@ -105,11 +107,13 @@ export default function DashboardPage() {
     }, [isAuthenticated]);
 
     const loadShortlist = async () => {
+        setShortlistError(false);
         try {
             const data = await fetchFavorites();
             setShortlist(data.favorites?.slice(0, 4) || []);
         } catch {
             console.warn('[Dashboard] Failed to load shortlist');
+            setShortlistError(true);
         } finally {
             setIsLoadingShortlist(false);
         }
@@ -239,6 +243,13 @@ export default function DashboardPage() {
                             {isLoadingShortlist ? (
                                 <div className="mt-6 flex items-center justify-center py-8">
                                     <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
+                                </div>
+                            ) : shortlistError ? (
+                                <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-center">
+                                    <p className="text-sm text-red-500">Couldn&apos;t load your shortlist.</p>
+                                    <button onClick={() => { setIsLoadingShortlist(true); void loadShortlist(); }} className="mt-2 text-xs font-medium text-red-400 hover:text-red-300 underline">
+                                        Try again
+                                    </button>
                                 </div>
                             ) : shortlist.length > 0 ? (
                                 <>

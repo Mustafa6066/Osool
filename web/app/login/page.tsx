@@ -37,6 +37,18 @@ function LoginContent() {
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setError(null);
+
+        // Client-side validation
+        const trimmedEmail = email.trim();
+        if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+            setError('Please enter a valid email address');
+            return;
+        }
+        if (!password) {
+            setError('Please enter your password');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
