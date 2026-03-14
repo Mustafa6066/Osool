@@ -2,6 +2,7 @@ import { getDevelopers } from '@/lib/seo-api';
 import type { Developer } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import PublicPageNav from '@/components/PublicPageNav';
 
 export const metadata: Metadata = {
   title: 'Top Egyptian Real Estate Developers — Ranked & Scored | Osool',
@@ -36,8 +37,9 @@ export default async function DevelopersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
-      <div className="max-w-6xl mx-auto px-4 py-16">
+    <PublicPageNav>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-2">
           Top Egyptian Real Estate Developers
         </h1>
@@ -92,5 +94,6 @@ export default async function DevelopersPage() {
         )}
       </div>
     </main>
+    </PublicPageNav>
   );
 }
