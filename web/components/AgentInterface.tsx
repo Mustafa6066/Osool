@@ -23,6 +23,7 @@ import type { VisualizationRendererProps } from '@/components/visualizations/Vis
 import dynamic from 'next/dynamic';
 import SuggestionChips from '@/components/SuggestionChips';
 import FunnelIndicator from '@/components/FunnelIndicator';
+import MarketPulseSidebar from '@/components/MarketPulseSidebar';
 
 const VisualizationRenderer = dynamic(
     () => import('@/components/visualizations/VisualizationRenderer'),
@@ -160,18 +161,24 @@ interface Suggestion {
     prompt: string;
 }
 
-const SUGGESTIONS_AR: Suggestion[] = [
-    { icon: BarChart2, label: "تحليل السوق", prompt: "حلل اتجاهات السوق الحالية في القاهرة الجديدة" },
-    { icon: Search, label: "فرص استثمارية", prompt: "ابحث عن عقارات عائد مرتفع تحت 5 مليون جنيه" },
-    { icon: Shield, label: "تدقيق المطور", prompt: "دقق في سجل تسليمات بالم هيلز" },
-    { icon: TrendingUp, label: "مقارنة الأسعار", prompt: "قارن أسعار المتر في القاهرة الجديدة والشيخ زايد والساحل" },
+interface SuggestionWithSnippet extends Suggestion {
+    snippet: string;
+    snippetAr: string;
+    trend: 'up' | 'down' | 'neutral';
+}
+
+const SUGGESTIONS_AR: SuggestionWithSnippet[] = [
+    { icon: BarChart2, label: "تحليل السوق", prompt: "حلل اتجاهات السوق الحالية في القاهرة الجديدة", snippet: "+2.4% avg EGP/m² this week", snippetAr: "+٢.٤٪ متوسط سعر المتر هذا الأسبوع", trend: 'up' },
+    { icon: Search, label: "فرص استثمارية", prompt: "ابحث عن عقارات عائد مرتفع تحت 5 مليون جنيه", snippet: "12 new high-ROI listings", snippetAr: "١٢ وحدة عائد مرتفع جديدة", trend: 'up' },
+    { icon: Shield, label: "تدقيق المطور", prompt: "دقق في سجل تسليمات بالم هيلز", snippet: "Palm Hills: 94% on-time", snippetAr: "بالم هيلز: ٩٤٪ تسليم في الموعد", trend: 'neutral' },
+    { icon: TrendingUp, label: "مقارنة الأسعار", prompt: "قارن أسعار المتر في القاهرة الجديدة والشيخ زايد والساحل", snippet: "North Coast +5.1% this week", snippetAr: "الساحل +٥.١٪ هذا الأسبوع", trend: 'up' },
 ];
 
-const SUGGESTIONS_EN: Suggestion[] = [
-    { icon: BarChart2, label: "Market Intelligence", prompt: "Analyze current market trends in New Cairo" },
-    { icon: Search, label: "Find Opportunities", prompt: "Find high ROI properties under 5M EGP" },
-    { icon: Shield, label: "Developer Audit", prompt: "Audit the delivery history of Palm Hills" },
-    { icon: TrendingUp, label: "Price Comparison", prompt: "Compare price per sqm across New Cairo, Sheikh Zayed, and North Coast" },
+const SUGGESTIONS_EN: SuggestionWithSnippet[] = [
+    { icon: BarChart2, label: "Market Intelligence", prompt: "Analyze current market trends in New Cairo", snippet: "+2.4% avg EGP/m² this week", snippetAr: "+٢.٤٪ متوسط سعر المتر", trend: 'up' },
+    { icon: Search, label: "Find Opportunities", prompt: "Find high ROI properties under 5M EGP", snippet: "12 new high-ROI listings", snippetAr: "١٢ وحدة عائد عالي", trend: 'up' },
+    { icon: Shield, label: "Developer Audit", prompt: "Audit the delivery history of Palm Hills", snippet: "Palm Hills: 94% on-time", snippetAr: "بالم هيلز: ٩٤٪ ملتزمين", trend: 'neutral' },
+    { icon: TrendingUp, label: "Price Comparison", prompt: "Compare price per sqm across New Cairo, Sheikh Zayed, and North Coast", snippet: "North Coast +5.1% this week", snippetAr: "الساحل +٥.١٪ هذا الأسبوع", trend: 'up' },
 ];
 
 /* Agent Avatar — Clean professional AI mark, no background, animated */
@@ -449,6 +456,34 @@ function getErrorMessage(error: unknown, fallback: string): string {
     }
 
     return fallback;
+}
+
+/** Relative time helper — avoids heavy date-fns dependency */
+function getTimeAgo(dateStr: string, lang: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return lang === 'ar' ? 'الآن' : 'just now';
+    if (mins < 60) return lang === 'ar' ? `منذ ${mins} د` : `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return lang === 'ar' ? `منذ ${hrs} س` : `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return lang === 'ar' ? `منذ ${days} ي` : `${days}d ago`;
+    return lang === 'ar' ? `منذ ${Math.floor(days / 7)} أسبوع` : `${Math.floor(days / 7)}w ago`;
+}
+
+/** Guess a category tag from the conversation preview text */
+function guessConversationTag(preview: string | null): { label: string; color: string } | null {
+    if (!preview) return null;
+    const lower = preview.toLowerCase();
+    if (lower.includes('market') || lower.includes('trend') || lower.includes('سوق') || lower.includes('اتجاه'))
+        return { label: 'Market', color: 'bg-blue-500/15 text-blue-400' };
+    if (lower.includes('invest') || lower.includes('roi') || lower.includes('استثمار') || lower.includes('عائد'))
+        return { label: 'Investment', color: 'bg-emerald-500/15 text-emerald-400' };
+    if (lower.includes('developer') || lower.includes('delivery') || lower.includes('audit') || lower.includes('مطور') || lower.includes('تسليم'))
+        return { label: 'Developer', color: 'bg-purple-500/15 text-purple-400' };
+    if (lower.includes('compare') || lower.includes('price') || lower.includes('قارن') || lower.includes('سعر'))
+        return { label: 'Pricing', color: 'bg-amber-500/15 text-amber-400' };
+    return null;
 }
 
 function mapChatPropertyToProperty(prop: ChatPropertyPayload): Property {
@@ -1178,71 +1213,91 @@ export default function AgentInterface() {
 
                         {/* Greeting */}
                         {!hasStarted && (
-                            <div className="flex flex-col min-h-[calc(100vh-6rem)] justify-center px-4 py-8 relative">
-                                {/* Decorative background elements for Figma style */}
+                            <div className="flex flex-col min-h-[calc(100vh-8rem)] justify-center px-4 py-6 relative">
+                                {/* Decorative background elements */}
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
 
                                 <div className="text-center w-full max-w-3xl mx-auto">
-                                    <div className="flex items-center justify-center gap-3 mb-5">
+                                    <div className="flex items-center justify-center gap-3 mb-4">
                                         <AgentAvatar />
                                         <span className="text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-widest">Osool AI</span>
                                     </div>
-                                    <h1 className="text-[2rem] md:text-[3.5rem] font-semibold tracking-tight leading-[1.15] mb-4 md:mb-5 text-[var(--color-text-primary)]" dir="auto">
+                                    <h1 className="text-[2rem] md:text-[3rem] font-semibold tracking-tight leading-[1.15] mb-3 md:mb-4 text-[var(--color-text-primary)]" dir="auto">
                                         {conversationLanguage === 'ar' ? `أهلاً، ${userName}` : `Hello, ${userName}`}
                                     </h1>
-                                    <p className="text-[1rem] md:text-[1.25rem] text-[var(--color-text-muted)] font-normal max-w-xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
+                                    <p className="text-[1rem] md:text-[1.15rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
                                         {conversationLanguage === 'ar' ? 'وكيلك الذكي للعقارات — تحليل السوق، فرص الاستثمار، وتدقيق المطورين' : 'Your AI real estate agent — market analysis, investment opportunities, and developer audits'}<span className="text-emerald-500 font-bold ml-0.5">.</span>
                                     </p>
                                 </div>
 
                                     {/* Centered Input Bar */}
-                                    <div className="w-full max-w-[800px] mx-auto mt-8 px-4">
+                                    <div className="w-full max-w-[800px] mx-auto mt-6 px-4">
                                         {inputBar}
                                     </div>
 
-                                    <div className="w-full max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 md:mt-8 px-4">
+                                    {/* Quick Action Cards — enhanced with data snippets  */}
+                                    <div className="w-full max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 md:mt-6 px-4">
                                         {(conversationLanguage === 'ar' ? SUGGESTIONS_AR : SUGGESTIONS_EN).map((s, i) => (
                                             <button
                                                 key={i}
                                                 onMouseDown={(e) => e.preventDefault()}
                                                 onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                                                className="p-4 md:p-5 bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-2xl text-left transition-all duration-300 flex flex-col justify-between group border border-[var(--color-border)]/40 hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
+                                                className="p-4 md:p-5 bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-2xl text-left transition-all duration-300 flex flex-col justify-between group border border-[var(--color-border)]/40 hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgba(16,185,129,0.06)] hover:-translate-y-1"
                                             >
-                                                <div className="p-2 bg-[var(--color-background)] rounded-xl text-[var(--color-text-muted)] group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors w-fit mb-3">
+                                                <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors w-fit mb-3">
                                                     <s.icon className="w-4 h-4" />
                                                 </div>
                                                 <span className="text-[13px] font-semibold text-[var(--color-text-primary)] leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" dir="auto">{s.label}</span>
+                                                {/* Dynamic data snippet */}
+                                                <span className={`mt-1.5 text-[10px] font-medium flex items-center gap-1 ${
+                                                    s.trend === 'up' ? 'text-emerald-500' : s.trend === 'down' ? 'text-red-400' : 'text-[var(--color-text-muted)]'
+                                                }`}>
+                                                    {s.trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                                                    {conversationLanguage === 'ar' ? s.snippetAr : s.snippet}
+                                                </span>
                                             </button>
                                         ))}
                                     </div>
 
-                                    {/* Recent conversations on greeting screen */}
+                                    {/* Recent conversations — enhanced with timestamps & category tags */}
                                     {pastSessions.length > 0 && (
-                                        <div className="w-full max-w-2xl mx-auto mt-10 px-4">
+                                        <div className="w-full max-w-2xl mx-auto mt-8 px-4">
                                             <button
                                                 onClick={() => setHistoryOpen(true)}
-                                                className="flex items-center gap-2 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] mx-auto mb-3 transition-colors"
+                                                className="flex items-center gap-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] mx-auto mb-3 transition-colors"
                                             >
                                                 <History className="w-3.5 h-3.5" />
-                                                Recent conversations
+                                                {conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Recent conversations'}
                                             </button>
                                             <div className="space-y-1.5">
-                                                {pastSessions.slice(0, 3).map(s => (
-                                                    <button
-                                                        key={s.session_id}
-                                                        onClick={() => loadSession(s.session_id)}
-                                                        className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface)] border border-[var(--color-border)]/50 hover:border-[var(--color-border)] transition-all text-left"
-                                                    >
-                                                        <div className="w-8 h-8 rounded-full bg-[var(--color-surface-elevated)] flex items-center justify-center flex-shrink-0">
-                                                            <MessageSquare className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" dir="auto">{s.preview || 'Conversation'}</p>
-                                                            <p className="text-[11px] text-[var(--color-text-muted)]">{s.message_count} {conversationLanguage === 'ar' ? 'رسالة' : 'messages'}</p>
-                                                        </div>
-                                                        <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] flex-shrink-0" />
-                                                    </button>
-                                                ))}
+                                                {pastSessions.slice(0, 3).map(s => {
+                                                    const timeAgo = s.last_message_at ? getTimeAgo(s.last_message_at, conversationLanguage) : null;
+                                                    const tag = guessConversationTag(s.preview);
+                                                    return (
+                                                        <button
+                                                            key={s.session_id}
+                                                            onClick={() => loadSession(s.session_id)}
+                                                            className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface)] border border-[var(--color-border)]/50 hover:border-[var(--color-border)] transition-all text-left group"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-full bg-[var(--color-surface-elevated)] flex items-center justify-center flex-shrink-0">
+                                                                <MessageSquare className="w-3.5 h-3.5 text-[var(--color-text-secondary)]" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" dir="auto">{s.preview || 'Conversation'}</p>
+                                                                    {tag && (
+                                                                        <span className={`flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${tag.color}`}>{tag.label}</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex items-center gap-2 mt-0.5">
+                                                                    <span className="text-[11px] text-[var(--color-text-secondary)]">{s.message_count} {conversationLanguage === 'ar' ? 'رسالة' : 'messages'}</span>
+                                                                    {timeAgo && <span className="text-[10px] text-[var(--color-text-muted)]">· {timeAgo}</span>}
+                                                                </div>
+                                                            </div>
+                                                            <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-text-secondary)] flex-shrink-0 transition-colors" />
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -1618,6 +1673,9 @@ export default function AgentInterface() {
                     </div>
                 </aside>
             )}
+
+            {/* ── Market Pulse Sidebar ── */}
+            <MarketPulseSidebar language={conversationLanguage} onPrompt={handleSendMessage} />
 
             {/* ── Conversation History Overlay ── */}
             <AnimatePresence>
