@@ -18,7 +18,11 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Base URL from environment
-const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+let BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+// Enforce HTTPS in production to prevent mixed-content errors
+if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+  BASE_URL = BASE_URL.replace(/^http:/, 'https:');
+}
 
 // Create axios instance with credentials
 const api = axios.create({

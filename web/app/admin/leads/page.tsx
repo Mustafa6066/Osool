@@ -74,10 +74,24 @@ export default function LeadsPage() {
       const params = stageFilter ? `?stage=${stageFilter}` : '';
       const [lRes, sRes] = await Promise.all([
         api.get(`/api/leads${params}`).catch(() => ({ data: [] })),
-        api.get('/api/leads/pipeline').catch(() => ({ data: null })),
+        api.get('/api/leads/stats').catch(() => ({ data: null })),
       ]);
       setLeads(lRes.data);
-      setStats(sRes.data);
+      // Transform backend stats shape to frontend PipelineStats
+      if (sRes.data) {
+        const raw = sRes.data;
+        const byStage = raw.by_stage || {};
+        setStats({
+          total: raw.total_leads ?? 0,
+          new: byStage.new ?? 0,
+          engaged: byStage.engaged ?? 0,
+          hot: byStage.hot ?? 0,
+          converted: byStage.converted ?? 0,
+          lost: byStage.lost ?? 0,
+        });
+      } else {
+        setStats(null);
+      }
     } finally {
       setLoading(false);
     }
