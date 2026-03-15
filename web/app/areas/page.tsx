@@ -2,11 +2,11 @@ import { getAreas } from '@/lib/seo-api';
 import type { Area } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { areaBrief, formatRate } from '@/lib/decision-support';
 
 export const metadata: Metadata = {
-  title: 'Best Investment Areas in Egypt — Prices, Growth & Yield | Osool',
+  title: 'Best Investment Areas in Egypt â€” Prices, Growth & Yield | Osool',
   description:
     'Compare Egypt\'s top investment zones: Sheikh Zayed, New Capital, Ras El Hikma, Ain Sokhna, North Coast & more. Price per sqm, appreciation rates, rental yields.',
 };
@@ -24,7 +24,7 @@ export default async function AreasPage() {
   }
 
   return (
-    <SmartNav>
+    <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
@@ -86,8 +86,8 @@ export default async function AreasPage() {
 
                       <div className="mt-4 grid grid-cols-3 gap-3 text-center">
                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                          <div className="text-lg font-bold text-emerald-500">{area.avg_price_per_meter ? `${(area.avg_price_per_meter / 1000).toFixed(0)}K` : '—'}</div>
-                          <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-[0.15em]">EGP/m²</div>
+                          <div className="text-lg font-bold text-emerald-500">{area.avg_price_per_meter ? `${(area.avg_price_per_meter / 1000).toFixed(0)}K` : 'â€”'}</div>
+                          <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-[0.15em]">EGP/mÂ²</div>
                         </div>
                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
                           <div className="text-lg font-bold text-blue-500">{formatRate(area.price_growth_ytd)}</div>
@@ -116,6 +116,6 @@ export default async function AreasPage() {
         )}
       </div>
     </main>
-    </SmartNav>
+    </AppShell>
   );
 }

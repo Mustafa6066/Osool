@@ -3,7 +3,7 @@ import { projectJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { areaBrief, developerBrief, formatPriceBand, formatRate, projectBrief } from '@/lib/decision-support';
 
 interface Props {
@@ -52,7 +52,7 @@ export default async function ProjectDetailPage({ params }: Props) {
   const areaSummary = area ? areaBrief(area) : null;
 
   return (
-    <SmartNav>
+    <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <script
         type="application/ld+json"
@@ -233,7 +233,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
       </div>
     </main>
-    </SmartNav>
+    </AppShell>
   );
 }
 

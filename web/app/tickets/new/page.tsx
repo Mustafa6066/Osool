@@ -12,7 +12,7 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
 import { createTicket } from '@/lib/api';
 
@@ -155,16 +155,16 @@ export default function NewTicketPage() {
 
   if (authLoading) {
     return (
-      <SmartNav>
+      <AppShell>
         <div className="flex h-full items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         </div>
-      </SmartNav>
+      </AppShell>
     );
   }
 
   return (
-    <SmartNav>
+    <AppShell>
       <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[0.94fr_1.06fr]">
@@ -309,6 +309,6 @@ export default function NewTicketPage() {
           </section>
         </div>
       </main>
-    </SmartNav>
+    </AppShell>
   );
 }

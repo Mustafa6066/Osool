@@ -11,7 +11,7 @@ import {
   ShieldAlert,
   Sparkles,
 } from 'lucide-react';
-import PublicPageNav from '@/components/PublicPageNav';
+import AppShell from '@/components/nav/AppShell';
 import { useLanguage } from '@/contexts/LanguageContext';
 import api from '@/lib/api';
 
@@ -48,7 +48,7 @@ function VerifyEmailContent() {
   const [message, setMessage] = useState('');
   const missingTokenMessage =
     language === 'ar'
-      ? 'رابط التحقق غير صالح أو ناقص. استخدم الرابط الأصلي من البريد الإلكتروني.'
+      ? 'Ø±Ø§Ø¨Ø· Ø§Ù„ØªØ­Ù‚Ù‚ ØºÙŠØ± ØµØ§Ù„Ø­ Ø£Ùˆ Ù†Ø§Ù‚Øµ. Ø§Ø³ØªØ®Ø¯Ù… Ø§Ù„Ø±Ø§Ø¨Ø· Ø§Ù„Ø£ØµÙ„ÙŠ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ.'
       : 'The verification link is missing or invalid. Use the original link from your email.';
 
   useEffect(() => {
@@ -68,20 +68,20 @@ function VerifyEmailContent() {
           setStatus('success');
           setMessage(
             language === 'ar'
-              ? 'تم تأكيد بريدك بنجاح. يمكنك الآن المتابعة داخل مساحة العمل أو العودة للاستكشاف.'
+              ? 'ØªÙ… ØªØ£ÙƒÙŠØ¯ Ø¨Ø±ÙŠØ¯Ùƒ Ø¨Ù†Ø¬Ø§Ø­. ÙŠÙ…ÙƒÙ†Ùƒ Ø§Ù„Ø¢Ù† Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø© Ø¯Ø§Ø®Ù„ Ù…Ø³Ø§Ø­Ø© Ø§Ù„Ø¹Ù…Ù„ Ø£Ùˆ Ø§Ù„Ø¹ÙˆØ¯Ø© Ù„Ù„Ø§Ø³ØªÙƒØ´Ø§Ù.'
               : 'Your email is verified. You can continue into the workspace or go back to exploration.'
           );
           return;
         }
 
         setStatus('error');
-        setMessage(response.data.message || (language === 'ar' ? 'تعذر التحقق من البريد.' : 'Email verification could not be completed.'));
+        setMessage(response.data.message || (language === 'ar' ? 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯.' : 'Email verification could not be completed.'));
       } catch (error: unknown) {
         setStatus('error');
         setMessage(
           getApiDetail(error,
             (language === 'ar'
-              ? 'انتهت صلاحية رابط التحقق أو لم يعد صالحًا. اطلب رابطًا جديدًا من إعدادات الحساب.'
+              ? 'Ø§Ù†ØªÙ‡Øª ØµÙ„Ø§Ø­ÙŠØ© Ø±Ø§Ø¨Ø· Ø§Ù„ØªØ­Ù‚Ù‚ Ø£Ùˆ Ù„Ù… ÙŠØ¹Ø¯ ØµØ§Ù„Ø­Ù‹Ø§. Ø§Ø·Ù„Ø¨ Ø±Ø§Ø¨Ø·Ù‹Ø§ Ø¬Ø¯ÙŠØ¯Ù‹Ø§ Ù…Ù† Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø¨.'
               : 'The verification link expired or is no longer valid. Request a new link from account settings.')
           )
         );
@@ -98,13 +98,13 @@ function VerifyEmailContent() {
     if (language === 'ar') {
       switch (effectiveStatus) {
         case 'loading':
-          return 'جارٍ التحقق من البريد';
+          return 'Ø¬Ø§Ø±Ù Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯';
         case 'success':
-          return 'تم التحقق من البريد';
+          return 'ØªÙ… Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯';
         case 'error':
-          return 'تعذر التحقق';
+          return 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚';
         default:
-          return 'الرابط غير صالح';
+          return 'Ø§Ù„Ø±Ø§Ø¨Ø· ØºÙŠØ± ØµØ§Ù„Ø­';
       }
     }
 
@@ -146,7 +146,7 @@ function VerifyEmailContent() {
   }, [effectiveStatus]);
 
   return (
-    <PublicPageNav>
+    <AppShell>
       <main className="bg-[var(--color-background)]">
         <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col justify-center gap-8 px-4 py-10 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
@@ -220,7 +220,7 @@ function VerifyEmailContent() {
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Recovery note</div>
                 <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
                   {language === 'ar'
-                    ? 'إذا فشل الرابط، اطلب رسالة جديدة من رحلة تسجيل الدخول أو من إعدادات الحساب بعد تسجيل الدخول.'
+                    ? 'Ø¥Ø°Ø§ ÙØ´Ù„ Ø§Ù„Ø±Ø§Ø¨Ø·ØŒ Ø§Ø·Ù„Ø¨ Ø±Ø³Ø§Ù„Ø© Ø¬Ø¯ÙŠØ¯Ø© Ù…Ù† Ø±Ø­Ù„Ø© ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£Ùˆ Ù…Ù† Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø¨ Ø¨Ø¹Ø¯ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„.'
                     : 'If the link fails, request a fresh email from the sign-in flow or from account settings after login.'}
                 </p>
               </div>
@@ -228,7 +228,7 @@ function VerifyEmailContent() {
           </section>
         </div>
       </main>
-    </PublicPageNav>
+    </AppShell>
   );
 }
 
@@ -236,11 +236,11 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <PublicPageNav>
+        <AppShell>
           <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[var(--color-background)]">
             <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
           </main>
-        </PublicPageNav>
+        </AppShell>
       }
     >
       <VerifyEmailContent />

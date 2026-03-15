@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import PublicPageNav from '@/components/PublicPageNav';
+import AppShell from '@/components/nav/AppShell';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
@@ -161,7 +161,7 @@ function SignupContent() {
     };
 
     return (
-        <PublicPageNav>
+        <AppShell>
         <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:py-14">
             <section className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-10">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
@@ -278,20 +278,20 @@ function SignupContent() {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
+                                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
                         {password.length > 0 && (
                             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.length ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.length ? '✓' : '○'} 8+ chars
+                                    {passwordChecks.length ? 'âœ“' : 'â—‹'} 8+ chars
                                 </span>
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.uppercase ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.uppercase ? '✓' : '○'} Uppercase
+                                    {passwordChecks.uppercase ? 'âœ“' : 'â—‹'} Uppercase
                                 </span>
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.number ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.number ? '✓' : '○'} Number
+                                    {passwordChecks.number ? 'âœ“' : 'â—‹'} Number
                                 </span>
                             </div>
                         )}
@@ -346,7 +346,7 @@ function SignupContent() {
                 </div>
             </section>
         </div>
-        </PublicPageNav>
+        </AppShell>
     );
 }
 

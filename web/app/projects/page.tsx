@@ -1,11 +1,11 @@
 import { getProjects } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { formatPriceBand, projectBrief } from '@/lib/decision-support';
 
 export const metadata: Metadata = {
-  title: 'Egyptian Real Estate Projects — Prices & Payment Plans | Osool',
+  title: 'Egyptian Real Estate Projects â€” Prices & Payment Plans | Osool',
   description:
     'Browse 30+ verified Egyptian real estate projects: compounds, resorts, towers. Filter by area, developer, price, and bedrooms. Updated weekly.',
 };
@@ -14,7 +14,7 @@ export default async function ProjectsPage() {
   const projects = await getProjects().catch(() => []);
 
   return (
-    <SmartNav>
+    <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
@@ -74,8 +74,8 @@ export default async function ProjectsPage() {
                     <div className="mt-4 space-y-2 text-sm text-[var(--color-text-secondary)]">
                       <div>{formatPriceBand(p.min_price_per_meter, p.max_price_per_meter)}</div>
                       {p.expected_delivery && <div>Delivery {new Date(p.expected_delivery).getFullYear()}</div>}
-                      {p.min_unit_size && p.max_unit_size && <div>{p.min_unit_size}-{p.max_unit_size} m²</div>}
-                      {p.down_payment_min != null && p.installment_years != null && <div>{p.down_payment_min}% down • {p.installment_years} years</div>}
+                      {p.min_unit_size && p.max_unit_size && <div>{p.min_unit_size}-{p.max_unit_size} mÂ²</div>}
+                      {p.down_payment_min != null && p.installment_years != null && <div>{p.down_payment_min}% down â€¢ {p.installment_years} years</div>}
                     </div>
                   </>
                 );
@@ -85,6 +85,6 @@ export default async function ProjectsPage() {
         </div>
       </div>
     </main>
-    </SmartNav>
+    </AppShell>
   );
 }

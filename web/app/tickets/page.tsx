@@ -15,7 +15,7 @@ import {
   Plus,
   Sparkles,
 } from 'lucide-react';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMyTickets, type Ticket } from '@/lib/api';
 
@@ -120,11 +120,11 @@ export default function TicketsPage() {
 
   if (authLoading) {
     return (
-      <SmartNav>
+      <AppShell>
         <div className="flex h-full items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         </div>
-      </SmartNav>
+      </AppShell>
     );
   }
 
@@ -137,7 +137,7 @@ export default function TicketsPage() {
   ];
 
   return (
-    <SmartNav>
+    <AppShell>
       <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[1fr_0.92fr]">
@@ -171,31 +171,31 @@ export default function TicketsPage() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Tickets in view</div>
-                <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : total.toLocaleString('en-EG')}</div>
+                <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : total.toLocaleString('en-EG')}</div>
                 <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Total threads matching your current inbox filter.</div>
               </div>
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Needs attention</div>
-                <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : (counts.open + counts.in_progress).toLocaleString('en-EG')}</div>
+                <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : (counts.open + counts.in_progress).toLocaleString('en-EG')}</div>
                 <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Open and in-progress threads still requiring follow-up.</div>
               </div>
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:col-span-2">
                 <div className="grid gap-3 sm:grid-cols-4">
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Open</div>
-                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : counts.open}</div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.open}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">In progress</div>
-                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : counts.in_progress}</div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.in_progress}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Resolved</div>
-                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : counts.resolved}</div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.resolved}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Closed</div>
-                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : counts.closed}</div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.closed}</div>
                   </div>
                 </div>
               </div>
@@ -246,7 +246,7 @@ export default function TicketsPage() {
                     <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--color-text-secondary)]">
                       {statusFilter
                         ? 'Try a different filter or create a new ticket.'
-                        : 'If you have questions about a property, try asking the advisor first — it handles most inquiries instantly. Open a ticket when you need tracking or a human reply.'}
+                        : 'If you have questions about a property, try asking the advisor first â€” it handles most inquiries instantly. Open a ticket when you need tracking or a human reply.'}
                     </p>
                     <div className="mt-6 flex flex-wrap justify-center gap-3">
                       <Link
@@ -359,6 +359,6 @@ export default function TicketsPage() {
           </section>
         </div>
       </main>
-    </SmartNav>
+    </AppShell>
   );
 }

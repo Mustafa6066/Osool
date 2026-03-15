@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { ArrowRight, BarChart3, Building2, Compass, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
 
 const PATHS = [
@@ -37,7 +37,7 @@ const INSIGHTS = [
 
 export default function ExplorePage() {
   return (
-    <SmartNav>
+    <AppShell>
       <div className="h-full overflow-y-auto bg-[var(--color-background)]">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
@@ -100,8 +100,8 @@ export default function ExplorePage() {
               </div>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight">Ask Osool to narrow the market for you.</h2>
               <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                Start with a real question like “best yield under 5M”, “which developer is safest in New Cairo”, or
-                “is this project overpriced?”.
+                Start with a real question like â€œbest yield under 5Mâ€, â€œwhich developer is safest in New Cairoâ€, or
+                â€œis this project overpriced?â€.
               </p>
               <Link
                 href="/chat"
@@ -115,6 +115,6 @@ export default function ExplorePage() {
         </section>
       </div>
       </div>
-    </SmartNav>
+    </AppShell>
   );
 }

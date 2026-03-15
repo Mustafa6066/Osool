@@ -22,7 +22,7 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { formatCompactPrice } from '@/lib/decision-support';
 import {
   computeDetailedStats,
@@ -35,7 +35,7 @@ import {
 } from '@/lib/marketStats';
 
 function formatSqmPrice(value: number): string {
-  return `${Math.round(value).toLocaleString('en-EG')} EGP/m²`;
+  return `${Math.round(value).toLocaleString('en-EG')} EGP/mÂ²`;
 }
 
 function typedEntries<TValue>(record: Record<string, TValue>): Array<[string, TValue]> {
@@ -50,7 +50,7 @@ function getDemandTag(count: number, maxCount: number): { label: string; color: 
   return { label: 'Emerging', color: 'bg-slate-500/15 text-slate-400' };
 }
 
-/** SVG sparkline — deterministic pseudo-trend from avg meter price */
+/** SVG sparkline â€” deterministic pseudo-trend from avg meter price */
 function MiniSparkline({ avg, color = '#10b981' }: { avg: number; color?: string }) {
   // Generate a deterministic 7-point sparkline from the avg value
   const seed = Math.round(avg);
@@ -83,10 +83,10 @@ function MiniSparkline({ avg, color = '#10b981' }: { avg: number; color?: string
 /** Payment narrative interpretation */
 function getPaymentNarrative(avgDown: number): { icon: string; label: string; description: string; color: string } {
   if (avgDown < 15)
-    return { icon: '🎯', label: 'Low Barrier Entry', description: 'Most projects offer very flexible down payments — ideal for first-time investors.', color: 'text-emerald-500' };
+    return { icon: 'ðŸŽ¯', label: 'Low Barrier Entry', description: 'Most projects offer very flexible down payments â€” ideal for first-time investors.', color: 'text-emerald-500' };
   if (avgDown < 30)
-    return { icon: '⚖️', label: 'Balanced Entry', description: 'Down payments align with market norms. Good range of installment options.', color: 'text-blue-400' };
-  return { icon: '💰', label: 'Capital-Heavy', description: 'Higher upfront commitment typical of premium developments.', color: 'text-amber-400' };
+    return { icon: 'âš–ï¸', label: 'Balanced Entry', description: 'Down payments align with market norms. Good range of installment options.', color: 'text-blue-400' };
+  return { icon: 'ðŸ’°', label: 'Capital-Heavy', description: 'Higher upfront commitment typical of premium developments.', color: 'text-amber-400' };
 }
 
 const fadeUp = {
@@ -159,7 +159,7 @@ export default function MarketStatisticsPage() {
       return [] as Array<{ label: string; count: number; avg: number }>;
     }
 
-    const order = ['Under 2M EGP', '2M – 5M EGP', '5M – 10M EGP', '10M – 20M EGP', '20M – 50M EGP', 'Over 50M EGP'];
+    const order = ['Under 2M EGP', '2M â€“ 5M EGP', '5M â€“ 10M EGP', '10M â€“ 20M EGP', '20M â€“ 50M EGP', 'Over 50M EGP'];
     return typedEntries<PriceBracket>(stats.price_bracket_distribution)
       .map(([label, value]) => ({ label, count: value.count, avg: value.avg_meter }))
       .sort((left, right) => order.indexOf(left.label) - order.indexOf(right.label));
@@ -214,10 +214,10 @@ export default function MarketStatisticsPage() {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
 
   return (
-    <SmartNav>
+    <AppShell>
       <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
-          {/* ── Hero + KPI Row ── */}
+          {/* â”€â”€ Hero + KPI Row â”€â”€ */}
           <motion.section
             initial="hidden"
             animate="visible"
@@ -254,9 +254,9 @@ export default function MarketStatisticsPage() {
 
             <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
               {[
-                { label: 'Tracked properties', value: loading ? '…' : stats?.summary.total_properties.toLocaleString('en-EG') || '—', desc: 'Live inventory across the embedded market data set.', icon: Building2 },
-                { label: 'Average ticket', value: loading ? '…' : stats ? formatCompactPrice(stats.summary.avg_price) : '—', desc: 'Typical asking-price level in the current snapshot.', icon: Wallet },
-                { label: 'Supply leader', value: loading ? '…' : supplySignal?.name || '—', desc: loading ? 'Loading…' : supplySignal ? `${supplySignal.count} active units` : '—', icon: MapPin },
+                { label: 'Tracked properties', value: loading ? 'â€¦' : stats?.summary.total_properties.toLocaleString('en-EG') || 'â€”', desc: 'Live inventory across the embedded market data set.', icon: Building2 },
+                { label: 'Average ticket', value: loading ? 'â€¦' : stats ? formatCompactPrice(stats.summary.avg_price) : 'â€”', desc: 'Typical asking-price level in the current snapshot.', icon: Wallet },
+                { label: 'Supply leader', value: loading ? 'â€¦' : supplySignal?.name || 'â€”', desc: loading ? 'Loadingâ€¦' : supplySignal ? `${supplySignal.count} active units` : 'â€”', icon: MapPin },
               ].map((card, i) => (
                 <motion.div key={card.label} variants={fadeUp} custom={i + 1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 transition-all hover:border-emerald-500/20">
                   <div className="flex items-center justify-between">
@@ -283,7 +283,7 @@ export default function MarketStatisticsPage() {
             </div>
           ) : (
             <>
-              {/* ── Area Leaders with Sparklines & Demand Badges ── */}
+              {/* â”€â”€ Area Leaders with Sparklines & Demand Badges â”€â”€ */}
               <motion.section
                 initial="hidden"
                 whileInView="visible"
@@ -352,7 +352,7 @@ export default function MarketStatisticsPage() {
                   <motion.div variants={fadeUp} custom={2} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 sm:col-span-2">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-emerald-500" />
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{stats.summary.areas_count} areas · {stats.summary.developers_count} developers · {stats.summary.types_count} types</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{stats.summary.areas_count} areas Â· {stats.summary.developers_count} developers Â· {stats.summary.types_count} types</div>
                     </div>
                     <div className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">
                       Click any area above to get AI analysis and top picks.
@@ -361,7 +361,7 @@ export default function MarketStatisticsPage() {
                 </div>
               </motion.section>
 
-              {/* ── Developer Pulse + Affordability Ladder ── */}
+              {/* â”€â”€ Developer Pulse + Affordability Ladder â”€â”€ */}
               <motion.section
                 initial="hidden"
                 whileInView="visible"
@@ -421,7 +421,7 @@ export default function MarketStatisticsPage() {
                       <motion.div key={bracket.label} variants={fadeUp} custom={i}>
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <div className="text-sm font-semibold text-[var(--color-text-primary)]">{bracket.label}</div>
-                          <div className="text-xs text-[var(--color-text-secondary)]">{bracket.count} units · {formatSqmPrice(bracket.avg)}</div>
+                          <div className="text-xs text-[var(--color-text-secondary)]">{bracket.count} units Â· {formatSqmPrice(bracket.avg)}</div>
                         </div>
                         <div className="h-2.5 overflow-hidden rounded-full bg-[var(--color-background)]">
                           <motion.div
@@ -438,7 +438,7 @@ export default function MarketStatisticsPage() {
                 </div>
               </motion.section>
 
-              {/* ── Top Compounds Leaderboard ── */}
+              {/* â”€â”€ Top Compounds Leaderboard â”€â”€ */}
               {topCompounds.length > 0 && (
                 <motion.section
                   initial="hidden"
@@ -467,7 +467,7 @@ export default function MarketStatisticsPage() {
                           </div>
                           <div className="mt-1.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
                             <span>{c.developer}</span>
-                            <span>·</span>
+                            <span>Â·</span>
                             <span>{c.location}</span>
                           </div>
                           <div className="mt-3 flex items-center justify-between">
@@ -481,7 +481,7 @@ export default function MarketStatisticsPage() {
                 </motion.section>
               )}
 
-              {/* ── Bedroom Breakdown + Size Distribution ── */}
+              {/* â”€â”€ Bedroom Breakdown + Size Distribution â”€â”€ */}
               <motion.section
                 initial="hidden"
                 whileInView="visible"
@@ -510,7 +510,7 @@ export default function MarketStatisticsPage() {
                               : 'bg-[var(--color-background)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-muted)]'
                           }`}
                         >
-                          {r.rooms} BR · {r.count}
+                          {r.rooms} BR Â· {r.count}
                         </button>
                       ))}
                     </div>
@@ -525,10 +525,10 @@ export default function MarketStatisticsPage() {
                           </div>
                           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
                             <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">Avg size</div>
-                            <div className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">{Math.round(active.avgSize)} m²</div>
+                            <div className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">{Math.round(active.avgSize)} mÂ²</div>
                           </div>
                           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
-                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">Per m²</div>
+                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">Per mÂ²</div>
                             <div className="mt-1 text-lg font-semibold text-emerald-600 dark:text-emerald-400">{formatSqmPrice(active.avgMeter)}</div>
                           </div>
                         </div>
@@ -554,7 +554,7 @@ export default function MarketStatisticsPage() {
                           <div key={sb.label}>
                             <div className="flex items-center justify-between gap-3 mb-1.5">
                               <span className="text-sm font-medium text-[var(--color-text-primary)]">{sb.label}</span>
-                              <span className="text-xs text-[var(--color-text-secondary)]">{sb.count} · {formatCompactPrice(sb.avgPrice)}</span>
+                              <span className="text-xs text-[var(--color-text-secondary)]">{sb.count} Â· {formatCompactPrice(sb.avgPrice)}</span>
                             </div>
                             <div className="h-2 overflow-hidden rounded-full bg-[var(--color-background)]">
                               <motion.div
@@ -573,7 +573,7 @@ export default function MarketStatisticsPage() {
                 )}
               </motion.section>
 
-              {/* ── Payment Pulse + Next Move ── */}
+              {/* â”€â”€ Payment Pulse + Next Move â”€â”€ */}
               <motion.section
                 initial="hidden"
                 whileInView="visible"
@@ -624,28 +624,28 @@ export default function MarketStatisticsPage() {
                   </div>
                   <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">Turn this market context into a narrower shortlist.</h2>
                   <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    Use this intelligence to inform your next question — move into corridors, developers, or ask the Advisor directly.
+                    Use this intelligence to inform your next question â€” move into corridors, developers, or ask the Advisor directly.
                   </p>
                   <div className="mt-6 space-y-3">
                     <Link
                       href="/areas"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>Compare corridors <span className="text-[var(--color-text-muted)] font-normal">→ filter by yield</span></span>
+                      <span>Compare corridors <span className="text-[var(--color-text-muted)] font-normal">â†’ filter by yield</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/developers"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>Audit developers <span className="text-[var(--color-text-muted)] font-normal">→ check delivery track record</span></span>
+                      <span>Audit developers <span className="text-[var(--color-text-muted)] font-normal">â†’ check delivery track record</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/properties"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>Review live units <span className="text-[var(--color-text-muted)] font-normal">→ browse full inventory</span></span>
+                      <span>Review live units <span className="text-[var(--color-text-muted)] font-normal">â†’ browse full inventory</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </div>
@@ -655,6 +655,6 @@ export default function MarketStatisticsPage() {
           )}
         </div>
       </main>
-    </SmartNav>
+    </AppShell>
   );
 }

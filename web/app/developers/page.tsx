@@ -2,11 +2,11 @@ import { getDevelopers } from '@/lib/seo-api';
 import type { Developer } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { developerBrief } from '@/lib/decision-support';
 
 export const metadata: Metadata = {
-  title: 'Top Egyptian Real Estate Developers — Ranked & Scored | Osool',
+  title: 'Top Egyptian Real Estate Developers â€” Ranked & Scored | Osool',
   description:
     'Compare Egypt\'s top property developers: Emaar Misr, Sodic, Orascom, Palm Hills, Mountain View, TMG & more. Delivery scores, finish quality, and resale retention.',
 };
@@ -38,7 +38,7 @@ export default async function DevelopersPage() {
   }
 
   return (
-    <SmartNav>
+    <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
@@ -93,11 +93,11 @@ export default async function DevelopersPage() {
                           </div>
                           <h2 className="text-2xl font-semibold tracking-tight group-hover:text-emerald-500 transition-colors">{dev.name}</h2>
                           <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                            {dev.founded_year ? `Est. ${dev.founded_year}` : 'Established developer'}{dev.total_projects ? ` • ${dev.total_projects} projects` : ''}
+                            {dev.founded_year ? `Est. ${dev.founded_year}` : 'Established developer'}{dev.total_projects ? ` â€¢ ${dev.total_projects} projects` : ''}
                           </p>
                         </div>
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                          {dev.overall_score ?? '—'}
+                          {dev.overall_score ?? 'â€”'}
                         </div>
                       </div>
 
@@ -131,6 +131,6 @@ export default async function DevelopersPage() {
         )}
       </div>
     </main>
-    </SmartNav>
+    </AppShell>
   );
 }

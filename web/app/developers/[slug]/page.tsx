@@ -3,7 +3,7 @@ import { developerJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { developerBrief } from '@/lib/decision-support';
 
 const fmt = (n: number) => n.toLocaleString('en-EG');
@@ -52,7 +52,7 @@ export default async function DeveloperPage({ params }: Props) {
   const brief = developerBrief(dev);
 
   return (
-    <SmartNav>
+    <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <script
         type="application/ld+json"
@@ -160,6 +160,6 @@ export default async function DeveloperPage({ params }: Props) {
         </div>
       </div>
     </main>
-    </SmartNav>
+    </AppShell>
   );
 }

@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchFavorites, toggleFavorite, FavoriteProperty } from '@/lib/gamification';
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 
 export default function FavoritesPage() {
     const { isAuthenticated, loading: authLoading } = useAuth();
@@ -58,7 +58,7 @@ export default function FavoritesPage() {
     if (authLoading) return null;
 
     return (
-        <SmartNav>
+        <AppShell>
             <div className="h-full overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
                     <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start mb-8">
@@ -96,7 +96,7 @@ export default function FavoritesPage() {
                         </div>
                     )}
 
-                    {/* Empty State — teach & motivate */}
+                    {/* Empty State â€” teach & motivate */}
                     {!loading && favorites.length === 0 && (
                         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-12">
                             <div className="mx-auto max-w-lg text-center">
@@ -107,7 +107,7 @@ export default function FavoritesPage() {
                                     Your shortlist is your working board.
                                 </h2>
                                 <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">
-                                    The best investors don&rsquo;t just browse — they shortlist, compare, and strike.
+                                    The best investors don&rsquo;t just browse â€” they shortlist, compare, and strike.
                                     Start by asking the advisor for recommendations, then save the ones worth deeper analysis.
                                 </p>
 
@@ -207,7 +207,7 @@ export default function FavoritesPage() {
                                         <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mb-3" dir="auto">
                                             <MapPin className="w-3 h-3" />
                                             {fav.location}
-                                            {fav.developer && ` · ${fav.developer}`}
+                                            {fav.developer && ` Â· ${fav.developer}`}
                                         </p>
 
                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-xs text-[var(--color-text-secondary)] mb-3">
@@ -229,7 +229,7 @@ export default function FavoritesPage() {
                                             )}
                                             {fav.price_per_sqm > 0 && (
                                                 <span className="text-emerald-500 font-medium">
-                                                    {fav.price_per_sqm.toLocaleString()}/m²
+                                                    {fav.price_per_sqm.toLocaleString()}/mÂ²
                                                 </span>
                                             )}
                                         </div>
@@ -257,6 +257,6 @@ export default function FavoritesPage() {
                     )}
                 </div>
             </div>
-        </SmartNav>
+        </AppShell>
     );
 }

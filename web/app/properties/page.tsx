@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import PropertyFilter from '@/components/PropertyFilter';
 import { toggleFavorite, fetchFavorites } from '@/lib/gamification';
 import { buildAdvisorPrompt, formatCompactPrice, propertyBrief } from '@/lib/decision-support';
@@ -468,7 +468,7 @@ export default function PropertiesPage() {
     }, [filteredProperties]);
 
     return (
-        <SmartNav>
+        <AppShell>
         <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
             <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
                 <section className="grid gap-6 lg:grid-cols-[1fr_0.95fr] lg:items-start">
@@ -505,7 +505,7 @@ export default function PropertiesPage() {
                                 <Wallet className="h-4 w-4 text-emerald-500" />
                             </div>
                             <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">
-                                {boardSummary.averagePrice ? formatCompactPrice(boardSummary.averagePrice) : '—'}
+                                {boardSummary.averagePrice ? formatCompactPrice(boardSummary.averagePrice) : 'â€”'}
                             </div>
                             <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Typical price level across the current filtered board.</div>
                         </div>
@@ -671,25 +671,25 @@ export default function PropertiesPage() {
 
                                                     <div className="mt-4 grid grid-cols-3 gap-3 text-sm text-[var(--color-text-muted)]">
                                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                                                            <div className="flex items-center gap-1.5"><Bed className="h-4 w-4" />{property.bedrooms > 0 ? property.bedrooms : '—'}</div>
+                                                            <div className="flex items-center gap-1.5"><Bed className="h-4 w-4" />{property.bedrooms > 0 ? property.bedrooms : 'â€”'}</div>
                                                         </div>
                                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                                                            <div className="flex items-center gap-1.5"><Bath className="h-4 w-4" />{property.bathrooms > 0 ? property.bathrooms : '—'}</div>
+                                                            <div className="flex items-center gap-1.5"><Bath className="h-4 w-4" />{property.bathrooms > 0 ? property.bathrooms : 'â€”'}</div>
                                                         </div>
                                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                                                            <div className="flex items-center gap-1.5"><Maximize className="h-4 w-4" />{property.area > 0 ? `${property.area} ${language === 'ar' ? '\u0645\u00B2' : 'sqm'}` : '—'}</div>
+                                                            <div className="flex items-center gap-1.5"><Maximize className="h-4 w-4" />{property.area > 0 ? `${property.area} ${language === 'ar' ? '\u0645\u00B2' : 'sqm'}` : 'â€”'}</div>
                                                         </div>
                                                     </div>
 
                                                     <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
                                                         {property.pricePerSqm ? (
                                                             <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1">
-                                                                {Math.round(property.pricePerSqm).toLocaleString('en-EG')} EGP/m²
+                                                                {Math.round(property.pricePerSqm).toLocaleString('en-EG')} EGP/mÂ²
                                                             </span>
                                                         ) : null}
                                                         {property.paymentPlan?.downPayment != null && property.paymentPlan?.installmentYears != null ? (
                                                             <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1">
-                                                                {property.paymentPlan.downPayment}% down • {property.paymentPlan.installmentYears} years
+                                                                {property.paymentPlan.downPayment}% down â€¢ {property.paymentPlan.installmentYears} years
                                                             </span>
                                                         ) : null}
                                                     </div>
@@ -732,7 +732,7 @@ export default function PropertiesPage() {
                             <div className="h-[600px] rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
                                 <div className="flex flex-col items-center gap-3 text-[var(--color-text-muted)]">
                                     <Loader2 className="w-8 h-8 animate-spin" />
-                                    <p>{language === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
+                                    <p>{language === 'ar' ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„...' : 'Loading...'}</p>
                                 </div>
                             </div>
                         )}
@@ -771,6 +771,6 @@ export default function PropertiesPage() {
             </div>
 
         </main>
-        </SmartNav>
+        </AppShell>
     );
 }

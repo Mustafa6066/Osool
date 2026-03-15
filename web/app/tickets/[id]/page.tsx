@@ -16,7 +16,7 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
 import { addTicketReply, getTicketDetail, type TicketDetail } from '@/lib/api';
 
@@ -140,17 +140,17 @@ export default function TicketDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <SmartNav>
+      <AppShell>
         <div className="flex h-full items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         </div>
-      </SmartNav>
+      </AppShell>
     );
   }
 
   if (!ticket) {
     return (
-      <SmartNav>
+      <AppShell>
         <div className="flex h-full items-center justify-center px-4">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
             <div className="text-xl font-semibold text-[var(--color-text-primary)]">{error || 'Ticket not found.'}</div>
@@ -161,12 +161,12 @@ export default function TicketDetailPage() {
             </div>
           </div>
         </div>
-      </SmartNav>
+      </AppShell>
     );
   }
 
   return (
-    <SmartNav>
+    <AppShell>
       <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[0.94fr_1.06fr]">
@@ -310,6 +310,6 @@ export default function TicketDetailPage() {
           </section>
         </div>
       </main>
-    </SmartNav>
+    </AppShell>
   );
 }

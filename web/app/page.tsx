@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, BarChart3, Building2, FileSearch, GitCompare, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
-import PublicPageNav from '@/components/PublicPageNav';
+import AppShell from '@/components/nav/AppShell';
 
 const PATHS = [
     {
@@ -58,7 +58,7 @@ const EXPLORE = [
 
 export default function Home() {
     return (
-        <PublicPageNav>
+        <AppShell>
             <section className="mx-auto max-w-7xl px-4 pb-14 pt-8 sm:px-6 sm:pt-12">
                 <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
                     <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_32px_100px_rgba(0,0,0,0.05)] sm:p-10 lg:p-12">
@@ -227,6 +227,6 @@ export default function Home() {
                     </div>
                 </div>
             </footer>
-        </PublicPageNav>
+        </AppShell>
     );
 }

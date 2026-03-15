@@ -4,7 +4,7 @@ import { FormEvent, Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Loader2, Lock, Mail, ShieldCheck, Sparkles } from 'lucide-react';
-import PublicPageNav from '@/components/PublicPageNav';
+import AppShell from '@/components/nav/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -142,7 +142,7 @@ function LoginContent() {
                                 required
                                 value={password}
                                 onChange={(event) => setPassword(event.target.value)}
-                                placeholder="••••••••"
+                                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                                 className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 pl-10 pr-4 text-[var(--color-text-primary)] outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                             />
                         </div>
@@ -171,7 +171,7 @@ function LoginContent() {
 
 export default function LoginPage() {
     return (
-        <PublicPageNav>
+        <AppShell>
             <Suspense
                 fallback={
                     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-8">
@@ -181,6 +181,6 @@ export default function LoginPage() {
             >
                 <LoginContent />
             </Suspense>
-        </PublicPageNav>
+        </AppShell>
     );
 }

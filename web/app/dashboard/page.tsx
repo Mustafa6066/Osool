@@ -8,7 +8,7 @@ import { generateInvitation, getMyInvitations, InvitationResponse, MyInvitations
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import InvestorProfileCard from '@/components/InvestorProfileCard';
 import { TIER_COLORS, fetchFavorites, FavoriteProperty } from '@/lib/gamification';
 
@@ -182,7 +182,7 @@ export default function DashboardPage() {
     };
 
     return (
-        <SmartNav>
+        <AppShell>
             <div className="h-full overflow-y-auto">
                 <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 pb-24 sm:px-6 md:pb-10 lg:px-8">
                     {/* Row 1: Welcome header */}
@@ -193,11 +193,11 @@ export default function DashboardPage() {
                         </div>
                         <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Welcome back, {firstName}.</h1>
                         <p className="mt-2 max-w-xl text-base text-[var(--color-text-secondary)]">
-                            Your investment workspace — everything that matters, at a glance.
+                            Your investment workspace â€” everything that matters, at a glance.
                         </p>
                     </div>
 
-                    {/* Row 2: Bento grid — Profile + Quick Actions */}
+                    {/* Row 2: Bento grid â€” Profile + Quick Actions */}
                     <section className="grid gap-4 lg:grid-cols-2">
                         {/* Investor Profile Card */}
                         {profile && (
@@ -229,7 +229,7 @@ export default function DashboardPage() {
                         </div>
                     </section>
 
-                    {/* Row 3: Bento grid — Shortlist + Market Snapshot */}
+                    {/* Row 3: Bento grid â€” Shortlist + Market Snapshot */}
                     <section className="grid gap-4 lg:grid-cols-2">
                         {/* My Shortlist */}
                         <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
@@ -267,7 +267,7 @@ export default function DashboardPage() {
                                                 </div>
                                                 <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                                                     {prop.bedrooms > 0 && <span className="flex items-center gap-0.5"><Bed className="h-3 w-3" />{prop.bedrooms}</span>}
-                                                    {prop.size_sqm > 0 && <span className="flex items-center gap-0.5"><Maximize className="h-3 w-3" />{prop.size_sqm}m²</span>}
+                                                    {prop.size_sqm > 0 && <span className="flex items-center gap-0.5"><Maximize className="h-3 w-3" />{prop.size_sqm}mÂ²</span>}
                                                 </div>
                                                 <div className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(prop.price)}</div>
                                             </Link>
@@ -323,7 +323,7 @@ export default function DashboardPage() {
                                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Invites remaining</div>
                                 <Users className="h-4 w-4 text-emerald-500" />
                             </div>
-                            <div className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">{remaining === 'unlimited' ? '∞' : remaining}</div>
+                            <div className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">{remaining === 'unlimited' ? 'âˆž' : remaining}</div>
                         </div>
                         <div className="rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                             <div className="flex items-center justify-between">
@@ -443,7 +443,7 @@ export default function DashboardPage() {
                                         <div key={invite.code} className="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 sm:flex-row sm:items-center sm:justify-between">
                                             <div>
                                                 <div className="text-sm font-semibold text-[var(--color-text-primary)]">{invite.code}</div>
-                                                <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">Created {formatDate(invite.created_at)}{invite.used_at ? ` · Used ${formatDate(invite.used_at)}` : ''}</div>
+                                                <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">Created {formatDate(invite.created_at)}{invite.used_at ? ` Â· Used ${formatDate(invite.used_at)}` : ''}</div>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${invite.is_used ? 'bg-slate-500/10 text-slate-600 dark:text-slate-300' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
@@ -469,6 +469,6 @@ export default function DashboardPage() {
                     </section>
                 </div>
             </div>
-        </SmartNav>
+        </AppShell>
     );
 }

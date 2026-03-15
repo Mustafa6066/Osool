@@ -2,7 +2,7 @@ import { getArea, getAreaProjects, getAreaPriceHistory } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { areaBrief, formatRate } from '@/lib/decision-support';
 
 interface Props {
@@ -38,7 +38,7 @@ export default async function AreaPage({ params }: Props) {
   const brief = areaBrief(area);
 
   return (
-    <SmartNav>
+    <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
@@ -165,6 +165,6 @@ export default async function AreaPage({ params }: Props) {
         </div>
       </div>
     </main>
-    </SmartNav>
+    </AppShell>
   );
 }

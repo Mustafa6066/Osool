@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -236,21 +236,21 @@ export default function PropertyDetailsPage() {
     // ── Loading state ─────────────────────────────────────────
     if (loading) {
         return (
-            <SmartNav>
+            <AppShell>
                 <main className="h-full flex items-center justify-center bg-[var(--color-background)]">
                     <div className="flex flex-col items-center gap-4">
                         <Loader2 className="w-10 h-10 text-[var(--color-primary)] animate-spin" />
                         <p className="text-[var(--color-text-muted)]">{t('common.loading')}</p>
                     </div>
                 </main>
-            </SmartNav>
+            </AppShell>
         );
     }
 
     // ── Error / not found state ───────────────────────────────
     if (error || !property) {
         return (
-            <SmartNav>
+            <AppShell>
                 <main className="h-full flex items-center justify-center bg-[var(--color-background)]">
                     <div className="flex flex-col items-center gap-4 text-center px-6">
                         <AlertCircle className="w-12 h-12 text-red-400" />
@@ -266,12 +266,12 @@ export default function PropertyDetailsPage() {
                         </Link>
                     </div>
                 </main>
-            </SmartNav>
+            </AppShell>
         );
     }
 
     return (
-        <SmartNav>
+        <AppShell>
         <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
@@ -653,6 +653,6 @@ export default function PropertyDetailsPage() {
                 </div>
             </div>
         </main>
-        </SmartNav>
+        </AppShell>
     );
 }

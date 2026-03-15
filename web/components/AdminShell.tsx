@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Shield, ShieldAlert, Sparkles } from 'lucide-react';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
 import { checkAdmin } from '@/lib/api';
 
@@ -65,17 +65,17 @@ export default function AdminShell({
 
   if (authLoading || checkingAdmin) {
     return (
-      <SmartNav>
+      <AppShell>
         <div className="flex h-full items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         </div>
-      </SmartNav>
+      </AppShell>
     );
   }
 
   if (!isAdmin) {
     return (
-      <SmartNav>
+      <AppShell>
         <main className="flex h-full items-center justify-center bg-[var(--color-background)] px-4">
           <div className="w-full max-w-xl rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-[0_30px_90px_rgba(0,0,0,0.04)]">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
@@ -96,12 +96,12 @@ export default function AdminShell({
             </div>
           </div>
         </main>
-      </SmartNav>
+      </AppShell>
     );
   }
 
   return (
-    <SmartNav>
+    <AppShell>
       <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
@@ -129,6 +129,6 @@ export default function AdminShell({
           {children}
         </div>
       </main>
-    </SmartNav>
+    </AppShell>
   );
 }
