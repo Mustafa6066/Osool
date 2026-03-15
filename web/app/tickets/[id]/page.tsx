@@ -18,28 +18,29 @@ import {
 } from 'lucide-react';
 import AppShell from '@/components/nav/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { addTicketReply, getTicketDetail, type TicketDetail } from '@/lib/api';
 
-const STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In progress',
-  resolved: 'Resolved',
-  closed: 'Closed',
+const STATUS_KEYS: Record<string, string> = {
+  open: 'tickets.statusOpen',
+  in_progress: 'tickets.statusInProgress',
+  resolved: 'tickets.statusResolved',
+  closed: 'tickets.statusClosed',
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  general: 'General',
-  payment: 'Payment',
-  property: 'Property',
-  technical: 'Technical',
-  account: 'Account',
+const CATEGORY_KEYS: Record<string, string> = {
+  general: 'tickets.categoryGeneral',
+  payment: 'tickets.categoryPayment',
+  property: 'tickets.categoryProperty',
+  technical: 'tickets.categoryTechnical',
+  account: 'tickets.categoryAccount',
 };
 
-const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  urgent: 'Urgent',
+const PRIORITY_KEYS: Record<string, string> = {
+  low: 'tickets.priorityLow',
+  medium: 'tickets.priorityMedium',
+  high: 'tickets.priorityHigh',
+  urgent: 'tickets.priorityUrgent',
 };
 
 function getStatusTone(status: string): string {
@@ -72,6 +73,7 @@ function getPriorityTone(priority: string): string {
 
 export default function TicketDetailPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const params = useParams();
   const rawId = params.id;
@@ -103,7 +105,7 @@ export default function TicketDetailPage() {
         setTicket(detail);
       } catch (loadError) {
         console.error(loadError);
-        setError('This ticket could not be loaded.');
+        setError(t('ticketDetail.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -125,7 +127,7 @@ export default function TicketDetailPage() {
       setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 120);
     } catch (sendError) {
       console.error(sendError);
-      setError('Reply could not be sent.');
+      setError(t('ticketDetail.sendFailed'));
     } finally {
       setSending(false);
     }
@@ -133,7 +135,7 @@ export default function TicketDetailPage() {
 
   const timelineLabel = useMemo(() => {
     if (!ticket?.created_at) {
-      return 'No timestamp';
+      return t('ticketDetail.noTimestamp');
     }
     return new Date(ticket.created_at).toLocaleString();
   }, [ticket?.created_at]);
@@ -153,10 +155,10 @@ export default function TicketDetailPage() {
       <AppShell>
         <div className="flex h-full items-center justify-center px-4">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
-            <div className="text-xl font-semibold text-[var(--color-text-primary)]">{error || 'Ticket not found.'}</div>
+            <div className="text-xl font-semibold text-[var(--color-text-primary)]">{error || t('ticketDetail.notFound')}</div>
             <div className="mt-3">
               <Link href="/tickets" className="text-sm font-medium text-emerald-600 dark:text-emerald-300">
-                Return to support inbox
+                {t('ticketDetail.returnLink')}
               </Link>
             </div>
           </div>
@@ -174,43 +176,43 @@ export default function TicketDetailPage() {
               <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
                 <Link href="/tickets" className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]">
                   <ArrowLeft className="h-4 w-4" />
-                  Back to support inbox
+                  {t('ticketDetail.back')}
                 </Link>
                 <div className="mt-6 flex flex-wrap items-center gap-2">
                   <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusTone(ticket.status)}`}>
-                    {STATUS_LABELS[ticket.status] || ticket.status}
+                    {STATUS_KEYS[ticket.status] ? t(STATUS_KEYS[ticket.status]) : ticket.status}
                   </span>
                   <span className={`text-sm font-semibold ${getPriorityTone(ticket.priority)}`}>
-                    {PRIORITY_LABELS[ticket.priority] || ticket.priority} priority
+                    {PRIORITY_KEYS[ticket.priority] ? t(PRIORITY_KEYS[ticket.priority]) : ticket.priority} {t('ticketDetail.prioritySuffix')}
                   </span>
                 </div>
                 <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">{ticket.subject}</h1>
                 <p className="mt-4 text-base leading-7 text-[var(--color-text-secondary)]">
-                  Track the thread, keep replies factual, and use this record as the source of truth for this issue.
+                  {t('ticketDetail.subtitle')}
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Category</div>
-                  <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)]">{CATEGORY_LABELS[ticket.category] || ticket.category}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('ticketDetail.statsCategory')}</div>
+                  <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)]">{CATEGORY_KEYS[ticket.category] ? t(CATEGORY_KEYS[ticket.category]) : ticket.category}</div>
                 </div>
                 <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Opened</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('ticketDetail.statsOpened')}</div>
                   <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)]">{timelineLabel}</div>
                 </div>
                 <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Replies</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('ticketDetail.statsReplies')}</div>
                   <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)]">{ticket.replies.length}</div>
                 </div>
               </div>
 
               <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Support rules</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('ticketDetail.rulesLabel')}</div>
                 <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                  <p>Keep replies on the same topic so the thread can actually be resolved.</p>
-                  <p>If the status is resolved, use one confirming reply instead of opening a parallel ticket.</p>
-                  <p>If the ticket is closed and the issue changed materially, open a new thread.</p>
+                  <p>{t('ticketDetail.rule1')}</p>
+                  <p>{t('ticketDetail.rule2')}</p>
+                  <p>{t('ticketDetail.rule3')}</p>
                 </div>
               </div>
             </div>
@@ -223,8 +225,8 @@ export default function TicketDetailPage() {
               )}
 
               <div className="border-b border-[var(--color-border)] pb-5">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Conversation</div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">Thread history</h2>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('ticketDetail.conversationLabel')}</div>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('ticketDetail.conversationTitle')}</h2>
               </div>
 
               <div className="mt-6 space-y-4">
@@ -234,7 +236,7 @@ export default function TicketDetailPage() {
                       <User className="h-4 w-4 text-blue-500" />
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-[var(--color-text-primary)]">You</div>
+                      <div className="text-sm font-semibold text-[var(--color-text-primary)]">{t('ticketDetail.authorYou')}</div>
                       <div className="text-xs text-[var(--color-text-muted)]">{timelineLabel}</div>
                     </div>
                   </div>
@@ -253,10 +255,10 @@ export default function TicketDetailPage() {
                       <div>
                         <div className="text-sm font-semibold text-[var(--color-text-primary)]">
                           {reply.user_name}
-                          {reply.is_admin_reply && <span className="ml-2 text-xs font-medium text-emerald-600 dark:text-emerald-300">Support</span>}
+                          {reply.is_admin_reply && <span className="ml-2 text-xs font-medium text-emerald-600 dark:text-emerald-300">{t('ticketDetail.authorSupport')}</span>}
                         </div>
                         <div className="text-xs text-[var(--color-text-muted)]">
-                          {reply.created_at ? new Date(reply.created_at).toLocaleString() : 'No timestamp'}
+                          {reply.created_at ? new Date(reply.created_at).toLocaleString() : t('ticketDetail.noTimestamp')}
                         </div>
                       </div>
                     </div>
@@ -271,27 +273,27 @@ export default function TicketDetailPage() {
                   <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-5 text-sm text-[var(--color-text-secondary)]">
                     <div className="flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
                       <Lock className="h-4 w-4" />
-                      This ticket is closed
+                      {t('ticketDetail.closedLabel')}
                     </div>
-                    <p className="mt-2 leading-6">Open a new ticket if the issue changed or you need a separate follow-up thread.</p>
+                    <p className="mt-2 leading-6">{t('ticketDetail.closedDescription')}</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-[var(--color-text-primary)]">Reply</label>
-                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Add only the next relevant fact, confirmation, or blocker.</p>
+                      <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketDetail.replyLabel')}</label>
+                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketDetail.replyHint')}</p>
                     </div>
                     <textarea
                       value={replyContent}
                       onChange={(event) => setReplyContent(event.target.value)}
                       rows={5}
-                      placeholder="Write your update here."
+                      placeholder={t('ticketDetail.replyPlaceholder')}
                       className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus:border-emerald-500/40"
                     />
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
                         <MessageSquare className="h-4 w-4" />
-                        Keep this thread scoped to one issue.
+                        {t('ticketDetail.replyGuidance')}
                       </div>
                       <button
                         type="button"
@@ -300,7 +302,7 @@ export default function TicketDetailPage() {
                         className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                        Send reply
+                        {t('ticketDetail.replySubmit')}
                       </button>
                     </div>
                   </div>

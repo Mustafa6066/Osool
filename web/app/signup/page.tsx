@@ -79,7 +79,7 @@ function SignupContent() {
         } catch (err) {
             setInvitationStatus({
                 valid: false,
-                message: 'Failed to validate invitation code'
+                message: t('signup.validationFailed')
             });
         } finally {
             setIsValidating(false);
@@ -107,19 +107,19 @@ function SignupContent() {
 
         // Validate inputs
         if (!fullName.trim()) {
-            setError('Please enter your full name');
+            setError(t('signup.errorNoName'));
             return;
         }
         if (!email.trim() || !EMAIL_REGEX.test(email)) {
-            setError('Please enter a valid email address');
+            setError(t('signup.errorInvalidEmail'));
             return;
         }
         if (!passwordValid) {
-            setError('Password must be at least 8 characters with 1 uppercase letter and 1 number');
+            setError(t('signup.errorWeakPassword'));
             return;
         }
         if (!invitationCode.trim()) {
-            setError('Invitation code is required. Please request an invitation from an existing user.');
+            setError(t('signup.errorNoInvitation'));
             return;
         }
 
@@ -166,24 +166,24 @@ function SignupContent() {
             <section className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-10">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    Save your progress
+                    {t('signup.badge')}
                 </div>
-                <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Create your Osool workspace so research becomes a working decision flow.</h1>
+                <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{t('signup.title')}</h1>
                 <p className="mt-4 text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
-                    Turn browsing into a saved shortlist, continue your advisor sessions, and keep track of the next best action across areas, developers, and projects.
+                    {t('signup.subtitle')}
                 </p>
 
                 <div className="mt-8 space-y-3">
                     {[
-                      'Save shortlists and comparisons',
-                      'Return to your market and advisor context',
-                      'Unlock personalized next-step guidance',
-                    ].map((point) => (
-                      <div key={point} className="flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                      'signup.benefitShortlists',
+                      'signup.benefitContext',
+                      'signup.benefitGuidance',
+                    ].map((key) => (
+                      <div key={key} className="flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
                         <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                           <Sparkles className="h-4 w-4" />
                         </div>
-                        <div className="text-sm leading-6 text-[var(--color-text-primary)]">{point}</div>
+                        <div className="text-sm leading-6 text-[var(--color-text-primary)]">{t(key)}</div>
                       </div>
                     ))}
                 </div>
@@ -248,7 +248,7 @@ function SignupContent() {
                                 type="text"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
-                                placeholder="Ahmed Mohamed"
+                                placeholder={t('signup.namePlaceholder')}
                                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
@@ -263,7 +263,7 @@ function SignupContent() {
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="ahmed@example.com"
+                                placeholder={t('signup.emailPlaceholder')}
                                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
@@ -285,13 +285,13 @@ function SignupContent() {
                         {password.length > 0 && (
                             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.length ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.length ? 'âœ“' : 'â—‹'} 8+ chars
+                                    {passwordChecks.length ? 'âœ"' : 'â‹'} {t('signup.passwordMinChars')}
                                 </span>
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.uppercase ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.uppercase ? 'âœ“' : 'â—‹'} Uppercase
+                                    {passwordChecks.uppercase ? 'âœ"' : 'â‹'} {t('signup.passwordUppercase')}
                                 </span>
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.number ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.number ? 'âœ“' : 'â—‹'} Number
+                                    {passwordChecks.number ? 'âœ"' : 'â‹'} {t('signup.passwordNumber')}
                                 </span>
                             </div>
                         )}
@@ -307,7 +307,7 @@ function SignupContent() {
                                 type="text"
                                 value={invitationCode}
                                 onChange={(e) => handleInvitationChange(e.target.value)}
-                                placeholder="Enter invitation code"
+                                placeholder={t('signup.invitationPlaceholder')}
                                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>

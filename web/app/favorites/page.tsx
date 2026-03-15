@@ -65,26 +65,26 @@ export default function FavoritesPage() {
                         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-7">
                             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
                                 <Heart className="h-3.5 w-3.5" />
-                                Saved workspace
+                                {t('favorites.badge')}
                             </div>
-                            <h1 className="mt-5 text-3xl font-semibold tracking-tight md:text-4xl">Your shortlist should feel like a working board, not a passive bookmark list.</h1>
+                            <h1 className="mt-5 text-3xl font-semibold tracking-tight md:text-4xl">{t('favorites.heroTitle')}</h1>
                             <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">
-                                Keep high-conviction opportunities in one place, move them back into Osool Advisor, and compare what deserves action next.
+                                {t('favorites.heroSubtitle')}
                             </p>
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-3">
                             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Saved items</div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('favorites.statsSaved')}</div>
                                 <div className="mt-2 text-3xl font-semibold">{favorites.length}</div>
                             </div>
                             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Ready to review</div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('favorites.statsReady')}</div>
                                 <div className="mt-2 text-3xl font-semibold">{favorites.filter((fav) => fav.price_per_sqm > 0).length}</div>
                             </div>
                             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Next move</div>
-                                <div className="mt-2 text-sm font-semibold">Compare, ask Osool, or keep refining.</div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('favorites.statsNextMove')}</div>
+                                <div className="mt-2 text-sm font-semibold">{t('favorites.statsNextMoveDesc')}</div>
                             </div>
                         </div>
                     </div>
@@ -104,26 +104,25 @@ export default function FavoritesPage() {
                                     <Heart className="h-10 w-10 text-emerald-500" />
                                 </div>
                                 <h2 className="mt-6 text-2xl font-semibold text-[var(--color-text-primary)]">
-                                    Your shortlist is your working board.
+                                    {t('favorites.emptyTitle')}
                                 </h2>
                                 <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">
-                                    The best investors don&rsquo;t just browse â€” they shortlist, compare, and strike.
-                                    Start by asking the advisor for recommendations, then save the ones worth deeper analysis.
+                                    {t('favorites.emptyDescription')}
                                 </p>
 
                                 {/* Mini-roadmap */}
                                 <div className="mx-auto mt-8 grid max-w-sm gap-3 text-left">
                                     <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">1</div>
-                                        <div className="text-sm text-[var(--color-text-secondary)]">Ask the advisor: <span className="font-medium text-[var(--color-text-primary)]">&ldquo;Show me apartments in New Cairo under 5M&rdquo;</span></div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep1')} <span className="font-medium text-[var(--color-text-primary)]">{t('favorites.emptyStep1Example')}</span></div>
                                     </div>
                                     <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">2</div>
-                                        <div className="text-sm text-[var(--color-text-secondary)]">Tap the <Heart className="inline h-3.5 w-3.5 text-emerald-500" /> icon on any property card to save it here</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep2Intro')} <Heart className="inline h-3.5 w-3.5 text-emerald-500" /> {t('favorites.emptyStep2Desc')}</div>
                                     </div>
                                     <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">3</div>
-                                        <div className="text-sm text-[var(--color-text-secondary)]">Come back here to compare, run valuations, and decide</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep3')}</div>
                                     </div>
                                 </div>
 
@@ -133,13 +132,13 @@ export default function FavoritesPage() {
                                         className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-background)]"
                                     >
                                         <Sparkles className="h-4 w-4" />
-                                        Open advisor chat
+                                        {t('favorites.emptyOpenChat')}
                                     </Link>
                                     <Link
                                         href="/explore"
                                         className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-6 py-3 text-sm font-medium hover:border-emerald-500/40"
                                     >
-                                        Explore market
+                                        {t('favorites.emptyExploreMarket')}
                                     </Link>
                                 </div>
                             </div>
@@ -150,9 +149,9 @@ export default function FavoritesPage() {
                     {!loading && favorites.length > 0 && (
                         <div className="space-y-5">
                             <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-muted)]">
-                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">Most promising</span>
-                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">Highest conviction</span>
-                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">Need follow-up</span>
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">{t('favorites.filterPromising')}</span>
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">{t('favorites.filterConviction')}</span>
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">{t('favorites.filterFollowUp')}</span>
                             </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -180,7 +179,7 @@ export default function FavoritesPage() {
                                             onClick={() => handleRemove(fav.property_id)}
                                             disabled={removing === fav.property_id}
                                             className="absolute top-3 right-3 p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-red-500 transition-colors"
-                                            title="Remove from favorites"
+                                            title="{t('favorites.remove')}"
                                         >
                                             {removing === fav.property_id ? (
                                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -195,7 +194,7 @@ export default function FavoritesPage() {
                                         </div>
 
                                         <div className="absolute top-3 left-3 rounded-full bg-emerald-500/90 px-3 py-1 text-[11px] font-semibold text-white">
-                                            Saved for review
+                                            {t('favorites.propertyBadge')}
                                         </div>
                                     </div>
 
@@ -211,7 +210,7 @@ export default function FavoritesPage() {
                                         </p>
 
                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-xs text-[var(--color-text-secondary)] mb-3">
-                                            {fav.notes ? fav.notes : 'Use this as a comparison candidate or pull it back into Osool Advisor for valuation, fit, and next-step guidance.'}
+                                            {fav.notes ? fav.notes : t('favorites.propertyNote')}
                                         </div>
 
                                         <div className="flex items-center gap-4 text-xs text-[var(--color-text-secondary)]">
@@ -246,7 +245,7 @@ export default function FavoritesPage() {
                                                 href={`/property/${fav.property_id}`}
                                                 className="flex items-center justify-center rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] hover:border-emerald-500/40"
                                             >
-                                                Open detail
+                                                {t('favorites.openDetail')}
                                             </Link>
                                         </div>
                                     </div>

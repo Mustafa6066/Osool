@@ -17,28 +17,29 @@ import {
 } from 'lucide-react';
 import AppShell from '@/components/nav/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { getMyTickets, type Ticket } from '@/lib/api';
 
-const STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In progress',
-  resolved: 'Resolved',
-  closed: 'Closed',
+const STATUS_KEYS: Record<string, string> = {
+  open: 'tickets.statusOpen',
+  in_progress: 'tickets.statusInProgress',
+  resolved: 'tickets.statusResolved',
+  closed: 'tickets.statusClosed',
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  general: 'General',
-  payment: 'Payment',
-  property: 'Property',
-  technical: 'Technical',
-  account: 'Account',
+const CATEGORY_KEYS: Record<string, string> = {
+  general: 'tickets.categoryGeneral',
+  payment: 'tickets.categoryPayment',
+  property: 'tickets.categoryProperty',
+  technical: 'tickets.categoryTechnical',
+  account: 'tickets.categoryAccount',
 };
 
-const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  urgent: 'Urgent',
+const PRIORITY_KEYS: Record<string, string> = {
+  low: 'tickets.priorityLow',
+  medium: 'tickets.priorityMedium',
+  high: 'tickets.priorityHigh',
+  urgent: 'tickets.priorityUrgent',
 };
 
 function getStatusTone(status: string): string {
@@ -71,6 +72,7 @@ function getPriorityTone(priority: string): string {
 
 export default function TicketsPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -129,11 +131,11 @@ export default function TicketsPage() {
   }
 
   const statusFilters = [
-    { key: undefined, label: 'All tickets' },
-    { key: 'open', label: 'Open' },
-    { key: 'in_progress', label: 'In progress' },
-    { key: 'resolved', label: 'Resolved' },
-    { key: 'closed', label: 'Closed' },
+    { key: undefined, label: t('tickets.filterAll') },
+    { key: 'open', label: t('tickets.statusOpen') },
+    { key: 'in_progress', label: t('tickets.statusInProgress') },
+    { key: 'resolved', label: t('tickets.statusResolved') },
+    { key: 'closed', label: t('tickets.statusClosed') },
   ];
 
   return (
@@ -144,11 +146,11 @@ export default function TicketsPage() {
             <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
                 <LifeBuoy className="h-3.5 w-3.5" />
-                Support workspace
+                {t('tickets.badge')}
               </div>
-              <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Track issues without leaving your decision flow.</h1>
+              <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{t('tickets.title')}</h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
-                Use tickets for payment blockers, property questions, account issues, and technical problems that need an actual follow-up thread instead of a one-off chat response.
+                {t('tickets.subtitle')}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
@@ -156,45 +158,45 @@ export default function TicketsPage() {
                   className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]"
                 >
                   <Plus className="h-4 w-4" />
-                  Open a new ticket
+                  {t('tickets.openNew')}
                 </Link>
                 <Link
                   href="/chat?prompt=I need help deciding whether this issue should go to support or be solved through advisor guidance.&autostart=1"
                   className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
                 >
                   <Sparkles className="h-4 w-4" />
-                  Ask Advisor first
+                  {t('tickets.askAdvisor')}
                 </Link>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Tickets in view</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statsView')}</div>
                 <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : total.toLocaleString('en-EG')}</div>
-                <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Total threads matching your current inbox filter.</div>
+                <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('tickets.statsViewDesc')}</div>
               </div>
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Needs attention</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statsAttention')}</div>
                 <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : (counts.open + counts.in_progress).toLocaleString('en-EG')}</div>
-                <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Open and in-progress threads still requiring follow-up.</div>
+                <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('tickets.statsAttentionDesc')}</div>
               </div>
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:col-span-2">
                 <div className="grid gap-3 sm:grid-cols-4">
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Open</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statusOpen')}</div>
                     <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.open}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">In progress</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statusInProgress')}</div>
                     <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.in_progress}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Resolved</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statusResolved')}</div>
                     <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.resolved}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Closed</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statusClosed')}</div>
                     <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.closed}</div>
                   </div>
                 </div>
@@ -206,8 +208,8 @@ export default function TicketsPage() {
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
               <div className="flex flex-col gap-4 border-b border-[var(--color-border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Your inbox</div>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight">Current support threads</h2>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.inboxTitle')}</div>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('tickets.inboxSubtitle')}</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {statusFilters.map((filter) => (
@@ -241,12 +243,12 @@ export default function TicketsPage() {
                       <CheckCircle2 className="h-8 w-8 text-emerald-500" />
                     </div>
                     <h3 className="mt-5 text-xl font-semibold text-[var(--color-text-primary)]">
-                      {statusFilter ? 'No tickets match this filter.' : 'Everything running smoothly?'}
+                      {statusFilter ? t('tickets.emptyFiltered') : t('tickets.emptyTitle')}
                     </h3>
                     <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--color-text-secondary)]">
                       {statusFilter
-                        ? 'Try a different filter or create a new ticket.'
-                        : 'If you have questions about a property, try asking the advisor first â€” it handles most inquiries instantly. Open a ticket when you need tracking or a human reply.'}
+                        ? t('tickets.emptyFilteredSuggestion')
+                        : t('tickets.emptyDescription')}
                     </p>
                     <div className="mt-6 flex flex-wrap justify-center gap-3">
                       <Link
@@ -254,14 +256,14 @@ export default function TicketsPage() {
                         className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
                       >
                         <Sparkles className="h-4 w-4" />
-                        Ask Advisor first
+                        {t('tickets.askAdvisor')}
                       </Link>
                       <Link
                         href="/tickets/new"
                         className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]"
                       >
                         <Plus className="h-4 w-4" />
-                        Create ticket
+                        {t('tickets.createTicket')}
                       </Link>
                     </div>
                   </div>
@@ -272,20 +274,20 @@ export default function TicketsPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${getStatusTone(ticket.status)}`}>
-                              {STATUS_LABELS[ticket.status] || ticket.status}
+                              {t(STATUS_KEYS[ticket.status]) || ticket.status}
                             </span>
                             <span className={`text-xs font-semibold ${getPriorityTone(ticket.priority)}`}>
-                              {PRIORITY_LABELS[ticket.priority] || ticket.priority} priority
+                              {t(PRIORITY_KEYS[ticket.priority]) || ticket.priority}
                             </span>
                             <span className="text-xs text-[var(--color-text-muted)]">
-                              {CATEGORY_LABELS[ticket.category] || ticket.category}
+                              {t(CATEGORY_KEYS[ticket.category]) || ticket.category}
                             </span>
                           </div>
                           <h3 className="mt-3 text-lg font-semibold text-[var(--color-text-primary)]">{ticket.subject}</h3>
                           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)]">
                             <span>#{ticket.id}</span>
                             <span>{ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : 'No date'}</span>
-                            <span>{ticket.replies_count} replies</span>
+                            <span>{ticket.replies_count} {t('tickets.replies')}</span>
                             {ticket.updated_at && <span>Updated {new Date(ticket.updated_at).toLocaleDateString()}</span>}
                           </div>
                         </div>
@@ -304,33 +306,33 @@ export default function TicketsPage() {
               <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                   <Filter className="h-4 w-4" />
-                  Routing guide
+                  {t('tickets.routingLabel')}
                 </div>
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight">Use support when the issue needs ownership.</h2>
+                <h2 className="mt-3 text-2xl font-semibold tracking-tight">{t('tickets.routingTitle')}</h2>
                 <div className="mt-5 space-y-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                  <p>Use Advisor for exploration, planning, and recommendations.</p>
-                  <p>Use support for billing blockers, broken account access, missing data, or anything requiring a tracked response thread.</p>
-                  <p>Keep one issue per ticket so follow-up stays clean and resolution time is easier to manage.</p>
+                  <p>{t('tickets.routingAdvisor')}</p>
+                  <p>{t('tickets.routingSupport')}</p>
+                  <p>{t('tickets.routingBestPractice')}</p>
                 </div>
               </div>
 
               <div className="rounded-[32px] border border-[var(--color-border)] bg-emerald-500/10 p-6">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
                   <Clock3 className="h-4 w-4" />
-                  Faster triage
+                  {t('tickets.triageLabel')}
                 </div>
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">Write the ticket so the first reply can move the issue forward.</h2>
+                <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{t('tickets.triageTitle')}</h2>
                 <div className="mt-5 space-y-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                  <p>Lead with the exact blocker, the page or property involved, and what you already tried.</p>
-                  <p>For payment issues, include reservation context, timestamps, and any visible transaction reference.</p>
-                  <p>For data issues, include the developer, project, unit, or route where the mismatch appears.</p>
+                  <p>{t('tickets.triageStep1')}</p>
+                  <p>{t('tickets.triageStep2')}</p>
+                  <p>{t('tickets.triageStep3')}</p>
                 </div>
                 <div className="mt-6">
                   <Link
                     href="/tickets/new"
                     className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]"
                   >
-                    Start a ticket
+                    {t('tickets.triageStart')}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
@@ -340,18 +342,18 @@ export default function TicketsPage() {
                 <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <AlertCircle className="h-5 w-5 text-blue-500" />
-                    <div className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">Open</div>
-                    <div className="mt-1 text-xs text-[var(--color-text-muted)]">Awaiting first action.</div>
+                    <div className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">{t('tickets.legendOpen')}</div>
+                    <div className="mt-1 text-xs text-[var(--color-text-muted)]">{t('tickets.legendOpenDesc')}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <Clock3 className="h-5 w-5 text-amber-500" />
-                    <div className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">In progress</div>
-                    <div className="mt-1 text-xs text-[var(--color-text-muted)]">Support is actively working the thread.</div>
+                    <div className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">{t('tickets.legendInProgress')}</div>
+                    <div className="mt-1 text-xs text-[var(--color-text-muted)]">{t('tickets.legendInProgressDesc')}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                    <div className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">Resolved</div>
-                    <div className="mt-1 text-xs text-[var(--color-text-muted)]">Issue handled, pending final confirmation.</div>
+                    <div className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">{t('tickets.legendResolved')}</div>
+                    <div className="mt-1 text-xs text-[var(--color-text-muted)]">{t('tickets.legendResolvedDesc')}</div>
                   </div>
                 </div>
               </div>

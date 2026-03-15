@@ -14,56 +14,57 @@ import {
 } from 'lucide-react';
 import AppShell from '@/components/nav/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { createTicket } from '@/lib/api';
 
 const CATEGORIES = [
   {
     value: 'general',
-    label: 'General inquiry',
-    description: 'Use this when you need a human follow-up but the issue is not tied to billing, property data, or access.',
+    labelKey: 'ticketNew.categoryGeneral',
+    descKey: 'ticketNew.categoryGeneralDesc',
   },
   {
     value: 'payment',
-    label: 'Payment issue',
-    description: 'Use this for failed payments, billing confusion, reservation money, or receipt mismatches.',
+    labelKey: 'ticketNew.categoryPayment',
+    descKey: 'ticketNew.categoryPaymentDesc',
   },
   {
     value: 'property',
-    label: 'Property issue',
-    description: 'Use this for incorrect listing information, missing unit data, or project-level discrepancies.',
+    labelKey: 'ticketNew.categoryProperty',
+    descKey: 'ticketNew.categoryPropertyDesc',
   },
   {
     value: 'technical',
-    label: 'Technical problem',
-    description: 'Use this for broken pages, failed actions, missing states, or recurring product bugs.',
+    labelKey: 'ticketNew.categoryTechnical',
+    descKey: 'ticketNew.categoryTechnicalDesc',
   },
   {
     value: 'account',
-    label: 'Account and profile',
-    description: 'Use this for login, profile, permissions, or verification continuity issues.',
+    labelKey: 'ticketNew.categoryAccount',
+    descKey: 'ticketNew.categoryAccountDesc',
   },
 ] as const;
 
 const PRIORITIES = [
   {
     value: 'low',
-    label: 'Low',
-    description: 'Question or non-blocking issue.',
+    labelKey: 'ticketNew.priorityLow',
+    descKey: 'ticketNew.priorityLowDesc',
   },
   {
     value: 'medium',
-    label: 'Medium',
-    description: 'Important but not stopping progress right now.',
+    labelKey: 'ticketNew.priorityMedium',
+    descKey: 'ticketNew.priorityMediumDesc',
   },
   {
     value: 'high',
-    label: 'High',
-    description: 'Blocking a workflow or creating a serious mismatch.',
+    labelKey: 'ticketNew.priorityHigh',
+    descKey: 'ticketNew.priorityHighDesc',
   },
   {
     value: 'urgent',
-    label: 'Urgent',
-    description: 'Critical and time-sensitive.',
+    labelKey: 'ticketNew.priorityUrgent',
+    descKey: 'ticketNew.priorityUrgentDesc',
   },
 ] as const;
 
@@ -105,6 +106,7 @@ function getPriorityTone(priority: string): string {
 
 export default function NewTicketPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [subject, setSubject] = useState('');
@@ -128,12 +130,12 @@ export default function NewTicketPage() {
     setError(null);
 
     if (subject.trim().length < 3) {
-      setError('Subject must be at least 3 characters.');
+      setError(t('ticketNew.errorSubjectShort'));
       return;
     }
 
     if (description.trim().length < 10) {
-      setError('Description must be at least 10 characters.');
+      setError(t('ticketNew.errorDescriptionShort'));
       return;
     }
 
@@ -147,7 +149,7 @@ export default function NewTicketPage() {
       });
       router.push(`/tickets/${ticket.id}`);
     } catch (submitError: unknown) {
-      setError(getApiDetail(submitError, 'Failed to create ticket. Please try again.'));
+      setError(getApiDetail(submitError, t('ticketNew.errorCreateFailed')));
     } finally {
       setSubmitting(false);
     }
@@ -172,32 +174,32 @@ export default function NewTicketPage() {
               <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
                 <Link href="/tickets" className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]">
                   <ArrowLeft className="h-4 w-4" />
-                  Back to support inbox
+                  {t('ticketNew.back')}
                 </Link>
                 <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Structured intake
+                  {t('ticketNew.badge')}
                 </div>
-                <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Open a ticket with enough context to get a useful first reply.</h1>
+                <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{t('ticketNew.title')}</h1>
                 <p className="mt-4 text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
-                  This form is for tracked issues that need support ownership. Keep the subject crisp, the description factual, and the issue scoped to one thread.
+                  {t('ticketNew.subtitle')}
                 </p>
               </div>
 
               <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Before you submit</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('ticketNew.checklistLabel')}</div>
                 <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                  <p>Include the exact page, property, developer, project, or payment step involved.</p>
-                  <p>Write what you expected to happen and what actually happened.</p>
-                  <p>If there is a transaction or timing issue, include the relevant timestamp or reference.</p>
+                  <p>{t('ticketNew.checklistItem1')}</p>
+                  <p>{t('ticketNew.checklistItem2')}</p>
+                  <p>{t('ticketNew.checklistItem3')}</p>
                 </div>
                 <div className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
                     <Sparkles className="h-4 w-4 text-emerald-500" />
-                    Current routing
+                    {t('ticketNew.routingLabel')}
                   </div>
                   <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    Category: {selectedCategory.label}. Priority: {selectedPriority.label}. You can adjust both before submitting.
+                    {t('ticketNew.formCategory')}: {t(selectedCategory.labelKey)}. {t('ticketNew.formPriority')}: {t(selectedPriority.labelKey)}.
                   </p>
                 </div>
               </div>
@@ -213,14 +215,14 @@ export default function NewTicketPage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">Subject</label>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Write the blocker in one line.</p>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketNew.formSubject')}</label>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketNew.formSubjectHint')}</p>
                   <input
                     type="text"
                     value={subject}
                     onChange={(event) => setSubject(event.target.value)}
                     maxLength={200}
-                    placeholder="Example: Payment confirmation failed after reservation step"
+                    placeholder={t('ticketNew.formSubjectPlaceholder')}
                     className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus:border-emerald-500/40"
                   />
                 </div>
@@ -228,8 +230,8 @@ export default function NewTicketPage() {
                 <div>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-[var(--color-text-primary)]">Category</label>
-                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Choose the lane that best matches the issue.</p>
+                      <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketNew.formCategory')}</label>
+                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketNew.formCategoryHint')}</p>
                     </div>
                   </div>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -244,16 +246,16 @@ export default function NewTicketPage() {
                             : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-emerald-500/20'
                         }`}
                       >
-                        <div className="text-sm font-semibold text-[var(--color-text-primary)]">{item.label}</div>
-                        <div className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">{item.description}</div>
+                        <div className="text-sm font-semibold text-[var(--color-text-primary)]">{t(item.labelKey)}</div>
+                        <div className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">{t(item.descKey)}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">Priority</label>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Set urgency based on real impact, not preference.</p>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketNew.formPriority')}</label>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketNew.formPriorityHint')}</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     {PRIORITIES.map((item) => (
                       <button
@@ -266,22 +268,22 @@ export default function NewTicketPage() {
                             : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-emerald-500/20'
                         }`}
                       >
-                        <div className="text-sm font-semibold">{item.label}</div>
-                        <div className="mt-2 text-xs leading-5 opacity-90">{item.description}</div>
+                        <div className="text-sm font-semibold">{t(item.labelKey)}</div>
+                        <div className="mt-2 text-xs leading-5 opacity-90">{t(item.descKey)}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">Description</label>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Add the facts support needs to move the issue forward.</p>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketNew.formDescription')}</label>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketNew.formDescriptionHint')}</p>
                   <textarea
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
                     rows={10}
                     maxLength={5000}
-                    placeholder="Describe the issue, where it happened, what you expected, what happened instead, and any IDs or timing details that matter."
+                    placeholder={t('ticketNew.formDescriptionPlaceholder')}
                     className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus:border-emerald-500/40"
                   />
                   <div className="mt-2 text-right text-xs text-[var(--color-text-muted)]">{description.length}/5000</div>
@@ -292,7 +294,7 @@ export default function NewTicketPage() {
                     href="/tickets"
                     className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
                   >
-                    Cancel
+                    {t('ticketNew.formCancel')}
                   </Link>
                   <button
                     type="submit"
@@ -300,7 +302,7 @@ export default function NewTicketPage() {
                     className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    Submit ticket
+                    {t('ticketNew.formSubmit')}
                     {!submitting && <ArrowRight className="h-4 w-4" />}
                   </button>
                 </div>

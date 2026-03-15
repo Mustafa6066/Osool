@@ -23,6 +23,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import AppShell from '@/components/nav/AppShell';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { formatCompactPrice } from '@/lib/decision-support';
 import {
   computeDetailedStats,
@@ -43,11 +44,11 @@ function typedEntries<TValue>(record: Record<string, TValue>): Array<[string, TV
 }
 
 /** Demand badge based on unit count relative to market */
-function getDemandTag(count: number, maxCount: number): { label: string; color: string } {
+function getDemandTag(count: number, maxCount: number): { labelKey: string; color: string } {
   const ratio = count / maxCount;
-  if (ratio >= 0.6) return { label: 'High Demand', color: 'bg-emerald-500/15 text-emerald-500' };
-  if (ratio >= 0.3) return { label: 'Medium', color: 'bg-amber-500/15 text-amber-500' };
-  return { label: 'Emerging', color: 'bg-slate-500/15 text-slate-400' };
+  if (ratio >= 0.6) return { labelKey: 'market.demandHigh', color: 'bg-emerald-500/15 text-emerald-500' };
+  if (ratio >= 0.3) return { labelKey: 'market.demandMedium', color: 'bg-amber-500/15 text-amber-500' };
+  return { labelKey: 'market.demandEmerging', color: 'bg-slate-500/15 text-slate-400' };
 }
 
 /** SVG sparkline â€” deterministic pseudo-trend from avg meter price */
@@ -81,12 +82,12 @@ function MiniSparkline({ avg, color = '#10b981' }: { avg: number; color?: string
 }
 
 /** Payment narrative interpretation */
-function getPaymentNarrative(avgDown: number): { icon: string; label: string; description: string; color: string } {
+function getPaymentNarrative(avgDown: number): { icon: string; labelKey: string; descKey: string; color: string } {
   if (avgDown < 15)
-    return { icon: 'ðŸŽ¯', label: 'Low Barrier Entry', description: 'Most projects offer very flexible down payments â€” ideal for first-time investors.', color: 'text-emerald-500' };
+    return { icon: '🎯', labelKey: 'market.paymentLowBarrier', descKey: 'market.paymentLowBarrierDesc', color: 'text-emerald-500' };
   if (avgDown < 30)
-    return { icon: 'âš–ï¸', label: 'Balanced Entry', description: 'Down payments align with market norms. Good range of installment options.', color: 'text-blue-400' };
-  return { icon: 'ðŸ’°', label: 'Capital-Heavy', description: 'Higher upfront commitment typical of premium developments.', color: 'text-amber-400' };
+    return { icon: '⚖️', labelKey: 'market.paymentBalanced', descKey: 'market.paymentBalancedDesc', color: 'text-blue-400' };
+  return { icon: '💰', labelKey: 'market.paymentCapitalHeavy', descKey: 'market.paymentCapitalHeavyDesc', color: 'text-amber-400' };
 }
 
 const fadeUp = {
@@ -95,6 +96,7 @@ const fadeUp = {
 };
 
 export default function MarketStatisticsPage() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState<DetailedStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -227,11 +229,11 @@ export default function MarketStatisticsPage() {
             <motion.div variants={fadeUp} custom={0} className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-md p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
                 <BarChart3 className="h-3.5 w-3.5" />
-                Market intelligence board
+                {t('market.heroBadge')}
               </div>
-              <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">Read the market before you read individual listings.</h1>
+              <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{t('market.heroTitle')}</h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
-                A quick intelligence layer across pricing, corridor strength, developer positioning, and payment conditions.
+                {t('market.heroSubtitle')}
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
@@ -240,23 +242,23 @@ export default function MarketStatisticsPage() {
                   className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)] transition-transform hover:scale-[1.02]"
                 >
                   <Compass className="h-4 w-4" />
-                  Back to Explore
+                  {t('market.backToExplore')}
                 </Link>
                 <Link
                   href="/chat?prompt=Summarize the current Egyptian property market for my budget, risk profile, and preferred timeline.&autostart=1"
                   className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)] transition-all hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgba(16,185,129,0.06)]"
                 >
                   <Sparkles className="h-4 w-4" />
-                  Ask Osool for a market brief
+                  {t('market.askAdvisor')}
                 </Link>
               </div>
             </motion.div>
 
             <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
               {[
-                { label: 'Tracked properties', value: loading ? 'â€¦' : stats?.summary.total_properties.toLocaleString('en-EG') || 'â€”', desc: 'Live inventory across the embedded market data set.', icon: Building2 },
-                { label: 'Average ticket', value: loading ? 'â€¦' : stats ? formatCompactPrice(stats.summary.avg_price) : 'â€”', desc: 'Typical asking-price level in the current snapshot.', icon: Wallet },
-                { label: 'Supply leader', value: loading ? 'â€¦' : supplySignal?.name || 'â€”', desc: loading ? 'Loadingâ€¦' : supplySignal ? `${supplySignal.count} active units` : 'â€”', icon: MapPin },
+                { label: t('market.kpiTracked'), value: loading ? 'â€¦' : stats?.summary.total_properties.toLocaleString('en-EG') || 'â€"', desc: t('market.kpiTrackedDesc'), icon: Building2 },
+                { label: t('market.kpiAvgTicket'), value: loading ? 'â€¦' : stats ? formatCompactPrice(stats.summary.avg_price) : 'â€"', desc: t('market.kpiAvgTicketDesc'), icon: Wallet },
+                { label: t('market.kpiSupplyLeader'), value: loading ? 'â€¦' : supplySignal?.name || 'â€"', desc: loading ? `${t('common.loading')}` : supplySignal ? `${supplySignal.count} ${t('market.kpiActiveUnits')}` : 'â€"', icon: MapPin },
               ].map((card, i) => (
                 <motion.div key={card.label} variants={fadeUp} custom={i + 1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 transition-all hover:border-emerald-500/20">
                   <div className="flex items-center justify-between">
@@ -276,9 +278,9 @@ export default function MarketStatisticsPage() {
             </div>
           ) : error || !stats ? (
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-              <div className="text-xl font-semibold text-[var(--color-text-primary)]">{error || 'Market data is unavailable right now.'}</div>
+              <div className="text-xl font-semibold text-[var(--color-text-primary)]">{error || t('market.errorUnavailable')}</div>
               <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                You can still continue through Explore or ask Osool Advisor for a guided market read.
+                {t('market.errorFallback')}
               </p>
             </div>
           ) : (
@@ -294,8 +296,8 @@ export default function MarketStatisticsPage() {
                 <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Area leaders</div>
-                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">Which corridors command the highest pricing?</h2>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.areaLeadersLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.areaLeadersTitle')}</h2>
                     </div>
                     <TrendingUp className="h-5 w-5 text-emerald-500" />
                   </div>
@@ -314,10 +316,10 @@ export default function MarketStatisticsPage() {
                                 <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                                   {index + 1}. {area.name}
                                 </span>
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${demand.color}`}>{demand.label}</span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${demand.color}`}>{t(demand.labelKey)}</span>
                               </div>
                               <div className="mt-1 flex items-center gap-2">
-                                <span className="text-xs text-[var(--color-text-muted)]">{area.count} units</span>
+                                <span className="text-xs text-[var(--color-text-muted)]">{area.count} {t('common.units')}</span>
                                 <MessageSquare className="w-3 h-3 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                             </div>
@@ -335,19 +337,19 @@ export default function MarketStatisticsPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <motion.div variants={fadeUp} custom={0} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5">
                     <div className="flex items-center justify-between">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Market floor</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.statsFloor')}</div>
                       <TrendingDown className="h-4 w-4 text-emerald-500" />
                     </div>
                     <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{formatSqmPrice(stats.summary.min_meter)}</div>
-                    <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Lowest price-per-meter in current inventory.</div>
+                    <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('market.statsFloorDesc')}</div>
                   </motion.div>
                   <motion.div variants={fadeUp} custom={1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5">
                     <div className="flex items-center justify-between">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Market ceiling</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.statsCeiling')}</div>
                       <TrendingUp className="h-4 w-4 text-emerald-500" />
                     </div>
                     <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{formatSqmPrice(stats.summary.max_meter)}</div>
-                    <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Highest pricing edge in the same snapshot.</div>
+                    <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('market.statsCeilingDesc')}</div>
                   </motion.div>
                   <motion.div variants={fadeUp} custom={2} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 sm:col-span-2">
                     <div className="flex items-center gap-2">
@@ -355,7 +357,7 @@ export default function MarketStatisticsPage() {
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{stats.summary.areas_count} areas Â· {stats.summary.developers_count} developers Â· {stats.summary.types_count} types</div>
                     </div>
                     <div className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">
-                      Click any area above to get AI analysis and top picks.
+                      {t('market.statsGuidance')}
                     </div>
                   </motion.div>
                 </div>
@@ -372,8 +374,8 @@ export default function MarketStatisticsPage() {
                 <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Developer pulse</div>
-                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">Premium positioning by developer</h2>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.developersLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.developersTitle')}</h2>
                     </div>
                     <Building2 className="h-5 w-5 text-emerald-500" />
                   </div>
@@ -392,7 +394,7 @@ export default function MarketStatisticsPage() {
                                 {i === 0 && <Crown className="w-3.5 h-3.5 text-amber-400" />}
                               </div>
                               <div className="mt-1 flex items-center gap-2">
-                                <span className="text-xs text-[var(--color-text-muted)]">{developer.count} units</span>
+                                <span className="text-xs text-[var(--color-text-muted)]">{developer.count} {t('common.units')}</span>
                                 <MessageSquare className="w-3 h-3 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                             </div>
@@ -410,8 +412,8 @@ export default function MarketStatisticsPage() {
                 <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Affordability ladder</div>
-                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">Supply distribution across price brackets</h2>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.affordabilityLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.affordabilityTitle')}</h2>
                     </div>
                     <Wallet className="h-5 w-5 text-emerald-500" />
                   </div>
@@ -449,8 +451,8 @@ export default function MarketStatisticsPage() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Development hubs</div>
-                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">Top compounds by inventory volume</h2>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.compoundsLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.compoundsTitle')}</h2>
                     </div>
                     <Home className="h-5 w-5 text-emerald-500" />
                   </div>
@@ -471,7 +473,7 @@ export default function MarketStatisticsPage() {
                             <span>{c.location}</span>
                           </div>
                           <div className="mt-3 flex items-center justify-between">
-                            <span className="text-xs font-medium text-[var(--color-text-secondary)]">{c.count} units</span>
+                            <span className="text-xs font-medium text-[var(--color-text-secondary)]">{c.count} {t('common.units')}</span>
                             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{formatSqmPrice(c.avg_meter)}</span>
                           </div>
                         </Link>
@@ -494,8 +496,8 @@ export default function MarketStatisticsPage() {
                   <motion.div variants={fadeUp} custom={0} className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">By bedrooms</div>
-                        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Price & size by bedroom count</h2>
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.bedroomsLabel')}</div>
+                        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.bedroomsTitle')}</h2>
                       </div>
                       <Bed className="h-5 w-5 text-emerald-500" />
                     </div>
@@ -510,7 +512,7 @@ export default function MarketStatisticsPage() {
                               : 'bg-[var(--color-background)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-muted)]'
                           }`}
                         >
-                          {r.rooms} BR Â· {r.count}
+                          {r.rooms} {t('market.bedroomsBR')} Â· {r.count}
                         </button>
                       ))}
                     </div>
@@ -520,15 +522,15 @@ export default function MarketStatisticsPage() {
                       return (
                         <div className="mt-5 grid grid-cols-3 gap-3">
                           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
-                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">Avg price</div>
+                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsAvgPrice')}</div>
                             <div className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">{formatCompactPrice(active.avgPrice)}</div>
                           </div>
                           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
-                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">Avg size</div>
+                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsAvgSize')}</div>
                             <div className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">{Math.round(active.avgSize)} mÂ²</div>
                           </div>
                           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
-                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">Per mÂ²</div>
+                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsPerSqm')}</div>
                             <div className="mt-1 text-lg font-semibold text-emerald-600 dark:text-emerald-400">{formatSqmPrice(active.avgMeter)}</div>
                           </div>
                         </div>
@@ -542,8 +544,8 @@ export default function MarketStatisticsPage() {
                   <motion.div variants={fadeUp} custom={1} className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Size distribution</div>
-                        <h2 className="mt-2 text-2xl font-semibold tracking-tight">What sizes are available?</h2>
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.sizeLabel')}</div>
+                        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.sizeTitle')}</h2>
                       </div>
                       <Maximize2 className="h-5 w-5 text-emerald-500" />
                     </div>
@@ -584,23 +586,23 @@ export default function MarketStatisticsPage() {
                 <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Payment pulse</div>
-                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">How flexible are payment structures?</h2>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentPulseLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.paymentPulseTitle')}</h2>
                     </div>
                     <CreditCard className="h-5 w-5 text-emerald-500" />
                   </div>
 
                   <div className="mt-6 grid gap-4 sm:grid-cols-3">
                     <motion.div variants={fadeUp} custom={0} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Avg down payment</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentDown')}</div>
                       <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{Math.round(stats.payment_statistics.avg_down_payment)}%</div>
                     </motion.div>
                     <motion.div variants={fadeUp} custom={1} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Avg installment</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentInstallment')}</div>
                       <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{stats.payment_statistics.avg_installment_years.toFixed(1)} yrs</div>
                     </motion.div>
                     <motion.div variants={fadeUp} custom={2} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Plans tracked</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentPlansTracked')}</div>
                       <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{stats.payment_statistics.properties_with_plans}</div>
                     </motion.div>
                   </div>
@@ -610,8 +612,8 @@ export default function MarketStatisticsPage() {
                     <motion.div variants={fadeUp} custom={3} className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 flex items-start gap-3">
                       <span className="text-xl">{paymentNarrative.icon}</span>
                       <div>
-                        <div className={`text-sm font-semibold ${paymentNarrative.color}`}>{paymentNarrative.label}</div>
-                        <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">{paymentNarrative.description}</p>
+                        <div className={`text-sm font-semibold ${paymentNarrative.color}`}>{t(paymentNarrative.labelKey)}</div>
+                        <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">{t(paymentNarrative.descKey)}</p>
                       </div>
                     </motion.div>
                   )}
@@ -620,32 +622,32 @@ export default function MarketStatisticsPage() {
                 <div className="rounded-[32px] border border-[var(--color-border)] bg-emerald-500/10 p-6">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
                     <Clock3 className="h-4 w-4" />
-                    Next move
+                    {t('market.nextMoveLabel')}
                   </div>
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">Turn this market context into a narrower shortlist.</h2>
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{t('market.nextMoveTitle')}</h2>
                   <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    Use this intelligence to inform your next question â€” move into corridors, developers, or ask the Advisor directly.
+                    {t('market.nextMoveDescription')}
                   </p>
                   <div className="mt-6 space-y-3">
                     <Link
                       href="/areas"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>Compare corridors <span className="text-[var(--color-text-muted)] font-normal">â†’ filter by yield</span></span>
+                      <span>{t('market.nextMoveCompare')} <span className="text-[var(--color-text-muted)] font-normal">â†’ {t('market.nextMoveFilterYield')}</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/developers"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>Audit developers <span className="text-[var(--color-text-muted)] font-normal">â†’ check delivery track record</span></span>
+                      <span>{t('market.nextMoveAudit')} <span className="text-[var(--color-text-muted)] font-normal">â†’ {t('market.nextMoveCheckDelivery')}</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/properties"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>Review live units <span className="text-[var(--color-text-muted)] font-normal">â†’ browse full inventory</span></span>
+                      <span>{t('market.nextMoveReview')} <span className="text-[var(--color-text-muted)] font-normal">â†’ {t('market.nextMoveBrowse')}</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </div>
