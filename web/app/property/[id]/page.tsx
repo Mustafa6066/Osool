@@ -272,7 +272,7 @@ export default function PropertyDetailsPage() {
 
     return (
         <AppShell>
-        <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
+        <main className="h-full overflow-y-auto bg-[var(--color-background)]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
                 {/* Breadcrumb */}

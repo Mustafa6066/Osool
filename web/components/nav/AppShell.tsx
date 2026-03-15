@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import SideRail from './SideRail';
-import BottomBar from './BottomBar';
+import FloatingHeader from './FloatingHeader';
 import InvitationModal from '@/components/InvitationModal';
 
 interface AppShellProps {
@@ -16,12 +15,11 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <>
       <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
-      <SideRail onInvite={openInvite} />
-      <BottomBar onInvite={openInvite} />
+      <FloatingHeader onInvite={openInvite} />
 
-      {/* Content area — offset for side rail (desktop) and bottom bar (mobile) */}
+      {/* Content area — offset for floating header */}
       <div
-        className="flex flex-col h-screen ps-0 md:ps-[60px] pb-20 md:pb-0"
+        className="flex flex-col h-screen pt-[60px]"
         style={{ overflow: 'hidden' }}
       >
         {children}

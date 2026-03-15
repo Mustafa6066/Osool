@@ -184,7 +184,7 @@ export default function DashboardPage() {
     return (
         <AppShell>
             <div className="h-full overflow-y-auto">
-                <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 pb-24 sm:px-6 md:pb-10 lg:px-8">
+                <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 pb-10 sm:px-6 lg:px-8">
                     {/* Row 1: Welcome header */}
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">

@@ -140,7 +140,7 @@ export default function TicketsPage() {
 
   return (
     <AppShell>
-      <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
+      <main className="h-full overflow-y-auto bg-[var(--color-background)]">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[1fr_0.92fr]">
             <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
