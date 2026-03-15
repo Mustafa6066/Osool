@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AppShell from '@/components/nav/AppShell';
 import { developerBrief } from '@/lib/decision-support';
+import { T } from '@/components/T';
 
 const fmt = (n: number) => n.toLocaleString('en-EG');
 
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-function Stat({ label, value, suffix }: { label: string; value?: number | null; suffix?: string }) {
+function Stat({ label, value, suffix }: { label: React.ReactNode; value?: number | null; suffix?: string }) {
   if (!value) return null;
   return (
     <div className="text-center p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]">
@@ -61,7 +62,7 @@ export default async function DeveloperPage({ params }: Props) {
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
-          <Link href="/developers" className="hover:text-emerald-500">Developers</Link>
+          <Link href="/developers" className="hover:text-emerald-500"><T k="comparePage.developers" /></Link>
           <span className="mx-2">/</span>
           <span>{dev.name}</span>
         </nav>
@@ -82,11 +83,11 @@ export default async function DeveloperPage({ params }: Props) {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Best for</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="devPage.bestFor" /></div>
               <div className="mt-2 text-base font-semibold">{brief.bestFor}</div>
             </div>
             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Main watch-out</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="devPage.mainWatchout" /></div>
               <div className="mt-2 text-base font-semibold">{brief.risk}</div>
             </div>
           </div>
@@ -94,31 +95,31 @@ export default async function DeveloperPage({ params }: Props) {
 
         {/* Score Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Stat label="Overall Score" value={dev.overall_score} suffix="/100" />
-          <Stat label="Delivery" value={dev.avg_delivery_score} suffix="/100" />
-          <Stat label="Finish Quality" value={dev.avg_finish_quality} suffix="/100" />
-          <Stat label="Resale Retention" value={dev.avg_resale_retention} suffix="%" />
-          <Stat label="Payment Flex" value={dev.payment_flexibility} suffix="/100" />
+          <Stat label={<T k="devPage.overallScore" />} value={dev.overall_score} suffix="/100" />
+          <Stat label={<T k="devPage.delivery" />} value={dev.avg_delivery_score} suffix="/100" />
+          <Stat label={<T k="devPage.finishQuality" />} value={dev.avg_finish_quality} suffix="/100" />
+          <Stat label={<T k="devPage.resaleRetention" />} value={dev.avg_resale_retention} suffix="%" />
+          <Stat label={<T k="devPage.paymentFlex" />} value={dev.payment_flexibility} suffix="/100" />
         </div>
 
         <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Why this score profile matters</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="devPage.whyScoreMatters" /></h2>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-              Delivery helps reduce anxiety around execution and handover discipline.
+              <T k="devPage.deliveryHelps" />
             </div>
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-              Resale strength matters more when the exit path and liquidity premium are part of the thesis.
+              <T k="devPage.resaleStrength" />
             </div>
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-              Payment flexibility can widen the buyer pool, but it should not override trust and pricing quality.
+              <T k="devPage.paymentFlexNote" />
             </div>
           </div>
         </section>
 
         {/* Projects */}
         <h2 className="text-xl font-semibold mb-4">
-          Projects by {dev.name} ({(projects || []).length})
+          <T k="devPage.projectsBy" /> {dev.name} ({(projects || []).length})
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
           {(projects || []).map((p) => (
@@ -150,12 +151,12 @@ export default async function DeveloperPage({ params }: Props) {
 
         {/* Compare CTA */}
         <div className="mt-12 p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-center">
-          <h3 className="text-lg font-semibold mb-2">Compare {dev.name} with other developers</h3>
+          <h3 className="text-lg font-semibold mb-2"><T k="devPage.compareWith" /> {dev.name}</h3>
           <Link
             href="/developers"
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm"
           >
-            View All Developers →
+            <T k="devPage.viewAllDevelopers" /> →
           </Link>
         </div>
       </div>

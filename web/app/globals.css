@@ -7,8 +7,8 @@
    ============================================ */
 
 @theme {
-  --font-sans: "Inter", "Manrope", "Cairo", sans-serif;
-  --font-display: "Inter", "Manrope", serif;
+  --font-sans: var(--font-inter), "Manrope", var(--font-cairo), sans-serif;
+  --font-display: var(--font-inter), "Manrope", serif;
 
   /* Primary — Emerald AI Signature */
   --color-primary: #10B981;
@@ -41,7 +41,7 @@
 
 /* Utility fonts */
 .font-cairo {
-  font-family: "Cairo", sans-serif;
+  font-family: var(--font-cairo), sans-serif;
 }
 
 /* ChatInterface message styles */
@@ -656,6 +656,28 @@ body > div:first-child {
 
 ::selection { background: rgba(16, 185, 129, 0.15); color: inherit; }
 :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+/* ============================================
+   REDUCED MOTION — respect user preference
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   SCREEN READER ONLY
+   ============================================ */
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
 
 /* Insight property thumbnail (referenced by ChatInterface) */
 .insight-property-thumb {

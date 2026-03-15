@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AppShell from '@/components/nav/AppShell';
 import { developerBrief, pickWinnerLabel } from '@/lib/decision-support';
+import { T } from '@/components/T';
 
 interface Props {
   params: Promise<{ slug1: string; slug2: string }>;
@@ -43,28 +44,28 @@ export default async function DeveloperComparisonPage({ params }: Props) {
   const brief2 = developerBrief(d2);
   const summaryCards = [
     {
-      label: 'Best delivery confidence',
+      label: <T k="comparePage.bestDelivery" />,
       winner: pickWinnerLabel(d1.avg_delivery_score ?? 0, d2.avg_delivery_score ?? 0, d1.name, d2.name),
       detail: `${d1.name}: ${(d1.avg_delivery_score ?? 0).toFixed(1)} • ${d2.name}: ${(d2.avg_delivery_score ?? 0).toFixed(1)}`,
     },
     {
-      label: 'Best resale strength',
+      label: <T k="comparePage.bestResale" />,
       winner: pickWinnerLabel(d1.avg_resale_retention ?? 0, d2.avg_resale_retention ?? 0, d1.name, d2.name),
       detail: `${d1.name}: ${(d1.avg_resale_retention ?? 0).toFixed(1)} • ${d2.name}: ${(d2.avg_resale_retention ?? 0).toFixed(1)}`,
     },
     {
-      label: 'Best payment flexibility',
+      label: <T k="comparePage.bestPayment" />,
       winner: pickWinnerLabel(d1.payment_flexibility ?? 0, d2.payment_flexibility ?? 0, d1.name, d2.name),
       detail: `${d1.name}: ${(d1.payment_flexibility ?? 0).toFixed(1)} • ${d2.name}: ${(d2.payment_flexibility ?? 0).toFixed(1)}`,
     },
   ];
 
   const metrics = [
-    { label: 'Delivery Score', key: 'avg_delivery_score' as const },
-    { label: 'Finish Quality', key: 'avg_finish_quality' as const },
-    { label: 'Resale Retention', key: 'avg_resale_retention' as const },
-    { label: 'Payment Flexibility', key: 'payment_flexibility' as const },
-    { label: 'Overall Score', key: 'overall_score' as const },
+    { label: <T k="comparePage.deliveryScore" />, key: 'avg_delivery_score' as const },
+    { label: <T k="comparePage.finishQuality" />, key: 'avg_finish_quality' as const },
+    { label: <T k="comparePage.resaleRetention" />, key: 'avg_resale_retention' as const },
+    { label: <T k="comparePage.paymentFlexibility" />, key: 'payment_flexibility' as const },
+    { label: <T k="comparePage.overallScore" />, key: 'overall_score' as const },
   ];
 
   return (
@@ -73,11 +74,11 @@ export default async function DeveloperComparisonPage({ params }: Props) {
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6 flex items-center gap-1">
-          <Link href="/" className="hover:text-emerald-500">Home</Link>
+          <Link href="/" className="hover:text-emerald-500"><T k="comparePage.home" /></Link>
           <span>/</span>
-          <Link href="/developers" className="hover:text-emerald-500">Developers</Link>
+          <Link href="/developers" className="hover:text-emerald-500"><T k="comparePage.developers" /></Link>
           <span>/</span>
-          <span className="text-[var(--color-text-primary)]">Compare</span>
+          <span className="text-[var(--color-text-primary)]"><T k="comparePage.compare" /></span>
         </nav>
 
         <script
@@ -88,12 +89,12 @@ export default async function DeveloperComparisonPage({ params }: Props) {
           {d1.name} vs {d2.name}
         </h1>
         <p className="text-[var(--color-text-muted)] mb-10">
-          Side-by-side developer comparison based on delivery, quality, and value retention.
+          <T k="comparePage.sideBySide" />
         </p>
 
         <section className="grid gap-4 md:grid-cols-3">
-          {summaryCards.map((card) => (
-            <div key={card.label} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          {summaryCards.map((card, i) => (
+            <div key={i} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{card.label}</div>
               <div className="mt-2 text-lg font-semibold">{card.winner}</div>
               <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{card.detail}</div>
@@ -105,12 +106,12 @@ export default async function DeveloperComparisonPage({ params }: Props) {
           <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">{d1.name}</div>
             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{brief1.verdict}</div>
-            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">Best for: {brief1.bestFor}</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]"><T k="areaPage.bestFor" />: {brief1.bestFor}</div>
           </div>
           <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">{d2.name}</div>
             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{brief2.verdict}</div>
-            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">Best for: {brief2.bestFor}</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]"><T k="areaPage.bestFor" />: {brief2.bestFor}</div>
           </div>
         </section>
 
@@ -119,7 +120,7 @@ export default async function DeveloperComparisonPage({ params }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-[var(--color-surface)]">
               <tr>
-                <th className="p-4 text-left font-medium">Metric</th>
+                <th className="p-4 text-left font-medium"><T k="comparePage.metric" /></th>
                 <th className="p-4 text-center font-medium">
                   <Link href={`/developers/${d1.slug}`} className="hover:text-emerald-500">
                     {d1.name}
@@ -130,7 +131,7 @@ export default async function DeveloperComparisonPage({ params }: Props) {
                     {d2.name}
                   </Link>
                 </th>
-                <th className="p-4 text-center font-medium">Winner</th>
+                <th className="p-4 text-center font-medium"><T k="comparePage.winner" /></th>
               </tr>
             </thead>
             <tbody>
@@ -152,7 +153,7 @@ export default async function DeveloperComparisonPage({ params }: Props) {
                         ? `✅ ${d1.name}`
                         : winner === 2
                           ? `✅ ${d2.name}`
-                          : 'Tie'}
+                          : <T k="comparePage.tie" />}
                     </td>
                   </tr>
                 );
@@ -168,7 +169,7 @@ export default async function DeveloperComparisonPage({ params }: Props) {
         </div>
 
         {/* Projects Side-by-Side */}
-        <h2 className="text-xl font-semibold mb-4">Projects</h2>
+        <h2 className="text-xl font-semibold mb-4"><T k="comparePage.projectsLabel" /></h2>
         <div className="grid md:grid-cols-2 gap-6 mb-10">
           <ProjectList title={d1.name} projects={projects1} />
           <ProjectList title={d2.name} projects={projects2} />
@@ -176,15 +177,15 @@ export default async function DeveloperComparisonPage({ params }: Props) {
 
         {/* CTA */}
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
-          <h3 className="text-lg font-semibold mb-2">Need help deciding?</h3>
+          <h3 className="text-lg font-semibold mb-2"><T k="comparePage.needHelp" /></h3>
           <p className="text-sm text-[var(--color-text-muted)] mb-4">
-            Our AI advisor can give you a personalized recommendation based on your budget and preferences.
+            <T k="comparePage.aiRecommendation" />
           </p>
           <Link
             href="/chat"
             className="inline-block px-6 py-2 bg-emerald-500 text-white rounded-full font-medium hover:bg-emerald-600 transition-colors"
           >
-            Get AI Recommendation
+            <T k="comparePage.getAIRec" />
           </Link>
         </div>
       </div>
@@ -207,9 +208,9 @@ function InfoCard({
         <p className="text-sm text-[var(--color-text-muted)] mb-2" dir="rtl">{developer.name_ar}</p>
       )}
       <div className="text-sm text-[var(--color-text-secondary)] space-y-1">
-        {developer.founded_year && <p>Founded: {developer.founded_year}</p>}
-        <p>Projects on Osool: {projectCount}</p>
-        {developer.total_projects && <p>Total Projects: {developer.total_projects}</p>}
+        {developer.founded_year && <p><T k="comparePage.founded" />: {developer.founded_year}</p>}
+        <p><T k="comparePage.projectsOnOsool" />: {projectCount}</p>
+        {developer.total_projects && <p><T k="comparePage.totalProjects" />: {developer.total_projects}</p>}
       </div>
       {developer.description && (
         <p className="text-sm text-[var(--color-text-muted)] mt-3">{developer.description}</p>

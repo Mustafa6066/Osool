@@ -57,6 +57,9 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={language === 'ar' ? 'قائمة التنقل' : 'Navigation menu'}
             className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[var(--color-surface)] border-t border-[var(--color-border)] rounded-t-3xl px-5 pb-8 pt-3"
           >
             {/* Handle */}

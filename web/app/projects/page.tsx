@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import AppShell from '@/components/nav/AppShell';
 import { formatPriceBand, projectBrief } from '@/lib/decision-support';
+import { T } from '@/components/T';
 
 export const metadata: Metadata = {
   title: 'Egyptian Real Estate Projects â€” Prices & Payment Plans | Osool',
@@ -19,21 +20,21 @@ export default async function ProjectsPage() {
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Project watchlist</div>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight">Review projects by payment fit, delivery timing, and investment potential.</h1>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400"><T k="projPage.badge" /></div>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight"><T k="projPage.heroTitle" /></h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)]">
-              Use projects as bridge screens between area research, developer trust, and the real unit-level decisions that come later.
+              <T k="projPage.heroDesc" />
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Focus areas</div>
-              <div className="mt-2 text-lg font-semibold">Payment structure, delivery confidence, and price band.</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="projPage.focusAreas" /></div>
+              <div className="mt-2 text-lg font-semibold"><T k="projPage.focusAreasDesc" /></div>
             </div>
             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Use this for</div>
-              <div className="mt-2 text-lg font-semibold">Filtering which projects deserve deeper advisor analysis.</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="projPage.useThisFor" /></div>
+              <div className="mt-2 text-lg font-semibold"><T k="projPage.useThisForDesc" /></div>
             </div>
           </div>
         </section>
@@ -67,13 +68,13 @@ export default async function ProjectsPage() {
 
                     <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
                       <div className="text-sm font-semibold text-[var(--color-text-primary)]">{brief.thesis}</div>
-                      <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">Best for: {brief.bestFor}</div>
+                      <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]"><T k="projPage.bestFor" />: {brief.bestFor}</div>
                       <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">{brief.risk}</div>
                     </div>
 
                     <div className="mt-4 space-y-2 text-sm text-[var(--color-text-secondary)]">
                       <div>{formatPriceBand(p.min_price_per_meter, p.max_price_per_meter)}</div>
-                      {p.expected_delivery && <div>Delivery {new Date(p.expected_delivery).getFullYear()}</div>}
+                      {p.expected_delivery && <div><T k="projPage.delivery" /> {new Date(p.expected_delivery).getFullYear()}</div>}
                       {p.min_unit_size && p.max_unit_size && <div>{p.min_unit_size}-{p.max_unit_size} mÂ²</div>}
                       {p.down_payment_min != null && p.installment_years != null && <div>{p.down_payment_min}% down â€¢ {p.installment_years} years</div>}
                     </div>

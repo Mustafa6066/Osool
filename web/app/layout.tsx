@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter, Cairo, Rajdhani } from 'next/font/google';
 import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -9,6 +10,27 @@ import GamificationOverlay from '@/components/GamificationOverlay';
 import CommandPalette from '@/components/CommandPalette';
 import { ErrorBoundaryProvider } from '@/components/ErrorBoundaryProvider';
 import { organizationJsonLd } from '@/lib/json-ld';
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+const cairo = Cairo({
+  subsets: ['arabic', 'latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-cairo',
+});
+
+const rajdhani = Rajdhani({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-rajdhani',
+});
 
 export const metadata: Metadata = {
   title: "Osool | Your AI Real Estate Advisor for Egypt",
@@ -28,15 +50,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className={`dark ${inter.variable} ${cairo.variable} ${rajdhani.variable}`} suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
         />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body>
@@ -45,12 +64,21 @@ export default function RootLayout({
             <LanguageProvider>
               <AuthProvider>
                 <GamificationProvider>
+                  {/* Skip to content — accessibility */}
+                  <a
+                    href="#main-content"
+                    className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:rounded-lg focus:bg-emerald-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:outline-none"
+                  >
+                    Skip to main content
+                  </a>
+
                   {/* Neural Background Layer */}
                   <NeuralBackground />
 
                   {/* Content Layer — inline styles guarantee these can never be overridden */}
                   <div
                     id="app-root"
+                    role="application"
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -62,7 +90,9 @@ export default function RootLayout({
                       overflow: 'auto',
                     }}
                   >
-                    {children}
+                    <main id="main-content">
+                      {children}
+                    </main>
                   </div>
 
                   {/* Global Gamification Notifications */}

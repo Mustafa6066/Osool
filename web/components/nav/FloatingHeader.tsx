@@ -43,10 +43,14 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
   return (
     <>
       <header className="fixed top-0 inset-x-0 z-50 flex justify-center px-3 pt-3 pointer-events-none">
-        <nav className="pointer-events-auto flex items-center gap-0.5 rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-2xl border border-[var(--color-border)] shadow-lg shadow-black/[0.04] px-2 py-1.5 w-full max-w-5xl">
+        <nav
+          aria-label="Main navigation"
+          className="pointer-events-auto flex items-center gap-0.5 rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-2xl border border-[var(--color-border)] shadow-lg shadow-black/[0.04] px-2 py-1.5 w-full max-w-5xl"
+        >
           {/* Logo */}
           <Link
             href={isAuthenticated ? '/dashboard' : '/'}
+            aria-label="Osool home"
             className="flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--color-text-primary)] text-[var(--color-background)] shrink-0 hover:scale-105 transition-transform"
           >
             <Sparkles className="w-4 h-4" strokeWidth={2.5} />
@@ -101,7 +105,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
                 )
               }
               className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
-              title="Search ⌘K"
+              aria-label="Search (Ctrl+K)"
             >
               <Search className="w-4 h-4" />
             </button>
@@ -109,6 +113,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             {/* Theme toggle (hidden on small mobile) */}
             <button
               onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               className="hidden sm:flex w-9 h-9 rounded-xl items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -117,6 +122,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             {/* Language */}
             <button
               onClick={toggleLanguage}
+              aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
               className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
             >
               <span
@@ -132,6 +138,9 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  aria-label="User menu"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="true"
                   className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[var(--color-surface-elevated)] transition-colors"
                 >
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-[10px] font-bold">
@@ -185,6 +194,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             {/* Mobile nav button */}
             <button
               onClick={() => setMoreOpen(true)}
+              aria-label="Open navigation menu"
               className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
             >
               <Menu className="w-4 h-4" />

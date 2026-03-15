@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import AppShell from '@/components/nav/AppShell';
 import { developerBrief } from '@/lib/decision-support';
+import { T } from '@/components/T';
 
 export const metadata: Metadata = {
   title: 'Top Egyptian Real Estate Developers â€” Ranked & Scored | Osool',
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-function ScoreBar({ value, label }: { value: number; label: string }) {
+function ScoreBar({ value, label }: { value: number; label: React.ReactNode }) {
   const color =
     value >= 85 ? 'bg-emerald-500' : value >= 70 ? 'bg-yellow-500' : 'bg-red-400';
   return (
@@ -43,29 +44,28 @@ export default async function DevelopersPage() {
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Developer trust board</div>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight">Choose developers by confidence, not just brand familiarity.</h1>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400"><T k="devPage.badge" /></div>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight"><T k="devPage.heroTitle" /></h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)]">
-              Compare Egypt&apos;s leading developers through the signals that matter most in a high-stakes purchase: delivery discipline,
-              finish quality, resale resilience, and payment flexibility.
+              <T k="devPage.heroDesc" />
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Strategy view</div>
-              <div className="mt-2 text-lg font-semibold">Trust-first, resale-led, and payment-flex options in one list.</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="devPage.strategyView" /></div>
+              <div className="mt-2 text-lg font-semibold"><T k="devPage.strategyViewDesc" /></div>
             </div>
             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Data rhythm</div>
-              <div className="mt-2 text-lg font-semibold">Public SEO data, reframed for real decision support.</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="devPage.dataRhythm" /></div>
+              <div className="mt-2 text-lg font-semibold"><T k="devPage.dataRhythmDesc" /></div>
             </div>
             <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:col-span-2">
               <div className="flex flex-wrap gap-2 text-sm text-[var(--color-text-muted)]">
-                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">Lowest delivery risk</span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">Best resale premium</span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">Most flexible payments</span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">Best balanced option</span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2"><T k="devPage.lowestDeliveryRisk" /></span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2"><T k="devPage.bestResalePremium" /></span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2"><T k="devPage.mostFlexiblePayments" /></span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2"><T k="devPage.bestBalanced" /></span>
               </div>
             </div>
           </div>
@@ -108,10 +108,10 @@ export default async function DevelopersPage() {
                       </div>
 
                       <div className="mt-5 space-y-2">
-                        <ScoreBar value={dev.avg_delivery_score ?? 0} label="Delivery" />
-                        <ScoreBar value={dev.avg_finish_quality ?? 0} label="Quality" />
-                        <ScoreBar value={dev.avg_resale_retention ?? 0} label="Resale" />
-                        <ScoreBar value={dev.payment_flexibility ?? 0} label="Payments" />
+                        <ScoreBar value={dev.avg_delivery_score ?? 0} label={<T k="devPage.delivery" />} />
+                        <ScoreBar value={dev.avg_finish_quality ?? 0} label={<T k="devPage.quality" />} />
+                        <ScoreBar value={dev.avg_resale_retention ?? 0} label={<T k="devPage.resale" />} />
+                        <ScoreBar value={dev.payment_flexibility ?? 0} label={<T k="devPage.payments" />} />
                       </div>
                     </>
                   );
@@ -121,11 +121,11 @@ export default async function DevelopersPage() {
           </div>
         ) : (
           <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
-            <h2 className="text-lg font-semibold mb-2">Developer data is not available yet</h2>
+            <h2 className="text-lg font-semibold mb-2"><T k="devPage.noData" /></h2>
             <p className="text-sm text-[var(--color-text-muted)] max-w-2xl mx-auto">
               {loadError
-                ? 'The public SEO API could not be loaded. A fresh deploy will retry the seed and page fetch.'
-                : 'The backend returned no developer records. The seed bootstrap will repopulate this dataset on the next deploy.'}
+                ? <T k="devPage.noDataError" />
+                : <T k="devPage.noDataEmpty" />}
             </p>
           </div>
         )}

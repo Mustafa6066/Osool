@@ -1,10 +1,12 @@
 import { getArea, getAreaProjects, getAreaPriceHistory } from '@/lib/seo-api';
 import { comparisonJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
+import type React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AppShell from '@/components/nav/AppShell';
 import { areaBrief, formatRate, pickWinnerLabel } from '@/lib/decision-support';
+import { T } from '@/components/T';
 
 interface Props {
   params: Promise<{ slug1: string; slug2: string }>;
@@ -43,30 +45,30 @@ export default async function AreaComparisonPage({ params }: Props) {
   const fmt = (n: number) => new Intl.NumberFormat('en-EG').format(Math.round(n));
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
-  const metrics: { label: string; v1: string; v2: string; raw1: number; raw2: number }[] = [
+  const metrics: { label: React.ReactNode; v1: string; v2: string; raw1: number; raw2: number }[] = [
     {
-      label: 'Avg Price (EGP/m²)',
+      label: <T k="comparePage.avgPrice" />,
       v1: a1.avg_price_per_meter ? fmt(a1.avg_price_per_meter) : '—',
       v2: a2.avg_price_per_meter ? fmt(a2.avg_price_per_meter) : '—',
       raw1: a1.avg_price_per_meter ?? 0,
       raw2: a2.avg_price_per_meter ?? 0,
     },
     {
-      label: 'YoY Growth',
+      label: <T k="comparePage.yoyGrowth" />,
       v1: a1.price_growth_ytd ? pct(a1.price_growth_ytd) : '—',
       v2: a2.price_growth_ytd ? pct(a2.price_growth_ytd) : '—',
       raw1: a1.price_growth_ytd ?? 0,
       raw2: a2.price_growth_ytd ?? 0,
     },
     {
-      label: 'Rental Yield',
+      label: <T k="comparePage.rentalYield" />,
       v1: a1.rental_yield ? pct(a1.rental_yield) : '—',
       v2: a2.rental_yield ? pct(a2.rental_yield) : '—',
       raw1: a1.rental_yield ?? 0,
       raw2: a2.rental_yield ?? 0,
     },
     {
-      label: 'Projects Listed',
+      label: <T k="comparePage.projectsListed" />,
       v1: String(projects1.length),
       v2: String(projects2.length),
       raw1: projects1.length,
@@ -78,19 +80,19 @@ export default async function AreaComparisonPage({ params }: Props) {
   const brief2 = areaBrief(a2);
   const summaryCards = [
     {
-      label: 'Best for yield',
+      label: <T k="comparePage.bestYield" />,
       winner: pickWinnerLabel((a1.rental_yield ?? 0), (a2.rental_yield ?? 0), a1.name, a2.name),
       detail: `${a1.name}: ${formatRate(a1.rental_yield)} • ${a2.name}: ${formatRate(a2.rental_yield)}`,
     },
     {
-      label: 'Best for appreciation',
+      label: <T k="comparePage.bestAppreciation" />,
       winner: pickWinnerLabel((a1.price_growth_ytd ?? 0), (a2.price_growth_ytd ?? 0), a1.name, a2.name),
       detail: `${a1.name}: ${formatRate(a1.price_growth_ytd)} • ${a2.name}: ${formatRate(a2.price_growth_ytd)}`,
     },
     {
-      label: 'Best for supply depth',
+      label: <T k="comparePage.bestSupply" />,
       winner: pickWinnerLabel(projects1.length, projects2.length, a1.name, a2.name),
-      detail: `${a1.name}: ${projects1.length} projects • ${a2.name}: ${projects2.length} projects`,
+      detail: `${a1.name}: ${projects1.length} • ${a2.name}: ${projects2.length}`,
     },
   ];
 
@@ -100,11 +102,11 @@ export default async function AreaComparisonPage({ params }: Props) {
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6 flex items-center gap-1">
-          <Link href="/" className="hover:text-emerald-500">Home</Link>
+          <Link href="/" className="hover:text-emerald-500"><T k="comparePage.home" /></Link>
           <span>/</span>
-          <Link href="/areas" className="hover:text-emerald-500">Areas</Link>
+          <Link href="/areas" className="hover:text-emerald-500"><T k="comparePage.areas" /></Link>
           <span>/</span>
-          <span className="text-[var(--color-text-primary)]">Compare</span>
+          <span className="text-[var(--color-text-primary)]"><T k="comparePage.compare" /></span>
         </nav>
 
         <script
@@ -115,12 +117,12 @@ export default async function AreaComparisonPage({ params }: Props) {
           {a1.name} vs {a2.name}
         </h1>
         <p className="text-[var(--color-text-muted)]">
-          Decision-first comparison across growth, yield, and supply depth.
+          <T k="comparePage.areaSideBySide" />
         </p>
 
         <section className="grid gap-4 md:grid-cols-3">
-          {summaryCards.map((card) => (
-            <div key={card.label} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          {summaryCards.map((card, i) => (
+            <div key={i} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{card.label}</div>
               <div className="mt-2 text-lg font-semibold">{card.winner}</div>
               <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{card.detail}</div>
@@ -132,12 +134,12 @@ export default async function AreaComparisonPage({ params }: Props) {
           <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">{a1.name}</div>
             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{brief1.thesis}</div>
-            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">Best for: {brief1.bestFor}</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]"><T k="areaPage.bestFor" />: {brief1.bestFor}</div>
           </div>
           <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">{a2.name}</div>
             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{brief2.thesis}</div>
-            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">Best for: {brief2.bestFor}</div>
+            <div className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]"><T k="areaPage.bestFor" />: {brief2.bestFor}</div>
           </div>
         </section>
 
@@ -146,22 +148,22 @@ export default async function AreaComparisonPage({ params }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-[var(--color-surface)]">
               <tr>
-                <th className="p-4 text-left font-medium">Metric</th>
+                <th className="p-4 text-left font-medium"><T k="comparePage.metric" /></th>
                 <th className="p-4 text-center font-medium">
                   <Link href={`/areas/${a1.slug}`} className="hover:text-emerald-500">{a1.name}</Link>
                 </th>
                 <th className="p-4 text-center font-medium">
                   <Link href={`/areas/${a2.slug}`} className="hover:text-emerald-500">{a2.name}</Link>
                 </th>
-                <th className="p-4 text-center font-medium">Advantage</th>
+                <th className="p-4 text-center font-medium"><T k="comparePage.advantage" /></th>
               </tr>
             </thead>
             <tbody>
-              {metrics.map((m) => {
+              {metrics.map((m, i) => {
                 const winner =
                   m.raw1 > m.raw2 ? 1 : m.raw2 > m.raw1 ? 2 : 0;
                 return (
-                  <tr key={m.label} className="border-t border-[var(--color-border)]">
+                  <tr key={i} className="border-t border-[var(--color-border)]">
                     <td className="p-4 font-medium">{m.label}</td>
                     <td className={`p-4 text-center font-mono ${winner === 1 ? 'text-emerald-500 font-bold' : ''}`}>
                       {m.v1}
@@ -174,7 +176,7 @@ export default async function AreaComparisonPage({ params }: Props) {
                         ? `✅ ${a1.name}`
                         : winner === 2
                           ? `✅ ${a2.name}`
-                          : 'Tie'}
+                          : <T k="comparePage.tie" />}
                     </td>
                   </tr>
                 );
@@ -186,7 +188,7 @@ export default async function AreaComparisonPage({ params }: Props) {
         {/* Price History Side-by-Side */}
         {(history1.length > 0 || history2.length > 0) && (
           <section className="mb-10">
-            <h2 className="text-xl font-semibold mb-4">Recent Price History (EGP/m²)</h2>
+            <h2 className="text-xl font-semibold mb-4"><T k="comparePage.recentPriceHistory" /></h2>
             <div className="grid md:grid-cols-2 gap-6">
               <PriceTable name={a1.name} history={history1} />
               <PriceTable name={a2.name} history={history2} />
@@ -195,7 +197,7 @@ export default async function AreaComparisonPage({ params }: Props) {
         )}
 
         {/* Projects Side-by-Side */}
-        <h2 className="text-xl font-semibold mb-4">Available Projects</h2>
+        <h2 className="text-xl font-semibold mb-4"><T k="comparePage.availableProjects" /></h2>
         <div className="grid md:grid-cols-2 gap-6 mb-10">
           <ProjectColumn name={a1.name} projects={projects1} />
           <ProjectColumn name={a2.name} projects={projects2} />
@@ -203,15 +205,15 @@ export default async function AreaComparisonPage({ params }: Props) {
 
         {/* CTA */}
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
-          <h3 className="text-lg font-semibold mb-2">Which area suits your investment goals?</h3>
+          <h3 className="text-lg font-semibold mb-2"><T k="comparePage.whichArea" /></h3>
           <p className="text-sm text-[var(--color-text-muted)] mb-4">
-            Our AI advisor analyzes your budget, timeline, and preferences to recommend the best area.
+            <T k="comparePage.areaAdvisor" />
           </p>
           <Link
             href="/chat"
             className="inline-block px-6 py-2 bg-emerald-500 text-white rounded-full font-medium hover:bg-emerald-600 transition-colors"
           >
-            Chat with Osool AI
+            <T k="comparePage.chatWithAI" />
           </Link>
         </div>
       </div>

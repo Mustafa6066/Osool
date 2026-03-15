@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, Mic, BarChart3, TrendingUp, RotateCcw, User } from 'lucide-react';
+import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, Mic, MicOff, BarChart3, TrendingUp, RotateCcw, User, ThumbsUp, ThumbsDown, Square, AlertTriangle, RefreshCw, MessageCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown'; //
 import remarkGfm from 'remark-gfm'; //
 import rehypeRaw from 'rehype-raw'; // DISABLED - kept import for reference
@@ -10,6 +10,7 @@ import PropertyCardEnhanced from './PropertyCardEnhanced';
 import { PropertyContext, UIActionData } from './ContextualPane';
 import api from '@/lib/api';
 import VisualizationRenderer from '../visualizations/VisualizationRenderer';
+import WhatsAppHandoffModal from '../WhatsAppHandoffModal';
 
 // Types
 type UIAction = UIActionData;
@@ -34,6 +35,8 @@ type Message = {
     properties?: Property[];
     timestamp?: Date;
     copied?: boolean;
+    isError?: boolean;
+    feedback?: 'up' | 'down' | null;
 };
 
 // Detect if text is Arabic
@@ -125,7 +128,11 @@ function AIMessage({
     copied,
     onRegenerate,
     isRTL,
-    onPropertySelect
+    onPropertySelect,
+    isError,
+    onRetry,
+    onFeedback,
+    feedback,
 }: {
     content: string;
     properties?: Property[];
@@ -137,8 +144,41 @@ function AIMessage({
     onRegenerate?: () => void;
     isRTL: boolean;
     onPropertySelect?: (property: Property, uiActions?: UIAction[]) => void;
+    isError?: boolean;
+    onRetry?: () => void;
+    onFeedback?: (type: 'up' | 'down') => void;
+    feedback?: 'up' | 'down' | null;
 }) {
     const messageIsArabic = isArabic(content);
+
+    // Error state UI
+    if (isError) {
+        return (
+            <div className="chatgpt-message chatgpt-message-ai">
+                <div className="chatgpt-message-layout chatgpt-container">
+                    <div className="chatgpt-avatar chatgpt-avatar-ai">
+                        <AlertTriangle size={16} className="text-amber-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                            <p className={`text-sm text-[var(--color-text-secondary)] mb-3 ${messageIsArabic ? 'text-right' : 'text-left'}`}>
+                                {content}
+                            </p>
+                            {onRetry && (
+                                <button
+                                    onClick={onRetry}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20 text-[var(--color-primary)] text-sm font-medium transition-colors"
+                                >
+                                    <RefreshCw size={14} />
+                                    {messageIsArabic ? 'حاول مرة أخرى' : 'Try Again'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="chatgpt-message chatgpt-message-ai">
@@ -262,6 +302,24 @@ function AIMessage({
                                     <span>{isRTL ? 'إعادة التوليد' : 'Regenerate'}</span>
                                 </button>
                             )}
+                            {onFeedback && (
+                                <>
+                                    <button
+                                        onClick={() => onFeedback('up')}
+                                        className={`chatgpt-action-btn ${feedback === 'up' ? 'text-green-500' : ''}`}
+                                        aria-label={isRTL ? 'إعجاب' : 'Thumbs up'}
+                                    >
+                                        <ThumbsUp size={14} className={feedback === 'up' ? 'fill-current' : ''} />
+                                    </button>
+                                    <button
+                                        onClick={() => onFeedback('down')}
+                                        className={`chatgpt-action-btn ${feedback === 'down' ? 'text-red-500' : ''}`}
+                                        aria-label={isRTL ? 'عدم إعجاب' : 'Thumbs down'}
+                                    >
+                                        <ThumbsDown size={14} className={feedback === 'down' ? 'fill-current' : ''} />
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
@@ -288,7 +346,7 @@ function TypingIndicator({ isRTL }: { isRTL: boolean }) {
     );
 }
 
-// Chat Input Component - ChatGPT Style (clean, no glow)
+// Chat Input Component - ChatGPT Style with voice & stop
 function ChatInput({
     value,
     onChange,
@@ -296,7 +354,10 @@ function ChatInput({
     onKeyDown,
     isTyping,
     inputRef,
-    isRTL
+    isRTL,
+    onStop,
+    onVoiceInput,
+    isListening,
 }: {
     value: string;
     onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
@@ -305,10 +366,25 @@ function ChatInput({
     isTyping: boolean;
     inputRef: React.RefObject<HTMLTextAreaElement | null>;
     isRTL: boolean;
+    onStop?: () => void;
+    onVoiceInput?: () => void;
+    isListening?: boolean;
 }) {
     return (
         <div className="chatgpt-input-area">
             <div className="chatgpt-input-wrapper">
+                {/* Stop Generating Button */}
+                {isTyping && onStop && (
+                    <div className="flex justify-center mb-2">
+                        <button
+                            onClick={onStop}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-sm text-[var(--color-text-secondary)] transition-colors"
+                        >
+                            <Square size={14} className="fill-current" />
+                            {isRTL ? 'إيقاف التوليد' : 'Stop generating'}
+                        </button>
+                    </div>
+                )}
                 <div className={`chatgpt-input ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <button
                         className="chatgpt-input-btn"
@@ -325,13 +401,15 @@ function ChatInput({
                         placeholder={isRTL ? 'اسأل عن العقارات، اتجاهات السوق، حسابات العائد...' : 'Ask about properties, market trends, ROI calculations...'}
                         rows={1}
                         dir="auto"
+                        aria-label={isRTL ? 'رسالتك' : 'Your message'}
                     />
                     <button
-                        className="chatgpt-input-btn"
+                        className={`chatgpt-input-btn ${isListening ? 'text-red-500 animate-pulse' : ''}`}
                         aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
                         title={isRTL ? 'إدخال صوتي' : 'Voice Input'}
+                        onClick={onVoiceInput}
                     >
-                        <Mic size={20} />
+                        {isListening ? <MicOff size={20} /> : <Mic size={20} />}
                     </button>
                     <button
                         onClick={onSend}
@@ -350,7 +428,19 @@ function ChatInput({
     );
 }
 
-// Suggestion Cards
+// Suggestion Cards with time-based context
+function getGreeting(isRTL: boolean): string {
+    const hour = new Date().getHours();
+    if (isRTL) {
+        if (hour < 12) return 'صباح الخير! ☀️';
+        if (hour < 18) return 'مساء الخير! 🌤️';
+        return 'مساء النور! 🌙';
+    }
+    if (hour < 12) return 'Good morning! ☀️';
+    if (hour < 18) return 'Good afternoon! 🌤️';
+    return 'Good evening! 🌙';
+}
+
 const suggestions = [
     {
         titleEn: 'Market Analysis',
@@ -398,6 +488,10 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [showWhatsApp, setShowWhatsApp] = useState(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const recognitionRef = useRef<SpeechRecognition | null>(null);
     // Generate a stable session ID for this conversation
     const [sessionId] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -462,6 +556,72 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         }
     };
 
+    const handleFeedback = (messageId: string, type: 'up' | 'down') => {
+        setMessages(prev => prev.map(m =>
+            m.id === messageId ? { ...m, feedback: m.feedback === type ? null : type } : m
+        ));
+    };
+
+    const handleStop = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsTyping(false);
+    };
+
+    const handleVoiceInput = () => {
+        const SpeechRecognition = typeof window !== 'undefined'
+            ? (window.SpeechRecognition || window.webkitSpeechRecognition)
+            : null;
+
+        if (!SpeechRecognition) return;
+
+        if (isListening && recognitionRef.current) {
+            recognitionRef.current.stop();
+            setIsListening(false);
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = detectedRTL || isRTL ? 'ar-EG' : 'en-US';
+        recognition.interimResults = true;
+        recognition.continuous = false;
+
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+            const transcript = Array.from(event.results)
+                .map(result => result[0].transcript)
+                .join('');
+            setInput(transcript);
+            if (event.results[0]?.isFinal) {
+                setIsListening(false);
+            }
+        };
+
+        recognition.onerror = () => {
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+        setIsListening(true);
+    };
+
+    const handleRetry = (messageId: string) => {
+        // Find the user message that preceded this error
+        const msgIndex = messages.findIndex(m => m.id === messageId);
+        if (msgIndex <= 0) return;
+        const prevUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === 'user');
+        if (!prevUserMsg) return;
+        // Remove the error message and resend
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+        handleSend(prevUserMsg.content);
+    };
+
     const handlePropertySelect = (property: Property, uiActions?: UIAction[]) => {
         if (onPropertySelect) {
             let wolfScore = property.wolf_score || 75;
@@ -524,11 +684,15 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         }
 
         try {
+            // Create abort controller for stop functionality
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
+
             // Pass session_id for conversation memory
             const { data } = await api.post('/api/chat', {
                 message: messageText,
                 session_id: sessionId
-            });
+            }, { signal: controller.signal });
 
             const coinvestorMessage: Message = {
                 id: `coinvestor-${Date.now()}`,
@@ -578,15 +742,31 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                 });
             }
         } catch (error) {
+            // Don't show error for user-initiated abort
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                const abortMessage: Message = {
+                    id: `aborted-${Date.now()}`,
+                    role: 'coinvestor',
+                    content: detectedRTL ? 'تم إيقاف التوليد.' : 'Generation stopped.',
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, abortMessage]);
+                return;
+            }
+
             console.error("Chat error:", error);
             const errorMessage: Message = {
                 id: `error-${Date.now()}`,
                 role: 'coinvestor',
-                content: detectedRTL ? "عذراً، حدثت مشكلة في الاتصال. حاول مرة أخرى لاحقاً." : "Sorry, there was a connection issue. Please try again later.",
-                timestamp: new Date()
+                content: detectedRTL
+                    ? "عذراً، حدثت مشكلة في الاتصال. يرجى المحاولة مرة أخرى."
+                    : "Something went wrong. This could be a network issue or the server might be busy.",
+                timestamp: new Date(),
+                isError: true,
             };
             setMessages(prev => [...prev, errorMessage]);
         } finally {
+            abortControllerRef.current = null;
             setIsTyping(false);
         }
     };
@@ -607,7 +787,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
     const effectiveRTL = isRTL || detectedRTL;
 
     return (
-        <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-background)] relative" dir={effectiveRTL ? 'rtl' : 'ltr'}>
+        <main className="flex-1 flex flex-col min-w-0 bg-[var(--color-background)] relative" dir={effectiveRTL ? 'rtl' : 'ltr'} role="region" aria-label={effectiveRTL ? 'محادثة AI' : 'AI chat'}>
             {/* Empty State */}
             {!hasMessages ? (
                 <div className="flex-1 flex flex-col">
@@ -616,10 +796,10 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                             <Sparkles size={24} />
                         </div>
                         <h2 className="chatgpt-empty-title">
-                            {effectiveRTL ? 'مرحباً بك في CoInvestor' : 'Welcome to CoInvestor AI'}
+                            {getGreeting(effectiveRTL)}
                         </h2>
                         <p className="chatgpt-empty-subtitle">
-                            {effectiveRTL ? 'مساعدك العقاري الذكي' : 'Your intelligent real estate assistant'}
+                            {effectiveRTL ? 'كيف أقدر أساعدك في الاستثمار العقاري اليوم؟' : 'How can I help with your real estate investment today?'}
                         </p>
 
                         <div className="chatgpt-suggestions">
@@ -638,6 +818,15 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                                 </button>
                             ))}
                         </div>
+
+                        {/* WhatsApp handoff CTA */}
+                        <button
+                            onClick={() => setShowWhatsApp(true)}
+                            className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366]/10 px-5 py-2.5 text-sm font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/20"
+                        >
+                            <MessageCircle className="h-4 w-4" />
+                            {effectiveRTL ? 'تحدث مع مستشار بشري' : 'Talk to a human advisor'}
+                        </button>
                     </div>
 
                     <ChatInput
@@ -648,6 +837,9 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                         isTyping={isTyping}
                         inputRef={inputRef}
                         isRTL={effectiveRTL}
+                        onStop={handleStop}
+                        onVoiceInput={handleVoiceInput}
+                        isListening={isListening}
                     />
                 </div>
             ) : (
@@ -658,7 +850,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                         onScroll={handleScroll}
                         className="flex-1 overflow-y-auto chatgpt-scrollbar"
                     >
-                        <div className="chatgpt-thread">
+                        <div className="chatgpt-thread" role="log" aria-live="polite" aria-relevant="additions">
                             {messages.map((message, index) => (
                                 message.role === 'user' ? (
                                     <UserMessage
@@ -679,6 +871,10 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                                         copied={message.copied}
                                         isRTL={effectiveRTL}
                                         onPropertySelect={handlePropertySelect}
+                                        isError={message.isError}
+                                        onRetry={message.isError ? () => handleRetry(message.id) : undefined}
+                                        onFeedback={!message.isError ? (type) => handleFeedback(message.id, type) : undefined}
+                                        feedback={message.feedback}
                                     />
                                 )
                             ))}
@@ -714,9 +910,20 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                         isTyping={isTyping}
                         inputRef={inputRef}
                         isRTL={effectiveRTL}
+                        onStop={handleStop}
+                        onVoiceInput={handleVoiceInput}
+                        isListening={isListening}
                     />
                 </>
             )}
+
+            <WhatsAppHandoffModal
+                isOpen={showWhatsApp}
+                onClose={() => setShowWhatsApp(false)}
+                context={messages.length > 0 ? {
+                    chatSummary: messages.filter(m => m.role === 'user').slice(-1)[0]?.content?.slice(0, 200),
+                } : undefined}
+            />
         </main>
     );
 }

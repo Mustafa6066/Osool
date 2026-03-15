@@ -3,7 +3,9 @@
 import { MapPin, Bed, Ruler, ArrowRight, Heart, Share2, ExternalLink, TrendingUp, Calendar } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import api from "@/lib/api";
+import WhatsAppHandoffModal from "./WhatsAppHandoffModal";
 
 interface PropertyProps {
     id?: number;
@@ -24,6 +26,8 @@ interface PropertyProps {
 export default function PropertyCard({ property }: { property: PropertyProps }) {
     const [isFavorite, setIsFavorite] = useState(false);
     const [imageError, setImageError] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [showWhatsApp, setShowWhatsApp] = useState(false);
 
     const handleToggleFavorite = async () => {
         const next = !isFavorite;
@@ -38,10 +42,7 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
     };
 
     const handleContact = () => {
-        const message = encodeURIComponent(
-            `مرحباً، أنا مهتم بعقار: ${property.title} في ${property.location} بسعر ${(property.price / 1_000_000).toFixed(2)}M EGP`
-        );
-        window.open(`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "201000000000"}?text=${message}`, "_blank");
+        setShowWhatsApp(true);
     };
 
     const handleShare = async () => {
@@ -74,11 +75,19 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
         >
             {/* Image Section */}
             <div className="relative h-48 overflow-hidden bg-gray-800">
-                <img
+                {!imageLoaded && (
+                    <div className="absolute inset-0 bg-gray-700 animate-pulse" />
+                )}
+                <Image
                     src={imageUrl}
                     alt={property.title}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 384px"
                     onError={() => setImageError(true)}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    onLoad={() => setImageLoaded(true)}
+                    className={`object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    placeholder="blur"
+                    blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWExYzJlIi8+PC9zdmc+"
                 />
 
                 {/* Gradient Overlay */}
@@ -199,6 +208,16 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                     </button>
                 </div>
             </div>
+
+            <WhatsAppHandoffModal
+                isOpen={showWhatsApp}
+                onClose={() => setShowWhatsApp(false)}
+                context={{
+                    propertyTitle: property.title,
+                    propertyLocation: property.location,
+                    propertyPrice: `${(property.price / 1_000_000).toFixed(2)}M EGP`,
+                }}
+            />
         </motion.div>
     );
 }
