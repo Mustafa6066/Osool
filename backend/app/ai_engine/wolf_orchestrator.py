@@ -45,6 +45,7 @@ from .analytical_engine import (
     analytical_engine, market_intelligence, OsoolScore,
     AREA_BENCHMARKS, MARKET_SEGMENTS, DEVELOPER_GRAPH,
     payment_plan_analyzer, developer_trust_scorer, resale_intelligence, trade_up_advisor,
+    format_appreciation_context_for_prompt,
 )
 from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
@@ -2049,6 +2050,10 @@ class WolfBrain:
             # Format economic context for prompt injection
             economic_brief = analytical_engine.format_economic_context(econ) if econ else ""
 
+            # Regime-aware appreciation data
+            from .analytical_engine import calculate_real_vs_nominal_appreciation
+            appreciation_index = calculate_real_vs_nominal_appreciation(location)
+
             context = {
                 "has_analytics": True,
                 "location": location,
@@ -2060,6 +2065,7 @@ class WolfBrain:
                 "avg_price_sqm": area_ctx.get("avg_price_sqm", 0),
                 "growth_rate": area_ctx.get("growth_rate", 0),
                 "rental_yield": area_ctx.get("rental_yield", 0),
+                "appreciation_index": appreciation_index,
             }
         except Exception as e:
             logger.warning(f"Analytics context build failed: {e}")
@@ -2591,6 +2597,17 @@ End with: "Do you prefer a specific area, or shall I pick the best value?"
             # 0.5 Inject Geopolitical Intelligence (Always-On Macro Awareness)
             if geopolitical_context:
                 wolf_insight_instruction += geopolitical_context
+
+            # 0.75 Inject Predictive Pricing Intelligence (Regime-Aware)
+            try:
+                _loc = analytics_context.get("location", "") if analytics_context else ""
+                _dev = ""
+                if properties and len(properties) > 0:
+                    _dev = properties[0].get("developer", "")
+                if _loc:
+                    wolf_insight_instruction += format_appreciation_context_for_prompt(_loc, _dev)
+            except Exception:
+                pass  # Non-fatal: degrade gracefully
 
             # 1. Inject Live Market Pulse (Real-Time DB Data)
             # This overrides hardcoded assumptions with fresh data

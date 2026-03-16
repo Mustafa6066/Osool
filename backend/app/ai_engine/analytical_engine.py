@@ -50,6 +50,7 @@ CONSTRUCTION_COSTS = {
 AREA_PRICES = {
     "New Cairo": 61550,      # Research: +157.3% Growth
     "Sheikh Zayed": 64050,   # Research: +185.3% Growth
+    "New Zayed": 120000,     # Ultra-premium (Ora, SODIC)
     "New Capital": 45000,    # R7/R8 Resale avg
     "6th October": 47000,    # Research: +153.7%
     "North Coast": 76150,    # Research: +209% YoY
@@ -58,6 +59,8 @@ AREA_PRICES = {
     "Ain Sokhna": 91200,    # Usage-based premium
     "Madinaty": 55000,
     "Rehab": 50000,
+    "Red Sea": 110000,      # El Gouna premium
+    "Mostakbal City": 50000, # Growth corridor
 }
 
 # Area growth rates (Historical YoY 2025)
@@ -65,6 +68,7 @@ AREA_PRICES = {
 AREA_GROWTH = {
     "New Cairo": 1.57,      # +157%
     "Sheikh Zayed": 1.85,   # +185%
+    "New Zayed": 2.00,      # +200% (ultra-premium corridor)
     "New Capital": 0.25,    # Stabilized
     "6th October": 1.53,    # +153%
     "North Coast": 2.09,    # +209%
@@ -73,6 +77,8 @@ AREA_GROWTH = {
     "Madinaty": 0.20,
     "Rehab": 0.15,       # +15% Stable mature area
     "Zamalek": 0.08,     # +8% Limited supply premium
+    "Red Sea": 1.50,     # +150% (El Gouna-driven)
+    "Mostakbal City": 1.20, # +120% Growth corridor
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -108,6 +114,15 @@ AREA_PRICE_HISTORY = {
     "Rehab": {
         2021: 20000, 2022: 24000, 2023: 29000, 2024: 36000, 2025: 45000, 2026: 50000
     },
+    "Red Sea": {
+        2021: 18000, 2022: 25000, 2023: 40000, 2024: 70000, 2025: 95000, 2026: 110000
+    },
+    "New Zayed": {
+        2021: 15000, 2022: 20000, 2023: 35000, 2024: 65000, 2025: 100000, 2026: 120000
+    },
+    "Mostakbal City": {
+        2021: 10000, 2022: 14000, 2023: 20000, 2024: 32000, 2025: 42000, 2026: 50000
+    },
 }
 
 # Developer-specific price history (per sqm, finished units)
@@ -136,6 +151,46 @@ DEVELOPER_PRICE_HISTORY = {
         "area": "New Cairo",
         "type": "apartment",
         2021: 14000, 2022: 20000, 2023: 28000, 2024: 40000, 2025: 52000, 2026: 50000,
+    },
+    "Ora (ZED West)": {
+        "area": "Sheikh Zayed",
+        "type": "apartment",
+        2021: 20000, 2022: 28000, 2023: 52000, 2024: 95000, 2025: 130000, 2026: 140000,
+    },
+    "Emaar (Cairo Gate)": {
+        "area": "Sheikh Zayed",
+        "type": "apartment",
+        2021: 18000, 2022: 25000, 2023: 45000, 2024: 85000, 2025: 125000, 2026: 135000,
+    },
+    "SODIC (The Estates)": {
+        "area": "New Zayed",
+        "type": "villa",
+        2021: 16000, 2022: 22000, 2023: 40000, 2024: 75000, 2025: 105000, 2026: 110000,
+    },
+    "Emaar (Marassi)": {
+        "area": "North Coast",
+        "type": "apartment",
+        2021: 25000, 2022: 38000, 2023: 75000, 2024: 150000, 2025: 200000, 2026: 200000,
+    },
+    "TMG (Celia)": {
+        "area": "New Capital",
+        "type": "apartment",
+        2021: 12000, 2022: 16000, 2023: 22000, 2024: 35000, 2025: 48000, 2026: 57000,
+    },
+    "City Edge (Al Maqsad)": {
+        "area": "New Capital",
+        "type": "apartment",
+        2021: 14000, 2022: 18000, 2023: 25000, 2024: 38000, 2025: 52000, 2026: 60000,
+    },
+    "Orascom (El Gouna)": {
+        "area": "Red Sea",
+        "type": "apartment",
+        2021: 20000, 2022: 30000, 2023: 50000, 2024: 90000, 2025: 120000, 2026: 140000,
+    },
+    "Madinet Masr (Sarai)": {
+        "area": "New Cairo",
+        "type": "apartment",
+        2021: 10000, 2022: 14000, 2023: 20000, 2024: 30000, 2025: 42000, 2026: 46000,
     },
 }
 
@@ -499,6 +554,313 @@ AVERAGE_RENT_BY_AREA = {
     "Mostakbal City": 11000,
     "Ain Sokhna": 15000,
 }
+
+
+# ═══════════════════════════════════════════════════════════════
+# DEVALUATION CYCLE INTELLIGENCE (2023-2026)
+# Separates the "spike" from "stabilization" to prevent ML
+# models from wildly overestimating future appreciation.
+# ═══════════════════════════════════════════════════════════════
+
+# YoY appreciation by region & economic regime
+# Source: Institutional transaction data (JLL, Colliers), NOT portal asking prices
+APPRECIATION_BY_REGIME = {
+    "east_cairo": {
+        "label": "East Cairo (New Cairo, Mostakbal City, 6th Settlement)",
+        "developers": ["SODIC", "Emaar", "Marakez", "Palm Hills", "Mountain View", "Madinet Masr"],
+        "devaluation_peak_2023_2024": (0.80, 1.50),     # 80%-150%+
+        "market_correction_2024_2025": (0.185, 0.30),    # 18.5%-30%
+        "stabilized_run_rate_2025_2026": (0.10, 0.15),   # 10%-15%
+    },
+    "west_cairo": {
+        "label": "West Cairo (Sheikh Zayed, New Zayed)",
+        "developers": ["Ora", "SODIC", "Emaar"],
+        "devaluation_peak_2023_2024": (0.90, 1.85),      # 90%-185%+
+        "market_correction_2024_2025": (0.226, 0.35),     # 22.6%-35%
+        "stabilized_run_rate_2025_2026": (0.12, 0.18),    # 12%-18%
+    },
+    "north_coast": {
+        "label": "North Coast (Sahel)",
+        "developers": ["Emaar", "Orascom", "Mountain View"],
+        "devaluation_peak_2023_2024": (1.50, 2.09),      # 150%-209%+
+        "market_correction_2024_2025": (0.40, 0.60),      # 40%-60%
+        "stabilized_run_rate_2025_2026": (0.15, 0.20),    # 15%-20%
+    },
+    "nac": {
+        "label": "New Administrative Capital",
+        "developers": ["TMG", "City Edge", "Sky Capital"],
+        "devaluation_peak_2023_2024": (0.60, 1.00),      # 60%-100%
+        "market_correction_2024_2025": (0.15, 0.25),      # 15%-25%
+        "stabilized_run_rate_2025_2026": (0.10, 0.12),    # 10%-12%
+    },
+    "red_sea": {
+        "label": "Red Sea (El Gouna, Makadi Heights)",
+        "developers": ["Orascom"],
+        "devaluation_peak_2023_2024": (0.70, 1.20),      # 70%-120%
+        "market_correction_2024_2025": (0.20, 0.35),      # 20%-35%
+        "stabilized_run_rate_2025_2026": (0.12, 0.18),    # 12%-18%
+    },
+}
+
+# Developer appreciation behavior taxonomy
+# Used to weight ML features and explain price movements to users
+DEVELOPER_BEHAVIOR_CATEGORIES = {
+    "usd_pegged_giants": {
+        "label": "USD-Pegged Giants",
+        "label_ar": "عمالقة الدولار",
+        "developers": ["emaar", "ora"],
+        "behavior": (
+            "Capture highest market premiums. Resale markets react almost instantly "
+            "to parallel-market USD fluctuations. Emaar North Coast (Marassi, Soul) "
+            "saw YoY jumps exceeding 200% at devaluation peak as buyers treated "
+            "them as dollar safe-havens."
+        ),
+        "volatility": "high",
+        "resilience": "very_high",
+        "devaluation_sensitivity": 1.0,   # Full exposure to FX moves
+        "cash_discount_typical": 0.30,    # 30% cash discounts to secure liquidity
+        "stabilized_premium_over_market": 0.20,  # 20% above area average
+    },
+    "established_blue_chips": {
+        "label": "Established Blue-Chips",
+        "label_ar": "الشركات الراسخة",
+        "developers": ["sodic", "palm hills", "tmg", "talaat moustafa"],
+        "behavior": (
+            "Steady compounding growth via vast phased master plans "
+            "(TMG's Celia, SODIC's Villette). Showed 80%-120% nominal growth "
+            "during inflation peak but quickly normalized to 15%-20% YoY. "
+            "Long payment plans (up to 10-12 years) flood secondary market "
+            "with installment transfers, slightly depressing immediate resale "
+            "appreciation vs Emaar/Ora."
+        ),
+        "volatility": "medium",
+        "resilience": "high",
+        "devaluation_sensitivity": 0.7,
+        "cash_discount_typical": 0.25,
+        "stabilized_premium_over_market": 0.12,
+    },
+    "volume_value_players": {
+        "label": "Volume & Value Players",
+        "label_ar": "مطوري الحجم والقيمة",
+        "developers": ["madinet masr", "mountain view", "hyde park", "tatweer misr"],
+        "behavior": (
+            "Target upper-middle class with competitive entry prices and massive "
+            "plot sizes. Offer highest percentage yield for early primary buyers "
+            "because initial entry price is lower. Mountain View iCity saw massive "
+            "secondary market movement, stabilizing at ~15% YoY heading into 2026."
+        ),
+        "volatility": "low",
+        "resilience": "medium",
+        "devaluation_sensitivity": 0.5,
+        "cash_discount_typical": 0.40,   # Heaviest cash discounts (up to 40%)
+        "stabilized_premium_over_market": 0.05,
+    },
+}
+
+# Asking vs Closing price delta warning
+# Portal data (user listings) often shows 15-30% asking premium over actual closes
+ASKING_VS_CLOSING_DELTA = {
+    "villa_new_cairo": 0.25,    # Asking 25% above actual closing
+    "villa_zayed": 0.30,       # Asking 30% above actual closing
+    "apartment_new_cairo": 0.15,
+    "apartment_nac": 0.10,
+    "coastal_all": 0.20,
+}
+
+# Region key mapping for location → regime lookup
+_REGION_KEY_MAP = {
+    "new cairo": "east_cairo",
+    "mostakbal city": "east_cairo",
+    "mostakbal": "east_cairo",
+    "6th settlement": "east_cairo",
+    "golden square": "east_cairo",
+    "sheikh zayed": "west_cairo",
+    "new zayed": "west_cairo",
+    "north coast": "north_coast",
+    "sahel": "north_coast",
+    "ras el hekma": "north_coast",
+    "new administrative capital": "nac",
+    "new capital": "nac",
+    "nac": "nac",
+    "red sea": "red_sea",
+    "el gouna": "red_sea",
+    "hurghada": "red_sea",
+    "makadi": "red_sea",
+    "ain sokhna": "red_sea",
+}
+
+
+def get_regime_key(location: str) -> str:
+    """Map a location string to an appreciation regime key."""
+    loc = location.lower().strip()
+    for pattern, key in _REGION_KEY_MAP.items():
+        if pattern in loc:
+            return key
+    return "east_cairo"  # Default fallback
+
+
+def get_developer_category(developer: str) -> dict:
+    """Classify a developer into its behavior category."""
+    dev = developer.lower().strip()
+    for cat_key, cat in DEVELOPER_BEHAVIOR_CATEGORIES.items():
+        for d in cat["developers"]:
+            if d in dev or dev in d:
+                return {"category_key": cat_key, **cat}
+    # Unknown developer → treat as volume/value player (conservative)
+    return {"category_key": "volume_value_players", **DEVELOPER_BEHAVIOR_CATEGORIES["volume_value_players"]}
+
+
+def calculate_real_vs_nominal_appreciation(
+    location: str,
+    inflation_rate: float = None,
+) -> dict:
+    """
+    Real vs Nominal Appreciation Index.
+
+    While nominal prices rose ~18% YoY, real (inflation-adjusted)
+    appreciation is closer to 6%. Developers offering heavy cash
+    discounts (up to 40%) further skew primary market pricing data
+    when scrapers pick up the discounted price vs installment price.
+    """
+    if inflation_rate is None:
+        inflation_rate = MARKET_DATA.get("inflation_rate", 0.136)
+
+    regime_key = get_regime_key(location)
+    regime = APPRECIATION_BY_REGIME.get(regime_key, APPRECIATION_BY_REGIME["east_cairo"])
+
+    # Current stabilized rate (midpoint of range)
+    stab_low, stab_high = regime["stabilized_run_rate_2025_2026"]
+    nominal_rate = (stab_low + stab_high) / 2
+
+    # Real = ((1 + nominal) / (1 + inflation)) - 1
+    real_rate = ((1 + nominal_rate) / (1 + inflation_rate)) - 1
+
+    return {
+        "region": regime["label"],
+        "regime_key": regime_key,
+        "nominal_yoy": round(nominal_rate * 100, 1),
+        "inflation_rate": round(inflation_rate * 100, 1),
+        "real_yoy": round(real_rate * 100, 1),
+        "nominal_range": (round(stab_low * 100, 1), round(stab_high * 100, 1)),
+        "devaluation_peak_range": (
+            round(regime["devaluation_peak_2023_2024"][0] * 100, 1),
+            round(regime["devaluation_peak_2023_2024"][1] * 100, 1),
+        ),
+        "correction_range": (
+            round(regime["market_correction_2024_2025"][0] * 100, 1),
+            round(regime["market_correction_2024_2025"][1] * 100, 1),
+        ),
+        "phase": "stabilization",
+        "warning": (
+            "Current nominal rates reflect the 2025-2026 Stabilization Phase. "
+            "Do NOT extrapolate 2023-2024 devaluation-era rates into future projections."
+        ),
+    }
+
+
+def predict_price_forward(
+    current_price_sqm: float,
+    location: str,
+    developer: str = "",
+    years: int = 3,
+    scenario: str = "base",
+) -> dict:
+    """
+    Forward price prediction with regime-aware appreciation rates.
+
+    Scenarios:
+      - conservative: Uses low end of stabilized rate
+      - base: Uses midpoint of stabilized rate
+      - optimistic: Uses high end of stabilized rate
+
+    Developer category adjusts the rate via its premium-over-market factor.
+    """
+    regime_key = get_regime_key(location)
+    regime = APPRECIATION_BY_REGIME.get(regime_key, APPRECIATION_BY_REGIME["east_cairo"])
+    stab_low, stab_high = regime["stabilized_run_rate_2025_2026"]
+
+    if scenario == "conservative":
+        base_rate = stab_low
+    elif scenario == "optimistic":
+        base_rate = stab_high
+    else:
+        base_rate = (stab_low + stab_high) / 2
+
+    # Developer premium adjustment
+    dev_cat = get_developer_category(developer) if developer else None
+    dev_premium = dev_cat["stabilized_premium_over_market"] if dev_cat else 0
+    adjusted_rate = base_rate + (base_rate * dev_premium)
+
+    # Compound over years
+    inflation_rate = MARKET_DATA.get("inflation_rate", 0.136)
+    projections = []
+    price = current_price_sqm
+    for yr in range(1, years + 1):
+        price = price * (1 + adjusted_rate)
+        real_price = price / ((1 + inflation_rate) ** yr) * ((1 + inflation_rate) ** 0)
+        projections.append({
+            "year": 2026 + yr,
+            "nominal_price_sqm": round(price),
+            "real_price_sqm_2026_base": round(current_price_sqm * ((1 + adjusted_rate) / (1 + inflation_rate)) ** yr),
+            "cumulative_nominal_growth": round(((price / current_price_sqm) - 1) * 100, 1),
+        })
+
+    return {
+        "current_price_sqm": round(current_price_sqm),
+        "location": location,
+        "regime": regime["label"],
+        "developer": developer or "Market Average",
+        "developer_category": dev_cat["label"] if dev_cat else "N/A",
+        "scenario": scenario,
+        "annual_rate_nominal": round(adjusted_rate * 100, 1),
+        "annual_rate_real": round(((1 + adjusted_rate) / (1 + inflation_rate) - 1) * 100, 1),
+        "projections": projections,
+    }
+
+
+def format_appreciation_context_for_prompt(location: str, developer: str = "") -> str:
+    """
+    Format the devaluation cycle intelligence as a prompt injection string.
+    Called during _generate_wolf_narrative to give the AI regime-awareness.
+    """
+    rn = calculate_real_vs_nominal_appreciation(location)
+    dev_cat = get_developer_category(developer) if developer else None
+    regime_key = get_regime_key(location)
+    regime = APPRECIATION_BY_REGIME.get(regime_key, APPRECIATION_BY_REGIME["east_cairo"])
+
+    lines = [
+        "\n[PREDICTIVE PRICING INTELLIGENCE — REGIME-AWARE]",
+        f"📍 Region: {rn['region']}",
+        f"📊 Current Phase: STABILIZATION (2025-2026)",
+        f"   Nominal YoY: {rn['nominal_range'][0]}%-{rn['nominal_range'][1]}%",
+        f"   Real YoY (inflation-adjusted): {rn['real_yoy']}%",
+        f"   Inflation: {rn['inflation_rate']}%",
+        "",
+        "⚠️ DEVALUATION CONTEXT (DO NOT EXTRAPOLATE):",
+        f"   2023-2024 (Spike): {rn['devaluation_peak_range'][0]}%-{rn['devaluation_peak_range'][1]}%",
+        f"   2024-2025 (Correction): {rn['correction_range'][0]}%-{rn['correction_range'][1]}%",
+        f"   2025-2026 (Stabilized): {rn['nominal_range'][0]}%-{rn['nominal_range'][1]}%",
+    ]
+
+    if dev_cat:
+        lines += [
+            "",
+            f"🏗️ Developer Category: {dev_cat['label']}",
+            f"   Volatility: {dev_cat['volatility']} | Resilience: {dev_cat['resilience']}",
+            f"   Cash Discount Typical: {int(dev_cat['cash_discount_typical'] * 100)}%",
+            f"   Behavior: {dev_cat['behavior'][:200]}",
+        ]
+
+    lines += [
+        "",
+        "📌 RULES FOR PRICING DISCUSSIONS:",
+        "   - Quote STABILIZED rates (10-20%) for forward projections, never devaluation-era rates",
+        "   - Flag asking-vs-closing price delta: portal prices are 15-30% above actual transactions",
+        "   - Cash discounts can reach 40% — clarify if price is cash or installment",
+        "   - Real appreciation after inflation is ~6%, not the headline 18% nominal",
+    ]
+
+    return "\n".join(lines)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2534,4 +2896,12 @@ __all__ = [
     "DEVELOPER_GRAPH",
     "RESALE_MARKUP_DATA",
     "AVERAGE_RENT_BY_AREA",
+    "APPRECIATION_BY_REGIME",
+    "DEVELOPER_BEHAVIOR_CATEGORIES",
+    "ASKING_VS_CLOSING_DELTA",
+    "get_regime_key",
+    "get_developer_category",
+    "calculate_real_vs_nominal_appreciation",
+    "predict_price_forward",
+    "format_appreciation_context_for_prompt",
 ]
