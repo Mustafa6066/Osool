@@ -908,11 +908,29 @@ export default function AdminPage() {
                 try {
                   await generateMarketingMaterials();
                   setLoadError(null);
-                  await loadTabData();
+                  // Generation runs in background — poll every 15s for updates
+                  let pollCount = 0;
+                  const maxPolls = 20; // ~5 minutes max
+                  const pollInterval = setInterval(async () => {
+                    pollCount++;
+                    try {
+                      const data = await getMarketingMaterials();
+                      setMarketingMaterials(data.materials || []);
+                      const allAnswered = (data.materials || []).every(
+                        (m: MarketingMaterial) => m.answer_en || m.last_run_status === 'FAILED'
+                      );
+                      if (allAnswered || pollCount >= maxPolls) {
+                        clearInterval(pollInterval);
+                        setMarketingGenerating(false);
+                      }
+                    } catch {
+                      clearInterval(pollInterval);
+                      setMarketingGenerating(false);
+                    }
+                  }, 15000);
                 } catch (error) {
                   console.error(error);
                   setLoadError('Failed to start marketing content generation.');
-                } finally {
                   setMarketingGenerating(false);
                 }
               }}
@@ -920,7 +938,7 @@ export default function AdminPage() {
               className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               {marketingGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-              {marketingGenerating ? 'Refreshing…' : 'Regenerate Content'}
+              {marketingGenerating ? 'Generating… (auto-refreshing)' : 'Regenerate Content'}
             </button>
           </header>
 
@@ -933,21 +951,38 @@ export default function AdminPage() {
               <div className="space-y-6">
                 {marketingMaterials.map((mat) => (
                   <div key={mat.id} className="rounded-2xl border border-[var(--color-border)] p-4 bg-[var(--color-background)]">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-                      {mat.category}
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+                        {mat.category}
+                      </span>
+                      {mat.last_run_status === 'SUCCESS' ? (
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Generated</span>
+                      ) : mat.last_run_status === 'FAILED' ? (
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Failed</span>
+                      ) : marketingGenerating ? (
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Generating…
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-surface)] px-2 py-0.5 rounded-full">Pending</span>
+                      )}
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
                         <div className="font-medium text-sm text-[var(--color-text-secondary)]">Question (EN)</div>
                         <p className="mb-2">{mat.question_en}</p>
                         <div className="font-medium text-sm text-[var(--color-text-secondary)]">Answer (EN)</div>
-                        <p className="text-sm whitespace-pre-wrap">{mat.answer_en || 'Not generated yet'}</p>
+                        <p className={`text-sm whitespace-pre-wrap ${mat.answer_en ? '' : 'italic text-[var(--color-text-muted)]'}`}>
+                          {mat.answer_en || 'Not generated yet — click Regenerate Content'}
+                        </p>
                       </div>
                       <div dir="rtl">
                         <div className="font-medium text-sm text-[var(--color-text-secondary)]">السؤال</div>
                         <p className="mb-2">{mat.question_ar}</p>
                         <div className="font-medium text-sm text-[var(--color-text-secondary)]">الإجابة</div>
-                        <p className="text-sm whitespace-pre-wrap">{mat.answer_ar || 'لم يتم الإنشاء بعد'}</p>
+                        <p className={`text-sm whitespace-pre-wrap ${mat.answer_ar ? '' : 'italic text-[var(--color-text-muted)]'}`}>
+                          {mat.answer_ar || 'لم يتم الإنشاء بعد — اضغط على إعادة إنشاء المحتوى'}
+                        </p>
                       </div>
                     </div>
                   </div>

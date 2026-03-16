@@ -1021,9 +1021,13 @@ async def generate_marketing_materials_endpoint(
     from app.services.marketing_generator import generate_marketing_answers
     
     async def run_generation():
-        async with AsyncSessionLocal() as db_session:
-            await generate_marketing_answers(db_session)
+        try:
+            async with AsyncSessionLocal() as db_session:
+                count = await generate_marketing_answers(db_session)
+                logger.info("Marketing generation background task completed: %d answers", count)
+        except Exception as e:
+            logger.error("Marketing generation background task failed: %s", e)
     
     background_tasks.add_task(run_generation)
     
-    return {"message": "Marketing materials generation started in background."}
+    return {"message": "Marketing materials generation started in background. Answers will appear as they are generated — refresh in a few minutes."}

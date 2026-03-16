@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 
 _ORCHESTRATOR_URL = (os.getenv("ORCHESTRATOR_URL") or "").rstrip("/")
 _ORCHESTRATOR_API_KEY = os.getenv("ORCHESTRATOR_API_KEY") or ""
-_TIMEOUT = 3.0  # seconds — must be fast, runs in the hot path
+_TIMEOUT = 3.0
 
 
 async def fetch_user_context(user_id: int) -> Optional[Dict[str, Any]]:
     """
     Fetch cross-session user context from the orchestrator.
-    Returns None silently if orchestrator is unavailable or not configured.
+    Returns None if orchestrator is unavailable or not configured.
     """
     if not _ORCHESTRATOR_URL:
         return None
@@ -32,9 +32,13 @@ async def fetch_user_context(user_id: int) -> Optional[Dict[str, Any]]:
             )
             if resp.status_code == 200:
                 return resp.json()
-            logger.debug(f"Orchestrator user-context returned {resp.status_code}")
+            logger.warning("Orchestrator user-context returned %d for user %s", resp.status_code, user_id)
+    except httpx.TimeoutException:
+        logger.warning("Orchestrator user-context timed out for user %s", user_id)
+    except httpx.ConnectError:
+        logger.info("Orchestrator unreachable (connection refused)")
     except Exception as e:
-        logger.debug(f"Orchestrator unreachable: {e}")
+        logger.warning("Orchestrator user-context error: %s", e)
 
     return None
 
@@ -80,5 +84,9 @@ async def sync_user_memory(
                     "x-webhook-secret": webhook_secret,
                 },
             )
+    except httpx.TimeoutException:
+        logger.warning("Failed to sync user memory: orchestrator timed out")
+    except httpx.ConnectError:
+        logger.info("Failed to sync user memory: orchestrator unreachable")
     except Exception as e:
-        logger.debug(f"Failed to sync user memory to orchestrator: {e}")
+        logger.warning("Failed to sync user memory to orchestrator: %s", e)

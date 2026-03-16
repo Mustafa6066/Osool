@@ -1,14 +1,23 @@
 import os
+import json
 import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import MarketingMaterial
 from datetime import datetime, timezone
-from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-_async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_openai_api_key = os.getenv("OPENAI_API_KEY")
+
+
+def _get_openai_client():
+    """Lazy-init OpenAI client so missing key doesn't crash on import."""
+    from openai import AsyncOpenAI
+    key = _openai_api_key or os.getenv("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY is not configured")
+    return AsyncOpenAI(api_key=key)
 
 SEED_QUESTIONS = [
     {
@@ -174,7 +183,8 @@ Question (AR): {question_ar}
 
 Return a JSON with exactly two keys: "answer_en" and "answer_ar"."""
     try:
-        response = await _async_client.chat.completions.create(
+        client = _get_openai_client()
+        response = await client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You output JSON with English and Arabic answers for real estate marketing."},
@@ -184,34 +194,48 @@ Return a JSON with exactly two keys: "answer_en" and "answer_ar"."""
             temperature=0.7,
             max_tokens=800
         )
-        import json
         content = response.choices[0].message.content
         return json.loads(content)
     except Exception as e:
-        logger.error(f"Failed to generate answer for: {question_en}. Error: {e}")
+        logger.error("Failed to generate answer for: %s. Error: %s", question_en, e)
         return {"answer_en": None, "answer_ar": None}
 
 async def generate_marketing_answers(db: AsyncSession):
+    """Generate AI answers for all unanswered marketing questions."""
     await ensure_seeded_questions(db)
-    
-    # Ideally gather context globally here
+
     market_context = "Current CBE Rate: 27.25%, USD/EGP Parallel: ~48, Inflation: trending down to ~25%."
-    
-    result = await db.execute(select(MarketingMaterial).order_by(MarketingMaterial.category, MarketingMaterial.id))
+
+    result = await db.execute(
+        select(MarketingMaterial).order_by(MarketingMaterial.category, MarketingMaterial.id)
+    )
     questions = result.scalars().all()
-    
+
     updated_count = 0
+    failed_count = 0
     for q in questions:
-        answers = await generate_single_answer(q.question_en, q.question_ar, market_context)
-        if answers.get("answer_en") and answers.get("answer_ar"):
-            q.answer_en = answers["answer_en"]
-            q.answer_ar = answers["answer_ar"]
-            q.last_updated = datetime.now(timezone.utc)
-            q.last_run_status = "SUCCESS"
-            updated_count += 1
-        else:
+        # Skip already-answered questions unless explicitly regenerating
+        try:
+            answers = await generate_single_answer(q.question_en, q.question_ar, market_context)
+            if answers.get("answer_en") and answers.get("answer_ar"):
+                q.answer_en = answers["answer_en"]
+                q.answer_ar = answers["answer_ar"]
+                q.last_updated = datetime.now(timezone.utc)
+                q.last_run_status = "SUCCESS"
+                updated_count += 1
+            else:
+                q.last_run_status = "FAILED"
+                failed_count += 1
+            # Commit after each question so partial progress is saved
+            await db.commit()
+        except Exception as e:
+            logger.error("Error generating answer for id=%s: %s", q.id, e)
             q.last_run_status = "FAILED"
-    
-    await db.commit()
-    logger.info(f"Generated {updated_count} answers for Marketing Materials.")
+            failed_count += 1
+            try:
+                await db.commit()
+            except Exception:
+                await db.rollback()
+
+    logger.info("Marketing generation complete: %d updated, %d failed", updated_count, failed_count)
     return updated_count
