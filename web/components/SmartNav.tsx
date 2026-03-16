@@ -76,15 +76,15 @@ export default function SmartNav({ children }: SmartNavProps) {
         <>
             <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-            <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', overflow: 'hidden' }}>
+            <div className="flex flex-col w-full min-h-[100dvh] overflow-hidden">
 
                 {/* Header */}
-                <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]">
+                <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)] transform-gpu pt-[env(safe-area-inset-top)]">
                     <div className="max-w-[1440px] mx-auto px-4 md:px-6">
-                        <div className="flex items-center justify-between h-12">
+                        <div className="flex items-center justify-between h-14 relative">
 
                             {/* Logo */}
-                            <Link href={isAuthenticated ? '/dashboard' : '/'} className="flex items-center gap-2 flex-shrink-0 group">
+                            <Link href={isAuthenticated ? '/dashboard' : '/'} className="flex items-center gap-2 flex-shrink-0 group z-10 w-auto md:w-[200px]">
                                 <div className="w-8 h-8 rounded-2xl bg-[var(--color-text-primary)] flex items-center justify-center text-[var(--color-background)] transition-transform group-hover:scale-105">
                                     <Sparkles className="w-4 h-4" strokeWidth={2.5} />
                                 </div>
@@ -97,29 +97,31 @@ export default function SmartNav({ children }: SmartNavProps) {
                             </Link>
 
                             {/* Center Nav — Pill tabs */}
-                            <nav className="hidden md:flex items-center gap-0.5 bg-[var(--color-surface)] rounded-full px-1 py-1 border border-[var(--color-border)]">
-                                {visibleNavItems.map((item) => {
-                                    const isActive = item.key === activeKey;
-                                    const Icon = item.icon;
-                                    return (
-                                        <Link
-                                            key={item.key}
-                                            href={item.href}
-                                            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-150
-                                                ${isActive
-                                                    ? 'bg-[var(--color-text-primary)] text-[var(--color-background)] shadow-sm'
-                                                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
-                                                }`}
-                                        >
-                                            <Icon className="w-3.5 h-3.5" strokeWidth={2} />
-                                            <span>{language === 'ar' ? item.labelAr : item.label}</span>
-                                        </Link>
-                                    );
-                                })}
-                            </nav>
+                            <div className="hidden md:flex absolute inset-0 pointer-events-none items-center justify-center">
+                                <nav className="pointer-events-auto flex items-center gap-0.5 bg-[var(--color-surface)] rounded-full px-1 py-1 border border-[var(--color-border)] shadow-sm">
+                                    {visibleNavItems.map((item) => {
+                                        const isActive = item.key === activeKey;
+                                        const Icon = item.icon;
+                                        return (
+                                            <Link
+                                                key={item.key}
+                                                href={item.href}
+                                                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-150
+                                                    ${isActive
+                                                        ? 'bg-[var(--color-text-primary)] text-[var(--color-background)] shadow-sm'
+                                                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                                                    }`}
+                                            >
+                                                <Icon className="w-3.5 h-3.5" strokeWidth={2} />
+                                                <span>{language === 'ar' ? item.labelAr : item.label}</span>
+                                            </Link>
+                                        );
+                                    })}
+                                </nav>
+                            </div>
 
                             {/* Right — Actions */}
-                            <div className="hidden md:flex items-center gap-1.5">
+                            <div className="hidden md:flex items-center justify-end gap-1.5 z-10 w-auto md:w-[200px]">
                                 <Link
                                     href="/dashboard"
                                     className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-medium transition-colors ${pathname === '/dashboard' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]'}`}
@@ -200,8 +202,8 @@ export default function SmartNav({ children }: SmartNavProps) {
 
                     {/* Mobile Menu */}
                     {mobileMenuOpen && (
-                        <div className="md:hidden border-t border-[var(--color-border)] bg-[var(--color-background)] animate-fade-in">
-                            <nav className="px-3 py-2 space-y-0.5">
+                        <div className="md:hidden border-t border-[var(--color-border)] bg-[var(--color-background)] animate-fade-in pb-[env(safe-area-inset-bottom)]">
+                            <nav className="px-3 py-2 space-y-0.5 max-h-[calc(100vh-4rem-env(safe-area-inset-top))] overflow-y-auto">
                                 {visibleNavItems.map((item) => {
                                     const isActive = item.key === activeKey;
                                     const Icon = item.icon;
@@ -268,7 +270,7 @@ export default function SmartNav({ children }: SmartNavProps) {
                 </header>
 
                 {/* Main Content */}
-                <main style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', paddingTop: '3rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <main className="flex-1 flex flex-col min-w-0 overflow-y-auto w-full pt-14 lg:pt-16 pb-[calc(env(safe-area-inset-bottom)+1rem)] relative z-0">
                     {children}
                 </main>
             </div>
