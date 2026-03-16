@@ -988,6 +988,9 @@ async def get_marketing_materials(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
+    from app.services.marketing_generator import ensure_seeded_questions
+    await ensure_seeded_questions(db)
+
     query = select(MarketingMaterial).order_by(MarketingMaterial.category, MarketingMaterial.id)
     result = await db.execute(query)
     materials = result.scalars().all()

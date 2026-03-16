@@ -172,7 +172,14 @@ SEED_QUESTIONS = [
     }
 ]
 
+# Once seeding succeeds, skip DB check on subsequent requests in the same process.
+_questions_seeded = False
+
 async def ensure_seeded_questions(db: AsyncSession) -> int:
+    global _questions_seeded
+    if _questions_seeded:
+        return 0
+
     result = await db.execute(select(MarketingMaterial.question_en))
     existing_questions = set(result.scalars().all())
 
@@ -194,6 +201,7 @@ async def ensure_seeded_questions(db: AsyncSession) -> int:
     if created_count:
         await db.commit()
 
+    _questions_seeded = True
     return created_count
 
 async def generate_single_answer(question_en: str, question_ar: str, context_details: str) -> dict:
