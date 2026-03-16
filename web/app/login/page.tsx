@@ -85,7 +85,7 @@ function LoginContent() {
 
     return (
         <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-14">
-            <section className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-10">
+            <section className="hidden rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-10 lg:block">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     {t('login.badge')}
