@@ -109,7 +109,7 @@ def generate_embedding(text: str) -> list:
         return None
 
 
-async def property_exists(db: AsyncSession, property_id: str) -> bool:
+async def property_exists(db: AsyncSession, property_id: int) -> bool:
     """
     Checks if a property already exists in the database by its ID.
     """
@@ -143,7 +143,13 @@ async def ingest_to_postgres(properties: list):
         for i, prop in enumerate(properties, 1):
             try:
                 # Check if property already exists
-                prop_id = prop.get('id')
+                prop_id_raw = prop.get('id', '')
+                # Convert string ID (e.g., 'NC1240', 'SH3300') to integer
+                prop_id = int(''.join(c for c in prop_id_raw if c.isdigit())) if prop_id_raw else None
+                if not prop_id:
+                    print(f"   ⚠️ Skipping property with invalid ID: {prop_id_raw}")
+                    failed += 1
+                    continue
                 if await property_exists(db, prop_id):
                     skipped += 1
                     if i % 100 == 0:
@@ -187,7 +193,7 @@ async def ingest_to_postgres(properties: list):
                     is_delivered=prop.get('isDelivered', False),
                     is_cash_only=prop.get('isCashOnly', False),
                     land_area=int(prop.get('landArea', 0)) if prop.get('landArea') else None,
-                    nawy_reference=prop.get('nawyReference', ''),
+                    nawy_reference=prop.get('nawyReference', '') or prop_id_raw,
                     is_nawy_now=prop.get('isNawyNow', False),
                     embedding=embedding,
                     is_available=True
