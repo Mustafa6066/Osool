@@ -144,6 +144,31 @@ SEED_QUESTIONS = [
         "category": "Dual-Engine Capabilities",
         "question_en": "If CBE rates drop 2%, parallel USD spreads widen, and a new metro station opens nearby, how does Osool recalculate my property's expected returns?",
         "question_ar": "إذا انخفضت أسعار البنك المركزي المصري بنسبة 2%، وتوسعت فروقات الدولار الموازي، وفُتحت محطة مترو جديدة بالقرب من العقار، كيف تعيد Osool حساب العائدات المتوقعة للعقار؟"
+    },
+    {
+        "category": "Price Discovery",
+        "question_en": "What is the lowest-priced apartment in Tagamoa (New Cairo)?",
+        "question_ar": "قولي ايه اقل سعر شقه في التجمع"
+    },
+    {
+        "category": "Price Discovery",
+        "question_en": "What is the lowest-priced apartment in Mostakbal City?",
+        "question_ar": "قولي ايه اقل سعر شقه في المستقبل"
+    },
+    {
+        "category": "Price Discovery",
+        "question_en": "What is the highest-value apartment in Tagamoa (New Cairo)?",
+        "question_ar": "قولي ايه اعلى قيمه شقه في التجمع"
+    },
+    {
+        "category": "Size & Space",
+        "question_en": "What is the largest apartment available?",
+        "question_ar": "قولي اكبر مساحه لشقه"
+    },
+    {
+        "category": "Size & Space",
+        "question_en": "What is the smallest villa available?",
+        "question_ar": "قولي ايه اصغر مساحه لفيلا"
     }
 ]
 
