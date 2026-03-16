@@ -505,7 +505,7 @@ export default function PropertiesPage() {
                                 <Wallet className="h-4 w-4 text-emerald-500" />
                             </div>
                             <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">
-                                {boardSummary.averagePrice ? formatCompactPrice(boardSummary.averagePrice) : 'â€”'}
+                                {boardSummary.averagePrice ? formatCompactPrice(boardSummary.averagePrice) : '—'}
                             </div>
                             <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Typical price level across the current filtered board.</div>
                         </div>
@@ -671,25 +671,25 @@ export default function PropertiesPage() {
 
                                                     <div className="mt-4 grid grid-cols-3 gap-3 text-sm text-[var(--color-text-muted)]">
                                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                                                            <div className="flex items-center gap-1.5"><Bed className="h-4 w-4" />{property.bedrooms > 0 ? property.bedrooms : 'â€”'}</div>
+                                                            <div className="flex items-center gap-1.5"><Bed className="h-4 w-4" />{property.bedrooms > 0 ? property.bedrooms : '—'}</div>
                                                         </div>
                                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                                                            <div className="flex items-center gap-1.5"><Bath className="h-4 w-4" />{property.bathrooms > 0 ? property.bathrooms : 'â€”'}</div>
+                                                            <div className="flex items-center gap-1.5"><Bath className="h-4 w-4" />{property.bathrooms > 0 ? property.bathrooms : '—'}</div>
                                                         </div>
                                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                                                            <div className="flex items-center gap-1.5"><Maximize className="h-4 w-4" />{property.area > 0 ? `${property.area} ${language === 'ar' ? '\u0645\u00B2' : 'sqm'}` : 'â€”'}</div>
+                                                            <div className="flex items-center gap-1.5"><Maximize className="h-4 w-4" />{property.area > 0 ? `${property.area} ${language === 'ar' ? '\u0645\u00B2' : 'sqm'}` : '—'}</div>
                                                         </div>
                                                     </div>
 
                                                     <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
                                                         {property.pricePerSqm ? (
                                                             <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1">
-                                                                {Math.round(property.pricePerSqm).toLocaleString('en-EG')} EGP/mÂ²
+                                                                {Math.round(property.pricePerSqm).toLocaleString('en-EG')} EGP/m²
                                                             </span>
                                                         ) : null}
                                                         {property.paymentPlan?.downPayment != null && property.paymentPlan?.installmentYears != null ? (
                                                             <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1">
-                                                                {property.paymentPlan.downPayment}% down â€¢ {property.paymentPlan.installmentYears} years
+                                                                {property.paymentPlan.downPayment}% down · {property.paymentPlan.installmentYears} years
                                                             </span>
                                                         ) : null}
                                                     </div>

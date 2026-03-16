@@ -173,31 +173,31 @@ export default function TicketsPage() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statsView')}</div>
-                <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : total.toLocaleString('en-EG')}</div>
+                <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : total.toLocaleString('en-EG')}</div>
                 <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('tickets.statsViewDesc')}</div>
               </div>
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statsAttention')}</div>
-                <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : (counts.open + counts.in_progress).toLocaleString('en-EG')}</div>
+                <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : (counts.open + counts.in_progress).toLocaleString('en-EG')}</div>
                 <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('tickets.statsAttentionDesc')}</div>
               </div>
               <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:col-span-2">
                 <div className="grid gap-3 sm:grid-cols-4">
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statusOpen')}</div>
-                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.open}</div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : counts.open}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statusInProgress')}</div>
-                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.in_progress}</div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : counts.in_progress}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statusResolved')}</div>
-                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.resolved}</div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : counts.resolved}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('tickets.statusClosed')}</div>
-                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? 'â€¦' : counts.closed}</div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{loading ? '…' : counts.closed}</div>
                   </div>
                 </div>
               </div>

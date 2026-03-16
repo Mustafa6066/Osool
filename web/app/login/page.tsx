@@ -142,7 +142,7 @@ function LoginContent() {
                                 required
                                 value={password}
                                 onChange={(event) => setPassword(event.target.value)}
-                                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                                placeholder="········"
                                 className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 pl-10 pr-4 text-[var(--color-text-primary)] outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                             />
                         </div>

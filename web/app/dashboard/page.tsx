@@ -197,7 +197,7 @@ export default function DashboardPage() {
                         </p>
                     </div>
 
-                    {/* Row 2: Bento grid â€” Profile + Quick Actions */}
+                    {/* Row 2: Bento grid — Profile + Quick Actions */}
                     <section className="grid gap-4 lg:grid-cols-2">
                         {/* Investor Profile Card */}
                         {profile && (
@@ -229,7 +229,7 @@ export default function DashboardPage() {
                         </div>
                     </section>
 
-                    {/* Row 3: Bento grid â€” Shortlist + Market Snapshot */}
+                    {/* Row 3: Bento grid — Shortlist + Market Snapshot */}
                     <section className="grid gap-4 lg:grid-cols-2">
                         {/* My Shortlist */}
                         <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
@@ -267,7 +267,7 @@ export default function DashboardPage() {
                                                 </div>
                                                 <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                                                     {prop.bedrooms > 0 && <span className="flex items-center gap-0.5"><Bed className="h-3 w-3" />{prop.bedrooms}</span>}
-                                                    {prop.size_sqm > 0 && <span className="flex items-center gap-0.5"><Maximize className="h-3 w-3" />{prop.size_sqm}mÂ²</span>}
+                                                    {prop.size_sqm > 0 && <span className="flex items-center gap-0.5"><Maximize className="h-3 w-3" />{prop.size_sqm}m²</span>}
                                                 </div>
                                                 <div className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(prop.price)}</div>
                                             </Link>

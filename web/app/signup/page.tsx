@@ -289,7 +289,7 @@ function SignupContent() {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                                placeholder="········"
                                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>

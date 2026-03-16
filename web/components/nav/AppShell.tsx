@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import FloatingHeader from './FloatingHeader';
+import BottomBar from './BottomBar';
 import InvitationModal from '@/components/InvitationModal';
 
 interface AppShellProps {
@@ -17,13 +18,15 @@ export default function AppShell({ children }: AppShellProps) {
       <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
       <FloatingHeader onInvite={openInvite} />
 
-      {/* Content area — offset for floating header */}
+      {/* Content area — offset for floating header + bottom bar */}
       <div
-        className="flex flex-col h-screen pt-[60px]"
+        className="flex flex-col h-screen pt-[60px] pb-[72px] md:pb-0"
         style={{ overflow: 'hidden' }}
       >
         {children}
       </div>
+
+      <BottomBar onInvite={openInvite} />
     </>
   );
 }

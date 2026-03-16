@@ -96,7 +96,7 @@ export default function FavoritesPage() {
                         </div>
                     )}
 
-                    {/* Empty State â€” teach & motivate */}
+                    {/* Empty State — teach & motivate */}
                     {!loading && favorites.length === 0 && (
                         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-12">
                             <div className="mx-auto max-w-lg text-center">
@@ -228,7 +228,7 @@ export default function FavoritesPage() {
                                             )}
                                             {fav.price_per_sqm > 0 && (
                                                 <span className="text-emerald-500 font-medium">
-                                                    {fav.price_per_sqm.toLocaleString()}/mÂ²
+                                                    {fav.price_per_sqm.toLocaleString()}/m²
                                                 </span>
                                             )}
                                         </div>

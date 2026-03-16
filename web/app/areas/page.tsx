@@ -7,7 +7,7 @@ import { areaBrief, formatRate } from '@/lib/decision-support';
 import { T } from '@/components/T';
 
 export const metadata: Metadata = {
-  title: 'Best Investment Areas in Egypt â€” Prices, Growth & Yield | Osool',
+  title: 'Best Investment Areas in Egypt — Prices, Growth & Yield | Osool',
   description:
     'Compare Egypt\'s top investment zones: Sheikh Zayed, New Capital, Ras El Hikma, Ain Sokhna, North Coast & more. Price per sqm, appreciation rates, rental yields.',
 };
@@ -87,7 +87,7 @@ export default async function AreasPage() {
 
                       <div className="mt-4 grid grid-cols-3 gap-3 text-center">
                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                          <div className="text-lg font-bold text-emerald-500">{area.avg_price_per_meter ? `${(area.avg_price_per_meter / 1000).toFixed(0)}K` : 'â€”'}</div>
+                          <div className="text-lg font-bold text-emerald-500">{area.avg_price_per_meter ? `${(area.avg_price_per_meter / 1000).toFixed(0)}K` : '—'}</div>
                           <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-[0.15em]"><T k="areaPage.egpSqm" /></div>
                         </div>
                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">

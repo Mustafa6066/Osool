@@ -6,7 +6,7 @@ import { formatPriceBand, projectBrief } from '@/lib/decision-support';
 import { T } from '@/components/T';
 
 export const metadata: Metadata = {
-  title: 'Egyptian Real Estate Projects â€” Prices & Payment Plans | Osool',
+  title: 'Egyptian Real Estate Projects — Prices & Payment Plans | Osool',
   description:
     'Browse 30+ verified Egyptian real estate projects: compounds, resorts, towers. Filter by area, developer, price, and bedrooms. Updated weekly.',
 };
@@ -75,8 +75,8 @@ export default async function ProjectsPage() {
                     <div className="mt-4 space-y-2 text-sm text-[var(--color-text-secondary)]">
                       <div>{formatPriceBand(p.min_price_per_meter, p.max_price_per_meter)}</div>
                       {p.expected_delivery && <div><T k="projPage.delivery" /> {new Date(p.expected_delivery).getFullYear()}</div>}
-                      {p.min_unit_size && p.max_unit_size && <div>{p.min_unit_size}-{p.max_unit_size} mÂ²</div>}
-                      {p.down_payment_min != null && p.installment_years != null && <div>{p.down_payment_min}% down â€¢ {p.installment_years} years</div>}
+                      {p.min_unit_size && p.max_unit_size && <div>{p.min_unit_size}-{p.max_unit_size} m²</div>}
+                      {p.down_payment_min != null && p.installment_years != null && <div>{p.down_payment_min}% down · {p.installment_years} years</div>}
                     </div>
                   </>
                 );

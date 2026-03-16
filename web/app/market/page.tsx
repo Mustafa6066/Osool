@@ -36,7 +36,7 @@ import {
 } from '@/lib/marketStats';
 
 function formatSqmPrice(value: number): string {
-  return `${Math.round(value).toLocaleString('en-EG')} EGP/mÂ²`;
+  return `${Math.round(value).toLocaleString('en-EG')} EGP/m²`;
 }
 
 function typedEntries<TValue>(record: Record<string, TValue>): Array<[string, TValue]> {
@@ -51,7 +51,7 @@ function getDemandTag(count: number, maxCount: number): { labelKey: string; colo
   return { labelKey: 'market.demandEmerging', color: 'bg-slate-500/15 text-slate-400' };
 }
 
-/** SVG sparkline â€” deterministic pseudo-trend from avg meter price */
+/** SVG sparkline — deterministic pseudo-trend from avg meter price */
 function MiniSparkline({ avg, color = '#10b981' }: { avg: number; color?: string }) {
   // Generate a deterministic 7-point sparkline from the avg value
   const seed = Math.round(avg);
@@ -161,7 +161,7 @@ export default function MarketStatisticsPage() {
       return [] as Array<{ label: string; count: number; avg: number }>;
     }
 
-    const order = ['Under 2M EGP', '2M â€“ 5M EGP', '5M â€“ 10M EGP', '10M â€“ 20M EGP', '20M â€“ 50M EGP', 'Over 50M EGP'];
+    const order = ['Under 2M EGP', '2M – 5M EGP', '5M – 10M EGP', '10M – 20M EGP', '20M – 50M EGP', 'Over 50M EGP'];
     return typedEntries<PriceBracket>(stats.price_bracket_distribution)
       .map(([label, value]) => ({ label, count: value.count, avg: value.avg_meter }))
       .sort((left, right) => order.indexOf(left.label) - order.indexOf(right.label));
@@ -256,9 +256,9 @@ export default function MarketStatisticsPage() {
 
             <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
               {[
-                { label: t('market.kpiTracked'), value: loading ? 'â€¦' : stats?.summary.total_properties.toLocaleString('en-EG') || 'â€"', desc: t('market.kpiTrackedDesc'), icon: Building2 },
-                { label: t('market.kpiAvgTicket'), value: loading ? 'â€¦' : stats ? formatCompactPrice(stats.summary.avg_price) : 'â€"', desc: t('market.kpiAvgTicketDesc'), icon: Wallet },
-                { label: t('market.kpiSupplyLeader'), value: loading ? 'â€¦' : supplySignal?.name || 'â€"', desc: loading ? `${t('common.loading')}` : supplySignal ? `${supplySignal.count} ${t('market.kpiActiveUnits')}` : 'â€"', icon: MapPin },
+                { label: t('market.kpiTracked'), value: loading ? '…' : stats?.summary.total_properties.toLocaleString('en-EG') || 'â€"', desc: t('market.kpiTrackedDesc'), icon: Building2 },
+                { label: t('market.kpiAvgTicket'), value: loading ? '…' : stats ? formatCompactPrice(stats.summary.avg_price) : 'â€"', desc: t('market.kpiAvgTicketDesc'), icon: Wallet },
+                { label: t('market.kpiSupplyLeader'), value: loading ? '…' : supplySignal?.name || 'â€"', desc: loading ? `${t('common.loading')}` : supplySignal ? `${supplySignal.count} ${t('market.kpiActiveUnits')}` : 'â€"', icon: MapPin },
               ].map((card, i) => (
                 <motion.div key={card.label} variants={fadeUp} custom={i + 1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 transition-all hover:border-emerald-500/20">
                   <div className="flex items-center justify-between">
@@ -527,7 +527,7 @@ export default function MarketStatisticsPage() {
                           </div>
                           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
                             <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsAvgSize')}</div>
-                            <div className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">{Math.round(active.avgSize)} mÂ²</div>
+                            <div className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">{Math.round(active.avgSize)} m²</div>
                           </div>
                           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
                             <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsPerSqm')}</div>
