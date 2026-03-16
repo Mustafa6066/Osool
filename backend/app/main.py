@@ -59,6 +59,8 @@ from app.api.lead_endpoints import router as lead_router
 from app.api.email_endpoints import router as email_router
 from app.api.analytics_endpoints import router as analytics_router
 from app.api.campaign_endpoints import router as campaign_router
+from app.api.orchestrator_endpoints import router as orchestrator_router
+from app.api.orchestrator_endpoints import user_prefs_router
 from app.services.metrics import metrics_endpoint
 
 # ═══════════════════════════════════════════════════════════════
@@ -254,6 +256,8 @@ app.include_router(lead_router)
 app.include_router(email_router)
 app.include_router(analytics_router)
 app.include_router(campaign_router)
+app.include_router(orchestrator_router)
+app.include_router(user_prefs_router)
 
 
 @app.get("/")

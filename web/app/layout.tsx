@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from 'react';
 import { Inter, Cairo, Rajdhani } from 'next/font/google';
 import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -10,6 +11,9 @@ import GamificationOverlay from '@/components/GamificationOverlay';
 import CommandPalette from '@/components/CommandPalette';
 import { ErrorBoundaryProvider } from '@/components/ErrorBoundaryProvider';
 import { organizationJsonLd } from '@/lib/json-ld';
+import OrchestratorTracker from '@/components/OrchestratorTracker';
+import { LeadScoreProvider } from '@/contexts/LeadScoreContext';
+import PriorityHandoff from '@/components/PriorityHandoff';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -64,6 +68,7 @@ export default function RootLayout({
             <LanguageProvider>
               <AuthProvider>
                 <GamificationProvider>
+                  <LeadScoreProvider>
                   {/* Skip to content — accessibility */}
                   <a
                     href="#main-content"
@@ -98,8 +103,17 @@ export default function RootLayout({
                   {/* Global Gamification Notifications */}
                   <GamificationOverlay />
 
+                  {/* Lead-to-Advisor Handoff (appears when lead score is high) */}
+                  <PriorityHandoff />
+
                   {/* Global Command Palette (Ctrl+K / ⌘K) */}
                   <CommandPalette />
+
+                  {/* Orchestrator tracking — page views, UTM attribution */}
+                  <Suspense fallback={null}>
+                    <OrchestratorTracker />
+                  </Suspense>
+                  </LeadScoreProvider>
                 </GamificationProvider>
               </AuthProvider>
             </LanguageProvider>

@@ -10,6 +10,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { AUTH_NAV, PUBLIC_NAV, getActiveKey } from './nav-items';
 import { useState, useRef, useEffect } from 'react';
 import MoreSheet from './MoreSheet';
+import NotificationBell from '@/components/NotificationBell';
 
 interface FloatingHeaderProps {
   onInvite: () => void;
@@ -97,6 +98,9 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
 
           {/* Utilities */}
           <div className="flex items-center gap-0.5">
+            {/* Notifications */}
+            <NotificationBell />
+
             {/* Search */}
             <button
               onClick={() =>

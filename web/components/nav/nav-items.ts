@@ -54,7 +54,8 @@ export function getActiveKey(pathname: string): string {
   )
     return 'explore';
   if (pathname.startsWith('/developers')) return 'developers';
-  if (pathname.startsWith('/areas')) return 'areas';
+  if (pathname.startsWith('/areas') || pathname.startsWith('/roi') || pathname.startsWith('/buying-guide'))
+    return 'areas';
   if (pathname.startsWith('/projects')) return 'projects';
   return '';
 }

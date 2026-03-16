@@ -202,7 +202,19 @@ export const getCurrentUser = async (): Promise<ApiPayloadOrNull> => {
     return null;
   }
 };
-
+/**
+ * Helper: Get User Context from Orchestrator
+ * ------------------------
+ * Fetch enriched user context (lead score, preferred areas)
+ */
+export const getOrchestratorContext = async (): Promise<any | null> => {
+  try {
+    const response = await api.get('/api/orchestrator/context');
+    return response.data;
+  } catch {
+    return null;
+  }
+};
 /**
  * Helper: Login
  * -------------

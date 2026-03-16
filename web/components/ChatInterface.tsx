@@ -14,6 +14,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { streamChat } from '@/lib/api';
 import { trackChatMessage, trackChatSessionEnd } from '@/lib/orchestrator';
 import { getAnonymousId } from '@/lib/session';
+import { getOrchestratorContext } from '@/lib/api-secure';
 import { analyticsEngine, type AnalyticsMatch } from '@/lib/AnalyticsRulesEngine';
 import {
     emptyChatToActiveTransition,
@@ -973,6 +974,18 @@ export default function ChatInterface() {
     const [contextInsight, setContextInsight] = useState<string | null>(null);
     const [contextVisualizations, setContextVisualizations] = useState<VisualizationPayload[]>([]);
     const [, setDetectedAnalytics] = useState<AnalyticsMatch[]>([]);
+    const [leadScore, setLeadScore] = useState<number>(0);
+
+    // Fetch user context from Orchestrator
+    useEffect(() => {
+        if (isAuthenticated) {
+            getOrchestratorContext().then((data) => {
+                if (data && typeof data.lead_score === 'number') {
+                    setLeadScore(data.lead_score);
+                }
+            }).catch(() => { /* ignore */ });
+        }
+    }, [isAuthenticated]);
 
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1700,57 +1713,99 @@ export default function ChatInterface() {
                         )}
                     </div>
 
-                    {/* Bottom Input Area - Premium Pill */}
+                    {/* Bottom Input Area - Premium Pill or Lead Handoff */}
                     {hasStartedChat && (
                         <div className="p-2 sm:p-4 lg:p-6 z-30 safe-area-bottom">
                             <div className="max-w-3xl mx-auto">
-                                <div className="osool-input-glow">
-                                    <div
-                                        className="osool-input-surface cursor-text"
-                                        onClick={() => textareaRef.current?.focus()}
-                                    >
-                                        <div className="relative flex items-center">
-                                            {/* Plus button - absolute left */}
-                                            <button
-                                                aria-label={isRTL ? 'إضافة' : 'Add'}
-                                                className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10"
-                                            >
-                                                <Plus size={18} />
-                                            </button>
-
-                                            {/* Textarea - full width with padding for buttons */}
-                                            <textarea
-                                                ref={textareaRef}
-                                                value={input}
-                                                onChange={e => setInput(e.target.value)}
-                                                onKeyDown={handleKeyDown}
-                                                rows={1}
-                                                className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-3.5 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px]"
-                                                placeholder={isRTL ? 'اسأل CoInvestor...' : 'Ask CoInvestor...'}
-                                                disabled={isTyping}
-                                                dir="auto"
-                                            />
-
-                                            {/* Right buttons - absolute right */}
-                                            <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
+                                {leadScore >= 80 ? (
+                                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between shadow-lg">
+                                        <div className="flex items-center gap-3 mb-4 md:mb-0">
+                                            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0">
+                                                <MaterialIcon name="support_agent" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[13px] md:text-sm font-bold text-emerald-800 dark:text-emerald-400">
+                                                    {isRTL ? 'أنت مستثمر جاد!' : 'Priority Investor Status'}
+                                                </h4>
+                                                <p className="text-[11px] md:text-xs text-emerald-600 dark:text-emerald-500">
+                                                    {isRTL ? 'تحدث مباشرة مع خبير عقاري محترف الآن.' : 'Talk directly to a senior real estate expert now.'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => window.open('https://wa.me/201000000000?text=Hello+from+Osool', '_blank')}
+                                            className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 px-6 rounded-xl transition shadow-md shadow-emerald-500/20 whitespace-nowrap"
+                                        >
+                                            {isRTL ? 'تواصل عبر واتساب' : 'Connect on WhatsApp'}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2">
+                                        {/* Warm lead soft CTA — appears above input when score is 60-79 */}
+                                        {leadScore >= 60 && leadScore < 80 && (
+                                            <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl px-4 py-2.5 flex items-center justify-between">
+                                                <p className="text-xs text-blue-600 dark:text-blue-400">
+                                                    {isRTL
+                                                        ? 'يبدو إنك وصلت لمرحلة متقدمة. محتاج تتكلم مع خبير؟'
+                                                        : 'You seem ready for the next step. Want to talk to an expert?'}
+                                                </p>
                                                 <button
-                                                    aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
-                                                    className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors"
+                                                    onClick={() => window.open('https://wa.me/201000000000?text=Hello+from+Osool', '_blank')}
+                                                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap ms-3"
                                                 >
-                                                    <Mic size={18} />
+                                                    {isRTL ? 'تواصل ←' : 'Connect →'}
                                                 </button>
+                                            </div>
+                                        )}
+                                    <div className="osool-input-glow">
+                                        <div
+                                            className="osool-input-surface cursor-text"
+                                            onClick={() => textareaRef.current?.focus()}
+                                        >
+                                            <div className="relative flex items-center">
+                                                {/* Plus button - absolute left */}
                                                 <button
-                                                    onClick={handleSend}
-                                                    disabled={!input.trim() || isTyping}
-                                                    aria-label={isRTL ? 'إرسال الرسالة' : 'Send message'}
-                                                    className="osool-send-btn"
+                                                    aria-label={isRTL ? 'إضافة' : 'Add'}
+                                                    className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10"
                                                 >
-                                                    <Send size={16} />
+                                                    <Plus size={18} />
                                                 </button>
+
+                                                {/* Textarea - full width with padding for buttons */}
+                                                <textarea
+                                                    ref={textareaRef}
+                                                    value={input}
+                                                    onChange={e => setInput(e.target.value)}
+                                                    onKeyDown={handleKeyDown}
+                                                    rows={1}
+                                                    className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-3.5 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px]"
+                                                    placeholder={isRTL ? 'اسأل CoInvestor...' : 'Ask CoInvestor...'}
+                                                    disabled={isTyping}
+                                                    dir="auto"
+                                                />
+
+                                                {/* Right buttons - absolute right */}
+                                                <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
+                                                    <button
+                                                        aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
+                                                        className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors"
+                                                    >
+                                                        <Mic size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={handleSend}
+                                                        disabled={!input.trim() || isTyping}
+                                                        aria-label={isRTL ? 'إرسال الرسالة' : 'Send message'}
+                                                        className="osool-send-btn"
+                                                    >
+                                                        <Send size={16} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                    </div>
+                                )}
                                 <p className="hidden sm:block text-[8px] sm:text-[9px] text-center text-[var(--color-text-muted-studio)] uppercase tracking-[0.15em] sm:tracking-[0.2em] mt-2 sm:mt-3 opacity-50">
                                     {isRTL ? 'أصول AI · مدعوم بعقل الذئب' : 'Osool AI · Powered by Wolf Brain'}
                                 </p>

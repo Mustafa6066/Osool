@@ -8,6 +8,8 @@ import AppShell from '@/components/nav/AppShell';
 import { areaBrief, formatRate, pickWinnerLabel } from '@/lib/decision-support';
 import { T } from '@/components/T';
 
+export const revalidate = 3600; // ISR: 1 hour
+
 interface Props {
   params: Promise<{ slug1: string; slug2: string }>;
 }

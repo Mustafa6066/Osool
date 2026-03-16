@@ -5,6 +5,7 @@ from datetime import datetime
 from playwright.async_api import async_playwright
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from app.models import Property
+from app.services.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +241,132 @@ async def ingest_nawy_data_async():
 def ingest_nawy_data():
     """Sync entry point for backwards compatibility."""
     asyncio.run(ingest_nawy_data_async())
+
+
+# ═══════════════════════════════════════════════════════════════
+# STALE PROPERTY CLEANUP
+# ═══════════════════════════════════════════════════════════════
+
+async def mark_stale_properties():
+    """
+    Compare the latest scrape_run_id (from summary JSON/Redis) against
+    the previous run. Any property whose last_scrape_run_id is not in
+    {current, previous} gets marked is_available=False.
+
+    This prevents delisted properties from persisting indefinitely.
+    We keep a 2-run window so one scrape hiccup doesn't mass-delist.
+    """
+    from app.database import AsyncSessionLocal
+    from sqlalchemy import text
+
+    # Read the latest run IDs from Redis (set by the scraper runner)
+    current_run = cache.get("scraper:run_id:current")
+    previous_run = cache.get("scraper:run_id:previous")
+
+    if not current_run:
+        logger.warning("[STALE] No current scrape_run_id found in Redis — skipping cleanup")
+        return {"stale_marked": 0}
+
+    safe_runs = [current_run]
+    if previous_run:
+        safe_runs.append(previous_run)
+
+    logger.info(f"[STALE] Marking properties stale. Keeping runs: {safe_runs}")
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            text("""
+                UPDATE properties
+                SET is_available = false
+                WHERE is_available = true
+                  AND last_scrape_run_id IS NOT NULL
+                  AND last_scrape_run_id NOT IN :safe_runs
+            """),
+            {"safe_runs": tuple(safe_runs)},
+        )
+        await db.commit()
+        count = result.rowcount
+        logger.info(f"[STALE] Marked {count} properties as unavailable")
+        return {"stale_marked": count}
+
+
+def register_scrape_run_id(run_id: str):
+    """
+    Push a new scrape_run_id into the 2-slot Redis window.
+    Called by the scraper orchestration after a successful run.
+    """
+    previous = cache.get("scraper:run_id:current")
+    if previous:
+        cache.set("scraper:run_id:previous", previous, ttl=604800)  # 7 days
+    cache.set("scraper:run_id:current", run_id, ttl=604800)
+
+
+# ═══════════════════════════════════════════════════════════════
+# CROSS-DB PRICE VALIDATION
+# ═══════════════════════════════════════════════════════════════
+
+async def flag_underpriced_properties(threshold_pct: float = 0.40):
+    """
+    Compare each available property's price_per_sqm against its
+    location average. If > threshold_pct below the location mean,
+    set price_flag = 'below_area_avg'. If > threshold_pct above,
+    set price_flag = 'above_area_avg'. Otherwise clear the flag.
+
+    This catches data-entry errors and genuinely underpriced gems.
+    """
+    from app.database import AsyncSessionLocal
+    from sqlalchemy import text
+
+    async with AsyncSessionLocal() as db:
+        # 1. Compute location averages
+        avgs = await db.execute(text("""
+            SELECT location, AVG(price / NULLIF(size_sqm, 0)) AS avg_psm
+            FROM properties
+            WHERE is_available = true
+              AND price > 0
+              AND size_sqm > 0
+            GROUP BY location
+        """))
+        location_avgs = {row[0]: row[1] for row in avgs.fetchall() if row[1]}
+
+        if not location_avgs:
+            logger.info("[PRICE] No location averages — skipping")
+            return {"flagged": 0}
+
+        # 2. Flag properties
+        flagged = 0
+        props = await db.execute(text("""
+            SELECT id, location, price, size_sqm
+            FROM properties
+            WHERE is_available = true
+              AND price > 0
+              AND size_sqm > 0
+        """))
+        for prop_id, location, price, size in props.fetchall():
+            avg = location_avgs.get(location)
+            if not avg:
+                continue
+            psm = price / size
+            ratio = psm / avg
+
+            if ratio < (1 - threshold_pct):
+                flag = "below_area_avg"
+            elif ratio > (1 + threshold_pct):
+                flag = "above_area_avg"
+            else:
+                flag = None
+
+            await db.execute(
+                text("UPDATE properties SET price_flag = :flag WHERE id = :id"),
+                {"flag": flag, "id": prop_id},
+            )
+            if flag:
+                flagged += 1
+
+        await db.commit()
+        logger.info(f"[PRICE] Flagged {flagged} properties")
+        return {"flagged": flagged}
+
 
 if __name__ == "__main__":
     asyncio.run(ingest_nawy_data_async())

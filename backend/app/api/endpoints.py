@@ -1049,6 +1049,37 @@ async def chat_stream(
                 "full_name": getattr(user, "full_name", None),
             }
 
+            # ── Orchestrator Context Injection ─────────────────────────────
+            # Fetch enriched user context from the Orchestrator to give the
+            # AI advisor memory across both systems (chat + SEO journeys).
+            orchestrator_context = ""
+            try:
+                from app.api.orchestrator_endpoints import _fetch_from_orchestrator
+                orch_data = await _fetch_from_orchestrator(f"/user-context/{user.id}")
+                if orch_data and orch_data.get("signalCount", 0) > 0:
+                    parts = []
+                    if orch_data.get("preferredDevelopers"):
+                        parts.append(f"Preferred developers: {', '.join(orch_data['preferredDevelopers'][:5])}")
+                    if orch_data.get("preferredAreas"):
+                        parts.append(f"Preferred areas: {', '.join(orch_data['preferredAreas'][:5])}")
+                    if orch_data.get("intentTypes"):
+                        parts.append(f"Recent interests: {', '.join(orch_data['intentTypes'][:5])}")
+                    if orch_data.get("leadScore", 0) > 0:
+                        parts.append(f"Engagement level: {orch_data.get('tier', 'new')} (score: {orch_data['leadScore']})")
+                    if orch_data.get("suggestedTopics"):
+                        parts.append(f"Suggested topics: {', '.join(orch_data['suggestedTopics'][:3])}")
+                    if parts:
+                        orchestrator_context = "\n[Cross-Platform User Context]\n" + "\n".join(parts) + "\n"
+            except Exception as orch_err:
+                logger.debug(f"Orchestrator context unavailable: {orch_err}")
+
+            # Prepend orchestrator context to the history so Wolf Brain is aware
+            if orchestrator_context:
+                history_for_loop.insert(0, {
+                    "role": "system",
+                    "content": orchestrator_context,
+                })
+
             # Run Wolf Brain as a task with keepalive heartbeats
             # Prevents mobile carrier NAT from dropping idle TCP connections
             processing_task = asyncio.create_task(wolf_brain.process_turn(

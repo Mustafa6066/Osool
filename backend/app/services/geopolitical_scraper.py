@@ -66,6 +66,17 @@ RSS_SOURCES: List[Dict[str, str]] = [
         "url": "https://blogs.worldbank.org/en/rss.xml",
         "region": "egypt",
     },
+    # ── Arabic-language sources ──
+    {
+        "name": "Enterprise Press - Egypt",
+        "url": "https://enterprise.press/feed/",
+        "region": "egypt",
+    },
+    {
+        "name": "Al-Borsa News - Egypt Economy",
+        "url": "https://www.alborsanews.com/feed/",
+        "region": "egypt",
+    },
 ]
 
 
@@ -118,7 +129,10 @@ RELEVANCE_KEYWORDS: Dict[str, List[str]] = {
     "regulation": [
         "real estate law", "property law", "building regulation",
         "urban development", "new capital", "new cities",
+        "registration", "tabu", "licensing",
         "قانون العقارات", "التنظيم العقاري", "المدن الجديدة", "العاصمة الإدارية",
+        "الشهر العقاري", "التراخيص", "هيئة المجتمعات العمرانية",
+        "اشتراطات البناء", "قانون التصالح",
     ],
 }
 
@@ -364,8 +378,12 @@ Respond in JSON format:
 {{
   "summary": "2-3 sentence summary of the event focused on economic/market impact",
   "real_estate_impact": "2-3 sentence analysis of how this specifically affects Egyptian real estate (prices, construction costs, demand, foreign investment, payment strategies)",
+  "sentiment_score": 0.0,
   "impact_tags": ["tag1", "tag2", "tag3"]
 }}
+
+sentiment_score is a float from -1.0 (very negative for Egyptian RE market) to +1.0 (very positive).
+Examples: currency devaluation = -0.7, new metro line = +0.5, stable inflation = +0.2
 
 Valid tags: inflation_hedge, construction_costs, currency_devaluation, supply_chain, 
 interest_rates, mortgage_affordability, foreign_investment, demand_increase, 
@@ -526,6 +544,13 @@ async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> 
                 expires_at = datetime.now(timezone.utc) + timedelta(days=expiry_days.get(impact_level, 14))
 
                 # Create and store the event
+                # Parse sentiment from LLM (default 0.0 for rule-based)
+                raw_sentiment = summary_data.get("sentiment_score", 0.0)
+                try:
+                    sentiment = max(-1.0, min(1.0, float(raw_sentiment)))
+                except (TypeError, ValueError):
+                    sentiment = 0.0
+
                 event = GeopoliticalEvent(
                     title=article["title"][:300],
                     summary=summary_data.get("summary", article.get("description", ""))[:2000],
@@ -537,6 +562,7 @@ async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> 
                     impact_level=impact_level,
                     impact_tags=tags_json,
                     real_estate_impact=summary_data.get("real_estate_impact", "")[:2000],
+                    sentiment_score=sentiment,
                     is_active=True,
                     expires_at=expires_at,
                 )

@@ -86,6 +86,31 @@ SENTRY_DSN=
 LOG_LEVEL=info
 
 # ─────────────────────────────────────────────────────────────
+# SCRAPER HARDENING
+# ─────────────────────────────────────────────────────────────
+# Comma-separated proxy URLs for Nawy scraper rotation
+# Format: http://user:pass@host:port,socks5://host:port
+PROXY_LIST=
+
+# FRED API key for economic data fallback (free: https://fred.stlouisfed.org/docs/api/)
+FRED_API_KEY=
+
+# S3-compatible storage for image mirroring
+S3_ENDPOINT=
+S3_BUCKET=osool-images
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+S3_REGION=auto
+
+# ─────────────────────────────────────────────────────────────
+# DUAL ENGINE INTEGRATION (Orchestrator webhook)
+# ─────────────────────────────────────────────────────────────
+# URL of the Orchestrator API (Railway service URL)
+ORCHESTRATOR_URL=
+# Shared webhook secret (must match Orchestrator's WEBHOOK_SECRET)
+WEBHOOK_SECRET=
+
+# ─────────────────────────────────────────────────────────────
 # OPTIONAL: BLOCKCHAIN (For future phases)
 # ─────────────────────────────────────────────────────────────
 # For Phase 1, blockchain is optional

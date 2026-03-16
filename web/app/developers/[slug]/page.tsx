@@ -1,11 +1,15 @@
 import { getDeveloper, getDeveloperProjects } from '@/lib/seo-api';
 import { developerJsonLd } from '@/lib/json-ld';
+import { getEnrichedSEO } from '@/lib/seo-content';
+import { EnrichedBody } from '@/components/seo/EnrichedContent';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AppShell from '@/components/nav/AppShell';
 import { developerBrief } from '@/lib/decision-support';
 import { T } from '@/components/T';
+
+export const revalidate = 3600; // ISR: 1 hour
 
 const fmt = (n: number) => n.toLocaleString('en-EG');
 
@@ -49,6 +53,9 @@ export default async function DeveloperPage({ params }: Props) {
   } catch {
     notFound();
   }
+
+  // Fetch AI-generated enriched content from Orchestrator (non-blocking)
+  const enrichedContent = await getEnrichedSEO('developer_profile', slug).catch(() => null);
 
   const brief = developerBrief(dev);
 
@@ -148,6 +155,11 @@ export default async function DeveloperPage({ params }: Props) {
             </Link>
           ))}
         </div>
+
+        {/* Orchestrator AI-Generated Developer Profile */}
+        {enrichedContent && (
+          <EnrichedBody content={enrichedContent} />
+        )}
 
         {/* Compare CTA */}
         <div className="mt-12 p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-center">

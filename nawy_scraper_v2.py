@@ -26,6 +26,7 @@ import sys
 import re
 import asyncio
 import hashlib
+import uuid
 from datetime import datetime, timezone
 from typing import Optional, Dict, List
 from playwright.sync_api import sync_playwright
@@ -90,6 +91,24 @@ LOCATION_NORMALIZE = {
     "katameya": "New Cairo",
     "palm hills": "New Cairo",
 }
+
+# ═══════════════════════════════════════════════════════════════
+# PROXY POOL (env: PROXY_LIST=http://u:p@host:port,socks5://...)
+# ═══════════════════════════════════════════════════════════════
+
+_PROXY_LIST: List[str] = []
+_proxy_raw = os.getenv("PROXY_LIST", "").strip()
+if _proxy_raw:
+    _PROXY_LIST = [p.strip() for p in _proxy_raw.split(",") if p.strip()]
+    print(f"\U0001f310 Loaded {len(_PROXY_LIST)} proxies for rotation")
+
+def _get_proxy(index: int) -> Optional[Dict[str, str]]:
+    """Return Playwright-compatible proxy dict for a given compound index, cycling through the pool."""
+    if not _PROXY_LIST:
+        return None
+    proxy_url = _PROXY_LIST[index % len(_PROXY_LIST)]
+    return {"server": proxy_url}
+
 
 # ═══════════════════════════════════════════════════════════════
 # PROPERTY TYPE DETECTION
@@ -379,7 +398,8 @@ def upsert_property_to_db(prop_data: Dict, engine=None):
                             is_nawy_now = :is_nawy_now,
                             scraped_at = :scraped_at,
                             embedding = :embedding,
-                            is_available = true
+                            is_available = true,
+                            last_scrape_run_id = :last_scrape_run_id
                         WHERE id = :id
                     """),
                     _build_upsert_params(prop_data, title, price_per_sqm, embedding, existing[0])
@@ -393,13 +413,13 @@ def upsert_property_to_db(prop_data: Dict, engine=None):
                             size_sqm, bedrooms, bathrooms, finishing, delivery_date,
                             monthly_installment, installment_years, sale_type, nawy_url,
                             is_delivered, is_cash_only, land_area, nawy_reference, is_nawy_now,
-                            scraped_at, embedding, is_available
+                            scraped_at, embedding, is_available, last_scrape_run_id
                         ) VALUES (
                             :title, :description, :type, :location, :compound, :price, :price_per_sqm,
                             :size_sqm, :bedrooms, :bathrooms, :finishing, :delivery_date,
                             :monthly_installment, :installment_years, :sale_type, :nawy_url,
                             :is_delivered, :is_cash_only, :land_area, :nawy_reference, :is_nawy_now,
-                            :scraped_at, :embedding, true
+                            :scraped_at, :embedding, true, :last_scrape_run_id
                         )
                     """),
                     _build_upsert_params(prop_data, title, price_per_sqm, embedding)
@@ -438,6 +458,7 @@ def _build_upsert_params(prop: Dict, title: str, price_per_sqm: float,
         "is_nawy_now": prop.get('is_nawy_now', False),
         "scraped_at": prop.get('scraped_at', datetime.now(timezone.utc).isoformat()),
         "embedding": str(embedding) if embedding else None,
+        "last_scrape_run_id": prop.get('scrape_run_id', ''),
     }
     if existing_id is not None:
         params["id"] = existing_id
@@ -482,7 +503,7 @@ def _click_tab(page, tab_name: str) -> bool:
     return False
 
 
-def _scrape_paginated(page, compound_name: str, sale_type: str, engine=None) -> int:
+def _scrape_paginated(page, compound_name: str, sale_type: str, engine=None, scrape_run_id: str = "") -> int:
     """
     Scrape all pages of the current tab.
     Returns count of properties processed.
@@ -502,6 +523,7 @@ def _scrape_paginated(page, compound_name: str, sale_type: str, engine=None) -> 
             
             parsed = parse_property_text(card['text'], card['url'], compound_name, sale_type)
             if parsed:
+                parsed['scrape_run_id'] = scrape_run_id
                 upsert_property_to_db(parsed, engine)
                 batch_count += 1
         
@@ -535,7 +557,7 @@ def _scrape_paginated(page, compound_name: str, sale_type: str, engine=None) -> 
     return total
 
 
-def scrape_compound_properties(page, compound_url: str, compound_name: str, engine=None) -> int:
+def scrape_compound_properties(page, compound_url: str, compound_name: str, engine=None, scrape_run_id: str = "") -> int:
     """
     Scrape a compound page, explicitly hitting each sale-type tab.
     Order: Resale → Developer Sale → Nawy Now
@@ -557,7 +579,7 @@ def scrape_compound_properties(page, compound_url: str, compound_name: str, engi
         print("    🏷️ [Resale] tab...", flush=True)
         if _click_tab(page, "Resale"):
             time.sleep(2)
-            count = _scrape_paginated(page, compound_name, "Resale", engine)
+            count = _scrape_paginated(page, compound_name, "Resale", engine, scrape_run_id)
             total += count
             print(f"    ✅ Resale: {count} properties", flush=True)
         else:
@@ -567,20 +589,20 @@ def scrape_compound_properties(page, compound_url: str, compound_name: str, engi
         print("    🏗️ [Developer Sale] tab...", flush=True)
         if _click_tab(page, "Developer Sale"):
             time.sleep(2)
-            count = _scrape_paginated(page, compound_name, "Developer", engine)
+            count = _scrape_paginated(page, compound_name, "Developer", engine, scrape_run_id)
             total += count
             print(f"    ✅ Developer: {count} properties", flush=True)
         else:
             # If no tab, scrape whatever is on the page as Developer
             print("    ⚠️ No Developer Sale tab, scraping default view...", flush=True)
-            count = _scrape_paginated(page, compound_name, "Developer", engine)
+            count = _scrape_paginated(page, compound_name, "Developer", engine, scrape_run_id)
             total += count
         
         # ── 3. Nawy Now Tab ──
         print("    🚀 [Nawy Now] tab...", flush=True)
         if _click_tab(page, "Nawy Now"):
             time.sleep(2)
-            count = _scrape_paginated(page, compound_name, "Nawy Now", engine)
+            count = _scrape_paginated(page, compound_name, "Nawy Now", engine, scrape_run_id)
             total += count
             print(f"    ✅ Nawy Now: {count} properties", flush=True)
         else:
@@ -644,7 +666,7 @@ def scrape_detail_page(page, url: str) -> Optional[Dict]:
 # NAWY NOW PAGE SCRAPER (/nawy-now)
 # ═══════════════════════════════════════════════════════════════
 
-def scrape_nawy_now_page(page, engine=None) -> int:
+def scrape_nawy_now_page(page, engine=None, scrape_run_id: str = "") -> int:
     """
     Scrape the standalone /nawy-now page.
     These are ready-to-move-in properties with Nawy's own mortgage,
@@ -687,6 +709,7 @@ def scrape_nawy_now_page(page, engine=None) -> int:
                 if parsed:
                     parsed['is_nawy_now'] = True
                     parsed['is_delivered'] = True  # Nawy Now = always delivered
+                    parsed['scrape_run_id'] = scrape_run_id
                     upsert_property_to_db(parsed, engine)
                     batch += 1
             
@@ -732,6 +755,9 @@ def scrape_nawy_now_page(page, engine=None) -> int:
 # ═══════════════════════════════════════════════════════════════
 
 def main():
+    # ── Generate unique scrape run ID ──
+    scrape_run_id = str(uuid.uuid4())
+
     # ── Load compound URLs ──
     urls_file = os.path.join(BASE_DIR, "nawy_compound_urls.json")
     if not os.path.exists(urls_file):
@@ -742,9 +768,11 @@ def main():
         urls = json.load(f)
     
     print(f"🚀 Nawy Scraper v2 — Resale + Developer + Nawy Now", flush=True)
+    print(f"   Run ID: {scrape_run_id}", flush=True)
     print(f"   Compounds to scrape: {len(urls)}", flush=True)
     print(f"   Embedding model: {EMBEDDING_MODEL}", flush=True)
     print(f"   Database: {'Connected' if DATABASE_URL else 'NOT CONFIGURED'}", flush=True)
+    print(f"   Proxies: {len(_PROXY_LIST) if _PROXY_LIST else 'None (direct)'}", flush=True)
     
     # ── Init DB engine ──
     engine = get_db_engine()
@@ -755,12 +783,22 @@ def main():
     total_nawy_now = 0
     failed_compounds = []
     
+    BATCH_SIZE = 10  # Rotate proxy every N compounds
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-            viewport={"width": 1440, "height": 900}
-        )
+
+        def _new_context(proxy_index: int):
+            proxy = _get_proxy(proxy_index)
+            ctx_kwargs = {
+                "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                "viewport": {"width": 1440, "height": 900},
+            }
+            if proxy:
+                ctx_kwargs["proxy"] = proxy
+            return browser.new_context(**ctx_kwargs)
+
+        context = _new_context(0)
         page = context.new_page()
         
         # ── 1. Scrape all compounds (full list, not limited to 3) ──
@@ -769,22 +807,26 @@ def main():
             print(f"\n[{i+1}/{len(urls)}] {name}", flush=True)
             
             try:
-                count = scrape_compound_properties(page, url, name, engine)
+                count = scrape_compound_properties(page, url, name, engine, scrape_run_id)
                 total_processed += count
             except Exception as e:
                 print(f"  ❌ Failed {name}: {e}", flush=True)
                 failed_compounds.append(name)
             
-            # Brief pause between compounds to avoid rate limiting
-            if (i + 1) % 10 == 0:
-                print(f"\n  ⏸️ Pause (rate limit)...", flush=True)
+            # Rotate proxy + pause every BATCH_SIZE compounds
+            if (i + 1) % BATCH_SIZE == 0 and (i + 1) < len(urls):
+                print(f"\n  🔄 Rotating proxy context (batch {(i+1)//BATCH_SIZE})...", flush=True)
+                context.close()
                 time.sleep(5)
+                context = _new_context((i + 1) // BATCH_SIZE)
+                page = context.new_page()
         
         # ── 2. Scrape standalone Nawy Now page ──
-        nawy_now_count = scrape_nawy_now_page(page, engine)
+        nawy_now_count = scrape_nawy_now_page(page, engine, scrape_run_id)
         total_nawy_now += nawy_now_count
         total_processed += nawy_now_count
         
+        context.close()
         browser.close()
     
     # ── Summary ──
@@ -800,6 +842,7 @@ def main():
     # ── Save to JSON backup ──
     summary = {
         "scrape_date": datetime.now(timezone.utc).isoformat(),
+        "scrape_run_id": scrape_run_id,
         "total_compounds": len(urls),
         "total_properties": total_processed,
         "failed_compounds": failed_compounds,
@@ -809,6 +852,20 @@ def main():
     os.makedirs(os.path.dirname(summary_file), exist_ok=True)
     with open(summary_file, 'w') as f:
         json.dump(summary, f, indent=2)
+
+    # ── Register run ID in Redis for stale cleanup ──
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        try:
+            import redis
+            r = redis.from_url(redis_url)
+            prev = r.get("scraper:run_id:current")
+            if prev:
+                r.set("scraper:run_id:previous", prev, ex=604800)
+            r.set("scraper:run_id:current", scrape_run_id, ex=604800)
+            print(f"   📌 Run ID registered in Redis: {scrape_run_id[:8]}...", flush=True)
+        except Exception as e:
+            print(f"   ⚠️ Redis run ID registration failed: {e}", flush=True)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ import {
   User as UserIcon,
   Users,
   Zap,
+  FileText,
 } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,8 +38,12 @@ import {
   getTicketStats,
   triggerEconomicScraper,
   triggerPropertyScraper,
+  updateAdminMarketIndicator,
   updateTicketStatus,
   updateUserRole,
+  getMarketingMaterials,
+  generateMarketingMaterials,
+  type MarketingMaterial,
   type AdminConversation,
   type AdminDashboardData,
   type AdminMessage,
@@ -48,7 +53,7 @@ import {
   type TicketStats,
 } from '@/lib/api';
 
-type Tab = 'overview' | 'conversations' | 'users' | 'tickets' | 'scrapers';
+type Tab = 'overview' | 'conversations' | 'users' | 'tickets' | 'scrapers' | 'marketing';
 
 type ConversationDetail = {
   session_id: string;
@@ -70,6 +75,7 @@ const TABS: Array<{ key: Tab; label: string; icon: typeof Shield }> = [
   { key: 'users', label: 'Users', icon: Users },
   { key: 'tickets', label: 'Tickets', icon: TicketIcon },
   { key: 'scrapers', label: 'Scrapers and data', icon: Database },
+  { key: 'marketing', label: 'Marketing Content', icon: FileText },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -96,6 +102,9 @@ export default function AdminPage() {
   const [conversations, setConversations] = useState<AdminConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
   const [indicators, setIndicators] = useState<MarketIndicator[]>([]);
+  const [marketingMaterials, setMarketingMaterials] = useState<MarketingMaterial[]>([]);
+  const [editingIndicator, setEditingIndicator] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const [adminTickets, setAdminTickets] = useState<AdminTicket[]>([]);
   const [ticketStats, setTicketStats] = useState<TicketStats | null>(null);
@@ -145,6 +154,11 @@ export default function AdminPage() {
         case 'scrapers': {
           const data = await getAdminMarketIndicators();
           setIndicators((data.indicators || []) as MarketIndicator[]);
+          break;
+        }
+        case 'marketing': {
+          const data = await getMarketingMaterials();
+          setMarketingMaterials(data.materials || []);
           break;
         }
       }
@@ -816,15 +830,52 @@ export default function AdminPage() {
                       <th className="px-3 py-3 font-medium">Value</th>
                       <th className="px-3 py-3 font-medium">Source</th>
                       <th className="px-3 py-3 font-medium">Updated</th>
+                      <th className="px-3 py-3 font-medium w-20"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {indicators.map((indicator: MarketIndicator) => (
                       <tr key={indicator.key} className="border-t border-[var(--color-border)]">
                         <td className="px-3 py-3 font-medium text-[var(--color-text-primary)]">{indicator.key.replace(/_/g, ' ')}</td>
-                        <td className="px-3 py-3 font-mono text-[var(--color-text-primary)]">{indicator.value < 1 ? `${(indicator.value * 100).toFixed(1)}%` : indicator.value.toLocaleString()}</td>
+                        <td className="px-3 py-3 font-mono text-[var(--color-text-primary)]">
+                          {editingIndicator === indicator.key ? (
+                            <input
+                              type="number"
+                              step="any"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={async (e) => {
+                                if (e.key === 'Enter') {
+                                  const numVal = parseFloat(editValue);
+                                  if (!isNaN(numVal)) {
+                                    try {
+                                      await updateAdminMarketIndicator(indicator.key, numVal);
+                                      setIndicators(prev => prev.map(ind => ind.key === indicator.key ? { ...ind, value: numVal, source: 'Admin Override', last_updated: new Date().toISOString() } : ind));
+                                    } catch { /* ignore */ }
+                                  }
+                                  setEditingIndicator(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingIndicator(null);
+                                }
+                              }}
+                              className="w-28 rounded border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1 text-sm font-mono"
+                              autoFocus
+                            />
+                          ) : (
+                            indicator.value < 1 ? `${(indicator.value * 100).toFixed(1)}%` : indicator.value.toLocaleString()
+                          )}
+                        </td>
                         <td className="px-3 py-3 text-xs text-[var(--color-text-muted)]">{indicator.source}</td>
                         <td className="px-3 py-3 text-xs text-[var(--color-text-muted)]">{indicator.last_updated ? new Date(indicator.last_updated).toLocaleDateString() : '-'}</td>
+                        <td className="px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() => { setEditingIndicator(indicator.key); setEditValue(String(indicator.value)); }}
+                            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] underline"
+                          >
+                            Edit
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -838,6 +889,64 @@ export default function AdminPage() {
           </section>
         </div>
       ) : null}
+
+      {activeTab === 'marketing' ? (
+        <div className="space-y-6">
+          <header className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">Marketing Answers</h2>
+              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">AI-generated answers for marketing & social media.</p>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await generateMarketingMaterials();
+                  alert('Background generation started. Check back later.');
+                } catch {
+                  alert('Failed to start generation');
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              <FileText className="h-4 w-4" />
+              Regenerate Content
+            </button>
+          </header>
+
+          <section className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 md:p-8">
+            {marketingMaterials.length > 0 ? (
+              <div className="space-y-6">
+                {marketingMaterials.map((mat) => (
+                  <div key={mat.id} className="rounded-2xl border border-[var(--color-border)] p-4 bg-[var(--color-background)]">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+                      {mat.category}
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <div className="font-medium text-sm text-[var(--color-text-secondary)]">Question (EN)</div>
+                        <p className="mb-2">{mat.question_en}</p>
+                        <div className="font-medium text-sm text-[var(--color-text-secondary)]">Answer (EN)</div>
+                        <p className="text-sm whitespace-pre-wrap">{mat.answer_en || 'Not generated yet'}</p>
+                      </div>
+                      <div dir="rtl">
+                        <div className="font-medium text-sm text-[var(--color-text-secondary)]">السؤال</div>
+                        <p className="mb-2">{mat.question_ar}</p>
+                        <div className="font-medium text-sm text-[var(--color-text-secondary)]">الإجابة</div>
+                        <p className="text-sm whitespace-pre-wrap">{mat.answer_ar || 'لم يتم الإنشاء بعد'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 rounded-[24px] border border-dashed border-[var(--color-border)] bg-[var(--color-background)] p-8 text-center text-sm text-[var(--color-text-secondary)]">
+                No marketing materials available. Please seed the database.
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
+
     </AdminShell>
   );
 }

@@ -1,10 +1,15 @@
 import { getArea, getAreaProjects, getAreaPriceHistory } from '@/lib/seo-api';
+import { areaJsonLd } from '@/lib/json-ld';
+import { getEnrichedSEO } from '@/lib/seo-content';
+import { EnrichedBody, LivePropertyCards } from '@/components/seo/EnrichedContent';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AppShell from '@/components/nav/AppShell';
 import { areaBrief, formatRate } from '@/lib/decision-support';
 import { T } from '@/components/T';
+
+export const revalidate = 3600; // ISR: 1 hour
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -36,11 +41,18 @@ export default async function AreaPage({ params }: Props) {
     notFound();
   }
 
+  // Fetch AI-generated enriched content from Orchestrator (non-blocking)
+  const enrichedContent = await getEnrichedSEO('location_guide', slug).catch(() => null);
+
   const brief = areaBrief(area);
 
   return (
     <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(areaJsonLd(area)) }}
+      />
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
           <Link href="/areas" className="hover:text-emerald-500"><T k="comparePage.areas" /></Link>
@@ -156,6 +168,16 @@ export default async function AreaPage({ params }: Props) {
             </Link>
           ))}
         </div>
+
+        {/* Orchestrator AI-Generated Area Guide */}
+        {enrichedContent && (
+          <EnrichedBody content={enrichedContent} />
+        )}
+
+        {/* Live Top-ROI Properties from Orchestrator */}
+        {enrichedContent?.liveData?.topROIProperties && (
+          <LivePropertyCards properties={enrichedContent.liveData.topROIProperties} />
+        )}
 
         <div className="rounded-[28px] border border-emerald-500/20 bg-emerald-500/10 p-6 text-center">
           <h3 className="text-lg font-semibold"><T k="areaPage.wantBest" /></h3>

@@ -7,6 +7,7 @@ Sources:
 - Trading Economics (scraping attempt for macro data)
 - Open Exchange Rates / CBE scraping (USD/EGP rate)
 - Gold price scraping
+- FRED API (Federal Reserve Economic Data — global macro fallback)
 - Manual fallback data (updated periodically by team)
 
 Stores data in the MarketIndicator table for use by the AI brain.
@@ -23,6 +24,7 @@ Indicators collected:
 
 import asyncio
 import logging
+import os
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -31,6 +33,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+FRED_API_KEY = os.getenv("FRED_API_KEY", "")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -223,6 +227,71 @@ async def scrape_gold_price() -> Optional[Dict]:
     return None
 
 
+# ═══════════════════════════════════════════════════════════════
+# FRED API FALLBACK (Federal Reserve Economic Data)
+# ═══════════════════════════════════════════════════════════════
+
+# FRED series IDs mapped to our indicator keys
+_FRED_SERIES = {
+    "FPCPITOTLZGEGY": "inflation_rate",      # Egypt CPI inflation (annual %)
+    "NGDP_RPCH_EGY": "gdp_growth_rate",      # Egypt real GDP growth
+    "GOLDAMGBD228NLBM": "_gold_usd_oz",      # Gold price USD/oz (needs conversion)
+}
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, max=8), reraise=True)
+async def _fetch_fred_indicators() -> Dict[str, Dict]:
+    """
+    Fetch Egypt-relevant indicators from FRED API.
+    Used as a secondary fallback when Trading Economics scraping fails.
+    Requires FRED_API_KEY env var (free at https://fred.stlouisfed.org/docs/api/).
+    """
+    if not FRED_API_KEY:
+        return {}
+
+    indicators = {}
+    timestamp = datetime.now().strftime("%b %Y")
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        for series_id, our_key in _FRED_SERIES.items():
+            try:
+                resp = await client.get(
+                    "https://api.stlouisfed.org/fred/series/observations",
+                    params={
+                        "series_id": series_id,
+                        "api_key": FRED_API_KEY,
+                        "file_type": "json",
+                        "sort_order": "desc",
+                        "limit": 1,
+                    },
+                )
+                if resp.status_code != 200:
+                    continue
+                obs = resp.json().get("observations", [])
+                if not obs or obs[0].get("value") == ".":
+                    continue
+                value = float(obs[0]["value"])
+
+                if our_key == "_gold_usd_oz":
+                    # Skip raw gold USD — we convert later if needed
+                    indicators["_gold_usd_oz"] = value
+                    continue
+
+                # Percentage series from FRED come as 13.6 meaning 13.6%
+                if our_key in ("inflation_rate", "gdp_growth_rate") and value > 1:
+                    value = value / 100.0
+
+                indicators[our_key] = {
+                    "value": round(value, 4),
+                    "source": f"FRED ({series_id}) {timestamp}",
+                }
+            except Exception as e:
+                logger.warning(f"FRED fetch for {series_id} failed: {e}")
+
+    logger.info(f"FRED API: fetched {len(indicators)} indicators")
+    return indicators
+
+
 async def update_market_indicators(db_session) -> Dict[str, any]:
     """
     Main entry point: scrape economic data + merge with fallback + store to DB.
@@ -241,10 +310,16 @@ async def update_market_indicators(db_session) -> Dict[str, any]:
             scrape_trading_economics(),
             scrape_gold_price(),
             scrape_usd_egp_rate(),
+            _fetch_fred_indicators(),
             return_exceptions=True,
         )
 
-        trading_econ, gold_price, usd_egp = results
+        trading_econ, gold_price, usd_egp, fred_data = results
+
+        # FRED is lowest priority (populated first, overridden by live scrapers)
+        if isinstance(fred_data, dict):
+            fred_data.pop("_gold_usd_oz", None)  # raw gold handled separately
+            scraped_data.update(fred_data)
 
         if isinstance(trading_econ, dict):
             scraped_data.update(trading_econ)

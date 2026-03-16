@@ -659,6 +659,12 @@ export const getAdminMarketIndicators = async () => {
   return data;
 };
 
+/** Update a single market indicator (admin) */
+export const updateAdminMarketIndicator = async (key: string, value: number, source?: string) => {
+  const { data } = await api.patch(`/api/admin/market-indicators/${encodeURIComponent(key)}`, { value, source });
+  return data;
+};
+
 
 // ═══════════════════════════════════════════════════════════════
 // TICKET SYSTEM API
@@ -806,6 +812,30 @@ export const assignTicket = async (id: number, adminId: number | null): Promise<
 /** Admin: reply to ticket as admin */
 export const addAdminTicketReply = async (ticketId: number, content: string): Promise<TicketReply> => {
   const { data } = await api.post(`/api/admin/tickets/${ticketId}/replies`, { content });
+  return data;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MARKETING MATERIALS API
+// ═══════════════════════════════════════════════════════════════
+export interface MarketingMaterial {
+  id: number;
+  category: string;
+  question_en: string;
+  question_ar: string;
+  answer_en: string | null;
+  answer_ar: string | null;
+  last_updated: string | null;
+  last_run_status: string | null;
+}
+
+export const getMarketingMaterials = async (): Promise<{ total: number; materials: MarketingMaterial[] }> => {
+  const { data } = await api.get('/api/admin/marketing-materials');
+  return data;
+};
+
+export const generateMarketingMaterials = async (): Promise<{ message: string }> => {
+  const { data } = await api.post('/api/admin/marketing-materials/generate');
   return data;
 };
 

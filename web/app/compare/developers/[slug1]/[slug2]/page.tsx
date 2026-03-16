@@ -7,6 +7,8 @@ import AppShell from '@/components/nav/AppShell';
 import { developerBrief, pickWinnerLabel } from '@/lib/decision-support';
 import { T } from '@/components/T';
 
+export const revalidate = 3600; // ISR: 1 hour
+
 interface Props {
   params: Promise<{ slug1: string; slug2: string }>;
 }

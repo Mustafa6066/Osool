@@ -63,6 +63,9 @@ from .proactive_insights import proactive_engine
 from .social_proof_engine import social_proof_engine, community_sell_engine
 from .fear_clock import fear_clock
 
+# Orchestrator integration
+from app.services.orchestrator_client import fetch_user_context, sync_user_memory
+
 
 # Database
 from app.database import AsyncSessionLocal
@@ -544,6 +547,29 @@ class WolfBrain:
             if db_memory:
                 memory.merge(db_memory)
                 logger.info("🧠 Cross-session memory loaded and merged")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # ORCHESTRATOR INTELLIGENCE: Enrich with cross-platform signals
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            orchestrator_context = None
+            if user_id:
+                try:
+                    orchestrator_context = await fetch_user_context(user_id)
+                    if orchestrator_context:
+                        # Enrich memory with orchestrator signals
+                        orch_areas = orchestrator_context.get("preferredAreas", [])
+                        orch_devs = orchestrator_context.get("preferredDevelopers", [])
+                        if orch_areas and not memory.preferred_areas:
+                            memory.preferred_areas = orch_areas
+                        if orch_devs and not memory.preferred_developers:
+                            memory.preferred_developers = orch_devs
+                        logger.info(
+                            f"🌐 Orchestrator context: tier={orchestrator_context.get('tier')}, "
+                            f"leadScore={orchestrator_context.get('leadScore')}, "
+                            f"signals={orchestrator_context.get('signalCount', 0)}"
+                        )
+                except Exception as e:
+                    logger.debug(f"Orchestrator context fetch skipped: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # V3 ENHANCEMENT: CROSS-SESSION INTELLIGENCE
@@ -1357,6 +1383,19 @@ class WolfBrain:
             
             await session.commit()
             logger.info(f"💾 User memory saved for user {user_id}")
+            
+            # Sync preferences to orchestrator (fire-and-forget)
+            try:
+                await sync_user_memory(
+                    user_id=user_id,
+                    budget_min=memory.budget_range.get('min') if memory.budget_range else None,
+                    budget_max=memory.budget_range.get('max') if memory.budget_range else None,
+                    preferred_areas=memory.preferred_areas or [],
+                    preferred_developers=memory.preferred_developers or [],
+                    preferences_text='; '.join(memory.preferences) if memory.preferences else None,
+                )
+            except Exception:
+                pass  # fire-and-forget, never block
         except Exception as e:
             logger.warning(f"Failed to save user memory for user {user_id}: {e}")
             try:
@@ -3335,6 +3374,26 @@ RULE 4: Anchor the price to the ROI: "You are not spending X, you are securing a
                 if hasattr(psychology, 'decision_stage'):
                     psy_cot += f"\nDECISION STAGE: {psychology.decision_stage.value}"
                 context_parts.append(psy_cot)
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # ORCHESTRATOR INTELLIGENCE INJECTION
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if orchestrator_context:
+                orch_parts = ["[ORCHESTRATOR_INTELLIGENCE]"]
+                tier = orchestrator_context.get("tier", "unknown")
+                lead_score = orchestrator_context.get("leadScore", 0)
+                orch_parts.append(f"Lead Tier: {tier} (score: {lead_score}/100)")
+                suggested = orchestrator_context.get("suggestedTopics", [])
+                if suggested:
+                    orch_parts.append(f"Suggested Topics: {', '.join(suggested)}")
+                intent_types = orchestrator_context.get("intentTypes", [])
+                if intent_types:
+                    orch_parts.append(f"Browsing Intent Signals: {', '.join(intent_types)}")
+                if tier == "hot":
+                    orch_parts.append("STRATEGY: This is a HOT lead — prioritize closing. Offer direct scheduling.")
+                elif tier == "warm":
+                    orch_parts.append("STRATEGY: WARM lead — build urgency, present best-fit options.")
+                context_parts.append("\n".join(orch_parts))
 
             # Build system prompt
             system_prompt = get_wolf_system_prompt() + "\n\n" + "\n".join(context_parts)

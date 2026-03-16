@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { trackSignup } from '@/lib/orchestrator';
+import { getAnonymousId } from '@/lib/session';
 import AppShell from '@/components/nav/AppShell';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -150,6 +152,15 @@ function SignupContent() {
             }
             localStorage.setItem('user_id', data.user_id);
             contextLogin(data.access_token, data.refresh_token, data.full_name || data.display_name);
+
+            // Notify orchestrator of signup
+            trackSignup({
+                email,
+                name: fullName,
+                source: invitationCode ? 'invitation' : 'direct',
+                anonymousId: getAnonymousId(),
+                userId: data.user_id,
+            });
 
             // Redirect to chat
             router.push('/chat');

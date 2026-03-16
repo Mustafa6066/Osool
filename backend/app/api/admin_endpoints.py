@@ -18,7 +18,9 @@ limiter = Limiter(key_func=get_remote_address)
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import User, ChatMessage, Property, Transaction, MarketIndicator, ConversationAnalytics, Ticket, TicketReply, GeopoliticalEvent
+from app.models import (User, ChatMessage, Property, Transaction, 
+                        MarketIndicator, ConversationAnalytics, 
+                        Ticket, TicketReply, GeopoliticalEvent, MarketingMaterial)
 
 logger = logging.getLogger(__name__)
 
@@ -554,6 +556,53 @@ async def admin_get_market_indicators(
     }
 
 
+class UpdateMarketIndicatorRequest(BaseModel):
+    """Validated market indicator update (e.g. parallel rate manual override)."""
+    value: float = Field(..., ge=0, le=1_000_000)
+    source: Optional[str] = Field(None, max_length=200)
+
+
+@router.patch("/market-indicators/{key}")
+@limiter.limit("10/minute")
+async def admin_update_market_indicator(
+    key: str,
+    body: UpdateMarketIndicatorRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Admin: Manually update a single market indicator (e.g. usd_egp_parallel).
+    Useful for values that can't be scraped (parallel market rate, etc.).
+    """
+    if not key.replace("_", "").isalnum() or len(key) > 100:
+        raise HTTPException(status_code=400, detail="Invalid indicator key")
+
+    result = await db.execute(
+        select(MarketIndicator).where(MarketIndicator.key == key)
+    )
+    indicator = result.scalar_one_or_none()
+
+    source = body.source or f"Admin Override ({admin.email})"
+
+    if indicator:
+        indicator.value = body.value
+        indicator.source = source
+    else:
+        indicator = MarketIndicator(key=key, value=body.value, source=source)
+        db.add(indicator)
+
+    await db.commit()
+    logger.info(f"Admin {admin.email} updated market indicator {key} = {body.value}")
+
+    return {
+        "key": key,
+        "value": body.value,
+        "source": source,
+        "updated_by": admin.email,
+    }
+
+
 # ═══════════════════════════════════════════════════════════════
 # ADMIN AUTH CHECK
 # ═══════════════════════════════════════════════════════════════
@@ -933,3 +982,45 @@ async def admin_get_geopolitical_events(
             for e in events
         ],
     }
+
+@router.get("/marketing-materials")
+async def get_marketing_materials(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    query = select(MarketingMaterial).order_by(MarketingMaterial.category, MarketingMaterial.id)
+    result = await db.execute(query)
+    materials = result.scalars().all()
+    
+    return {
+        "total": len(materials),
+        "materials": [
+            {
+                "id": m.id,
+                "category": m.category,
+                "question_en": m.question_en,
+                "question_ar": m.question_ar,
+                "answer_en": m.answer_en,
+                "answer_ar": m.answer_ar,
+                "last_updated": m.last_updated.isoformat() if m.last_updated else None,
+                "last_run_status": m.last_run_status
+            }
+            for m in materials
+        ]
+    }
+
+@router.post("/marketing-materials/generate")
+async def generate_marketing_materials_endpoint(
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    from app.services.marketing_generator import generate_marketing_answers
+    
+    # We will run this async in the background task
+    async def run_generation(db_session):
+        await generate_marketing_answers(db_session)
+    
+    background_tasks.add_task(run_generation, db)
+    
+    return {"message": "Marketing materials generation started in background."}
