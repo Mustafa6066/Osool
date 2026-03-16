@@ -27,12 +27,15 @@ async function handler(
   const path = pathSegments.join('/');
   const targetUrl = `${ORCHESTRATOR_URL}/data/${path}`;
 
+  if (!API_KEY) {
+    console.warn(`[Orchestrator] ORCHESTRATOR_API_KEY not set for ${path} — data proxy is disabled.`);
+    return NextResponse.json({ disabled: 'missing_orchestrator_api_key' }, { status: 202 });
+  }
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (API_KEY) {
-    headers['x-api-key'] = API_KEY;
-  }
+  headers['x-api-key'] = API_KEY;
 
   try {
     const fetchOpts: RequestInit = {
@@ -44,6 +47,13 @@ async function handler(
     }
 
     const response = await fetch(targetUrl, fetchOpts);
+
+    if (response.status === 401 || response.status === 403) {
+      const data = await response.text();
+      console.error(`[Orchestrator] Orchestrator rejected ${path} with ${response.status}. Check ORCHESTRATOR_API_KEY parity between Vercel and Orchestrator. Response: ${data}`);
+      return NextResponse.json({ disabled: 'orchestrator_auth_failed' }, { status: 202 });
+    }
+
     const data = await response.text();
 
     return new NextResponse(data, {

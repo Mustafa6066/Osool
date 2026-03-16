@@ -112,6 +112,7 @@ export default function AdminPage() {
   const [ticketStatusFilter, setTicketStatusFilter] = useState('');
   const [ticketReplyContent, setTicketReplyContent] = useState('');
   const [ticketReplying, setTicketReplying] = useState(false);
+  const [marketingGenerating, setMarketingGenerating] = useState(false);
 
   const [roleUpdating, setRoleUpdating] = useState<number | null>(null);
   const [blockUpdating, setBlockUpdating] = useState<number | null>(null);
@@ -119,7 +120,7 @@ export default function AdminPage() {
   const isSuperAdmin = user?.email?.toLowerCase() === 'mustafa@osool.eg';
 
   const loadTabData = useCallback(async () => {
-    if (authLoading || !isAuthenticated || loadingData) {
+    if (authLoading || !isAuthenticated) {
       return;
     }
 
@@ -168,7 +169,7 @@ export default function AdminPage() {
     } finally {
       setLoadingData(false);
     }
-  }, [activeTab, authLoading, isAuthenticated, loadingData, ticketStatusFilter]);
+  }, [activeTab, authLoading, isAuthenticated, ticketStatusFilter]);
 
   useEffect(() => {
     void loadTabData();
@@ -899,17 +900,27 @@ export default function AdminPage() {
             </div>
             <button
               onClick={async () => {
+                if (marketingGenerating) {
+                  return;
+                }
+
+                setMarketingGenerating(true);
                 try {
                   await generateMarketingMaterials();
-                  alert('Background generation started. Check back later.');
-                } catch {
-                  alert('Failed to start generation');
+                  setLoadError(null);
+                  await loadTabData();
+                } catch (error) {
+                  console.error(error);
+                  setLoadError('Failed to start marketing content generation.');
+                } finally {
+                  setMarketingGenerating(false);
                 }
               }}
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              disabled={marketingGenerating}
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
             >
-              <FileText className="h-4 w-4" />
-              Regenerate Content
+              {marketingGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {marketingGenerating ? 'Refreshing…' : 'Regenerate Content'}
             </button>
           </header>
 

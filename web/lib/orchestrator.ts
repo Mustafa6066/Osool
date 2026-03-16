@@ -265,8 +265,13 @@ async function fetchDataRoute<T>(path: string): Promise<T | null> {
         const res = await fetch(`/api/orchestrator-data${path}`, {
             headers: { 'Content-Type': 'application/json' },
         });
+        if (res.status === 202 || res.status === 204) return null;
         if (!res.ok) return null;
-        return (await res.json()) as T;
+        const data = (await res.json()) as T | { disabled?: string };
+        if (typeof data === 'object' && data !== null && 'disabled' in data) {
+            return null;
+        }
+        return data as T;
     } catch {
         return null;
     }
