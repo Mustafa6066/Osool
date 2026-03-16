@@ -136,6 +136,7 @@ async def ingest_to_postgres(properties: list):
         inserted = 0
         skipped = 0
         failed = 0
+        batch_pending = 0
 
         print(f"\n📊 Processing {len(properties)} properties...")
 
@@ -194,22 +195,28 @@ async def ingest_to_postgres(properties: list):
 
                 db.add(new_property)
                 inserted += 1
+                batch_pending += 1
 
                 # Progress update every 100 properties
                 if i % 100 == 0:
                     print(f"   [{i}/{len(properties)}] ✅ Inserted: {prop_id}")
 
                 # Commit in batches of 50 for performance
-                if i % 50 == 0:
+                if batch_pending >= 50:
                     await db.commit()
+                    batch_pending = 0
 
             except Exception as e:
                 print(f"   ❌ Error processing {prop.get('id', 'unknown')}: {e}")
                 failed += 1
+                # Rollback the failed transaction so subsequent queries work
+                await db.rollback()
+                batch_pending = 0
                 continue
 
-        # Final commit
-        await db.commit()
+        # Final commit for remaining batch
+        if batch_pending > 0:
+            await db.commit()
 
         # Summary
         print(f"\n📈 INGESTION SUMMARY:")

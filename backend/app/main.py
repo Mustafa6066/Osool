@@ -21,6 +21,8 @@ load_dotenv()
 # Logger
 logger = logging.getLogger("osool")
 logging.basicConfig(level=logging.INFO)
+# Silence SQLAlchemy SQL echo at INFO level (prevents Railway log flood)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 # Phase 5: Sentry Integration for Error Tracking
 SENTRY_DSN = os.getenv("SENTRY_DSN")

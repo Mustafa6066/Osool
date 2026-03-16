@@ -24,7 +24,7 @@ if not OPENAI_API_KEY:
 aclient = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # Setup DB
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 async def get_embedding(text: str):
