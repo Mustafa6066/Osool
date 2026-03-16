@@ -88,7 +88,10 @@ echo "Properties in database: ${PROPERTY_COUNT}"
 if [ "$PROPERTY_COUNT" -eq "0" ]; then
     echo -e "${YELLOW}Database is empty - running data ingestion...${NC}"
 
-    PROPERTIES_JSON="../data/properties.json"
+    PROPERTIES_JSON="data/properties.json"
+    if [ ! -f "$PROPERTIES_JSON" ]; then
+        PROPERTIES_JSON="../data/properties.json"
+    fi
     if [ -f "$PROPERTIES_JSON" ]; then
         echo "Found properties.json - ingesting data..."
         python ingest_data_postgres.py

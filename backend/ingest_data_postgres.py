@@ -25,7 +25,10 @@ from app.database import Base
 load_dotenv()
 
 # Configuration
-PROPERTIES_JSON_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "properties.json")
+# Try local data/ first (Docker context), then parent data/ (local dev)
+_local_path = os.path.join(os.path.dirname(__file__), "data", "properties.json")
+_parent_path = os.path.join(os.path.dirname(__file__), "..", "data", "properties.json")
+PROPERTIES_JSON_PATH = _local_path if os.path.exists(_local_path) else _parent_path
 DATABASE_URL = os.getenv("DATABASE_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
