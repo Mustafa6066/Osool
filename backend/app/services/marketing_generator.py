@@ -1,12 +1,10 @@
 import os
 import logging
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import MarketingMaterial
-from app.database import SessionLocal
 from datetime import datetime, timezone
 from openai import AsyncOpenAI
-from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -140,17 +138,29 @@ SEED_QUESTIONS = [
     }
 ]
 
-def ensure_seeded_questions(db: Session):
-    for q in SEED_QUESTIONS:
-        existing = db.execute(select(MarketingMaterial).where(MarketingMaterial.question_en == q["question_en"])).scalars().first()
-        if not existing:
-            new_mat = MarketingMaterial(
-                category=q["category"],
-                question_ar=q["question_ar"],
-                question_en=q["question_en"]
+async def ensure_seeded_questions(db: AsyncSession) -> int:
+    result = await db.execute(select(MarketingMaterial.question_en))
+    existing_questions = set(result.scalars().all())
+
+    created_count = 0
+    for question in SEED_QUESTIONS:
+        if question["question_en"] in existing_questions:
+            continue
+
+        db.add(
+            MarketingMaterial(
+                category=question["category"],
+                question_ar=question["question_ar"],
+                question_en=question["question_en"],
             )
-            db.add(new_mat)
-    db.commit()
+        )
+        existing_questions.add(question["question_en"])
+        created_count += 1
+
+    if created_count:
+        await db.commit()
+
+    return created_count
 
 async def generate_single_answer(question_en: str, question_ar: str, context_details: str) -> dict:
     prompt = f"""You are an expert real estate AI assistant for Osool, serving the Egyptian market. 
@@ -181,13 +191,14 @@ Return a JSON with exactly two keys: "answer_en" and "answer_ar"."""
         logger.error(f"Failed to generate answer for: {question_en}. Error: {e}")
         return {"answer_en": None, "answer_ar": None}
 
-async def generate_marketing_answers(db: Session):
-    ensure_seeded_questions(db)
+async def generate_marketing_answers(db: AsyncSession):
+    await ensure_seeded_questions(db)
     
     # Ideally gather context globally here
     market_context = "Current CBE Rate: 27.25%, USD/EGP Parallel: ~48, Inflation: trending down to ~25%."
     
-    questions = db.execute(select(MarketingMaterial)).scalars().all()
+    result = await db.execute(select(MarketingMaterial).order_by(MarketingMaterial.category, MarketingMaterial.id))
+    questions = result.scalars().all()
     
     updated_count = 0
     for q in questions:
@@ -201,6 +212,6 @@ async def generate_marketing_answers(db: Session):
         else:
             q.last_run_status = "FAILED"
     
-    db.commit()
+    await db.commit()
     logger.info(f"Generated {updated_count} answers for Marketing Materials.")
     return updated_count

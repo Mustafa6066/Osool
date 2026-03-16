@@ -17,7 +17,7 @@ import logging
 limiter = Limiter(key_func=get_remote_address)
 
 from app.auth import get_current_user
-from app.database import get_db
+from app.database import get_db, AsyncSessionLocal
 from app.models import (User, ChatMessage, Property, Transaction, 
                         MarketIndicator, ConversationAnalytics, 
                         Ticket, TicketReply, GeopoliticalEvent, MarketingMaterial)
@@ -988,6 +988,10 @@ async def get_marketing_materials(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
+    from app.services.marketing_generator import ensure_seeded_questions
+
+    await ensure_seeded_questions(db)
+
     query = select(MarketingMaterial).order_by(MarketingMaterial.category, MarketingMaterial.id)
     result = await db.execute(query)
     materials = result.scalars().all()
@@ -1012,15 +1016,14 @@ async def get_marketing_materials(
 @router.post("/marketing-materials/generate")
 async def generate_marketing_materials_endpoint(
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
     from app.services.marketing_generator import generate_marketing_answers
     
-    # We will run this async in the background task
-    async def run_generation(db_session):
-        await generate_marketing_answers(db_session)
+    async def run_generation():
+        async with AsyncSessionLocal() as db_session:
+            await generate_marketing_answers(db_session)
     
-    background_tasks.add_task(run_generation, db)
+    background_tasks.add_task(run_generation)
     
     return {"message": "Marketing materials generation started in background."}

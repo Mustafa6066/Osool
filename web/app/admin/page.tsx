@@ -391,7 +391,7 @@ export default function AdminPage() {
         </div>
       </section>
 
-      {loadingData && activeTab !== 'overview' ? (
+      {loadingData && activeTab !== 'overview' && activeTab !== 'marketing' ? (
         <div className="flex items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-16">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         </div>
@@ -925,7 +925,11 @@ export default function AdminPage() {
           </header>
 
           <section className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 md:p-8">
-            {marketingMaterials.length > 0 ? (
+            {loadingData && marketingMaterials.length === 0 ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+              </div>
+            ) : marketingMaterials.length > 0 ? (
               <div className="space-y-6">
                 {marketingMaterials.map((mat) => (
                   <div key={mat.id} className="rounded-2xl border border-[var(--color-border)] p-4 bg-[var(--color-background)]">
