@@ -45,14 +45,15 @@ CONSTRUCTION_COSTS = {
     "developer_margin_avg": 0.15,       # Developer margin ~15%
 }
 
-# Area price data (EGP per sqm, Dec 2025 Research)
-# "Cost-Push" Pricing Floor in effect
+# Area price data (EGP per sqm, Mar 2026 Market Snapshot)
+# SOURCE: Current market snapshot broken down by category and key projects
 AREA_PRICES = {
-    "New Cairo": 61550,      # Research: +157.3% Growth
-    "Sheikh Zayed": 64050,   # Research: +185.3% Growth
-    "New Capital": 45000,    # R7/R8 Resale avg
+    "New Cairo": 75000,      # Updated: range 38k-160k across projects; weighted avg ~75k
+    "Sheikh Zayed": 130000,  # Updated: range 90k-220k across projects; weighted avg ~130k
+    "New Capital": 58000,    # Updated: range 40k-67k across projects; avg ~58k
     "6th October": 47000,    # Research: +153.7%
-    "North Coast": 76150,    # Research: +209% YoY
+    "North Coast": 175000,   # Updated: Marassi 150k-250k+, MV Ras El Hekma 70k-95k; avg ~175k
+    "Red Sea": 100000,       # Updated: El Gouna 100k-180k, Makadi 32k-46k; blended ~100k
     "Maadi": 26950,         # Research: Stable/Mature
     "Zamalek": 64400,       # Comparison Benchmark
     "Ain Sokhna": 91200,    # Usage-based premium
@@ -82,19 +83,22 @@ AREA_GROWTH = {
 # ═══════════════════════════════════════════════════════════════
 AREA_PRICE_HISTORY = {
     "New Cairo": {
-        2021: 14000, 2022: 18500, 2023: 26000, 2024: 40000, 2025: 55000, 2026: 61550
+        2021: 14000, 2022: 18500, 2023: 26000, 2024: 40000, 2025: 55000, 2026: 75000
     },
     "Sheikh Zayed": {
-        2021: 13500, 2022: 17000, 2023: 24500, 2024: 38000, 2025: 56000, 2026: 64050
+        2021: 13500, 2022: 17000, 2023: 24500, 2024: 38000, 2025: 56000, 2026: 130000
     },
     "New Capital": {
-        2021: 20000, 2022: 24000, 2023: 30000, 2024: 36000, 2025: 42000, 2026: 45000
+        2021: 20000, 2022: 24000, 2023: 30000, 2024: 40000, 2025: 50000, 2026: 58000
     },
     "6th October": {
         2021: 10000, 2022: 13000, 2023: 18000, 2024: 28000, 2025: 40000, 2026: 47000
     },
     "North Coast": {
-        2021: 15000, 2022: 20000, 2023: 30000, 2024: 50000, 2025: 68000, 2026: 76150
+        2021: 15000, 2022: 20000, 2023: 35000, 2024: 65000, 2025: 120000, 2026: 175000
+    },
+    "Red Sea": {
+        2021: 12000, 2022: 16000, 2023: 26000, 2024: 55000, 2025: 82000, 2026: 100000
     },
     "Maadi": {
         2021: 18000, 2022: 20000, 2023: 22000, 2024: 25000, 2025: 26950, 2026: 31000
@@ -111,31 +115,137 @@ AREA_PRICE_HISTORY = {
 }
 
 # Developer-specific price history (per sqm, finished units)
+# SOURCE: Mar 2026 Market Snapshot — Key Projects by Category
 DEVELOPER_PRICE_HISTORY = {
+    # ── East Cairo (New Cairo & Mostakbal City) ──────────────────
     "Emaar (Mivida)": {
         "area": "New Cairo",
         "type": "apartment",
-        2021: 25000, 2022: 35000, 2023: 48000, 2024: 65000, 2025: 90000, 2026: 95000,
+        "market_notes": "Heavy premium on resale; units are fully finished.",
+        "price_min": 110000, "price_max": 160000,
+        2021: 25000, 2022: 35000, 2023: 48000, 2024: 65000, 2025: 95000, 2026: 135000,
     },
-    "SODIC (Eastown)": {
+    "Marakez (District 5 & 6)": {
+        "area": "New Cairo",
+        "type": "mixed",
+        "market_notes": "High demand for premium commercial/residential mix.",
+        "price_min": 85000, "price_max": 115000,
+        2021: 18000, 2022: 25000, 2023: 38000, 2024: 58000, 2025: 80000, 2026: 100000,
+    },
+    "SODIC (Villette / Eastown)": {
         "area": "New Cairo",
         "type": "apartment",
-        2021: 18000, 2022: 24000, 2023: 35000, 2024: 50000, 2025: 68000, 2026: 73500,
+        "market_notes": "Established, high-end signature communities.",
+        "price_min": 80000, "price_max": 120000,
+        2021: 18000, 2022: 24000, 2023: 35000, 2024: 50000, 2025: 72000, 2026: 100000,
     },
-    "Palm Hills (PHNC)": {
+    "Mountain View (iCity New Cairo)": {
         "area": "New Cairo",
         "type": "apartment",
-        2021: 22000, 2022: 30000, 2023: 42000, 2024: 58000, 2025: 75000, 2026: 81000,
+        "market_notes": "Family-focused with flexible, long-term payment plans.",
+        "price_min": 40000, "price_max": 55000,
+        2021: 15000, 2022: 22000, 2023: 30000, 2024: 38000, 2025: 45000, 2026: 47500,
     },
-    "Mountain View (iCity)": {
+    "Palm Hills (Palm Hills New Cairo)": {
         "area": "New Cairo",
         "type": "apartment",
-        2021: 15000, 2022: 22000, 2023: 32000, 2024: 45000, 2025: 58000, 2026: 55000,
+        "market_notes": "Predominantly core and shell or semi-finished units.",
+        "price_min": 40000, "price_max": 50000,
+        2021: 22000, 2022: 30000, 2023: 38000, 2024: 42000, 2025: 44000, 2026: 45000,
     },
+    "Madinet Masr (Taj City / Sarai)": {
+        "area": "New Cairo",
+        "type": "apartment",
+        "market_notes": "Large-scale master plans offering competitive entry points.",
+        "price_min": 38000, "price_max": 55000,
+        2021: 12000, 2022: 18000, 2023: 25000, 2024: 34000, 2025: 42000, 2026: 46500,
+    },
+    # ── West Cairo (Sheikh Zayed & New Zayed) ────────────────────
+    "Ora (Casa D'or Zayed)": {
+        "area": "Sheikh Zayed",
+        "type": "apartment",
+        "market_notes": "Ultra-luxury, branded residences (Armani).",
+        "price_min": 220000, "price_max": 220000,
+        2021: 45000, 2022: 65000, 2023: 90000, 2024: 140000, 2025: 195000, 2026: 220000,
+    },
+    "Ora (ZED West)": {
+        "area": "Sheikh Zayed",
+        "type": "apartment",
+        "market_notes": "Fully finished luxury apartments with park views.",
+        "price_min": 120000, "price_max": 160000,
+        2021: 25000, 2022: 38000, 2023: 58000, 2024: 85000, 2025: 120000, 2026: 140000,
+    },
+    "Emaar (Cairo Gate)": {
+        "area": "Sheikh Zayed",
+        "type": "apartment",
+        "market_notes": "Boutique, high-end compound targeting expats and upper-class.",
+        "price_min": 120000, "price_max": 150000,
+        2021: 28000, 2022: 40000, 2023: 60000, 2024: 88000, 2025: 118000, 2026: 135000,
+    },
+    "SODIC (The Estates / Karmell)": {
+        "area": "Sheikh Zayed",
+        "type": "apartment",
+        "market_notes": "High demand for signature villas and premium apartments.",
+        "price_min": 90000, "price_max": 130000,
+        2021: 20000, 2022: 30000, 2023: 48000, 2024: 72000, 2025: 95000, 2026: 110000,
+    },
+    # ── New Administrative Capital (NAC) ─────────────────────────
+    "City Edge (Jade Park / Al Maqsad)": {
+        "area": "New Capital",
+        "type": "apartment",
+        "market_notes": "Government-backed developer; strong ready-to-move options.",
+        "price_min": 53000, "price_max": 67000,
+        2021: 18000, 2022: 24000, 2023: 32000, 2024: 42000, 2025: 52000, 2026: 60000,
+    },
+    "TMG (Celia)": {
+        "area": "New Capital",
+        "type": "apartment",
+        "market_notes": "Integrated community highly sought after in the Green River zone.",
+        "price_min": 50000, "price_max": 65000,
+        2021: 17000, 2022: 22000, 2023: 30000, 2024: 40000, 2025: 50000, 2026: 57500,
+    },
+    "Sky Capital": {
+        "area": "New Capital",
+        "type": "apartment",
+        "market_notes": "Focuses heavily on high-end investors.",
+        "price_min": 40000, "price_max": 50000,
+        2021: 14000, 2022: 19000, 2023: 26000, 2024: 34000, 2025: 42000, 2026: 45000,
+    },
+    # ── Coastal Destinations (North Coast & Red Sea) ─────────────
+    "Emaar (Marassi / Soul)": {
+        "area": "North Coast",
+        "type": "chalet",
+        "market_notes": "The absolute peak of the North Coast luxury market.",
+        "price_min": 150000, "price_max": 250000,
+        2021: 25000, 2022: 38000, 2023: 65000, 2024: 110000, 2025: 170000, 2026: 200000,
+    },
+    "Orascom (El Gouna)": {
+        "area": "Red Sea",
+        "type": "chalet",
+        "market_notes": "Established resort town with a massive premium on water views.",
+        "price_min": 100000, "price_max": 180000,
+        2021: 18000, 2022: 28000, 2023: 48000, 2024: 78000, 2025: 118000, 2026: 140000,
+    },
+    "Mountain View (Ras El Hekma / Evia)": {
+        "area": "North Coast",
+        "type": "chalet",
+        "market_notes": "High demand for summer homes; rapid year-over-year appreciation.",
+        "price_min": 70000, "price_max": 95000,
+        2021: 15000, 2022: 22000, 2023: 38000, 2024: 58000, 2025: 72000, 2026: 82500,
+    },
+    "Orascom (Makadi Heights)": {
+        "area": "Red Sea",
+        "type": "chalet",
+        "market_notes": "High-yield, budget-friendly Red Sea investment.",
+        "price_min": 32000, "price_max": 46000,
+        2021: 8000, 2022: 12000, 2023: 20000, 2024: 28000, 2025: 36000, 2026: 39000,
+    },
+    # ── Legacy entries (kept for historical chart continuity) ────
     "Hyde Park": {
         "area": "New Cairo",
         "type": "apartment",
-        2021: 14000, 2022: 20000, 2023: 28000, 2024: 40000, 2025: 52000, 2026: 50000,
+        "price_min": 48000, "price_max": 62000,
+        2021: 14000, 2022: 20000, 2023: 28000, 2024: 40000, 2025: 52000, 2026: 55000,
     },
 }
 
@@ -145,7 +255,7 @@ DEVELOPER_PRICE_HISTORY = {
 AREA_BENCHMARKS = {
     "new cairo": {
         "ar_name": "التجمع الخامس",
-        "avg_price_sqm": 61550, 
+        "avg_price_sqm": 75000,
         "rental_yield": 0.0775, # 7.75% Research
         "growth_rate": 1.57,    # 157% YoY
         "property_minimums": {
@@ -154,38 +264,38 @@ AREA_BENCHMARKS = {
             "townhouse": 9_000_000,
             "duplex": 7_000_000,
         },
-        "tier1_developers": ["اعمار", "سوديك", "ماونتن ڤيو", "بالم هيلز", "هايد بارك"],
-        "tier2_developers": ["لافيستا", "تطوير مصر", "المقاصد"],
+        "tier1_developers": ["اعمار", "سوديك", "مراكز", "ماونتن ڤيو", "بالم هيلز", "هايد بارك"],
+        "tier2_developers": ["لافيستا", "تطوير مصر", "مدينت مصر"],
         "tier3_developers": ["كابيتال جروب", "السعودية المصرية"],
     },
     "sheikh zayed": {
         "ar_name": "الشيخ زايد",
-        "avg_price_sqm": 64050,
+        "avg_price_sqm": 130000,
         "rental_yield": 0.0687, # 6.87% Research
         "growth_rate": 1.85,    # 185% YoY
         "property_minimums": {
-            "apartment": 6_000_000,
-            "villa": 18_000_000,
-            "townhouse": 12_000_000,
-            "duplex": 8_000_000,
+            "apartment": 10_000_000,
+            "villa": 30_000_000,
+            "townhouse": 18_000_000,
+            "duplex": 14_000_000,
         },
-        "tier1_developers": ["سوديك", "أورا", "بالم هيلز", "إعمار"],
+        "tier1_developers": ["أورا", "سوديك", "إعمار", "ماونتن ڤيو", "بالم هيلز", "مراكز"],
         "tier2_developers": ["زيد ويست", "O ويست"],
         "tier3_developers": [],
     },
     "new capital": {
         "ar_name": "العاصمة الإدارية",
-        "avg_price_sqm": 45000,
+        "avg_price_sqm": 58000,
         "rental_yield": 0.05,
         "growth_rate": 0.25,
         "property_minimums": {
-            "apartment": 2_500_000, # R7 entry
-            "villa": 8_000_000,
-            "townhouse": 5_000_000,
-            "duplex": 4_000_000,
+            "apartment": 3_500_000, # R7 entry
+            "villa": 10_000_000,
+            "townhouse": 6_500_000,
+            "duplex": 5_000_000,
         },
-        "tier1_developers": ["المقاولون العرب", "المراسم"],
-        "tier2_developers": ["مصر إيطاليا", "بيتر هوم"],
+        "tier1_developers": ["سيتي إيدج", "TMG"],
+        "tier2_developers": ["مصر إيطاليا", "بيتر هوم", "سكاي كابيتال"],
         "tier3_developers": ["كابيتال جروب"],
     },
     "6th october": {
@@ -205,16 +315,30 @@ AREA_BENCHMARKS = {
     },
     "north coast": {
         "ar_name": "الساحل الشمالي",
-        "avg_price_sqm": 76150, # Updated
+        "avg_price_sqm": 175000, # Updated: Marassi 150k-250k+, MV Ras El Hekma 70k-95k
         "rental_yield": 0.10,   # High seasonal yield
         "growth_rate": 2.09,    # 209% YoY
         "property_minimums": {
-            "chalet": 7_000_000,
-            "villa": 25_000_000,
-            "townhouse": 15_000_000,
+            "chalet": 12_000_000,
+            "villa": 40_000_000,
+            "townhouse": 22_000_000,
         },
-        "tier1_developers": ["اعمار", "سوديك", "ماونتن ڤيو", "سيتي إيدج"],
-        "tier2_developers": ["لافيستا", "تطوير مصر"],
+        "tier1_developers": ["اعمار (ماراسي/سول)", "ماونتن ڤيو (رأس الحكمة/إيفيا)"],
+        "tier2_developers": ["لافيستا", "تطوير مصر", "سيتي إيدج"],
+        "tier3_developers": [],
+    },
+    "red sea": {
+        "ar_name": "البحر الأحمر",
+        "avg_price_sqm": 100000, # El Gouna 100k-180k, Makadi 32k-46k; blended avg
+        "rental_yield": 0.08,
+        "growth_rate": 1.50,
+        "property_minimums": {
+            "chalet": 5_000_000,
+            "villa": 20_000_000,
+            "townhouse": 10_000_000,
+        },
+        "tier1_developers": ["أوراسكوم (الجونة)"],
+        "tier2_developers": ["أوراسكوم (مكادي هايتس)"],
         "tier3_developers": [],
     },
     "maadi": {
@@ -242,90 +366,90 @@ MARKET_SEGMENTS = {
         "name_en": "New Cairo",
         "class_a": {
             "name_ar": "مطورين الفئة الأولى (Class A)",
-            "developers": ["إعمار (Emaar)", "سوديك (Sodic)", "مراكز (Marakez)", "المراسم (Al Marasem)", "ماونتن فيو (Mountain View)", "بالم هيلز (Palm Hills)"],
-            "developers_ar": ["إعمار", "سوديك", "مراكز", "المراسم", "ماونتن فيو", "بالم هيلز"],
-            "price_range_ar": "٦,٠٠٠,٠٠٠ - ٢٥,٠٠٠,٠٠٠",
-            "price_range_en": "6,000,000 - 25,000,000",
-            "avg_price": 12_000_000,
-            "avg_price_ar": "١٢ مليون",
-            "min_price": 6_000_000,  # Updated: was 13.5M, now 6M (Emaar 2BR starts at ~8M)
-            "max_price": 25_000_000,
+            "developers": ["إعمار/ميفيدا (Emaar/Mivida)", "سوديك/فيليت (SODIC/Villette)", "مراكز/ديستريكت 5-6 (Marakez)", "ماونتن فيو/iCity (Mountain View)", "بالم هيلز (Palm Hills)"],
+            "developers_ar": ["إعمار", "سوديك", "مراكز", "ماونتن فيو", "بالم هيلز"],
+            "price_range_ar": "٤٠,٠٠٠ - ١٦٠,٠٠٠ جنيه/م²",
+            "price_range_en": "40,000 - 160,000 EGP/sqm",
+            "avg_price": 15_000_000,
+            "avg_price_ar": "١٥ مليون",
+            "min_price": 7_000_000,
+            "max_price": 35_000_000,
         },
         "class_b": {
             "name_ar": "مطورين الفئة الثانية (Class B)",
-            "developers": ["هايد بارك (Hyde Park)", "صبور (Sabbour)", "تطوير مصر (Tatweer Misr)", "LMD"],
-            "developers_ar": ["هايد بارك", "صبور", "تطوير مصر", "LMD"],
-            "price_range_ar": "٤,٠٠٠,٠٠٠ - ١٠,٠٠٠,٠٠٠",
-            "price_range_en": "4,000,000 - 10,000,000",
-            "avg_price": 6_500_000,
-            "avg_price_ar": "٦.٥ مليون",
-            "min_price": 4_000_000,  # Updated: was 12M, now 4M (LMD One Ninety starts at 4.5M)
-            "max_price": 10_000_000,
+            "developers": ["مدينت مصر/تاج سيتي (Madinet Masr)", "هايد بارك (Hyde Park)", "تطوير مصر (Tatweer Misr)", "LMD"],
+            "developers_ar": ["مدينت مصر", "هايد بارك", "تطوير مصر", "LMD"],
+            "price_range_ar": "٣٨,٠٠٠ - ٥٥,٠٠٠ جنيه/م²",
+            "price_range_en": "38,000 - 55,000 EGP/sqm",
+            "avg_price": 7_000_000,
+            "avg_price_ar": "٧ مليون",
+            "min_price": 4_500_000,
+            "max_price": 12_000_000,
         },
-        "market_floor": 4_000_000,  # Updated: actual minimum in market (was 6M)
-        "market_floor_ar": "٤ مليون",
-        "market_ceiling": 15_000_000,
-        "market_ceiling_ar": "١٥ مليون",
+        "market_floor": 4_500_000,
+        "market_floor_ar": "٤.٥ مليون",
+        "market_ceiling": 35_000_000,
+        "market_ceiling_ar": "٣٥ مليون",
     },
     "sheikh_zayed": {
         "name_ar": "الشيخ زايد",
         "name_en": "Sheikh Zayed",
         "class_a": {
             "name_ar": "مطورين الفئة الأولى (Class A)",
-            "developers": ["أورا (Ora)", "سوديك (Sodic)", "إعمار (Belle Vie)", "ماونتن فيو (Mountain View)", "بالم هيلز (Palm Hills)", "مراكز (Marakez)"],
-            "developers_ar": ["أورا", "سوديك", "إعمار", "ماونتن فيو", "بالم هيلز", "مراكز"],
-            "price_range_ar": "١٥,٠٠٠,٠٠٠ - ٣٠,٠٠٠,٠٠٠",
-            "price_range_en": "15,000,000 - 30,000,000",
-            "avg_price": 20_000_000,
-            "avg_price_ar": "٢٠ مليون",
+            "developers": ["أورا/كاسا دور زايد (Ora/Casa D'or)", "أورا/ZED West (Ora)", "إعمار/كايرو جيت (Emaar/Cairo Gate)", "سوديك/إيستيتس-كارميل (SODIC)"],
+            "developers_ar": ["أورا", "إعمار", "سوديك"],
+            "price_range_ar": "٩٠,٠٠٠ - ٢٢٠,٠٠٠+ جنيه/م²",
+            "price_range_en": "90,000 - 220,000+ EGP/sqm",
+            "avg_price": 35_000_000,
+            "avg_price_ar": "٣٥ مليون",
             "min_price": 15_000_000,
-            "max_price": 30_000_000,
+            "max_price": 80_000_000,
         },
         "class_b": {
             "name_ar": "مطورين الفئة الثانية (Class B)",
             "developers": ["درة (Dorra)", "كونتيننتال (Continental)", "بدر الدين (Badr Eldin)", "ايوان (Iwan)"],
             "developers_ar": ["درة", "كونتيننتال", "بدر الدين", "ايوان"],
-            "price_range_ar": "٩,٠٠٠,٠٠٠ - ١٤,٠٠٠,٠٠٠",
-            "price_range_en": "9,000,000 - 14,000,000",
-            "avg_price": 11_500_000,
-            "avg_price_ar": "١١.٥ مليون",
-            "min_price": 9_000_000,
-            "max_price": 14_000_000,
+            "price_range_ar": "٤٠,٠٠٠ - ٧٠,٠٠٠ جنيه/م²",
+            "price_range_en": "40,000 - 70,000 EGP/sqm",
+            "avg_price": 14_000_000,
+            "avg_price_ar": "١٤ مليون",
+            "min_price": 10_000_000,
+            "max_price": 20_000_000,
         },
-        "market_floor": 8_000_000,
-        "market_floor_ar": "٨ مليون",
-        "market_ceiling": 22_000_000,
-        "market_ceiling_ar": "٢٢ مليون",
+        "market_floor": 10_000_000,
+        "market_floor_ar": "١٠ مليون",
+        "market_ceiling": 80_000_000,
+        "market_ceiling_ar": "٨٠ مليون",
     },
     "new_capital": {
         "name_ar": "العاصمة الإدارية",
         "name_en": "New Capital",
         "class_a": {
             "name_ar": "مطورين الفئة الأولى (Class A)",
-            "developers": ["المقاولون العرب", "المراسم", "سيتي إيدج"],
-            "developers_ar": ["المقاولون العرب", "المراسم", "سيتي إيدج"],
-            "price_range_ar": "٤,٠٠٠,٠٠٠ - ٧,٠٠٠,٠٠٠",
-            "price_range_en": "4,000,000 - 7,000,000",
-            "avg_price": 5_500_000,
-            "avg_price_ar": "٥.٥ مليون",
-            "min_price": 4_000_000,
-            "max_price": 7_000_000,
+            "developers": ["سيتي إيدج/جيد بارك (City Edge)", "TMG/سيليا (TMG/Celia)"],
+            "developers_ar": ["سيتي إيدج", "TMG"],
+            "price_range_ar": "٥٠,٠٠٠ - ٦٧,٠٠٠ جنيه/م²",
+            "price_range_en": "50,000 - 67,000 EGP/sqm",
+            "avg_price": 7_000_000,
+            "avg_price_ar": "٧ مليون",
+            "min_price": 5_000_000,
+            "max_price": 12_000_000,
         },
         "class_b": {
             "name_ar": "مطورين الفئة الثانية (Class B)",
-            "developers": ["مصر إيطاليا", "بيتر هوم", "كابيتال جروب"],
-            "developers_ar": ["مصر إيطاليا", "بيتر هوم", "كابيتال جروب"],
-            "price_range_ar": "١,٨٠٠,٠٠٠ - ٣,٥٠٠,٠٠٠",
-            "price_range_en": "1,800,000 - 3,500,000",
-            "avg_price": 2_500_000,
-            "avg_price_ar": "٢.٥ مليون",
-            "min_price": 1_800_000,
-            "max_price": 3_500_000,
+            "developers": ["سكاي كابيتال (Sky Capital)", "مصر إيطاليا", "بيتر هوم", "كابيتال جروب"],
+            "developers_ar": ["سكاي كابيتال", "مصر إيطاليا", "بيتر هوم", "كابيتال جروب"],
+            "price_range_ar": "٤٠,٠٠٠ - ٥٠,٠٠٠ جنيه/م²",
+            "price_range_en": "40,000 - 50,000 EGP/sqm",
+            "avg_price": 4_000_000,
+            "avg_price_ar": "٤ مليون",
+            "min_price": 2_800_000,
+            "max_price": 7_000_000,
         },
-        "market_floor": 1_800_000,
-        "market_floor_ar": "١.٨ مليون",
-        "market_ceiling": 7_000_000,
-        "market_ceiling_ar": "٧ مليون",
+        "market_floor": 2_800_000,
+        "market_floor_ar": "٢.٨ مليون",
+        "market_ceiling": 12_000_000,
+        "market_ceiling_ar": "١٢ مليون",
     },
 }
 
@@ -366,8 +490,8 @@ DEVELOPER_GRAPH = {
         "strength_ar": "أعلى قيمة إعادة بيع في السوق",
         "delivery_reliability": 95,  # 95% on-time delivery
         "resale_premium": 20,  # 20% above competitors
-        "avg_price_sqm": 85000,
-        "flagship_projects": ["Mivida", "Uptown Cairo", "Belle Vie"],
+        "avg_price_sqm": 135000,  # Mivida 110k-160k; Cairo Gate 120k-150k; Marassi 150k-250k+
+        "flagship_projects": ["Mivida", "Cairo Gate", "Marassi", "Soul North Coast"],
     },
     "sodic": {
         "tier": 1,
@@ -378,8 +502,8 @@ DEVELOPER_GRAPH = {
         "strength_ar": "إدارة المجتمع والـ Lifestyle",
         "delivery_reliability": 90,
         "resale_premium": 15,
-        "avg_price_sqm": 75000,
-        "flagship_projects": ["Allegria", "Eastown", "Villette", "The Estates"],
+        "avg_price_sqm": 100000,  # Villette/Eastown 80k-120k; The Estates/Karmell 90k-130k
+        "flagship_projects": ["Villette", "Eastown", "The Estates", "Karmell"],
     },
     "palm hills": {
         "tier": 1,
@@ -390,20 +514,20 @@ DEVELOPER_GRAPH = {
         "strength_ar": "مشاريع ضخمة متكاملة",
         "delivery_reliability": 88,
         "resale_premium": 12,
-        "avg_price_sqm": 68000,
-        "flagship_projects": ["Palm Hills October", "Palm Hills New Cairo", "Badya"],
+        "avg_price_sqm": 45000,  # Palm Hills New Cairo 40k-50k
+        "flagship_projects": ["Palm Hills New Cairo", "Palm Hills October", "Badya"],
     },
     "ora": {
         "tier": 1,
         "name_ar": "أورا",
         "name_en": "Ora Developers",
         "competitors": ["sodic", "emaar"],
-        "strength": "Premium Design & Finishing",
-        "strength_ar": "تصميم وتشطيب بريميوم",
+        "strength": "Ultra-Premium Design & Branded Residences",
+        "strength_ar": "تصميم فائق الجودة وشقق برندد",
         "delivery_reliability": 92,
         "resale_premium": 18,
-        "avg_price_sqm": 90000,
-        "flagship_projects": ["ZED East", "ZED West", "Silversands"],
+        "avg_price_sqm": 170000,  # Casa D'or ~220k; ZED West 120k-160k; blended avg
+        "flagship_projects": ["Casa D'or Zayed", "ZED West", "ZED East", "Silversands"],
     },
     "mountain view": {
         "tier": 1,
@@ -414,8 +538,8 @@ DEVELOPER_GRAPH = {
         "strength_ar": "بريميوم المجتمع والمساحات الخضراء",
         "delivery_reliability": 85,
         "resale_premium": 15,
-        "avg_price_sqm": 72000,
-        "flagship_projects": ["iCity", "Mountain View Ras El Hikma", "Lagoon Beach Park"],
+        "avg_price_sqm": 65000,  # iCity 40k-55k; Ras El Hekma/Evia 70k-95k; blended avg
+        "flagship_projects": ["iCity New Cairo", "Ras El Hekma", "Evia North Coast", "Lagoon Beach Park"],
     },
     "hyde park": {
         "tier": 2,
@@ -450,8 +574,56 @@ DEVELOPER_GRAPH = {
         "strength_ar": "شركة حكومية = ضمان التسليم",
         "delivery_reliability": 95,
         "resale_premium": 10,
-        "avg_price_sqm": 52000,
-        "flagship_projects": ["Etapa", "North Edge", "Mazarine"],
+        "avg_price_sqm": 60000,  # Jade Park/Al Maqsad 53k-67k
+        "flagship_projects": ["Jade Park", "Al Maqsad", "Etapa", "North Edge", "Mazarine"],
+    },
+    "tmg": {
+        "tier": 2,
+        "name_ar": "TMG القابضة",
+        "name_en": "TMG Holding",
+        "competitors": ["city edge", "al marasem"],
+        "strength": "Integrated Communities in New Capital",
+        "strength_ar": "مجتمعات متكاملة في العاصمة الإدارية",
+        "delivery_reliability": 85,
+        "resale_premium": 8,
+        "avg_price_sqm": 57500,  # Celia 50k-65k
+        "flagship_projects": ["Celia"],
+    },
+    "orascom": {
+        "tier": 1,
+        "name_ar": "أوراسكوم للتطوير",
+        "name_en": "Orascom Development",
+        "competitors": ["emaar", "mountain view"],
+        "strength": "Established Red Sea Resort Towns",
+        "strength_ar": "مدن منتجعات راسخة على البحر الأحمر",
+        "delivery_reliability": 88,
+        "resale_premium": 20,
+        "avg_price_sqm": 109000,  # El Gouna 100k-180k; Makadi 32k-46k; blended avg
+        "flagship_projects": ["El Gouna", "Makadi Heights", "O West"],
+    },
+    "madinet masr": {
+        "tier": 2,
+        "name_ar": "مدينت مصر",
+        "name_en": "Madinet Masr",
+        "competitors": ["hyde park", "tatweer misr"],
+        "strength": "Competitive Entry Points in Large Master Plans",
+        "strength_ar": "نقاط دخول تنافسية في مشاريع ضخمة",
+        "delivery_reliability": 80,
+        "resale_premium": 5,
+        "avg_price_sqm": 46500,  # Taj City/Sarai 38k-55k
+        "flagship_projects": ["Taj City", "Sarai"],
+    },
+    "marakez": {
+        "tier": 1,
+        "name_ar": "مراكز",
+        "name_en": "Marakez",
+        "competitors": ["emaar", "sodic"],
+        "strength": "Premium Commercial/Residential Mix",
+        "strength_ar": "تطوير تجاري-سكني متكامل فائق الجودة",
+        "delivery_reliability": 82,
+        "resale_premium": 12,
+        "avg_price_sqm": 100000,  # District 5 & 6: 85k-115k
+        "flagship_projects": ["District 5", "District 6"],
     },
     "taj misr": {
         "tier": 3,
@@ -463,7 +635,178 @@ DEVELOPER_GRAPH = {
         "delivery_reliability": 70,
         "resale_premium": 0,
         "avg_price_sqm": 35000,
-        "flagship_projects": ["Taj City", "De Joya"],
+        # Note: "Taj City" compound belongs to Madinet Masr (not Taj Misr).
+        # Taj Misr is a different, smaller developer known for De Joya in the New Capital.
+        "flagship_projects": ["De Joya"],
+    },
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# MARKET SNAPSHOT — Mar 2026 (by category and key projects)
+# SOURCE: Current market intelligence broken down by region.
+# Used by the AI to answer "What's the market like in X?" queries.
+# ═══════════════════════════════════════════════════════════════
+MARKET_SNAPSHOT = {
+    "east_cairo": {
+        "region_name": "East Cairo (New Cairo & Mostakbal City)",
+        "region_name_ar": "شرق القاهرة (التجمع الخامس ومستقبل سيتي)",
+        "overview": (
+            "East Cairo remains one of the most active markets, with a noticeable "
+            "premium on established, ready-to-move communities."
+        ),
+        "projects": [
+            {
+                "developer": "Emaar Misr",
+                "project": "Mivida",
+                "price_min_sqm": 110000,
+                "price_max_sqm": 160000,
+                "market_notes": "Heavy premium on resale; units are fully finished.",
+            },
+            {
+                "developer": "Marakez",
+                "project": "District 5 & District 6",
+                "price_min_sqm": 85000,
+                "price_max_sqm": 115000,
+                "market_notes": "High demand for premium commercial/residential mix.",
+            },
+            {
+                "developer": "SODIC",
+                "project": "Villette / Eastown",
+                "price_min_sqm": 80000,
+                "price_max_sqm": 120000,
+                "market_notes": "Established, high-end signature communities.",
+            },
+            {
+                "developer": "Mountain View",
+                "project": "iCity New Cairo",
+                "price_min_sqm": 40000,
+                "price_max_sqm": 55000,
+                "market_notes": "Family-focused with flexible, long-term payment plans.",
+            },
+            {
+                "developer": "Palm Hills",
+                "project": "Palm Hills New Cairo",
+                "price_min_sqm": 40000,
+                "price_max_sqm": 50000,
+                "market_notes": "Predominantly core and shell or semi-finished units.",
+            },
+            {
+                "developer": "Madinet Masr",
+                "project": "Taj City / Sarai",
+                "price_min_sqm": 38000,
+                "price_max_sqm": 55000,
+                "market_notes": "Large-scale master plans offering competitive entry points.",
+            },
+        ],
+    },
+    "west_cairo": {
+        "region_name": "West Cairo (Sheikh Zayed & New Zayed)",
+        "region_name_ar": "غرب القاهرة (الشيخ زايد وزايد الجديدة)",
+        "overview": (
+            "The West Cairo market, particularly New Zayed, currently commands some of "
+            "the highest prices in the country for luxury and ultra-prime developments."
+        ),
+        "projects": [
+            {
+                "developer": "Ora Developers",
+                "project": "Casa D'or Zayed",
+                "price_min_sqm": 220000,
+                "price_max_sqm": 220000,
+                "market_notes": "Ultra-luxury, branded residences (Armani).",
+            },
+            {
+                "developer": "Ora Developers",
+                "project": "ZED West",
+                "price_min_sqm": 120000,
+                "price_max_sqm": 160000,
+                "market_notes": "Fully finished luxury apartments with park views.",
+            },
+            {
+                "developer": "Emaar Misr",
+                "project": "Cairo Gate",
+                "price_min_sqm": 120000,
+                "price_max_sqm": 150000,
+                "market_notes": "Boutique, high-end compound targeting expats and upper-class.",
+            },
+            {
+                "developer": "SODIC",
+                "project": "The Estates / Karmell",
+                "price_min_sqm": 90000,
+                "price_max_sqm": 130000,
+                "market_notes": "High demand for signature villas and premium apartments.",
+            },
+        ],
+    },
+    "new_administrative_capital": {
+        "region_name": "New Administrative Capital (NAC)",
+        "region_name_ar": "العاصمة الإدارية الجديدة",
+        "overview": (
+            "Prices in the NAC are steadily rising as government entities fully relocate "
+            "and infrastructure comes online. Commercial units here can easily exceed "
+            "100,000 EGP per square meter."
+        ),
+        "projects": [
+            {
+                "developer": "City Edge",
+                "project": "Jade Park / Al Maqsad",
+                "price_min_sqm": 53000,
+                "price_max_sqm": 67000,
+                "market_notes": "Government-backed developer; strong ready-to-move options.",
+            },
+            {
+                "developer": "TMG",
+                "project": "Celia",
+                "price_min_sqm": 50000,
+                "price_max_sqm": 65000,
+                "market_notes": "Integrated community highly sought after in the Green River zone.",
+            },
+            {
+                "developer": "Sky Capital",
+                "project": "Sky Capital",
+                "price_min_sqm": 40000,
+                "price_max_sqm": 50000,
+                "market_notes": "Focuses heavily on high-end investors.",
+            },
+        ],
+    },
+    "coastal": {
+        "region_name": "Coastal Destinations (North Coast & Red Sea)",
+        "region_name_ar": "الوجهات الساحلية (الساحل الشمالي والبحر الأحمر)",
+        "overview": (
+            "Coastal properties are increasingly priced in dollars or heavily pegged to "
+            "currency fluctuations, driven heavily by expat and Gulf investments."
+        ),
+        "projects": [
+            {
+                "developer": "Emaar Misr",
+                "project": "Marassi / Soul (North Coast)",
+                "price_min_sqm": 150000,
+                "price_max_sqm": 250000,
+                "market_notes": "The absolute peak of the North Coast luxury market.",
+            },
+            {
+                "developer": "Orascom",
+                "project": "El Gouna (Red Sea)",
+                "price_min_sqm": 100000,
+                "price_max_sqm": 180000,
+                "market_notes": "Established resort town with a massive premium on water views.",
+            },
+            {
+                "developer": "Mountain View",
+                "project": "Ras El Hekma / Evia (North Coast)",
+                "price_min_sqm": 70000,
+                "price_max_sqm": 95000,
+                "market_notes": "High demand for summer homes; rapid year-over-year appreciation.",
+            },
+            {
+                "developer": "Orascom",
+                "project": "Makadi Heights (Red Sea)",
+                "price_min_sqm": 32000,
+                "price_max_sqm": 46000,
+                "market_notes": "High-yield, budget-friendly Red Sea investment.",
+            },
+        ],
     },
 }
 
@@ -2083,6 +2426,21 @@ Let me show you alternatives within your budget."""
                 
         return {"found": False}
 
+    def get_market_snapshot(self, region: str = None) -> Dict:
+        """
+        Return the current market snapshot (Mar 2026) broken down by region and key projects.
+
+        Args:
+            region: Optional filter — one of 'east_cairo', 'west_cairo',
+                    'new_administrative_capital', 'coastal'. If None, returns all regions.
+
+        Returns:
+            Dict with region name, overview text, and per-project price ranges.
+        """
+        if region and region in MARKET_SNAPSHOT:
+            return {region: MARKET_SNAPSHOT[region]}
+        return MARKET_SNAPSHOT
+
     def get_avg_price_per_sqm(self, location: str) -> int:
         """Expose average price per sqm publically."""
         return self._get_area_avg_price(location)
@@ -2531,6 +2889,7 @@ __all__ = [
     "AREA_PRICE_HISTORY",
     "DEVELOPER_PRICE_HISTORY",
     "MARKET_SEGMENTS",
+    "MARKET_SNAPSHOT",
     "DEVELOPER_GRAPH",
     "RESALE_MARKUP_DATA",
     "AVERAGE_RENT_BY_AREA",
