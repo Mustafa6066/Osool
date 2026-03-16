@@ -137,7 +137,7 @@ LOCATION_PSYCHOLOGY = {
             "Easy access to Ring Road"
         ],
         "typical_buyer": "Upper-middle class families, expats, young professionals, investors",
-        "price_range": "35,000-60,000 EGP/sqm",
+        "price_range": "38,000-160,000 EGP/sqm (Emaar Mivida at the top; Madinet Masr entry-level)",
         "growth_trend": "High growth, 12-15% annual appreciation",
         "objections": {
             "far_from_downtown": "New highways reduced commute to 30 minutes. Plus, everything you need is in New Cairo now - no need to go downtown.",
@@ -158,7 +158,7 @@ LOCATION_PSYCHOLOGY = {
             "High-end dining and entertainment"
         ],
         "typical_buyer": "Wealthy families, business owners, tech professionals, investors",
-        "price_range": "45,000-80,000 EGP/sqm (up to 150,000 in Beverly Hills)",
+        "price_range": "90,000-220,000+ EGP/sqm (Ora Casa D'or at ultra-premium; SODIC/Emaar in the 90k-150k range)",
         "growth_trend": "Steady growth, 8-10% annual appreciation",
         "objections": {
             "too_expensive": "Best appreciation rates in Greater Cairo. Sheikh Zayed is where serious wealth protects itself from inflation.",
@@ -200,7 +200,7 @@ LOCATION_PSYCHOLOGY = {
             "Potential for 100%+ appreciation"
         ],
         "typical_buyer": "Investors, early adopters, government employees, speculators",
-        "price_range": "25,000-50,000 EGP/sqm (varies widely)",
+        "price_range": "40,000-67,000 EGP/sqm (City Edge Jade Park/Al Maqsad and TMG Celia lead demand)",
         "growth_trend": "Very high potential, 20-30% expected appreciation",
         "objections": {
             "still_under_construction": "That's exactly why prices are still reasonable. Buy now before completion and prices double.",
@@ -221,7 +221,7 @@ LOCATION_PSYCHOLOGY = {
             "Growing rapidly"
         ],
         "typical_buyer": "Young families, first-time buyers, investors",
-        "price_range": "25,000-40,000 EGP/sqm",
+        "price_range": "38,000-55,000 EGP/sqm (Sarai and Taj City offer value-for-money entry points)",
         "growth_trend": "High growth, 10-12% annual appreciation",
         "objections": {
             "too_new": "Newest doesn't mean riskiest - means modern planning and no legacy infrastructure problems.",
@@ -242,7 +242,7 @@ LOCATION_PSYCHOLOGY = {
             "Gulf buyer influx raising property values"
         ],
         "typical_buyer": "Wealthy families (summer homes), Gulf investors, diaspora Egyptians, speculators",
-        "price_range": "60,000-120,000 EGP/sqm (premium chalets higher)",
+        "price_range": "70,000-250,000+ EGP/sqm (Emaar Marassi/Soul at the peak; Mountain View Ras El Hekma from 70k)",
         "growth_trend": "Very high growth, 25-40% annual appreciation",
         "objections": {
             "seasonal_only": "New Alamein is becoming a year-round city with government offices. Plus, summer rental income covers full-year costs.",
@@ -273,6 +273,27 @@ LOCATION_PSYCHOLOGY = {
             "humidity": "Sokhna has the driest climate on the Red Sea coast. Ideal year-round."
         },
         "hot_compounds": ["IL Monte Galala", "Azha", "Telal Sokhna", "La Vista Gardens", "Ain Bay"]
+    },
+
+    "Red Sea": {
+        "buyer_motivation": "Established resort lifestyle, strong rental yield, dollar-pegged appreciation",
+        "selling_points": [
+            "El Gouna: fully integrated resort city by Orascom with airport, marinas, and golf",
+            "Makadi Heights: affordable entry to the Red Sea with strong rental returns",
+            "Properties increasingly pegged to USD — strong inflation hedge",
+            "High expat and Gulf investor demand driving premium valuations",
+            "Year-round destination unlike seasonal North Coast",
+            "Water-view premiums can add 30-50% above standard unit prices"
+        ],
+        "typical_buyer": "Expats, Gulf investors, diaspora Egyptians, retirees, rental investors",
+        "price_range": "32,000-180,000 EGP/sqm (El Gouna water-view peak; Makadi Heights entry)",
+        "growth_trend": "Strong appreciation, 20-30% annual, dollar-pegged dynamics",
+        "objections": {
+            "too_far_from_cairo": "El Gouna has its own international airport. Flight from Cairo is 1 hour. Plus it's a rental asset.",
+            "only_summer": "Red Sea is a year-round destination — perfect for long-term rentals and expat communities.",
+            "expensive": "Makadi Heights starts from 32,000 EGP/sqm — the most budget-friendly Red Sea option with strong ROI."
+        },
+        "hot_compounds": ["El Gouna", "Makadi Heights", "La Vista Ray", "Azure Beach", "Pyramids Village"]
     }
 }
 

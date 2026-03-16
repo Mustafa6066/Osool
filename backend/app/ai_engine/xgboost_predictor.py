@@ -47,20 +47,24 @@ LOCATION_POPULARITY = {
     "الرحاب": 0.8,
 }
 
-# Average price per sqm by location (EGP, 2024 data)
+# Average price per sqm by location (EGP, Mar 2026 Market Snapshot)
 PRICE_PER_SQM = {
-    "new cairo": 45000,
-    "التجمع": 45000,
-    "sheikh zayed": 40000,
-    "زايد": 40000,
-    "6th october": 25000,
-    "أكتوبر": 25000,
-    "new capital": 35000,
-    "العاصمة": 35000,
-    "maadi": 50000,
-    "المعادي": 50000,
-    "madinaty": 38000,
-    "مدينتي": 38000,
+    "new cairo": 75000,
+    "التجمع": 75000,
+    "sheikh zayed": 130000,
+    "زايد": 130000,
+    "6th october": 47000,
+    "أكتوبر": 47000,
+    "new capital": 58000,
+    "العاصمة": 58000,
+    "maadi": 29000,
+    "المعادي": 29000,
+    "madinaty": 55000,
+    "مدينتي": 55000,
+    "north coast": 175000,
+    "الساحل": 175000,
+    "red sea": 100000,
+    "البحر الأحمر": 100000,
 }
 
 # Finishing multipliers
