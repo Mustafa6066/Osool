@@ -29,12 +29,15 @@ export async function POST(
   const path = pathSegments.join('/');
   const targetUrl = `${ORCHESTRATOR_URL}/webhooks/${path}`;
 
+  if (!WEBHOOK_SECRET) {
+    console.warn(`[Webhook] ORCHESTRATOR_WEBHOOK_SECRET not set for ${path} — webhook forwarding is disabled.`);
+    return NextResponse.json({ accepted: false, disabled: 'missing_webhook_secret' }, { status: 202 });
+  }
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (WEBHOOK_SECRET) {
-    headers['x-webhook-secret'] = WEBHOOK_SECRET;
-  }
+  headers['x-webhook-secret'] = WEBHOOK_SECRET;
 
   // Forward client IP for rate limiting on the Orchestrator side
   const forwarded = request.headers.get('x-forwarded-for');
@@ -47,6 +50,12 @@ export async function POST(
       headers,
       body,
     });
+
+    if (response.status === 401 || response.status === 403) {
+      const responseBody = await response.text();
+      console.error(`[Webhook] Orchestrator rejected ${path} with ${response.status}. Check ORCHESTRATOR_WEBHOOK_SECRET parity between Vercel and Orchestrator. Response: ${responseBody}`);
+      return NextResponse.json({ accepted: false, disabled: 'webhook_auth_failed' }, { status: 202 });
+    }
 
     // Return the Orchestrator's response status (202, 400, etc.)
     const responseBody = await response.text();

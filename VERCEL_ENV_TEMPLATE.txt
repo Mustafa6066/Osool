@@ -14,6 +14,17 @@ NEXT_PUBLIC_API_URL=https://osool-production.up.railway.app
 # This powers /admin/orchestrator inside the main Osool frontend.
 NEXT_PUBLIC_ORCHESTRATOR_ADMIN_URL=https://your-orchestrator-admin-domain
 
+# Optional but recommended: Orchestrator API base URL for data reads and webhook proxying.
+# Example: https://your-orchestrator-api.up.railway.app
+NEXT_PUBLIC_ORCHESTRATOR_URL=
+
+# Required if NEXT_PUBLIC_ORCHESTRATOR_URL is set and the Orchestrator enforces webhook auth.
+# Must exactly match the Orchestrator WEBHOOK_SECRET value.
+ORCHESTRATOR_WEBHOOK_SECRET=
+
+# Required for server-side data proxy routes such as /api/orchestrator and /api/orchestrator-data.
+ORCHESTRATOR_API_KEY=
+
 # IMPORTANT:
 # - NO trailing slash!
 # - Must be the full Railway URL
