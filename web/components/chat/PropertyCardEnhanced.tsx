@@ -104,8 +104,7 @@ export default function PropertyCardEnhanced({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: index * 0.1, ease: 'easeOut' }}
-            className="group rounded-2xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-black/10 hover:border-[var(--color-border-light)]"
-            style={{ maxWidth: '400px' }}
+            className="group rounded-2xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-black/10 hover:border-[var(--color-border-light)] max-w-full sm:max-w-[400px]"
             onClick={handleCardClick}
             dir={isRTL ? 'rtl' : 'ltr'}
         >

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from 'react';
 import { Inter, Cairo, Rajdhani } from 'next/font/google';
 import "./globals.css";
@@ -35,6 +35,13 @@ const rajdhani = Rajdhani({
   display: 'swap',
   variable: '--font-rajdhani',
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: "Osool | Your AI Real Estate Advisor for Egypt",
@@ -88,11 +95,13 @@ export default function RootLayout({
                       display: 'flex',
                       flexDirection: 'column',
                       width: '100%',
+                      maxWidth: '100vw',
                       minHeight: '100vh',
                       flex: '1 1 0%',
                       position: 'relative',
                       zIndex: 10,
                       overflow: 'auto',
+                      overflowX: 'hidden',
                     }}
                   >
                     <main id="main-content">

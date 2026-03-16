@@ -20,8 +20,7 @@ export default function AppShell({ children }: AppShellProps) {
 
       {/* Content area — offset for floating header + bottom bar */}
       <div
-        className="flex flex-col h-screen pt-[60px] pb-[72px] md:pb-0"
-        style={{ overflow: 'hidden' }}
+        className="flex flex-col h-screen pt-[60px] pb-[72px] md:pb-0 overflow-x-hidden overflow-y-auto"
       >
         {children}
       </div>

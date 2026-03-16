@@ -1116,7 +1116,7 @@ async def chat_stream(
             stream_context = ai_result.get("_stream_context")
 
             # ── REAL STREAMING: token-by-token from Claude API ──
-            if stream_context:
+            if stream_context and isinstance(stream_context, dict):
                 accumulated_text = ""
                 async for chunk in wolf_brain.stream_wolf_narrative(
                     system_prompt=stream_context["system_prompt"],

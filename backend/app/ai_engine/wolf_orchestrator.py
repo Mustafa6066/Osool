@@ -2380,6 +2380,7 @@ class WolfBrain:
         Generate the Wolf's response using ONLY verified data.
         Now with psychology-aware context injection and Smart Display strategy.
         """
+        orchestrator_context = None
         try:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # INSIGHT INJECTION (The "Wolf" Edge)
