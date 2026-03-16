@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   ArrowLeft,
@@ -113,6 +113,7 @@ export default function AdminPage() {
   const [ticketReplyContent, setTicketReplyContent] = useState('');
   const [ticketReplying, setTicketReplying] = useState(false);
   const [marketingGenerating, setMarketingGenerating] = useState(false);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [roleUpdating, setRoleUpdating] = useState<number | null>(null);
   const [blockUpdating, setBlockUpdating] = useState<number | null>(null);
@@ -174,6 +175,16 @@ export default function AdminPage() {
   useEffect(() => {
     void loadTabData();
   }, [loadTabData]);
+
+  // Cleanup polling interval on unmount or tab change
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [activeTab]);
 
   const VALID_ROLES = ['investor', 'agent', 'admin', 'blocked'];
 
@@ -905,13 +916,18 @@ export default function AdminPage() {
                 }
 
                 setMarketingGenerating(true);
+                // Clear any existing poll
+                if (pollIntervalRef.current) {
+                  clearInterval(pollIntervalRef.current);
+                  pollIntervalRef.current = null;
+                }
                 try {
                   await generateMarketingMaterials();
                   setLoadError(null);
-                  // Generation runs in background — poll every 15s for updates
+                  // Generation runs in background — poll every 30s for updates
                   let pollCount = 0;
-                  const maxPolls = 20; // ~5 minutes max
-                  const pollInterval = setInterval(async () => {
+                  const maxPolls = 10; // ~5 minutes max
+                  pollIntervalRef.current = setInterval(async () => {
                     pollCount++;
                     try {
                       const data = await getMarketingMaterials();
@@ -920,14 +936,16 @@ export default function AdminPage() {
                         (m: MarketingMaterial) => m.answer_en || m.last_run_status === 'FAILED'
                       );
                       if (allAnswered || pollCount >= maxPolls) {
-                        clearInterval(pollInterval);
+                        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                        pollIntervalRef.current = null;
                         setMarketingGenerating(false);
                       }
                     } catch {
-                      clearInterval(pollInterval);
+                      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                      pollIntervalRef.current = null;
                       setMarketingGenerating(false);
                     }
-                  }, 15000);
+                  }, 30000);
                 } catch (error) {
                   console.error(error);
                   setLoadError('Failed to start marketing content generation.');

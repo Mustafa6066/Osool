@@ -988,10 +988,6 @@ async def get_marketing_materials(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin)
 ):
-    from app.services.marketing_generator import ensure_seeded_questions
-
-    await ensure_seeded_questions(db)
-
     query = select(MarketingMaterial).order_by(MarketingMaterial.category, MarketingMaterial.id)
     result = await db.execute(query)
     materials = result.scalars().all()
@@ -1018,11 +1014,12 @@ async def generate_marketing_materials_endpoint(
     background_tasks: BackgroundTasks,
     admin: User = Depends(require_admin)
 ):
-    from app.services.marketing_generator import generate_marketing_answers
+    from app.services.marketing_generator import generate_marketing_answers, ensure_seeded_questions
     
     async def run_generation():
         try:
             async with AsyncSessionLocal() as db_session:
+                await ensure_seeded_questions(db_session)
                 count = await generate_marketing_answers(db_session)
                 logger.info("Marketing generation background task completed: %d answers", count)
         except Exception as e:
