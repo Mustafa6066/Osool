@@ -12,8 +12,8 @@ Adds:
 - Partial unique index on nawy_url (WHERE nawy_url IS NOT NULL) required
   for INSERT ... ON CONFLICT (nawy_url) in repository.py bulk upsert.
 
-Safety: deduplicates existing nawy_url rows BEFORE creating the unique index
-so this migration is safe to run against production data with duplicates.
+Fully idempotent: every DDL statement uses IF NOT EXISTS / IF EXISTS so the
+migration is safe to re-run if a previous attempt failed partway through.
 """
 
 from alembic import op
@@ -27,24 +27,19 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # 1. Add the content_hash column
-    op.add_column(
-        "properties",
-        sa.Column("content_hash", sa.String(64), nullable=True),
+    # 1. Add content_hash column — idempotent via PostgreSQL ADD COLUMN IF NOT EXISTS
+    op.execute(
+        "ALTER TABLE properties ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)"
     )
 
-    # 2. Index for fast hash lookup (O(1) on equality checks in upsert)
-    op.create_index(
-        "ix_properties_content_hash",
-        "properties",
-        ["content_hash"],
+    # 2. Index for fast hash lookup — idempotent
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_properties_content_hash ON properties (content_hash)"
     )
 
     # 3. Deduplicate nawy_url values BEFORE creating the unique index.
-    #    The old scraper had no uniqueness guarantee on nawy_url, so production
-    #    data may have multiple rows sharing the same URL.
-    #    Strategy: keep the row with the highest id (most recently inserted)
-    #    for each duplicate nawy_url, delete the rest.
+    #    Keep the row with the highest id (most recently inserted) per duplicate nawy_url.
+    #    Safe to re-run: if no duplicates exist, the DELETE is a no-op.
     op.execute(
         """
         DELETE FROM properties
@@ -63,9 +58,8 @@ def upgrade() -> None:
         """
     )
 
-    # 4. Partial unique index on nawy_url (NULL-safe, supports ON CONFLICT).
-    #    NULL nawy_url rows (legacy data) are excluded from the constraint so
-    #    they can coexist without violating uniqueness.
+    # 4. Partial unique index on nawy_url (NULL-safe).
+    #    IF NOT EXISTS makes this idempotent.
     op.execute(
         """
         CREATE UNIQUE INDEX IF NOT EXISTS uq_properties_nawy_url
@@ -77,5 +71,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS uq_properties_nawy_url")
-    op.drop_index("ix_properties_content_hash", table_name="properties")
-    op.drop_column("properties", "content_hash")
+    op.execute("DROP INDEX IF EXISTS ix_properties_content_hash")
+    op.execute("ALTER TABLE properties DROP COLUMN IF EXISTS content_hash")

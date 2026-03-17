@@ -1,5 +1,6 @@
 # Osool Backend Dependencies
 # Python 3.10+ required
+# cache-bust: 2026-03-17-v3
 
 # Web Framework
 fastapi>=0.104.0
