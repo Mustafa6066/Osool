@@ -1352,14 +1352,20 @@ async def production_audit(
 # ---------------------------------------------------------------------------
 
 @router.post("/ingest")
-def trigger_ingestion(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):
+async def trigger_ingestion(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):
     """
-    Manually triggers the Nawy Scraper.
+    Manually triggers post-scrape processing (stale cleanup + price flagging).
+    Actual property scraping runs via Railway Cron (nawy_scraper_v2.py).
     Protected by X-Admin-Key.
     """
-    from app.services.nawy_scraper import ingest_nawy_data
-    background_tasks.add_task(ingest_nawy_data)
-    return {"status": "Ingestion started in background"}
+    from app.services.nawy_scraper import mark_stale_properties, flag_underpriced_properties
+
+    async def _run():
+        await mark_stale_properties()
+        await flag_underpriced_properties()
+
+    background_tasks.add_task(_run)
+    return {"status": "Post-scrape processing started in background"}
 
 @router.post("/admin/update-economic-data")
 async def admin_update_economic_data(

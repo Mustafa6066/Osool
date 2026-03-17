@@ -48,9 +48,21 @@ RUN playwright install chromium
 COPY nawy_scraper_v2.py .
 COPY nawy_compound_urls.json .
 
+# Copy ingestion pipeline modules (Strategy 1 + 2: NEXT_DATA + LLM normalizer)
+# These are imported as `from app.ingestion.xxx import ...` via PYTHONPATH=/app/backend
+COPY backend/app/__init__.py /app/backend/app/__init__.py
+COPY backend/app/ingestion/__init__.py /app/backend/app/ingestion/__init__.py
+COPY backend/app/ingestion/llm_normalizer.py /app/backend/app/ingestion/llm_normalizer.py
+COPY backend/app/ingestion/repository.py /app/backend/app/ingestion/repository.py
+COPY backend/app/database.py /app/backend/app/database.py
+COPY backend/app/models.py /app/backend/app/models.py
+
+# Set PYTHONPATH so `from app.ingestion.xxx` resolves to /app/backend/app/ingestion/
+ENV PYTHONPATH=/app/backend
+
 # Create backend directory for .env compatibility
 # (Railway injects env vars directly, so this is just for the load_dotenv fallback)
-RUN mkdir -p backend
+RUN mkdir -p backend/backend
 
 # Create data directory for scrape summary output
 RUN mkdir -p data

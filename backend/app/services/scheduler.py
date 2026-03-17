@@ -1,10 +1,14 @@
 """
 Osool Scheduled Tasks
 ---------------------
-APScheduler-based cron jobs for data ingestion.
+APScheduler-based cron jobs for data ingestion and post-processing.
 
 Jobs:
-1. Property Scraper (Nawy) — Sundays at 03:00 UTC
+1. Post-Scrape Processing — Sundays at 04:30 UTC
+   Stale property cleanup + price flagging + orchestrator notification.
+   Runs AFTER the Railway Cron scraper container (which runs at 03:00 UTC).
+   The actual property scraping is handled by nawy_scraper_v2.py via Railway Cron.
+
 2. Economic Indicators — Sundays at 03:30 UTC
 3. Geopolitical Events — Daily at 04:00 UTC
 4. Image Mirror — Sundays at 05:00 UTC
@@ -44,13 +48,20 @@ async def _notify_orchestrator(event_type: str, payload: dict):
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=60, max=600), reraise=True)
-async def run_property_scraper():
-    """Weekly property scraper job with retry + stale cleanup."""
-    logger.info("[CRON] Starting weekly property scraper...")
+async def run_post_scrape_processing():
+    """
+    Post-scrape processing job — runs after the Railway Cron scraper completes.
+
+    The Railway Cron container runs nawy_scraper_v2.py at Sunday 03:00 UTC and
+    writes directly to the database. This job (04:30 UTC) runs the downstream
+    processing steps that depend on the freshly-scraped data:
+      1. Mark stale properties (not seen in current/previous scrape run)
+      2. Flag under/over-priced properties per location zone
+      3. Notify the Orchestrator to refresh SEO content
+    """
+    logger.info("[CRON] Starting post-scrape processing...")
     try:
-        from app.services.nawy_scraper import ingest_nawy_data_async, mark_stale_properties, flag_underpriced_properties
-        result = await ingest_nawy_data_async()
-        logger.info(f"[CRON] Property scraper completed: {result}")
+        from app.services.nawy_scraper import mark_stale_properties, flag_underpriced_properties
 
         # Clean up stale properties not seen in last 2 runs
         stale_result = await mark_stale_properties()
@@ -64,8 +75,9 @@ async def run_property_scraper():
         await _notify_orchestrator("property_scrape_complete", {
             "significantChanges": stale_result.get("stale_marked", 0),
         })
+        logger.info("[CRON] Post-scrape processing complete")
     except Exception as e:
-        logger.error(f"[CRON] Property scraper failed: {e}")
+        logger.error(f"[CRON] Post-scrape processing failed: {e}")
         raise  # Let tenacity retry
 
 
@@ -146,14 +158,15 @@ def init_scheduler():
     Initialize and start the APScheduler with weekly cron jobs.
     Called once during FastAPI startup.
     """
-    # Property scraper: Every Sunday at 03:00 UTC
+    # Post-scrape processing: Every Sunday at 04:30 UTC
+    # Runs after the Railway Cron scraper container (03:00 UTC) completes.
     scheduler.add_job(
-        run_property_scraper,
-        trigger=CronTrigger(day_of_week="sun", hour=3, minute=0),
-        id="weekly_property_scraper",
-        name="Weekly Nawy Property Scraper",
+        run_post_scrape_processing,
+        trigger=CronTrigger(day_of_week="sun", hour=4, minute=30),
+        id="weekly_post_scrape_processing",
+        name="Weekly Post-Scrape Processing (stale + price flags)",
         replace_existing=True,
-        misfire_grace_time=3600,  # Allow 1 hour grace period
+        misfire_grace_time=3600,
     )
 
     # Economic scraper: Every Sunday at 03:30 UTC
@@ -198,7 +211,7 @@ def init_scheduler():
 
     scheduler.start()
     logger.info("✅ APScheduler started with cron jobs:")
-    logger.info("   📅 Property Scraper: Sundays 03:00 UTC")
+    logger.info("   📅 Post-Scrape Processing: Sundays 04:30 UTC (after Railway Cron scraper)")
     logger.info("   📅 Economic Scraper: Sundays 03:30 UTC")
     logger.info("   📅 Geopolitical Scraper: Daily 04:00 UTC")
     logger.info("   📅 Image Mirror: Sundays 05:00 UTC")

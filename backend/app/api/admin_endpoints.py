@@ -501,12 +501,17 @@ async def admin_trigger_property_scraper(
     admin: User = Depends(require_admin),
 ):
     """
-    Admin: Manually trigger the Nawy property scraper.
-    Runs in background.
+    Admin: Manually trigger post-scrape processing (stale cleanup + price flagging).
+    The actual property scraping runs via Railway Cron (nawy_scraper_v2.py).
     """
-    from app.services.nawy_scraper import ingest_nawy_data_async
-    background_tasks.add_task(ingest_nawy_data_async)
-    return {"status": "Property scraper triggered", "triggered_by": admin.email}
+    from app.services.nawy_scraper import mark_stale_properties, flag_underpriced_properties
+
+    async def _run_post_processing():
+        await mark_stale_properties()
+        await flag_underpriced_properties()
+
+    background_tasks.add_task(_run_post_processing)
+    return {"status": "Post-scrape processing triggered", "triggered_by": admin.email}
 
 
 @router.post("/scraper/economic")
