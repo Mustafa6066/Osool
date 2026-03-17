@@ -75,12 +75,15 @@ fi
 echo -e "${YELLOW}[4/7] Checking property data ingestion...${NC}"
 
 PROPERTY_COUNT=$(python -c "
-from app.database import SessionLocal
+import asyncio
+from app.database import AsyncSessionLocal
+from sqlalchemy import select, func
 from app.models import Property
-db = SessionLocal()
-count = db.query(Property).count()
-db.close()
-print(count)
+async def count():
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(func.count(Property.id)))
+        return result.scalar() or 0
+print(asyncio.run(count()))
 " 2>/dev/null || echo "0")
 
 echo "Properties in database: ${PROPERTY_COUNT}"
