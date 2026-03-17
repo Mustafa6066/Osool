@@ -112,8 +112,17 @@ async def _generate_embedding(prop: NormalizedProperty) -> Optional[List[float]]
         List of 1536 floats, or None on failure (upsert proceeds without embedding).
     """
     from openai import AsyncOpenAI
-    from app.services.circuit_breaker import openai_breaker
-    from app.services.cost_monitor import cost_monitor
+
+    # circuit_breaker / cost_monitor live in app.services which may not be
+    # available in the stripped-down scraper container.
+    try:
+        from app.services.circuit_breaker import openai_breaker
+    except ImportError:
+        openai_breaker = None
+    try:
+        from app.services.cost_monitor import cost_monitor
+    except ImportError:
+        cost_monitor = None
 
     client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -134,15 +143,18 @@ async def _generate_embedding(prop: NormalizedProperty) -> Optional[List[float]]
                 model="text-embedding-3-small",
             )
             token_count = response.usage.total_tokens
-            cost_monitor.log_usage(
-                model="text-embedding-3-small",
-                input_tokens=token_count,
-                output_tokens=0,
-                context="ingestion_embedding",
-            )
+            if cost_monitor:
+                cost_monitor.log_usage(
+                    model="text-embedding-3-small",
+                    input_tokens=token_count,
+                    output_tokens=0,
+                    context="ingestion_embedding",
+                )
             return response.data[0].embedding
 
-        return await openai_breaker.call_async(_call)
+        if openai_breaker:
+            return await openai_breaker.call_async(_call)
+        return await _call()
 
     except Exception as exc:
         logger.warning(

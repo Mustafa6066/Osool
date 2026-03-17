@@ -13,12 +13,25 @@ Run the worker:
     python -m arq app.ingestion.worker.WorkerSettings
 """
 
-from app.ingestion.worker import (
-    WorkerSettings,
-    master_discovery_job,
-    scrape_compound_task,
-)
-from app.ingestion.core_scraper import ScraperError, scrape_compound
+# Worker and core_scraper have heavy deps (arq, full app.services) that may not
+# be available in stripped-down environments like the Railway Cron scraper container.
+try:
+    from app.ingestion.worker import (
+        WorkerSettings,
+        master_discovery_job,
+        scrape_compound_task,
+    )
+except ImportError:
+    WorkerSettings = None  # type: ignore[assignment,misc]
+    master_discovery_job = None  # type: ignore[assignment]
+    scrape_compound_task = None  # type: ignore[assignment]
+
+try:
+    from app.ingestion.core_scraper import ScraperError, scrape_compound
+except ImportError:
+    ScraperError = Exception  # type: ignore[assignment,misc]
+    scrape_compound = None  # type: ignore[assignment]
+
 from app.ingestion.llm_normalizer import (
     NormalizedProperty,
     NormalizationResult,
