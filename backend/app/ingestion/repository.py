@@ -292,7 +292,7 @@ def _build_row(
         "installment_years": prop.installment_years,
         "monthly_installment": prop.monthly_installment,
         "image_url": prop.image_url,
-        "nawy_url": prop.nawy_url,
+        "nawy_url": prop.nawy_url or None,   # Normalize '' → NULL (avoids unique constraint clash)
         "nawy_reference": prop.nawy_reference,
         "sale_type": prop.sale_type,
         "is_nawy_now": prop.is_nawy_now,
