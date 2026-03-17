@@ -243,12 +243,20 @@ location — Output ONLY from this canonical list:
 {_ALIAS_EXAMPLES}
 
 price — Numeric EGP value, no currency symbol, no commas. 0 if unknown.
+  If the raw data has min_price/max_price, use min_price as the price.
 size_sqm — Built-up area (BUA) as integer. 0 if unknown.
+  If the raw data has min_unit_area/max_unit_area, use min_unit_area as size_sqm.
+bedrooms — If raw data has number_of_bedrooms, use that value.
+bathrooms — If raw data has number_of_bathrooms, use that value.
 delivery_date — String like "Q2 2026", "2025", "Immediate", or null.
-down_payment_percentage — Integer 0–100, or null.
-sale_type — One of "Resale", "Developer", "Nawy Now", or null.
-nawy_url — Must be the exact Nawy.com URL from the source data.
-nawy_reference — Nawy's internal property/unit ID if visible, else null.
+  If raw data has min_ready_by (e.g. "2028-01-31"), extract the year and quarter.
+down_payment_percentage — Integer 0–100, or null. If raw data has _down_payment_percentage, use that value.
+sale_type — "Resale" if raw data has resale=true, else "Developer". "Nawy Now" only if explicitly indicated.
+nawy_url — Construct from slug: "https://www.nawy.com/property/" + slug. If no slug, use source URL.
+nawy_reference — The property "id" field as a string, or null.
+developer — If raw data has developer.name or _developer_name, use that value.
+compound — If raw data has _compound_name, use it. Otherwise extract from compound.slug or _meta.source_url.
+land_area — If raw data has a land_area field, use it as integer. Otherwise null.
 
 If a field is not present in the raw data, set it to null.
 Do NOT invent data. Do NOT hallucinate prices or sizes.
@@ -339,7 +347,7 @@ def _find_units_in_json(data: Any, max_depth: int = 6) -> list[dict]:
     raw __NEXT_DATA__ or XHR payload.
 
     Nawy structures vary per page type:
-      - Compound detail:  data["props"]["pageProps"]["compound"]["units"]
+      - Compound detail:  data["props"]["pageProps"]["availablePropertyTypes"][*]["properties"]
       - Search results:   data["props"]["pageProps"]["compounds"]
       - Unit listing:     data["props"]["pageProps"]["units"]
 
@@ -364,12 +372,30 @@ def _find_units_in_json(data: Any, max_depth: int = 6) -> list[dict]:
         has_size = bool(keys_lower & {k.lower() for k in _SIZE_KEYS})
         return has_price or has_size
 
+    # ── Nawy compound page: flatten availablePropertyTypes[*].properties ──
+    page_props = (data.get("props") or {}).get("pageProps") or {}
+    apt = page_props.get("availablePropertyTypes")
+    if isinstance(apt, list) and apt:
+        units = []
+        for group in apt:
+            if isinstance(group, dict):
+                units.extend(group.get("properties", []))
+        if units and _is_property_like(units[0]):
+            return units
+
     def _search(node: Any, depth: int) -> list[dict] | None:
         if depth <= 0:
             return None
         if isinstance(node, list):
             if node and all(_is_property_like(item) for item in node[:3]):
                 return [item for item in node if isinstance(item, dict)]
+            # Recurse into items of small lists to find nested unit arrays
+            if len(node) <= 20:
+                for item in node:
+                    if isinstance(item, dict):
+                        candidate = _search(item, depth - 1)
+                        if candidate:
+                            return candidate
         if isinstance(node, dict):
             # Prioritize well-known key names
             for key in ("units", "compounds", "properties", "listings", "results", "data"):
@@ -429,6 +455,24 @@ async def normalize_properties(raw_compound_json: dict) -> NormalizationResult:
     if not units:
         logger.warning("[normalizer] No unit array found in payload for %s — trying compound-level", source_url)
         units = [_flatten_compound_as_unit(raw_compound_json, source_url)]
+
+    # Inject compound-level context into each unit for richer normalization
+    page_props = (raw_compound_json.get("props") or {}).get("pageProps") or {}
+    compound_data = page_props.get("compound") or {}
+    compound_context = {}
+    if compound_data.get("name"):
+        compound_context["_compound_name"] = compound_data["name"]
+    if compound_data.get("developerName"):
+        compound_context["_developer_name"] = compound_data["developerName"]
+    payment_plans = compound_data.get("paymentPlans") or []
+    if payment_plans:
+        min_dp = min((p.get("downPaymentPercentage") or 100) for p in payment_plans)
+        if min_dp < 100:
+            compound_context["_down_payment_percentage"] = min_dp
+    if compound_context:
+        for unit in units:
+            if isinstance(unit, dict):
+                unit.update(compound_context)
 
     if len(units) > MAX_UNITS_PER_COMPOUND:
         logger.info(
