@@ -502,7 +502,8 @@ async def admin_trigger_property_scraper(
 ):
     """
     Admin: Manually trigger post-scrape processing (stale cleanup + price flagging).
-    The actual property scraping runs via Railway Cron (nawy_scraper_v2.py).
+    The actual property scraping runs via Railway Cron (nawy_scraper_v2.py) or the
+    /scraper/nawy endpoint.
     """
     from app.services.nawy_scraper import mark_stale_properties, flag_underpriced_properties
 
@@ -512,6 +513,25 @@ async def admin_trigger_property_scraper(
 
     background_tasks.add_task(_run_post_processing)
     return {"status": "Post-scrape processing triggered", "triggered_by": admin.email}
+
+
+@router.post("/scraper/nawy")
+@limiter.limit("1/hour")  # SECURITY: Full scrape is expensive — limit to 1/hour
+async def admin_trigger_nawy_scrape(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_super_admin),
+):
+    """
+    Admin: Trigger a full Nawy property scrape (httpx-based NEXT_DATA extraction).
+    Discovers compound URLs from sitemap, extracts data, normalizes via LLM, upserts to DB.
+    Runs as a background task — may take 30-60 minutes for all compounds.
+    """
+    from app.services.nawy_scraper import run_nawy_scrape
+
+    background_tasks.add_task(run_nawy_scrape)
+    return {"status": "Nawy scrape started in background", "triggered_by": admin.email}
 
 
 @router.post("/scraper/economic")

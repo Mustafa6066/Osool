@@ -641,9 +641,15 @@ export const getAdminUserConversations = async (userId: number) => {
   return data;
 };
 
-/** Trigger property scraper (admin) */
+/** Trigger post-scrape processing — stale cleanup + price flagging (admin) */
 export const triggerPropertyScraper = async () => {
   const { data } = await api.post('/api/admin/scraper/properties');
+  return data;
+};
+
+/** Trigger a full Nawy property scrape — httpx NEXT_DATA extraction (super-admin) */
+export const triggerNawyScraper = async () => {
+  const { data } = await api.post('/api/admin/scraper/nawy');
   return data;
 };
 

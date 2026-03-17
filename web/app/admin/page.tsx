@@ -38,6 +38,7 @@ import {
   getTicketStats,
   triggerEconomicScraper,
   triggerPropertyScraper,
+  triggerNawyScraper,
   updateAdminMarketIndicator,
   updateTicketStatus,
   updateUserRole,
@@ -262,23 +263,35 @@ export default function AdminPage() {
     }
   };
 
-  const handleTriggerScraper = async (type: 'properties' | 'economic') => {
-    setScraperStatus(`Running ${type} scraper...`);
+  const handleTriggerScraper = async (type: 'properties' | 'economic' | 'nawy') => {
+    const labels: Record<string, string> = {
+      properties: 'post-scrape processing',
+      nawy: 'Nawy scrape',
+      economic: 'economic scraper',
+    };
+    const label = labels[type] || type;
+    setScraperStatus(`Running ${label}...`);
     try {
       if (type === 'properties') {
         await triggerPropertyScraper();
+      } else if (type === 'nawy') {
+        await triggerNawyScraper();
       } else {
         await triggerEconomicScraper();
       }
-      setScraperStatus(`${type} scraper completed successfully.`);
+      setScraperStatus(
+        type === 'nawy'
+          ? 'Nawy scrape started in background. This may take 30–60 min.'
+          : `${label} completed successfully.`
+      );
       if (activeTab === 'scrapers') {
         await loadTabData();
       }
     } catch (error) {
       console.error(error);
-      setScraperStatus(`${type} scraper failed. Check backend logs.`);
+      setScraperStatus(`${label} failed. Check backend logs.`);
     }
-    setTimeout(() => setScraperStatus(null), 5000);
+    setTimeout(() => setScraperStatus(null), 8000);
   };
 
   const filteredConversations = useMemo(() => {
@@ -807,15 +820,25 @@ export default function AdminPage() {
 
       {activeTab === 'scrapers' ? (
         <div className="space-y-6">
-          <section className="grid gap-4 md:grid-cols-2">
+          <section className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
+                <Building2 className="h-5 w-5 text-blue-500" />
+                Scrape Nawy
+              </div>
+              <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">Scrapes all Nawy compound pages, normalises data via AI, and upserts into the database. Runs in background (~30–60 min).</p>
+              <button type="button" onClick={() => void handleTriggerScraper('nawy')} className="mt-5 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]">
+                Scrape Nawy now
+              </button>
+            </div>
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
                 <Building2 className="h-5 w-5 text-emerald-500" />
-                Property scraper
+                Post-scrape processing
               </div>
-              <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">Scrapes Nawy for refreshed property inventory and runs on a scheduled cadence outside this control surface.</p>
+              <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">Marks stale properties as unavailable and flags under/over-priced listings. Runs automatically after each scheduled scrape.</p>
               <button type="button" onClick={() => void handleTriggerScraper('properties')} className="mt-5 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]">
-                Run property scraper
+                Run post-scrape processing
               </button>
             </div>
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
