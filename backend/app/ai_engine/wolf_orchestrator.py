@@ -1088,12 +1088,13 @@ class WolfBrain:
             
             # 2. Determine UI Actions (Charts must back up the strategy)
             ui_actions = await self._determine_ui_actions(
-                psychology, 
-                scored_properties, 
-                intent, 
+                psychology,
+                scored_properties,
+                intent,
                 query,
                 showing_strategy,
-                wolf_strategy=strategy # Pass the strategy to force matching charts
+                wolf_strategy=strategy, # Pass the strategy to force matching charts
+                analytics_context=analytics_context,
             )# PRICE DEFENSE (The "Wolf" Logic)
             no_discount_mode = False
             top_wolf_analysis = "FAIR_VALUE"
@@ -2080,7 +2081,8 @@ class WolfBrain:
         intent: Intent,
         query: str,
         showing_strategy: str = 'NONE',
-        wolf_strategy: Optional[Dict] = None
+        wolf_strategy: Optional[Dict] = None,
+        analytics_context: Optional[Dict] = None,
     ) -> List[Dict]:
         """
         Determine which UI visualizations to trigger.
@@ -2100,6 +2102,16 @@ class WolfBrain:
                 ui_actions.append(action)
 
         location = intent.filters.get('location', '')
+
+        # Extract live DB price from analytics_context (from market_pulse).
+        # This overrides the hardcoded AREA_PRICE_HISTORY value for the current year
+        # so price_growth_chart reflects actual scraped property prices.
+        live_price_sqm: Optional[int] = None
+        if analytics_context:
+            _pulse = analytics_context.get("market_pulse") or {}
+            _live = _pulse.get("avg_price_sqm", 0)
+            if _live and _live > 0:
+                live_price_sqm = int(_live)
         
         # ═══════════════════════════════════════════════════════════════
         # ANALYTICS_ONLY: Show area_analysis (text-rich) instead of market_benchmark
@@ -2178,7 +2190,9 @@ class WolfBrain:
 
             # ALWAYS inject price growth chart with area analysis (line chart)
             # The user explicitly requested: "make the AI show a line chart about growth with analysis"
-            growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
+            growth_data = analytical_engine.calculate_price_growth_history(
+                location, include_developers=True, live_current_price_sqm=live_price_sqm
+            )
             if growth_data.get('found') and growth_data.get('data_points'):
                 add_action({
                     "type": "price_growth_chart",
@@ -2338,7 +2352,9 @@ class WolfBrain:
         # Growth chart: ALWAYS inject when a location exists — the price
         # history chart is minimal and always adds value to the conversation.
         if location:
-            growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
+            growth_data = analytical_engine.calculate_price_growth_history(
+                location, include_developers=True, live_current_price_sqm=live_price_sqm
+            )
             if growth_data.get('found') and growth_data.get('data_points'):
                 add_action({
                     "type": "price_growth_chart",

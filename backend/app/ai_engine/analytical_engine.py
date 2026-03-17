@@ -1716,11 +1716,17 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
         self,
         location: str,
         include_developers: bool = True,
+        live_current_price_sqm: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
-        Return 5-year (2021→2026) price growth trajectory for an area.
+        Return 5-year (2021→current year) price growth trajectory for an area.
         Optionally includes developer-specific price lines.
         Used by the price_growth_chart UI visualization.
+
+        Args:
+            live_current_price_sqm: If provided, overrides the hardcoded value for
+                the most recent year with the actual average price from the DB,
+                ensuring the chart's "now" data point is accurate.
         """
         try:
             # Normalize location lookup
@@ -1753,6 +1759,13 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
 
             if not history:
                 return {"found": False, "location": location}
+
+            # If the caller supplies a live DB price, override the most recent year
+            # so the chart's rightmost data point reflects actual scraped prices.
+            if live_current_price_sqm and live_current_price_sqm > 0:
+                current_year = max(k for k in history if isinstance(k, int))
+                history = dict(history)  # shallow copy — don't mutate the module-level constant
+                history[current_year] = live_current_price_sqm
 
             # Build data points
             years_list = sorted([y for y in history.keys() if isinstance(y, int)])
