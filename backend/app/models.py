@@ -170,6 +170,7 @@ class Property(Base):
     last_scrape_run_id: Mapped[str] = mapped_column(String(36), nullable=True, index=True)  # UUID of last scrape run
     mirrored_image_url: Mapped[str] = mapped_column(Text, nullable=True)  # S3/R2 hosted copy
     price_flag: Mapped[str] = mapped_column(String(50), nullable=True)  # e.g. 'potential_high_roi'
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=True, index=True)  # SHA256 of core attrs for differential upsert
 
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
