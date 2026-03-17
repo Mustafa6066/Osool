@@ -355,10 +355,18 @@ async def scrape_compound(compound_url: str) -> dict:
             page: Page = await context.new_page()
 
             # Apply playwright-stealth (patches navigator.webdriver etc.)
+            # Handles both v1 (stealth_async) and v2 (Stealth class) APIs.
             try:
-                from playwright_stealth import stealth_async
-                await stealth_async(page)
-                logger.debug("[scraper] playwright-stealth applied")
+                try:
+                    # playwright-stealth v2 API
+                    from playwright_stealth import Stealth
+                    await Stealth().apply_stealth_async(page)
+                    logger.debug("[scraper] playwright-stealth v2 applied")
+                except (ImportError, AttributeError):
+                    # playwright-stealth v1 API fallback
+                    from playwright_stealth import stealth_async
+                    await stealth_async(page)
+                    logger.debug("[scraper] playwright-stealth v1 applied")
             except ImportError:
                 logger.warning(
                     "[scraper] playwright-stealth not installed — "
