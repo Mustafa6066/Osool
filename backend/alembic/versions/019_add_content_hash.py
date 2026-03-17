@@ -9,8 +9,11 @@ Adds:
   used by the new ingestion pipeline to skip DB writes and embedding regeneration
   when property data hasn't changed between scrape runs.
 - ix_properties_content_hash index for fast lookup
-- Partial unique constraint on nawy_url (WHERE nawy_url IS NOT NULL) required
+- Partial unique index on nawy_url (WHERE nawy_url IS NOT NULL) required
   for INSERT ... ON CONFLICT (nawy_url) in repository.py bulk upsert.
+
+Safety: deduplicates existing nawy_url rows BEFORE creating the unique index
+so this migration is safe to run against production data with duplicates.
 """
 
 from alembic import op
@@ -37,9 +40,32 @@ def upgrade() -> None:
         ["content_hash"],
     )
 
-    # 3. Partial unique index on nawy_url (NULL-safe, supports ON CONFLICT)
-    #    Properties ingested before the nawy pipeline may have NULL nawy_url —
-    #    the partial index allows those rows to coexist without uniqueness conflicts.
+    # 3. Deduplicate nawy_url values BEFORE creating the unique index.
+    #    The old scraper had no uniqueness guarantee on nawy_url, so production
+    #    data may have multiple rows sharing the same URL.
+    #    Strategy: keep the row with the highest id (most recently inserted)
+    #    for each duplicate nawy_url, delete the rest.
+    op.execute(
+        """
+        DELETE FROM properties
+        WHERE id IN (
+            SELECT id FROM (
+                SELECT id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY nawy_url
+                           ORDER BY id DESC
+                       ) AS rn
+                FROM properties
+                WHERE nawy_url IS NOT NULL
+            ) ranked
+            WHERE rn > 1
+        )
+        """
+    )
+
+    # 4. Partial unique index on nawy_url (NULL-safe, supports ON CONFLICT).
+    #    NULL nawy_url rows (legacy data) are excluded from the constraint so
+    #    they can coexist without violating uniqueness.
     op.execute(
         """
         CREATE UNIQUE INDEX IF NOT EXISTS uq_properties_nawy_url
