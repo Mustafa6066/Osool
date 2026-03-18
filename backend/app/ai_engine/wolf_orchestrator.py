@@ -46,6 +46,7 @@ from .analytical_engine import (
     AREA_BENCHMARKS, MARKET_SEGMENTS, DEVELOPER_GRAPH,
     payment_plan_analyzer, developer_trust_scorer, resale_intelligence, trade_up_advisor,
     format_appreciation_context_for_prompt,
+    calculate_real_vs_nominal_appreciation,
 )
 from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
@@ -1207,7 +1208,7 @@ class WolfBrain:
             self.stats["claude_calls"] += 1
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # POST-SPEAK: Verification (Anti-Hallucination Layer)
+            # POST-SPEAK: Verification + Auto-Rewrite (Anti-Hallucination Interceptor)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             verification = {}
             try:
@@ -1219,6 +1220,16 @@ class WolfBrain:
                 )
                 if verification.get("corrections"):
                     logger.info(f"🔍 VERIFIER: Found {len(verification['corrections'])} corrections (confidence: {verification.get('confidence', 'N/A')})")
+                    # Auto-rewrite: fix hallucinated numbers before user sees them
+                    original_response = response_text
+                    response_text = await verifier_agent.rewrite_hallucinated_response(
+                        response_text=response_text,
+                        corrections=verification["corrections"],
+                    )
+                    verification["rewritten"] = (response_text != original_response)
+                    verification["original_response"] = original_response if verification["rewritten"] else None
+                    if verification["rewritten"]:
+                        logger.info(f"✅ VERIFIER INTERCEPTOR: Response auto-corrected ({len(verification['corrections'])} fixes)")
             except Exception as e:
                 logger.warning(f"Verifier agent skipped: {e}")
 
@@ -3101,6 +3112,10 @@ YOUR APPROACH:
             # Property context with wolf benchmarking (only when not in discovery)
             if properties:
                 context_parts.append(self._format_property_context(properties))
+                # Pre-computed analytics — payment plans, appreciation, trust scores
+                computed_analytics = self._precompute_analytics(properties)
+                if computed_analytics:
+                    context_parts.append(computed_analytics)
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # DATABASE STATISTICS INJECTION (Phase 5C)
@@ -3112,7 +3127,10 @@ YOUR APPROACH:
                     qa_stats = await compute_detailed_qa_statistics(db_session)
                     qa_stats_text = format_qa_stats_for_ai(qa_stats)
                     if qa_stats_text:
-                        context_parts.append(f"\n[LIVE_DATABASE_STATISTICS]\n{qa_stats_text}\nUse ONLY these numbers. Never invent statistics.\n")
+                        context_parts.append(
+                            f"\n<MARKET_STATISTICS>\n{qa_stats_text}\n</MARKET_STATISTICS>\n"
+                            f"Use ONLY the numbers inside <MARKET_STATISTICS>. Never invent statistics.\n"
+                        )
             except Exception as e:
                 logger.warning(f"Could not inject QA stats: {e}")
 
@@ -3754,7 +3772,8 @@ DO NOT mention any prices outside this range.
                 response = await self._call_claude_with_retry(
                     model=claude_model,
                     max_tokens=min(4096, max_tok),
-                    temperature=0.7,
+                    temperature=0.2,
+                    top_p=0.9,
                     system=system_payload,
                     messages=messages,
                 )
@@ -3885,30 +3904,127 @@ DO NOT mention any prices outside this range.
             logger.error(f"Streaming narrative failed: {e}", exc_info=True)
             yield "عذراً، حصل مشكلة فنية. جرب تاني. (Sorry, technical issue.)"
     
+    def _precompute_analytics(self, properties: List[Dict]) -> str:
+        """Pre-compute analytics for top properties using Python math.
+
+        Returns a <COMPUTED_ANALYTICS> XML block with payment plans,
+        appreciation projections, and trust scores. The LLM must quote
+        these numbers verbatim — never self-calculate.
+        """
+        if not properties:
+            return ""
+
+        analytics = []
+        for prop in properties[:5]:
+            entry: Dict = {"property_id": prop.get("id"), "title": prop.get("title", "N/A")}
+
+            # 1. Payment plan
+            price = prop.get("price", 0)
+            dp_pct = prop.get("down_payment", 10) / 100 if prop.get("down_payment", 0) > 1 else prop.get("down_payment", 0.10)
+            years = prop.get("installment_years") or 8
+            location = prop.get("location", "")
+            if price > 0:
+                try:
+                    plan = payment_plan_analyzer.calculate_installment_plan(
+                        total_price=price, down_payment_pct=dp_pct, years=years, location=location,
+                    )
+                    entry["payment_plan"] = {
+                        "down_payment_egp": plan.get("down_payment", 0),
+                        "monthly_equivalent_egp": plan.get("monthly_equivalent", 0),
+                        "quarterly_installment_egp": plan.get("installment_amount", 0),
+                        "total_payments": plan.get("total_payments", 0),
+                        "plan_years": plan.get("plan_years", years),
+                    }
+                except Exception:
+                    pass
+
+            # 2. Appreciation projection
+            if location:
+                try:
+                    appreciation = calculate_real_vs_nominal_appreciation(location)
+                    entry["appreciation"] = {
+                        "nominal_yoy_pct": appreciation.get("nominal_yoy", 0),
+                        "real_yoy_pct": appreciation.get("real_yoy", 0),
+                        "inflation_rate_pct": appreciation.get("inflation_rate", 0),
+                    }
+                except Exception:
+                    pass
+
+            # 3. Developer trust score
+            developer = prop.get("developer", "")
+            if developer:
+                try:
+                    trust = developer_trust_scorer.calculate_trust_score(developer)
+                    entry["developer_trust"] = {
+                        "score": trust.get("trust_score", 0),
+                        "tier": trust.get("tier", "Unknown"),
+                        "delivery_reliability": trust.get("delivery_reliability", "N/A"),
+                    }
+                except Exception:
+                    pass
+
+            analytics.append(entry)
+
+        if not analytics:
+            return ""
+
+        json_str = json.dumps(analytics, ensure_ascii=False, indent=2)
+        return (
+            f"<COMPUTED_ANALYTICS>\n{json_str}\n</COMPUTED_ANALYTICS>\n"
+            f"RULE: When quoting payment plans, ROI, or trust scores, use ONLY the numbers "
+            f"from <COMPUTED_ANALYTICS>. Never perform arithmetic yourself.\n"
+        )
+
     def _format_property_context(self, properties: List[Dict]) -> str:
-        """Format properties for Claude context."""
+        """Format properties as structured JSON in <DATABASE_CONTEXT> tags.
+        
+        Strict JSON format reduces LLM hallucination vs loose text.
+        All numerical values are exact DB values — no rounding.
+        """
         if not properties:
             return "[NO_PROPERTIES_FOUND]"
         
-        lines = ["[PROPERTIES_DATA]"]
-        lines.append(f"Found {len(properties)} matching properties:\n")
+        # Build clean JSON array from DB data
+        json_properties = []
+        for prop in properties[:5]:
+            json_prop = {
+                "id": prop.get("id"),
+                "title": prop.get("title", "N/A"),
+                "compound": prop.get("compound", "N/A"),
+                "location": prop.get("location", "N/A"),
+                "type": prop.get("type", "N/A"),
+                "developer": prop.get("developer", "N/A"),
+                "price_egp": prop.get("price", 0),
+                "price_per_sqm": prop.get("price_per_sqm", 0),
+                "size_sqm": prop.get("size_sqm", 0),
+                "bedrooms": prop.get("bedrooms", 0),
+                "bathrooms": prop.get("bathrooms", 0),
+                "finishing": prop.get("finishing", "N/A"),
+                "delivery_date": prop.get("delivery_date", "N/A"),
+                "down_payment_pct": prop.get("down_payment", 0),
+                "monthly_installment": prop.get("monthly_installment", 0),
+                "installment_years": prop.get("installment_years", 0),
+                "maintenance_fee_pct": prop.get("maintenance_fee_pct", 0),
+                "delivery_payment": prop.get("delivery_payment", 0),
+                "sale_type": prop.get("sale_type", "N/A"),
+                "is_delivered": prop.get("is_delivered", False),
+                "land_area": prop.get("land_area", 0),
+                "osool_score": prop.get("osool_score", 0),
+                "wolf_analysis": prop.get("wolf_analysis", "N/A"),
+            }
+            json_properties.append(json_prop)
         
-        for i, prop in enumerate(properties[:5], 1):
-            price = prop.get('price', 0)
-            price_formatted = f"{price/1_000_000:.1f}M" if price >= 1_000_000 else f"{price:,}"
-            
-            lines.append(f"""
-Property {i}: {prop.get('title', 'N/A')}
-- Location: {prop.get('location', 'N/A')}
-- Price: {price_formatted} EGP
-- Size: {prop.get('size_sqm', 'N/A')} sqm
-- Bedrooms: {prop.get('bedrooms', 'N/A')}
-- Developer: {prop.get('developer', 'N/A')}
-- Osool Score: {prop.get('osool_score', 'N/A')}/100
-- Verdict: {prop.get('verdict', 'N/A')}
-""")
+        json_str = json.dumps(json_properties, ensure_ascii=False, indent=2)
         
-        return "\n".join(lines)
+        return (
+            f"<DATABASE_CONTEXT>\n"
+            f"{json_str}\n"
+            f"</DATABASE_CONTEXT>\n\n"
+            f"GROUNDING RULE: Answer based ONLY on the <DATABASE_CONTEXT> above. "
+            f"Every price, date, area, compound name, and payment detail MUST come from this JSON. "
+            f"If a data point is missing (null or 0), say 'أحتاج أتأكد من المعلومة دي مع الفريق' / "
+            f"'I need to confirm that with my team' — NEVER guess or use training data."
+        )
     
     def get_stats(self) -> Dict:
         """Get brain statistics."""

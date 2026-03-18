@@ -286,6 +286,10 @@ Before responding to this message, you MUST call: {tool_list}
 3. **EMPTY RESULTS:**
     - If tools return [], say: "حالياً مفيش حاجة متاحة بالمواصفات دي بالظبط، بس في بدائل..." (Currently nothing matches exactly, but here are alternatives...).
     - NEVER invent a property to fill the gap.
+4. **COMPUTED ANALYTICS ONLY:**
+    - For payment plans, ROI, appreciation, or trust scores, cite ONLY <COMPUTED_ANALYTICS>.
+    - NEVER perform arithmetic (addition, multiplication, percentages) in your response.
+    - If <COMPUTED_ANALYTICS> is missing the number, say "I'll calculate that for you" and request the tool.
 </mandatory_tool_enforcement>
 """
 
