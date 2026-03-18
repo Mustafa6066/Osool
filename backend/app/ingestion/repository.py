@@ -311,6 +311,8 @@ def _build_row(
         "is_delivered": prop.is_delivered,
         "is_cash_only": prop.is_cash_only,
         "land_area": prop.land_area,
+        "maintenance_fee_pct": prop.maintenance_fee_pct,
+        "delivery_payment": prop.delivery_payment,
         "embedding": embedding,
         "content_hash": content_hash,
         "last_scrape_run_id": run_id,

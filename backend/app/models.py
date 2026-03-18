@@ -146,6 +146,8 @@ class Property(Base):
     down_payment: Mapped[int] = mapped_column(Integer, nullable=True) # Percentage
     installment_years: Mapped[int] = mapped_column(Integer, nullable=True)
     monthly_installment: Mapped[float] = mapped_column(Float, nullable=True)
+    maintenance_fee_pct: Mapped[int] = mapped_column(Integer, nullable=True)  # Maintenance/wadeea deposit %
+    delivery_payment: Mapped[float] = mapped_column(Float, nullable=True)  # Handover lump-sum payment EGP
 
     # External Links
     image_url: Mapped[str] = mapped_column(Text, nullable=True)

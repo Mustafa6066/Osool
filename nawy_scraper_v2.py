@@ -232,6 +232,8 @@ def parse_property_text(text: str, url: str, compound_name: str, tab_sale_type: 
         'nawy_reference': '',
         'developer': '',
         'down_payment': 0,
+        'maintenance_fee_pct': 0,
+        'delivery_payment': 0,
         'description': text.replace('\n', ' ').strip(),
         'scraped_at': datetime.now(timezone.utc).isoformat(),
     }
@@ -280,13 +282,19 @@ def parse_property_text(text: str, url: str, compound_name: str, tab_sale_type: 
         prop['is_delivered'] = True
         prop['delivery_date'] = 'Delivered'
     else:
-        del_match = re.search(r'Delivery\s*(?:In|Date)?[:\s]*(20\d{2})', clean, re.IGNORECASE)
+        del_match = re.search(r'Delivery\s*(?:In|Date)?[:\s]*(?:(Q[1-4])\s*)?(20\d{2})', clean, re.IGNORECASE)
         if del_match:
-            prop['delivery_date'] = del_match.group(1)
+            quarter = del_match.group(1)
+            year = del_match.group(2)
+            prop['delivery_date'] = f"{quarter} {year}" if quarter else year
         else:
-            year_match = re.search(r'(20\d{2})', clean)
-            if year_match:
-                prop['delivery_date'] = year_match.group(1)
+            q_year_match = re.search(r'(Q[1-4])\s*(20\d{2})', clean, re.IGNORECASE)
+            if q_year_match:
+                prop['delivery_date'] = f"{q_year_match.group(1).upper()} {q_year_match.group(2)}"
+            else:
+                year_match = re.search(r'(20\d{2})', clean)
+                if year_match:
+                    prop['delivery_date'] = year_match.group(1)
 
     # ── Finishing ──
     finishing_match = re.search(
@@ -339,6 +347,19 @@ def parse_property_text(text: str, url: str, compound_name: str, tab_sale_type: 
     ref_match = re.search(r'/property/(\d+)', url)
     if ref_match:
         prop['nawy_reference'] = ref_match.group(1)
+
+    # ── Maintenance Fee ──
+    maint_match = re.search(r'Maintenance\s*(?:Fee|Deposit)?[:\s]+(\d+)\s*%', clean, re.IGNORECASE)
+    if maint_match:
+        prop['maintenance_fee_pct'] = int(maint_match.group(1))
+
+    # ── Delivery / Handover Payment ──
+    delivery_pay_match = re.search(
+        r'(?:Delivery|Handover)\s*(?:Payment|Fee|Amount)[:\s]+(\d+(?:,\d{3})*)\s*(?:EGP)?',
+        clean, re.IGNORECASE
+    )
+    if delivery_pay_match:
+        prop['delivery_payment'] = float(delivery_pay_match.group(1).replace(',', ''))
 
     # Filter invalid (no price = skip)
     if not prop['price']:
@@ -491,6 +512,8 @@ def upsert_property_to_db(prop_data: Dict, engine=None):
                             price_per_sqm = :price_per_sqm, size_sqm = :size_sqm,
                             bedrooms = :bedrooms, bathrooms = :bathrooms, finishing = :finishing,
                             delivery_date = :delivery_date, down_payment = :down_payment,
+                            maintenance_fee_pct = :maintenance_fee_pct,
+                            delivery_payment = :delivery_payment,
                             monthly_installment = :monthly_installment,
                             installment_years = :installment_years, sale_type = :sale_type,
                             nawy_url = :nawy_url, is_delivered = :is_delivered,
@@ -510,12 +533,14 @@ def upsert_property_to_db(prop_data: Dict, engine=None):
                         INSERT INTO properties (
                             title, description, type, location, compound, price, price_per_sqm,
                             size_sqm, bedrooms, bathrooms, finishing, delivery_date, down_payment,
+                            maintenance_fee_pct, delivery_payment,
                             monthly_installment, installment_years, sale_type, nawy_url,
                             is_delivered, is_cash_only, land_area, nawy_reference, is_nawy_now,
                             developer, scraped_at, embedding, is_available, last_scrape_run_id, content_hash
                         ) VALUES (
                             :title, :description, :type, :location, :compound, :price, :price_per_sqm,
                             :size_sqm, :bedrooms, :bathrooms, :finishing, :delivery_date, :down_payment,
+                            :maintenance_fee_pct, :delivery_payment,
                             :monthly_installment, :installment_years, :sale_type, :nawy_url,
                             :is_delivered, :is_cash_only, :land_area, :nawy_reference, :is_nawy_now,
                             :developer, :scraped_at, :embedding, true, :last_scrape_run_id, :content_hash
@@ -558,6 +583,8 @@ def _build_upsert_params(prop: Dict, title: str, price_per_sqm: float,
         "nawy_reference": prop.get('nawy_reference', ''),
         "is_nawy_now": prop.get('is_nawy_now', False),
         "developer": prop.get('developer', ''),
+        "maintenance_fee_pct": int(prop.get('maintenance_fee_pct', 0) or 0),
+        "delivery_payment": float(prop.get('delivery_payment', 0) or 0),
         "scraped_at": prop.get('scraped_at', datetime.now(timezone.utc).isoformat()),
         "embedding": str(embedding) if embedding else None,
         "last_scrape_run_id": prop.get('scrape_run_id', ''),
@@ -717,6 +744,30 @@ async def scrape_detail_page_async(detail_page: Page, url: str) -> Optional[Dict
         if ref_match:
             extra['nawy_reference'] = ref_match.group(1)
 
+        # ── Maintenance / handover fee ──
+        maint_match = re.search(r'Maintenance\s*(?:Fee|Deposit)?[:\s]+(\d+)\s*%', text, re.IGNORECASE)
+        if maint_match:
+            extra['maintenance_fee_pct'] = int(maint_match.group(1))
+
+        # ── Delivery / handover payment ──
+        delivery_pay_match = re.search(
+            r'(?:Delivery|Handover)\s*(?:Payment|Fee|Amount)[:\s]+(\d+(?:,\d{3})*)\s*(?:EGP)?',
+            text, re.IGNORECASE
+        )
+        if delivery_pay_match:
+            extra['delivery_payment'] = float(delivery_pay_match.group(1).replace(',', ''))
+
+        # ── Delivery date with quarter ──
+        if re.search(r'\bDelivered\b|\bReady\s*to\s*Move\b', text, re.IGNORECASE):
+            extra['is_delivered'] = True
+            extra['delivery_date'] = 'Delivered'
+        else:
+            del_match = re.search(r'(?:Delivery|Ready)[:\s]*(?:(Q[1-4])\s*)?(20\d{2})', text, re.IGNORECASE)
+            if del_match:
+                quarter = del_match.group(1)
+                year = del_match.group(2)
+                extra['delivery_date'] = f"{quarter} {year}" if quarter else year
+
         return extra if extra else None
     except Exception:
         return None
@@ -753,7 +804,7 @@ async def _scrape_paginated_regex(
                 # ── Detail page enrichment for Resale properties ──
                 # Bug fix: scrape_detail_page was previously never called.
                 # Only runs when land_area is missing (minimizes extra page loads).
-                if parsed['sale_type'] == 'Resale' and parsed['land_area'] == 0 and detail_page:
+                if parsed['down_payment'] == 0 and detail_page:
                     extras = await scrape_detail_page_async(detail_page, card['url'])
                     if extras:
                         parsed.update({k: v for k, v in extras.items() if v})

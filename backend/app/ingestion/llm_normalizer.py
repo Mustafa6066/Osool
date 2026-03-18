@@ -167,6 +167,8 @@ class NormalizedProperty(BaseModel):
     is_delivered: bool = False
     is_cash_only: bool = False
     land_area: Optional[int] = Field(None, ge=0, description="Land area sqm (for villas)")
+    maintenance_fee_pct: Optional[int] = Field(None, ge=0, le=100, description="Maintenance/wadeea deposit percentage")
+    delivery_payment: Optional[float] = Field(None, ge=0, description="Handover lump-sum payment in EGP")
 
     @field_validator("price", "size_sqm", mode="before")
     @classmethod
@@ -257,6 +259,8 @@ nawy_reference — The property "id" field as a string, or null.
 developer — If raw data has developer.name or _developer_name, use that value.
 compound — If raw data has _compound_name, use it. Otherwise extract from compound.slug or _meta.source_url.
 land_area — If raw data has a land_area field, use it as integer. Otherwise null.
+maintenance_fee_pct — Integer 0-100 or null. The maintenance deposit (wadeea) percentage. Look for "Maintenance", "Wadeea", "Deposit" keywords.
+delivery_payment — Numeric EGP or null. A lump-sum handover/delivery payment. Look for "Delivery Payment", "Handover Payment", "Upon Delivery" keywords.
 
 If a field is not present in the raw data, set it to null.
 Do NOT invent data. Do NOT hallucinate prices or sizes.
@@ -288,7 +292,9 @@ REQUIRED OUTPUT SCHEMA (JSON only, no markdown)
   "is_nawy_now": boolean,
   "is_delivered": boolean,
   "is_cash_only": boolean,
-  "land_area": integer|null
+  "land_area": integer|null,
+  "maintenance_fee_pct": integer|null,
+  "delivery_payment": number|null
 }}
 """.strip()
 
