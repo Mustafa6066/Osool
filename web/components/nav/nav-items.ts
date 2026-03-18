@@ -8,7 +8,6 @@ import {
   Building2,
   MapPin,
   Layers,
-  Terminal,
 } from 'lucide-react';
 import type { ElementType } from 'react';
 
@@ -27,7 +26,6 @@ export const AUTH_NAV: NavItem[] = [
   { key: 'saved',     label: 'Saved',   labelAr: 'المحفوظات', icon: Heart,           href: '/favorites' },
   { key: 'dashboard', label: 'Home',    labelAr: 'الرئيسية',  icon: LayoutDashboard, href: '/dashboard' },
   { key: 'market',    label: 'Market',  labelAr: 'السوق',     icon: TrendingUp,      href: '/market' },
-  { key: 'terminal',  label: 'Terminal', labelAr: 'المحطة',    icon: Terminal,        href: '/terminal' },
 ];
 
 /** Public visitors — first 4 items appear in mobile bottom bar */
@@ -46,7 +44,6 @@ export function getActiveKey(pathname: string): string {
   if (pathname === '/dashboard') return 'dashboard';
   if (pathname === '/favorites') return 'saved';
   if (pathname === '/market') return 'market';
-  if (pathname === '/terminal') return 'terminal';
   if (pathname.startsWith('/admin')) return 'admin';
   if (pathname.startsWith('/tickets')) return 'tickets';
   if (
