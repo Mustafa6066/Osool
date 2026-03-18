@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, BarChart3, TrendingUp, RotateCcw, User, ThumbsUp, ThumbsDown, Square, AlertTriangle, RefreshCw, MessageCircle } from 'lucide-react';
+import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, BarChart3, RotateCcw, ThumbsUp, ThumbsDown, Square, AlertTriangle, RefreshCw, MessageCircle } from 'lucide-react';
 import { useVoiceRecording, type RecordingStatus } from '@/hooks/useVoiceRecording';
 import VoiceOrb from '@/components/VoiceOrb';
 import ReactMarkdown from 'react-markdown'; //
 import remarkGfm from 'remark-gfm'; //
-import rehypeRaw from 'rehype-raw'; // DISABLED - kept import for reference
 import PropertyCardEnhanced from './PropertyCardEnhanced';
 import { PropertyContext, UIActionData } from './ContextualPane';
 import api from '@/lib/api';
@@ -55,20 +54,53 @@ const formatPrice = (price: number): string => {
     return `${(price / 1_000).toFixed(0)}K EGP`;
 };
 
-// User Message Component - ChatGPT Style (clean, no bubble)
+// User Message Component - ChatGPT mobile style
 function UserMessage({ content, timestamp, isRTL }: { content: string; timestamp?: Date; isRTL: boolean }) {
-    const messageIsArabic = isArabic(content);
+    const messageIsArabic = isArabic(content) || isRTL;
 
     return (
-        <div className="chatgpt-message chatgpt-message-user">
-            <div className="chatgpt-message-layout chatgpt-container">
-                <div className="chatgpt-avatar chatgpt-avatar-user">
-                    <User size={16} />
-                </div>
-                <div className="chatgpt-message-content" dir={messageIsArabic ? 'rtl' : 'ltr'}>
-                    <p>{content}</p>
-                </div>
+        <div className={`flex w-full mb-6 px-4 ${messageIsArabic ? 'justify-start' : 'justify-end'}`}>
+            <div
+                className="max-w-[85%] rounded-3xl bg-gray-100 dark:bg-[#2f2f2f] px-5 py-3 text-[15px] leading-relaxed text-black dark:text-white"
+                dir={messageIsArabic ? 'rtl' : 'ltr'}
+            >
+                {content}
             </div>
+        </div>
+    );
+}
+
+function CollapsibleVisualization({ viz, isRTL }: { viz: UIAction; isRTL: boolean }) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <div className="overflow-hidden rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface)]/60">
+            <button
+                onClick={() => setIsOpen((prev) => !prev)}
+                className={`flex w-full items-center justify-between p-3 text-sm font-medium transition-colors hover:bg-[var(--chatgpt-hover-bg)] ${isRTL ? 'flex-row-reverse text-end' : 'text-start'}`}
+                aria-expanded={isOpen}
+            >
+                <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <BarChart3 size={16} className="text-emerald-600" />
+                    <span>{viz.chart_reference || (isRTL ? 'عرض التحليل' : 'View Analysis')}</span>
+                </div>
+                <ChevronDown size={16} className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: 'auto' }}
+                        exit={{ height: 0 }}
+                        className="overflow-hidden border-t border-[var(--color-border)]/50"
+                    >
+                        <div className="p-3 sm:p-4">
+                            <VisualizationRenderer type={viz.type} data={viz.data} />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -119,7 +151,7 @@ function cleanMessageContent(text: string): string {
     );
 }
 
-// AI Message Component - ChatGPT Style (subtle bg, avatar)
+// AI Message Component - ChatGPT mobile style (transparent response stream)
 function AIMessage({
     content,
     properties,
@@ -151,17 +183,18 @@ function AIMessage({
     onFeedback?: (type: 'up' | 'down') => void;
     feedback?: 'up' | 'down' | null;
 }) {
-    const messageIsArabic = isArabic(content);
+    const messageIsArabic = isArabic(content) || isRTL;
 
     // Error state UI
     if (isError) {
         return (
-            <div className="chatgpt-message chatgpt-message-ai">
-                <div className="chatgpt-message-layout chatgpt-container">
-                    <div className="chatgpt-avatar chatgpt-avatar-ai">
+            <div className={`flex w-full mb-8 px-4 gap-4 ${messageIsArabic ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] mt-1">
+                    <div className="chatgpt-avatar-ai flex h-6 w-6 items-center justify-center rounded-full">
                         <AlertTriangle size={16} className="text-amber-500" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                </div>
+                <div className="flex-1 min-w-0" dir={messageIsArabic ? 'rtl' : 'ltr'}>
                         <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
                             <p className={`text-sm text-[var(--color-text-secondary)] mb-3 ${messageIsArabic ? 'text-end' : 'text-start'}`}>
                                 {content}
@@ -176,155 +209,119 @@ function AIMessage({
                                 </button>
                             )}
                         </div>
-                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="chatgpt-message chatgpt-message-ai">
-            <div className="chatgpt-message-layout chatgpt-container">
-                <div className="chatgpt-avatar chatgpt-avatar-ai">
-                    <Sparkles size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className={`chatgpt-message-content prose dark:prose-invert max-w-none ${messageIsArabic ? 'prose-rtl text-end' : 'text-start'}`} dir={messageIsArabic ? 'rtl' : 'ltr'}>
-                        {/* Markdown Rendering Implementation */}
-                        <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            // rehypePlugins removed - rehypeRaw can cause XSS
-                            components={{
-                                p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
-                                ul: ({ node, ...props }) => <ul className={`list-disc mb-3 ${messageIsArabic ? 'pe-6' : 'ps-6'}`} {...props} />,
-                                ol: ({ node, ...props }) => <ol className={`list-decimal mb-3 ${messageIsArabic ? 'pe-6' : 'ps-6'}`} {...props} />,
-                                strong: ({ node, ...props }) => <strong className="font-bold text-[var(--color-primary)] dark:text-[var(--color-teal-accent)]" {...props} />,
-                                h1: ({ node, ...props }) => <h1 className={`text-xl font-bold mb-2 mt-4 ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
-                                h2: ({ node, ...props }) => <h2 className={`text-lg font-bold mb-2 mt-3 ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
-                                h3: ({ node, ...props }) => <h3 className={`text-md font-bold mb-1 mt-2 ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
-                                blockquote: ({ node, ...props }) => (
-                                    <blockquote className={`${messageIsArabic ? 'border-e-4 pe-4 rounded-l' : 'border-s-4 ps-4 rounded-r'} border-[var(--color-primary)] py-1 my-2 bg-[var(--color-surface-hover)]`} {...props} />
-                                ),
-                                a: ({ node, ...props }) => <a className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
-                                table: ({ node, ...props }) => (
-                                    <div className="overflow-x-auto my-4 rounded-xl border border-[var(--color-border)]/40">
-                                        <table className={`w-full border-collapse text-sm ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
-                                    </div>
-                                ),
-                                thead: ({ node, ...props }) => <thead className="bg-[var(--color-surface)]/50" {...props} />,
-                                th: ({ node, ...props }) => (
-                                    <th className={`border border-[var(--color-border)]/40 px-3 py-2 font-semibold text-[var(--color-primary)] bg-[var(--color-surface)]/30 ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
-                                ),
-                                td: ({ node, ...props }) => (
-                                    <td className={`border border-[var(--color-border)]/40 px-3 py-2 text-[var(--color-text-secondary)] ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
-                                ),
-                                tr: ({ node, ...props }) => (
-                                    <tr className="even:bg-[var(--color-surface)]/10 hover:bg-[var(--color-surface)]/20 transition-colors" {...props} />
-                                ),
-                            }}
-                        >
-                            {cleanMessageContent(content)}
-                        </ReactMarkdown>
-                        {isStreaming && <span className="chatgpt-cursor" />}
-                    </div>
-
-                    {/* Visualizations */}
-                    {visualizations && visualizations.length > 0 && !isStreaming && (
-                        <div className="mt-4 space-y-3 sm:space-y-4">
-                            <div className={`flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)] ${messageIsArabic ? 'flex-row-reverse' : ''}`}>
-                                <BarChart3 size={16} />
-                                <span>{isRTL ? 'التحليلات' : 'Analytics'}</span>
-                            </div>
-                            <div className="grid gap-3">
-                                {visualizations.map((viz, index) => (
-                                    <div
-                                        key={`${viz.type}-${index}`}
-                                        className="w-full max-w-full rounded-xl overflow-hidden border border-[var(--color-border)]/30 bg-transparent ai-visualization"
-                                    >
-                                        {viz.chart_reference && (
-                                            <div className={`px-3 sm:px-4 py-2 bg-transparent border-b border-[var(--color-border)]/30 ${messageIsArabic ? 'text-end' : 'text-start'}`}>
-                                                <p className="text-xs text-[var(--color-text-muted)] font-medium flex items-center gap-2">
-                                                    <TrendingUp size={12} />
-                                                    {viz.chart_reference}
-                                                </p>
-                                            </div>
-                                        )}
-                                        <div className="p-1.5 sm:p-2">
-                                            <VisualizationRenderer
-                                                type={viz.type}
-                                                data={viz.data}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Property Cards */}
-                    {properties && properties.length > 0 && !isStreaming && (
-                        <div className="mt-4 space-y-3">
-                            {properties.map((prop) => (
-                                <div
-                                    key={prop.id}
-                                    onClick={() => onPropertySelect?.(prop, visualizations)}
-                                    className="cursor-pointer"
-                                >
-                                    <PropertyCardEnhanced
-                                        property={{
-                                            id: String(prop.id),
-                                            title: prop.title,
-                                            address: prop.location,
-                                            price: formatPrice(prop.price),
-                                            bedrooms: prop.bedrooms,
-                                            bathrooms: 2,
-                                            sqft: prop.size_sqm,
-                                            rating: prop.wolf_score ? prop.wolf_score / 10 : undefined,
-                                            badge: prop.developer,
-                                            growthBadge: prop.wolf_score && prop.wolf_score >= 80 ? (isRTL ? 'نمو مرتفع' : 'High Growth') : undefined,
-                                        }}
-                                    />
+        <div className={`flex w-full mb-8 px-4 gap-4 ${messageIsArabic ? 'flex-row-reverse' : 'flex-row'}`}>
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] mt-1">
+                <Sparkles size={16} className="text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0" dir={messageIsArabic ? 'rtl' : 'ltr'}>
+                <div className={`text-[15px] leading-relaxed text-[var(--color-text-primary)] prose prose-sm dark:prose-invert max-w-none prose-p:mt-0 prose-p:mb-4 prose-headings:mt-5 prose-headings:mb-2 prose-blockquote:border-s-2 prose-blockquote:ps-3 prose-blockquote:italic prose-blockquote:text-inherit prose-blockquote:bg-transparent prose-blockquote:rounded-none prose-strong:text-inherit ${messageIsArabic ? 'text-end prose-rtl' : 'text-start'}`}>
+                    <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            p: ({ node, ...props }) => <p className={`mb-4 last:mb-0 leading-relaxed ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
+                            ul: ({ node, ...props }) => <ul className={`list-disc mb-4 ${messageIsArabic ? 'pe-6' : 'ps-6'}`} {...props} />,
+                            ol: ({ node, ...props }) => <ol className={`list-decimal mb-4 ${messageIsArabic ? 'pe-6' : 'ps-6'}`} {...props} />,
+                            h1: ({ node, ...props }) => <h1 className={`text-xl font-semibold ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
+                            h2: ({ node, ...props }) => <h2 className={`text-lg font-semibold ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
+                            h3: ({ node, ...props }) => <h3 className={`text-base font-semibold ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
+                            a: ({ node, ...props }) => <a className="text-emerald-600 hover:underline dark:text-emerald-400" target="_blank" rel="noopener noreferrer" {...props} />,
+                            table: ({ node, ...props }) => (
+                                <div className="my-4 overflow-x-auto rounded-xl border border-[var(--color-border)]/40">
+                                    <table className={`w-full border-collapse text-sm ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
                                 </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Message Actions */}
-                    {!isStreaming && (
-                        <div className="chatgpt-message-actions">
-                            {onCopy && (
-                                <button onClick={onCopy} className="chatgpt-action-btn">
-                                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                                    <span>{copied ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}</span>
-                                </button>
-                            )}
-                            {onRegenerate && (
-                                <button onClick={onRegenerate} className="chatgpt-action-btn">
-                                    <RotateCcw size={14} />
-                                    <span>{isRTL ? 'إعادة التوليد' : 'Regenerate'}</span>
-                                </button>
-                            )}
-                            {onFeedback && (
-                                <>
-                                    <button
-                                        onClick={() => onFeedback('up')}
-                                        className={`chatgpt-action-btn ${feedback === 'up' ? 'text-green-500' : ''}`}
-                                        aria-label={isRTL ? 'إعجاب' : 'Thumbs up'}
-                                    >
-                                        <ThumbsUp size={14} className={feedback === 'up' ? 'fill-current' : ''} />
-                                    </button>
-                                    <button
-                                        onClick={() => onFeedback('down')}
-                                        className={`chatgpt-action-btn ${feedback === 'down' ? 'text-red-500' : ''}`}
-                                        aria-label={isRTL ? 'عدم إعجاب' : 'Thumbs down'}
-                                    >
-                                        <ThumbsDown size={14} className={feedback === 'down' ? 'fill-current' : ''} />
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    )}
+                            ),
+                            thead: ({ node, ...props }) => <thead className="bg-[var(--color-surface)]/50" {...props} />,
+                            th: ({ node, ...props }) => (
+                                <th className={`border border-[var(--color-border)]/40 px-3 py-2 font-semibold ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
+                            ),
+                            td: ({ node, ...props }) => (
+                                <td className={`border border-[var(--color-border)]/40 px-3 py-2 text-[var(--color-text-secondary)] ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
+                            ),
+                        }}
+                    >
+                        {cleanMessageContent(content)}
+                    </ReactMarkdown>
+                    {isStreaming && <span className={`inline-block w-2 h-4 bg-emerald-500 animate-pulse align-middle ${messageIsArabic ? 'mr-1' : 'ml-1'}`} />}
                 </div>
+
+                {/* Visualizations - Collapsible cards for mobile focus */}
+                {visualizations && visualizations.length > 0 && !isStreaming && (
+                    <div className="mt-4 flex flex-col gap-2">
+                        {visualizations.map((viz, index) => (
+                            <CollapsibleVisualization key={`${viz.type}-${index}`} viz={viz} isRTL={messageIsArabic} />
+                        ))}
+                    </div>
+                )}
+
+                {/* Properties - Horizontal carousel to avoid long vertical stacks */}
+                {properties && properties.length > 0 && !isStreaming && (
+                    <div className="mt-5 -mx-4 px-4 overflow-x-auto snap-x snap-mandatory flex gap-3 pb-4 hide-scrollbar">
+                        {properties.map((prop) => (
+                            <div
+                                key={prop.id}
+                                onClick={() => onPropertySelect?.(prop, visualizations)}
+                                className="snap-center shrink-0 w-[280px] sm:w-[320px] cursor-pointer"
+                            >
+                                <PropertyCardEnhanced
+                                    property={{
+                                        id: String(prop.id),
+                                        title: prop.title,
+                                        address: prop.location,
+                                        price: formatPrice(prop.price),
+                                        bedrooms: prop.bedrooms,
+                                        bathrooms: 2,
+                                        sqft: prop.size_sqm,
+                                        rating: prop.wolf_score ? prop.wolf_score / 10 : undefined,
+                                        badge: prop.developer,
+                                        growthBadge: prop.wolf_score && prop.wolf_score >= 80 ? (isRTL ? 'نمو مرتفع' : 'High Growth') : undefined,
+                                    }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Message Actions */}
+                {!isStreaming && (
+                    <div className="chatgpt-message-actions">
+                        {onCopy && (
+                            <button onClick={onCopy} className="chatgpt-action-btn">
+                                {copied ? <Check size={14} /> : <Copy size={14} />}
+                                <span>{copied ? (isRTL ? 'تم النسخ' : 'Copied') : (isRTL ? 'نسخ' : 'Copy')}</span>
+                            </button>
+                        )}
+                        {onRegenerate && (
+                            <button onClick={onRegenerate} className="chatgpt-action-btn">
+                                <RotateCcw size={14} />
+                                <span>{isRTL ? 'إعادة التوليد' : 'Regenerate'}</span>
+                            </button>
+                        )}
+                        {onFeedback && (
+                            <>
+                                <button
+                                    onClick={() => onFeedback('up')}
+                                    className={`chatgpt-action-btn ${feedback === 'up' ? 'text-green-500' : ''}`}
+                                    aria-label={isRTL ? 'إعجاب' : 'Thumbs up'}
+                                >
+                                    <ThumbsUp size={14} className={feedback === 'up' ? 'fill-current' : ''} />
+                                </button>
+                                <button
+                                    onClick={() => onFeedback('down')}
+                                    className={`chatgpt-action-btn ${feedback === 'down' ? 'text-red-500' : ''}`}
+                                    aria-label={isRTL ? 'عدم إعجاب' : 'Thumbs down'}
+                                >
+                                    <ThumbsDown size={14} className={feedback === 'down' ? 'fill-current' : ''} />
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -615,6 +612,15 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         handleSend(prevUserMsg.content);
     };
 
+    const handleRegenerate = (messageId: string) => {
+        const msgIndex = messages.findIndex(m => m.id === messageId);
+        if (msgIndex <= 0) return;
+        const prevUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === 'user');
+        if (!prevUserMsg) return;
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+        handleSend(prevUserMsg.content);
+    };
+
     const handlePropertySelect = (property: Property, uiActions?: UIAction[]) => {
         if (onPropertySelect) {
             let wolfScore = property.wolf_score || 75;
@@ -869,6 +875,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                                         onPropertySelect={handlePropertySelect}
                                         isError={message.isError}
                                         onRetry={message.isError ? () => handleRetry(message.id) : undefined}
+                                        onRegenerate={!message.isError && index === messages.length - 1 ? () => handleRegenerate(message.id) : undefined}
                                         onFeedback={!message.isError ? (type) => handleFeedback(message.id, type) : undefined}
                                         feedback={message.feedback}
                                     />
