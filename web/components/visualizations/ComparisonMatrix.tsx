@@ -50,9 +50,62 @@ export default function ComparisonMatrix({ properties, bestValueId, recommendedI
                 </p>
             </div>
 
-            {/* Comparison Table */}
-            <div className="overflow-x-auto -mx-6 px-6">
-                <table className="w-full min-w-[500px]">
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+                {properties.map((property, idx) => (
+                    <div key={property.id} className="rounded-2xl border border-[var(--color-border)]/60 bg-[var(--color-surface-elevated)]/50 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <div className="text-[11px] text-[var(--color-text-muted)]">Property {idx + 1}</div>
+                                <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mt-0.5 line-clamp-2">{property.title}</h4>
+                                <div className="text-xs text-[var(--color-text-secondary)] mt-0.5">{property.location}</div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                                {property.id === recommendedId && (
+                                    <span className="px-2 py-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-[10px] rounded-full whitespace-nowrap font-semibold">Recommended</span>
+                                )}
+                                {property.id === bestValueId && property.id !== recommendedId && (
+                                    <span className="px-2 py-0.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-[10px] rounded-full whitespace-nowrap font-semibold">Best Value</span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-lg bg-[var(--color-surface)]/70 px-2.5 py-2">
+                                <div className="text-[var(--color-text-muted)]">Total Price</div>
+                                <div className="mt-1 font-semibold text-[var(--color-primary)]">{(property.price / 1000000).toFixed(1)}M EGP</div>
+                            </div>
+                            <div className="rounded-lg bg-[var(--color-surface)]/70 px-2.5 py-2">
+                                <div className="text-[var(--color-text-muted)]">Price/sqm</div>
+                                <div className={`mt-1 font-semibold ${property.price_per_sqm === lowestPricePerSqm ? 'text-emerald-500' : 'text-[var(--color-text-primary)]'}`}>
+                                    {(property.price_per_sqm || 0).toLocaleString()} EGP
+                                </div>
+                            </div>
+                            <div className="rounded-lg bg-[var(--color-surface)]/70 px-2.5 py-2">
+                                <div className="text-[var(--color-text-muted)]">Size</div>
+                                <div className="mt-1 font-semibold text-[var(--color-text-primary)]">{property.size_sqm} sqm • {property.bedrooms} bed</div>
+                            </div>
+                            <div className="rounded-lg bg-[var(--color-surface)]/70 px-2.5 py-2">
+                                <div className="text-[var(--color-text-muted)]">ROI</div>
+                                <div className={`mt-1 font-semibold ${property.roi_projection && property.roi_projection === highestROI ? 'text-emerald-500' : 'text-[var(--color-text-primary)]'}`}>
+                                    {property.roi_projection ? `${property.roi_projection.toFixed(1)}%` : 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+
+                        {(property.monthly_installment || property.delivery_date) && (
+                            <div className="mt-2.5 flex flex-wrap gap-2 text-[11px] text-[var(--color-text-secondary)]">
+                                {property.monthly_installment && <span>Monthly: {(property.monthly_installment / 1000).toFixed(0)}K EGP</span>}
+                                {property.delivery_date && <span>Delivery: {property.delivery_date}</span>}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto -mx-6 px-6">
+                <table className="w-full min-w-[760px]">
                     <thead>
                         <tr className="border-b border-[var(--color-border)]">
                             <th className="text-left py-3 px-3 text-[var(--color-text-muted)] text-sm font-medium w-28">Metric</th>

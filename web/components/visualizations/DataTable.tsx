@@ -165,7 +165,7 @@ export default function DataTable({
             )}
 
             {/* Table Container */}
-            <div style={{ maxHeight, overflow: 'auto' }} className="overflow-x-auto">
+            <div style={{ maxHeight, overflow: 'auto' }} className="overflow-x-auto overflow-y-auto">
                 {data.length === 0 ? (
                     <div className="p-8 text-center">
                         <p className="text-[var(--color-text-secondary)]">
@@ -173,14 +173,14 @@ export default function DataTable({
                         </p>
                     </div>
                 ) : (
-                    <table className="w-full border-collapse">
+                    <table className="w-full min-w-[620px] border-collapse">
                         {/* Header */}
                         <thead>
                             <tr className="bg-[var(--color-surface)]/30 border-b border-[var(--color-border)]">
                                 {columns.map((col) => (
                                     <th
                                         key={col.key}
-                                        className={`px-4 py-3 text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider cursor-${
+                                        className={`px-2.5 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider cursor-${
                                             sortable ? 'pointer hover:text-white' : 'default'
                                         } transition-colors ${
                                             col.align === 'left' ? 'text-left' :
@@ -226,7 +226,7 @@ export default function DataTable({
                                     {columns.map((col) => (
                                         <td
                                             key={`${idx}-${col.key}`}
-                                            className={`px-4 py-3 text-sm ${
+                                            className={`px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm ${
                                                 col.align === 'left' ? 'text-left' :
                                                 col.align === 'right' ? 'text-right' :
                                                 'text-center'

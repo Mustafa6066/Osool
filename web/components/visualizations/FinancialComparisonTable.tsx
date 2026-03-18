@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from "@heroicons/react/24/outline";
-import DataTable, { tableFormatters } from "./DataTable";
 
 interface ComparisonRow {
     label: string;
@@ -61,8 +60,46 @@ export default function FinancialComparisonTable({
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-x-auto">
-                <table className="w-full border-collapse">
+            <div className="p-4 sm:p-6">
+                <div className="md:hidden space-y-2.5">
+                    {rows.map((row, rowIdx) => (
+                        <div key={`mobile-${rowIdx}`} className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface)]/20 p-3">
+                            <div className="flex items-center justify-end gap-2">
+                                <span className="text-sm font-semibold text-white">{row.label}</span>
+                                {row.icon && <span className="text-base">{row.icon}</span>}
+                            </div>
+                            <div className="mt-2.5 space-y-2">
+                                {row.values.map((val, colIdx) => {
+                                    const trendColor =
+                                        val.trend === 'up' ? 'text-green-400' :
+                                        val.trend === 'down' ? 'text-red-400' :
+                                        'text-yellow-400';
+
+                                    return (
+                                        <div key={`mobile-val-${colIdx}`} className="flex items-center justify-between gap-3 rounded-lg bg-[var(--color-surface)]/35 px-3 py-2">
+                                            <span className="text-xs text-[var(--color-text-secondary)]">{val.name}</span>
+                                            <div className="text-end">
+                                                <div className={`text-sm font-bold ${val.color || trendColor}`}>
+                                                    {typeof val.value === 'number' ? `${val.value.toFixed(1)}%` : val.value}
+                                                </div>
+                                                {showTrends && val.change !== undefined && (
+                                                    <div className={`text-[11px] mt-0.5 inline-flex items-center gap-1 ${trendColor}`}>
+                                                        {val.trend === 'up' && <ArrowTrendingUpIcon className="w-3 h-3" />}
+                                                        {val.trend === 'down' && <ArrowTrendingDownIcon className="w-3 h-3" />}
+                                                        {Math.abs(val.change).toFixed(1)}%
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="hidden md:block overflow-x-auto">
+                <table className="w-full min-w-[680px] border-collapse">
                     <thead>
                         <tr className="border-b border-[var(--color-border)]">
                             <th className="px-4 py-3 text-right text-xs font-medium text-[var(--color-text-secondary)] uppercase">
@@ -139,6 +176,7 @@ export default function FinancialComparisonTable({
                         ))}
                     </tbody>
                 </table>
+                </div>
             </div>
         </motion.div>
     );

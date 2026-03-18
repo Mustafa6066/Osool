@@ -536,10 +536,10 @@ export default function VisualizationRenderer(props: VisualizationRendererProps)
 
     return (
         <>
-            {/* Mobile-first chart wrapper: full width on phones, horizontal scroll only when needed */}
+            {/* Mobile-first chart wrapper: full width on phones without forced min-width clipping */}
             <div className="relative group overflow-hidden rounded-2xl border border-[var(--color-border)]/35 bg-[var(--color-surface)]/55 backdrop-blur-sm">
-                <div className="overflow-x-auto overflow-y-hidden no-scrollbar w-full relative">
-                    <div className="min-w-[320px] sm:min-w-[560px] w-full p-2 sm:p-3">
+                <div className="w-full relative">
+                    <div className="w-full max-w-full min-w-0 p-2 sm:p-3">
                         {content}
                     </div>
                 </div>
@@ -568,7 +568,7 @@ export default function VisualizationRenderer(props: VisualizationRendererProps)
                     </div>
                     {/* Centered wrapper that maxes out real estate but keeps its aspect ratio */}
                     <div 
-                        className="flex-1 w-full max-w-[1400px] mx-auto bg-[var(--color-surface)] rounded-2xl md:rounded-3xl p-4 sm:p-8 overflow-y-auto no-scrollbar shadow-2xl relative flex flex-col"
+                        className="flex-1 w-full max-w-full mx-auto bg-[var(--color-surface)] rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-8 overflow-y-auto no-scrollbar shadow-2xl relative flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex-1 min-h-[400px]">

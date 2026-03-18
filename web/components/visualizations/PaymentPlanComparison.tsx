@@ -65,9 +65,9 @@ export default function PaymentPlanComparison({
                 </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-6">
                 {/* Best Options Highlight */}
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {best_down_payment && (
                         <div className="bg-gradient-to-br from-green-950/40 to-emerald-950/30 rounded-xl p-4 border border-green-500/20">
                             <div className="flex items-center gap-2 mb-3">
@@ -116,9 +116,36 @@ export default function PaymentPlanComparison({
 
                 {/* Plans Table */}
                 {plans.length > 0 && (
-                    <div className="bg-[var(--color-surface)]/30 rounded-xl overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
+                    <>
+                        <div className="md:hidden space-y-2.5">
+                            {plans.map((plan, i) => (
+                                <div key={`plan-card-${i}`} className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface)]/35 p-3.5">
+                                    <p className="text-sm text-white font-medium line-clamp-2">{plan.property_title}</p>
+                                    <div className="mt-2.5 grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <div className="text-[var(--color-text-muted)]">السعر</div>
+                                            <div className="text-[var(--color-text-secondary)] mt-0.5">{formatCurrency(plan.total_price)}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[var(--color-text-muted)]">المقدم</div>
+                                            <div className="mt-0.5"><span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">{plan.down_payment_percent}%</span></div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[var(--color-text-muted)]">المدة</div>
+                                            <div className="text-[var(--color-text-secondary)] mt-0.5">{plan.installment_years} سنوات</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[var(--color-text-muted)]">الشهري</div>
+                                            <div className="text-amber-400 font-medium mt-0.5">{formatCurrency(plan.monthly_installment)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="hidden md:block bg-[var(--color-surface)]/30 rounded-xl overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[680px]">
                                 <thead>
                                     <tr className="bg-[var(--color-surface)]/50">
                                         <th className="text-right px-4 py-3 text-xs font-medium text-[var(--color-text-secondary)]">العقار</th>
@@ -151,9 +178,10 @@ export default function PaymentPlanComparison({
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    </>
                 )}
             </div>
         </motion.div>

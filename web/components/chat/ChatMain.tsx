@@ -230,7 +230,7 @@ function AIMessage({
 
                     {/* Visualizations */}
                     {visualizations && visualizations.length > 0 && !isStreaming && (
-                        <div className="mt-4 space-y-4">
+                        <div className="mt-4 space-y-3 sm:space-y-4">
                             <div className={`flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)] ${messageIsArabic ? 'flex-row-reverse' : ''}`}>
                                 <BarChart3 size={16} />
                                 <span>{isRTL ? 'التحليلات' : 'Analytics'}</span>
@@ -239,17 +239,17 @@ function AIMessage({
                                 {visualizations.map((viz, index) => (
                                     <div
                                         key={`${viz.type}-${index}`}
-                                        className="rounded-xl overflow-hidden border border-[var(--color-border)]/30 bg-transparent ai-visualization"
+                                        className="w-full max-w-full rounded-xl overflow-hidden border border-[var(--color-border)]/30 bg-transparent ai-visualization"
                                     >
                                         {viz.chart_reference && (
-                                            <div className={`px-4 py-2 bg-transparent border-b border-[var(--color-border)]/30 ${messageIsArabic ? 'text-end' : 'text-start'}`}>
+                                            <div className={`px-3 sm:px-4 py-2 bg-transparent border-b border-[var(--color-border)]/30 ${messageIsArabic ? 'text-end' : 'text-start'}`}>
                                                 <p className="text-xs text-[var(--color-text-muted)] font-medium flex items-center gap-2">
                                                     <TrendingUp size={12} />
                                                     {viz.chart_reference}
                                                 </p>
                                             </div>
                                         )}
-                                        <div className="p-2">
+                                        <div className="p-1.5 sm:p-2">
                                             <VisualizationRenderer
                                                 type={viz.type}
                                                 data={viz.data}
@@ -879,7 +879,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                                 <TypingIndicator isRTL={effectiveRTL} />
                             )}
                         </div>
-                        <div className="h-4" />
+                        <div className="h-6 sm:h-4" />
                     </div>
 
                     {/* Scroll to Bottom Button */}
