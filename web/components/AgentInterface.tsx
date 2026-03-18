@@ -1401,32 +1401,32 @@ export default function AgentInterface() {
 
                         {/* Greeting */}
                         {!hasStarted && (
-                            <div className="flex flex-col min-h-[calc(100dvh-7.5rem)] sm:min-h-[calc(100vh-8rem)] justify-center px-3 sm:px-4 py-5 sm:py-6 relative">
+                            <div className="flex flex-col min-h-[calc(100dvh-6.5rem)] sm:min-h-[calc(100vh-8rem)] justify-start sm:justify-center px-3 sm:px-4 pt-6 sm:py-6 pb-4 sm:pb-6 relative">
                                 {/* Decorative background elements */}
-                                <div className="absolute top-1/2 start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+                                <div className="absolute top-[42%] sm:top-1/2 start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] sm:w-[600px] sm:h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[90px] sm:blur-[100px] rounded-full pointer-events-none -z-10" />
 
                                 <div className="text-center w-full max-w-3xl mx-auto">
-                                    <div className="flex items-center justify-center gap-3 mb-4">
+                                    <div className="flex items-center justify-center gap-3 mb-3 sm:mb-4">
                                         <AgentAvatar />
                                         <span className="text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-widest">Osool AI</span>
                                     </div>
-                                    <h1 className="text-[2rem] md:text-[3rem] font-semibold tracking-tight leading-[1.15] mb-3 md:mb-4 text-[var(--color-text-primary)]" dir="auto">
+                                    <h1 className="text-[1.75rem] sm:text-[2.2rem] md:text-[3rem] font-semibold tracking-tight leading-[1.15] mb-2.5 sm:mb-4 text-[var(--color-text-primary)]" dir="auto">
                                         {conversationLanguage === 'ar' ? `أهلاً، ${userName}` : `Hello, ${userName}`}
                                     </h1>
-                                    <p className="text-[1rem] md:text-[1.15rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
+                                    <p className="text-[0.95rem] sm:text-[1.02rem] md:text-[1.15rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-2 sm:px-4 md:px-0" dir="auto">
                                         {conversationLanguage === 'ar' ? 'وكيلك الذكي للعقارات — تحليل السوق، فرص الاستثمار، وتدقيق المطورين' : 'Your AI real estate agent — market analysis, investment opportunities, and developer audits'}<span className="text-emerald-500 font-bold ms-0.5">.</span>
                                     </p>
                                 </div>
 
                                     {/* Centered Input Bar */}
-                                    <div className="w-full max-w-[800px] mx-auto mt-6 px-4">
+                                    <div className="w-full max-w-[800px] mx-auto mt-4 sm:mt-6 px-1 sm:px-4">
                                         {inputBar}
                                     </div>
 
                                     {/* Quick Action Cards — enhanced with data snippets  */}
-                                    <div className="md:hidden w-full max-w-[800px] mx-auto mt-4 px-2">
+                                    <div className="md:hidden w-full max-w-[800px] mx-auto mt-3.5 px-1">
                                         <div className="space-y-2.5">
-                                            {emptyStateSuggestions.map((s, i) => (
+                                            {emptyStateSuggestions.slice(0, 3).map((s, i) => (
                                                 <button
                                                     key={`mobile-${i}`}
                                                     onMouseDown={(e) => e.preventDefault()}
@@ -1474,7 +1474,7 @@ export default function AgentInterface() {
 
                                     {/* Recent conversations — enhanced with timestamps & category tags */}
                                     {pastSessions.length > 0 && (
-                                        <div className="w-full max-w-2xl mx-auto mt-8 px-4">
+                                        <div className="hidden md:block w-full max-w-2xl mx-auto mt-8 px-4">
                                             <button
                                                 onClick={() => setHistoryOpen(true)}
                                                 className="flex items-center gap-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] mx-auto mb-3 transition-colors"
