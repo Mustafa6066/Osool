@@ -536,10 +536,10 @@ export default function VisualizationRenderer(props: VisualizationRendererProps)
 
     return (
         <>
-            {/* Standard wrapper with responsive horizontal edge-to-edge layout & swipe mechanics */}
-            <div className="-mx-4 md:-mx-5 sm:mx-0 px-4 md:px-5 sm:px-0 sm:rounded-xl relative group overflow-hidden">
+            {/* Mobile-first chart wrapper: full width on phones, horizontal scroll only when needed */}
+            <div className="relative group overflow-hidden rounded-2xl border border-[var(--color-border)]/35 bg-[var(--color-surface)]/55 backdrop-blur-sm">
                 <div className="overflow-x-auto overflow-y-hidden no-scrollbar w-full relative">
-                    <div className="min-w-[600px] w-full">
+                    <div className="min-w-[320px] sm:min-w-[560px] w-full p-2 sm:p-3">
                         {content}
                     </div>
                 </div>
@@ -547,7 +547,7 @@ export default function VisualizationRenderer(props: VisualizationRendererProps)
                 {/* Maximize Button - shows on hover across devices */}
                 <button 
                     onClick={() => setIsMaximized(true)} 
-                    className="absolute top-3 right-3 sm:opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-xl bg-white/80 dark:bg-black/60 backdrop-blur-sm border border-black/10 dark:border-white/10 shadow-sm z-10 hover:bg-white dark:hover:bg-black text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                    className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 sm:opacity-0 group-hover:opacity-100 transition-opacity p-1.5 sm:p-2 rounded-xl bg-white/85 dark:bg-black/60 backdrop-blur-sm border border-black/10 dark:border-white/10 shadow-sm z-10 hover:bg-white dark:hover:bg-black text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                     aria-label="Maximize chart"
                 >
                     <Maximize2 size={16} />

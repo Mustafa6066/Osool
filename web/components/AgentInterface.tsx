@@ -1409,7 +1409,7 @@ export default function AgentInterface() {
 
                         {/* Greeting */}
                         {!hasStarted && (
-                            <div className="flex flex-col min-h-[calc(100vh-8rem)] justify-center px-4 py-6 relative">
+                            <div className="flex flex-col min-h-[calc(100dvh-7.5rem)] sm:min-h-[calc(100vh-8rem)] justify-center px-3 sm:px-4 py-5 sm:py-6 relative">
                                 {/* Decorative background elements */}
                                 <div className="absolute top-1/2 start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
 
@@ -1432,7 +1432,23 @@ export default function AgentInterface() {
                                     </div>
 
                                     {/* Quick Action Cards — enhanced with data snippets  */}
-                                    <div className="w-full max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 md:mt-6 px-4">
+                                    <div className="sm:hidden w-full max-w-[800px] mx-auto mt-4 px-1">
+                                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                            {emptyStateSuggestions.map((s, i) => (
+                                                <button
+                                                    key={`mobile-${i}`}
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
+                                                    className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--color-border)]/40 bg-[var(--color-surface)]/75 text-[12px] font-semibold text-[var(--color-text-primary)] hover:border-emerald-500/35 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                                                >
+                                                    <s.icon className="w-3.5 h-3.5 text-emerald-500" />
+                                                    <span dir="auto" className="whitespace-nowrap">{s.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="hidden sm:grid w-full max-w-3xl mx-auto grid-cols-2 md:grid-cols-4 gap-3 mt-5 md:mt-6 px-4">
                                         {emptyStateSuggestions.map((s, i) => (
                                             <button
                                                 key={i}
@@ -1502,29 +1518,29 @@ export default function AgentInterface() {
 
                         {/* Messages */}
                         {hasStarted && (
-                            <div className="px-4 pt-6 pb-8">
+                            <div className="px-3 sm:px-4 pt-4 sm:pt-6 pb-28 sm:pb-10">
                                 {messages.map((msg, index) => (
-                                    <div key={msg.id} className="mb-6 animate-fade-in">
-                                        <div className="flex gap-4">
-                                            <div className="flex-shrink-0 mt-1">
+                                    <div key={msg.id} className="mb-5 sm:mb-6 animate-fade-in">
+                                        <div className="flex gap-2 sm:gap-4">
+                                            <div className="hidden sm:flex flex-shrink-0 mt-1">
                                                 {msg.role === 'user' ? null : <AgentAvatar />}
                                             </div>
 
                                             <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
                                                 {msg.role === 'user' ? (
                                                     <div
-                                                        className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] px-4 py-3 md:px-5 md:py-3.5 rounded-3xl rounded-be-] max-w-[95%] md:max-w-[85%] text-[14px] md:text-[15px] leading-[1.6] md:leading-relaxed shadow-sm font-medium"
+                                                        className="bg-[var(--color-surface)] border border-[var(--color-border)]/40 text-[var(--color-text-primary)] px-4 py-2.5 sm:px-5 sm:py-3.5 rounded-2xl sm:rounded-3xl sm:rounded-br-md max-w-[92%] sm:max-w-[85%] text-[14px] sm:text-[15px] leading-[1.55] sm:leading-relaxed shadow-sm font-medium"
                                                         dir="auto"
                                                     >
                                                         {msg.content}
                                                     </div>
                                                 ) : (
-                                                    <div className="text-[14px] md:text-[15px] leading-[1.6] md:leading-relaxed text-[var(--color-text-secondary)] tracking-wide pt-1" dir="auto">
+                                                    <div className="text-[14px] sm:text-[15px] leading-[1.65] sm:leading-relaxed text-[var(--color-text-secondary)] pt-0.5 sm:pt-1" dir="auto">
                                                         <TypewriterMarkdown content={msg.content} animate={msg.id === lastAiMsgId} />
 
                                                         {/* Visualizations */}
                                                         {msg.uiActions && msg.uiActions.length > 0 && (
-                                                            <div className="mt-5 space-y-3" dir="ltr">
+                                                            <div className="mt-4 sm:mt-5 space-y-2.5 sm:space-y-3" dir="ltr">
                                                                     <AnimatePresence>
                                                                         {msg.uiActions
                                                                             .filter(shouldRenderUiAction)
@@ -1538,7 +1554,7 @@ export default function AgentInterface() {
                                                                                         ease: [0.16, 1, 0.3, 1], // easeOutExpo
                                                                                         delay: idx * 0.15 
                                                                                     }}
-                                                                                    className="ai-visualization w-full max-w-full"
+                                                                                    className="w-full max-w-full"
                                                                                 >
                                                                                     <VisualizationRenderer
                                                                                         type={action.type}
@@ -1557,7 +1573,7 @@ export default function AgentInterface() {
                                                                     initial={{ opacity: 0, y: 15 }}
                                                                     animate={{ opacity: 1, y: 0 }}
                                                                     transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-                                                                    className="mt-5 p-6 rounded-[20px] border border-[var(--color-border)]/50 bg-[var(--color-surface)] shadow-[0_4px_24px_rgba(0,0,0,0.03)]" 
+                                                                    className="mt-4 sm:mt-5 p-4 sm:p-6 rounded-[18px] sm:rounded-[20px] border border-[var(--color-border)]/50 bg-[var(--color-surface)] shadow-[0_4px_24px_rgba(0,0,0,0.03)]" 
                                                                     dir="ltr"
                                                                 >
                                                                 <div className="flex items-center gap-2 mb-5">
@@ -1694,7 +1710,7 @@ export default function AgentInterface() {
 
                 {/* Input Bar - Floating Figma Style (only shown after conversation starts, hidden when gated) */}
                 {hasStarted && !isGated && !anonGateShown && (
-                    <div className="sticky bottom-0 start-0 end-0 z-40 px-3 md:px-6 pb-2 md:pb-6 pt-2 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
+                    <div className="sticky bottom-0 start-0 end-0 z-40 px-2 sm:px-6 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-6 pt-2 sm:pt-10 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
                         <div className="max-w-[800px] mx-auto relative pointer-events-auto">
                             {inputBar}
 
