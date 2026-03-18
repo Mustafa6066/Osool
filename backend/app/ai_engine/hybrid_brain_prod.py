@@ -196,15 +196,15 @@ class OsoolHybridBrainProd:
             return result
 
         except Exception as e:
-            fallback_price = int(predicted_price) if predicted_price is not None else 0
+            fallback_price = int(predicted_price) if predicted_price is not None else None
             return {
                 "predicted_price": fallback_price,
                 "market_status": "Unknown",
                 "reasoning_bullets": [
-                    "AI reasoning unavailable; price is statistically calculated." if fallback_price > 0
+                    "AI reasoning unavailable; price is statistically calculated." if fallback_price
                     else "Unable to calculate price — both MLOps and AI unavailable."
                 ],
-                "source": "XGBoost Only" if fallback_price > 0 else "Error",
+                "source": "XGBoost Only" if fallback_price else "Error",
                 "error": str(e)
             }
 

@@ -507,7 +507,11 @@ async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: Use
         await db.commit()
     except Exception as e:
         logger.error(f"❌ Failed to save transaction: {e}")
-        # Proceed but warn — payment was already initiated
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Payment initiated but failed to save transaction record. Please contact support with your payment reference."
+        )
     
     return paymob_result
 
@@ -522,7 +526,12 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     from sqlalchemy.orm import selectinload
 
     hmac_value = request.query_params.get("hmac", "")
-    data = await request.json()
+
+    # Parse JSON body safely — malformed payloads must not crash the handler
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     # 1. Verify source is actually Paymob
     if not hmac_value or not paymob_service.verify_hmac(data, hmac_value):
@@ -556,21 +565,30 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         transaction.status = "paid"
 
         # 5. If this is a property reservation, mark the property as unavailable
+        # Use SELECT ... FOR UPDATE to prevent double-booking race condition
         if transaction.property_id:
             prop_result = await db.execute(
-                select(Property).filter(Property.id == transaction.property_id)
+                select(Property)
+                .filter(Property.id == transaction.property_id)
+                .with_for_update()
             )
             property = prop_result.scalar_one_or_none()
             if property:
+                if not property.is_available:
+                    logger.warning(f"Property {property.id} already reserved — possible double-booking attempt")
+                    await db.rollback()
+                    return {"status": "conflict", "reason": "property_already_reserved"}
                 property.is_available = False
                 logger.info(f"Property {property.id} marked as reserved after payment")
 
         await db.commit()
         logger.info(f"Transaction {transaction.id} marked as paid")
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Webhook Error: {e}")
-        # Security: Don't leak internal error details in webhook response
+        await db.rollback()
         raise HTTPException(status_code=500, detail="Internal processing error")
     
     return {"status": "success"}

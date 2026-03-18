@@ -513,11 +513,19 @@ class WolfBrain:
             # The user's plan showed "Fast Route (Regex)" then "Parallel Perception".
             
             # Wait for all results
-            intent, psychology, lead_data = await asyncio.gather(
+            _gather_results = await asyncio.gather(
                 perception_task, 
                 psychology_task, 
-                lead_score_task
+                lead_score_task,
+                return_exceptions=True,
             )
+            # Unpack with fallbacks — one task failure must not kill the turn
+            intent = _gather_results[0] if not isinstance(_gather_results[0], BaseException) else Intent(action="general", raw_query=query)
+            psychology = _gather_results[1] if not isinstance(_gather_results[1], BaseException) else PsychologyProfile(primary_state=PsychologicalState.NEUTRAL)
+            lead_data = _gather_results[2] if not isinstance(_gather_results[2], BaseException) else {"score": 30, "temperature": "cold", "signals": []}
+            for _i, _r in enumerate(_gather_results):
+                if isinstance(_r, BaseException):
+                    logger.error(f"Parallel task {_i} failed: {_r}")
             
             self.stats["gpt_calls"] += 1 # Perception used GPT
             logger.info(f"🎯 Intent: {intent.action}, Filters: {intent.filters}")
@@ -681,7 +689,7 @@ class WolfBrain:
                     "detected_language": language,
                     "lead_score": lead_score,
                     "card_readiness": card_readiness,
-                    "intent": intent.intent if hasattr(intent, 'intent') else "loop_detected"
+                    "intent": intent.action if hasattr(intent, 'action') else "loop_detected"
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -720,7 +728,7 @@ class WolfBrain:
                     "detected_language": language,
                     "lead_score": lead_score,
                     "card_readiness": card_readiness,
-                    "intent": intent.intent if hasattr(intent, 'intent') else "trust_building"
+                    "intent": intent.action if hasattr(intent, 'action') else "trust_building"
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -877,7 +885,7 @@ class WolfBrain:
                         "lead_score": lead_score,
                         "card_readiness": card_readiness,
                         "analytics_context": analytics_context,
-                        "intent": intent.intent if hasattr(intent, 'intent') else "market_education"
+                        "intent": intent.action if hasattr(intent, 'action') else "market_education"
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -994,7 +1002,7 @@ class WolfBrain:
                         "detected_language": language,
                         "lead_score": lead_score,
                         "card_readiness": card_readiness,
-                        "intent": intent.intent if hasattr(intent, 'intent') else "feasibility"
+                        "intent": intent.action if hasattr(intent, 'action') else "feasibility"
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

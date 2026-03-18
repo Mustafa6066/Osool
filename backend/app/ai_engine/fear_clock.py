@@ -218,17 +218,18 @@ USE THIS NATURALLY:
 """
 
     def _get_growth_rate(self, location: str) -> float:
-        """Get annual growth rate for a location."""
+        """Get annual forward growth rate for a location.
+        
+        AREA_GROWTH stores historical rates (e.g. 1.57 = +157% YoY).
+        We cap ALL rates to a sensible forward projection range [0.05, 0.30].
+        """
         loc_lower = location.lower()
 
         # Direct match in AREA_GROWTH
         for area, rate in AREA_GROWTH.items():
             if area.lower() in loc_lower or loc_lower in area.lower():
-                # AREA_GROWTH stores rates like 1.57 (157%) — use moderated forward rate
-                if rate > 1:
-                    # Historical rate was extreme; use 20-30% forward projection
-                    return min(rate * 0.15, 0.30)  # e.g., 1.57 * 0.15 = 0.24
-                return rate
+                # Cap to [5%, 30%] forward projection regardless of magnitude
+                return max(0.05, min(rate if rate <= 0.30 else rate * 0.15, 0.30))
 
         # Default: Egyptian real estate average nominal growth
         return MARKET_DATA.get("property_appreciation", 0.20)
