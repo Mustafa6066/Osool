@@ -13,6 +13,7 @@ import { organizationJsonLd } from '@/lib/json-ld';
 import OrchestratorTracker from '@/components/OrchestratorTracker';
 import { LeadScoreProvider } from '@/contexts/LeadScoreContext';
 import PriorityHandoff from '@/components/PriorityHandoff';
+import HapticFeedback from '@/components/HapticFeedback';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -98,6 +99,7 @@ export default function RootLayout({
                     {/* Global overlays */}
                     <GamificationOverlay />
                     <PriorityHandoff />
+                    <HapticFeedback />
                     <CommandPalette />
                     <Suspense fallback={null}>
                       <OrchestratorTracker />

@@ -636,33 +636,30 @@ export default function AgentInterface() {
 
                   {/* Mobile suggestion cards */}
                   <div className="md:hidden w-full max-w-[800px] mx-auto mt-3.5 px-1">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2 overflow-x-auto pb-1">
                       {minimalEmptySuggestions.slice(0, 3).map((s, i) => (
                         <button
                           key={`mobile-${i}`}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                          className="rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                          className="shrink-0 rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                         >
-                          <span dir="auto" className="truncate">{s.label}</span>
+                          <span dir="auto" className="block max-w-[70vw] truncate whitespace-nowrap">{s.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Desktop suggestion grid */}
-                  <div className="hidden md:grid w-full max-w-2xl mx-auto md:grid-cols-2 gap-2.5 mt-5 px-4">
+                  <div className="hidden md:flex w-full max-w-3xl mx-auto flex-wrap gap-2 mt-5 px-4 justify-center">
                     {minimalEmptySuggestions.map((s, i) => (
                       <button
                         key={i}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                        className="p-3 rounded-xl text-start transition-colors border border-[var(--color-border)]/50 hover:border-[var(--color-border)] hover:bg-[var(--color-surface)]"
+                        className="rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                       >
-                        <span className="text-[13px] font-medium text-[var(--color-text-primary)] leading-snug" dir="auto">{s.label}</span>
-                        <div className="mt-1 text-[11px] text-[var(--color-text-muted)]" dir="auto">
-                          {conversationLanguage === 'ar' ? s.snippetAr : s.snippet}
-                        </div>
+                        <span className="block max-w-[260px] truncate whitespace-nowrap" dir="auto">{s.label}</span>
                       </button>
                     ))}
                   </div>

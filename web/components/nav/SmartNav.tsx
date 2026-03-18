@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence, useAnimationControls, useMotionValue, type PanInfo } from 'framer-motion';
 import {
-  Sparkles, Sun, Moon, Gift, LogOut, User, Shield, Search,
+  Sparkles, Sun, Moon, Gift, LogOut, Shield, Search, LogIn, Languages,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -14,7 +14,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { AUTH_NAV, PUBLIC_NAV, getActiveKey, type NavItem } from '@/components/nav/nav-items';
 import NotificationBell from '@/components/NotificationBell';
 
-const SPRING_SNAPPY = { type: 'spring' as const, damping: 24, stiffness: 280 };
 const SPRING_PANEL = { type: 'spring' as const, damping: 26, stiffness: 230 };
 
 const NAV_EXPANDED_KEY = 'osool:floating-nav-expanded';
@@ -31,11 +30,12 @@ interface Position {
   y: number;
 }
 
-interface NavPillProps {
-  item: NavItem;
-  active: boolean;
-  language: string;
-  onClick: () => void;
+interface IconButtonProps {
+  icon: NavItem['icon'];
+  active?: boolean;
+  label: string;
+  onClick?: () => void;
+  href?: string;
 }
 
 function clampPosition(pos: Position): Position {
@@ -56,22 +56,37 @@ function getDefaultLauncherPosition(): Position {
   };
 }
 
-function NavPill({ item, active, language, onClick }: NavPillProps) {
-  const Icon = item.icon;
+function DockIconButton({ icon: Icon, active = false, label, onClick, href }: IconButtonProps) {
+  const className = `group flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
+    active
+      ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+      : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+  }`;
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={className}
+        aria-label={label}
+        title={label}
+        data-haptic="light"
+      >
+        <Icon className="h-4 w-4" />
+      </Link>
+    );
+  }
+
   return (
     <motion.button
       onClick={onClick}
-      whileTap={{ scale: 0.97 }}
-      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${
-        active
-          ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-          : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-      }`}
-      aria-current={active ? 'page' : undefined}
-      aria-label={language === 'ar' ? item.labelAr : item.label}
+      whileTap={{ scale: 0.95 }}
+      className={className}
+      aria-label={label}
+      title={label}
+      data-haptic="light"
     >
-      <Icon className="h-4 w-4" strokeWidth={active ? 2.2 : 1.8} />
-      <span className="truncate">{language === 'ar' ? item.labelAr : item.label}</span>
+      <Icon className="h-4 w-4" />
     </motion.button>
   );
 }
@@ -86,7 +101,6 @@ export default function SmartNav({ onInvite }: SmartNavProps) {
   const activeKey = getActiveKey(pathname);
   const items: NavItem[] = isAuthenticated ? AUTH_NAV : PUBLIC_NAV;
   const isAdmin = user?.role === 'admin';
-  const userInitial = (user?.full_name || user?.email || 'U').charAt(0).toUpperCase();
 
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -213,7 +227,8 @@ export default function SmartNav({ onInvite }: SmartNavProps) {
 
   if (!mounted) return null;
 
-  const panelWidth = Math.min(window.innerWidth - 24, 940);
+  const isMobile = window.innerWidth < 640;
+  const panelWidth = isMobile ? window.innerWidth : Math.min(window.innerWidth - 24, 740);
 
   return createPortal(
     <>
@@ -223,8 +238,8 @@ export default function SmartNav({ onInvite }: SmartNavProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[88] bg-black/14 backdrop-blur-[1px]"
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[88] bg-black/10 backdrop-blur-[1px]"
             aria-hidden
           />
         )}
@@ -242,21 +257,21 @@ export default function SmartNav({ onInvite }: SmartNavProps) {
         whileTap={{ scale: 0.94 }}
         whileHover={{ scale: 1.03 }}
         style={{ left: launcherPos.x, top: launcherPos.y, x: dragX, y: dragY }}
-        className="fixed z-[91] flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-xl shadow-[0_10px_26px_rgba(0,0,0,0.18)]"
+        className="fixed z-[91] flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/96 backdrop-blur-xl shadow-[0_10px_26px_rgba(0,0,0,0.16)]"
         aria-label={expanded ? (language === 'ar' ? 'طي لوحة التنقل' : 'Collapse navigation panel') : (language === 'ar' ? 'فتح لوحة التنقل' : 'Expand navigation panel')}
         title={expanded ? (language === 'ar' ? 'طي' : 'Collapse') : (language === 'ar' ? 'فتح' : 'Expand')}
+        data-haptic="medium"
       >
-        {/* Always-visible 3-dot launcher */}
         <div className="relative h-5 w-6">
           {[0, 1, 2].map((dot) => (
             <motion.span
               key={dot}
               animate={{
                 width: expanded ? 18 : 14,
-                opacity: expanded ? 0.95 : 0.82,
+                opacity: expanded ? 0.95 : 0.84,
                 y: dot === 0 ? (expanded ? -5 : -6) : dot === 1 ? 0 : (expanded ? 5 : 6),
               }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
               className="absolute left-1/2 top-1/2 block h-[3px] -translate-x-1/2 rounded-full bg-[var(--color-text-secondary)]"
             />
           ))}
@@ -267,119 +282,89 @@ export default function SmartNav({ onInvite }: SmartNavProps) {
         {expanded && (
           <motion.nav
             ref={panelRef}
-            initial={{ opacity: 0, y: 20, scale: 0.98, filter: 'blur(6px)' }}
+            initial={{ opacity: 0, y: 18, scale: 0.985, filter: 'blur(5px)' }}
             animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: 14, scale: 0.985, filter: 'blur(4px)' }}
+            exit={{ opacity: 0, y: 10, scale: 0.99, filter: 'blur(4px)' }}
             transition={SPRING_PANEL}
             style={{ width: panelWidth }}
-            className="fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] z-[90] -translate-x-1/2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/96 p-3 sm:p-4 backdrop-blur-2xl shadow-[0_24px_56px_rgba(0,0,0,0.18)]"
+            className={`fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] z-[90] -translate-x-1/2 border border-[var(--color-border)] bg-[var(--color-surface)]/97 backdrop-blur-2xl shadow-[0_24px_56px_rgba(0,0,0,0.16)] ${
+              isMobile ? 'rounded-none border-x-0 p-2.5' : 'rounded-2xl p-3'
+            }`}
             aria-label={language === 'ar' ? 'لوحة التنقل العائمة' : 'Floating navigation panel'}
           >
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
-              <Link
+            <div className="flex items-center justify-between gap-2 pb-2">
+              <DockIconButton
+                icon={Sparkles}
+                label={language === 'ar' ? 'الرئيسية' : 'Home'}
                 href="/"
-                onClick={() => setExpanded(false)}
-                className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-[var(--color-text-primary)] hover:bg-[var(--color-background)] transition-colors"
-              >
-                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
-                  <Sparkles className="w-3.5 h-3.5 text-white" />
-                </div>
-                <span className="text-sm font-semibold">{language === 'ar' ? 'أصول' : 'Osool'}</span>
-              </Link>
+              />
 
               <div className="flex items-center gap-1.5">
-                <button
+                <DockIconButton
+                  icon={Search}
+                  label={language === 'ar' ? 'اسأل أصول' : 'Ask Osool'}
                   onClick={triggerSearch}
-                  className="flex h-9 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-2.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"
-                >
-                  <Search className="h-3.5 w-3.5" />
-                  {language === 'ar' ? 'اسأل أصول' : 'Ask Osool'}
-                </button>
+                />
                 <NotificationBell />
-                <button
+                <DockIconButton
+                  icon={theme === 'dark' ? Sun : Moon}
+                  label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
                   onClick={toggleTheme}
-                  aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-muted)]"
-                >
-                  {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                </button>
-                <button
+                />
+                <DockIconButton
+                  icon={Languages}
+                  label={language === 'en' ? 'العربية' : 'English'}
                   onClick={toggleLanguage}
-                  aria-label={language === 'en' ? 'العربية' : 'English'}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[11px] font-bold text-[var(--color-text-muted)]"
-                >
-                  {language === 'en' ? 'ع' : 'En'}
-                </button>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-[11px] font-bold text-white">
-                  {userInitial}
-                </div>
+                />
               </div>
             </div>
 
             <div className="border-t border-[var(--color-border)] pt-3">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {items.map((item) => (
-                  <NavPill
+                  <DockIconButton
                     key={item.key}
-                    item={item}
+                    icon={item.icon}
                     active={item.key === activeKey}
-                    language={language}
+                    label={language === 'ar' ? item.labelAr : item.label}
                     onClick={() => handleNavigate(item.href)}
                   />
                 ))}
 
                 {isAdmin && (
-                  <motion.button
+                  <DockIconButton
+                    icon={Shield}
+                    active={activeKey === 'admin'}
+                    label={language === 'ar' ? 'المدير' : 'Admin'}
                     onClick={() => handleNavigate('/admin')}
-                    whileTap={{ scale: 0.97 }}
-                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${
-                      activeKey === 'admin'
-                        ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-                    }`}
-                  >
-                    <Shield className="h-4 w-4" strokeWidth={activeKey === 'admin' ? 2.2 : 1.8} />
-                    <span>{language === 'ar' ? 'المدير' : 'Admin'}</span>
-                  </motion.button>
+                  />
                 )}
-              </div>
 
-              <div className="mt-2 flex flex-wrap gap-2">
                 {isAuthenticated ? (
                   <>
-                    <motion.button
+                    <DockIconButton
+                      icon={Gift}
+                      label={language === 'ar' ? 'دعوة أصدقاء' : 'Invite Friends'}
                       onClick={() => {
                         onInvite();
                         setExpanded(false);
                       }}
-                      whileTap={{ scale: 0.97 }}
-                      className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400"
-                    >
-                      <Gift className="h-4 w-4" />
-                      {language === 'ar' ? 'دعوة أصدقاء' : 'Invite Friends'}
-                    </motion.button>
-
-                    <motion.button
+                    />
+                    <DockIconButton
+                      icon={LogOut}
+                      label={language === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
                       onClick={() => {
                         logout();
                         setExpanded(false);
                       }}
-                      whileTap={{ scale: 0.97 }}
-                      className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-500"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      {language === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
-                    </motion.button>
+                    />
                   </>
                 ) : (
-                  <Link
+                  <DockIconButton
+                    icon={LogIn}
+                    label={language === 'ar' ? 'تسجيل الدخول' : 'Login'}
                     href="/login"
-                    onClick={() => setExpanded(false)}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-text-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-background)]"
-                  >
-                    <User className="h-4 w-4" />
-                    {language === 'ar' ? 'تسجيل الدخول' : 'Login'}
-                  </Link>
+                  />
                 )}
               </div>
             </div>

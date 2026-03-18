@@ -45,9 +45,9 @@ export default function SuggestionChips({ suggestions, onSelect, isRTL = false }
                                 <suggestion.icon className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
                             )}
                             <div className="min-w-0">
-                                <div className="truncate text-[12px] font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]" dir="auto">
+                                <span className="block max-w-[180px] truncate whitespace-nowrap text-[12px] font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]" dir="auto">
                                     {suggestion.label}
-                                </div>
+                                </span>
                             </div>
                         </div>
                     </button>
@@ -60,7 +60,7 @@ export default function SuggestionChips({ suggestions, onSelect, isRTL = false }
                              bg-[var(--color-surface)] border border-[var(--color-border)]/60
                              transition-colors"
                     >
-                        <span className="truncate max-w-[180px]" dir="auto">{suggestion}</span>
+                        <span className="inline-block max-w-[180px] truncate whitespace-nowrap" dir="auto">{suggestion}</span>
                     </button>
                 )
             ))}
