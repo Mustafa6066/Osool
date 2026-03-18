@@ -126,7 +126,7 @@ function HeroCard({
                 </div>
 
                 {/* Score bar */}
-                {prop.metrics.wolf_score > 0 && (
+                {prop.metrics?.wolf_score > 0 && (
                     <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                             <motion.div
@@ -145,17 +145,17 @@ function HeroCard({
 
                 {/* Badges row */}
                 <div className="flex flex-wrap gap-1.5">
-                    {prop.metrics.roi > 0 && (
+                    {prop.metrics?.roi > 0 && (
                         <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
                             <TrendingUp className="w-3 h-3" /> +{prop.metrics.roi}% ROI
                         </span>
                     )}
-                    {prop.metrics.price_per_sqm > 0 && (
+                    {prop.metrics?.price_per_sqm > 0 && (
                         <span className="text-[11px] font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-elevated)] px-2 py-0.5 rounded-md">
                             {prop.metrics.price_per_sqm.toLocaleString()}/m²
                         </span>
                     )}
-                    {prop.metrics.bedrooms > 0 && (
+                    {prop.metrics?.bedrooms > 0 && (
                         <span className="text-[11px] font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-elevated)] px-2 py-0.5 rounded-md">
                             {prop.metrics.bedrooms}BR
                         </span>
@@ -221,7 +221,7 @@ function CompactCard({
                 <p className="text-[11px] text-[var(--color-text-muted)] truncate mt-0.5" dir="auto">{prop.location}</p>
                 <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-[13px] font-bold text-[var(--color-text-primary)] tracking-tight">{(prop.price / 1_000_000).toFixed(1)}M</span>
-                    {prop.metrics.roi > 0 && (
+                    {prop.metrics?.roi > 0 && (
                         <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">+{prop.metrics.roi}%</span>
                     )}
                 </div>
@@ -300,7 +300,7 @@ export default function BentoResultGrid({
                             />
                         )}
                         {/* Wolf Score tile if available */}
-                        {hero.metrics.wolf_score > 0 && (
+                        {hero.metrics?.wolf_score > 0 && (
                             <StatTile
                                 label={isRTL ? 'مؤشر أصول' : 'Osool Score'}
                                 value={String(hero.metrics.wolf_score)}

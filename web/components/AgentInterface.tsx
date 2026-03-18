@@ -1077,7 +1077,7 @@ export default function AgentInterface() {
                 role: m.role === 'user' ? 'user' : 'agent',
                 content: m.content || '',
                 artifacts: null,
-                allProperties: m.properties || [],
+                allProperties: Array.isArray(m.properties) ? m.properties.map(mapChatPropertyToProperty) : [],
             }));
             setMessages(msgs);
             sessionIdRef.current = sessionId;

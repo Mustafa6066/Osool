@@ -167,7 +167,7 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                 </div>
 
                 {/* Osool Intelligence Score */}
-                {property.metrics.wolf_score > 0 && (
+                {property.metrics?.wolf_score > 0 && (
                     <div className="bg-gradient-to-br from-emerald-500/8 to-transparent rounded-[18px] p-4 border border-emerald-500/15 relative overflow-hidden">
                         <div className="absolute top-0 end-0 w-28 h-28 bg-emerald-500/12 blur-[36px] rounded-full pointer-events-none" />
                         <div className="flex items-center gap-2 mb-3.5 relative z-10">
@@ -214,13 +214,13 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                         {isRTL ? 'المواصفات' : 'Specifications'}
                     </h3>
                     <div className="grid grid-cols-2 gap-2">
-                        {property.metrics.size > 0 && (
+                        {property.metrics?.size > 0 && (
                             <SpecTile label={isRTL ? 'المساحة' : 'Built Area'} value={`${property.metrics.size} m²`} />
                         )}
-                        {property.metrics.bedrooms > 0 && (
+                        {property.metrics?.bedrooms > 0 && (
                             <SpecTile label={isRTL ? 'غرف النوم' : 'Bedrooms'} value={String(property.metrics.bedrooms)} />
                         )}
-                        {property.metrics.price_per_sqm > 0 && (
+                        {property.metrics?.price_per_sqm > 0 && (
                             <SpecTile
                                 label={isRTL ? 'السعر/م²' : 'Price/m²'}
                                 value={property.metrics.price_per_sqm > 999
