@@ -8,6 +8,10 @@ import {
   AlertTriangle,
   Clock,
   Globe,
+  Cpu,
+  Database,
+  Zap,
+  Radio,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -418,29 +422,42 @@ export default function TerminalCore() {
   return (
     <div
       dir={direction}
-      className="flex min-h-screen flex-col bg-black text-white font-sans"
+      className="relative flex h-full flex-col bg-black text-white font-sans terminal-scanline"
     >
       {/* ══ TOP STATUS BAR ══ */}
-      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-[#222] bg-black/95 px-4 py-2 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <Terminal className="h-4 w-4 text-lime-400" />
-          <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-lime-400">
-            {t.systemReady}
+      <header className="sticky top-0 z-50 border-b border-[#222] bg-black">
+        {/* Row 1: System title */}
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-2.5">
+            <Terminal className="h-4 w-4 text-lime-400" />
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-lime-400 sm:text-[11px]">
+              {t.systemReady}
+            </span>
+          </div>
+          {/* Online indicator — always visible */}
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-lime-400 animate-pulse" />
+            <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-lime-400 sm:text-[10px]">
+              {t.status}
+            </span>
           </span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase text-[#555]">
+        {/* Row 2: Metadata — hidden on very small screens, shown on sm+ */}
+        <div className="hidden items-center gap-4 border-t border-[#111] px-4 py-1.5 sm:flex">
+          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#444]">
             <Globe className="h-3 w-3" />
             {t.langLabel}: {language.toUpperCase()}
           </span>
-          <span className="font-mono text-[10px] uppercase text-[#555]">
+          <span className="font-mono text-[9px] uppercase text-[#444]">
             {t.sessionLabel}: {user?.id ? String(user.id).slice(0, 8) : "ANON"}
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-lime-400 animate-pulse" />
-            <span className="font-mono text-[10px] font-bold uppercase text-lime-400">
-              {t.status}
-            </span>
+          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#444]">
+            <Cpu className="h-3 w-3" />
+            PIPELINE: ACTIVE
+          </span>
+          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#444]">
+            <Database className="h-3 w-3" />
+            DB: CONNECTED
           </span>
         </div>
       </header>
@@ -450,16 +467,32 @@ export default function TerminalCore() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth"
       >
-        {/* ── Empty state ── */}
+        {/* ── Empty state — Boot screen ── */}
         {queries.length === 0 && (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
-            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#222] bg-[#0a0a0a]">
-              <Terminal className="h-8 w-8 text-lime-400" />
+          <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 terminal-grid-bg">
+            {/* System emblem */}
+            <div className="mb-6 flex h-20 w-20 items-center justify-center border-2 border-[#222] bg-black">
+              <Terminal className="h-10 w-10 text-lime-400" />
             </div>
-            <p className="mb-2 font-mono text-sm uppercase tracking-wider text-[#666]">
-              {t.hint}
+
+            {/* System name */}
+            <h1 className="mb-1 font-mono text-xl font-bold uppercase tracking-[0.25em] text-white sm:text-2xl">
+              OSOOL CORE
+            </h1>
+            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.3em] text-[#444]">
+              COMMAND &amp; TELEMETRY TERMINAL
             </p>
-            <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+
+            {/* Blinking cursor */}
+            <div className="mb-8 mt-4 flex items-center gap-2">
+              <span className="h-[2px] w-3 bg-lime-400 terminal-cursor" />
+              <span className="font-mono text-[11px] uppercase tracking-widest text-[#555]">
+                {t.hint}
+              </span>
+            </div>
+
+            {/* Example commands */}
+            <div className="w-full max-w-2xl grid grid-cols-1 gap-2 sm:grid-cols-2">
               {t.examples.map((ex, i) => (
                 <button
                   key={i}
@@ -467,61 +500,93 @@ export default function TerminalCore() {
                     setInputValue(ex);
                     inputRef.current?.focus();
                   }}
-                  className="rounded-xl border border-[#222] bg-[#0a0a0a] px-4 py-2.5 text-start font-mono text-xs text-[#888] transition-colors hover:border-lime-400/30 hover:text-lime-400"
+                  className="group rounded-none border border-[#222] bg-[#0a0a0a] px-4 py-3 text-start font-mono text-xs text-[#666] transition-colors hover:border-lime-400/40 hover:text-lime-400"
                 >
-                  <span className="text-lime-400/60">{">"}</span> {ex}
+                  <span className="text-lime-400/50 group-hover:text-lime-400">{">"}</span>{" "}
+                  {ex}
                 </button>
+              ))}
+            </div>
+
+            {/* System readiness */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+              {[
+                { icon: Cpu, label: "AI ENGINE", ok: true },
+                { icon: Database, label: "DATA LAKE", ok: true },
+                { icon: Zap, label: "WOLF SCORE", ok: true },
+                { icon: Radio, label: "TELEMETRY", ok: true },
+              ].map(({ icon: Icon, label, ok }) => (
+                <span key={label} className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#444]">
+                  <Icon className="h-3 w-3" />
+                  {label}:
+                  <span className={ok ? "text-lime-400" : "text-rose-500"}>
+                    {ok ? "ONLINE" : "OFFLINE"}
+                  </span>
+                </span>
               ))}
             </div>
           </div>
         )}
 
         {/* ── Query entries ── */}
-        {queries.map((entry) => (
-          <div key={entry.id} className="border-b border-[#111]">
-            {/* Query log line */}
-            <div className="flex items-center gap-3 border-b border-[#111] bg-[#050505] px-4 py-2.5">
-              <ChevronRight className="h-3 w-3 shrink-0 text-lime-400" />
-              <span className="font-mono text-[11px] font-bold uppercase text-[#666]">
-                {t.queryExecuted}:
-              </span>
-              <span className="flex-1 truncate font-mono text-xs text-white">
-                {entry.query}
-              </span>
-
-              {/* Status badge */}
-              <StatusBadge status={entry.status} t={t} />
-
-              {/* Metadata */}
-              {entry.latencyMs != null && (
-                <span className="flex items-center gap-1 font-mono text-[10px] text-[#555]">
-                  <Clock className="h-3 w-3" />
-                  {t.latency}: {entry.latencyMs}ms
+        {queries.map((entry, qi) => (
+          <div
+            key={entry.id}
+            className="border-b border-[#111] terminal-slide-up"
+            style={{ animationDelay: `${qi * 50}ms` }}
+          >
+            {/* Query log line — responsive: stacks on mobile */}
+            <div className="border-b border-[#111] bg-[#050505] px-4 py-2.5">
+              {/* Command row */}
+              <div className="flex items-center gap-2">
+                <ChevronRight className="h-3 w-3 shrink-0 text-lime-400" />
+                <span className="font-mono text-[10px] font-bold uppercase text-[#555] sm:text-[11px]">
+                  {t.queryExecuted}:
                 </span>
-              )}
-              {entry.confidence != null && (
-                <span
-                  className={`font-mono text-[10px] font-bold ${
-                    entry.confidence >= 90
-                      ? "text-lime-400"
-                      : entry.confidence >= 70
-                        ? "text-yellow-500"
-                        : "text-rose-500"
-                  }`}
-                >
-                  {t.confidence}: {entry.confidence.toFixed(1)}%
+                <span className="flex-1 truncate font-mono text-xs text-white">
+                  {entry.query}
                 </span>
+                {/* Status badge — always visible */}
+                <StatusBadge status={entry.status} t={t} />
+              </div>
+              {/* Metadata row — wraps on mobile */}
+              {(entry.latencyMs != null || entry.confidence != null) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-3 ps-5">
+                  {entry.latencyMs != null && (
+                    <span className="flex items-center gap-1 font-mono text-[9px] text-[#444] sm:text-[10px]">
+                      <Clock className="h-3 w-3" />
+                      {t.latency}: {entry.latencyMs}ms
+                    </span>
+                  )}
+                  {entry.confidence != null && (
+                    <span
+                      className={`font-mono text-[9px] font-bold sm:text-[10px] ${
+                        entry.confidence >= 90
+                          ? "text-lime-400"
+                          : entry.confidence >= 70
+                            ? "text-yellow-500"
+                            : "text-rose-500"
+                      }`}
+                    >
+                      {t.confidence}: {entry.confidence.toFixed(1)}%
+                    </span>
+                  )}
+                </div>
               )}
             </div>
 
-            {/* Bento output */}
+            {/* Executing state — multi-line readout */}
             {entry.status === "executing" && (
-              <div className="flex items-center justify-center py-16">
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-6 w-6 animate-spin text-lime-400" />
-                  <span className="font-mono text-[11px] uppercase tracking-widest text-[#555] animate-pulse">
-                    {t.executing}...
-                  </span>
+              <div className="px-6 py-10">
+                <div className="flex flex-col gap-2 max-w-xs mx-auto">
+                  {[
+                    { label: language === "ar" ? "الاتصال بالبيانات..." : "CONNECTING TO PIPELINE...", delay: 0 },
+                    { label: language === "ar" ? "استخراج البيانات..." : "EXTRACTING DATA POINTS...", delay: 400 },
+                    { label: language === "ar" ? "تحليل المخاطر..." : "ANALYZING RISK FACTORS...", delay: 800 },
+                    { label: language === "ar" ? "تطبيع النتائج..." : "NORMALIZING RESULTS...", delay: 1200 },
+                  ].map((step, i) => (
+                    <ExecutingLine key={i} label={step.label} delay={step.delay} />
+                  ))}
                 </div>
               </div>
             )}
@@ -537,8 +602,8 @@ export default function TerminalCore() {
             {entry.status === "failed" && (
               <div className="flex items-center gap-2 px-4 py-6 text-rose-500">
                 <AlertTriangle className="h-4 w-4" />
-                <span className="font-mono text-xs">
-                  {entry.responseText || "Analysis pipeline failed"}
+                <span className="font-mono text-xs uppercase">
+                  {entry.responseText || "ANALYSIS PIPELINE FAILED"}
                 </span>
               </div>
             )}
@@ -549,12 +614,13 @@ export default function TerminalCore() {
       {/* ══ COMMAND INPUT BAR ══ */}
       <form
         onSubmit={handleSubmit}
-        className="sticky bottom-0 z-50 border-t border-[#222] bg-black/95 backdrop-blur-sm"
+        className="sticky bottom-0 z-50 border-t border-[#222] bg-black transition-shadow focus-within:terminal-glow"
       >
         <div className="flex items-center gap-2 px-4 py-3">
           <span className="font-mono text-lg font-bold text-lime-400">
             {">"}
           </span>
+          <span className="h-4 w-[2px] bg-lime-400 terminal-cursor" />
           <input
             ref={inputRef}
             type="text"
@@ -562,7 +628,7 @@ export default function TerminalCore() {
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={t.placeholder}
             disabled={isProcessing}
-            className="flex-1 bg-transparent font-mono text-sm text-white placeholder-[#444] outline-none disabled:opacity-50"
+            className="flex-1 bg-transparent font-mono text-sm text-white placeholder-[#333] outline-none disabled:opacity-50"
             autoComplete="off"
             spellCheck={false}
           />
@@ -595,9 +661,29 @@ function StatusBadge({
   const { label, cls } = map[status];
   return (
     <span
-      className={`rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider ${cls}`}
+      className={`rounded-none border px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider sm:text-[9px] ${cls}`}
     >
       {label}
     </span>
+  );
+}
+
+/* ── Executing line — appears one-by-one ─────────── */
+function ExecutingLine({ label, delay }: { label: string; delay: number }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), delay);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="flex items-center gap-2 terminal-slide-up">
+      <Loader2 className="h-3 w-3 animate-spin text-lime-400 shrink-0" />
+      <span className="font-mono text-[10px] uppercase tracking-wider text-[#555]">
+        {label}
+      </span>
+    </div>
   );
 }

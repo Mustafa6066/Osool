@@ -210,14 +210,17 @@ function Card({
   children,
   className = "",
   span = "",
+  index = 0,
 }: {
   children: React.ReactNode;
   className?: string;
   span?: string;
+  index?: number;
 }) {
   return (
     <div
-      className={`rounded-2xl border border-[#222] bg-[#0a0a0a] p-4 ${span} ${className}`}
+      className={`rounded-none border border-[#222] bg-[#0a0a0a] p-4 terminal-slide-up ${span} ${className}`}
+      style={{ animationDelay: `${index * 80}ms` }}
     >
       {children}
     </div>
@@ -309,7 +312,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
       {/* ══ BENTO GRID ══ */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
         {/* ── Developer Profile (col-span-1 or 2 on lg) ── */}
-        <Card span="lg:col-span-1">
+        <Card span="lg:col-span-1" index={0}>
           <CardHeader
             icon={Building2}
             label={t.devProfile}
@@ -360,11 +363,19 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
         </Card>
 
         {/* ── Delivery Performance (col-span-2 on lg) ── */}
-        <Card span="lg:col-span-2">
+        <Card span="lg:col-span-2" index={1}>
           <CardHeader icon={CalendarClock} label={t.deliveryPerf} />
 
-          {/* Visual timeline */}
-          <div className="mb-4 flex items-end gap-1">
+          {/* Visual timeline with grid lines */}
+          <div className="relative mb-4 flex items-end gap-1" style={{ height: 90 }}>
+            {/* Horizontal grid lines */}
+            {[25, 50, 75].map((pct) => (
+              <div
+                key={pct}
+                className="absolute w-full border-t border-dashed border-[#1a1a1a] pointer-events-none"
+                style={{ bottom: `${pct}%` }}
+              />
+            ))}
             {data.projects.map((p, i) => {
               const maxDelay = Math.max(
                 ...data.projects.map((x) => x.delayMonths),
@@ -389,9 +400,13 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                   className="group relative flex flex-1 flex-col items-center"
                 >
                   <div
-                    className={`w-full rounded-t ${bg} transition-all hover:opacity-80`}
+                    className={`w-full rounded-sm ${bg} transition-all hover:opacity-80`}
                     style={{ height: `${height}px` }}
                   />
+                  {/* Hover value */}
+                  <span className="absolute -top-4 font-mono text-[8px] font-bold text-[#555] opacity-0 group-hover:opacity-100 transition-opacity">
+                    {p.delayMonths > 0 ? `${p.delayMonths}m` : "0"}
+                  </span>
                   <span className="mt-1 font-mono text-[8px] text-[#444]">
                     {String.fromCharCode(65 + i)}
                   </span>
@@ -413,7 +428,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
 
           {/* Aggregate stats */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-[#222] bg-black p-3 text-center">
+            <div className="rounded-none border border-[#222] bg-black p-3 text-center">
               <p className="font-mono text-[10px] uppercase text-[#555]">
                 {t.avgDelay}
               </p>
@@ -424,7 +439,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
               </p>
               <p className="font-mono text-[9px] text-[#444]">{t.months}</p>
             </div>
-            <div className="rounded-xl border border-[#222] bg-black p-3 text-center">
+            <div className="rounded-none border border-[#222] bg-black p-3 text-center">
               <p className="font-mono text-[10px] uppercase text-[#555]">
                 {t.onTimeRate}
               </p>
@@ -437,7 +452,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                 {data.deliveredProjects} {t.delivered.toLowerCase()}
               </p>
             </div>
-            <div className="rounded-xl border border-[#222] bg-black p-3 text-center">
+            <div className="rounded-none border border-[#222] bg-black p-3 text-center">
               <p className="font-mono text-[10px] uppercase text-[#555]">
                 {t.delivered}
               </p>
@@ -454,11 +469,23 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
         {/* ── AI Confidence + Market Position (stacked, col-span-1 on lg) ── */}
         <div className="flex flex-col gap-3 lg:col-span-1">
           {/* AI Confidence */}
-          <Card>
+          <Card index={2}>
             <CardHeader icon={Brain} label={t.aiConfidence} />
             <div className="flex flex-col items-center py-2">
               <div className="relative h-24 w-24">
+                {/* Pulsing glow behind */}
+                <div
+                  className="absolute inset-0 rounded-full opacity-20 blur-md"
+                  style={{
+                    background: data.aiConfidence >= 90
+                      ? "radial-gradient(circle, #a3e635 0%, transparent 70%)"
+                      : data.aiConfidence >= 70
+                        ? "radial-gradient(circle, #eab308 0%, transparent 70%)"
+                        : "radial-gradient(circle, #f43f5e 0%, transparent 70%)",
+                  }}
+                />
                 <svg className="h-24 w-24 -rotate-90" viewBox="0 0 100 100">
+                  {/* Background segments */}
                   <circle
                     cx="50"
                     cy="50"
@@ -466,7 +493,9 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                     fill="none"
                     stroke="#222"
                     strokeWidth="6"
+                    strokeDasharray="6 3"
                   />
+                  {/* Value arc — segmented */}
                   <circle
                     cx="50"
                     cy="50"
@@ -481,7 +510,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                     }
                     strokeWidth="6"
                     strokeDasharray={`${(data.aiConfidence / 100) * 264} 264`}
-                    strokeLinecap="round"
+                    strokeLinecap="butt"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -499,7 +528,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
           </Card>
 
           {/* Market Position */}
-          <Card>
+          <Card index={3}>
             <CardHeader icon={Award} label={t.marketPosition} />
             <div className="flex items-baseline gap-1">
               <span className="font-mono text-3xl font-bold text-white">
@@ -518,9 +547,9 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
               </span>
             </div>
             {/* Rank bar */}
-            <div className="mt-3 h-2 w-full rounded-full bg-[#222]">
+            <div className="mt-3 h-2 w-full rounded-none bg-[#222]">
               <div
-                className="h-2 rounded-full bg-lime-400 transition-all"
+                className="h-2 rounded-none bg-lime-400 transition-all"
                 style={{ width: `${percentile}%` }}
               />
             </div>
@@ -528,7 +557,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
         </div>
 
         {/* ── ROI Track Record (col-span-2 on lg) ── */}
-        <Card span="lg:col-span-2">
+        <Card span="lg:col-span-2" index={4}>
           <CardHeader
             icon={TrendingUp}
             label={t.roiTracker}
@@ -541,8 +570,16 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
             }
           />
 
-          {/* Bar chart */}
-          <div className="mb-3 flex items-end gap-2" style={{ height: 100 }}>
+          {/* Bar chart with grid */}
+          <div className="relative mb-3 flex items-end gap-2" style={{ height: 100 }}>
+            {/* Horizontal grid lines */}
+            {[25, 50, 75].map((pct) => (
+              <div
+                key={pct}
+                className="absolute w-full border-t border-dashed border-[#1a1a1a] pointer-events-none"
+                style={{ bottom: `${pct}%` }}
+              />
+            ))}
             {data.yearlyRoi.map((yr, i) => {
               const maxRoi = Math.max(...data.yearlyRoi.map((y) => y.roi), 1);
               const height = Math.max((yr.roi / maxRoi) * 90, 4);
@@ -552,13 +589,14 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                   className="group relative flex flex-1 flex-col items-center justify-end"
                   style={{ height: "100%" }}
                 >
-                  <div
-                    className={`w-full rounded-t transition-all ${yr.roi >= 20 ? "bg-lime-400" : yr.roi >= 10 ? "bg-lime-400/60" : "bg-yellow-500/60"} group-hover:opacity-80`}
-                    style={{ height: `${height}%` }}
-                  />
-                  <span className="absolute top-0 font-mono text-[9px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  {/* Value label above bar */}
+                  <span className="absolute top-0 font-mono text-[8px] font-bold text-[#444] opacity-0 transition-opacity group-hover:opacity-100">
                     {yr.roi.toFixed(1)}%
                   </span>
+                  <div
+                    className={`w-full rounded-sm transition-all ${yr.roi >= 20 ? "bg-lime-400" : yr.roi >= 10 ? "bg-lime-400/60" : "bg-yellow-500/60"} group-hover:opacity-80`}
+                    style={{ height: `${height}%` }}
+                  />
                 </div>
               );
             })}
@@ -574,7 +612,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
           </div>
 
           {/* ROI summary row */}
-          <div className="mt-3 flex items-center justify-between rounded-xl border border-[#222] bg-black px-3 py-2">
+          <div className="mt-3 flex items-center justify-between rounded-none border border-[#222] bg-black px-3 py-2">
             <span className="font-mono text-[10px] uppercase text-[#555]">
               {t.yearlyTrend}
             </span>
@@ -604,7 +642,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
         </Card>
 
         {/* ── Risk Assessment (col-span-2 on lg) ── */}
-        <Card span="lg:col-span-2">
+        <Card span="lg:col-span-2" index={5}>
           <CardHeader
             icon={ShieldAlert}
             label={t.riskRadar}
@@ -640,9 +678,9 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                       {score}%
                     </span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-[#222]">
+                  <div className="h-2.5 w-full rounded-sm bg-[#222]">
                     <div
-                      className={`h-1.5 rounded-full transition-all ${riskBarColor(score)}`}
+                      className={`h-2.5 rounded-sm transition-all ${riskBarColor(score)}`}
                       style={{ width: `${score}%` }}
                     />
                   </div>
@@ -653,7 +691,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
         </Card>
 
         {/* ── Project Health Matrix (full width) ── */}
-        <Card span="md:col-span-2 lg:col-span-4">
+        <Card span="md:col-span-2 lg:col-span-4" index={6}>
           <CardHeader icon={Layers} label={t.projectMatrix} />
 
           {/* Scrollable table */}
@@ -692,7 +730,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                   return (
                     <tr
                       key={i}
-                      className="border-b border-[#111] transition-colors hover:bg-[#111]"
+                      className={`border-b border-[#111] transition-colors hover:bg-[#111] ${i % 2 === 0 ? 'bg-[#050505]' : ''}`}
                     >
                       <td className="py-2 pe-3 font-mono text-xs text-white">
                         {p.name}
@@ -774,7 +812,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                 key={label}
                 className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#555]"
               >
-                <span className={`h-2 w-2 rounded-full ${bg}`} />
+                <span className={`h-2 w-2 rounded-sm ${bg}`} />
                 {label}
               </span>
             ))}
@@ -784,7 +822,9 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
 
       {/* ══ ANALYSIS TIMESTAMP ══ */}
       <div className="mt-3 flex items-center justify-between px-1">
-        <span className="font-mono text-[9px] text-[#333]">
+        <span className="flex items-center gap-2 font-mono text-[9px] text-[#333]">
+          <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime-400 opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-lime-400" /></span>
+          <span className="text-lime-400/60">LIVE</span>
           {data.analysisTimestamp}
         </span>
         <span className="font-mono text-[9px] text-[#333]">
@@ -811,9 +851,9 @@ function MetricChip({
 }) {
   return (
     <div
-      className={`flex flex-col items-center rounded-xl border border-[#222] bg-[#0a0a0a] px-3 py-2 ${className}`}
+      className={`flex flex-col items-center rounded-none border border-[#222] border-l-2 ${positive ? "border-l-lime-400" : "border-l-rose-500"} bg-[#0a0a0a] px-3 py-2.5 ${className}`}
     >
-      <span className="font-mono text-[9px] uppercase tracking-wider text-[#555]">
+      <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-[#555] sm:text-[9px]">
         {label}
       </span>
       <span
@@ -821,7 +861,7 @@ function MetricChip({
       >
         {value}
         {suffix && (
-          <span className="text-[10px] text-[#666]">{suffix}</span>
+          <span className="text-[10px] text-[#555]">{suffix}</span>
         )}
       </span>
     </div>

@@ -568,6 +568,37 @@ body > div:first-child {
 .animate-slide-up { animation: slide-up 0.5s var(--ease-out-expo) forwards; }
 .animate-slide-in-left { animation: slide-in-left 0.4s ease-out forwards; }
 .animate-slide-in-right { animation: slide-in-right 0.4s ease-out forwards; }
+
+/* ── Terminal: Cyber-Financial Brutalism ── */
+@keyframes terminalSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes terminalFlicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes terminalCursor { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes terminalScanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
+
+.terminal-slide-up { animation: terminalSlideUp 0.3s ease-out both; }
+.terminal-flicker { animation: terminalFlicker 0.1s ease-in-out; }
+.terminal-cursor { animation: terminalCursor 1s step-end infinite; }
+
+.terminal-glow {
+  box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.2), 0 0 12px -2px rgba(163, 230, 53, 0.1);
+}
+
+.terminal-grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.terminal-scanline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.03) 50%);
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 1;
+}
 .animate-slide-in-bottom { animation: slide-in-bottom 0.4s ease-out forwards; }
 
 /* ============================================
