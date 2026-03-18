@@ -16,9 +16,9 @@ export default function AppShell({ children }: AppShellProps) {
     <>
       <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-      {/* Content area — reserve space for floating bottom nav panel */}
+      {/* Content area — reserve space for floating nav launcher */}
       <div
-        className="flex flex-col min-h-dvh pt-0 pb-24 overflow-x-hidden overflow-y-auto"
+        className="flex flex-col min-h-dvh pt-0 pb-20 overflow-x-hidden overflow-y-auto"
       >
         {children}
       </div>
