@@ -8,6 +8,7 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: false,
     },
+    outputFileTracingRoot: webRoot,
     turbopack: {
         root: webRoot,
     },
