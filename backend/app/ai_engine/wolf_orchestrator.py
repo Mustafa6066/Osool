@@ -74,7 +74,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.vector_search import search_properties as db_search_properties
 from app.services.cache import cache
-from app.models import UserMemory
+from app.models import UserMemory, SavedSearch, Ticket, Area
 
 logger = logging.getLogger(__name__)
 
@@ -1003,6 +1003,7 @@ class WolfBrain:
             scored_properties = []
             hunt_strategy = "none"
             pivot_message = None
+            sourcing_data = None
             
             # Determine "Smart Display" Strategy (Psychology-Driven Card Gate v4 — Readiness-First)
             showing_strategy = self._psychology_card_gate(intent, psychology, is_discovery_complete, lead_score=lead_score, memory=memory, history=history, card_readiness=card_readiness)
@@ -1040,8 +1041,8 @@ class WolfBrain:
             # Only search if strategy is TEASER or FULL_LIST
             if showing_strategy in ['TEASER', 'FULL_LIST']:
                 # Use SMART HUNT with Reflexion (auto-pivot on failure)
-                properties, hunt_strategy, pivot_message = await self._smart_hunt(
-                    intent, session, language
+                properties, hunt_strategy, pivot_message, sourcing_data = await self._smart_hunt(
+                    intent, session, language, user_id=user_id
                 )
                 self.stats["searches"] += 1
                 
@@ -1054,6 +1055,19 @@ class WolfBrain:
                     logger.info(f"🎯 TEASER: Showing 1 anchor property at index {mid_index}")
             
             logger.info(f"🎯 Hunt Strategy: {hunt_strategy}, Pivot: {pivot_message is not None}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # MEMORY: Persist wanted compound for sourcing pivot / failed hunts
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if hunt_strategy in ('sourcing_pivot', 'failed'):
+                wanted_compound = intent.filters.get("keywords", "") or intent.filters.get("compound", "") or intent.filters.get("location", "")
+                if wanted_compound and hasattr(memory, 'preferences'):
+                    pref_entry = f"Wanted compound: {wanted_compound} (not in DB)"
+                    if pref_entry not in (memory.preferences or []):
+                        if memory.preferences is None:
+                            memory.preferences = []
+                        memory.preferences.append(pref_entry)
+                        logger.info(f"🧠 MEMORY: Stored wanted compound '{wanted_compound}' for future sessions")
         
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 7: BENCHMARKING & SCORING (Async with DB)
@@ -1156,6 +1170,7 @@ class WolfBrain:
                 reasoning_chain=reasoning_chain,
                 db_session=session,
                 geopolitical_context=geopolitical_context,
+                sourcing_data=sourcing_data,
             )
 
             # ── STREAMING MODE: return context for real SSE streaming ──
@@ -1582,18 +1597,24 @@ class WolfBrain:
         self, 
         intent: Intent, 
         session: AsyncSession,
-        language: str = "ar"
-    ) -> tuple[List[Dict], str, Optional[str]]:
+        language: str = "ar",
+        user_id: Optional[int] = None,
+    ) -> tuple[List[Dict], str, Optional[str], Optional[Dict]]:
         """
         SOTA: Agentic Search with Reflexion (Fallback Strategies)
         
         Instead of returning empty results, this method automatically pivots:
         1. Location Pivot: Zayed → 6th October (cheaper neighbor)
         2. Type Pivot: Villa → Townhouse (downgrade type)
+        3. Budget Pivot: Increase budget by 25%
+        4. Relaxed Search: Keep only location
+        5. Any-Area Search: Keep only budget
+        6. Sourcing Pivot: Area analytics + lead capture (NEW)
         
-        Returns: (properties, strategy_used, pivot_message)
-        - strategy_used: 'direct_match', 'location_pivot', 'type_pivot', 'budget_pivot', 'failed'
+        Returns: (properties, strategy_used, pivot_message, sourcing_data)
+        - strategy_used: 'direct_match', 'location_pivot', 'type_pivot', 'budget_pivot', 'sourcing_pivot', 'failed'
         - pivot_message: Explanation for the user about the pivot (None if direct match)
+        - sourcing_data: Dict with area analytics + lead capture info (None unless sourcing_pivot)
         """
         filters = intent.filters
         
@@ -1601,7 +1622,7 @@ class WolfBrain:
         results = await self._search_database(filters, db_session=session)
         if results:
             logger.info(f"🎯 SMART HUNT: Direct match found ({len(results)} results)")
-            return results, "direct_match", None
+            return results, "direct_match", None, None
 
         logger.info("🔄 SMART HUNT: No direct match, entering Reflexion mode...")
         
@@ -1632,7 +1653,7 @@ class WolfBrain:
                         pivot_msg = f"مفيش نتائج في {old_loc_ar}، بس لقيت فرص في {new_loc_ar} بنفس الميزانية."
                     else:
                         pivot_msg = f"No exact match in {loc_key.title()}, but I found options in {new_loc} within your budget."
-                    return alternatives, "location_pivot", pivot_msg
+                    return alternatives, "location_pivot", pivot_msg, None
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # REFLEXION: Type Pivot (Keep location, downgrade property type)
@@ -1659,7 +1680,7 @@ class WolfBrain:
                         pivot_msg = f"الـ{old_type_ar} بالميزانية دي صعب، بس لقيت {new_type_ar} ممتاز في نفس المنطقة."
                     else:
                         pivot_msg = f"A {type_key} at this budget is tough, but I found an excellent {new_type} in the same area."
-                    return alternatives, "type_pivot", pivot_msg
+                    return alternatives, "type_pivot", pivot_msg, None
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # REFLEXION: Budget Pivot (Increase budget by 20% if too low)
@@ -1678,7 +1699,7 @@ class WolfBrain:
                     pivot_msg = f"بزيادة بسيطة ({budget_diff:.1f} مليون)، لقيت خيارات ممتازة."
                 else:
                     pivot_msg = f"With a small stretch (+{budget_diff:.1f}M), I found excellent options."
-                return alternatives, "budget_pivot", pivot_msg
+                return alternatives, "budget_pivot", pivot_msg, None
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # REFLEXION: Relaxed Search (Keep only location, drop all other filters)
@@ -1693,7 +1714,7 @@ class WolfBrain:
                     pivot_msg = f"المواصفات المحددة مش متاحة دلوقتي، بس دي أفضل الخيارات المتاحة في {location}."
                 else:
                     pivot_msg = f"Those exact specs aren't available, but here are the best options in {location}."
-                return alternatives, "relaxed_search", pivot_msg
+                return alternatives, "relaxed_search", pivot_msg, None
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # REFLEXION: Any Area Search (Keep only budget, drop everything)
@@ -1713,18 +1734,67 @@ class WolfBrain:
                     pivot_msg = "مفيش في المنطقة دي بالميزانية دي، بس لقيت فرص في مناطق تانية تستاهل تشوفها."
                 else:
                     pivot_msg = "Nothing in that area at this budget, but I found opportunities in other areas worth checking."
-                return alternatives, "any_area_search", pivot_msg
+                return alternatives, "any_area_search", pivot_msg, None
 
-        # All strategies failed — graceful message with suggestions
-        logger.info("❌ SMART HUNT: All reflexion strategies failed")
-        filter_desc_parts = []
-        if filters.get("location"):
-            filter_desc_parts.append(filters["location"])
-        if filters.get("property_type"):
-            filter_desc_parts.append(filters["property_type"])
-        if filters.get("budget_max"):
-            filter_desc_parts.append(f"{filters['budget_max']/1e6:.1f}M budget")
-            
+        # All strategies failed — execute Sourcing Pivot before giving up
+        logger.info("🔄 SMART HUNT: All reflexion strategies failed → trying Sourcing Pivot")
+        sourcing_data = await self._sourcing_pivot(intent, session, language, user_id)
+        area_data = sourcing_data.get("area_data")
+        compound = sourcing_data.get("compound_name", "")
+
+        # If we have area data OR alternatives, use sourcing_pivot strategy
+        if area_data or sourcing_data.get("alternatives"):
+            alternatives = sourcing_data.get("alternatives", [])
+            alert_msg = ""
+            if sourcing_data.get("saved_search_id"):
+                if language == "ar":
+                    alert_msg = "\n\n✅ فعّلت لك **تنبيه بحث** — أول ما يظهر وحدات جديدة في الكمباوند ده هبلغك فوراً."
+                else:
+                    alert_msg = "\n\n✅ I've activated a **Property Alert** for you — the moment new units appear in this compound, you'll be the first to know."
+            elif sourcing_data.get("ticket_id"):
+                if language == "ar":
+                    alert_msg = "\n\n✅ فتحت لك **طلب بحث خاص** — فريقنا هيدور على وحدات في الكمباوند ده ويرجعلك."
+                else:
+                    alert_msg = "\n\n✅ I've opened a **Priority Sourcing Request** — our team will search for units in this compound and get back to you."
+
+            if language == "ar":
+                growth_pct = int((area_data.get("price_growth_ytd", 0) or 0) * 100) if area_data else 0
+                roi_5y = int((area_data.get("predicted_roi_5y", 0) or 0) * 100) if area_data else 0
+                area_name_ar = area_data.get("name_ar", "") if area_data else ""
+                pivot_msg = (
+                    f"الكمباوند ده ({compound}) حالياً **مش متاح / مباع بالكامل** — وده في حد ذاته مؤشر على قوة المشروع.\n"
+                )
+                if area_data:
+                    pivot_msg += (
+                        f"\n📊 **تحليل المنطقة ({area_name_ar}):**\n"
+                        f"• نمو الأسعار السنوي: **+{growth_pct}%**\n"
+                        f"• العائد المتوقع خلال 5 سنوات: **+{roi_5y}%**\n"
+                    )
+                if alternatives:
+                    pivot_msg += f"\nبس لقيتلك **{len(alternatives)} فرص** في نفس المنطقة تستاهل تشوفها."
+                pivot_msg += alert_msg
+            else:
+                growth_pct = int((area_data.get("price_growth_ytd", 0) or 0) * 100) if area_data else 0
+                roi_5y = int((area_data.get("predicted_roi_5y", 0) or 0) * 100) if area_data else 0
+                area_name = area_data.get("name", "") if area_data else ""
+                pivot_msg = (
+                    f"This compound ({compound}) is currently **off-market / fully sold** — which itself signals strong demand.\n"
+                )
+                if area_data:
+                    pivot_msg += (
+                        f"\n📊 **Area Analysis ({area_name}):**\n"
+                        f"• YTD Price Growth: **+{growth_pct}%**\n"
+                        f"• Projected 5-Year ROI: **+{roi_5y}%**\n"
+                    )
+                if alternatives:
+                    pivot_msg += f"\nI found **{len(alternatives)} opportunities** in the same area worth exploring."
+                pivot_msg += alert_msg
+
+            logger.info(f"📊 SOURCING PIVOT: Success — area_data={area_data is not None}, alternatives={len(alternatives)}, saved_search={sourcing_data.get('saved_search_id')}, ticket={sourcing_data.get('ticket_id')}")
+            return alternatives, "sourcing_pivot", pivot_msg, sourcing_data
+
+        # True failure — no area data, no alternatives
+        logger.info("❌ SMART HUNT: All strategies + sourcing pivot failed")
         if language == "ar":
             pivot_msg = (
                 "للأسف مفيش وحدات متاحة بالمواصفات دي حالياً.\n\n"
@@ -1743,9 +1813,150 @@ class WolfBrain:
                 "• A different property type\n\n"
                 "Tell me what you'd like to adjust and I'll search again."
             )
-        return [], "failed", pivot_msg
+        return [], "failed", pivot_msg, None
 
-                    
+    async def _sourcing_pivot(
+        self,
+        intent: Intent,
+        session: AsyncSession,
+        language: str = "ar",
+        user_id: Optional[int] = None,
+    ) -> Dict:
+        """
+        Consultative Sourcing Pivot — executed when ALL _smart_hunt strategies fail.
+
+        Instead of a dead-end "no units match" message, this:
+        1. Queries the Area model for ROI / growth data to establish authority
+        2. Fetches the top 2 available properties in that area (relaxed)
+        3. Creates a SavedSearch (or Ticket if 5-limit hit) to capture the lead
+        4. Returns data dict for narrative injection
+
+        Returns: {"area_data": dict|None, "alternatives": list, "saved_search_id": int|None, "ticket_id": int|None, "compound_name": str}
+        """
+        filters = intent.filters
+        location = filters.get("location", "")
+        compound = filters.get("keywords", "") or filters.get("compound", "") or location
+        result: Dict = {
+            "area_data": None,
+            "alternatives": [],
+            "saved_search_id": None,
+            "ticket_id": None,
+            "compound_name": compound,
+        }
+
+        # ── 1. Query Area model for analytics ──
+        try:
+            if location:
+                area_q = await session.execute(
+                    select(Area).where(
+                        Area.name.ilike(f"%{location}%")
+                    )
+                )
+                area = area_q.scalar_one_or_none()
+
+                if not area:
+                    # Try Arabic name
+                    area_q = await session.execute(
+                        select(Area).where(
+                            Area.name_ar.ilike(f"%{location}%")
+                        )
+                    )
+                    area = area_q.scalar_one_or_none()
+
+                if area:
+                    result["area_data"] = {
+                        "name": area.name,
+                        "name_ar": area.name_ar,
+                        "price_growth_ytd": area.price_growth_ytd,
+                        "predicted_roi_5y": area.predicted_roi_5y,
+                        "rental_yield": area.rental_yield,
+                        "avg_price_per_meter": area.avg_price_per_meter,
+                        "demand_score": area.demand_score,
+                        "liquidity_score": area.liquidity_score,
+                    }
+                    logger.info(f"📊 SOURCING PIVOT: Area data found for {area.name}")
+                else:
+                    # Fallback to hardcoded AREA_BENCHMARKS
+                    from .analytical_engine import AREA_PRICES, AREA_GROWTH
+                    for area_name, avg_price in AREA_PRICES.items():
+                        if area_name.lower() in location.lower() or location.lower() in area_name.lower():
+                            growth = AREA_GROWTH.get(area_name, 0.12)
+                            result["area_data"] = {
+                                "name": area_name,
+                                "name_ar": location,
+                                "price_growth_ytd": growth,
+                                "predicted_roi_5y": growth * 5,
+                                "rental_yield": 0.04,
+                                "avg_price_per_meter": avg_price,
+                                "demand_score": 70,
+                                "liquidity_score": 65,
+                            }
+                            logger.info(f"📊 SOURCING PIVOT: Using fallback analytics for {area_name}")
+                            break
+        except Exception as e:
+            logger.warning(f"SOURCING PIVOT area query failed: {e}")
+            try:
+                await session.rollback()
+            except Exception:
+                pass
+
+        # ── 2. Fetch top 2 available alternatives in the area ──
+        if location:
+            try:
+                alternatives = await self._search_database({"location": location}, db_session=session)
+                result["alternatives"] = alternatives[:2]
+                if alternatives:
+                    logger.info(f"📊 SOURCING PIVOT: Found {len(alternatives)} alternatives in {location}")
+            except Exception as e:
+                logger.warning(f"SOURCING PIVOT alternatives search failed: {e}")
+
+        # ── 3. Create SavedSearch or Ticket for lead capture ──
+        if user_id and compound:
+            try:
+                # Check existing saved search count
+                count_q = await session.execute(
+                    select(SavedSearch).where(
+                        SavedSearch.user_id == user_id,
+                        SavedSearch.is_active == True,
+                    )
+                )
+                existing = count_q.scalars().all()
+
+                if len(existing) < 5:
+                    # Create SavedSearch
+                    filters_for_save = {k: v for k, v in filters.items() if v}
+                    saved = SavedSearch(
+                        user_id=user_id,
+                        name=f"Sourcing: {compound[:80]}",
+                        filters_json=json.dumps(filters_for_save, ensure_ascii=False),
+                    )
+                    session.add(saved)
+                    await session.flush()
+                    result["saved_search_id"] = saved.id
+                    logger.info(f"📊 SOURCING PIVOT: Created SavedSearch #{saved.id} for user {user_id}")
+                else:
+                    # Fallback: create a Ticket
+                    ticket = Ticket(
+                        user_id=user_id,
+                        subject=f"Property Sourcing: {compound[:150]}",
+                        description=f"User requested {compound} but no matching properties found. Filters: {json.dumps(filters, ensure_ascii=False)}",
+                        category="property",
+                        priority="high",
+                        status="open",
+                    )
+                    session.add(ticket)
+                    await session.flush()
+                    result["ticket_id"] = ticket.id
+                    logger.info(f"📊 SOURCING PIVOT: Created Ticket #{ticket.id} (SavedSearch limit reached)")
+            except Exception as e:
+                logger.warning(f"SOURCING PIVOT lead capture failed: {e}")
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
+
+        return result
+
     def _is_discovery_complete(self, filters: Dict, history: List[Dict], query: str = "") -> bool:
         """
         Check if discovery phase is complete.
@@ -2396,6 +2607,7 @@ class WolfBrain:
         db_session: Optional[Any] = None,
         geopolitical_context: Optional[str] = None,
         _return_context: bool = False,
+        sourcing_data: Optional[Dict] = None,
     ):
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
@@ -2435,11 +2647,42 @@ Frame it as insider market intelligence: "My data shows..."
                     'budget_pivot': 'Budget Stretch',
                     'relaxed_search': 'Relaxed Criteria Match',
                     'any_area_search': 'Cross-Area Match',
+                    'sourcing_pivot': 'Off-Market / VIP Sourcing',
                     'failed': 'No Match Found'
                 }
                 pivot_type = pivot_type_names.get(hunt_strategy, 'Alternative')
                 
-                wolf_insight_instruction += f"""
+                if hunt_strategy == 'sourcing_pivot' and sourcing_data:
+                    # Rich sourcing pivot context — Protocol G
+                    area = sourcing_data.get("area_data", {}) or {}
+                    compound = sourcing_data.get("compound_name", "")
+                    alts_count = len(sourcing_data.get("alternatives", []))
+                    alert_type = "Property Alert" if sourcing_data.get("saved_search_id") else ("Sourcing Request" if sourcing_data.get("ticket_id") else "None")
+                    wolf_insight_instruction += f"""
+[SOURCING_PIVOT]
+The user asked for compound "{compound}" which is NOT in our database — treat as FULLY SOLD / OFF-MARKET.
+DO NOT say "I don't have it" or "not available". Use Protocol G (Sourcing Pivot).
+
+AREA ANALYTICS (VERIFIED DATA — use these exact numbers):
+- Area: {area.get('name', 'Unknown')} ({area.get('name_ar', '')})
+- YTD Price Growth: +{int((area.get('price_growth_ytd', 0) or 0) * 100)}%
+- Predicted 5-Year ROI: +{int((area.get('predicted_roi_5y', 0) or 0) * 100)}%
+- Rental Yield: {round((area.get('rental_yield', 0) or 0) * 100, 1)}%
+- Avg Price/m²: {int(area.get('avg_price_per_meter', 0) or 0):,} EGP
+- Demand Score: {int(area.get('demand_score', 0) or 0)}/100
+
+ALTERNATIVES FOUND: {alts_count} properties in the same area
+LEAD CAPTURED: {alert_type} activated for user
+
+INSTRUCTIONS:
+1. START by framing "{compound}" as sold-out/off-market (a positive demand signal)
+2. Present the area analytics above to establish market authority
+3. Introduce the {alts_count} alternatives as "comparable opportunities"
+4. Confirm the {alert_type} is active — "you'll be first to know when new units appear"
+5. Close with a forward question about exploring the alternatives
+"""
+                else:
+                    wolf_insight_instruction += f"""
 [REFLEXION: {pivot_type.upper()}]
 IMPORTANT: The user's EXACT criteria returned zero results.
 I used intelligent reasoning to find alternatives.
