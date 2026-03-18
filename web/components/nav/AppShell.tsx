@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import LiquidDock from '@/components/dock/LiquidDock';
+import SmartNav from '@/components/nav/SmartNav';
 import InvitationModal from '@/components/InvitationModal';
 
 interface AppShellProps {
@@ -16,14 +16,12 @@ export default function AppShell({ children }: AppShellProps) {
     <>
       <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-      {/* Content area — offset for bottom dock only */}
-      <div
-        className="flex flex-col h-[100dvh] pb-[100px] sm:pb-[110px] overflow-x-hidden overflow-y-auto"
-      >
+      {/* Content area — top padding for desktop header, bottom for mobile bar */}
+      <div className="flex flex-col min-h-dvh pt-0 sm:pt-20 pb-20 sm:pb-0 overflow-x-hidden overflow-y-auto">
         {children}
       </div>
 
-      <LiquidDock onInvite={openInvite} />
+      <SmartNav onInvite={openInvite} />
     </>
   );
 }

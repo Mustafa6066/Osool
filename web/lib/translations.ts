@@ -381,6 +381,14 @@ export const translations = {
             footerDevelopers: "Developers",
             footerAreas: "Areas",
             footerProjects: "Projects",
+            statsProperties: "Properties Tracked",
+            statsDevelopers: "Developers Analyzed",
+            statsAreas: "Investment Areas",
+            statsAccuracy: "AI Accuracy",
+            socialProof: "Trusted by investors across Egypt",
+            ctaTitle: "Ready to invest smarter?",
+            ctaDesc: "Join thousands of investors making data-driven decisions with Osool.",
+            ctaButton: "Get Started Free",
         },
 
         // Invitation System
@@ -1445,6 +1453,14 @@ export const translations = {
             footerDevelopers: "المطورون",
             footerAreas: "المناطق",
             footerProjects: "المشاريع",
+            statsProperties: "عقار مُتتبع",
+            statsDevelopers: "مطور مُحلل",
+            statsAreas: "منطقة استثمارية",
+            statsAccuracy: "دقة الذكاء الاصطناعي",
+            socialProof: "موثوق من مستثمرين في جميع أنحاء مصر",
+            ctaTitle: "جاهز للاستثمار بذكاء؟",
+            ctaDesc: "انضم لآلاف المستثمرين الذين يتخذون قرارات مبنية على البيانات مع أصول.",
+            ctaButton: "ابدأ مجاناً",
         },
 
         // Invitation System
