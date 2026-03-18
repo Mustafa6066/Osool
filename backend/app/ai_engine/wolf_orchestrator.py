@@ -2307,8 +2307,13 @@ class WolfBrain:
             logger.info(f"👁️ Gate: {result} (Explicit show request, ceiling-adjusted)")
             return result
 
-        # ── Discovery complete → upgrade ONE level from readiness base ──
+        # ── Discovery complete + search intent → teaser hook ──
         if is_discovery_complete:
+            # For search intents with location, propose TEASER to show 1 sample
+            if intent.action in ['search', 'price_check'] and has_location:
+                result = apply_ceiling('TEASER')
+                logger.info(f"👁️ Gate: {result} (Discovery complete + search + location → teaser hook)")
+                return result
             base_idx = tier_order.index(readiness_rec) if readiness_rec in tier_order else 0
             upgraded = tier_order[min(base_idx + 1, len(tier_order) - 1)]
             result = apply_ceiling(upgraded)

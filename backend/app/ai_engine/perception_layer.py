@@ -179,6 +179,94 @@ FRANCO_ARAB_ALIASES = {
 # Merge Franco-Arab aliases into LOCATION_ALIASES
 LOCATION_ALIASES.update(FRANCO_ARAB_ALIASES)
 
+# ═══════════════════════════════════════════════════════════════
+# COMPOUND / PROJECT NAME ALIASES
+# These are NOT locations — they are compound/developer names.
+# When detected, they should go into 'keywords' not 'location'.
+# Maps alias → (canonical_compound_name, actual_area)
+# ═══════════════════════════════════════════════════════════════
+COMPOUND_ALIASES = {
+    # Hyde Park (developer: Hyde Park, area: New Cairo)
+    "hyde park": ("Hyde Park", "New Cairo"),
+    "هايد بارك": ("Hyde Park", "New Cairo"),
+    "هايد بورك": ("Hyde Park", "New Cairo"),
+    "هايت بورك": ("Hyde Park", "New Cairo"),
+    "هايدبارك": ("Hyde Park", "New Cairo"),
+    "hydepark": ("Hyde Park", "New Cairo"),
+    "hyde park central": ("Hyde Park Central", "New Cairo"),
+    # Mountain View
+    "mountain view": ("Mountain View iCity", "New Cairo"),
+    "ماونتن فيو": ("Mountain View iCity", "New Cairo"),
+    "ماونتين فيو": ("Mountain View iCity", "New Cairo"),
+    "mv icity": ("Mountain View iCity", "New Cairo"),
+    "mv hyde park": ("Mountain View Hyde Park", "New Cairo"),
+    # Palm Hills
+    "palm hills": ("Palm Hills New Cairo", "New Cairo"),
+    "بالم هيلز": ("Palm Hills New Cairo", "New Cairo"),
+    "بالم هيلز اكتوبر": ("Palm Hills October", "6th October"),
+    "palm hills october": ("Palm Hills October", "6th October"),
+    # Sodic
+    "sodic": ("Sodic East", "New Cairo"),
+    "سوديك": ("Sodic East", "New Cairo"),
+    "sodic east": ("Sodic East", "New Cairo"),
+    "sodic west": ("Sodic West", "Sheikh Zayed"),
+    "سوديك ويست": ("Sodic West", "Sheikh Zayed"),
+    "the estates": ("The Estates Sodic", "New Cairo"),
+    "villette": ("Villette Sodic", "New Cairo"),
+    "فيليت": ("Villette Sodic", "New Cairo"),
+    # Emaar
+    "emaar": ("Mivida", "New Cairo"),
+    "إعمار": ("Mivida", "New Cairo"),
+    "mivida": ("Mivida", "New Cairo"),
+    "ميفيدا": ("Mivida", "New Cairo"),
+    "marassi": ("Marassi", "North Coast"),
+    "مراسي": ("Marassi", "North Coast"),
+    "uptown cairo": ("Uptown Cairo", "New Cairo"),
+    # Ora Developers
+    "zed": ("ZED", "Sheikh Zayed"),
+    "زيد": ("ZED", "Sheikh Zayed"),
+    "solana": ("Solana East", "New Cairo"),
+    # Tatweer Misr
+    "il monte galala": ("IL Monte Galala", "Ain Sokhna"),
+    "المونت جلالة": ("IL Monte Galala", "Ain Sokhna"),
+    "fouka bay": ("Fouka Bay", "North Coast"),
+    "فوكا باي": ("Fouka Bay", "North Coast"),
+    "bloomfields": ("Bloomfields", "Mostakbal City"),
+    "بلوم فيلدز": ("Bloomfields", "Mostakbal City"),
+    # Madinet Masr
+    "taj city": ("Taj City", "New Cairo"),
+    "تاج سيتي": ("Taj City", "New Cairo"),
+    "sarai": ("Sarai", "New Cairo"),
+    "سراي": ("Sarai", "New Cairo"),
+    # TMG / Talaat Moustafa
+    "noor": ("Noor", "New Capital"),
+    "نور": ("Noor", "New Capital"),
+    "celia": ("Celia", "New Capital"),
+    "سيليا": ("Celia", "New Capital"),
+    # Hassan Allam
+    "haptown": ("Haptown", "Mostakbal City"),
+    "هاب تاون": ("Haptown", "Mostakbal City"),
+    "swan lake": ("Swan Lake", "New Cairo"),
+    "سوان ليك": ("Swan Lake", "New Cairo"),
+    # MNHD
+    "badya": ("Badya", "6th October"),
+    "بادية": ("Badya", "6th October"),
+    # La Vista
+    "el patio": ("El Patio", "New Cairo"),
+    "الباتيو": ("El Patio", "New Cairo"),
+    # City Edge
+    "etapa": ("Etapa", "Sheikh Zayed"),
+    "ايتابا": ("Etapa", "Sheikh Zayed"),
+    # General compound names frequently searched
+    "lake view": ("Lake View Residence", "New Cairo"),
+    "ليك فيو": ("Lake View Residence", "New Cairo"),
+    "cairo festival city": ("Cairo Festival City", "New Cairo"),
+    "كايرو فيستيفال": ("Cairo Festival City", "New Cairo"),
+    "district 5": ("District 5", "New Cairo"),
+    "o west": ("O West", "6th October"),
+    "او ويست": ("O West", "6th October"),
+}
+
 # Property type normalization
 PROPERTY_TYPE_ALIASES = {
     "شقة": "apartment",
@@ -261,6 +349,7 @@ class PerceptionLayer:
         size_min: Optional[int] = Field(default=None, description="Minimum size in sqm")
         size_max: Optional[int] = Field(default=None, description="Maximum size in sqm")
         developer: Optional[str] = Field(default=None, description="Developer name")
+        keywords: Optional[str] = Field(default=None, description="Compound or project name if mentioned (e.g. Hyde Park, Mivida, Palm Hills, Sodic East)")
         finishing: Optional[str] = Field(default=None, description="Finishing type: finished, semi_finished, unfinished")
         sale_type: Optional[str] = Field(default=None, description="Sale type: resale, developer, nawy_now")
         is_delivered: Optional[bool] = Field(default=None, description="True if user wants delivered/ready-to-move properties")
@@ -422,8 +511,8 @@ Extract:
    - property_type: apartment, villa, townhouse, twinhouse, penthouse, duplex, studio
    - size_min: Minimum size in sqm
    - size_max: Maximum size in sqm
-   - developer: Developer name if mentioned
-   - keywords: Any specific compound/project names mentioned
+   - developer: Developer company name if mentioned (e.g. Emaar, Sodic, Palm Hills Developments, Ora, Tatweer Misr, Hassan Allam)
+   - keywords: Compound or project name if mentioned (e.g. Hyde Park, Mivida, Mountain View iCity, Taj City, ZED, Marassi, Bloomfields). IMPORTANT: compound names are NOT areas. "Hyde Park" / "هايد بارك" / "هايد بورك" is a COMPOUND name, NOT a location. Put it in keywords, not location. Same for Mivida, Palm Hills, Sodic East, Mountain View, Taj City, etc.
    - finishing: core, semi, finished, lux
    - sale_type: "resale" (when user wants resale/secondhand), "developer" (new from developer), "nawy_now" (Nawy mortgage)
    - is_delivered: true (when user wants delivered/ready-to-move/immediate)
@@ -635,6 +724,30 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
     def _normalize_filters(self, intent_data: Dict) -> Dict:
         """Normalize extracted filters to standard format."""
         filters = intent_data.get("filters", {})
+        
+        # Normalize compound names: check if 'location' is actually a compound
+        loc_raw = filters.get("location", "")
+        if loc_raw:
+            loc_lower = loc_raw.lower().strip()
+            # Check against known compound aliases
+            for alias, (canonical, area) in COMPOUND_ALIASES.items():
+                if alias in loc_lower or loc_lower in alias:
+                    # Reclassify: move from location to keywords
+                    filters["keywords"] = canonical
+                    filters["location"] = area
+                    logger.info(f"\U0001f3d8\ufe0f Compound reclassified: '{loc_raw}' → keywords='{canonical}', location='{area}'")
+                    break
+        
+        # Also check keywords field — normalize compound names there too
+        kw_raw = filters.get("keywords", "")
+        if kw_raw:
+            kw_lower = kw_raw.lower().strip()
+            for alias, (canonical, area) in COMPOUND_ALIASES.items():
+                if alias in kw_lower or kw_lower in alias:
+                    filters["keywords"] = canonical
+                    if not filters.get("location"):
+                        filters["location"] = area
+                    break
         
         # Normalize location
         if "location" in filters:
