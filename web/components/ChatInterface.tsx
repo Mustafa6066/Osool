@@ -27,7 +27,9 @@ import {
 import VisualizationRenderer, { type VisualizationRendererProps } from './visualizations/VisualizationRenderer';
 import UnifiedAnalytics from './visualizations/UnifiedAnalytics';
 import InvitationModal from './InvitationModal';
-import { User, LogOut, Gift, PlusCircle, History, Send, Mic, Plus, Bookmark, Copy, Check, ChevronLeft, ChevronRight, Terminal } from 'lucide-react';
+import { User, LogOut, Gift, PlusCircle, History, Send, Plus, Bookmark, Copy, Check, ChevronLeft, ChevronRight, Terminal } from 'lucide-react';
+import { useVoiceRecording } from '@/hooks/useVoiceRecording';
+import VoiceOrb from '@/components/VoiceOrb';
 import { translations } from '@/lib/translations';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -297,7 +299,7 @@ function FeaturedPropertyCard({
                             <MaterialIcon name="apartment" className="text-slate-400" size="48px" />
                         </div>
                     )}
-                    <div className={`absolute bottom-0 p-4 sm:p-6 lg:p-10 bg-gradient-to-t from-black/50 to-transparent w-full ${isRTL ? 'right-0' : 'left-0'}`}>
+                    <div className={`absolute bottom-0 p-4 sm:p-6 lg:p-10 bg-gradient-to-t from-black/50 to-transparent w-full ${isRTL ? 'end-0' : 'start-0'}`}>
                         <div className="text-white" dir={isRTL ? 'rtl' : 'ltr'}>
                             <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-1 sm:mb-2 opacity-80">
                                 {isRTL ? 'مميز' : 'Featured'}
@@ -425,7 +427,7 @@ function Sidebar({
     ];
 
     return (
-        <aside className={`w-64 flex-none bg-[var(--sidebar-bg)] hidden lg:flex flex-col ${isRTL ? 'border-l' : 'border-r'} border-[var(--color-border-subtle)]`}>
+        <aside className={`w-64 flex-none bg-[var(--sidebar-bg)] hidden lg:flex flex-col ${isRTL ? 'border-s' : 'border-e'} border-[var(--color-border-subtle)]`}>
             {/* Brand Header */}
             <div className="p-5 pb-4">
                 <div className="flex items-center gap-3 mb-5">
@@ -460,7 +462,7 @@ function Sidebar({
                         <button
                             key={tool.label}
                             onClick={() => onInjectQuery(tool.query)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--color-text-main)] transition-all group ${isRTL ? 'text-right' : 'text-left'}`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-medium text-[var(--color-text-muted-studio)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--color-text-main)] transition-all group ${isRTL ? 'text-end' : 'text-start'}`}
                         >
                             <div className="size-7 rounded-lg bg-[var(--sidebar-active)] flex items-center justify-center flex-shrink-0 group-hover:bg-[var(--osool-deep-teal)]/10 transition-colors">
                                 <MaterialIcon name={tool.icon} size="14px" className="group-hover:text-[var(--osool-deep-teal)]" />
@@ -630,7 +632,7 @@ function ContextualInsights({
 
     return (
         <aside
-            className={`w-80 flex-none bg-[var(--sidebar-bg)] hidden xl:flex flex-col overflow-hidden ${isRTL ? 'border-r' : 'border-l'} border-[var(--color-border-subtle)]`}
+            className={`w-80 flex-none bg-[var(--sidebar-bg)] hidden xl:flex flex-col overflow-hidden ${isRTL ? 'border-e' : 'border-s'} border-[var(--color-border-subtle)]`}
             dir={isRTL ? 'rtl' : 'ltr'}
         >
             {/* Header */}
@@ -644,7 +646,7 @@ function ContextualInsights({
                 {hasContent && (
                     <>
                         {hasMultipleProperties && (
-                            <div className={`flex items-center gap-1 ${isRTL ? 'mr-auto' : 'ml-auto'}`}>
+                            <div className={`flex items-center gap-1 ${isRTL ? 'me-auto' : 'ms-auto'}`}>
                                 <button
                                     onClick={onPrev}
                                     disabled={currentIndex === 0}
@@ -893,7 +895,7 @@ function CompactVisualization({ viz, isRTL }: { viz: VisualizationPayload; isRTL
                     <VisualizationRenderer type={viz.type} data={(viz.data || {}) as VisualizationRendererProps['data']} isRTL={isRTL} />
                 </div>
                 {!expanded && (
-                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[var(--color-studio-white)] to-transparent pointer-events-none" />
+                    <div className="absolute bottom-0 start-0 end-0 h-12 bg-gradient-to-t from-[var(--color-studio-white)] to-transparent pointer-events-none" />
                 )}
             </motion.div>
         </div>
@@ -993,6 +995,36 @@ export default function ChatInterface() {
     const centeredInputRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const isRTL = language === 'ar';
+
+    const [transcriptHighlight, setTranscriptHighlight] = useState(false);
+
+    const {
+        status: voiceStatus,
+        isListening: isVoiceListening,
+        amplitude,
+        startRecording,
+        stopRecording,
+    } = useVoiceRecording({
+        language: isRTL ? 'ar-EG' : 'auto',
+        silenceThresholdMs: 2000,
+        onTranscript: (text) => {
+            setInput(text);
+            textareaRef.current?.focus();
+            setTranscriptHighlight(true);
+            setTimeout(() => setTranscriptHighlight(false), 600);
+        },
+        onError: (msg) => {
+            console.warn('[Voice]', msg);
+        },
+    });
+
+    const handleVoiceToggle = useCallback(() => {
+        if (isVoiceListening || voiceStatus === 'processing') {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    }, [isVoiceListening, voiceStatus, startRecording, stopRecording]);
 
     // Streaming token buffer — accumulates tokens without triggering renders,
     // flushed to state via requestAnimationFrame for smooth 60fps display
@@ -1326,7 +1358,7 @@ export default function ChatInterface() {
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: 10 }}
-                                        className={`absolute mt-2 w-48 sm:w-56 rounded-xl bg-white dark:bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] shadow-xl z-[60] ${isRTL ? 'left-0' : 'right-0'}`}
+                                        className={`absolute mt-2 w-48 sm:w-56 rounded-xl bg-white dark:bg-[var(--color-studio-white)] border border-[var(--color-border-subtle)] shadow-xl z-[60] ${isRTL ? 'start-0' : 'end-0'}`}
                                     >
                                         <div className="p-3 border-b border-[var(--color-border-subtle)]">
                                             <p className="text-sm font-medium text-[var(--color-text-main)]">{user?.full_name || 'User'}</p>
@@ -1468,7 +1500,7 @@ export default function ChatInterface() {
                                             {/* Plus button - absolute left */}
                                             <button
                                                 aria-label={isRTL ? 'إضافة' : 'Add'}
-                                                className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10"
+                                                className="absolute start-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10"
                                             >
                                                 <Plus size={18} />
                                             </button>
@@ -1480,7 +1512,7 @@ export default function ChatInterface() {
                                                 onChange={e => setInput(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 rows={1}
-                                                className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-4 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px] text-center"
+                                                className={`w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-4 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px] text-center${transcriptHighlight ? ' ring-2 ring-[var(--osool-deep-teal,#0d9488)]/40 rounded transition-colors duration-300' : ''}`}
                                                 placeholder={isRTL ? 'اسأل CoInvestor عن العقارات...' : 'Ask CoInvestor about properties...'}
                                                 disabled={isTyping || isTransitioning}
                                                 dir="auto"
@@ -1488,13 +1520,15 @@ export default function ChatInterface() {
                                             />
 
                                             {/* Right buttons - absolute right */}
-                                            <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
-                                                <button
-                                                    aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
-                                                    className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors"
-                                                >
-                                                    <Mic size={18} />
-                                                </button>
+                                            <div className="absolute end-2 sm:right-3 flex items-center gap-1 z-10">
+                                                <VoiceOrb
+                                                    status={voiceStatus}
+                                                    amplitude={amplitude}
+                                                    onClick={handleVoiceToggle}
+                                                    isRTL={isRTL}
+                                                    size="sm"
+                                                    className="hidden sm:flex"
+                                                />
                                                 <button
                                                     onClick={handleSend}
                                                     disabled={!input.trim() || isTyping || isTransitioning}
@@ -1527,9 +1561,9 @@ export default function ChatInterface() {
                                             const isMsgRtl = isRTL || isArabicContent;
 
                                             // 2. Formatting constants
-                                            const alignClass = isMsgRtl ? 'text-right' : 'text-left';
+                                            const alignClass = isMsgRtl ? 'text-end' : 'text-start';
                                             const dirAttr = isMsgRtl ? 'rtl' : 'ltr';
-                                            const marginClass = isMsgRtl ? 'mr-0' : 'ml-0';
+                                            const marginClass = isMsgRtl ? 'me-0' : 'ms-0';
 
                                             return (
                                                 <>
@@ -1583,12 +1617,12 @@ export default function ChatInterface() {
                                                                     {/* Accent border - positioned based on direction */}
                                                                     <div className="ai-accent-border" />
 
-                                                                    <div className={`p-4 sm:p-5 ${isMsgRtl ? 'pr-5 sm:pr-6' : 'pl-5 sm:pl-6'}`}>
+                                                                    <div className={`p-4 sm:p-5 ${isMsgRtl ? 'pe-5 sm:pr-6' : 'ps-5 sm:pl-6'}`}>
                                                                         {msg.isTyping && !msg.content ? (
                                                                             /* Typing Indicator (Bar) */
                                                                             <div className="flex flex-col gap-2">
                                                                                 <div className={`flex ${isMsgRtl ? 'justify-end' : 'justify-start'} px-4`}>
-                                                                                    <div className="bg-[var(--ai-surface)] p-3 rounded-2xl rounded-tl-none border border-[var(--ai-surface-border)] shadow-sm">
+                                                                                    <div className="bg-[var(--ai-surface)] p-3 rounded-2xl rounded-ss-none border border-[var(--ai-surface-border)] shadow-sm">
                                                                                         <div className="typing-bar" />
                                                                                     </div>
                                                                                 </div>
@@ -1608,8 +1642,8 @@ export default function ChatInterface() {
                                                                                         components={{
                                                                                             p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${alignClass}`} {...props} />,
                                                                                             strong: ({ node, ...props }) => <strong className="font-bold text-[var(--osool-deep-teal)]" {...props} />,
-                                                                                            ul: ({ node, ...props }) => <ul className={`list-disc ${isMsgRtl ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
-                                                                                            ol: ({ node, ...props }) => <ol className={`list-decimal ${isMsgRtl ? 'mr-5' : 'ml-5'} mb-3 ${alignClass}`} {...props} />,
+                                                                                            ul: ({ node, ...props }) => <ul className={`list-disc ${isMsgRtl ? 'me-5' : 'ms-5'} mb-3 ${alignClass}`} {...props} />,
+                                                                                            ol: ({ node, ...props }) => <ol className={`list-decimal ${isMsgRtl ? 'me-5' : 'ms-5'} mb-3 ${alignClass}`} {...props} />,
                                                                                             h2: ({ node, ...props }) => <h2 className={`text-lg font-bold text-[var(--osool-deep-teal)] mt-4 mb-2 ${alignClass}`} {...props} />,
                                                                                             h3: ({ node, ...props }) => <h3 className={`text-base font-bold text-[var(--osool-deep-teal)] mt-3 mb-2 ${alignClass}`} {...props} />,
                                                                                             table: ({ node, ...props }) => (
@@ -1630,7 +1664,7 @@ export default function ChatInterface() {
                                                                                                 );
                                                                                             },
                                                                                             blockquote: ({ node, ...props }) => (
-                                                                                                <blockquote className={`border-${isMsgRtl ? 'r' : 'l'}-4 border-[var(--osool-deep-teal)] ${isMsgRtl ? 'pr-4' : 'pl-4'} my-4 italic bg-[var(--ai-surface)] p-3 rounded-${isMsgRtl ? 'l' : 'r'}`} {...props} />
+                                                                                                <blockquote className={`border-${isMsgRtl ? 'r' : 'l'}-4 border-[var(--osool-deep-teal)] ${isMsgRtl ? 'pe-4' : 'ps-4'} my-4 italic bg-[var(--ai-surface)] p-3 rounded-${isMsgRtl ? 'l' : 'r'}`} {...props} />
                                                                                             )
                                                                                         }}
                                                                                     >
@@ -1766,7 +1800,7 @@ export default function ChatInterface() {
                                                 {/* Plus button - absolute left */}
                                                 <button
                                                     aria-label={isRTL ? 'إضافة' : 'Add'}
-                                                    className="absolute left-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10"
+                                                    className="absolute start-2 sm:left-3 p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors z-10"
                                                 >
                                                     <Plus size={18} />
                                                 </button>
@@ -1778,20 +1812,22 @@ export default function ChatInterface() {
                                                     onChange={e => setInput(e.target.value)}
                                                     onKeyDown={handleKeyDown}
                                                     rows={1}
-                                                    className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-3.5 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px]"
+                                                    className={`w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm py-3 sm:py-3.5 px-10 sm:px-12 resize-none placeholder:text-[var(--color-text-muted-studio)]/60 text-[var(--color-text-main)] max-h-[150px]${transcriptHighlight ? ' ring-2 ring-[var(--osool-deep-teal,#0d9488)]/40 rounded transition-colors duration-300' : ''}`}
                                                     placeholder={isRTL ? 'اسأل CoInvestor...' : 'Ask CoInvestor...'}
                                                     disabled={isTyping}
                                                     dir="auto"
                                                 />
 
                                                 {/* Right buttons - absolute right */}
-                                                <div className="absolute right-2 sm:right-3 flex items-center gap-1 z-10">
-                                                    <button
-                                                        aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
-                                                        className="hidden sm:block p-1.5 text-[var(--color-text-muted-studio)] hover:text-[var(--osool-deep-teal)] transition-colors"
-                                                    >
-                                                        <Mic size={18} />
-                                                    </button>
+                                                <div className="absolute end-2 sm:right-3 flex items-center gap-1 z-10">
+                                                    <VoiceOrb
+                                                        status={voiceStatus}
+                                                        amplitude={amplitude}
+                                                        onClick={handleVoiceToggle}
+                                                        isRTL={isRTL}
+                                                        size="sm"
+                                                        className="hidden sm:flex"
+                                                    />
                                                     <button
                                                         onClick={handleSend}
                                                         disabled={!input.trim() || isTyping}

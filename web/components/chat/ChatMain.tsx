@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, Mic, MicOff, BarChart3, TrendingUp, RotateCcw, User, ThumbsUp, ThumbsDown, Square, AlertTriangle, RefreshCw, MessageCircle } from 'lucide-react';
+import { Send, Loader2, Copy, Check, ChevronDown, Sparkles, Plus, BarChart3, TrendingUp, RotateCcw, User, ThumbsUp, ThumbsDown, Square, AlertTriangle, RefreshCw, MessageCircle } from 'lucide-react';
+import { useVoiceRecording, type RecordingStatus } from '@/hooks/useVoiceRecording';
+import VoiceOrb from '@/components/VoiceOrb';
 import ReactMarkdown from 'react-markdown'; //
 import remarkGfm from 'remark-gfm'; //
 import rehypeRaw from 'rehype-raw'; // DISABLED - kept import for reference
@@ -161,7 +163,7 @@ function AIMessage({
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                            <p className={`text-sm text-[var(--color-text-secondary)] mb-3 ${messageIsArabic ? 'text-right' : 'text-left'}`}>
+                            <p className={`text-sm text-[var(--color-text-secondary)] mb-3 ${messageIsArabic ? 'text-end' : 'text-start'}`}>
                                 {content}
                             </p>
                             {onRetry && (
@@ -187,34 +189,34 @@ function AIMessage({
                     <Sparkles size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className={`chatgpt-message-content prose dark:prose-invert max-w-none ${messageIsArabic ? 'prose-rtl text-right' : 'text-left'}`} dir={messageIsArabic ? 'rtl' : 'ltr'}>
+                    <div className={`chatgpt-message-content prose dark:prose-invert max-w-none ${messageIsArabic ? 'prose-rtl text-end' : 'text-start'}`} dir={messageIsArabic ? 'rtl' : 'ltr'}>
                         {/* Markdown Rendering Implementation */}
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             // rehypePlugins removed - rehypeRaw can cause XSS
                             components={{
-                                p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
-                                ul: ({ node, ...props }) => <ul className={`list-disc mb-3 ${messageIsArabic ? 'pr-6' : 'pl-6'}`} {...props} />,
-                                ol: ({ node, ...props }) => <ol className={`list-decimal mb-3 ${messageIsArabic ? 'pr-6' : 'pl-6'}`} {...props} />,
+                                p: ({ node, ...props }) => <p className={`mb-3 last:mb-0 leading-relaxed ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
+                                ul: ({ node, ...props }) => <ul className={`list-disc mb-3 ${messageIsArabic ? 'pe-6' : 'ps-6'}`} {...props} />,
+                                ol: ({ node, ...props }) => <ol className={`list-decimal mb-3 ${messageIsArabic ? 'pe-6' : 'ps-6'}`} {...props} />,
                                 strong: ({ node, ...props }) => <strong className="font-bold text-[var(--color-primary)] dark:text-[var(--color-teal-accent)]" {...props} />,
-                                h1: ({ node, ...props }) => <h1 className={`text-xl font-bold mb-2 mt-4 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
-                                h2: ({ node, ...props }) => <h2 className={`text-lg font-bold mb-2 mt-3 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
-                                h3: ({ node, ...props }) => <h3 className={`text-md font-bold mb-1 mt-2 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />,
+                                h1: ({ node, ...props }) => <h1 className={`text-xl font-bold mb-2 mt-4 ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
+                                h2: ({ node, ...props }) => <h2 className={`text-lg font-bold mb-2 mt-3 ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
+                                h3: ({ node, ...props }) => <h3 className={`text-md font-bold mb-1 mt-2 ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
                                 blockquote: ({ node, ...props }) => (
-                                    <blockquote className={`${messageIsArabic ? 'border-r-4 pr-4 rounded-l' : 'border-l-4 pl-4 rounded-r'} border-[var(--color-primary)] py-1 my-2 bg-[var(--color-surface-hover)]`} {...props} />
+                                    <blockquote className={`${messageIsArabic ? 'border-e-4 pe-4 rounded-l' : 'border-s-4 ps-4 rounded-r'} border-[var(--color-primary)] py-1 my-2 bg-[var(--color-surface-hover)]`} {...props} />
                                 ),
                                 a: ({ node, ...props }) => <a className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                                 table: ({ node, ...props }) => (
                                     <div className="overflow-x-auto my-4 rounded-xl border border-[var(--color-border)]/40">
-                                        <table className={`w-full border-collapse text-sm ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />
+                                        <table className={`w-full border-collapse text-sm ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
                                     </div>
                                 ),
                                 thead: ({ node, ...props }) => <thead className="bg-[var(--color-surface)]/50" {...props} />,
                                 th: ({ node, ...props }) => (
-                                    <th className={`border border-[var(--color-border)]/40 px-3 py-2 font-semibold text-[var(--color-primary)] bg-[var(--color-surface)]/30 ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />
+                                    <th className={`border border-[var(--color-border)]/40 px-3 py-2 font-semibold text-[var(--color-primary)] bg-[var(--color-surface)]/30 ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
                                 ),
                                 td: ({ node, ...props }) => (
-                                    <td className={`border border-[var(--color-border)]/40 px-3 py-2 text-[var(--color-text-secondary)] ${messageIsArabic ? 'text-right' : 'text-left'}`} {...props} />
+                                    <td className={`border border-[var(--color-border)]/40 px-3 py-2 text-[var(--color-text-secondary)] ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
                                 ),
                                 tr: ({ node, ...props }) => (
                                     <tr className="even:bg-[var(--color-surface)]/10 hover:bg-[var(--color-surface)]/20 transition-colors" {...props} />
@@ -240,7 +242,7 @@ function AIMessage({
                                         className="rounded-xl overflow-hidden border border-[var(--color-border)]/30 bg-transparent ai-visualization"
                                     >
                                         {viz.chart_reference && (
-                                            <div className={`px-4 py-2 bg-transparent border-b border-[var(--color-border)]/30 ${messageIsArabic ? 'text-right' : 'text-left'}`}>
+                                            <div className={`px-4 py-2 bg-transparent border-b border-[var(--color-border)]/30 ${messageIsArabic ? 'text-end' : 'text-start'}`}>
                                                 <p className="text-xs text-[var(--color-text-muted)] font-medium flex items-center gap-2">
                                                     <TrendingUp size={12} />
                                                     {viz.chart_reference}
@@ -358,6 +360,9 @@ function ChatInput({
     onStop,
     onVoiceInput,
     isListening,
+    voiceStatus = 'idle',
+    amplitude = 0,
+    transcriptHighlight = false,
 }: {
     value: string;
     onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
@@ -369,6 +374,9 @@ function ChatInput({
     onStop?: () => void;
     onVoiceInput?: () => void;
     isListening?: boolean;
+    voiceStatus?: RecordingStatus;
+    amplitude?: number;
+    transcriptHighlight?: boolean;
 }) {
     return (
         <div className="chatgpt-input-area">
@@ -402,15 +410,15 @@ function ChatInput({
                         rows={1}
                         dir="auto"
                         aria-label={isRTL ? 'رسالتك' : 'Your message'}
+                        className={transcriptHighlight ? 'transition-colors duration-300 ring-2 ring-[var(--osool-deep-teal,#0d9488)]/40 rounded' : ''}
                     />
-                    <button
-                        className={`chatgpt-input-btn ${isListening ? 'text-red-500 animate-pulse' : ''}`}
-                        aria-label={isRTL ? 'إدخال صوتي' : 'Voice input'}
-                        title={isRTL ? 'إدخال صوتي' : 'Voice Input'}
-                        onClick={onVoiceInput}
-                    >
-                        {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-                    </button>
+                    <VoiceOrb
+                        status={voiceStatus}
+                        amplitude={amplitude}
+                        onClick={onVoiceInput ?? (() => {})}
+                        isRTL={isRTL}
+                        size="md"
+                    />
                     <button
                         onClick={onSend}
                         disabled={!value.trim() || isTyping}
@@ -488,10 +496,28 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [showScrollButton, setShowScrollButton] = useState(false);
-    const [isListening, setIsListening] = useState(false);
     const [showWhatsApp, setShowWhatsApp] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
-    const recognitionRef = useRef<SpeechRecognition | null>(null);
+    const [transcriptHighlight, setTranscriptHighlight] = useState(false);
+
+    const {
+        status: voiceStatus,
+        isListening,
+        amplitude,
+        startRecording,
+        stopRecording,
+    } = useVoiceRecording({
+        language: isRTL ? 'ar-EG' : 'auto',
+        silenceThresholdMs: 2000,
+        onTranscript: (text) => {
+            setInput(text);
+            setTranscriptHighlight(true);
+            setTimeout(() => setTranscriptHighlight(false), 600);
+        },
+        onError: (msg) => {
+            console.warn('[Voice]', msg);
+        },
+    });
     // Generate a stable session ID for this conversation
     const [sessionId] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -570,46 +596,13 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
         setIsTyping(false);
     };
 
-    const handleVoiceInput = () => {
-        const SpeechRecognition = typeof window !== 'undefined'
-            ? (window.SpeechRecognition || window.webkitSpeechRecognition)
-            : null;
-
-        if (!SpeechRecognition) return;
-
-        if (isListening && recognitionRef.current) {
-            recognitionRef.current.stop();
-            setIsListening(false);
-            return;
+    const handleVoiceInput = useCallback(() => {
+        if (isListening || voiceStatus === 'processing') {
+            stopRecording();
+        } else {
+            startRecording();
         }
-
-        const recognition = new SpeechRecognition();
-        recognition.lang = detectedRTL || isRTL ? 'ar-EG' : 'en-US';
-        recognition.interimResults = true;
-        recognition.continuous = false;
-
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-            const transcript = Array.from(event.results)
-                .map(result => result[0].transcript)
-                .join('');
-            setInput(transcript);
-            if (event.results[0]?.isFinal) {
-                setIsListening(false);
-            }
-        };
-
-        recognition.onerror = () => {
-            setIsListening(false);
-        };
-
-        recognition.onend = () => {
-            setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-        setIsListening(true);
-    };
+    }, [isListening, voiceStatus, startRecording, stopRecording]);
 
     const handleRetry = (messageId: string) => {
         // Find the user message that preceded this error
@@ -840,6 +833,9 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                         onStop={handleStop}
                         onVoiceInput={handleVoiceInput}
                         isListening={isListening}
+                        voiceStatus={voiceStatus}
+                        amplitude={amplitude}
+                        transcriptHighlight={transcriptHighlight}
                     />
                 </div>
             ) : (
@@ -894,7 +890,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 20 }}
                                 onClick={scrollToBottom}
-                                className={`absolute bottom-28 ${effectiveRTL ? 'left-4' : 'right-4'} z-20 p-2 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] shadow-md hover:shadow-lg transition-shadow`}
+                                className={`absolute bottom-28 ${effectiveRTL ? 'start-4' : 'end-4'} z-20 p-2 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] shadow-md hover:shadow-lg transition-shadow`}
                             >
                                 <ChevronDown size={20} className="text-[var(--color-text-muted)]" />
                             </motion.button>
@@ -913,6 +909,9 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                         onStop={handleStop}
                         onVoiceInput={handleVoiceInput}
                         isListening={isListening}
+                        voiceStatus={voiceStatus}
+                        amplitude={amplitude}
+                        transcriptHighlight={transcriptHighlight}
                     />
                 </>
             )}
