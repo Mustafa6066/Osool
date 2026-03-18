@@ -133,12 +133,18 @@ class AccountLockoutManager:
         except Exception as e:
             logger.error(f"Error locking account in Redis: {e}")
     
-    def is_locked(self, identifier: str) -> tuple[bool, Optional[datetime]]:
+    def is_locked(self, identifier: str, ip_address: Optional[str] = None) -> bool:
         """
         Check if account is locked.
-        
+
+        Args:
+            identifier: Email or username to check
+            ip_address: Ignored (kept for API compatibility with IP-aware callers)
+
         Returns:
-            (is_locked, locked_until) tuple
+            True if the account is currently locked, False otherwise.
+            Previously returned a tuple — changed to plain bool to avoid
+            the common Python pitfall where (False, None) is truthy.
         """
         key = self._get_lockout_key(identifier)
         now = datetime.utcnow()
@@ -147,21 +153,26 @@ class AccountLockoutManager:
             try:
                 locked_until_str = self._redis_client.get(f"{key}:locked_until")
                 if locked_until_str:
-                    # Redis returns str when decode_responses=True, no .decode() needed
                     locked_until = datetime.fromisoformat(locked_until_str if isinstance(locked_until_str, str) else locked_until_str.decode())
                     if now < locked_until:
-                        return True, locked_until
+                        return True
                     else:
                         # Lock expired, clean up
                         self._redis_client.delete(f"{key}:locked_until")
                         self._redis_client.delete(f"{key}:attempts")
-                        return False, None
-                return False, None
+                        return False
+                return False
             except Exception as e:
                 logger.error(f"Error checking lockout in Redis: {e}")
-                return self._is_locked_memory(identifier, now)
+                locked, _ = self._is_locked_memory(identifier, now)
+                return locked
         else:
-            return self._is_locked_memory(identifier, now)
+            locked, _ = self._is_locked_memory(identifier, now)
+            return locked
+
+    def reset(self, identifier: str):
+        """Alias for reset_attempts() — convenience method."""
+        self.reset_attempts(identifier)
     
     def _is_locked_memory(self, identifier: str, now: datetime) -> tuple[bool, Optional[datetime]]:
         """Check if account is locked in memory."""

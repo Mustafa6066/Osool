@@ -247,7 +247,7 @@ export default function CommandPalette() {
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[12vh] sm:pt-[15vh]" onClick={close}>
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh] sm:pt-[15vh]" onClick={close}>
             {/* Backdrop */}
             <motion.div
                 initial={{ opacity: 0 }}
@@ -260,8 +260,8 @@ export default function CommandPalette() {
             <motion.div
                 initial={{ opacity: 0, y: -20, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: 'spring', damping: 24, stiffness: 200 }}
-                className="relative w-full max-w-lg rounded-2xl liquid-glass border border-[var(--color-border)] shadow-2xl"
+                transition={{ type: 'spring', damping: 22, stiffness: 120 }}
+                className="relative w-full max-w-lg rounded-[22px] liquid-glass border border-[var(--color-border)] shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Search input */}

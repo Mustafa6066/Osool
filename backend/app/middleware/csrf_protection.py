@@ -195,6 +195,13 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         
         # For state-changing methods, validate CSRF token
         if method in CSRF_PROTECTED_METHODS:
+            # Exempt requests authenticated via Bearer token.
+            # The Authorization header cannot be set by cross-origin HTML forms or
+            # img/script tags, so Bearer token auth is inherently CSRF-safe.
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.lower().startswith("bearer "):
+                return await call_next(request)
+
             # Validate Origin/Referer first (defense in depth)
             if not validate_origin(request, self.allowed_origins):
                 logger.warning(f"CSRF: Invalid origin for {method} {path}")
@@ -202,19 +209,15 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
                     status_code=403,
                     content={"error": "Invalid origin. CSRF protection triggered."}
                 )
-            
+
             # Get token from header
             csrf_header = request.headers.get(CSRF_HEADER_NAME)
-            
-            # Also check body for token (for form submissions)
-             if not csrf_header:
-                # Try to get from form data (only for content-type application/x-www-form-urlencoded)
-                content_type = request.headers.get("content-type", "")
-                if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
-                    # This requires reading the body, which FastAPI doesn't like
-                    # Recommendation: Always use header for API calls
-                    pass
-            
+
+            # For form submissions, token must come via the header
+            # (reading the body here would break streaming / FastAPI body parsing)
+            if not csrf_header:
+                pass  # fall through to token validation below
+
             # Validate token
             if not csrf_header or not verify_csrf_token(csrf_header):
                 logger.warning(f"CSRF: Token validation failed for {method} {path}")
@@ -225,7 +228,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
                         "detail": "Include X-CSRF-Token header with your request"
                     }
                 )
-            
+
             # Double Submit Cookie: Token must also match cookie
             if csrf_header != csrf_cookie:
                 logger.warning(f"CSRF: Token mismatch for {method} {path}")
@@ -243,7 +246,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         response.set_cookie(
             key=CSRF_COOKIE_NAME,
             value=csrf_cookie,
-            httponly=True,  # Prevent JavaScript access
+            # httponly MUST be False: the Double Submit pattern requires JavaScript to
+            # read this cookie value and copy it into the X-CSRF-Token request header.
+            # Setting httponly=True would prevent JS access and break all mutations.
+            httponly=False,
             secure=is_secure,  # HTTPS only in production
             samesite="strict",  # Strongest CSRF protection
             max_age=86400,  # 24 hours

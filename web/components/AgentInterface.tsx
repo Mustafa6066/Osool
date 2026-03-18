@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter as useNextRouter } from 'next/navigation';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import {
     Sparkles, MapPin,
@@ -284,24 +284,24 @@ const MarkdownMessage = ({ content }: { content: string }) => {
                 remarkPlugins={[remarkGfm]}
                 components={{
                     p: ({ node, ...props }) => (
-                        <p className={`mb-3 last:mb-0 leading-relaxed ${msgIsArabic ? 'text-right' : 'text-left'}`} {...props} />
+                        <p className={`mb-1.5 md:mb-3 last:mb-0 leading-[1.6] md:leading-relaxed ${msgIsArabic ? 'text-right' : 'text-left'}`} {...props} />
                     ),
                     ul: ({ node, ...props }) => (
-                        <ul className={`list-disc mb-3 space-y-1 ${msgIsArabic ? 'pr-5' : 'pl-5'}`} {...props} />
+                        <ul className={`list-disc mb-2 md:mb-3 space-y-0.5 md:space-y-1 ${msgIsArabic ? 'pr-5' : 'pl-5'}`} {...props} />
                     ),
                     ol: ({ node, ...props }) => (
-                        <ol className={`list-decimal mb-3 space-y-1 ${msgIsArabic ? 'pr-5' : 'pl-5'}`} {...props} />
+                        <ol className={`list-decimal mb-2 md:mb-3 space-y-0.5 md:space-y-1 ${msgIsArabic ? 'pr-5' : 'pl-5'}`} {...props} />
                     ),
-                    li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                    li: ({ node, ...props }) => <li className="mb-0.5 md:mb-1" {...props} />,
                     strong: ({ node, ...props }) => (
                         <strong className="font-semibold text-[var(--color-text-primary)]" {...props} />
                     ),
                     em: ({ node, ...props }) => (
                         <em className="italic text-[var(--color-text-secondary)]" {...props} />
                     ),
-                    h1: ({ node, ...props }) => <h1 className="text-xl font-semibold mb-3 mt-4" {...props} />,
-                    h2: ({ node, ...props }) => <h2 className="text-lg font-semibold mb-2 mt-3" {...props} />,
-                    h3: ({ node, ...props }) => <h3 className="text-base font-medium mb-2 mt-2" {...props} />,
+                    h1: ({ node, ...props }) => <h1 className="text-xl font-semibold mb-2 md:mb-3 mt-3 md:mt-4" {...props} />,
+                    h2: ({ node, ...props }) => <h2 className="text-lg font-semibold mb-1.5 md:mb-2 mt-2 md:mt-3" {...props} />,
+                    h3: ({ node, ...props }) => <h3 className="text-base font-medium mb-1.5 md:mb-2 mt-1.5 md:mt-2" {...props} />,
                     blockquote: ({ node, ...props }) => (
                         <blockquote
                             className={`${msgIsArabic ? 'border-r-2 pr-4' : 'border-l-2 pl-4'} border-emerald-500/40 py-1 my-2 text-[var(--color-text-secondary)]`}
@@ -690,6 +690,7 @@ export default function AgentInterface() {
     const { user } = useAuth();
     const { profile, triggerXP } = useGamification();
     const searchParams = useSearchParams();
+    const nextRouter = useNextRouter();
     const [messages, setMessages] = useState<Message[]>(() => loadFromStorage(STORAGE_KEYS.MESSAGES, []));
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -961,6 +962,7 @@ export default function AgentInterface() {
         setConversationReadiness(0);
         setConversationLanguage('ar');
         setLastAiMsgId(null);
+        seededPromptRef.current = null; // reset so same chip can fire again
         const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         sessionIdRef.current = newId;
         sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, newId);
@@ -976,6 +978,9 @@ export default function AgentInterface() {
         const autostart = searchParams.get('autostart') === '1';
         seededPromptRef.current = prompt;
 
+        // Clear the URL params so re-clicking the same chip always works
+        nextRouter.replace('/chat', { scroll: false });
+
         if (messages.length > 0) {
             handleNewChat();
         }
@@ -983,7 +988,7 @@ export default function AgentInterface() {
         if (autostart) {
             const timer = window.setTimeout(() => {
                 void handleSendMessage(prompt);
-            }, 40);
+            }, 80);
 
             return () => window.clearTimeout(timer);
         }
@@ -1089,18 +1094,18 @@ export default function AgentInterface() {
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={conversationLanguage === 'ar' ? 'اسأل عن العقارات، بيانات السوق، أو الاستثمار...' : 'Ask about properties, market data, or investments...'}
-                        className="flex-1 bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-3 px-4 md:py-4 md:px-6 text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
+                        className="flex-1 bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-2.5 md:py-4 px-4 md:px-6 text-[14px] md:text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
                         rows={1}
                         disabled={isTyping}
                     />
 
-                    <div className="flex-shrink-0 pb-3 pr-3">
+                    <div className="flex-shrink-0 pb-2 md:pb-3 pr-2 md:pr-3">
                         <button
                             onClick={() => handleSendMessage()}
                             disabled={isTyping || !inputValue.trim()}
                             aria-label={conversationLanguage === 'ar' ? 'إرسال الرسالة' : 'Send message'}
                             title="Send message"
-                            className="p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-20 disabled:pointer-events-none"
+                            className="p-2 md:p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-20 disabled:pointer-events-none"
                         >
                             <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
                         </button>
@@ -1172,31 +1177,31 @@ export default function AgentInterface() {
                 {/* Top bar — sticky header with session controls + funnel */}
                 {hasStarted && (
                     <div className="sticky top-0 left-0 right-0 z-30 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]/30">
-                        <div className="max-w-[980px] mx-auto px-6">
-                            <div className="flex items-center justify-between py-2.5">
-                                <span className="text-[13px] font-semibold text-[var(--color-text-primary)] tracking-tight">
+                        <div className="max-w-[980px] mx-auto px-4 md:px-6">
+                            <div className="flex items-center justify-between py-1.5 md:py-2.5">
+                                <span className="text-[12px] md:text-[13px] font-semibold text-[var(--color-text-primary)] tracking-tight">
                                     Osool AI <span className="text-[var(--color-text-muted)] font-medium mx-1.5">/</span> <span className="text-[var(--color-text-secondary)] font-medium">{conversationLanguage === 'ar' ? 'جلسة' : 'Session'}</span>
                                 </span>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 md:gap-2">
                                     <button
                                         onClick={() => setHistoryOpen(true)}
                                         aria-label={conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past conversations'}
-                                        className="p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
+                                        className="p-1.5 md:p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
                                         title={conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past Conversations'}
                                     >
-                                        <History className="w-4 h-4" strokeWidth={2} />
+                                        <History className="w-4 h-4 md:w-4 md:h-4" strokeWidth={2} />
                                     </button>
                                     <button
                                         onClick={handleNewChat}
                                         aria-label={conversationLanguage === 'ar' ? 'محادثة جديدة' : 'New chat'}
-                                        className="p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
+                                        className="p-1.5 md:p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
                                         title={conversationLanguage === 'ar' ? 'محادثة جديدة' : 'New Chat'}
                                     >
-                                        <Plus className="w-4 h-4" strokeWidth={2} />
+                                        <Plus className="w-4 h-4 md:w-4 md:h-4" strokeWidth={2} />
                                     </button>
                                 </div>
                             </div>
-                            <div className="max-w-[800px] mx-auto -mt-1 pb-2">
+                            <div className="max-w-[800px] mx-auto -mt-1 pb-1 md:pb-2">
                                 <FunnelIndicator
                                     leadScore={conversationLeadScore}
                                     readinessScore={conversationReadiness}
@@ -1317,13 +1322,13 @@ export default function AgentInterface() {
                                             <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
                                                 {msg.role === 'user' ? (
                                                     <div
-                                                        className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] px-4 py-3 md:px-5 md:py-3.5 rounded-3xl rounded-br-[8px] max-w-[95%] md:max-w-[85%] text-[14px] md:text-[15px] leading-relaxed shadow-sm font-medium"
+                                                        className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] px-4 py-3 md:px-5 md:py-3.5 rounded-3xl rounded-br-[8px] max-w-[95%] md:max-w-[85%] text-[14px] md:text-[15px] leading-[1.6] md:leading-relaxed shadow-sm font-medium"
                                                         dir="auto"
                                                     >
                                                         {msg.content}
                                                     </div>
                                                 ) : (
-                                                    <div className="text-[15px] leading-8 text-[var(--color-text-secondary)] tracking-wide pt-1" dir="auto">
+                                                    <div className="text-[14px] md:text-[15px] leading-[1.6] md:leading-relaxed text-[var(--color-text-secondary)] tracking-wide pt-1" dir="auto">
                                                         <TypewriterMarkdown content={msg.content} animate={msg.id === lastAiMsgId} />
 
                                                         {/* Visualizations */}
@@ -1342,7 +1347,7 @@ export default function AgentInterface() {
                                                                                         ease: [0.16, 1, 0.3, 1], // easeOutExpo
                                                                                         delay: idx * 0.15 
                                                                                     }}
-                                                                                    className="overflow-hidden ai-visualization"
+                                                                                    className="ai-visualization w-full max-w-full"
                                                                                 >
                                                                                     <VisualizationRenderer
                                                                                         type={action.type}
@@ -1537,12 +1542,12 @@ export default function AgentInterface() {
 
                 {/* Input Bar - Floating Figma Style (only shown after conversation starts, hidden when gated) */}
                 {hasStarted && !isGated && !anonGateShown && (
-                    <div className="sticky bottom-0 left-0 right-0 z-40 px-3 md:px-6 pb-4 md:pb-6 pt-8 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
+                    <div className="sticky bottom-0 left-0 right-0 z-40 px-3 md:px-6 pb-2 md:pb-6 pt-2 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
                         <div className="max-w-[800px] mx-auto relative pointer-events-auto">
                             {inputBar}
 
-                            <div className="text-center mt-3">
-                                <p className="text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">{conversationLanguage === 'ar' ? 'CoInvestor وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'CoInvestor is an AI agent. Please verify critical investment data independently.'}</p>
+                            <div className="text-center mt-1.5 md:mt-3">
+                                <p className="text-[10px] md:text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">{conversationLanguage === 'ar' ? 'CoInvestor وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'CoInvestor is an AI agent. Please verify critical investment data independently.'}</p>
                             </div>
                         </div>
                     </div>

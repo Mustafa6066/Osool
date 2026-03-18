@@ -96,11 +96,13 @@ class HybridValuationRequest(BaseModel):
 
 # Phase 1: Payment request model (kept for Paymob integration)
 class PaymentInitiateRequest(BaseModel):
-    """Request model for initiating Paymob payments."""
+    """Request model for initiating Paymob payments.
+    LOW-7/HIGH-6 fix: email, phone_number, and amount_egp are intentionally
+    removed from the client-supplied body.  They now come exclusively from
+    the authenticated current_user and the database property record so that
+    the client cannot manipulate prices or inject arbitrary contact details.
+    """
     property_id: int = Field(..., description="Property ID to reserve")
-    amount_egp: float = Field(..., description="Payment amount in EGP")
-    email: str = Field(..., description="User email")
-    phone_number: str = Field(..., description="User phone number")
     first_name: str = Field(..., description="User first name")
     last_name: str = Field(..., description="User last name")
 
@@ -162,7 +164,12 @@ class ChatRequest(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     """Request model for profile completion."""
     full_name: str = Field(..., description="User's full name")
-    phone_number: str = Field(..., description="User's phone number")
+    # MEDIUM-5 fix: Validate phone_number to prevent garbage and injection
+    phone_number: str = Field(
+        ...,
+        description="User's phone number",
+        pattern=r'^\+?[0-9\s\-\(\)]{7,20}$'
+    )
     email: Optional[str] = Field(None, description="Email for account binding")
 
 @router.post("/auth/update-profile")
@@ -231,8 +238,11 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     # 2. Redis Cache Check
     try:
         from app.services.cache import cache
-        cache.redis.ping()
-        health_status["checks"]["redis"] = {"status": "healthy", "message": "Connected"}
+        if cache.redis:
+            cache.redis.ping()
+            health_status["checks"]["redis"] = {"status": "healthy", "message": "Connected"}
+        else:
+            health_status["checks"]["redis"] = {"status": "not_configured", "message": "Redis not enabled"}
     except Exception as e:
         logger.error("Health check — redis error: %s", e)
         health_status["checks"]["redis"] = {"status": "degraded", "error": "Cache connection failed"}
@@ -369,7 +379,7 @@ async def checkout(
     Returns:
         Payment initiation result with iframe URL
     """
-    import jwt
+    from jose import jwt as jose_jwt, JWTError, ExpiredSignatureError
     from datetime import datetime
     from sqlalchemy import select
 
@@ -380,10 +390,10 @@ async def checkout(
             raise HTTPException(status_code=500, detail="JWT secret not configured")
 
         try:
-            payload = jwt.decode(req.token, SECRET_KEY, algorithms=["HS256"])
-        except jwt.ExpiredSignatureError:
+            payload = jose_jwt.decode(req.token, SECRET_KEY, algorithms=["HS256"])
+        except ExpiredSignatureError:
             raise HTTPException(status_code=400, detail="Reservation link expired. Please generate a new one.")
-        except jwt.InvalidTokenError as e:
+        except JWTError as e:
             raise HTTPException(status_code=400, detail="Invalid reservation token")
 
         # 2. Validate token type
@@ -493,11 +503,17 @@ async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: Use
     if not property.is_available:
         raise HTTPException(status_code=400, detail="Property is NOT available associated with this payment request.")
 
+    # HIGH-6/LOW-7 fix: Use server-side price from the property record, NOT from the client request.
+    # This prevents price-manipulation attacks where the client sends amount_egp=1.
+    payment_amount = float(property.price)
+    user_email = current_user.email or ""
+    user_phone = current_user.phone_number or ""
+
     # 2. Initiate Paymob
     paymob_result = await paymob_service.initiate_payment(
-        amount_egp=req.amount_egp,
-        user_email=req.email,
-        user_phone=req.phone_number,
+        amount_egp=payment_amount,
+        user_email=user_email,
+        user_phone=user_phone,
         first_name=req.first_name,
         last_name=req.last_name
     )
@@ -511,7 +527,7 @@ async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: Use
         new_tx = Transaction(
             user_id=current_user.id, 
             property_id=req.property_id,
-            amount=req.amount_egp, 
+            amount=payment_amount, 
             paymob_order_id=str(paymob_result.get("order_id")),
             status="pending"
         )

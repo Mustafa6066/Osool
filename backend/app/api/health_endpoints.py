@@ -15,9 +15,20 @@ from app.services.circuit_breaker import (
     CircuitState
 )
 from app.monitoring.cost_tracker import cost_tracker
+from app.auth import get_current_user
+from app.models import User
 import os
 
 router = APIRouter(prefix="/health", tags=["Health"])
+
+
+async def _require_admin(user: User = Depends(get_current_user)) -> User:
+    """HIGH-7: Restrict sensitive health endpoints to admin users only."""
+    role = (getattr(user, 'role', '') or '').strip().lower()
+    admin_emails = {"mustafa@osool.eg", "hani@osool.eg"}
+    if user.email.strip().lower() not in admin_emails and role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
 
 
 @router.get("")
@@ -42,7 +53,7 @@ async def health_check():
 
 
 @router.get("/detailed")
-async def detailed_health_check():
+async def detailed_health_check(_admin: User = Depends(_require_admin)):
     """
     Comprehensive health check.
 
@@ -65,7 +76,7 @@ async def detailed_health_check():
 
 
 @router.get("/circuits")
-async def circuit_breaker_status():
+async def circuit_breaker_status(_admin: User = Depends(_require_admin)):
     """
     Get status of all circuit breakers.
 
@@ -99,7 +110,7 @@ async def circuit_breaker_status():
 
 
 @router.get("/costs")
-async def cost_summary():
+async def cost_summary(_admin: User = Depends(_require_admin)):
     """
     Get cost tracking summary.
 

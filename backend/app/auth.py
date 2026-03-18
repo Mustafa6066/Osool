@@ -389,102 +389,38 @@ from app.models import RefreshToken
 
 def create_refresh_token(db: Session, user_id: int) -> str:
     """
-    Create a new refresh token for a user.
-
-    Args:
-        db: Database session
-        user_id: User ID
-
-    Returns:
-        Raw refresh token (only time it's available unhashed)
+    DEPRECATED — this codebase is fully async.
+    Call create_refresh_token_async() instead.
+    Kept as a tombstone so accidental sync callers fail loudly.
     """
-    # Generate secure random token
-    raw_token = secrets.token_urlsafe(32)
-
-    # Hash token for storage (like passwords)
-    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
-
-    # Calculate expiration
-    expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
-    # Store hashed token in database
-    refresh_token = RefreshToken(
-        user_id=user_id,
-        token=hashed_token,
-        expires_at=expires_at
+    raise RuntimeError(
+        "create_refresh_token() is deprecated. "
+        "Use await create_refresh_token_async(db, user_id) with an AsyncSession."
     )
-    db.add(refresh_token)
-    db.commit()
-
-    logger.info(f"✅ Created refresh token for user {user_id}")
-    return raw_token
 
 
 def verify_refresh_token(db: Session, raw_token: str) -> Optional[int]:
-    """
-    Verify a refresh token and return the user ID if valid.
-
-    Args:
-        db: Database session
-        raw_token: The raw refresh token from client
-
-    Returns:
-        User ID if token is valid, None otherwise
-    """
-    # Hash the provided token
-    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
-
-    # Find token in database
-    token_record = db.query(RefreshToken).filter(
-        RefreshToken.token == hashed_token,
-        RefreshToken.is_revoked == False,
-        RefreshToken.expires_at > datetime.utcnow()
-    ).first()
-
-    if token_record:
-        return token_record.user_id
-    return None
+    """DEPRECATED — use await verify_refresh_token_async() instead."""
+    raise RuntimeError(
+        "verify_refresh_token() is deprecated. "
+        "Use await verify_refresh_token_async(db, raw_token) with an AsyncSession."
+    )
 
 
 def revoke_refresh_token(db: Session, raw_token: str) -> bool:
-    """
-    Revoke a refresh token (logout).
-
-    Args:
-        db: Database session
-        raw_token: The raw refresh token from client
-
-    Returns:
-        True if token was revoked, False if not found
-    """
-    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
-
-    token_record = db.query(RefreshToken).filter(
-        RefreshToken.token == hashed_token
-    ).first()
-
-    if token_record:
-        token_record.is_revoked = True
-        db.commit()
-        logger.info(f"🔒 Revoked refresh token for user {token_record.user_id}")
-        return True
-    return False
+    """DEPRECATED — use await revoke_refresh_token_async() instead."""
+    raise RuntimeError(
+        "revoke_refresh_token() is deprecated. "
+        "Use await revoke_refresh_token_async(db, raw_token) with an AsyncSession."
+    )
 
 
 def revoke_all_user_tokens(db: Session, user_id: int):
-    """
-    Revoke all refresh tokens for a user (e.g., password change, security incident).
-
-    Args:
-        db: Database session
-        user_id: User ID
-    """
-    db.query(RefreshToken).filter(
-        RefreshToken.user_id == user_id,
-        RefreshToken.is_revoked == False
-    ).update({"is_revoked": True})
-    db.commit()
-    logger.info(f"🔒 Revoked all refresh tokens for user {user_id}")
+    """DEPRECATED — use async ORM in an AsyncSession instead."""
+    raise RuntimeError(
+        "revoke_all_user_tokens() is deprecated. "
+        "Execute the equivalent query with an AsyncSession directly."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════

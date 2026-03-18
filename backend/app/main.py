@@ -186,7 +186,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
-            "connect-src 'self' https://api.openai.com wss://osool.eg wss://osool.vercel.app"
+            # MEDIUM-10 fix: removed https://api.openai.com (backend only, not browser);
+            # corrected wss domain to osool-ten.vercel.app
+            "connect-src 'self' https://osool-ten.vercel.app wss://osool.eg wss://osool-ten.vercel.app"
         )
 
         # Referrer Policy
@@ -199,19 +201,23 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 # Simple in-memory rate limiter (safety net)
 from app.middleware.simple_rate_limiter import SimpleRateLimiterMiddleware
+from app.middleware.csrf_protection import CSRFProtectionMiddleware
 
 # NOTE: Middleware order matters in FastAPI (LIFO - Last In First Out)
 # Middleware added LAST executes FIRST in the request chain.
-# Order (bottom to top, execution order): Rate Limiter → Security Headers → CORS (must be last!)
+# Order (outer → inner): CORS → Rate Limiter → CSRF → Security Headers
 
-app.add_middleware(SimpleRateLimiterMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CSRFProtectionMiddleware)  # CRITICAL-3 fix: was defined but never registered
+app.add_middleware(SimpleRateLimiterMiddleware)
 
 # CORS MIDDLEWARE - MUST BE ADDED LAST (executes first in middleware chain)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app",
+    # MEDIUM-9 fix: Anchor regex with ^ and $ so a string like
+    # "https://evil.com/https://osool-abc-mustafas-projects-xyz.vercel.app" doesn't bypass it
+    allow_origin_regex=r"^https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Admin-Key", "X-CSRF-Token"],

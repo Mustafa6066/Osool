@@ -99,7 +99,7 @@ async def list_leads(
             "id": lp.id,
             "user_id": lp.user_id,
             "email": lp.user.email if lp.user else None,
-            "phone": lp.user.phone if lp.user and hasattr(lp.user, 'phone') else None,
+            "phone": lp.user.phone_number if lp.user else None,
             "stage": lp.stage,
             "score": lp.score,
             "segment": lp.segment,

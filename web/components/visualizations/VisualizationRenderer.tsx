@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, type ComponentProps } from "react";
+import { Suspense, useState, type ComponentProps, useEffect } from "react";
+import { Maximize2, X } from "lucide-react";
 
 // Lazy load visualization components for better performance
 const InvestmentScorecard = dynamic(() => import("./InvestmentScorecard"), {
@@ -196,7 +197,7 @@ interface VisualizationData {
  * Routes visualization types to their corresponding components.
  * Supports both legacy visualization types and new V4 Wolf Brain types.
  */
-export default function VisualizationRenderer({ type, data, isRTL = true }: VisualizationRendererProps) {
+function InnerVisualizationRenderer({ type, data, isRTL = true }: VisualizationRendererProps) {
     // Handle null/undefined data gracefully
     if (!data) {
         return null;
@@ -524,4 +525,58 @@ export default function VisualizationRenderer({ type, data, isRTL = true }: Visu
         default:
             return null;
     }
+}
+
+export default function VisualizationRenderer(props: VisualizationRendererProps) {
+    const [isMaximized, setIsMaximized] = useState(false);
+    
+    // Check if inner renderer actually has something to return
+    const content = InnerVisualizationRenderer(props);
+    if (!content) return null;
+
+    return (
+        <>
+            {/* Standard wrapper with responsive horizontal edge-to-edge layout & swipe mechanics */}
+            <div className="-mx-4 md:-mx-5 sm:mx-0 px-4 md:px-5 sm:px-0 sm:rounded-xl relative group overflow-hidden">
+                <div className="overflow-x-auto overflow-y-hidden no-scrollbar w-full relative">
+                    <div className="min-w-[600px] w-full">
+                        {content}
+                    </div>
+                </div>
+                
+                {/* Maximize Button - shows on hover across devices */}
+                <button 
+                    onClick={() => setIsMaximized(true)} 
+                    className="absolute top-3 right-3 sm:opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-xl bg-white/80 dark:bg-black/60 backdrop-blur-sm border border-black/10 dark:border-white/10 shadow-sm z-10 hover:bg-white dark:hover:bg-black text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                    aria-label="Maximize chart"
+                >
+                    <Maximize2 size={16} />
+                </button>
+            </div>
+
+            {/* Fullscreen Deep Dive Modal */}
+            {isMaximized && (
+                <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur-sm p-2 sm:p-6" onClick={() => setIsMaximized(false)}>
+                    <div className="flex justify-end p-2 md:pb-4">
+                        <button 
+                            onClick={() => setIsMaximized(false)} 
+                            className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors backdrop-blur-md border border-white/20 text-white"
+                            aria-label="Close"
+                        >
+                            <X size={24} />
+                        </button>
+                    </div>
+                    {/* Centered wrapper that maxes out real estate but keeps its aspect ratio */}
+                    <div 
+                        className="flex-1 w-full max-w-[1400px] mx-auto bg-[var(--color-surface)] rounded-2xl md:rounded-3xl p-4 sm:p-8 overflow-y-auto no-scrollbar shadow-2xl relative flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex-1 min-h-[400px]">
+                            {content}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 }

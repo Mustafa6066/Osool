@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from datetime import datetime
 import logging
 
@@ -80,7 +80,7 @@ class RetargetingRuleCreate(BaseModel):
 
 class WaitlistSignup(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
-    email: str = Field(..., max_length=320)
+    email: EmailStr  # MEDIUM-2 fix: validates RFC-5321 format, prevents gigo injection
     phone: Optional[str] = Field(None, max_length=20)
     segment: Optional[str] = Field(None, max_length=100)
     source: Optional[str] = Field(None, max_length=100)

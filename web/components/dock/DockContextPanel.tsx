@@ -31,9 +31,9 @@ const ROUTE_PANELS: Record<
   },
   chat: {
     chips: [
-      { label: 'Compare areas', labelAr: 'قارن المناطق', href: '/chat?q=compare+areas', icon: BarChart3 },
-      { label: 'Investment tips', labelAr: 'نصائح استثمارية', href: '/chat?q=investment+tips', icon: TrendingUp },
-      { label: 'Find 2BR under 3M', labelAr: 'ابحث عن شقتين أقل من 3 مليون', href: '/chat?q=2br+under+3m', icon: Search },
+      { label: 'Compare areas', labelAr: 'قارن المناطق', href: '/chat?prompt=Compare+investment+areas+in+Egypt&autostart=1', icon: BarChart3 },
+      { label: 'Investment tips', labelAr: 'نصائح استثمارية', href: '/chat?prompt=Give+me+top+investment+tips+for+Egyptian+real+estate&autostart=1', icon: TrendingUp },
+      { label: 'Find 2BR under 3M', labelAr: 'ابحث عن شقتين أقل من 3 مليون', href: '/chat?prompt=Find+me+2+bedroom+properties+under+3+million+EGP&autostart=1', icon: Search },
     ],
   },
   dashboard: {
@@ -74,8 +74,8 @@ export default function DockContextPanel() {
           key={routeKey}
           initial={{ opacity: 0, y: 12, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.96 }}
-          transition={{ type: 'spring', damping: 22, stiffness: 180, duration: 0.3 }}
+          exit={{ opacity: 0, y: 12, scale: 0.96 }}
+          transition={{ type: 'spring', damping: 22, stiffness: 120 }}
           className="fixed bottom-[68px] sm:bottom-[92px] left-1/2 -translate-x-1/2 z-40 max-w-[94vw]"
         >
           <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-lg">
@@ -85,11 +85,11 @@ export default function DockContextPanel() {
                 <button
                   key={chip.label}
                   onClick={() => chip.href && router.push(chip.href)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-medium text-[var(--color-text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/8 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-medium text-[var(--color-text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/8 transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus:outline-none"
                 >
                   <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                   {language === 'ar' ? chip.labelAr : chip.label}
-                  <ArrowRight className="w-2.5 h-2.5 opacity-40" />
+                  <ArrowRight className="w-2.5 h-2.5 opacity-40 ml-0.5" />
                 </button>
               );
             })}

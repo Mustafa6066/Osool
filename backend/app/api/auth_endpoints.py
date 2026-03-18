@@ -34,13 +34,16 @@ from app.auth import (
     create_refresh_token_async,
     verify_refresh_token_async,
     revoke_refresh_token_async,
+    oauth2_scheme_optional,
 )
 from app.services.sms_service import sms_service
 from app.services.email_service import email_service, create_verification_token, is_verification_token_valid, consume_verification_token
+from app.security.account_lockout import AccountLockoutManager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 limiter = Limiter(key_func=get_remote_address)
+_lockout_manager = AccountLockoutManager()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -197,11 +200,25 @@ async def login_with_verification(
     result = await db.execute(select(User).filter(User.email == form_data.username))
     user = result.scalar_one_or_none()
 
+    client_ip = request.client.host if request.client else "unknown"
+
+    # CRITICAL-4 fix: Check account lockout BEFORE password verification
+    if _lockout_manager.is_locked(form_data.username, ip_address=client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Account temporarily locked due to too many failed attempts. Try again later."
+        )
+
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
+        # Record failed attempt against the supplied username regardless of whether it exists
+        _lockout_manager.record_failed_attempt(form_data.username, ip_address=client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
+
+    # Successful login — clear any prior failed attempts
+    _lockout_manager.reset(form_data.username)
 
     if getattr(user, 'role', '') == 'blocked':
         raise HTTPException(
@@ -212,12 +229,12 @@ async def login_with_verification(
     # For beta users (pre-verified), skip phone verification check
     # CRITICAL: In production, require phone verification
     if not user.is_verified and not user.email_verified:
+        # HIGH-4 fix: Do NOT include user_id in 403 response — prevents user enumeration
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "error": "account_not_verified",
-                "message": "Please verify your account before logging in",
-                "user_id": user.id
+                "message": "Please verify your account before logging in"
             }
         )
 
@@ -236,7 +253,9 @@ async def login_with_verification(
     except Exception as token_err:
         logger.warning(f"Failed to create refresh token for {user.email}: {token_err}")
 
-    logger.info(f"Login successful: {user.email} (Display: {display_name})")
+    # LOW-2 fix: Mask PII (email) in logs
+    _masked = f"{user.email[:3]}***@***" if user.email else "unknown"
+    logger.info(f"Login successful: {_masked}")
 
     return {
         "access_token": access_token,
@@ -284,10 +303,18 @@ async def refresh_access_token(req: RefreshTokenRequest, db: AsyncSession = Depe
 
 
 @router.post("/logout")
-async def logout(req: LogoutRequest, db: AsyncSession = Depends(get_db)):
+async def logout(req: LogoutRequest, db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme_optional)):
     """
-    Revoke refresh token on logout (best-effort).
+    Revoke refresh token and blacklist the current access token on logout.
     """
+    # LOW-6 fix: Blacklist the access token so it can't be used even within its TTL window
+    if token:
+        try:
+            from app.auth import invalidate_token
+            invalidate_token(token)
+        except Exception as err:
+            logger.warning(f"Failed to blacklist access token on logout: {err}")
+
     if req.refresh_token:
         try:
             await revoke_refresh_token_async(db, req.refresh_token)
@@ -344,7 +371,9 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
         except Exception as token_err:
             logger.warning(f"Failed to create refresh token for Google user {email}: {token_err}")
 
-        logger.info(f"Google OAuth successful for {email}")
+        # LOW-2 fix: Mask PII in logs
+        _masked_email = f"{email[:3]}***@***" if email else "unknown"
+        logger.info(f"Google OAuth successful for {_masked_email}")
 
         return {
             "access_token": access_token,
@@ -392,13 +421,10 @@ async def send_otp(
     try:
         code = sms_service.send_otp(req.phone_number)
 
-        # In development, return code for testing
-        if os.getenv('ENVIRONMENT') == 'development':
-            return {
-                "status": "sent",
-                "dev_code": code,
-                "message": "OTP sent successfully (dev mode shows code)"
-            }
+        # CRITICAL-5 fix: Never return OTP in response body, even in dev.
+        # Log to server stderr instead for debugging.
+        if os.getenv('ENVIRONMENT') != 'production':
+            logger.debug("[DEV-ONLY] OTP for %s: %s", req.phone_number[:6], code)
 
         return {
             "status": "sent",
@@ -488,21 +514,21 @@ async def send_verification(
     user.verification_token = token
     await db.commit()
 
-    try:
-        email_service.send_verification_email(req.email, token)
-        logger.info(f"✅ Verification email sent to {req.email}")
-
-        return {
-            "status": "sent",
-            "message": "Verification email sent. Please check your inbox."
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to send verification email: {e}")
+    success = email_service.send_verification_email(req.email, token)
+    if not success:
+        # Roll back the token so the user can retry cleanly
+        user.verification_token = None
+        await db.commit()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send verification email"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to send verification email. Please try again later."
         )
+
+    logger.info(f"Verification email sent to {req.email[:3]}***")
+    return {
+        "status": "sent",
+        "message": "Verification email sent. Please check your inbox."
+    }
 
 
 @router.get("/verify-email")
@@ -569,21 +595,20 @@ async def request_reset(
     user.verification_token = token
     await db.commit()
 
-    try:
-        email_service.send_reset_email(req.email, token)
-        logger.info(f"✅ Password reset email sent to {req.email}")
-
-        return {
-            "status": "sent",
-            "message": "Password reset link sent. Please check your email."
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to send reset email: {e}")
+    success = email_service.send_reset_email(req.email, token)
+    if not success:
+        logger.error("Failed to send password reset email to %s***", req.email[:3])
+        # Return the same vague message so user enumeration is impossible
         return {
             "status": "sent",
             "message": "If the email exists, password reset link has been sent."
         }
+
+    logger.info("Password reset email sent to %s***", req.email[:3])
+    return {
+        "status": "sent",
+        "message": "Password reset link sent. Please check your email."
+    }
 
 
 @router.post("/reset-password/confirm")

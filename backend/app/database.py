@@ -30,15 +30,23 @@ elif DATABASE_URL.startswith("sqlite://") and "sqlite+aiosqlite" not in DATABASE
     DATABASE_URL = DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://", 1)
 
 # Async Engine — production-grade connection pooling for stability under load
+# Pool parameters are PostgreSQL-only; SQLite (aiosqlite) uses StaticPool and
+# rejects these kwargs, which would crash tests and local SQLite environments.
+_pool_kwargs: dict = {}
+if "postgresql" in DATABASE_URL or "postgres" in DATABASE_URL:
+    _pool_kwargs = dict(
+        pool_size=20,              # Base persistent connections
+        max_overflow=30,           # Burst connections when pool is full
+        pool_recycle=1800,         # Recycle connections every 30 min (prevent stale)
+        pool_timeout=30,           # Wait max 30s for a connection from pool
+    )
+
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     future=True,
-    pool_size=20,              # Base persistent connections
-    max_overflow=30,           # Burst connections when pool is full
-    pool_recycle=1800,         # Recycle connections every 30 min (prevent stale)
     pool_pre_ping=True,        # Verify connections before use (detect dead connections)
-    pool_timeout=30,           # Wait max 30s for a connection from pool
+    **_pool_kwargs,
 )
 
 # Session Factory

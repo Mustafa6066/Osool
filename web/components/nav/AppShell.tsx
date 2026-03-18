@@ -18,7 +18,7 @@ export default function AppShell({ children }: AppShellProps) {
 
       {/* Content area — offset for bottom dock only */}
       <div
-        className="flex flex-col h-screen pb-[80px] overflow-x-hidden overflow-y-auto"
+        className="flex flex-col h-[100dvh] pb-[100px] sm:pb-[110px] overflow-x-hidden overflow-y-auto"
       >
         {children}
       </div>

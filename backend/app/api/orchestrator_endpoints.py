@@ -13,6 +13,7 @@ All calls are server-to-server with API key auth.
 
 import os
 import logging
+import secrets
 from typing import Optional
 
 import httpx
@@ -144,10 +145,11 @@ async def get_notifications(
 
 
 @router.get("/trending")
-async def get_trending():
+async def get_trending(user: User = Depends(get_current_user)):
     """
     Fetch trending market data from the Orchestrator.
     Includes trending developers, locations, and search queries.
+    HIGH-8 fix: Requires auth — trending data is proprietary business intelligence.
     """
     data = await _fetch_from_orchestrator("/trending")
     return data or {
@@ -186,7 +188,8 @@ INTERNAL_API_KEY = os.getenv("ORCHESTRATOR_API_KEY", "")
 def _verify_api_key(request: Request):
     """Verify X-API-Key header for server-to-server calls from the Orchestrator."""
     key = request.headers.get("X-API-Key", "")
-    if not key or not INTERNAL_API_KEY or key != INTERNAL_API_KEY:
+    # HIGH-1 fix: Use constant-time comparison to prevent timing-based key oracle attacks
+    if not key or not INTERNAL_API_KEY or not secrets.compare_digest(key.encode(), INTERNAL_API_KEY.encode()):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
