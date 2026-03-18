@@ -13,8 +13,8 @@ export interface UseVoicePlaybackReturn {
   stop: () => void;
 }
 
-/** Cost-guard: truncate long messages to keep TTS affordable */
-const TTS_MAX_CHARS = 500;
+/** Cost-guard: real estate descriptions tend to be longer, allow more text */
+const TTS_MAX_CHARS = 1000;
 
 export function useVoicePlayback(): UseVoicePlaybackReturn {
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>('idle');
