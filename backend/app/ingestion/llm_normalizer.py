@@ -210,7 +210,8 @@ class NormalizationResult(BaseModel):
 # LLM Client + System Prompt
 # ─────────────────────────────────────────────────────────────────────────────
 
-_openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_openai_api_key = os.getenv("OPENAI_API_KEY")
+_openai_client = AsyncOpenAI(api_key=_openai_api_key) if _openai_api_key else None
 
 MAX_UNITS_PER_COMPOUND = int(os.getenv("MAX_UNITS_PER_COMPOUND", "30"))
 
