@@ -1049,6 +1049,18 @@ export const translations = {
             title: "Command Terminal",
             description: "Deep-dive analysis via command & telemetry interface",
         },
+
+        // Dock
+        dock: {
+            askOsool: "Ask Osool",
+            recent: "Recent",
+            aiPowered: "AI-powered",
+            inviteFriends: "Invite Friends",
+            signOut: "Sign Out",
+            lightMode: "Light mode",
+            darkMode: "Dark mode",
+            login: "Login",
+        },
     },
 
     ar: {
@@ -2096,6 +2108,18 @@ export const translations = {
         terminal: {
             title: "محطة الأوامر",
             description: "تحليل معمّق عبر واجهة القيادة والقياس عن بُعد",
+        },
+
+        // Dock
+        dock: {
+            askOsool: "اسأل أصول",
+            recent: "البحث الأخير",
+            aiPowered: "مدعوم بالذكاء الاصطناعي",
+            inviteFriends: "دعوة أصدقاء",
+            signOut: "تسجيل الخروج",
+            lightMode: "الوضع الفاتح",
+            darkMode: "الوضع الداكن",
+            login: "دخول",
         },
     },
 };

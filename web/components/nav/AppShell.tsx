@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import FloatingHeader from './FloatingHeader';
-import BottomBar from './BottomBar';
+import LiquidDock from '@/components/dock/LiquidDock';
 import InvitationModal from '@/components/InvitationModal';
 
 interface AppShellProps {
@@ -16,16 +15,15 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <>
       <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
-      <FloatingHeader onInvite={openInvite} />
 
-      {/* Content area — offset for floating header + bottom bar */}
+      {/* Content area — offset for bottom dock only */}
       <div
-        className="flex flex-col h-screen pt-[60px] pb-[72px] md:pb-0 overflow-x-hidden overflow-y-auto"
+        className="flex flex-col h-screen pb-[80px] overflow-x-hidden overflow-y-auto"
       >
         {children}
       </div>
 
-      <BottomBar onInvite={openInvite} />
+      <LiquidDock onInvite={openInvite} />
     </>
   );
 }

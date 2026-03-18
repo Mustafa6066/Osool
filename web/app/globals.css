@@ -291,6 +291,35 @@ body > div:first-child {
     border: 1px solid rgba(255, 255, 255, 0.04);
   }
 
+  /* Liquid Glass — Dock & Palette */
+  .liquid-glass {
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    backdrop-filter: blur(20px) saturate(1.5);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+  .dark .liquid-glass, [data-theme="dark"] .liquid-glass {
+    background: rgba(17, 17, 19, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  .dock-shadow {
+    box-shadow:
+      0 4px 24px -4px rgba(0, 0, 0, 0.1),
+      0 1px 4px rgba(0, 0, 0, 0.04);
+  }
+  .dark .dock-shadow, [data-theme="dark"] .dock-shadow {
+    box-shadow:
+      0 4px 32px -4px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
   .glass-header {
     background: rgba(255, 255, 255, 0.75);
     -webkit-backdrop-filter: blur(20px);
@@ -525,6 +554,7 @@ body > div:first-child {
 
 @keyframes pulse-glow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes breath { 0%, 100% { opacity: 0.25; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.04); } }
 @keyframes ping-slow { 75%, 100% { transform: scale(2); opacity: 0; } }
 @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
