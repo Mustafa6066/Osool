@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { isAuthenticated, getCurrentUserFromToken, refreshAccessToken, logout as apiLogout } from '@/lib/api';
 
 interface User {
@@ -21,11 +21,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const REFRESH_AHEAD_MS = 2 * 60 * 1000; // refresh 2 minutes before expiry
+
+function getTokenExpiryMs(token: string): number | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(normalized)) as { exp?: number };
+    if (!decoded.exp || typeof decoded.exp !== 'number') return null;
+    return decoded.exp * 1000;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshUser = () => {
+  const refreshUser = useCallback(() => {
     void (async () => {
       if (!isAuthenticated()) {
         // Access token is missing or expired — try a silent refresh first
@@ -40,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData ? { id: userData.sub || '', email: userData.email, full_name: userData.full_name, role: userData.role as string | undefined } : null);
       setLoading(false);
     })();
-  };
+  }, []);
 
   useEffect(() => {
     try {
@@ -67,7 +82,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, 0);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [refreshUser]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const maybeRefreshSession = async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const expMs = getTokenExpiryMs(token);
+      if (!expMs) return;
+
+      const msRemaining = expMs - Date.now();
+      if (msRemaining <= REFRESH_AHEAD_MS) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          refreshUser();
+        } else {
+          // If refresh cannot be performed, re-evaluate auth state.
+          refreshUser();
+        }
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void maybeRefreshSession();
+    }, 60_000);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void maybeRefreshSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    void maybeRefreshSession();
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [refreshUser]);
 
   const login = (accessToken: string, refreshToken?: string, fullName?: string) => {
     localStorage.setItem('access_token', accessToken);

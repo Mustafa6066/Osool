@@ -72,15 +72,42 @@ api.interceptors.request.use(
  * Uses a lock to prevent parallel refresh calls
  */
 let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
+let refreshSubscribers: Array<{
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
+
+function isInvalidRefreshResponse(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 401 || status === 403 || status === 422;
+}
+
+function clearAuthAndRedirect(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user_full_name');
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
 
 function onTokenRefreshed(token: string) {
-  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers.forEach(sub => sub.resolve(token));
   refreshSubscribers = [];
 }
 
-function addRefreshSubscriber(cb: (token: string) => void) {
-  refreshSubscribers.push(cb);
+function onTokenRefreshFailed(error: unknown) {
+  refreshSubscribers.forEach(sub => sub.reject(error));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(
+  resolve: (token: string) => void,
+  reject: (error: unknown) => void
+) {
+  refreshSubscribers.push({ resolve, reject });
 }
 
 api.interceptors.response.use(
@@ -97,13 +124,13 @@ api.interceptors.response.use(
 
       // If already refreshing, queue this request to retry after refresh
       if (isRefreshing) {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           addRefreshSubscriber((token: string) => {
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
             resolve(api(originalRequest));
-          });
+          }, reject);
         });
       }
 
@@ -114,11 +141,7 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         // No refresh token available - redirect to login
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-        }
+        clearAuthAndRedirect();
         return Promise.reject(error);
       }
 
@@ -151,13 +174,16 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;
-        refreshSubscribers = [];
-        // Refresh failed - clear auth tokens only and redirect to login
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
+        onTokenRefreshFailed(refreshError);
+
+        // Only force logout on invalid/expired refresh token.
+        // Network/server failures should not sign users out abruptly.
+        if (isInvalidRefreshResponse(refreshError)) {
+          clearAuthAndRedirect();
+        } else {
+          console.warn('[Auth] Refresh failed due to transient error; keeping session tokens intact.');
         }
+
         return Promise.reject(refreshError);
       }
     }
@@ -203,9 +229,12 @@ export const refreshAccessToken = async (): Promise<boolean> => {
       localStorage.setItem('refresh_token', data.refresh_token as string);
     }
     return true;
-  } catch {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+  } catch (error) {
+    if (isInvalidRefreshResponse(error)) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_full_name');
+    }
     return false;
   }
 };
@@ -328,19 +357,31 @@ export const streamChat = async (
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   try {
-    const accessToken = typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
-      : null;
+    const openStream = async (): Promise<Response> => {
+      const accessToken = typeof window !== 'undefined'
+        ? localStorage.getItem('access_token')
+        : null;
 
-    const response = await fetch(`${BASE_URL}/api/chat/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
-      },
-      body: JSON.stringify({ message, session_id: sessionId, language }),
-      signal: controller.signal,
-    });
+      return fetch(`${BASE_URL}/api/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ message, session_id: sessionId, language }),
+        signal: controller.signal,
+      });
+    };
+
+    let response = await openStream();
+
+    // If access token is expired, try one silent refresh + one retry.
+    if (response.status === 401) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        response = await openStream();
+      }
+    }
 
     if (!response.ok) {
       // Try to extract backend error message

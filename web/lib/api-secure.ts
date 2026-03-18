@@ -44,6 +44,12 @@ const api = axios.create({
  */
 let csrfToken: string | null = null;
 
+function isInvalidRefreshResponse(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 401 || status === 403 || status === 422;
+}
+
 function getCsrfToken(): string | null {
   return csrfToken;
 }
@@ -78,6 +84,14 @@ if (typeof window !== 'undefined') {
  */
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Backward compatibility: also attach bearer token when available.
+    if (typeof window !== 'undefined' && config.headers && !config.headers.Authorization) {
+      const accessToken = localStorage.getItem('access_token');
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+    }
+
     // Add CSRF token to state-changing methods
     const methodsRequiringCsrf = ['POST', 'PUT', 'DELETE', 'PATCH'];
     
@@ -119,12 +133,23 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       
       try {
+        const refreshToken = typeof window !== 'undefined'
+          ? localStorage.getItem('refresh_token')
+          : null;
+
         // Call refresh endpoint (uses refresh token cookie)
         const { data } = await axios.post(
           `${BASE_URL}/api/auth/refresh`,
-          {},
+          refreshToken ? { refresh_token: refreshToken } : {},
           { withCredentials: true }
         );
+
+        if (typeof window !== 'undefined' && data?.access_token) {
+          localStorage.setItem('access_token', data.access_token as string);
+          if (data.refresh_token) {
+            localStorage.setItem('refresh_token', data.refresh_token as string);
+          }
+        }
         
         // Extract new CSRF token from refresh response
         const newCsrfToken = data.csrf_token;
@@ -135,8 +160,8 @@ api.interceptors.response.use(
         // Retry original request
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - redirect to login
-        if (typeof window !== 'undefined') {
+        // Only redirect on invalid refresh token scenarios.
+        if (typeof window !== 'undefined' && isInvalidRefreshResponse(refreshError)) {
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
@@ -289,7 +314,20 @@ export const signup = async (userData: {
  */
 export const refreshToken = async (): Promise<boolean> => {
   try {
-    const response = await api.post('/api/auth/refresh', {});
+    const localRefreshToken = typeof window !== 'undefined'
+      ? localStorage.getItem('refresh_token')
+      : null;
+
+    const response = await api.post('/api/auth/refresh', localRefreshToken ? {
+      refresh_token: localRefreshToken,
+    } : {});
+
+    if (typeof window !== 'undefined' && response.data?.access_token) {
+      localStorage.setItem('access_token', response.data.access_token as string);
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token as string);
+      }
+    }
     
     // Extract new CSRF token
     const newCsrfToken = response.headers['x-csrf-token'];
