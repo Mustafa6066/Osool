@@ -60,12 +60,12 @@ export default function ChatInput({
   return (
     <motion.div layoutId="input-bar" className="w-full" transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
       <div
-        className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${
+        className={`bg-[var(--color-surface)] rounded-2xl flex flex-col transition-all duration-200 ${
           disabled ? 'opacity-70 scale-[0.99]' : ''
-        } shadow-[0_8px_30px_rgba(0,0,0,0.04)] border ${
+        } border ${
           isListening
-            ? 'border-emerald-500/40 shadow-[0_0_0_3px_rgba(16,185,129,0.06)]'
-            : 'border-[var(--color-border)]/40'
+            ? 'border-emerald-500/40'
+            : 'border-[var(--color-border)]/60'
         }${transcriptHighlight ? ' ring-2 ring-emerald-500/40' : ''}`}
       >
         {/* Voice status bar */}
@@ -100,7 +100,7 @@ export default function ChatInput({
                 ? 'اسأل عن العقارات، بيانات السوق، أو الاستثمار...'
                 : 'Ask about properties, market data, or investments...'
             }
-            className="flex-1 bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-2.5 md:py-4 px-4 md:px-6 text-[14px] md:text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-medium"
+            className="flex-1 bg-transparent border-none text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-0 resize-none py-2.5 md:py-3 px-4 md:px-5 text-[14px] md:text-[15px] max-h-[120px] md:max-h-[180px] outline-none ring-0 leading-normal font-normal"
             rows={1}
             disabled={disabled}
           />
@@ -118,7 +118,7 @@ export default function ChatInput({
               disabled={disabled || !value.trim()}
               aria-label={language === 'ar' ? 'إرسال الرسالة' : 'Send message'}
               title="Send message"
-              className="p-2 md:p-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:scale-105 active:scale-95 shadow-sm transition-all duration-200 disabled:opacity-20 disabled:pointer-events-none"
+              className="p-2 md:p-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-xl hover:opacity-90 active:scale-95 transition-all duration-150 disabled:opacity-20 disabled:pointer-events-none"
             >
               <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
             </button>

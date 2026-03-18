@@ -241,6 +241,7 @@ export default function AgentInterface() {
     ),
     [conversationLanguage, profile?.level, savedPropertyIds.size]
   );
+  const minimalEmptySuggestions = useMemo(() => emptyStateSuggestions.slice(0, 4), [emptyStateSuggestions]);
 
   /* ── Send message ── */
   const handleSendMessage = useCallback(async (text?: string) => {
@@ -564,29 +565,12 @@ export default function AgentInterface() {
       <div className="flex h-full min-h-0 w-full bg-[var(--color-background)] text-[var(--color-text-primary)] overflow-hidden selection:bg-emerald-500/15 relative">
         <main className="flex-1 flex flex-col relative min-w-0 h-full w-full min-h-0 z-0">
 
-          {/* Ambient glow while thinking */}
-          <AnimatePresence>
-            {isTyping && (
-              <motion.div
-                key="ambient"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 1.2 }}
-                className="pointer-events-none absolute inset-x-0 top-0 h-[400px] z-0"
-                aria-hidden
-              >
-                <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-emerald-500/[0.04] dark:bg-emerald-400/[0.06] rounded-full blur-[90px] animate-ambient-pulse" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* ── Top bar (in-conversation) ── */}
           {hasStarted && (
-            <div className="sticky top-0 start-0 end-0 z-30 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]/30">
+            <div className="sticky top-0 start-0 end-0 z-30 bg-[var(--color-background)] border-b border-[var(--color-border)]/40">
               <div className="max-w-full lg:max-w-[980px] mx-auto px-3 sm:px-4 md:px-6">
-                <div className="flex items-center justify-between py-2 md:py-2.5">
-                  <span className="text-[12px] md:text-[13px] font-semibold text-[var(--color-text-primary)] tracking-tight">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-[12px] font-medium text-[var(--color-text-primary)] tracking-tight">
                     Osool AI <span className="text-[var(--color-text-muted)] font-medium mx-1.5">/</span> <span className="text-[var(--color-text-secondary)] font-medium">{conversationLanguage === 'ar' ? 'جلسة' : 'Session'}</span>
                   </span>
                   <div className="flex items-center gap-1 md:gap-2">
@@ -618,19 +602,18 @@ export default function AgentInterface() {
 
               {/* ── Empty state / Greeting ── */}
               {!hasStarted && (
-                <div className="flex flex-col min-h-[calc(100dvh-6.5rem)] sm:min-h-[calc(100vh-8rem)] justify-start sm:justify-center px-3 sm:px-4 pt-6 sm:py-6 pb-4 sm:pb-6 relative">
-                  <div className="absolute top-[42%] sm:top-1/2 start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] sm:w-[600px] sm:h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[90px] sm:blur-[100px] rounded-full pointer-events-none -z-10" />
+                <div className="flex flex-col min-h-[calc(100dvh-6.5rem)] sm:min-h-[calc(100vh-8rem)] justify-start sm:justify-center px-3 sm:px-4 pt-6 sm:py-6 pb-4 sm:pb-6">
 
                   <div className="text-center w-full max-w-3xl mx-auto">
-                    <div className="flex items-center justify-center gap-3 mb-3 sm:mb-4">
+                    <div className="flex items-center justify-center gap-3 mb-3">
                       <AgentAvatar />
-                      <span className="text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-widest">Osool AI</span>
+                      <span className="text-[12px] font-semibold text-[var(--color-text-muted)] uppercase tracking-[0.18em]">Osool AI</span>
                     </div>
-                    <h1 className="text-[1.75rem] sm:text-[2.2rem] md:text-[3rem] font-semibold tracking-tight leading-[1.15] mb-2.5 sm:mb-4 text-[var(--color-text-primary)]" dir="auto">
+                    <h1 className="text-[1.6rem] sm:text-[2rem] md:text-[2.4rem] font-semibold tracking-tight leading-[1.15] mb-2 text-[var(--color-text-primary)]" dir="auto">
                       {conversationLanguage === 'ar' ? `أهلاً، ${userName}` : `Hello, ${userName}`}
                     </h1>
-                    <p className="text-[0.95rem] sm:text-[1.02rem] md:text-[1.15rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-2 sm:px-4 md:px-0" dir="auto">
-                      {conversationLanguage === 'ar' ? 'وكيلك الذكي للعقارات — تحليل السوق، فرص الاستثمار، وتدقيق المطورين' : 'Your AI real estate agent — market analysis, investment opportunities, and developer audits'}<span className="text-emerald-500 font-bold ms-0.5">.</span>
+                    <p className="text-[0.92rem] sm:text-[0.98rem] md:text-[1.02rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-2 sm:px-4 md:px-0" dir="auto">
+                      {conversationLanguage === 'ar' ? 'اسأل مباشرة عن العقارات أو السوق أو الاستثمار.' : 'Ask directly about properties, market data, or investment decisions.'}
                     </p>
                   </div>
 
@@ -653,47 +636,33 @@ export default function AgentInterface() {
 
                   {/* Mobile suggestion cards */}
                   <div className="md:hidden w-full max-w-[800px] mx-auto mt-3.5 px-1">
-                    <div className="space-y-2.5">
-                      {emptyStateSuggestions.slice(0, 3).map((s, i) => (
+                    <div className="flex flex-wrap gap-2">
+                      {minimalEmptySuggestions.slice(0, 3).map((s, i) => (
                         <button
                           key={`mobile-${i}`}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                          className="w-full text-start p-3 rounded-xl border border-[var(--color-border)]/40 bg-[var(--color-surface)]/75 hover:border-emerald-500/35 transition-colors"
+                          className="rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                         >
-                          <div className="flex items-start gap-2.5">
-                            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 mt-0.5">
-                              <s.icon className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div dir="auto" className="text-[13px] font-semibold text-[var(--color-text-primary)] leading-snug">{s.label}</div>
-                              <div className="mt-1 text-[11px] text-[var(--color-text-secondary)]" dir="auto">
-                                {conversationLanguage === 'ar' ? s.snippetAr : s.snippet}
-                              </div>
-                            </div>
-                          </div>
+                          <span dir="auto" className="truncate">{s.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Desktop suggestion grid */}
-                  <div className="hidden md:grid w-full max-w-3xl mx-auto md:grid-cols-2 xl:grid-cols-4 gap-3 mt-5 md:mt-6 px-4">
-                    {emptyStateSuggestions.map((s, i) => (
+                  <div className="hidden md:grid w-full max-w-2xl mx-auto md:grid-cols-2 gap-2.5 mt-5 px-4">
+                    {minimalEmptySuggestions.map((s, i) => (
                       <button
                         key={i}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                        className="p-4 md:p-5 bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-2xl text-start transition-all duration-300 flex flex-col justify-between group border border-[var(--color-border)]/40 hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgba(16,185,129,0.06)] hover:-translate-y-1"
+                        className="p-3 rounded-xl text-start transition-colors border border-[var(--color-border)]/50 hover:border-[var(--color-border)] hover:bg-[var(--color-surface)]"
                       >
-                        <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors w-fit mb-3">
-                          <s.icon className="w-4 h-4" />
-                        </div>
-                        <span className="text-[13px] font-semibold text-[var(--color-text-primary)] leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" dir="auto">{s.label}</span>
-                        <span className={`mt-1.5 text-[10px] font-medium flex items-center gap-1 ${s.trend === 'up' ? 'text-emerald-500' : s.trend === 'down' ? 'text-red-400' : 'text-[var(--color-text-muted)]'}`}>
-                          {s.trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                        <span className="text-[13px] font-medium text-[var(--color-text-primary)] leading-snug" dir="auto">{s.label}</span>
+                        <div className="mt-1 text-[11px] text-[var(--color-text-muted)]" dir="auto">
                           {conversationLanguage === 'ar' ? s.snippetAr : s.snippet}
-                        </span>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -801,7 +770,7 @@ export default function AgentInterface() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
                 onClick={() => scrollToBottom('smooth')}
-                className="pointer-events-auto rounded-full border border-emerald-500/20 bg-[var(--color-surface)]/95 px-4 py-2 text-[12px] font-semibold text-[var(--color-text-primary)] shadow-[0_12px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-colors hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400"
+                className="pointer-events-auto rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-[12px] font-medium text-[var(--color-text-primary)] transition-colors"
               >
                 {conversationLanguage === 'ar' ? 'رسائل جديدة' : 'New messages'}
               </motion.button>
@@ -810,7 +779,7 @@ export default function AgentInterface() {
 
           {/* Floating input (in-conversation) */}
           {hasStarted && !isGated && !anonGateShown && (
-            <div className="sticky bottom-0 start-0 end-0 z-40 px-2 sm:px-6 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-6 pt-1 sm:pt-10 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
+            <div className="sticky bottom-0 start-0 end-0 z-40 px-2 sm:px-6 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-6 pt-2 bg-[var(--color-background)]/96 backdrop-blur-sm pointer-events-none border-t border-[var(--color-border)]/30">
               <div className="max-w-[800px] mx-auto relative pointer-events-auto">
                 <ChatInputBar
                   value={inputValue}
