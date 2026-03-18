@@ -153,6 +153,22 @@ async def run_marketing_generator():
         logger.error(f"[CRON] Marketing materials generation failed: {e}")
         raise
 
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
+async def run_portfolio_valuations():
+    """Weekly portfolio valuation update job."""
+    logger.info("[CRON] Starting portfolio valuation updates...")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.portfolio_engine import update_valuations
+        async with AsyncSessionLocal() as db:
+            result = await update_valuations(db)
+            logger.info(f"[CRON] Portfolio valuations updated: {result.get('updated', 0)} entries")
+    except Exception as e:
+        logger.error(f"[CRON] Portfolio valuations failed: {e}")
+        raise
+
+
 def init_scheduler():
     """
     Initialize and start the APScheduler with weekly cron jobs.
@@ -209,12 +225,23 @@ def init_scheduler():
         misfire_grace_time=3600,
     )
 
+    # V5: Portfolio valuations: Every Sunday at 05:30 UTC (after image mirror)
+    scheduler.add_job(
+        run_portfolio_valuations,
+        trigger=CronTrigger(day_of_week="sun", hour=5, minute=30),
+        id="weekly_portfolio_valuations",
+        name="Weekly Portfolio Valuation Updates",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     scheduler.start()
     logger.info("✅ APScheduler started with cron jobs:")
     logger.info("   📅 Post-Scrape Processing: Sundays 04:30 UTC (after Railway Cron scraper)")
     logger.info("   📅 Economic Scraper: Sundays 03:30 UTC")
     logger.info("   📅 Geopolitical Scraper: Daily 04:00 UTC")
     logger.info("   📅 Image Mirror: Sundays 05:00 UTC")
+    logger.info("   📅 Portfolio Valuations: Sundays 05:30 UTC")
     logger.info("   📅 Marketing Generator: 1st/15th 06:00 UTC")
 
     # Log next run times

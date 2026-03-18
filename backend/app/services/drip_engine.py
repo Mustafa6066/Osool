@@ -48,6 +48,21 @@ DRIP_TEMPLATES = {
         "subject_ar": "توافر محدود — مشاريع في نطاق ميزانيتك",
         "template": "drip_urgency",
     },
+    # V5: Post-purchase portfolio nurture
+    ("purchased", 1): {
+        "email_type": "purchase_congrats",
+        "delay_hours": 1,
+        "subject_en": "Congratulations on Your Investment! 🎉 Here's What's Next",
+        "subject_ar": "مبروك على استثمارك! 🎉 إيه اللي بعد كده",
+        "template": "purchase_congrats",
+    },
+    ("purchased", 2): {
+        "email_type": "appreciation_alert",
+        "delay_hours": 168,  # 1 week
+        "subject_en": "Your Property Has Already Appreciated — Portfolio Update",
+        "subject_ar": "عقارك ارتفع بالفعل — تحديث المحفظة",
+        "template": "appreciation_alert",
+    },
 }
 
 

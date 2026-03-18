@@ -49,6 +49,11 @@ XP_ACTIONS = {
     "view_property_detail": 3,
     "use_inflation_calc":   15,
     "developer_comparison": 15,
+    # Dynamic mid-conversation XP (V5)
+    "analytical_question":  15,
+    "smart_comparison":     20,
+    "risk_assessment":      10,
+    "negotiation_insight":  10,
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -125,6 +130,13 @@ ACHIEVEMENT_SEEDS = [
         "description_en": "Analyzed 20+ properties in one area", "description_ar": "حلل أكتر من 20 عقار في منطقة واحدة",
         "icon": "map-pin", "category": "mastery", "xp_reward": 100,
         "requirement_type": "count", "requirement_value": 20, "tier": "silver",
+    },
+    {
+        "key": "deep_thinker",
+        "title_en": "Deep Thinker", "title_ar": "المفكر العميق",
+        "description_en": "Triggered 10+ analytical XP bonuses", "description_ar": "حقق 10+ مكافآت تحليلية في المحادثات",
+        "icon": "brain", "category": "analysis", "xp_reward": 150,
+        "requirement_type": "count", "requirement_value": 10, "tier": "silver",
     },
 ]
 

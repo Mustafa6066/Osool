@@ -130,11 +130,23 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return api_key
 
+class BehavioralSignals(BaseModel):
+    """V5: Frontend telemetry signals piped into psychology layer."""
+    scroll_depth_pct: float = Field(default=0.0, ge=0.0, le=100.0, description="How far user scrolled (0-100%)")
+    time_on_page_ms: int = Field(default=0, ge=0, le=600000, description="Time spent on current page (ms, max 10min)")
+    property_hover_ms: int = Field(default=0, ge=0, le=60000, description="Time hovering over a property card (ms)")
+    price_scroll_speed: float = Field(default=0.0, ge=0.0, le=100.0, description="Speed scrolling past price sections (px/ms)")
+    tool_toggles: int = Field(default=0, ge=0, le=50, description="Number of tool panel open/close toggles")
+    cards_expanded: int = Field(default=0, ge=0, le=100, description="Number of property cards expanded")
+    back_navigation_count: int = Field(default=0, ge=0, le=50, description="Times user navigated back")
+
+
 class ChatRequest(BaseModel):
     """Request model for AI chat."""
     message: str = Field(..., min_length=1, max_length=4000, description="User message to the AI agent")  # SECURITY FIX V5 & V7: XSS + Length limit
     session_id: str = Field(default="default", max_length=100, description="Chat session ID for history")  # SECURITY FIX V7: Length limit
     language: str = Field(default="auto", max_length=10, description="User's preferred language: 'ar' (Arabic), 'en' (English), or 'auto' (detect)")  # SECURITY FIX V7: Length limit
+    behavioral_signals: Optional[BehavioralSignals] = Field(default=None, description="Frontend telemetry signals for psychology adjustment")
 
 
 
@@ -581,6 +593,21 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 property.is_available = False
                 logger.info(f"Property {property.id} marked as reserved after payment")
 
+                # V5: Create portfolio entry for investor tracking
+                try:
+                    from app.services.portfolio_engine import create_portfolio_entry
+                    await create_portfolio_entry(
+                        session=db,
+                        user_id=transaction.user_id,
+                        property_id=transaction.property_id,
+                        transaction_id=transaction.id,
+                        purchase_price=transaction.amount,
+                        equity_paid=transaction.amount * 0.10,  # assume 10% down payment
+                        location_zone=getattr(property, 'location', None),
+                    )
+                except Exception as pe:
+                    logger.warning(f"Portfolio entry creation failed (non-fatal): {pe}")
+
         await db.commit()
         logger.info(f"Transaction {transaction.id} marked as paid")
         
@@ -766,7 +793,8 @@ async def chat_with_agent(
         ai_result = await coinvestor_agent.process_message(
             user_input=sanitized_message,  # SECURITY: Use sanitized message
             session_id=req.session_id,
-            history=chat_history
+            history=chat_history,
+            behavioral_signals=req.behavioral_signals.model_dump() if req.behavioral_signals else None,
         )
         
         print(f"📥 Wolf Brain returned response: {len(ai_result.get('response', ''))} chars")

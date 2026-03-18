@@ -218,6 +218,37 @@ class PaymentApproval(Base):
     reviewed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class Portfolio(Base):
+    """
+    V5: Portfolio Expansion Engine — tracks owned properties + appreciation.
+    Created automatically when a payment is confirmed via paymob webhook.
+    """
+    __tablename__ = "portfolios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"))
+    transaction_id: Mapped[int] = mapped_column(ForeignKey("transactions.id"), nullable=True)
+
+    purchase_price: Mapped[float] = mapped_column(Float)
+    current_estimated_value: Mapped[float] = mapped_column(Float)
+    appreciation_pct: Mapped[float] = mapped_column(Float, default=0.0)  # cumulative %
+
+    equity_paid: Mapped[float] = mapped_column(Float, default=0.0)  # total paid so far
+    monthly_installment: Mapped[float] = mapped_column(Float, nullable=True)
+    installments_remaining: Mapped[int] = mapped_column(Integer, nullable=True)
+
+    status: Mapped[str] = mapped_column(String, default="active")  # active, sold, leverageable
+    location_zone: Mapped[str] = mapped_column(String, nullable=True)  # for AREA_GROWTH lookup
+
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_valuation_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User")
+    property = relationship("Property")
+    transaction = relationship("Transaction")
+
+
 class ChatMessage(Base):
     """
     Phase 3: Persistent Chat History

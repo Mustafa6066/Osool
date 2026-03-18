@@ -33,7 +33,7 @@ class CoInvestorAgent:
         logger.info("🚀 CoInvestorAgent initialized with Wolf Brain V7")
         self.memory_utils = ConversationMemory()  # Utility for loop detection
 
-    async def process_message(self, user_input: str, session_id: str, history: List[BaseMessage] = []) -> Dict[str, Any]:
+    async def process_message(self, user_input: str, session_id: str, history: List[BaseMessage] = [], behavioral_signals: dict = None) -> Dict[str, Any]:
         """
         Main entry point.
         
@@ -54,7 +54,8 @@ class CoInvestorAgent:
                 query=user_input,
                 history=chat_history_dicts,
                 session_id=session_id,
-                language="auto"  # Wolf Brain has internal strict detection
+                language="auto",  # Wolf Brain has internal strict detection
+                behavioral_signals=behavioral_signals,
             )
 
             # --- LOOP DETECTION FIX ---

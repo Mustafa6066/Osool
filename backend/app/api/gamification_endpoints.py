@@ -324,3 +324,42 @@ async def delete_saved_search(
     await db.delete(search)
     await db.commit()
     return {"status": "deleted", "id": search_id}
+
+
+# ═══════════════════════════════════════════════════════════════
+# V5: PORTFOLIO — Ownership + Appreciation + Expansion
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/portfolio")
+async def get_portfolio(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get user's complete portfolio with ROI and leverage status."""
+    from app.services.portfolio_engine import get_portfolio_summary
+    summary = await get_portfolio_summary(db, user.id)
+    return summary
+
+
+@router.get("/portfolio/{portfolio_id}/expansion-opportunity")
+async def get_expansion_opportunity(
+    portfolio_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check if a portfolio entry qualifies for expansion leverage."""
+    from app.services.portfolio_engine import generate_expansion_alert
+    from app.models import Portfolio
+
+    # Verify ownership
+    result = await db.execute(
+        select(Portfolio).filter(Portfolio.id == portfolio_id, Portfolio.user_id == user.id)
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Portfolio entry not found")
+
+    alert = await generate_expansion_alert(db, user.id)
+    if not alert:
+        return {"status": "not_ready", "message": "No expansion opportunity available yet"}
+    return alert

@@ -39,6 +39,8 @@ from .psychology_layer import (
     DecisionStage,
     BuyerPersona,
     ObjectionResolutionTracker,
+    OBJECTION_PROBABILITY_MATRIX,
+    apply_behavioral_adjustments,
 )
 from .reasoning_engine import reasoning_engine, ReasoningChain
 from .analytical_engine import (
@@ -164,70 +166,155 @@ def _calculate_commitment_from_memory(memory: ConversationMemory, intent: Intent
 
 def _predict_objections(psychology: PsychologyProfile, memory, intent, properties: list) -> list:
     """
-    V3: Objection Pre-Emption Engine.
-    Predicts top 2 likely objections based on psychology + persona + stage + properties.
-    Returns counter-arguments for Claude to weave in naturally BEFORE the user asks.
+    V5: Matrix-Based Objection Pre-Emption with Momentum Weighting.
+    
+    1. Pull base probabilities from OBJECTION_PROBABILITY_MATRIX[persona, stage]
+    2. Apply momentum adjustments from state_history + emotional_momentum
+    3. Filter out already-resolved objections
+    4. Return top-2 with counter-arguments for Claude to weave in naturally
     """
-    predictions = []
-    state = psychology.primary_state
-    persona = getattr(psychology, 'buyer_persona', None)
-    stage = getattr(psychology, 'decision_stage', None)
-    already_resolved = set(memory.objections_resolved.keys()) if memory and hasattr(memory, 'objections_resolved') else set()
+    persona = getattr(psychology, 'buyer_persona', BuyerPersona.UNKNOWN)
+    stage = getattr(psychology, 'decision_stage', DecisionStage.AWARENESS)
+    already_resolved = set()
+    if memory and hasattr(memory, 'objections_resolved'):
+        already_resolved = set(memory.objections_resolved.keys())
 
-    # Prediction rules (order = priority)
-    _PREDICTIONS = [
-        {
-            "type": "delivery_risk",
-            "triggers": lambda: (state in (PsychologicalState.RISK_AVERSE, PsychologicalState.DELIVERY_FEAR, PsychologicalState.FAMILY_SECURITY)
-                                 or (persona and persona.value == "first_timer")),
+    # ── Step 1: Base probabilities from matrix ──
+    key = (persona.value, stage.value)
+    base_probs = OBJECTION_PROBABILITY_MATRIX.get(key, OBJECTION_PROBABILITY_MATRIX.get(("unknown", stage.value), []))
+    
+    # Build mutable probability map
+    prob_map: dict = {}  # type -> probability
+    for entry in base_probs:
+        prob_map[entry["type"]] = entry["p"]
+
+    # ── Step 2: Momentum adjustments ──
+    momentum = getattr(psychology, 'emotional_momentum', 'static')
+    state_history = getattr(psychology, 'state_history', [])
+    state = psychology.primary_state
+
+    # Escalating toward risk-averse states boosts delivery_risk
+    risk_states = {PsychologicalState.RISK_AVERSE.value, PsychologicalState.DELIVERY_FEAR.value, 
+                   PsychologicalState.FAMILY_SECURITY.value}
+    recent_risk_count = sum(1 for s in state_history[-5:] if s in risk_states)
+    if recent_risk_count >= 2:
+        prob_map["delivery_risk"] = min(prob_map.get("delivery_risk", 0.3) + 0.2, 0.95)
+
+    # Financial anxiety states boost installment_burden
+    financial_states = {PsychologicalState.INSTALLMENT_ANXIETY.value, PsychologicalState.ANALYSIS_PARALYSIS.value}
+    if state.value in financial_states or any(s in financial_states for s in state_history[-3:]):
+        prob_map["installment_burden"] = min(prob_map.get("installment_burden", 0.3) + 0.15, 0.95)
+
+    # Negative momentum amplifies all probabilities
+    if momentum == "declining":
+        prob_map = {k: min(v + 0.1, 0.95) for k, v in prob_map.items()}
+
+    # Trust deficit boosts legal_safety
+    trust_states = {PsychologicalState.TRUST_DEFICIT.value, PsychologicalState.LEGAL_ANXIETY.value}
+    if state.value in trust_states:
+        prob_map["legal_safety"] = min(prob_map.get("legal_safety", 0.3) + 0.2, 0.95)
+
+    # Expat anxiety boosts remote_trust (inject if not in base matrix)
+    if state == PsychologicalState.EXPATRIATE_ANXIETY:
+        prob_map["remote_trust"] = min(prob_map.get("remote_trust", 0.5) + 0.3, 0.95)
+
+    # Macro skeptic boosts price_will_drop
+    if state in (PsychologicalState.MACRO_SKEPTIC, PsychologicalState.SKEPTICISM):
+        prob_map["price_will_drop"] = min(prob_map.get("price_will_drop", 0.4) + 0.2, 0.95)
+
+    # ── Step 3: Filter resolved + sort by probability ──
+    candidates = [(t, p) for t, p in prob_map.items() if t not in already_resolved and p >= 0.3]
+    candidates.sort(key=lambda x: x[1], reverse=True)
+
+    # ── Counter-argument bank ──
+    COUNTER_ARGS = {
+        "delivery_risk": {
             "counter_ar": "المطور ده تسليمه 95%+ في الوقت — وعندنا Law 114 بيحمي فلوسك لو حصل أي تأخير.",
             "counter_en": "This developer has 95%+ on-time delivery — and our Law 114 Scanner protects your money against delays.",
         },
-        {
-            "type": "price_will_drop",
-            "triggers": lambda: state in (PsychologicalState.MACRO_SKEPTIC, PsychologicalState.SKEPTICISM, PsychologicalState.ANALYSIS_PARALYSIS),
+        "price_will_drop": {
             "counter_ar": "الأسعار مش هتنزل — تكلفة البناء النهاردة أعلى من سعر البيع. الـ downside risk شبه صفر.",
             "counter_en": "Prices won't drop — today's construction cost exceeds selling price. Downside risk is near zero.",
         },
-        {
-            "type": "installment_burden",
-            "triggers": lambda: (state == PsychologicalState.INSTALLMENT_ANXIETY
-                                 or (memory and memory.budget_range and memory.budget_range.get('max', 0) < 5_000_000)),
+        "installment_burden": {
             "counter_ar": "القسط الشهري أقل من إيجار شقة في نفس المنطقة — ومع التضخم القسط بيخف مع الوقت.",
             "counter_en": "Monthly installment is less than rent in the same area — and inflation makes installments lighter over time.",
         },
-        {
-            "type": "legal_safety",
-            "triggers": lambda: state in (PsychologicalState.LEGAL_ANXIETY, PsychologicalState.TRUST_DEFICIT),
+        "legal_safety": {
             "counter_ar": "كل وحدة بنعرضها بتعدي على Law 114 Scanner — لو الورق مش نضيف بنستبعدها قبل ما توصلك.",
             "counter_en": "Every unit we show passes our Law 114 Scanner — if papers aren't clean, we filter it out before it reaches you.",
         },
-        {
-            "type": "wrong_timing",
-            "triggers": lambda: stage and stage.value in ("awareness", "research"),
+        "wrong_timing": {
             "counter_ar": "أنا مش بقولك اشتري دلوقتي — بس الأرقام بتقول إن كل شهر تأخير بيكلفك فلوس حقيقية.",
             "counter_en": "I'm not saying buy now — but the numbers show every month of delay costs real money.",
         },
-        {
-            "type": "remote_trust",
-            "triggers": lambda: state == PsychologicalState.EXPATRIATE_ANXIETY,
+        "remote_trust": {
             "counter_ar": "كل حاجة ممكن تتعمل عن بُعد — من المعاينة الفيديو للتوكيل الرسمي. عملنا كده مع عملاء كتير في الخليج.",
             "counter_en": "Everything can be done remotely — from video viewing to legal proxy. We've done this with many Gulf-based clients.",
         },
-    ]
+    }
 
-    for pred in _PREDICTIONS:
-        if pred["type"] in already_resolved:
-            continue
-        try:
-            if pred["triggers"]():
-                predictions.append(pred)
-                if len(predictions) >= 2:
-                    break
-        except Exception:
-            continue
+    # ── Step 4: Return top-2 with metadata ──
+    predictions = []
+    for obj_type, probability in candidates[:2]:
+        entry = {"type": obj_type, "probability": round(probability, 2)}
+        entry.update(COUNTER_ARGS.get(obj_type, {}))
+        predictions.append(entry)
 
     return predictions
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# V5: DYNAMIC ANALYTICAL BEHAVIOR DETECTION
+# Detects mid-conversation analytical patterns that earn bonus XP
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import re as _re
+
+_ANALYTICAL_PATTERNS = {
+    "analytical_question": _re.compile(
+        r'(?:roi|عائد|yield|rental yield|إيجار|capitalization|cap rate'
+        r'|price per (?:sqm|meter|متر)|سعر المتر|appreciation|ارتفاع'
+        r'|inflation|تضخم|compound annual|irr|npv)',
+        _re.IGNORECASE
+    ),
+    "smart_comparison": _re.compile(
+        r'(?:مقارنة|compare|versus|vs\.?|ولا|أحسن|better|which is'
+        r'|أفضل|difference between|الفرق بين|option a|option b'
+        r'|pros and cons|مميزات وعيوب)',
+        _re.IGNORECASE
+    ),
+    "risk_assessment": _re.compile(
+        r'(?:risk|مخاطر|خطر|downside|worst case|أسوأ|ضمان|guarantee'
+        r'|safe|آمن|secure|حماية|protection|law 114|قانون)',
+        _re.IGNORECASE
+    ),
+    "negotiation_insight": _re.compile(
+        r'(?:negotiate|تفاوض|discount|خصم|تخفيض|below asking|أقل من'
+        r'|payment plan|خطة دفع|down payment|مقدم|flexible|مرن'
+        r'|counter.offer|عرض مضاد)',
+        _re.IGNORECASE
+    ),
+}
+
+
+def _detect_analytical_behavior(query: str, intent_action: str) -> list:
+    """
+    V5: Detect analytical patterns in the user's message.
+    Returns list of XP action keys that should be awarded.
+    """
+    detected = []
+    for action_key, pattern in _ANALYTICAL_PATTERNS.items():
+        if pattern.search(query):
+            detected.append(action_key)
+
+    # Intent-based bonuses (overlap with regex is fine — one XP per action type)
+    if intent_action in ("compare_properties", "area_analysis", "roi_analysis") and "smart_comparison" not in detected:
+        detected.append("smart_comparison")
+    if intent_action in ("legal_check", "contract_audit") and "risk_assessment" not in detected:
+        detected.append("risk_assessment")
+
+    return detected
 
 
 def _get_response_length_instruction(psychology: PsychologyProfile, memory: ConversationMemory) -> str:
@@ -412,6 +499,7 @@ class WolfBrain:
         language: str = "auto",
         session_id: Optional[str] = None,
         streaming: bool = False,
+        behavioral_signals: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """
         The Main Thinking Loop - Wrapper for Session Management.
@@ -426,6 +514,7 @@ class WolfBrain:
                 language=language,
                 session_id=session_id,
                 streaming=streaming,
+                behavioral_signals=behavioral_signals,
             )
 
     async def _process_turn_logic(
@@ -437,6 +526,7 @@ class WolfBrain:
         language: str = "auto",
         session_id: Optional[str] = None,
         streaming: bool = False,
+        behavioral_signals: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """
         The Core Thinking Loop.
@@ -533,6 +623,17 @@ class WolfBrain:
             
             lead_score = lead_data["score"]
             logger.info(f"📊 Lead Score: {lead_score} ({lead_data['temperature']})")
+
+            # V5: Detect analytical behavior for dynamic XP
+            dynamic_xp_actions = _detect_analytical_behavior(query, intent.action)
+            if dynamic_xp_actions:
+                logger.info(f"🧪 Analytical behavior detected: {dynamic_xp_actions}")
+
+            # V5: Apply behavioral telemetry adjustments to psychology
+            if behavioral_signals:
+                psychology = apply_behavioral_adjustments(psychology, behavioral_signals)
+                if psychology.behavioral_confidence_delta or psychology.behavioral_urgency_delta:
+                    logger.info(f"📡 Behavioral adjustments: conf={psychology.behavioral_confidence_delta:+.2f}, urgency={psychology.behavioral_urgency_delta:+d}")
 
             # Persist score
             if session_id:
@@ -1281,9 +1382,10 @@ class WolfBrain:
                 logger.warning(f"Proactive insights skipped: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # POST-SPEAK: Gamification XP Award
+            # POST-SPEAK: Gamification XP Award (V5: includes dynamic analytical XP)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             xp_awarded = 0
+            dynamic_xp_detail = []
             try:
                 if user_id:
                     from app.services.gamification import GamificationEngine
@@ -1300,11 +1402,19 @@ class WolfBrain:
                         result = await gam_engine.award_xp(user_id, "use_analysis_tool", session)
                         xp_awarded += result.get("xp_awarded", 0)
 
+                    # V5: Dynamic analytical XP — award each detected behavior
+                    for dyn_action in dynamic_xp_actions:
+                        result = await gam_engine.award_xp(user_id, dyn_action, session)
+                        awarded = result.get("xp_awarded", 0)
+                        if awarded > 0:
+                            xp_awarded += awarded
+                            dynamic_xp_detail.append({"action": dyn_action, "xp": awarded})
+
                     # Check achievements
                     await gam_engine.check_achievements(user_id, session)
 
                     if xp_awarded > 0:
-                        logger.info(f"🎮 GAMIFICATION: Awarded {xp_awarded} XP to user {user_id}")
+                        logger.info(f"🎮 GAMIFICATION: Awarded {xp_awarded} XP to user {user_id} (dynamic: {dynamic_xp_detail})")
             except Exception as e:
                 logger.warning(f"Gamification XP skipped: {e}")
 
@@ -3465,20 +3575,53 @@ Client is ready — push towards a specific viewing:
             try:
                 _pre_empt = _predict_objections(psychology, memory, intent, properties if 'properties' in dir() else [])
                 if _pre_empt:
+                    # Record pre-emptions for hit-rate tracking
+                    _turn_num = len(history) + 1
+                    for obj in _pre_empt:
+                        objection_tracker.record_preemption(obj['type'], _turn_num)
+
                     if language == "ar":
                         pe_lines = ["[PRE_EMPT_OBJECTIONS — اعتراضات متوقعة: عالجها قبل ما العميل يسأل]"]
                         for obj in _pre_empt:
-                            pe_lines.append(f"• {obj['type']}: {obj['counter_ar']}")
+                            pe_lines.append(f"• {obj['type']} (P={obj.get('probability', '?')}): {obj.get('counter_ar', '')}")
                         pe_lines.append("STRATEGY: أدخل الرد بشكل طبيعي — 'أنا عارف ممكن يكون في بالك...'")
                     else:
                         pe_lines = ["[PRE_EMPT_OBJECTIONS — Predicted objections: address before user asks]"]
                         for obj in _pre_empt:
-                            pe_lines.append(f"• {obj['type']}: {obj['counter_en']}")
+                            pe_lines.append(f"• {obj['type']} (P={obj.get('probability', '?')}): {obj.get('counter_en', '')}")
                         pe_lines.append("STRATEGY: Weave naturally — 'I know you might be thinking...'")
                     context_parts.append("\n".join(pe_lines))
-                    logger.info(f"🛡️ Pre-emption: {[o['type'] for o in _pre_empt]}")
+                    _pre_empt_log = [f"{o['type']}(P={o.get('probability','?')})" for o in _pre_empt]
+                    logger.info(f"🛡️ Pre-emption: {_pre_empt_log}")
             except Exception as e:
                 logger.debug(f"Objection pre-emption skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V5: DYNAMIC XP AWARD CONTEXT — Claude acknowledges mid-response
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                if dynamic_xp_actions:
+                    from app.services.gamification import XP_ACTIONS as _XP_TABLE
+                    _xp_lines = []
+                    for act in dynamic_xp_actions:
+                        _xp_lines.append(f"  • {act}: +{_XP_TABLE.get(act, 0)} XP")
+                    _xp_block = "\n".join(_xp_lines)
+                    if language == "ar":
+                        context_parts.append(f"""[DYNAMIC_XP_AWARD — مكافأة تحليلية]
+العميل سأل سؤال تحليلي ذكي. اعترف بذلك بشكل طبيعي في ردك:
+{_xp_block}
+مثال: "سؤال ممتاز عن العائد! +15 XP 🎯" أو "تحليل ذكي! ده يستاهل +20 XP 📊"
+اذكره مرة واحدة بشكل طبيعي — لا تكرر ولا تبالغ.""")
+                    else:
+                        context_parts.append(f"""[DYNAMIC_XP_AWARD — Analytical Bonus]
+User asked a smart analytical question. Acknowledge naturally in your response:
+{_xp_block}
+Example: "Great ROI question! +15 XP 🎯" or "Smart comparison! That earns +20 XP 📊"
+Mention once naturally — don't repeat or overdo it.""")
+                    logger.info(f"💎 Dynamic XP context injected: {dynamic_xp_actions}")
+            except Exception as e:
+                logger.debug(f"Dynamic XP context injection skipped: {e}")
+
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             try:
                 if cross_session_context and len(history) <= 1:
@@ -3501,6 +3644,43 @@ Strategy Hint: {ret_hint}
                     logger.info(f"🔄 Return visitor context injected: {ret_type}")
             except Exception as e:
                 logger.debug(f"Return visitor context skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V5: PORTFOLIO CONTEXT for PORTFOLIO_BUILDER persona
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                _persona = getattr(psychology, 'buyer_persona', None)
+                if user_id and _persona and _persona.value == "portfolio":
+                    from app.services.portfolio_engine import get_portfolio_summary, generate_expansion_alert
+                    _portfolio = await get_portfolio_summary(session, user_id)
+                    if _portfolio.get("count", 0) > 0:
+                        if language == "ar":
+                            _p_ctx = f"""[PORTFOLIO_CONTEXT — عميل لديه محفظة عقارية]
+عدد العقارات: {_portfolio['count']}
+إجمالي الاستثمار: {_portfolio['total_invested']:,.0f} جنيه
+القيمة الحالية: {_portfolio['total_current_value']:,.0f} جنيه
+العائد الإجمالي: {_portfolio['portfolio_roi_pct']}%
+- هذا عميل مستثمر — تعامل معه على أنه خبير
+- ركّز على فرص التوسع وليس التعليم
+- لو في عقار leverageable: اقترح استخدام الإيكويتي كمقدم"""
+                        else:
+                            _p_ctx = f"""[PORTFOLIO_CONTEXT — Investor with existing portfolio]
+Properties: {_portfolio['count']}
+Total Invested: EGP {_portfolio['total_invested']:,.0f}
+Current Value: EGP {_portfolio['total_current_value']:,.0f}
+Portfolio ROI: {_portfolio['portfolio_roi_pct']}%
+- Treat as experienced investor, not first-timer
+- Focus on expansion opportunities, not education
+- If leverageable: suggest using equity as down payment"""
+                        context_parts.append(_p_ctx)
+
+                        _alert = await generate_expansion_alert(session, user_id)
+                        if _alert:
+                            _alert_msg = _alert.get(f"message_{language}", _alert.get("message_en", ""))
+                            context_parts.append(f"\n[EXPANSION_OPPORTUNITY] {_alert_msg}")
+                        logger.info(f"📦 Portfolio context injected: {_portfolio['count']} properties, ROI={_portfolio['portfolio_roi_pct']}%")
+            except Exception as e:
+                logger.debug(f"Portfolio context injection skipped: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # V3 ENHANCEMENT: WAITING COST (Fear Clock Extension)
