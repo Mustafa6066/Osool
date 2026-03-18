@@ -16,9 +16,9 @@ export default function AppShell({ children }: AppShellProps) {
     <>
       <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-      {/* Content area — desktop nav offset comes from SmartNav CSS variable */}
+      {/* Content area — reserve space for floating bottom nav panel */}
       <div
-        className="flex flex-col min-h-dvh pt-0 pb-0 overflow-x-hidden overflow-y-auto transition-[padding] duration-300 sm:[padding-inline-start:var(--desktop-nav-offset,0px)]"
+        className="flex flex-col min-h-dvh pt-0 pb-24 overflow-x-hidden overflow-y-auto"
       >
         {children}
       </div>
