@@ -560,10 +560,12 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 1: FAST ROUTE (Regex Gate - 0ms Latency)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # Check for price asks without context EARLY to save tokens & time
-            if self._needs_screening(query, history):
-                 logger.info("🛡️ FAST GATE: Intercepted vague price query")
-                 return self._get_screening_script(language)
+            # Fast gate disabled — teaser hook handles cold price queries now
+            # Queries flow through the normal pipeline where TEASER strategy
+            # shows 1 sample property before qualifying.
+            # if self._needs_screening(query, history):
+            #      logger.info("🛡️ FAST GATE: Intercepted vague price query")
+            #      return self._get_screening_script(language)
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 2: PARALLEL COGNITION (The Brain - Speed Upgrade)
@@ -1139,8 +1141,8 @@ class WolfBrain:
                     showing_strategy = 'TEASER'
                     logger.info(f"🔓 Budget override → TEASER (depth={engagement_turns}, readiness={cr_score})")
                 else:
-                    showing_strategy = 'ANALYTICS_ONLY'
-                    logger.info(f"📊 Budget present but gated: ANALYTICS_ONLY (depth={engagement_turns}, readiness={cr_score})")
+                    showing_strategy = 'TEASER'
+                    logger.info(f"🎣 Budget present → TEASER hook (depth={engagement_turns}, readiness={cr_score})")
 
             # Safety net: readiness < 20 → cap at TEASER (allow hook), block FULL_LIST
             if card_readiness and card_readiness.get("readiness_score", 0) < 20 and showing_strategy == 'FULL_LIST':
@@ -2319,14 +2321,15 @@ class WolfBrain:
             logger.info(f"👁️ Gate: {result} (Hot lead upgrade: {lead_score})")
             return result
 
-        # ── Has location but no budget → analytics then teaser ──
+        # ── Has location but no budget → teaser hook (give a little, ask a lot) ──
         if has_location and not has_budget:
             if engagement_depth >= 3:
                 result = apply_ceiling('TEASER')
                 logger.info(f"👁️ Gate: {result} (Location + engagement ≥ 3)")
                 return result
-            result = apply_ceiling('ANALYTICS_ONLY')
-            logger.info(f"👁️ Gate: {result} (Location only, early conversation)")
+            # Early conversation with location → show 1 sample to hook them
+            result = apply_ceiling('TEASER')
+            logger.info(f"👁️ Gate: {result} (Location only → teaser hook, early conversation)")
             return result
 
         # ── Default: analytics if location, else none ──
