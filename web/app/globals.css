@@ -565,6 +565,8 @@ body > div:first-child {
 @keyframes voiceBar { 0%, 100% { transform: scaleY(0.35); opacity: 0.6; } 50% { transform: scaleY(1); opacity: 1; } }
 /* Ambient AI thinking glow */
 @keyframes ambient-pulse { 0%, 100% { opacity: 0.6; transform: translate(-50%, 0) scale(1); } 50% { opacity: 1; transform: translate(-50%, 0) scale(1.12); } }
+/* Skeleton shimmer */
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-ping-slow { animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite; }

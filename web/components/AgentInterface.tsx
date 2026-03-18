@@ -31,6 +31,8 @@ import { getSmartEmptyStateSuggestions } from '@/lib/suggestions';
 import ChatInsightsShell from '@/components/chat/ChatInsightsShell';
 import { GlossaryAnnotated } from '@/components/GlossaryTooltip';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import BentoResultGrid from '@/components/chat/BentoResultGrid';
+import MessageSkeleton from '@/components/chat/MessageSkeleton';
 
 const VisualizationRenderer = dynamic(
     () => import('@/components/visualizations/VisualizationRenderer'),
@@ -1576,89 +1578,17 @@ export default function AgentInterface() {
                                                                 </motion.div>
                                                         )}
 
-                                                        {/* Property Cards */}
-                                                        {msg.allProperties && msg.allProperties.length > 0 && (
-                                                            <div className="mt-5 space-y-2" dir="ltr">
-                                                                {msg.allProperties.map((prop, idx) => (
-                                                                    <div
-                                                                        key={prop.id}
-                                                                        onClick={() => { setActiveContext({ property: prop }); setContextPaneOpen(true); }}
-                                                                        className="group relative flex gap-3 md:gap-4 p-3 md:p-4 border border-[var(--color-border)]/60 hover:border-emerald-500/40 bg-[var(--color-surface)]/60 backdrop-blur-sm rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
-                                                                        style={{ animationDelay: `${idx * 80}ms` }}
-                                                                    >
-                                                                        {/* Image — layoutId enables magic-motion to ChatInsightsShell hero */}
-                                                                        <motion.div layoutId={`property-img-${prop.id}`} className="w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-24 md:h-24 bg-[var(--color-surface-hover)] rounded-[14px] flex-shrink-0 overflow-hidden shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]" style={{ borderRadius: 14 }}>
-                                                                            <img src={prop.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" alt={prop.title} />
-                                                                        </motion.div>
-
-                                                                        {/* Info */}
-                                                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                                            <h3 className="font-semibold text-[var(--color-text-primary)] truncate text-[15px]" dir="auto">{prop.title}</h3>
-                                                                            <p className="text-[13px] text-[var(--color-text-muted)] truncate mt-0.5" dir="auto">
-                                                                                {prop.location} {prop.developer && <span className="mx-1.5 opacity-50">·</span>} {prop.developer}
-                                                                            </p>
-                                                                            <div className="flex flex-wrap items-center gap-1.5 md:gap-2.5 mt-2.5">
-                                                                                <span className="text-[14px] md:text-[15px] font-bold text-[var(--color-text-primary)] tracking-tight">
-                                                                                    {(prop.price / 1000000).toFixed(1)}M <span className="text-[11px] font-medium text-[var(--color-text-muted)]">EGP</span>
-                                                                                </span>
-                                                                                {prop.metrics.price_per_sqm > 0 && (
-                                                                                    <span className="text-[11px] font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-elevated)] px-2 py-0.5 rounded-md">
-                                                                                        {prop.metrics.price_per_sqm.toLocaleString()}/m²
-                                                                                    </span>
-                                                                                )}
-                                                                                {prop.metrics.roi > 0 && (
-                                                                                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                                                                                        +{prop.metrics.roi}% ROI
-                                                                                    </span>
-                                                                                )}
-                                                                            </div>
-                                                                            {prop.metrics.wolf_score > 0 && (
-                                                                                <div className="mt-2.5 flex items-center gap-2">
-                                                                                    <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden max-w-[120px]">
-                                                                                        <div
-                                                                                            className="h-full rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-1000 ease-out"
-                                                                                            style={{ width: `${Math.min(prop.metrics.wolf_score, 100)}%` }}
-                                                                                        />
-                                                                                    </div>
-                                                                                    <span className="text-[10px] text-[var(--color-text-secondary)] font-semibold">{prop.metrics.wolf_score}<span className="text-[8px] text-[var(--color-text-muted)] font-medium">/100</span></span>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* Inline Action Buttons */}
-                                                                        <div className="flex flex-col items-center gap-1.5 self-center flex-shrink-0">
-                                                                            {user && (
-                                                                                <button
-                                                                                    onClick={(e) => handleSaveProperty(prop, e)}
-                                                                                    className={`p-1.5 rounded-lg transition-colors ${
-                                                                                        savedPropertyIds.has(String(prop.id))
-                                                                                            ? 'text-red-500 bg-red-500/10'
-                                                                                            : 'text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10'
-                                                                                    }`}
-                                                                                    title={savedPropertyIds.has(String(prop.id)) ? 'Saved' : 'Save'}
-                                                                                >
-                                                                                    <Heart className="w-3.5 h-3.5" fill={savedPropertyIds.has(String(prop.id)) ? 'currentColor' : 'none'} />
-                                                                                </button>
-                                                                            )}
-                                                                            <button
-                                                                                onClick={(e) => handleInlineValuation(prop, e)}
-                                                                                className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
-                                                                                title="Run Valuation"
-                                                                            >
-                                                                                <BarChart3 className="w-3.5 h-3.5" />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={(e) => handleInlineCompare(prop, e)}
-                                                                                className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
-                                                                                title="Compare"
-                                                                            >
-                                                                                <Scale className="w-3.5 h-3.5" />
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                        {/* Bento Results Grid — hero card + compact list + analytics tiles */}
+                                                        <BentoResultGrid
+                                                            properties={msg.allProperties ?? []}
+                                                            analyticsContext={msg.analyticsContext ?? null}
+                                                            language={msg.detectedLanguage || conversationLanguage}
+                                                            savedIds={savedPropertyIds}
+                                                            onOpenDetails={(prop) => { setActiveContext({ property: prop }); setContextPaneOpen(true); }}
+                                                            onSave={handleSaveProperty}
+                                                            onValuation={handleInlineValuation}
+                                                            onCompare={handleInlineCompare}
+                                                        />
 
                                                         {/* Actions + Suggestions */}
                                                         {!isTyping && (
@@ -1700,6 +1630,18 @@ export default function AgentInterface() {
                                 {isTyping && (
                                     <ThinkingSteps lastUserMessage={messages.length > 0 ? messages[messages.length - 1].content : ''} />
                                 )}
+
+                                {/* Reserved-height skeleton while AI is responding */}
+                                {isTyping && (() => {
+                                    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+                                    if (!lastUserMsg) return null;
+                                    const c = lastUserMsg.content.toLowerCase();
+                                    const hasPropertyKeyword = /property|عقار|شقة|villa|فيلا|show|find|compare|unit|فرصة|شراء|apartment/.test(c);
+                                    const hasAnalyticsKeyword = /market|سوق|price|سعر|roi|trend|yield|growth|analytics/.test(c);
+                                    if (hasPropertyKeyword) return <MessageSkeleton key="skel-prop" variant="property" />;
+                                    if (hasAnalyticsKeyword) return <MessageSkeleton key="skel-ana" variant="analytics" />;
+                                    return null;
+                                })()}
 
                                 {/* Anonymous gate — shown after free messages exhausted */}
                                 {(isGated || anonGateShown) && (
