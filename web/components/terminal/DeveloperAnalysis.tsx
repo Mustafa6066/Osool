@@ -367,7 +367,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
           <CardHeader icon={CalendarClock} label={t.deliveryPerf} />
 
           {/* Visual timeline with grid lines */}
-          <div className="relative mb-4 flex items-end gap-1" style={{ height: 90 }}>
+          <div className="relative mb-1 flex items-end gap-1" style={{ height: 80 }}>
             {/* Horizontal grid lines */}
             {[25, 50, 75].map((pct) => (
               <div
@@ -382,8 +382,8 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                 1
               );
               const height = p.delayMonths
-                ? Math.max((p.delayMonths / maxDelay) * 80, 8)
-                : 4;
+                ? Math.max((p.delayMonths / maxDelay) * 100, 10)
+                : 5;
               const bg =
                 p.status === "delivered" && p.delayMonths === 0
                   ? "bg-lime-400"
@@ -397,21 +397,18 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
               return (
                 <div
                   key={i}
-                  className="group relative flex flex-1 flex-col items-center"
+                  className="group relative flex-1"
                 >
                   <div
-                    className={`w-full rounded-sm ${bg} transition-all hover:opacity-80`}
-                    style={{ height: `${height}px` }}
+                    className={`w-full rounded-sm ${bg} transition-all hover:opacity-80 absolute bottom-0`}
+                    style={{ height: `${height}%` }}
                   />
                   {/* Hover value */}
-                  <span className="absolute -top-4 font-mono text-[8px] font-bold text-[#555] opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold text-[#555] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {p.delayMonths > 0 ? `${p.delayMonths}m` : "0"}
                   </span>
-                  <span className="mt-1 font-mono text-[8px] text-[#444]">
-                    {String.fromCharCode(65 + i)}
-                  </span>
                   {/* Tooltip */}
-                  <div className="pointer-events-none absolute -top-16 z-10 hidden rounded-lg border border-[#333] bg-[#111] px-2 py-1 text-center group-hover:block">
+                  <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 z-20 hidden rounded-none border border-[#333] bg-[#111] px-2 py-1 text-center group-hover:block">
                     <p className="whitespace-nowrap font-mono text-[9px] text-white">
                       {p.name}
                     </p>
@@ -424,6 +421,14 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                 </div>
               );
             })}
+          </div>
+          {/* Bar letter labels */}
+          <div className="mb-3 flex gap-1">
+            {data.projects.map((_, i) => (
+              <span key={i} className="flex-1 text-center font-mono text-[8px] text-[#444]">
+                {String.fromCharCode(65 + i)}
+              </span>
+            ))}
           </div>
 
           {/* Aggregate stats */}
@@ -586,15 +591,18 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
               return (
                 <div
                   key={i}
-                  className="group relative flex flex-1 flex-col items-center justify-end"
+                  className="group relative flex-1"
                   style={{ height: "100%" }}
                 >
                   {/* Value label above bar */}
-                  <span className="absolute top-0 font-mono text-[8px] font-bold text-[#444] opacity-0 transition-opacity group-hover:opacity-100">
+                  <span
+                    className="absolute left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold text-[#444] opacity-0 transition-opacity group-hover:opacity-100 whitespace-nowrap"
+                    style={{ bottom: `calc(${height}% + 4px)` }}
+                  >
                     {yr.roi.toFixed(1)}%
                   </span>
                   <div
-                    className={`w-full rounded-sm transition-all ${yr.roi >= 20 ? "bg-lime-400" : yr.roi >= 10 ? "bg-lime-400/60" : "bg-yellow-500/60"} group-hover:opacity-80`}
+                    className={`w-full rounded-sm transition-all absolute bottom-0 ${yr.roi >= 20 ? "bg-lime-400" : yr.roi >= 10 ? "bg-lime-400/60" : "bg-yellow-500/60"} group-hover:opacity-80`}
                     style={{ height: `${height}%` }}
                   />
                 </div>
