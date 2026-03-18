@@ -1527,7 +1527,6 @@ export default function ChatInterface() {
                                                     onClick={handleVoiceToggle}
                                                     isRTL={isRTL}
                                                     size="sm"
-                                                    className="hidden sm:flex"
                                                 />
                                                 <button
                                                     onClick={handleSend}
