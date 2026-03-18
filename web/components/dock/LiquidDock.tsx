@@ -54,7 +54,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
       <DockContextPanel />
 
       {/* ── Dock ── */}
-      <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[96vw] sm:max-w-fit">
+      <div className="fixed bottom-4 sm:bottom-6 start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 z-50 max-w-[96vw] sm:max-w-fit">
         {/* Breath indicator — glow ring behind dock when alerts pending */}
         {hasAlerts && (
           <div
@@ -85,7 +85,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                   onHoverEnd={() => setHoveredIndex(null)}
                   aria-label={language === 'ar' ? item.labelAr : item.label}
                   aria-current={isActive ? 'page' : undefined}
-                  className="relative flex items-center justify-center w-11 h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+                  className={`relative overflow-hidden flex items-center justify-center h-[52px] sm:h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 transition-all duration-300 ease-out ${isActive ? 'w-[100px] sm:w-[120px] px-3' : 'w-[52px] sm:w-11 px-0'}`}
                   animate={{
                     scale: hoveredIndex === i ? 1.18 : isActive ? 1.06 : 1,
                   }}
@@ -100,14 +100,29 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                     />
                   )}
 
-                  <Icon
-                    className={`w-[22px] h-[22px] transition-colors duration-200 ${
-                      isActive
-                        ? 'text-emerald-500'
-                        : 'text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)]'
-                    }`}
-                    strokeWidth={isActive ? 2.4 : 1.6}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      className={`w-[22px] h-[22px] transition-colors duration-200 ${
+                        isActive
+                          ? 'text-emerald-500'
+                          : 'text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)]'
+                      }`}
+                      strokeWidth={isActive ? 2.4 : 1.6}
+                    />
+                    <AnimatePresence>
+                      {isActive && (
+                        <motion.span
+                          initial={{ width: 0, opacity: 0 }}
+                          animate={{ width: 'auto', opacity: 1 }}
+                          exit={{ width: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden whitespace-nowrap text-sm font-medium text-[var(--color-text-primary)]"
+                        >
+                          {language === 'ar' ? item.labelAr : item.label}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
                   {/* Tooltip */}
                   <AnimatePresence>
@@ -117,7 +132,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                         animate={{ opacity: 1, y: -44, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.85 }}
                         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                        className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1 rounded-xl text-[11px] font-medium text-white bg-black/80 backdrop-blur-md border border-white/10 pointer-events-none z-10"
+                        className="absolute start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 whitespace-nowrap px-2.5 py-1 rounded-xl text-[11px] font-medium text-white bg-black/80 backdrop-blur-md border border-white/10 pointer-events-none z-10"
                       >
                         {language === 'ar' ? item.labelAr : item.label}
                       </motion.span>
@@ -132,7 +147,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
               <motion.button
                 onClick={() => router.push('/admin')}
                 aria-label="Admin"
-                className="relative flex items-center justify-center w-11 h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+                className={`relative overflow-hidden flex items-center justify-center h-[52px] sm:h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 transition-all duration-300 ease-out ${activeKey === 'admin' ? 'w-[100px] sm:w-[120px] px-3' : 'w-[52px] sm:w-11 px-0'}`}
                 whileHover={{ scale: 1.12 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: 'spring', bounce: 0.35, duration: 0.35 }}
@@ -144,12 +159,27 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                     transition={{ type: 'spring', bounce: 0.35, duration: 0.35 }}
                   />
                 )}
-                <Shield
-                  className={`w-[22px] h-[22px] transition-colors duration-200 ${
-                    activeKey === 'admin' ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'
-                  }`}
-                  strokeWidth={activeKey === 'admin' ? 2.4 : 1.6}
-                />
+                <div className="flex items-center gap-2">
+                  <Shield
+                    className={`w-[22px] h-[22px] transition-colors duration-200 ${
+                      activeKey === 'admin' ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'
+                    }`}
+                    strokeWidth={activeKey === 'admin' ? 2.4 : 1.6}
+                  />
+                  <AnimatePresence>
+                    {activeKey === 'admin' && (
+                      <motion.span
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: 'auto', opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden whitespace-nowrap text-sm font-medium text-[var(--color-text-primary)]"
+                      >
+                        {language === 'ar' ? 'المدير' : 'Admin'}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
               </motion.button>
             )}
 

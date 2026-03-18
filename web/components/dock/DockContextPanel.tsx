@@ -76,7 +76,7 @@ export default function DockContextPanel() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 12, scale: 0.96 }}
           transition={{ type: 'spring', damping: 22, stiffness: 120 }}
-          className="fixed bottom-[68px] sm:bottom-[92px] left-1/2 -translate-x-1/2 z-40 max-w-[94vw]"
+          className="fixed bottom-[68px] sm:bottom-[92px] start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 z-40 max-w-[94vw]"
         >
           <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-lg">
             {panelData.chips.map((chip) => {
@@ -89,7 +89,7 @@ export default function DockContextPanel() {
                 >
                   <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                   {language === 'ar' ? chip.labelAr : chip.label}
-                  <ArrowRight className="w-2.5 h-2.5 opacity-40 ml-0.5" />
+                  <ArrowRight className="w-2.5 h-2.5 opacity-40 ms-0.5" />
                 </button>
               );
             })}

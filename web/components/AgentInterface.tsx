@@ -8,7 +8,8 @@ import {
     X, ChevronRight,
     BarChart2, Shield, Search, TrendingUp,
     Copy, RefreshCw, ArrowUp,
-    History, Plus, MessageSquare, Check
+    History, Plus, MessageSquare, Check,
+    Mic, MicOff
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -22,8 +23,14 @@ import { toggleFavorite } from '@/lib/gamification';
 import type { VisualizationRendererProps } from '@/components/visualizations/VisualizationRenderer';
 import dynamic from 'next/dynamic';
 import SuggestionChips from '@/components/SuggestionChips';
+import type { SuggestionChipItem } from '@/components/SuggestionChips';
 import FunnelIndicator from '@/components/FunnelIndicator';
 import MarketPulseSidebar from '@/components/MarketPulseSidebar';
+import OnboardingFlow from '@/components/chat/OnboardingFlow';
+import { getSmartEmptyStateSuggestions } from '@/lib/suggestions';
+import ChatInsightsShell from '@/components/chat/ChatInsightsShell';
+import { GlossaryAnnotated } from '@/components/GlossaryTooltip';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 
 const VisualizationRenderer = dynamic(
     () => import('@/components/visualizations/VisualizationRenderer'),
@@ -155,32 +162,6 @@ interface Message {
     detectedLanguage?: string;
 }
 
-interface Suggestion {
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    prompt: string;
-}
-
-interface SuggestionWithSnippet extends Suggestion {
-    snippet: string;
-    snippetAr: string;
-    trend: 'up' | 'down' | 'neutral';
-}
-
-const SUGGESTIONS_AR: SuggestionWithSnippet[] = [
-    { icon: BarChart2, label: "تحليل السوق", prompt: "حلل اتجاهات السوق الحالية في القاهرة الجديدة", snippet: "+2.4% avg EGP/m² this week", snippetAr: "+٢.٤٪ متوسط سعر المتر هذا الأسبوع", trend: 'up' },
-    { icon: Search, label: "فرص استثمارية", prompt: "ابحث عن عقارات عائد مرتفع تحت 5 مليون جنيه", snippet: "12 new high-ROI listings", snippetAr: "١٢ وحدة عائد مرتفع جديدة", trend: 'up' },
-    { icon: Shield, label: "تدقيق المطور", prompt: "دقق في سجل تسليمات بالم هيلز", snippet: "Palm Hills: 94% on-time", snippetAr: "بالم هيلز: ٩٤٪ تسليم في الموعد", trend: 'neutral' },
-    { icon: TrendingUp, label: "مقارنة الأسعار", prompt: "قارن أسعار المتر في القاهرة الجديدة والشيخ زايد والساحل", snippet: "North Coast +5.1% this week", snippetAr: "الساحل +٥.١٪ هذا الأسبوع", trend: 'up' },
-];
-
-const SUGGESTIONS_EN: SuggestionWithSnippet[] = [
-    { icon: BarChart2, label: "Market Intelligence", prompt: "Analyze current market trends in New Cairo", snippet: "+2.4% avg EGP/m² this week", snippetAr: "+٢.٤٪ متوسط سعر المتر", trend: 'up' },
-    { icon: Search, label: "Find Opportunities", prompt: "Find high ROI properties under 5M EGP", snippet: "12 new high-ROI listings", snippetAr: "١٢ وحدة عائد عالي", trend: 'up' },
-    { icon: Shield, label: "Developer Audit", prompt: "Audit the delivery history of Palm Hills", snippet: "Palm Hills: 94% on-time", snippetAr: "بالم هيلز: ٩٤٪ ملتزمين", trend: 'neutral' },
-    { icon: TrendingUp, label: "Price Comparison", prompt: "Compare price per sqm across New Cairo, Sheikh Zayed, and North Coast", snippet: "North Coast +5.1% this week", snippetAr: "الساحل +٥.١٪ هذا الأسبوع", trend: 'up' },
-];
-
 /* Agent Avatar — Clean professional AI mark, no background, animated */
 const AgentAvatar = ({ thinking = false }: { thinking?: boolean }) => (
     <div className="relative flex items-center justify-center w-8 h-8 flex-shrink-0 bg-transparent">
@@ -279,18 +260,26 @@ const MarkdownMessage = ({ content }: { content: string }) => {
     );
 
     return (
-        <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-right' : 'text-left'}>
+        <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-end' : 'text-start'}>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                    p: ({ node, ...props }) => (
-                        <p className={`mb-1.5 md:mb-3 last:mb-0 leading-[1.6] md:leading-relaxed ${msgIsArabic ? 'text-right' : 'text-left'}`} {...props} />
-                    ),
+                    p: ({ node, children, ...props }) => {
+                        if (!msgIsArabic) {
+                            const annotated = React.Children.map(children, (child, i) =>
+                                typeof child === 'string'
+                                    ? <GlossaryAnnotated key={i} text={child} />
+                                    : child
+                            );
+                            return <p className="mb-1.5 md:mb-3 last:mb-0 leading-[1.6] md:leading-relaxed text-start" {...props}>{annotated}</p>;
+                        }
+                        return <p className="mb-1.5 md:mb-3 last:mb-0 leading-[1.6] md:leading-relaxed text-end" {...props}>{children}</p>;
+                    },
                     ul: ({ node, ...props }) => (
-                        <ul className={`list-disc mb-2 md:mb-3 space-y-0.5 md:space-y-1 ${msgIsArabic ? 'pr-5' : 'pl-5'}`} {...props} />
+                        <ul className={`list-disc mb-2 md:mb-3 space-y-0.5 md:space-y-1 ${msgIsArabic ? 'pe-5' : 'ps-5'}`} {...props} />
                     ),
                     ol: ({ node, ...props }) => (
-                        <ol className={`list-decimal mb-2 md:mb-3 space-y-0.5 md:space-y-1 ${msgIsArabic ? 'pr-5' : 'pl-5'}`} {...props} />
+                        <ol className={`list-decimal mb-2 md:mb-3 space-y-0.5 md:space-y-1 ${msgIsArabic ? 'pe-5' : 'ps-5'}`} {...props} />
                     ),
                     li: ({ node, ...props }) => <li className="mb-0.5 md:mb-1" {...props} />,
                     strong: ({ node, ...props }) => (
@@ -304,7 +293,7 @@ const MarkdownMessage = ({ content }: { content: string }) => {
                     h3: ({ node, ...props }) => <h3 className="text-base font-medium mb-1.5 md:mb-2 mt-1.5 md:mt-2" {...props} />,
                     blockquote: ({ node, ...props }) => (
                         <blockquote
-                            className={`${msgIsArabic ? 'border-r-2 pr-4' : 'border-l-2 pl-4'} border-emerald-500/40 py-1 my-2 text-[var(--color-text-secondary)]`}
+                            className={`${msgIsArabic ? 'border-e-2 pe-4' : 'border-s-2 ps-4'} border-emerald-500/40 py-1 my-2 text-[var(--color-text-secondary)]`}
                             {...props}
                         />
                     ),
@@ -328,7 +317,7 @@ const MarkdownMessage = ({ content }: { content: string }) => {
                         </div>
                     ),
                     th: ({ node, ...props }) => (
-                        <th className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-left text-[var(--color-text-primary)] font-medium text-xs uppercase tracking-wider" {...props} />
+                        <th className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-start text-[var(--color-text-primary)] font-medium text-xs uppercase tracking-wider" {...props} />
                     ),
                     td: ({ node, ...props }) => (
                         <td className="border-b border-[var(--color-border)] px-3 py-2.5 text-[var(--color-text-secondary)]" {...props} />
@@ -427,11 +416,11 @@ const TypewriterMarkdown = ({ content, animate }: { content: string; animate: bo
         return <MarkdownMessage content={sanitized} />;
     }
     return (
-        <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-right' : 'text-left'}>
+        <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-end' : 'text-start'}>
             <div className="whitespace-pre-wrap leading-relaxed text-[15px] text-[var(--color-text-secondary)]">
                 {displayed}
             </div>
-            <span className="inline-block w-[2px] h-[1.1em] bg-emerald-500 animate-pulse align-text-bottom ml-0.5" />
+            <span className="inline-block w-[2px] h-[1.1em] bg-emerald-500 animate-pulse align-text-bottom ms-0.5" />
         </div>
     );
 };
@@ -691,6 +680,7 @@ export default function AgentInterface() {
     const { profile, triggerXP } = useGamification();
     const searchParams = useSearchParams();
     const nextRouter = useNextRouter();
+    const { isListening, transcript, interimTranscript, start: startVoice, stop: stopVoice, supported: voiceSupported } = useVoiceInput();
     const [messages, setMessages] = useState<Message[]>(() => loadFromStorage(STORAGE_KEYS.MESSAGES, []));
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -705,8 +695,11 @@ export default function AgentInterface() {
     const [historyOpen, setHistoryOpen] = useState(false);
     const [anonGateShown, setAnonGateShown] = useState(false);
     const [savedPropertyIds, setSavedPropertyIds] = useState<Set<string>>(new Set());
+    const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
+    const [showNewMessagesCue, setShowNewMessagesCue] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollViewportRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const sessionIdRef = useRef<string>(getOrCreateSessionId());
     const hasFetchedHistory = useRef(false);
@@ -738,11 +731,43 @@ export default function AgentInterface() {
         }
     }, [inputValue]);
 
+    // Sync voice transcript → input value
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isTyping]);
+        if (transcript.trim()) setInputValue(transcript);
+    }, [transcript]);
 
     const hasStarted = messages.length > 0;
+
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+        const viewport = scrollViewportRef.current;
+        if (!viewport) return;
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+        setIsPinnedToBottom(true);
+        setShowNewMessagesCue(false);
+    }, []);
+
+    const handleScroll = useCallback(() => {
+        const viewport = scrollViewportRef.current;
+        if (!viewport) return;
+        const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+        const nearBottom = distanceFromBottom < 120;
+        setIsPinnedToBottom(nearBottom);
+        if (nearBottom) {
+            setShowNewMessagesCue(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!hasStarted) return;
+        if (isPinnedToBottom) {
+            const frame = window.requestAnimationFrame(() => {
+                scrollToBottom(isTyping ? 'auto' : 'smooth');
+            });
+            return () => window.cancelAnimationFrame(frame);
+        }
+
+        setShowNewMessagesCue(true);
+    }, [messages, isTyping, hasStarted, isPinnedToBottom, scrollToBottom]);
 
     /* Re-focus input after layout transition */
     useEffect(() => {
@@ -756,6 +781,14 @@ export default function AgentInterface() {
     const userMessageCount = messages.filter(m => m.role === 'user').length;
     const isAnonymous = !user;
     const isGated = isAnonymous && userMessageCount >= FREE_MESSAGE_LIMIT;
+    const emptyStateSuggestions = React.useMemo(
+        () => getSmartEmptyStateSuggestions(
+            conversationLanguage,
+            typeof profile?.level === 'string' ? profile.level : 'curious',
+            savedPropertyIds.size
+        ),
+        [conversationLanguage, profile?.level, savedPropertyIds.size]
+    );
 
     const handleSendMessage = useCallback(async (text?: string) => {
         const content = text || inputValue;
@@ -958,6 +991,8 @@ export default function AgentInterface() {
         setContextPaneOpen(false);
         setActiveContext(null);
         setInputValue('');
+        setIsPinnedToBottom(true);
+        setShowNewMessagesCue(false);
         setConversationLeadScore(0);
         setConversationReadiness(0);
         setConversationLanguage('ar');
@@ -1016,6 +1051,8 @@ export default function AgentInterface() {
             sessionIdRef.current = sessionId;
             sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, sessionId);
             saveToStorage(STORAGE_KEYS.MESSAGES, msgs);
+            setIsPinnedToBottom(true);
+            setShowNewMessagesCue(false);
             setLastAiMsgId(null); // don't animate old messages
             setHistoryOpen(false);
         } catch (err) {
@@ -1024,6 +1061,22 @@ export default function AgentInterface() {
     }, []);
 
     const [copiedMsgId, setCopiedMsgId] = useState<number | null>(null);
+
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    useEffect(() => {
+        if (profile?.properties_analyzed === 0 && !localStorage.getItem('onboarding_skipped') && messages.length === 0) {
+            setShowOnboarding(true);
+        }
+    }, [profile, messages.length]);
+
+    const handleOnboardingComplete = (data: any) => {
+        localStorage.setItem('onboarding_skipped', 'true');
+        setShowOnboarding(false);
+        const prompt = `I am looking for ${data.goal} properties. ` + 
+            (data.regions.length > 0 ? `I prefer these regions: ${data.regions.join(', ')}. ` : '') + 
+            `My budget is ${data.budget}. Please recommend some options.`;
+        handleSendMessage(prompt);
+    };
 
     const copyToClipboard = (text: string, msgId: number) => {
         navigator.clipboard.writeText(text).then(() => {
@@ -1084,7 +1137,28 @@ export default function AgentInterface() {
     /* ─── Shared Input Bar ─── */
     const inputBar = (
         <motion.div layoutId="input-bar" className="w-full" transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
-            <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-[var(--color-border)]/40`}>
+            <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)] border ${isListening ? 'border-emerald-500/40 shadow-[0_0_0_3px_rgba(16,185,129,0.06)]' : 'border-[var(--color-border)]/40'}`}>
+
+                {/* Voice waveform bar — only shown while listening */}
+                {isListening && (
+                    <div className="px-5 pt-3 pb-0 flex items-center gap-2.5">
+                        <div className="flex items-end gap-[3px] h-5">
+                            {[0.5, 0.9, 0.6, 1.1, 0.4, 0.8, 0.5].map((h, i) => (
+                                <span
+                                    key={i}
+                                    className="w-[3px] rounded-full bg-emerald-500"
+                                    style={{ height: `${h * 14}px`, animation: `voiceBar 0.8s ease-in-out infinite`, animationDelay: `${i * 0.09}s` }}
+                                />
+                            ))}
+                        </div>
+                        {interimTranscript && (
+                            <span className="text-[12px] text-emerald-600 dark:text-emerald-400 font-medium truncate flex-1">{interimTranscript}</span>
+                        )}
+                        <span className="ms-auto text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold animate-pulse flex-shrink-0">
+                            {conversationLanguage === 'ar' ? 'يستمع...' : 'Listening...'}
+                        </span>
+                    </div>
+                )}
 
                 <div className="flex items-end gap-2">
                     <textarea
@@ -1099,7 +1173,28 @@ export default function AgentInterface() {
                         disabled={isTyping}
                     />
 
-                    <div className="flex-shrink-0 pb-2 md:pb-3 pr-2 md:pr-3">
+                    <div className="flex-shrink-0 pb-2 md:pb-3 pe-2 md:pe-3 flex items-center gap-1.5">
+                        {/* Voice mic button */}
+                        {voiceSupported && (
+                            <button
+                                onClick={() => isListening
+                                    ? stopVoice()
+                                    : startVoice(conversationLanguage === 'ar' ? 'ar-EG' : 'en-US')}
+                                aria-label={isListening
+                                    ? (conversationLanguage === 'ar' ? 'إيقاف' : 'Stop listening')
+                                    : (conversationLanguage === 'ar' ? 'تحدث' : 'Speak')}
+                                title={isListening ? 'Stop' : 'Voice input'}
+                                className={`p-2 md:p-2.5 rounded-xl transition-all duration-200 ${
+                                    isListening
+                                        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 scale-110'
+                                        : 'text-[var(--color-text-muted)] hover:text-emerald-500 hover:bg-emerald-500/10'
+                                }`}
+                            >
+                                {isListening
+                                    ? <MicOff className="w-4 h-4" strokeWidth={2} />
+                                    : <Mic className="w-4 h-4" strokeWidth={2} />}
+                            </button>
+                        )}
                         <button
                             onClick={() => handleSendMessage()}
                             disabled={isTyping || !inputValue.trim()}
@@ -1115,7 +1210,65 @@ export default function AgentInterface() {
         </motion.div>
     );
 
-    const generateSuggestions = (msg: Message): string[] => {
+    const enrichSuggestion = useCallback((prompt: string, lang: string): SuggestionChipItem => {
+        const lower = prompt.toLowerCase();
+        const isAr = lang === 'ar' || isArabic(prompt);
+
+        if (lower.includes('roi') || lower.includes('عائد') || lower.includes('invest') || lower.includes('استثمار')) {
+            return {
+                icon: BarChart2,
+                label: prompt,
+                prompt,
+                snippet: 'Returns, downside, and market fit',
+                snippetAr: 'العائد والمخاطر وملاءمة السوق',
+                trend: 'up',
+            };
+        }
+
+        if (lower.includes('developer') || lower.includes('مطور') || lower.includes('delivery') || lower.includes('تسليم')) {
+            return {
+                icon: Shield,
+                label: prompt,
+                prompt,
+                snippet: 'Track record, delays, and risk flags',
+                snippetAr: 'سجل التنفيذ والتأخير وعلامات المخاطر',
+                trend: 'neutral',
+            };
+        }
+
+        if (lower.includes('payment') || lower.includes('installment') || lower.includes('أقساط') || lower.includes('سداد')) {
+            return {
+                icon: Sparkles,
+                label: prompt,
+                prompt,
+                snippet: 'Down payment, tenure, and flexibility',
+                snippetAr: 'المقدم ومدة السداد والمرونة',
+                trend: 'neutral',
+            };
+        }
+
+        if (lower.includes('compare') || lower.includes('قارن') || lower.includes('similar') || lower.includes('مشابه')) {
+            return {
+                icon: TrendingUp,
+                label: prompt,
+                prompt,
+                snippet: 'Side-by-side shortlist with trade-offs',
+                snippetAr: 'مقارنة سريعة مع إبراز الفروقات',
+                trend: 'up',
+            };
+        }
+
+        return {
+            icon: Search,
+            label: prompt,
+            prompt,
+            snippet: isAr ? undefined : 'Fast follow-up from the current context',
+            snippetAr: isAr ? 'متابعة سريعة من نفس سياق الحوار' : undefined,
+            trend: 'neutral',
+        };
+    }, []);
+
+    const generateSuggestions = (msg: Message): SuggestionChipItem[] => {
         const content = msg.content.toLowerCase();
         const hasProperties = msg.allProperties && msg.allProperties.length > 0;
         const hasAnalytics = msg.analyticsContext?.has_analytics;
@@ -1127,43 +1280,46 @@ export default function AgentInterface() {
 
         // Content-based triggers for variety
         if (content.includes('تضخم') || content.includes('inflation') || content.includes('فلوس')) {
-            return isAr
+            return (isAr
                 ? ['إزاي أحمي فلوسي؟', 'عقار ولا شهادات بنك؟', 'حلل العائد بعد التضخم']
-                : ['How to protect my money?', 'Property vs bank CDs?', 'Real return after inflation'];
+                : ['How to protect my money?', 'Property vs bank CDs?', 'Real return after inflation'])
+                .map((prompt) => enrichSuggestion(prompt, lang));
         }
         if (content.includes('مطور') || content.includes('developer') || content.includes('تسليم') || content.includes('delivery')) {
             const opts = isAr
                 ? ['سجل التسليم بتاعهم', 'هل فيه مطور أضمن؟', 'ورّيني التقييمات', 'مواعيد التسليم', 'المشاريع المتأخرة']
                 : ['Their delivery track record', 'More reliable developer?', 'Show me ratings', 'Delivery timeline', 'Delayed projects'];
-            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
+            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]].map((prompt) => enrichSuggestion(prompt, lang));
         }
         if (content.includes('ساحل') || content.includes('coast') || content.includes('سوخنة') || content.includes('sokhna')) {
-            return isAr
+            return (isAr
                 ? ['ساحل ولا سوخنة أحسن؟', 'العائد الإيجاري كام؟', 'أحسن كمبوند هناك؟']
-                : ['Coast vs Sokhna?', 'Rental yield there?', 'Best compound there?'];
+                : ['Coast vs Sokhna?', 'Rental yield there?', 'Best compound there?'])
+                .map((prompt) => enrichSuggestion(prompt, lang));
         }
         if (content.includes('أقساط') || content.includes('سداد') || content.includes('installment') || content.includes('payment')) {
-            return isAr
+            return (isAr
                 ? ['أطول خطة سداد؟', 'سداد بدون فوايد؟', 'قارن خطط السداد']
-                : ['Longest payment plan?', 'Interest-free options?', 'Compare payment plans'];
+                : ['Longest payment plan?', 'Interest-free options?', 'Compare payment plans'])
+                .map((prompt) => enrichSuggestion(prompt, lang));
         }
 
         if (hasProperties) {
             const opts = isAr
                 ? ['قارن العقارات دي', 'تحليل العائد', 'خطة السداد؟', 'تفاصيل أكتر عن الوحدة', 'وحدات مشابهة أرخص', 'مخاطر القرار']
                 : ['Compare these properties', 'Show ROI analysis', 'Payment plan options?', 'More details on this unit', 'Similar but cheaper?', 'Decision risks'];
-            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
+            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]].map((prompt) => enrichSuggestion(prompt, lang));
         } else if (hasAnalytics) {
             const opts = isAr
                 ? ['اتجاهات الأسعار', 'أفضل مناطق النمو', 'قارن البدائل', 'تحليل ضد التضخم', 'هل ده وقت مناسب؟']
                 : ['Show price trends', 'Best growth areas?', 'Compare alternatives', 'Inflation analysis', 'Is this a good time?'];
-            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
+            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]].map((prompt) => enrichSuggestion(prompt, lang));
         } else {
             // General pool — rotate based on content hash for variety
             const opts = isAr
                 ? ['أفضل العقارات', 'نظرة على السوق', 'حدد ميزانيتي', 'أفضل منطقة للاستثمار', 'إيه المطورين الموثوقين؟', 'فيه عروض حالياً؟', 'عايز أفهم العائد']
                 : ['Top properties', 'Market overview', 'Set my budget', 'Best area for investment', 'Reliable developers?', 'Any current deals?', 'Explain ROI to me'];
-            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]];
+            return [opts[hash % opts.length], opts[(hash + 2) % opts.length], opts[(hash + 4) % opts.length]].map((prompt) => enrichSuggestion(prompt, lang));
         }
     };
 
@@ -1173,10 +1329,26 @@ export default function AgentInterface() {
 
             {/* Main Chat */}
             <main className="flex-1 flex flex-col relative min-w-0 h-full w-full min-h-0 z-0">
+                {/* Ambient AI state — teal glow pulses while AI is thinking */}
+                <AnimatePresence>
+                    {isTyping && (
+                        <motion.div
+                            key="ambient"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 1.2 }}
+                            className="pointer-events-none absolute inset-x-0 top-0 h-[400px] z-0"
+                            aria-hidden="true"
+                        >
+                            <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-emerald-500/[0.04] dark:bg-emerald-400/[0.06] rounded-full blur-[90px] animate-ambient-pulse" />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Top bar — sticky header with session controls + funnel */}
                 {hasStarted && (
-                    <div className="sticky top-0 left-0 right-0 z-30 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]/30">
+                    <div className="sticky top-0 start-0 end-0 z-30 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]/30">
                         <div className="max-w-[980px] mx-auto px-4 md:px-6">
                             <div className="flex items-center justify-between py-1.5 md:py-2.5">
                                 <span className="text-[12px] md:text-[13px] font-semibold text-[var(--color-text-primary)] tracking-tight">
@@ -1213,14 +1385,14 @@ export default function AgentInterface() {
                 )}
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto scroll-smooth">
+                <div ref={scrollViewportRef} onScroll={handleScroll} className="flex-1 overflow-y-auto scroll-smooth">
                     <div className="max-w-[980px] mx-auto h-full w-full">
 
                         {/* Greeting */}
                         {!hasStarted && (
                             <div className="flex flex-col min-h-[calc(100vh-8rem)] justify-center px-4 py-6 relative">
                                 {/* Decorative background elements */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+                                <div className="absolute top-1/2 start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
 
                                 <div className="text-center w-full max-w-3xl mx-auto">
                                     <div className="flex items-center justify-center gap-3 mb-4">
@@ -1231,7 +1403,7 @@ export default function AgentInterface() {
                                         {conversationLanguage === 'ar' ? `أهلاً، ${userName}` : `Hello, ${userName}`}
                                     </h1>
                                     <p className="text-[1rem] md:text-[1.15rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
-                                        {conversationLanguage === 'ar' ? 'وكيلك الذكي للعقارات — تحليل السوق، فرص الاستثمار، وتدقيق المطورين' : 'Your AI real estate agent — market analysis, investment opportunities, and developer audits'}<span className="text-emerald-500 font-bold ml-0.5">.</span>
+                                        {conversationLanguage === 'ar' ? 'وكيلك الذكي للعقارات — تحليل السوق، فرص الاستثمار، وتدقيق المطورين' : 'Your AI real estate agent — market analysis, investment opportunities, and developer audits'}<span className="text-emerald-500 font-bold ms-0.5">.</span>
                                     </p>
                                 </div>
 
@@ -1242,12 +1414,12 @@ export default function AgentInterface() {
 
                                     {/* Quick Action Cards — enhanced with data snippets  */}
                                     <div className="w-full max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 md:mt-6 px-4">
-                                        {(conversationLanguage === 'ar' ? SUGGESTIONS_AR : SUGGESTIONS_EN).map((s, i) => (
+                                        {emptyStateSuggestions.map((s, i) => (
                                             <button
                                                 key={i}
                                                 onMouseDown={(e) => e.preventDefault()}
                                                 onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                                                className="p-4 md:p-5 bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-2xl text-left transition-all duration-300 flex flex-col justify-between group border border-[var(--color-border)]/40 hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgba(16,185,129,0.06)] hover:-translate-y-1"
+                                                className="p-4 md:p-5 bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] backdrop-blur-md rounded-2xl text-start transition-all duration-300 flex flex-col justify-between group border border-[var(--color-border)]/40 hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgba(16,185,129,0.06)] hover:-translate-y-1"
                                             >
                                                 <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors w-fit mb-3">
                                                     <s.icon className="w-4 h-4" />
@@ -1282,7 +1454,7 @@ export default function AgentInterface() {
                                                         <button
                                                             key={s.session_id}
                                                             onClick={() => loadSession(s.session_id)}
-                                                            className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface)] border border-[var(--color-border)]/50 hover:border-[var(--color-border)] transition-all text-left group"
+                                                            className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface)] border border-[var(--color-border)]/50 hover:border-[var(--color-border)] transition-all text-start group"
                                                         >
                                                             <div className="w-8 h-8 rounded-full bg-[var(--color-surface-elevated)] flex items-center justify-center flex-shrink-0">
                                                                 <MessageSquare className="w-3.5 h-3.5 text-[var(--color-text-secondary)]" />
@@ -1322,7 +1494,7 @@ export default function AgentInterface() {
                                             <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
                                                 {msg.role === 'user' ? (
                                                     <div
-                                                        className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] px-4 py-3 md:px-5 md:py-3.5 rounded-3xl rounded-br-[8px] max-w-[95%] md:max-w-[85%] text-[14px] md:text-[15px] leading-[1.6] md:leading-relaxed shadow-sm font-medium"
+                                                        className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] px-4 py-3 md:px-5 md:py-3.5 rounded-3xl rounded-be-] max-w-[95%] md:max-w-[85%] text-[14px] md:text-[15px] leading-[1.6] md:leading-relaxed shadow-sm font-medium"
                                                         dir="auto"
                                                     >
                                                         {msg.content}
@@ -1373,7 +1545,7 @@ export default function AgentInterface() {
                                                                     <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg">
                                                                         <BarChart2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
                                                                     </div>
-                                                                    <span className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-widest pl-1">Market Intelligence</span>
+                                                                    <span className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-widest ps-1">Market Intelligence</span>
                                                                 </div>
                                                                 <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
                                                                     {(msg.analyticsContext.avg_price_sqm ?? 0) > 0 && (
@@ -1414,10 +1586,10 @@ export default function AgentInterface() {
                                                                         className="group relative flex gap-3 md:gap-4 p-3 md:p-4 border border-[var(--color-border)]/60 hover:border-emerald-500/40 bg-[var(--color-surface)]/60 backdrop-blur-sm rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-0.5"
                                                                         style={{ animationDelay: `${idx * 80}ms` }}
                                                                     >
-                                                                        {/* Image */}
-                                                                        <div className="w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-24 md:h-24 bg-[var(--color-surface-hover)] rounded-[14px] flex-shrink-0 overflow-hidden shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+                                                                        {/* Image — layoutId enables magic-motion to ChatInsightsShell hero */}
+                                                                        <motion.div layoutId={`property-img-${prop.id}`} className="w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-24 md:h-24 bg-[var(--color-surface-hover)] rounded-[14px] flex-shrink-0 overflow-hidden shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]" style={{ borderRadius: 14 }}>
                                                                             <img src={prop.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" alt={prop.title} />
-                                                                        </div>
+                                                                        </motion.div>
 
                                                                         {/* Info */}
                                                                         <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -1510,7 +1682,7 @@ export default function AgentInterface() {
 
                                                                 {index === messages.length - 1 && (
                                                                     <SuggestionChips
-                                                                        suggestions={msg.suggestions && msg.suggestions.length > 0 ? msg.suggestions : generateSuggestions(msg)}
+                                                                        suggestions={msg.suggestions && msg.suggestions.length > 0 ? msg.suggestions.map((suggestion) => enrichSuggestion(suggestion, msg.detectedLanguage || conversationLanguage)) : generateSuggestions(msg)}
                                                                         onSelect={(suggestion) => handleSendMessage(suggestion)}
                                                                         isRTL={msg.detectedLanguage === 'ar' || isArabic(msg.content)}
                                                                     />
@@ -1540,9 +1712,23 @@ export default function AgentInterface() {
                     </div>
                 </div>
 
+                {showNewMessagesCue && hasStarted && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-24 md:bottom-32 z-30 flex justify-center px-4">
+                        <motion.button
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            onClick={() => scrollToBottom('smooth')}
+                            className="pointer-events-auto rounded-full border border-emerald-500/20 bg-[var(--color-surface)]/95 px-4 py-2 text-[12px] font-semibold text-[var(--color-text-primary)] shadow-[0_12px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-colors hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400"
+                        >
+                            {conversationLanguage === 'ar' ? 'رسائل جديدة' : 'New messages'}
+                        </motion.button>
+                    </div>
+                )}
+
                 {/* Input Bar - Floating Figma Style (only shown after conversation starts, hidden when gated) */}
                 {hasStarted && !isGated && !anonGateShown && (
-                    <div className="sticky bottom-0 left-0 right-0 z-40 px-3 md:px-6 pb-2 md:pb-6 pt-2 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
+                    <div className="sticky bottom-0 start-0 end-0 z-40 px-3 md:px-6 pb-2 md:pb-6 pt-2 md:pt-12 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pointer-events-none">
                         <div className="max-w-[800px] mx-auto relative pointer-events-auto">
                             {inputBar}
 
@@ -1555,129 +1741,14 @@ export default function AgentInterface() {
 
             </main>
 
-            {/* Context Pane - Floating Style */}
-            {contextPaneOpen && activeContext?.property && (
-                <aside className="w-full lg:w-[400px] bg-[var(--color-surface)]/95 backdrop-blur-2xl lg:border-l border-[var(--color-border)]/50 flex flex-col z-50 fixed inset-0 lg:static lg:flex lg:shadow-[-10px_0_40px_rgba(0,0,0,0.04)] lg:m-4 lg:ml-0 lg:rounded-[24px] overflow-hidden">
-                    {/* Header */}
-                    <div className="h-14 border-b border-[var(--color-border)]/50 flex items-center justify-between px-6 flex-shrink-0 bg-white/50 dark:bg-gray-800/50">
-                        <div className="flex items-center gap-2.5">
-                            <span className="text-[15px] font-semibold text-[var(--color-text-primary)]">Details</span>
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest shadow-sm">Live Context</span>
-                        </div>
-                        <button
-                            onClick={() => setContextPaneOpen(false)}
-                            aria-label={conversationLanguage === 'ar' ? 'إغلاق التفاصيل' : 'Close details pane'}
-                            title="Close details pane"
-                            className="w-8 h-8 flex items-center justify-center text-[var(--color-text-muted)] hover:text-gray-900 dark:hover:text-white bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all"
-                        >
-                            <X className="w-4 h-4" strokeWidth={2} />
-                        </button>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-6 space-y-7 custom-scrollbar">
-
-                        {/* Image */}
-                        <div className="space-y-4">
-                            <div className="aspect-video bg-[var(--color-surface-hover)] rounded-2xl overflow-hidden relative shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)] shadow-md">
-                                <img
-                                    src={activeContext.property.image}
-                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-700 ease-out"
-                                    alt="Property"
-                                />
-                                <div className="absolute top-3 right-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md text-[var(--color-text-primary)] px-3 py-1.5 rounded-full text-[11px] font-semibold shadow-sm border border-black/5 dark:border-white/10">
-                                    {activeContext.property.status}
-                                </div>
-                            </div>
-                            <div>
-                                <h2 className="text-[22px] font-semibold text-[var(--color-text-primary)] leading-tight mb-1.5 tracking-tight" dir="auto">
-                                    {activeContext.property.title}
-                                </h2>
-                                <p className="text-[var(--color-text-muted)] flex items-center gap-1.5 text-[14px] font-medium" dir="auto">
-                                    <MapPin className="w-4 h-4 text-emerald-500" strokeWidth={2} />
-                                    {activeContext.property.location}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Score */}
-                        <div className="bg-gradient-to-br from-emerald-500/5 to-transparent rounded-[20px] p-5 border border-emerald-500/10 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-[40px] rounded-full" />
-                            <div className="flex items-center gap-2 mb-5 relative z-10">
-                                <Sparkles className="w-5 h-5 text-emerald-500" strokeWidth={2} />
-                                <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">Osool Intelligence Score</h3>
-                            </div>
-                            <div className="flex gap-4 sm:gap-8 relative z-10">
-                                <div>
-                                    <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Index</div>
-                                    <div className="text-3xl font-bold text-emerald-500 tracking-tighter">
-                                        {activeContext.property.metrics.wolf_score}
-                                        <span className="text-lg font-medium text-[var(--color-text-muted)] tracking-normal">/100</span>
-                                    </div>
-                                </div>
-                                <div className="w-px bg-emerald-500/20" />
-                                <div>
-                                    <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Liquidity</div>
-                                    <div className="text-3xl font-bold text-[var(--color-text-primary)] tracking-tighter">
-                                        {activeContext.property.metrics.liquidity_rating}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Specs Grid */}
-                        <div>
-                            <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] mb-3.5 uppercase tracking-widest pl-1">Specifications</h3>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-gray-50/50 dark:bg-gray-800/40 p-4 rounded-2xl border border-[var(--color-border)]/50">
-                                    <div className="text-[11px] font-medium text-[var(--color-text-muted)] mb-1">Total Built Area</div>
-                                    <div className="text-[var(--color-text-primary)] font-semibold text-[15px]">
-                                        {activeContext.property.metrics.size} <span className="text-[12px] font-medium text-[var(--color-text-muted)]">m²</span>
-                                    </div>
-                                </div>
-                                <div className="bg-gray-50/50 dark:bg-gray-800/40 p-4 rounded-2xl border border-[var(--color-border)]/50">
-                                    <div className="text-[11px] font-medium text-[var(--color-text-muted)] mb-1">Bedrooms</div>
-                                    <div className="text-[var(--color-text-primary)] font-semibold text-[15px]">
-                                        {activeContext.property.metrics.bedrooms}
-                                    </div>
-                                </div>
-                                <div className="bg-gray-50/50 dark:bg-gray-800/40 p-4 rounded-2xl border border-[var(--color-border)]/50">
-                                    <div className="text-[11px] font-medium text-[var(--color-text-muted)] mb-1">Price per m²</div>
-                                    <div className="text-[var(--color-text-primary)] font-semibold text-[15px]">
-                                        {activeContext.property.metrics.price_per_sqm > 0
-                                            ? `${(activeContext.property.metrics.price_per_sqm / 1000).toFixed(1)}k`
-                                            : 'N/A'
-                                        }
-                                    </div>
-                                </div>
-                                <div className="bg-emerald-50/50 dark:bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20">
-                                    <div className="text-[11px] font-medium text-emerald-600/80 dark:text-emerald-400/80 mb-1">Total Valuation</div>
-                                    <div className="text-emerald-600 dark:text-emerald-400 font-bold text-[15px]">
-                                        {(activeContext.property.price / 1000000).toFixed(2)}M
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Tags */}
-                        {activeContext.property.tags?.length > 0 && (
-                            <div className="flex flex-wrap gap-2 pt-2">
-                                {activeContext.property.tags.map((tag, i) => (
-                                    <span key={i} className="text-[12px] font-medium bg-gray-100 dark:bg-gray-800 text-[var(--color-text-primary)] px-3.5 py-1.5 rounded-full border border-gray-200 dark:border-gray-700">
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-
-                        <div className="pt-4 pb-2">
-                            <button className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-[16px] font-semibold text-[15px] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/10 dark:shadow-white/10 flex items-center justify-center gap-2">
-                                Request Private Viewing
-                                <ChevronRight className="w-4 h-4 opacity-70" strokeWidth={2.5} />
-                            </button>
-                        </div>
-                    </div>
-                </aside>
-            )}
+            {/* Context Pane — Premium Insights Shell */}
+            <ChatInsightsShell
+                property={activeContext?.property ?? null}
+                isOpen={contextPaneOpen}
+                onClose={() => setContextPaneOpen(false)}
+                language={conversationLanguage}
+                onPrompt={handleSendMessage}
+            />
 
             {/* ── Market Pulse Sidebar ── */}
             <MarketPulseSidebar language={conversationLanguage} onPrompt={handleSendMessage} />
@@ -1700,7 +1771,7 @@ export default function AgentInterface() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -320, opacity: 0 }}
                             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-                            className="fixed left-0 top-0 bottom-0 w-[320px] bg-[var(--color-surface)] border-r border-[var(--color-border)] z-50 flex flex-col shadow-2xl"
+                            className="fixed start-0 top-0 bottom-0 w-[320px] bg-[var(--color-surface)] border-e border-[var(--color-border)] z-50 flex flex-col shadow-2xl"
                         >
                             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
                                 <span className="text-[15px] font-semibold text-[var(--color-text-primary)]">{conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past Conversations'}</span>
@@ -1724,7 +1795,7 @@ export default function AgentInterface() {
                                         <button
                                             key={s.session_id}
                                             onClick={() => loadSession(s.session_id)}
-                                            className={`w-full text-left p-3 rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors group ${s.session_id === sessionIdRef.current ? 'bg-emerald-500/10 border border-emerald-500/20' : ''}`}
+                                            className={`w-full text-start p-3 rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors group ${s.session_id === sessionIdRef.current ? 'bg-emerald-500/10 border border-emerald-500/20' : ''}`}
                                         >
                                             <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" dir="auto">
                                                 {s.preview || 'Conversation'}

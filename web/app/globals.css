@@ -561,6 +561,10 @@ body > div:first-child {
 @keyframes slide-in-left { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes slide-in-right { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes slide-in-bottom { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+/* Voice waveform bars */
+@keyframes voiceBar { 0%, 100% { transform: scaleY(0.35); opacity: 0.6; } 50% { transform: scaleY(1); opacity: 1; } }
+/* Ambient AI thinking glow */
+@keyframes ambient-pulse { 0%, 100% { opacity: 0.6; transform: translate(-50%, 0) scale(1); } 50% { opacity: 1; transform: translate(-50%, 0) scale(1.12); } }
 
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-ping-slow { animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
@@ -568,6 +572,7 @@ body > div:first-child {
 .animate-slide-up { animation: slide-up 0.5s var(--ease-out-expo) forwards; }
 .animate-slide-in-left { animation: slide-in-left 0.4s ease-out forwards; }
 .animate-slide-in-right { animation: slide-in-right 0.4s ease-out forwards; }
+.animate-ambient-pulse { animation: ambient-pulse 3s ease-in-out infinite; }
 
 /* ── Terminal: Cyber-Financial Brutalism ── */
 @keyframes terminalSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }

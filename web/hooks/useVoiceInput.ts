@@ -11,11 +11,11 @@ export interface UseVoiceInputReturn {
     cancel: () => void;
 }
 
-declare global {
-    interface Window {
-        SpeechRecognition?: typeof SpeechRecognition;
-        webkitSpeechRecognition?: typeof SpeechRecognition;
-    }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSpeechRecognitionCtor(): any | null {
+    if (typeof window === 'undefined') return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition ?? null;
 }
 
 export function useVoiceInput(): UseVoiceInputReturn {
@@ -23,10 +23,10 @@ export function useVoiceInput(): UseVoiceInputReturn {
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const recognitionRef = useRef<SpeechRecognition | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognitionRef = useRef<any>(null);
 
-    const supported = typeof window !== 'undefined'
-        && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+    const supported = !!getSpeechRecognitionCtor();
 
     const cleanup = useCallback(() => {
         if (recognitionRef.current) {
@@ -43,22 +43,23 @@ export function useVoiceInput(): UseVoiceInputReturn {
     useEffect(() => () => cleanup(), [cleanup]);
 
     const start = useCallback((lang = 'ar-EG') => {
-        if (!supported) return;
+        const Ctor = getSpeechRecognitionCtor();
+        if (!Ctor) return;
 
         cleanup();
         setError(null);
         setTranscript('');
         setInterimTranscript('');
 
-        const SpeechRecognitionCtor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const recognition = new SpeechRecognitionCtor!();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const recognition: any = new Ctor();
         recognition.continuous = false;
         recognition.interimResults = true;
         recognition.lang = lang;
         recognition.maxAlternatives = 1;
 
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        recognition.onresult = (event: any) => {
             let finalText = '';
             let interimText = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -73,11 +74,12 @@ export function useVoiceInput(): UseVoiceInputReturn {
             setInterimTranscript(interimText);
         };
 
-        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        recognition.onerror = (event: any) => {
             if (event.error === 'no-speech' || event.error === 'aborted') {
                 setError(null);
             } else {
-                setError(event.error);
+                setError(String(event.error));
             }
             setIsListening(false);
             setInterimTranscript('');
@@ -91,7 +93,7 @@ export function useVoiceInput(): UseVoiceInputReturn {
         recognitionRef.current = recognition;
         recognition.start();
         setIsListening(true);
-    }, [supported, cleanup]);
+    }, [cleanup]);
 
     const stop = useCallback(() => {
         if (recognitionRef.current) {
