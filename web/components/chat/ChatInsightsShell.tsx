@@ -177,28 +177,28 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                             </span>
                         </div>
                         <div className="flex items-center gap-4 relative z-10">
-                            <ScoreRing score={property.metrics.wolf_score} />
+                            <ScoreRing score={property.metrics?.wolf_score ?? 0} />
                             <div className="flex-1 space-y-1.5">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[11px] text-[var(--color-text-muted)] font-medium">{isRTL ? 'السيولة' : 'Liquidity'}</span>
-                                    <span className="text-[13px] font-bold text-[var(--color-text-primary)]">{property.metrics.liquidity_rating}</span>
+                                    <span className="text-[13px] font-bold text-[var(--color-text-primary)]">{property.metrics?.liquidity_rating ?? '—'}</span>
                                 </div>
-                                {property.metrics.roi > 0 && (
+                                {property.metrics?.roi > 0 && (
                                     <div className="flex items-center justify-between">
                                         <span className="text-[11px] text-[var(--color-text-muted)] font-medium">{isRTL ? 'العائد' : 'ROI Est.'}</span>
                                         <span className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                             <TrendingUp className="w-3 h-3" />
-                                            +{property.metrics.roi}%
+                                            +{property.metrics?.roi}%
                                         </span>
                                     </div>
                                 )}
                                 {/* ROI bar */}
-                                {property.metrics.roi > 0 && (
+                                {property.metrics?.roi > 0 && (
                                     <div className="h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mt-0.5">
                                         <motion.div
                                             className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
                                             initial={{ width: 0 }}
-                                            animate={{ width: `${Math.min(property.metrics.roi * 5, 100)}%` }}
+                                            animate={{ width: `${Math.min(property.metrics?.roi ? property.metrics.roi * 5 : 0, 100)}%` }}
                                             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
                                         />
                                     </div>
@@ -215,17 +215,17 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                     </h3>
                     <div className="grid grid-cols-2 gap-2">
                         {property.metrics?.size > 0 && (
-                            <SpecTile label={isRTL ? 'المساحة' : 'Built Area'} value={`${property.metrics.size} m²`} />
+                            <SpecTile label={isRTL ? 'المساحة' : 'Built Area'} value={`${property.metrics?.size} m²`} />
                         )}
                         {property.metrics?.bedrooms > 0 && (
-                            <SpecTile label={isRTL ? 'غرف النوم' : 'Bedrooms'} value={String(property.metrics.bedrooms)} />
+                            <SpecTile label={isRTL ? 'غرف النوم' : 'Bedrooms'} value={String(property.metrics?.bedrooms)} />
                         )}
                         {property.metrics?.price_per_sqm > 0 && (
                             <SpecTile
                                 label={isRTL ? 'السعر/م²' : 'Price/m²'}
-                                value={property.metrics.price_per_sqm > 999
-                                    ? `${(property.metrics.price_per_sqm / 1000).toFixed(1)}k`
-                                    : String(property.metrics.price_per_sqm)}
+                                value={property.metrics?.price_per_sqm > 999
+                                    ? `${((property.metrics?.price_per_sqm ?? 0) / 1000).toFixed(1)}k`
+                                    : String(property.metrics?.price_per_sqm)}
                             />
                         )}
                         <SpecTile

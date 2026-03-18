@@ -132,13 +132,13 @@ function HeroCard({
                             <motion.div
                                 className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
                                 initial={{ width: 0 }}
-                                animate={{ width: `${Math.min(prop.metrics.wolf_score, 100)}%` }}
+                                animate={{ width: `${Math.min(prop.metrics?.wolf_score ?? 0, 100)}%` }}
                                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
                             />
                         </div>
                         <span className="text-[11px] font-bold text-[var(--color-text-secondary)] flex-shrink-0">
                             <Sparkles className="w-3 h-3 text-emerald-500 inline me-0.5" />
-                            {prop.metrics.wolf_score}/100
+                            {prop.metrics?.wolf_score ?? 0}/100
                         </span>
                     </div>
                 )}
@@ -147,17 +147,17 @@ function HeroCard({
                 <div className="flex flex-wrap gap-1.5">
                     {prop.metrics?.roi > 0 && (
                         <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3" /> +{prop.metrics.roi}% ROI
+                            <TrendingUp className="w-3 h-3" /> +{prop.metrics?.roi}% ROI
                         </span>
                     )}
                     {prop.metrics?.price_per_sqm > 0 && (
                         <span className="text-[11px] font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-elevated)] px-2 py-0.5 rounded-md">
-                            {prop.metrics.price_per_sqm.toLocaleString()}/m²
+                            {prop.metrics?.price_per_sqm?.toLocaleString()}/m²
                         </span>
                     )}
                     {prop.metrics?.bedrooms > 0 && (
                         <span className="text-[11px] font-medium text-[var(--color-text-muted)] bg-[var(--color-surface-elevated)] px-2 py-0.5 rounded-md">
-                            {prop.metrics.bedrooms}BR
+                            {prop.metrics?.bedrooms}BR
                         </span>
                     )}
                 </div>
@@ -222,7 +222,7 @@ function CompactCard({
                 <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-[13px] font-bold text-[var(--color-text-primary)] tracking-tight">{(prop.price / 1_000_000).toFixed(1)}M</span>
                     {prop.metrics?.roi > 0 && (
-                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">+{prop.metrics.roi}%</span>
+                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">+{prop.metrics?.roi}%</span>
                     )}
                 </div>
             </div>
@@ -303,7 +303,7 @@ export default function BentoResultGrid({
                         {hero.metrics?.wolf_score > 0 && (
                             <StatTile
                                 label={isRTL ? 'مؤشر أصول' : 'Osool Score'}
-                                value={String(hero.metrics.wolf_score)}
+                                value={String(hero.metrics?.wolf_score ?? 0)}
                                 sub="/100"
                                 accent
                                 delay={0.2}
