@@ -9,7 +9,6 @@ import {
     BarChart2, Shield, Search, TrendingUp,
     Copy, RefreshCw, ArrowUp,
     History, Plus, MessageSquare, Check,
-    Mic, MicOff
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -30,7 +29,10 @@ import OnboardingFlow from '@/components/chat/OnboardingFlow';
 import { getSmartEmptyStateSuggestions } from '@/lib/suggestions';
 import ChatInsightsShell from '@/components/chat/ChatInsightsShell';
 import { GlossaryAnnotated } from '@/components/GlossaryTooltip';
-import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useVoiceRecording } from '@/hooks/useVoiceRecording';
+import { useVoicePlayback } from '@/hooks/useVoicePlayback';
+import VoiceOrb from '@/components/VoiceOrb';
+import SpeakerButton from '@/components/SpeakerButton';
 import BentoResultGrid from '@/components/chat/BentoResultGrid';
 import MessageSkeleton from '@/components/chat/MessageSkeleton';
 
@@ -682,7 +684,7 @@ export default function AgentInterface() {
     const { profile, triggerXP } = useGamification();
     const searchParams = useSearchParams();
     const nextRouter = useNextRouter();
-    const { isListening, transcript, interimTranscript, start: startVoice, stop: stopVoice, supported: voiceSupported } = useVoiceInput();
+    const [transcriptHighlight, setTranscriptHighlight] = useState(false);
     const [messages, setMessages] = useState<Message[]>(() => loadFromStorage(STORAGE_KEYS.MESSAGES, []));
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -709,6 +711,38 @@ export default function AgentInterface() {
 
     const userName = user?.full_name || user?.email?.split('@')[0] || (conversationLanguage === 'ar' ? 'مستثمر' : 'there');
 
+    // ── Whisper-powered voice recording ──
+    const { status: voiceStatus, isListening, amplitude, startRecording, stopRecording } = useVoiceRecording({
+        language: conversationLanguage === 'ar' ? 'ar-EG' : 'auto',
+        silenceThresholdMs: 2000,
+        onTranscript: (text) => {
+            setInputValue(text);
+            inputRef.current?.focus();
+            setTranscriptHighlight(true);
+            setTimeout(() => setTranscriptHighlight(false), 600);
+        },
+        onError: (msg) => console.warn('[Voice]', msg),
+    });
+    // ── OpenAI TTS playback ──
+    const { playbackStatus, speak: speakTTS, pause: pauseTTS, resume: resumeTTS, stop: stopTTS } = useVoicePlayback();
+    const handleVoiceToggle = useCallback(() => {
+        if (isListening || voiceStatus === 'processing') {
+            stopRecording();
+        } else {
+            stopTTS(); // stop any playing TTS before recording
+            startRecording();
+        }
+    }, [isListening, voiceStatus, startRecording, stopRecording, stopTTS]);
+    const handleSpeakerClick = useCallback((text: string, lang: string) => {
+        if (playbackStatus === 'playing') {
+            pauseTTS();
+        } else if (playbackStatus === 'paused') {
+            resumeTTS();
+        } else {
+            speakTTS(text, lang);
+        }
+    }, [playbackStatus, speakTTS, pauseTTS, resumeTTS]);
+
     /* Persist messages to sessionStorage whenever they change */
     useEffect(() => {
         if (messages.length > 0) saveToStorage(STORAGE_KEYS.MESSAGES, messages);
@@ -733,10 +767,7 @@ export default function AgentInterface() {
         }
     }, [inputValue]);
 
-    // Sync voice transcript → input value
-    useEffect(() => {
-        if (transcript.trim()) setInputValue(transcript);
-    }, [transcript]);
+    // Voice transcript syncs via onTranscript callback in useVoiceRecording
 
     const hasStarted = messages.length > 0;
 
@@ -1139,28 +1170,27 @@ export default function AgentInterface() {
     /* ─── Shared Input Bar ─── */
     const inputBar = (
         <motion.div layoutId="input-bar" className="w-full" transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
-            <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)] border ${isListening ? 'border-emerald-500/40 shadow-[0_0_0_3px_rgba(16,185,129,0.06)]' : 'border-[var(--color-border)]/40'}`}>
+            <div className={`bg-[var(--color-surface)]/95 backdrop-blur-2xl rounded-[24px] flex flex-col transition-all duration-300 ${isTyping ? 'opacity-70 scale-[0.99]' : ''} shadow-[0_8px_30px_rgba(0,0,0,0.04)] border ${isListening ? 'border-emerald-500/40 shadow-[0_0_0_3px_rgba(16,185,129,0.06)]' : 'border-[var(--color-border)]/40'}${transcriptHighlight ? ' ring-2 ring-emerald-500/40' : ''}`}>
 
-                {/* Voice waveform bar — only shown while listening */}
-                {isListening && (
-                    <div className="px-5 pt-3 pb-0 flex items-center gap-2.5">
-                        <div className="flex items-end gap-[3px] h-5">
-                            {[0.5, 0.9, 0.6, 1.1, 0.4, 0.8, 0.5].map((h, i) => (
-                                <span
-                                    key={i}
-                                    className="w-[3px] rounded-full bg-emerald-500"
-                                    style={{ height: `${h * 14}px`, animation: `voiceBar 0.8s ease-in-out infinite`, animationDelay: `${i * 0.09}s` }}
-                                />
-                            ))}
-                        </div>
-                        {interimTranscript && (
-                            <span className="text-[12px] text-emerald-600 dark:text-emerald-400 font-medium truncate flex-1">{interimTranscript}</span>
-                        )}
-                        <span className="ms-auto text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold animate-pulse flex-shrink-0">
-                            {conversationLanguage === 'ar' ? 'يستمع...' : 'Listening...'}
-                        </span>
-                    </div>
-                )}
+                {/* Voice status bar — shown while recording or processing */}
+                <AnimatePresence>
+                    {(voiceStatus === 'recording' || voiceStatus === 'processing') && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            className="px-5 pt-3 pb-0 flex items-center gap-2.5 overflow-hidden"
+                        >
+                            <VoiceOrb status={voiceStatus} amplitude={amplitude} onClick={handleVoiceToggle} isRTL={conversationLanguage === 'ar'} size="sm" />
+                            <span className="ms-auto text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold animate-pulse flex-shrink-0">
+                                {voiceStatus === 'processing'
+                                    ? (conversationLanguage === 'ar' ? 'يعالج...' : 'Transcribing...')
+                                    : (conversationLanguage === 'ar' ? 'يستمع...' : 'Listening...')}
+                            </span>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <div className="flex items-end gap-2">
                     <textarea
@@ -1176,27 +1206,14 @@ export default function AgentInterface() {
                     />
 
                     <div className="flex-shrink-0 pb-2 md:pb-3 pe-2 md:pe-3 flex items-center gap-1.5">
-                        {/* Voice mic button */}
-                        {voiceSupported && (
-                            <button
-                                onClick={() => isListening
-                                    ? stopVoice()
-                                    : startVoice(conversationLanguage === 'ar' ? 'ar-EG' : 'en-US')}
-                                aria-label={isListening
-                                    ? (conversationLanguage === 'ar' ? 'إيقاف' : 'Stop listening')
-                                    : (conversationLanguage === 'ar' ? 'تحدث' : 'Speak')}
-                                title={isListening ? 'Stop' : 'Voice input'}
-                                className={`p-2 md:p-2.5 rounded-xl transition-all duration-200 ${
-                                    isListening
-                                        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 scale-110'
-                                        : 'text-[var(--color-text-muted)] hover:text-emerald-500 hover:bg-emerald-500/10'
-                                }`}
-                            >
-                                {isListening
-                                    ? <MicOff className="w-4 h-4" strokeWidth={2} />
-                                    : <Mic className="w-4 h-4" strokeWidth={2} />}
-                            </button>
-                        )}
+                        {/* Voice orb — Whisper-powered via MediaRecorder */}
+                        <VoiceOrb
+                            status={voiceStatus}
+                            amplitude={amplitude}
+                            onClick={handleVoiceToggle}
+                            isRTL={conversationLanguage === 'ar'}
+                            size="sm"
+                        />
                         <button
                             onClick={() => handleSendMessage()}
                             disabled={isTyping || !inputValue.trim()}
@@ -1608,6 +1625,13 @@ export default function AgentInterface() {
                                                                     >
                                                                         <RefreshCw className="w-3.5 h-3.5" />
                                                                     </button>
+                                                                    {msg.content.trim().length > 0 && (
+                                                                        <SpeakerButton
+                                                                            status={playbackStatus}
+                                                                            onClick={() => handleSpeakerClick(msg.content, msg.detectedLanguage || conversationLanguage)}
+                                                                            isRTL={conversationLanguage === 'ar'}
+                                                                        />
+                                                                    )}
                                                                 </div>
 
                                                                 {index === messages.length - 1 && (
