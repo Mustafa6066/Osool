@@ -1043,6 +1043,12 @@ export const translations = {
             embeddedConsole: "Embedded console",
             orchestratorIframe: "Orchestrator admin iframe",
         },
+
+        // Terminal
+        terminal: {
+            title: "Command Terminal",
+            description: "Deep-dive analysis via command & telemetry interface",
+        },
     },
 
     ar: {
@@ -2084,6 +2090,12 @@ export const translations = {
             refreshBehaviorDesc: "استخدم تحديث المضمّن بعد تسجيل دخول الإدارة أو عندما تصبح الوحدة قديمة.",
             embeddedConsole: "الوحدة المضمّنة",
             orchestratorIframe: "إطار إدارة المنسق",
+        },
+
+        // Terminal
+        terminal: {
+            title: "محطة الأوامر",
+            description: "تحليل معمّق عبر واجهة القيادة والقياس عن بُعد",
         },
     },
 };
