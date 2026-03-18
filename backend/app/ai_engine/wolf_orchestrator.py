@@ -1142,10 +1142,10 @@ class WolfBrain:
                     showing_strategy = 'ANALYTICS_ONLY'
                     logger.info(f"📊 Budget present but gated: ANALYTICS_ONLY (depth={engagement_turns}, readiness={cr_score})")
 
-            # Safety net: readiness < 20 → always cap at ANALYTICS_ONLY
-            if card_readiness and card_readiness.get("readiness_score", 0) < 20 and showing_strategy in ['TEASER', 'FULL_LIST']:
-                showing_strategy = 'ANALYTICS_ONLY'
-                logger.info(f"🛡️ Psychology safety net: readiness={card_readiness.get('readiness_score', 0)}, forced ANALYTICS_ONLY")
+            # Safety net: readiness < 20 → cap at TEASER (allow hook), block FULL_LIST
+            if card_readiness and card_readiness.get("readiness_score", 0) < 20 and showing_strategy == 'FULL_LIST':
+                showing_strategy = 'TEASER'
+                logger.info(f"🛡️ Psychology safety net: readiness={card_readiness.get('readiness_score', 0)}, capped to TEASER (hook allowed)")
             logger.info(f"👁️ Visual Strategy: {showing_strategy} (readiness={card_readiness.get('readiness_score', 0) if card_readiness else 0})")
 
             # Only search if strategy is TEASER or FULL_LIST
@@ -2205,8 +2205,8 @@ class WolfBrain:
         def apply_ceiling(proposed: str) -> str:
             """Cap proposed strategy by readiness score AND engagement depth."""
             # Max by engagement depth
-            if engagement_depth < 3:
-                depth_max = 'ANALYTICS_ONLY'
+            if engagement_depth < 2:
+                depth_max = 'TEASER'   # Allow teaser hook from turn 2+
             elif engagement_depth < 4:
                 depth_max = 'TEASER'
             else:
@@ -2214,7 +2214,7 @@ class WolfBrain:
 
             # Max by readiness score
             if readiness_score < 20:
-                readiness_max = 'ANALYTICS_ONLY'
+                readiness_max = 'TEASER'  # Allow teaser hook for cold leads
             elif readiness_score < 45:
                 readiness_max = 'TEASER'
             else:
@@ -2891,18 +2891,18 @@ You are in DATA CONSULTANT mode — embed these numbers DIRECTLY in your text:
                 if language == 'ar':
                     wolf_insight_instruction += f"""
 [STRATEGY: TEASER_ANCHOR]
-أنت بتعرض وحدة واحدة بس كـ "مثال من السوق" لاختبار الميزانية.
-لا تبيع الوحدة دي دلوقتي. استخدمها لتثبيت السعر.
-قول: "مثلاً، ده متوسط سعر الوحدات في {anchor_location} ({anchor_price:,.0f} جنيه). ده في نطاق ميزانيتك؟"
-بعد كده اسأل عن الميزانية المحددة عشان تقدر ترشح بدقة.
+أنت لقيت وحدات متطابقة وبتعرض **وحدة واحدة** كـ عينة عشان تثبت إنك فعلاً عندك بضاعة.
+لا تبيع الوحدة دي دلوقتي — استخدمها كـ طُعم ذكي.
+قول: "لقيت [X] وحدات مطابقة — خليني أوريك عينة: ده في {anchor_location} بحوالي {anchor_price:,.0f} جنيه.
+بس قبل ما أفتحلك السجل كامل—حضرتك بتشتري للـ**سكن** ولا **استثمار**؟ الإجابة دي هتغير ترتيب الوحدات خالص."
 """
                 else:
                     wolf_insight_instruction += f"""
 [STRATEGY: TEASER_ANCHOR]
-You are showing ONLY ONE property as a "Market Example" to test their budget.
-DO NOT sell this specific unit yet. Use it to anchor the price.
-Say: "For example, this is what the average unit in {anchor_location} costs ({anchor_price:,.0f} EGP). Is this within your comfort zone?"
-Then ask for their specific budget so you can recommend precisely.
+You found matching units and are showing **ONE sample** to prove you have real inventory.
+DO NOT sell this specific unit yet — use it as a smart hook.
+Say: "I found [X] matching units — here's a sample: this one in {anchor_location} is around {anchor_price:,.0f} EGP.
+But before I unlock the full ledger — are you buying for **Living** or **Investment**? Your answer completely changes how I rank these."
 """
             elif properties and showing_strategy == 'FULL_LIST':
                 # FULL MODE: Group properties and show them intelligently
