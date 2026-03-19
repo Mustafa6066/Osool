@@ -219,7 +219,7 @@ export default function MarketStatisticsPage() {
     <AppShell>
       <main className="h-full overflow-y-auto bg-[var(--color-background)]">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
-          {/* â”€â”€ Hero + KPI Row â”€â”€ */}
+          {/* Hero + KPI Row */}
           <motion.section
             initial="hidden"
             animate="visible"
@@ -256,9 +256,9 @@ export default function MarketStatisticsPage() {
 
             <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
               {[
-                { label: t('market.kpiTracked'), value: loading ? '…' : stats?.summary.total_properties.toLocaleString('en-EG') || 'â€"', desc: t('market.kpiTrackedDesc'), icon: Building2 },
-                { label: t('market.kpiAvgTicket'), value: loading ? '…' : stats ? formatCompactPrice(stats.summary.avg_price) : 'â€"', desc: t('market.kpiAvgTicketDesc'), icon: Wallet },
-                { label: t('market.kpiSupplyLeader'), value: loading ? '…' : supplySignal?.name || 'â€"', desc: loading ? `${t('common.loading')}` : supplySignal ? `${supplySignal.count} ${t('market.kpiActiveUnits')}` : 'â€"', icon: MapPin },
+                { label: t('market.kpiTracked'), value: loading ? '…' : stats?.summary.total_properties.toLocaleString('en-EG') || '\u2014', desc: t('market.kpiTrackedDesc'), icon: Building2 },
+                { label: t('market.kpiAvgTicket'), value: loading ? '…' : stats ? formatCompactPrice(stats.summary.avg_price) : '\u2014', desc: t('market.kpiAvgTicketDesc'), icon: Wallet },
+                { label: t('market.kpiSupplyLeader'), value: loading ? '…' : supplySignal?.name || '\u2014', desc: loading ? `${t('common.loading')}` : supplySignal ? `${supplySignal.count} ${t('market.kpiActiveUnits')}` : '\u2014', icon: MapPin },
               ].map((card, i) => (
                 <motion.div key={card.label} variants={fadeUp} custom={i + 1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 transition-all hover:border-emerald-500/20">
                   <div className="flex items-center justify-between">
@@ -285,7 +285,7 @@ export default function MarketStatisticsPage() {
             </div>
           ) : (
             <>
-              {/* â”€â”€ Area Leaders with Sparklines & Demand Badges â”€â”€ */}
+              {/* Area Leaders with Sparklines & Demand Badges */}
               <motion.section
                 initial="hidden"
                 whileInView="visible"
@@ -354,7 +354,7 @@ export default function MarketStatisticsPage() {
                   <motion.div variants={fadeUp} custom={2} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 sm:col-span-2">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-emerald-500" />
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{stats.summary.areas_count} areas Â· {stats.summary.developers_count} developers Â· {stats.summary.types_count} types</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{stats.summary.areas_count} areas {'\u00B7'} {stats.summary.developers_count} developers {'\u00B7'} {stats.summary.types_count} types</div>
                     </div>
                     <div className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">
                       {t('market.statsGuidance')}
@@ -363,7 +363,7 @@ export default function MarketStatisticsPage() {
                 </div>
               </motion.section>
 
-              {/* â”€â”€ Developer Pulse + Affordability Ladder â”€â”€ */}
+              {/* Developer Pulse + Affordability Ladder */}
               <motion.section
                 initial="hidden"
                 whileInView="visible"
@@ -423,7 +423,7 @@ export default function MarketStatisticsPage() {
                       <motion.div key={bracket.label} variants={fadeUp} custom={i}>
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <div className="text-sm font-semibold text-[var(--color-text-primary)]">{bracket.label}</div>
-                          <div className="text-xs text-[var(--color-text-secondary)]">{bracket.count} units Â· {formatSqmPrice(bracket.avg)}</div>
+                          <div className="text-xs text-[var(--color-text-secondary)]">{bracket.count} units {'\u00B7'} {formatSqmPrice(bracket.avg)}</div>
                         </div>
                         <div className="h-2.5 overflow-hidden rounded-full bg-[var(--color-background)]">
                           <motion.div
@@ -440,7 +440,7 @@ export default function MarketStatisticsPage() {
                 </div>
               </motion.section>
 
-              {/* â”€â”€ Top Compounds Leaderboard â”€â”€ */}
+              {/* Top Compounds Leaderboard */}
               {topCompounds.length > 0 && (
                 <motion.section
                   initial="hidden"
@@ -469,7 +469,7 @@ export default function MarketStatisticsPage() {
                           </div>
                           <div className="mt-1.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
                             <span>{c.developer}</span>
-                            <span>Â·</span>
+                            <span>{'\u00B7'}</span>
                             <span>{c.location}</span>
                           </div>
                           <div className="mt-3 flex items-center justify-between">
@@ -483,7 +483,7 @@ export default function MarketStatisticsPage() {
                 </motion.section>
               )}
 
-              {/* â”€â”€ Bedroom Breakdown + Size Distribution â”€â”€ */}
+              {/* Bedroom Breakdown + Size Distribution */}
               <motion.section
                 initial="hidden"
                 whileInView="visible"
@@ -512,7 +512,7 @@ export default function MarketStatisticsPage() {
                               : 'bg-[var(--color-background)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-muted)]'
                           }`}
                         >
-                          {r.rooms} {t('market.bedroomsBR')} Â· {r.count}
+                          {r.rooms} {t('market.bedroomsBR')} {'\u00B7'} {r.count}
                         </button>
                       ))}
                     </div>
@@ -556,7 +556,7 @@ export default function MarketStatisticsPage() {
                           <div key={sb.label}>
                             <div className="flex items-center justify-between gap-3 mb-1.5">
                               <span className="text-sm font-medium text-[var(--color-text-primary)]">{sb.label}</span>
-                              <span className="text-xs text-[var(--color-text-secondary)]">{sb.count} Â· {formatCompactPrice(sb.avgPrice)}</span>
+                              <span className="text-xs text-[var(--color-text-secondary)]">{sb.count} {'\u00B7'} {formatCompactPrice(sb.avgPrice)}</span>
                             </div>
                             <div className="h-2 overflow-hidden rounded-full bg-[var(--color-background)]">
                               <motion.div
@@ -575,7 +575,7 @@ export default function MarketStatisticsPage() {
                 )}
               </motion.section>
 
-              {/* â”€â”€ Payment Pulse + Next Move â”€â”€ */}
+              {/* Payment Pulse + Next Move */}
               <motion.section
                 initial="hidden"
                 whileInView="visible"
@@ -633,21 +633,21 @@ export default function MarketStatisticsPage() {
                       href="/areas"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>{t('market.nextMoveCompare')} <span className="text-[var(--color-text-muted)] font-normal">â†’ {t('market.nextMoveFilterYield')}</span></span>
+                      <span>{t('market.nextMoveCompare')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveFilterYield')}</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/developers"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>{t('market.nextMoveAudit')} <span className="text-[var(--color-text-muted)] font-normal">â†’ {t('market.nextMoveCheckDelivery')}</span></span>
+                      <span>{t('market.nextMoveAudit')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveCheckDelivery')}</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/properties"
                       className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
                     >
-                      <span>{t('market.nextMoveReview')} <span className="text-[var(--color-text-muted)] font-normal">â†’ {t('market.nextMoveBrowse')}</span></span>
+                      <span>{t('market.nextMoveReview')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveBrowse')}</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </div>

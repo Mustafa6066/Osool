@@ -296,13 +296,13 @@ function SignupContent() {
                         {password.length > 0 && (
                             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.length ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.length ? 'âœ"' : 'â‹'} {t('signup.passwordMinChars')}
+                                    {passwordChecks.length ? '\u2713' : '\u25CB'} {t('signup.passwordMinChars')}
                                 </span>
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.uppercase ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.uppercase ? 'âœ"' : 'â‹'} {t('signup.passwordUppercase')}
+                                    {passwordChecks.uppercase ? '\u2713' : '\u25CB'} {t('signup.passwordUppercase')}
                                 </span>
                                 <span className={`text-xs flex items-center gap-1 ${passwordChecks.number ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.number ? 'âœ"' : 'â‹'} {t('signup.passwordNumber')}
+                                    {passwordChecks.number ? '\u2713' : '\u25CB'} {t('signup.passwordNumber')}
                                 </span>
                             </div>
                         )}

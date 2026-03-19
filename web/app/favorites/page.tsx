@@ -206,7 +206,7 @@ export default function FavoritesPage() {
                                         <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mb-3" dir="auto">
                                             <MapPin className="w-3 h-3" />
                                             {fav.location}
-                                            {fav.developer && ` Â· ${fav.developer}`}
+                                            {fav.developer && ` \u00B7 ${fav.developer}`}
                                         </p>
 
                                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-xs text-[var(--color-text-secondary)] mb-3">

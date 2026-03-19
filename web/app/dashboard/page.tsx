@@ -323,7 +323,7 @@ export default function DashboardPage() {
                                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('dashboard.invitesRemaining')}</div>
                                 <Users className="h-4 w-4 text-emerald-500" />
                             </div>
-                            <div className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">{remaining === 'unlimited' ? 'âˆž' : remaining}</div>
+                            <div className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">{remaining === 'unlimited' ? '\u221E' : remaining}</div>
                         </div>
                         <div className="rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                             <div className="flex items-center justify-between">
@@ -443,7 +443,7 @@ export default function DashboardPage() {
                                         <div key={invite.code} className="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 sm:flex-row sm:items-center sm:justify-between">
                                             <div>
                                                 <div className="text-sm font-semibold text-[var(--color-text-primary)]">{invite.code}</div>
-                                                <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{t('dashboard.created')} {formatDate(invite.created_at)}{invite.used_at ? ` Â· ${t('dashboard.used')} ${formatDate(invite.used_at)}` : ''}</div>
+                                                <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{t('dashboard.created')} {formatDate(invite.created_at)}{invite.used_at ? ` \u00B7 ${t('dashboard.used')} ${formatDate(invite.used_at)}` : ''}</div>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${invite.is_used ? 'bg-slate-500/10 text-slate-600 dark:text-slate-300' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
