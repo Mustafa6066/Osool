@@ -156,7 +156,6 @@ if [ "${ENVIRONMENT}" = "production" ]; then
     echo -e "${YELLOW}[6/7] Validating production environment...${NC}"
 
     REQUIRED_VARS=(
-        "WALLET_ENCRYPTION_KEY"
         "JWT_SECRET_KEY"
         "DATABASE_URL"
         "OPENAI_API_KEY"

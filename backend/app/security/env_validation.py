@@ -291,13 +291,6 @@ class EnvironmentValidator:
         config['CSRF_SECRET_KEY'] = self.validate_secret_key('CSRF_SECRET_KEY', min_length=32, required=False)
         config['ADMIN_API_KEY'] = self.validate_secret_key('ADMIN_API_KEY', min_length=32, required=True)
         
-        # Wallet Encryption (if used)
-        wallet_key = os.getenv('WALLET_ENCRYPTION_KEY')
-        if wallet_key:
-            # Validate Fernet key format (44 characters, base64-encoded)
-            if len(wallet_key) != 44:
-                self.errors.append('WALLET_ENCRYPTION_KEY must be 44 characters (Fernet key)')
-        
         # AI API Keys
         config['OPENAI_API_KEY'] = self.validate_secret_key('OPENAI_API_KEY', min_length=20, required=True)
         config['ANTHROPIC_API_KEY'] = self.validate_secret_key('ANTHROPIC_API_KEY', min_length=20, required=True)

@@ -123,7 +123,6 @@ git push origin --force --all
 #
 # [ ] JWT_SECRET_KEY - Generate new: openssl rand -hex 32
 # [ ] ADMIN_API_KEY - Generate new: openssl rand -hex 32
-# [ ] WALLET_ENCRYPTION_KEY - Generate new Fernet key
 # [ ] OPENAI_API_KEY - Regenerate on OpenAI dashboard
 # [ ] ANTHROPIC_API_KEY - Regenerate on Anthropic dashboard
 # [ ] SUPABASE_KEY - Regenerate on Supabase dashboard

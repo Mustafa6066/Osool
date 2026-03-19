@@ -101,7 +101,6 @@ function initPropertyGrid() {
 
         // Generate AI Match Score (simulated - in production, this comes from backend)
         const aiScore = Math.floor(Math.random() * 15) + 85; // 85-99%
-        const isBlockchainVerified = Math.random() > 0.3; // 70% chance verified
         const insight = aiInsights[index % aiInsights.length];
 
         card.innerHTML = `
@@ -126,13 +125,6 @@ function initPropertyGrid() {
                 <div style="position: absolute; top: 12px; left: 12px; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; padding: 4px 10px; border-radius: 99px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(139,92,246,0.4);">
                     <i class="fas fa-brain"></i> ${aiScore}%
                 </div>
-                
-                <!-- Blockchain Verified Badge -->
-                ${isBlockchainVerified ? `
-                <div style="position: absolute; bottom: 12px; left: 12px; background: rgba(16,185,129,0.9); color: white; padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; display: flex; align-items: center; gap: 4px;">
-                    <i class="fas fa-link"></i> On-Chain ✓
-                </div>
-                ` : ''}
             </div>
             <h3 style="font-size: 1.25rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${prop.title}</h3>
             <div style="color: var(--color-gold-text); font-weight: 600; font-family: var(--font-mono);">${price}</div>
@@ -142,13 +134,13 @@ function initPropertyGrid() {
                 <span><i class="fas fa-ruler-combined"></i> ${prop.area}m²</span>
             </div>
             
-            <!-- Reserve Button (Blockchain) -->
+            <!-- Reserve Button -->
             <button onclick="event.stopPropagation(); openReservationModal(${prop.id || index + 1}, '${prop.title.replace(/'/g, "\\'")}', ${prop.price})" 
                     style="width: 100%; margin-top: 16px; padding: 12px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;"
                     onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.4)'"
                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                <i class="fas fa-link"></i>
-                احجز الآن (Blockchain)
+                <i class="fas fa-calendar-check"></i>
+                احجز الآن
             </button>
         `;
 

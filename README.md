@@ -2,19 +2,18 @@
 
 **Osool** is a next-generation marketplace designed for the **Egyptian Real Estate Market**. It solves the two critical failures of existing platforms: **Lack of Trust** and **Price Volatility**.
 
-> **CBE Law 194 Compliant**: All monetary transactions flow through EGP channels (InstaPay/Fawry). Blockchain stores **status and ownership records only** — no cryptocurrency payments.
+> **CBE Law 194 Compliant**: All monetary transactions flow through EGP channels (InstaPay/Fawry).
 
 ---
 
-## 🏗️ Architecture: "Blockchain = Truth, Fiat = Money"
+## 🏗️ Architecture
 
 ```mermaid
 graph TD
     User((User))
     
     subgraph "Frontend (Access Layer)"
-        UI[Next.js/React Interface]
-        Wallet[Invisible Wallet - Thirdweb]
+        UI[Static HTML/JS Interface]
     end
 
     subgraph "Backend (Intelligence Layer)"
@@ -23,27 +22,17 @@ graph TD
         PriceAI[AI Valuator]
     end
 
-    subgraph "Blockchain (Trust Layer)"
-        SC[OsoolRegistry Contract]
-        Status[Property Status]
-        Owner[Ownership Record]
-    end
-
     subgraph "Payment (Fiat)"
         InstaPay[InstaPay/Fawry]
         Bank[Bank Transfer]
     end
 
     User --> UI
-    UI -->|Auth| Wallet
     UI -->|Query| API
     API --> LegalAI
     API --> PriceAI
     User -->|Pay EGP| InstaPay
     API -->|Verify Payment| InstaPay
-    API -->|Update Status| SC
-    SC --> Status
-    SC --> Owner
 ```
 
 ---
@@ -52,10 +41,10 @@ graph TD
 
 | Feature | Market Gap | Osool Solution |
 |---------|-----------|----------------|
-| **Trust** | Handshakes & Cash → Fraud | **Blockchain Registry** - Immutable status records |
+| **Trust** | Handshakes & Cash → Fraud | **Verified Registry** - Immutable status records |
 | **Pricing** | Random seller prices | **AI Valuation** - Fair price with reasoning |
 | **Legal Safety** | Hidden contract traps | **AI Legal Check** - Scans for Egyptian law risks |
-| **Double Selling** | Same unit sold twice | **On-chain Status** - Reserved = Locked |
+| **Double Selling** | Same unit sold twice | **Status Tracking** - Reserved = Locked |
 
 ---
 
@@ -64,43 +53,22 @@ graph TD
 ```
 Osool/
 ├── .github/workflows/     # CI/CD Pipeline
-├── contracts/             # Solidity Smart Contracts
-│   ├── OsoolRegistry.sol  # Legal-compliant property registry
-│   ├── ElitePropertyEscrow.sol
-│   └── EliteSubscriptionToken.sol
 ├── backend/               # Python FastAPI
 │   ├── app/
 │   │   ├── ai_engine/     # OpenAI-powered analysis
 │   │   ├── api/           # REST endpoints
-│   │   └── services/      # Blockchain service
+│   │   └── services/      # Business services
 │   └── requirements.txt
 ├── public/                # Static frontend
 ├── web/                   # Next.js frontend
-├── test/                  # Hardhat tests
-└── scripts/               # Deployment scripts
+└── scripts/               # Utility scripts
 ```
 
 ---
 
 ## 🛠️ Quick Start
 
-### 1. Smart Contracts
-
-```bash
-# Install dependencies
-npm install
-
-# Compile contracts
-npx hardhat compile
-
-# Run tests
-npx hardhat test
-
-# Deploy to Polygon Amoy testnet
-npx hardhat run scripts/deploy.js --network amoy
-```
-
-### 2. Python Backend
+### 1. Python Backend
 
 ```bash
 cd backend
@@ -117,7 +85,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-### 3. Data Ingestion (CRITICAL - AI Brain)
+### 2. Data Ingestion (CRITICAL - AI Brain)
 
 The AI Sales Agent cannot function without property data in the vector store.
 
@@ -136,7 +104,7 @@ python ingest_data.py
 python verify_vector_store.py
 ```
 
-### 4. Verify Health
+### 3. Verify Health
 
 ```bash
 # Check API is running
@@ -149,7 +117,7 @@ curl -X POST http://localhost:8000/api/chat \
   -d '{"message": "Show me villas in New Cairo", "session_id": "test123"}'
 ```
 
-### 5. API Endpoints
+### 4. API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -166,16 +134,19 @@ curl -X POST http://localhost:8000/api/chat \
 
 ## 🔐 Environment Variables
 
-Create `.env` in project root:
+Create `.env` in `backend/` directory:
 
 ```env
-# Blockchain
-PRIVATE_KEY=your_deployer_private_key
-POLYGON_RPC_URL=https://rpc-amoy.polygon.technology/
-OSOOL_REGISTRY_ADDRESS=0x...
-
 # AI
 OPENAI_API_KEY=sk-proj-...
+ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# Security
+JWT_SECRET_KEY=...
+ADMIN_API_KEY=...
+
+# Database
+DATABASE_URL=postgresql://...
 ```
 
 ---
@@ -183,9 +154,6 @@ OPENAI_API_KEY=sk-proj-...
 ## 🧪 Testing
 
 ```bash
-# Smart Contracts
-npx hardhat test
-
 # Backend (syntax check)
 cd backend && python -m compileall app/
 ```
@@ -194,11 +162,9 @@ cd backend && python -m compileall app/
 
 ## 📋 Roadmap
 
-- [x] Legal-compliant blockchain registry
 - [x] AI contract analysis (Egyptian law)
 - [x] AI property valuation
 - [x] CI/CD pipeline
-- [ ] Account abstraction (gasless UX)
 - [ ] Mobile app (React Native)
 - [ ] FRA 125 fractional ownership
 

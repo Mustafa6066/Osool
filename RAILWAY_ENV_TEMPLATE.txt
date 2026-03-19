@@ -43,9 +43,6 @@ SUPABASE_KEY=YOUR_SUPABASE_ANON_KEY_HERE
 # Generate with: openssl rand -hex 32
 JWT_SECRET_KEY=PASTE_GENERATED_KEY_HERE
 
-# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-WALLET_ENCRYPTION_KEY=PASTE_GENERATED_KEY_HERE
-
 # ─────────────────────────────────────────────────────────────
 # ADMIN API KEY (CRITICAL - Required by main.py:243)
 # ─────────────────────────────────────────────────────────────
@@ -110,19 +107,11 @@ ORCHESTRATOR_URL=
 # Shared webhook secret (must match Orchestrator's WEBHOOK_SECRET)
 WEBHOOK_SECRET=
 
-# ─────────────────────────────────────────────────────────────
-# OPTIONAL: BLOCKCHAIN (For future phases)
-# ─────────────────────────────────────────────────────────────
-# For Phase 1, blockchain is optional
-# BLOCKCHAIN_SIMULATION_MODE=true
-# POLYGON_RPC_URL=https://polygon-amoy.g.alchemy.com/v2/YOUR_KEY
-# OSOOL_REGISTRY_ADDRESS=0x...
-
 # ═══════════════════════════════════════════════════════════════
 # DEPLOYMENT STEPS:
 # ═══════════════════════════════════════════════════════════════
 # 1. Generate security keys: python backend/generate_secrets.py
-#    This generates: JWT_SECRET_KEY, ADMIN_API_KEY, WALLET_ENCRYPTION_KEY
+#    This generates: JWT_SECRET_KEY, ADMIN_API_KEY
 # 2. Get API keys from OpenAI and Anthropic
 # 3. (Optional) Set up Supabase project for vector store, or use Railway PostgreSQL
 # 4. Copy all variables to Railway Dashboard → Variables Tab

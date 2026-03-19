@@ -48,7 +48,6 @@ services:
       - PAYMOB_API_KEY=${PAYMOB_API_KEY}
       - ADMIN_API_KEY=${ADMIN_API_KEY}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - WALLET_ENCRYPTION_KEY=${WALLET_ENCRYPTION_KEY}
       - SENTRY_DSN=${SENTRY_DSN}
     depends_on:
       - db

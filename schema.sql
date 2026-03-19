@@ -81,7 +81,6 @@ create table transactions (
   property_id bigint references properties(id),
   amount numeric not null,
   status text check (status in ('pending', 'confirmed', 'failed')),
-  blockchain_tx_hash text,
   stripe_payment_id text, -- or paymob
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

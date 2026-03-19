@@ -1,6 +1,6 @@
 # Osool (أصول) — SaaS CX & UX Strategy Document
 
-**Project**: Osool — AI-powered real estate co-investment platform for the Egyptian market that eliminates trust gaps and price volatility through blockchain-verified ownership, hybrid AI valuation (XGBoost + Claude + GPT-4o), and autonomous marketing orchestration.
+**Project**: Osool — AI-powered real estate co-investment platform for the Egyptian market that eliminates trust gaps and price volatility through hybrid AI valuation (XGBoost + Claude + GPT-4o), and autonomous marketing orchestration.
 
 **Prepared by**: CX Engineering & Product Strategy
 
@@ -31,7 +31,7 @@ This is not a property listing site. It is an **intelligent investment workspace
 
 1. **Data-First Credibility** — Show the math. Never hide behind vague claims. Every recommendation has a visible reasoning chain. The user sees the same numbers the AI used to reach its conclusion.
 
-2. **Invisible Complexity** — The platform runs Claude, GPT-4o, XGBoost, pgvector, blockchain verification, BullMQ job queues, and 5 feedback loops. The user should feel none of that machinery — only the outcome: fast answers, smart suggestions, fresh data.
+2. **Invisible Complexity** — The platform runs Claude, GPT-4o, XGBoost, pgvector, BullMQ job queues, and 5 feedback loops. The user should feel none of that machinery — only the outcome: fast answers, smart suggestions, fresh data.
 
 3. **Egyptian-Market Intimacy** — Language-adaptive (Egyptian Arabic dialect + English), CBE-rate-aware calculations, Law 114 compliance checks, family committee decision mode, EGP formatting, Fawry/InstaPay payment rails. This is not a localized global product; it is built from the ground up for Egyptian buyers.
 

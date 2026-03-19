@@ -31,12 +31,6 @@ ORCHESTRATOR_API_KEY=
 # - Update this after deploying to Railway
 
 # ─────────────────────────────────────────────────────────────
-# THIRDWEB (Web3 Wallet)
-# ─────────────────────────────────────────────────────────────
-# Get from: https://thirdweb.com/dashboard
-NEXT_PUBLIC_THIRDWEB_CLIENT_ID=YOUR_THIRDWEB_CLIENT_ID_HERE
-
-# ─────────────────────────────────────────────────────────────
 # WHATSAPP CONTACT (PropertyCard contact button)
 # ─────────────────────────────────────────────────────────────
 # Egyptian number in international format without '+', e.g. 201001234567
@@ -47,9 +41,8 @@ NEXT_PUBLIC_WHATSAPP_NUMBER=201001234567
 # ═══════════════════════════════════════════════════════════════
 # 1. Deploy backend to Railway FIRST
 # 2. Copy Railway URL to NEXT_PUBLIC_API_URL
-# 3. Get ThirdWeb Client ID from dashboard
-# 4. Deploy frontend to Vercel
-# 5. Update Railway FRONTEND_DOMAIN with Vercel URL
+# 3. Deploy frontend to Vercel
+# 4. Update Railway FRONTEND_DOMAIN with Vercel URL
 # ═══════════════════════════════════════════════════════════════
 
 # ═══════════════════════════════════════════════════════════════

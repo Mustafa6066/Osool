@@ -124,11 +124,9 @@ API KEYS TO OBTAIN:
 □ OpenAI API Key → https://platform.openai.com/api-keys
 □ Anthropic API Key → https://console.anthropic.com/settings/keys
 □ Supabase URL & Key → Your Supabase project dashboard
-□ ThirdWeb Client ID → https://thirdweb.com/dashboard
 
 KEYS TO GENERATE:
 □ JWT Secret Key (use command in GENERATE_KEYS.md)
-□ Wallet Encryption Key (use command in GENERATE_KEYS.md)
 
 ═══════════════════════════════════════════════════════════════════════════
 ⚠️ CRITICAL SETTINGS (DON'T FORGET!)

@@ -9,36 +9,7 @@ on:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════
-  # JOB 1: TEST SMART CONTRACTS (The Trust Layer)
-  # ═══════════════════════════════════════════════════════════════
-  test-contracts:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: .
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      
-      - name: Install Dependencies
-        run: npm ci
-        
-      - name: Compile Contracts
-        run: npx hardhat compile
-        
-      - name: Run Tests
-        run: npx hardhat test
-        env:
-          # Dummy key for testing (no real funds)
-          PRIVATE_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
-
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 2: TEST AI BACKEND (The Intelligence Layer)
+  # JOB 1: TEST AI BACKEND (The Intelligence Layer)
   # ═══════════════════════════════════════════════════════════════
   test-backend:
     runs-on: ubuntu-latest

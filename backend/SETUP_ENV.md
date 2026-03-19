@@ -14,7 +14,6 @@ python generate_secrets.py
 This will generate:
 - `JWT_SECRET_KEY` - For access token signing
 - `ADMIN_API_KEY` - For admin endpoint protection
-- `WALLET_ENCRYPTION_KEY` - For encrypting user wallets (CRITICAL!)
 - `DATABASE_URL` - PostgreSQL connection with secure password
 
 **IMPORTANT:** Copy these values immediately - they're shown only once!
@@ -43,7 +42,6 @@ DATABASE_URL=postgresql://osool_user:m0IYkqx1sFxvp5Y0KYJcBzUA@localhost:5432/oso
 # Security Keys
 JWT_SECRET_KEY=$hPw_UOPEaIIS_j*+uZlR(0oHcX3R#tBY&yEf8fhgMrJJnPos6yY38Q0=jnQku3V
 ADMIN_API_KEY=bcc0e9313e4fc76cd0fb4767efdafe76d9974292cb777899ef18b8abfb594de3
-WALLET_ENCRYPTION_KEY=sxMNZF7cdaODTTmG8kMM7XShG-hJb6P7rUwhL9Pnv_8=
 
 # AI APIs (use your NEW keys!)
 OPENAI_API_KEY=sk-proj-YOUR_NEW_KEY_HERE
@@ -60,7 +58,6 @@ PORT=8000
 LOG_LEVEL=debug
 
 # Optional Services (Phase 1: keep these disabled)
-ENABLE_BLOCKCHAIN=false
 ENABLE_PAYMENTS=false
 ENABLE_SMS=false
 ENABLE_EMAIL=false
@@ -131,7 +128,6 @@ DATABASE_URL=sqlite:///./osool_dev.db
 | `JWT_SECRET_KEY` | ✅ Yes | Signs access tokens |
 | `OPENAI_API_KEY` | ✅ Yes | OpenAI embeddings & fallback |
 | `ANTHROPIC_API_KEY` | ✅ Yes | Claude CoInvestor reasoning |
-| `WALLET_ENCRYPTION_KEY` | ✅ Yes | Encrypts user wallets (BACKUP THIS!) |
 | `ADMIN_API_KEY` | ⚠️ Recommended | Protects admin endpoints |
 | `SENTRY_DSN` | 🔵 Optional | Error tracking |
 | `REDIS_URL` | 🔵 Optional | Caching & rate limiting |

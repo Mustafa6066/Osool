@@ -205,7 +205,7 @@ groups:
     rules:
       - alert: CircuitBreakerOpen
         expr: |
-          osool_circuit_breaker_state{service=~"openai|blockchain|paymob"} == 2
+          osool_circuit_breaker_state{service=~"openai|paymob"} == 2
         for: 2m
         labels:
           severity: critical

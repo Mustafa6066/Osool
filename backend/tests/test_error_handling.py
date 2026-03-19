@@ -31,7 +31,6 @@ from app.error_handling import (
     CostLimitError,
     ValidationError,
     DatabaseError,
-    BlockchainError,
     OsoolSystemError
 )
 from app.services.circuit_breaker import (
@@ -39,8 +38,7 @@ from app.services.circuit_breaker import (
     CircuitState,
     claude_breaker,
     openai_breaker,
-    database_breaker,
-    blockchain_breaker
+    database_breaker
 )
 
 
@@ -61,13 +59,11 @@ def reset_circuit_breakers():
     claude_breaker.reset()
     openai_breaker.reset()
     database_breaker.reset()
-    blockchain_breaker.reset()
     yield
     # Reset after test too
     claude_breaker.reset()
     openai_breaker.reset()
     database_breaker.reset()
-    blockchain_breaker.reset()
 
 
 # ---------------------------------------------------------------------------
@@ -323,32 +319,6 @@ async def test_database_error(test_client):
 
 
 # ---------------------------------------------------------------------------
-# TEST: BLOCKCHAIN ERROR
-# ---------------------------------------------------------------------------
-
-@_integration
-@pytest.mark.asyncio
-async def test_blockchain_error_graceful_fallback(test_client):
-    """Test blockchain errors are handled gracefully (not blocking)"""
-
-    with patch("app.services.vector_search.validate_property_exists") as mock_blockchain:
-        mock_blockchain.side_effect = Exception("Service unreachable")
-
-        response = await test_client.post("/api/chat", json={
-            "session_id": "test-blockchain-error",
-            "message": "Verify property 123 on blockchain"
-        })
-
-        # Should still return 200 (graceful degradation)
-        # CoInvestor should explain blockchain unavailable
-        assert response.status_code == 200
-        data = response.json()
-
-        response_text = data["response"].lower()
-        assert "blockchain" in response_text or "verification" in response_text
-
-
-# ---------------------------------------------------------------------------
 # TEST: CIRCUIT BREAKER BASIC FUNCTIONALITY
 # ---------------------------------------------------------------------------
 
@@ -552,28 +522,6 @@ async def test_database_circuit_breaker(reset_circuit_breakers):
 
     # Circuit should open
     assert database_breaker.state == CircuitState.OPEN
-
-
-# ---------------------------------------------------------------------------
-# TEST: BLOCKCHAIN CIRCUIT BREAKER
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_blockchain_circuit_breaker(reset_circuit_breakers):
-    """Test blockchain circuit breaker for node failures"""
-
-    async def failing_blockchain_call():
-        raise Exception("Blockchain node timeout")
-
-    # Trigger failures
-    for i in range(3):
-        try:
-            await blockchain_breaker.call_async(failing_blockchain_call)
-        except:
-            pass
-
-    # Circuit should open
-    assert blockchain_breaker.state == CircuitState.OPEN
 
 
 # ---------------------------------------------------------------------------

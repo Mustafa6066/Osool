@@ -136,33 +136,7 @@ jobs:
           npm run build
 
   # ==========================================
-  # Job 3: Smart Contract Tests
-  # ==========================================
-  smart-contract-test:
-    name: Smart Contract Tests (Hardhat)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Hardhat and dependencies
-        run: |
-          cd contracts
-          npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
-
-      - name: Run Hardhat tests
-        run: |
-          cd contracts
-          npx hardhat test
-
-  # ==========================================
-  # Job 4: Security Scan
+  # Job 3: Security Scan
   # ==========================================
   security-scan:
     name: Security Vulnerability Scan

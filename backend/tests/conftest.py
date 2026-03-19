@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 # Ensure we're in dev/test mode
 os.environ["ENVIRONMENT"] = "development"
-os.environ["BLOCKCHAIN_SIMULATION_MODE"] = "true"
 # JWT secret must be set before auth module is imported (it validates at import time)
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest-minimum-32-chars-long")
 
@@ -45,7 +44,7 @@ def mock_user():
     user.full_name = "Test User"
     user.phone_number = "+201234567890"
     user.phone_verified = True
-    user.wallet_address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+    user.wallet_address = None
     user.role = "investor"
     user.is_verified = True
     return user
@@ -61,7 +60,6 @@ def mock_property():
     prop.price = 1_000_000.0
     prop.location = "New Cairo"
     prop.is_available = True
-    prop.blockchain_id = 101
     return prop
 
 
@@ -75,5 +73,4 @@ def mock_transaction():
     tx.amount = 100_000.0
     tx.paymob_order_id = "ORD-12345"
     tx.status = "pending"
-    tx.blockchain_tx_hash = None
     return tx
