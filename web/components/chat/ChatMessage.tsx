@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles, BarChart2, Copy, RefreshCw, Check,
+  Sparkles, BarChart2, Copy, RefreshCw, Check, ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import type { VisualizationRendererProps } from '@/components/visualizations/VisualizationRenderer';
@@ -25,6 +25,31 @@ const VisualizationRenderer = dynamic(
 
 /* ─── Spring / ease presets ──────────────────── */
 const EASE_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
+const MOBILE_VISUALIZATION_PRIORITY: Record<string, number> = {
+  market_benchmark: 1,
+  price_growth_chart: 1,
+  market_trend_chart: 1,
+  inflation_killer: 1,
+  certificates_vs_property: 2,
+  bank_vs_property: 2,
+  bank_vs_property_table: 2,
+  financial_comparison_table: 2,
+  comparison_table: 2,
+  roi_calculator: 2,
+  payment_plan_comparison: 3,
+  payment_plan_analysis: 3,
+  area_analysis: 3,
+  developer_analysis: 3,
+  property_type_analysis: 3,
+  comparison_matrix: 4,
+  data_table: 5,
+  table: 5,
+};
+
+const getMobileVisualizationPriority = (action: UiAction): number => {
+  return MOBILE_VISUALIZATION_PRIORITY[action.type] ?? 10;
+};
 
 /* ─── Agent Avatar ───────────────────────────── */
 const AgentAvatar = ({ thinking = false }: { thinking?: boolean }) => (
@@ -93,6 +118,66 @@ export default function ChatMessage({
   generateSuggestions,
 }: ChatMessageProps) {
   const [copiedMsgId, setCopiedMsgId] = useState<number | null>(null);
+  const [isMobileVizOpen, setIsMobileVizOpen] = useState(false);
+  const [mobileVizIndex, setMobileVizIndex] = useState(0);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const renderableUiActions = (msg.uiActions ?? []).filter(shouldRenderUiAction);
+  const prioritizedUiActions = useMemo(
+    () => renderableUiActions
+      .map((action, originalIndex) => ({
+        action,
+        originalIndex,
+        priority: getMobileVisualizationPriority(action),
+      }))
+      .sort((a, b) => {
+        if (a.priority !== b.priority) {
+          return a.priority - b.priority;
+        }
+        return a.originalIndex - b.originalIndex;
+      })
+      .map((entry) => entry.action),
+    [renderableUiActions]
+  );
+  const hasMultipleVisualizations = prioritizedUiActions.length > 1;
+
+  useEffect(() => {
+    setIsMobileVizOpen(false);
+    setMobileVizIndex(0);
+  }, [msg.id]);
+
+  useEffect(() => {
+    if (mobileVizIndex >= prioritizedUiActions.length) {
+      setMobileVizIndex(0);
+    }
+  }, [mobileVizIndex, prioritizedUiActions.length]);
+
+  const handleMobileTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (prioritizedUiActions.length < 2) return;
+    const touch = e.changedTouches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleMobileTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!touchStartRef.current || prioritizedUiActions.length < 2) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    touchStartRef.current = null;
+
+    // Prevent vertical scroll gestures from triggering chart pagination.
+    if (absX < 52 || absX < absY * 1.1) return;
+
+    if (deltaX < 0) {
+      setMobileVizIndex((current) => Math.min(prioritizedUiActions.length - 1, current + 1));
+      return;
+    }
+
+    setMobileVizIndex((current) => Math.max(0, current - 1));
+  };
 
   const copyToClipboard = (text: string, msgId: number) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -137,12 +222,10 @@ export default function ChatMessage({
               <StreamingText content={msg.content} animate={msg.id === lastAiMsgId} />
 
               {/* Visualizations */}
-              {msg.uiActions && msg.uiActions.length > 0 && (
+              {prioritizedUiActions.length > 0 && (
                 <div className="mt-4 sm:mt-5 space-y-2.5 sm:space-y-3" dir="ltr">
                   <AnimatePresence>
-                    {msg.uiActions
-                      .filter(shouldRenderUiAction)
-                      .map((action: UiAction, idx: number) => (
+                    {prioritizedUiActions.map((action: UiAction, idx: number) => (
                         <motion.div
                           key={idx}
                           initial={{ opacity: 0, height: 0, scale: 0.95, filter: 'blur(4px)' }}
@@ -152,7 +235,7 @@ export default function ChatMessage({
                             ease: EASE_EXPO,
                             delay: idx * 0.15,
                           }}
-                          className="w-full max-w-full"
+                          className={`w-full max-w-full ${idx > 0 ? 'hidden sm:block' : ''}`}
                         >
                           <VisualizationRenderer
                             type={action.type}
@@ -162,6 +245,24 @@ export default function ChatMessage({
                         </motion.div>
                       ))}
                   </AnimatePresence>
+
+                  {hasMultipleVisualizations && (
+                    <div className="sm:hidden pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileVizIndex(0);
+                          setIsMobileVizOpen(true);
+                        }}
+                        className="w-full rounded-xl border border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3.5 py-2.5 text-[13px] font-medium text-[var(--color-text-primary)]"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <BarChart2 className="h-4 w-4" />
+                          View full analysis ({prioritizedUiActions.length})
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -273,6 +374,91 @@ export default function ChatMessage({
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {isMobileVizOpen && prioritizedUiActions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm sm:hidden"
+            onClick={() => setIsMobileVizOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="flex h-full flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-black/65 px-4 py-3 backdrop-blur-md">
+                <div className="text-sm font-semibold text-white">
+                  Analysis {mobileVizIndex + 1} / {prioritizedUiActions.length}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileVizOpen(false)}
+                  className="rounded-lg border border-white/15 bg-white/10 p-2 text-white"
+                  aria-label="Close analysis"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div
+                className="min-h-0 flex-1 overflow-y-auto px-3 py-3"
+                onTouchStart={handleMobileTouchStart}
+                onTouchEnd={handleMobileTouchEnd}
+                onTouchCancel={() => {
+                  touchStartRef.current = null;
+                }}
+              >
+                <VisualizationRenderer
+                  type={prioritizedUiActions[mobileVizIndex].type}
+                  data={(prioritizedUiActions[mobileVizIndex].data || prioritizedUiActions[mobileVizIndex]) as VisualizationRendererProps['data']}
+                  isRTL={isArabic(msg.content)}
+                />
+
+                {prioritizedUiActions.length > 1 && (
+                  <div className="mt-2 text-center text-[11px] font-medium text-white/75">
+                    Swipe left or right to move between visuals
+                  </div>
+                )}
+              </div>
+
+              {prioritizedUiActions.length > 1 && (
+                <div className="border-t border-white/10 bg-black/65 p-3 backdrop-blur-md">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMobileVizIndex((current) => Math.max(0, current - 1))}
+                      disabled={mobileVizIndex === 0}
+                      className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+                    >
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMobileVizIndex((current) => Math.min(prioritizedUiActions.length - 1, current + 1))}
+                      disabled={mobileVizIndex === prioritizedUiActions.length - 1}
+                      className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+                    >
+                      <span className="inline-flex items-center justify-center gap-2">
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

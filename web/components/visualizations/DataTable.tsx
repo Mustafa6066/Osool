@@ -173,75 +173,122 @@ export default function DataTable({
                         </p>
                     </div>
                 ) : (
-                    <table className="w-full min-w-[620px] border-collapse">
-                        {/* Header */}
-                        <thead>
-                            <tr className="bg-[var(--color-surface)]/30 border-b border-[var(--color-border)]">
-                                {columns.map((col) => (
-                                    <th
-                                        key={col.key}
-                                        className={`px-2.5 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider cursor-${
-                                            sortable ? 'pointer hover:text-white' : 'default'
-                                        } transition-colors ${
-                                            col.align === 'left' ? 'text-left' :
-                                            col.align === 'right' ? 'text-right' :
-                                            'text-center'
-                                        }`}
-                                        style={{ width: col.width }}
-                                        onClick={() => handleSort(col.key)}
-                                    >
-                                        <div className="flex items-center gap-2 justify-${
-                                            col.align === 'left' ? 'start' :
-                                            col.align === 'right' ? 'end' :
-                                            'center'
-                                        }">
-                                            {col.header}
-                                            {sortable && sortKey === col.key && (
-                                                sortOrder === 'asc' ? (
-                                                    <ChevronUpIcon className="w-4 h-4" />
-                                                ) : (
-                                                    <ChevronDownIcon className="w-4 h-4" />
-                                                )
-                                            )}
-                                        </div>
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-
-                        {/* Body */}
-                        <tbody>
+                    <>
+                        <div className="md:hidden space-y-2.5 p-3" dir={isRTL ? 'rtl' : 'ltr'}>
                             {sortedData.map((row, idx) => (
-                                <tr
-                                    key={idx}
-                                    className={`border-t border-[var(--color-border)] transition-colors ${
-                                        striped && idx % 2 === 0 ? 'bg-[var(--color-surface)]/10' : ''
-                                    } ${
-                                        hoverable ? 'hover:bg-[var(--color-surface)]/20' : ''
-                                    } ${
-                                        onRowClick ? 'cursor-pointer' : ''
+                                <div
+                                    key={`mobile-row-${idx}`}
+                                    className={`rounded-xl border border-[var(--color-border)]/60 bg-[var(--color-surface)]/30 px-3 py-2.5 ${
+                                        onRowClick ? 'cursor-pointer active:scale-[0.99] transition-transform' : ''
                                     }`}
                                     onClick={() => onRowClick?.(row, idx)}
                                 >
-                                    {columns.map((col) => (
-                                        <td
-                                            key={`${idx}-${col.key}`}
-                                            className={`px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm ${
-                                                col.align === 'left' ? 'text-left' :
-                                                col.align === 'right' ? 'text-right' :
-                                                'text-center'
-                                            }`}
-                                        >
-                                            {col.format
-                                                ? col.format(row[col.key])
-                                                : renderCellValue(row[col.key])
-                                            }
-                                        </td>
-                                    ))}
-                                </tr>
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                        <span className={`text-[11px] font-semibold uppercase tracking-wider ${schemeAccent[colorScheme]}`}>
+                                            Row {idx + 1}
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        {columns.map((col) => (
+                                            <div
+                                                key={`mobile-cell-${idx}-${col.key}`}
+                                                className="flex items-start justify-between gap-3 rounded-lg bg-[var(--color-surface)]/40 px-2.5 py-2"
+                                            >
+                                                <div className="text-[11px] text-[var(--color-text-secondary)]">
+                                                    {col.header}
+                                                </div>
+                                                <div
+                                                    className={`text-xs text-[var(--color-text-primary)] ${
+                                                        col.align === 'left' ? 'text-left' :
+                                                        col.align === 'right' ? 'text-right' :
+                                                        'text-center'
+                                                    }`}
+                                                >
+                                                    {col.format
+                                                        ? col.format(row[col.key])
+                                                        : renderCellValue(row[col.key])
+                                                    }
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             ))}
-                        </tbody>
-                    </table>
+                        </div>
+
+                        <div className="hidden md:block">
+                            <table className="w-full min-w-[620px] border-collapse">
+                                {/* Header */}
+                                <thead>
+                                    <tr className="bg-[var(--color-surface)]/30 border-b border-[var(--color-border)]">
+                                        {columns.map((col) => (
+                                            <th
+                                                key={col.key}
+                                                className={`px-2.5 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider cursor-${
+                                                    sortable ? 'pointer hover:text-white' : 'default'
+                                                } transition-colors ${
+                                                    col.align === 'left' ? 'text-left' :
+                                                    col.align === 'right' ? 'text-right' :
+                                                    'text-center'
+                                                }`}
+                                                style={{ width: col.width }}
+                                                onClick={() => handleSort(col.key)}
+                                            >
+                                                <div className="flex items-center gap-2 justify-${
+                                                    col.align === 'left' ? 'start' :
+                                                    col.align === 'right' ? 'end' :
+                                                    'center'
+                                                }">
+                                                    {col.header}
+                                                    {sortable && sortKey === col.key && (
+                                                        sortOrder === 'asc' ? (
+                                                            <ChevronUpIcon className="w-4 h-4" />
+                                                        ) : (
+                                                            <ChevronDownIcon className="w-4 h-4" />
+                                                        )
+                                                    )}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+
+                                {/* Body */}
+                                <tbody>
+                                    {sortedData.map((row, idx) => (
+                                        <tr
+                                            key={idx}
+                                            className={`border-t border-[var(--color-border)] transition-colors ${
+                                                striped && idx % 2 === 0 ? 'bg-[var(--color-surface)]/10' : ''
+                                            } ${
+                                                hoverable ? 'hover:bg-[var(--color-surface)]/20' : ''
+                                            } ${
+                                                onRowClick ? 'cursor-pointer' : ''
+                                            }`}
+                                            onClick={() => onRowClick?.(row, idx)}
+                                        >
+                                            {columns.map((col) => (
+                                                <td
+                                                    key={`${idx}-${col.key}`}
+                                                    className={`px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm ${
+                                                        col.align === 'left' ? 'text-left' :
+                                                        col.align === 'right' ? 'text-right' :
+                                                        'text-center'
+                                                    }`}
+                                                >
+                                                    {col.format
+                                                        ? col.format(row[col.key])
+                                                        : renderCellValue(row[col.key])
+                                                    }
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </div>
         </motion.div>
