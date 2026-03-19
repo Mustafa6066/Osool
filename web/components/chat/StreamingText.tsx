@@ -56,19 +56,20 @@ const CURSOR_SPRING = { type: 'spring' as const, damping: 20, stiffness: 300 };
 interface StreamingTextProps {
   content: string;
   animate: boolean;
+  forceRTL?: boolean;
 }
 
-export default function StreamingText({ content, animate }: StreamingTextProps) {
+export default function StreamingText({ content, animate, forceRTL = false }: StreamingTextProps) {
   const sanitized = sanitizeAgentContent(content);
   const { displayed, done } = useTypewriter(sanitized, animate, 16);
 
   // Once done, render the full markdown
   if (done) {
-    return <MarkdownMessage content={sanitized} />;
+    return <MarkdownMessage content={sanitized} forceRTL={forceRTL} />;
   }
 
   // While streaming: raw text with animated cursor
-  const isRTL = /[\u0600-\u06FF]/.test(displayed) && (displayed.match(/[\u0600-\u06FF]/g)?.length || 0) > displayed.length * 0.3;
+  const isRTL = forceRTL || /[\u0600-\u06FF]/.test(displayed);
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className={isRTL ? 'text-end' : 'text-start'}>

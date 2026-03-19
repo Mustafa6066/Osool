@@ -186,7 +186,13 @@ export default function ChatMessage({
     });
   };
 
-  const msgIsArabic = msg.role !== 'user' && isArabic(msg.content);
+  const hasArabicChars = /[\u0600-\u06FF]/.test(msg.content || '');
+  const msgIsArabic = msg.role !== 'user' && (
+    msg.detectedLanguage === 'ar'
+    || conversationLanguage === 'ar'
+    || hasArabicChars
+    || isArabic(msg.content)
+  );
 
   return (
     <motion.div
@@ -195,7 +201,7 @@ export default function ChatMessage({
       transition={{ type: 'spring', damping: 26, stiffness: 200 }}
       className="mb-5 sm:mb-6"
     >
-      <div className="flex gap-3 sm:gap-4" dir={msgIsArabic ? 'rtl' : undefined}>
+      <div className={`flex gap-3 sm:gap-4 ${msgIsArabic ? 'flex-row-reverse' : ''}`} dir={msgIsArabic ? 'rtl' : undefined}>
         {/* Avatar column */}
         <div className="flex flex-shrink-0 mt-1">
           {msg.role === 'user' ? null : (
@@ -221,7 +227,7 @@ export default function ChatMessage({
           ) : (
             /* ── Agent response ── */
             <div className="text-[14px] sm:text-[15px] leading-[1.65] sm:leading-relaxed text-[var(--color-text-secondary)] pt-0.5 sm:pt-1" dir={msgIsArabic ? 'rtl' : 'ltr'}>
-              <StreamingText content={msg.content} animate={msg.id === lastAiMsgId} />
+              <StreamingText content={msg.content} animate={msg.id === lastAiMsgId} forceRTL={msgIsArabic} />
 
               {/* Visualizations */}
               {prioritizedUiActions.length > 0 && (
@@ -242,7 +248,7 @@ export default function ChatMessage({
                           <VisualizationRenderer
                             type={action.type}
                             data={(action.data || action) as VisualizationRendererProps['data']}
-                            isRTL={isArabic(msg.content)}
+                            isRTL={msgIsArabic}
                           />
                         </motion.div>
                       ))}
@@ -367,7 +373,7 @@ export default function ChatMessage({
                           : generateSuggestions(msg)
                       }
                       onSelect={(suggestion) => onSendMessage(suggestion)}
-                      isRTL={msg.detectedLanguage === 'ar' || isArabic(msg.content)}
+                      isRTL={msgIsArabic}
                     />
                   )}
                 </>

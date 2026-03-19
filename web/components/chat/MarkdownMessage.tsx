@@ -13,10 +13,11 @@ import { GlossaryAnnotated } from '@/components/GlossaryTooltip';
    ═══════════════════════════════════════════════ */
 interface MarkdownMessageProps {
   content: string;
+  forceRTL?: boolean;
 }
 
-export default function MarkdownMessage({ content }: MarkdownMessageProps) {
-  const msgIsArabic = isArabic(content);
+export default function MarkdownMessage({ content, forceRTL = false }: MarkdownMessageProps) {
+  const msgIsArabic = forceRTL || isArabic(content) || /[\u0600-\u06FF]/.test(content);
   const normalized = normalizeMarkdown(content);
 
   return (
