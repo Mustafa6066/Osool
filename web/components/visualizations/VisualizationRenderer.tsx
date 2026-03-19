@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Suspense, useState, type ComponentProps, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Maximize2, X } from "lucide-react";
 
 // Lazy load visualization components for better performance
@@ -529,10 +530,69 @@ function InnerVisualizationRenderer({ type, data, isRTL = true }: VisualizationR
 
 export default function VisualizationRenderer(props: VisualizationRendererProps) {
     const [isMaximized, setIsMaximized] = useState(false);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isClient || !isMaximized) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isClient, isMaximized]);
+
+    useEffect(() => {
+        if (!isClient || !isMaximized) return;
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setIsMaximized(false);
+            }
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => {
+            window.removeEventListener("keydown", onKeyDown);
+        };
+    }, [isClient, isMaximized]);
     
-    // Check if inner renderer actually has something to return
-    const content = InnerVisualizationRenderer(props);
-    if (!content) return null;
+    const inlineContent = InnerVisualizationRenderer(props);
+    if (!inlineContent) return null;
+
+    const modal =
+        isClient && isMaximized
+            ? createPortal(
+                <div className="fixed inset-0 z-[220] flex flex-col bg-black/90 backdrop-blur-sm p-2 sm:p-6" onClick={() => setIsMaximized(false)}>
+                    <div className="flex justify-end p-2 md:pb-4">
+                        <button
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                setIsMaximized(false);
+                            }}
+                            className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors backdrop-blur-md border border-white/20 text-white"
+                            aria-label="Close"
+                        >
+                            <X size={24} />
+                        </button>
+                    </div>
+                    <div
+                        className="flex-1 w-full max-w-full mx-auto bg-[var(--color-surface)] rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-8 overflow-y-auto no-scrollbar shadow-2xl relative flex flex-col"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex-1 min-h-[400px]">
+                            {InnerVisualizationRenderer(props)}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )
+            : null;
 
     return (
         <>
@@ -540,7 +600,7 @@ export default function VisualizationRenderer(props: VisualizationRendererProps)
             <div className="relative group overflow-hidden rounded-2xl border border-[var(--color-border)]/35 bg-[var(--color-surface)]/55 backdrop-blur-sm">
                 <div className="w-full relative">
                     <div className="w-full max-w-full min-w-0 p-2 sm:p-3">
-                        {content}
+                        {inlineContent}
                     </div>
                 </div>
                 
@@ -553,30 +613,7 @@ export default function VisualizationRenderer(props: VisualizationRendererProps)
                     <Maximize2 size={16} />
                 </button>
             </div>
-
-            {/* Fullscreen Deep Dive Modal */}
-            {isMaximized && (
-                <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur-sm p-2 sm:p-6" onClick={() => setIsMaximized(false)}>
-                    <div className="flex justify-end p-2 md:pb-4">
-                        <button 
-                            onClick={() => setIsMaximized(false)} 
-                            className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors backdrop-blur-md border border-white/20 text-white"
-                            aria-label="Close"
-                        >
-                            <X size={24} />
-                        </button>
-                    </div>
-                    {/* Centered wrapper that maxes out real estate but keeps its aspect ratio */}
-                    <div 
-                        className="flex-1 w-full max-w-full mx-auto bg-[var(--color-surface)] rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-8 overflow-y-auto no-scrollbar shadow-2xl relative flex flex-col"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex-1 min-h-[400px]">
-                            {content}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {modal}
         </>
     );
 }
