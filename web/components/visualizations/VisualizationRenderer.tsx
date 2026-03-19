@@ -577,6 +577,7 @@ export default function VisualizationRenderer(props: VisualizationRendererProps)
                             }}
                             className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors backdrop-blur-md border border-white/20 text-white"
                             aria-label="Close"
+                            data-testid="viz-fullscreen-close"
                         >
                             <X size={24} />
                         </button>
@@ -609,6 +610,7 @@ export default function VisualizationRenderer(props: VisualizationRendererProps)
                     onClick={() => setIsMaximized(true)} 
                     className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 sm:opacity-0 group-hover:opacity-100 transition-opacity p-1.5 sm:p-2 rounded-xl bg-white/85 dark:bg-black/60 backdrop-blur-sm border border-black/10 dark:border-white/10 shadow-sm z-10 hover:bg-white dark:hover:bg-black text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                     aria-label="Maximize chart"
+                    data-testid="viz-maximize"
                 >
                     <Maximize2 size={16} />
                 </button>
