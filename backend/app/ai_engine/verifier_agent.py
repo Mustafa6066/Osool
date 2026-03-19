@@ -62,6 +62,27 @@ class VerifierAgent:
         r'(?:ready|جاهز|متسلم)\s*(?:by\s*)?(20\d{2})',
     ]
 
+    # Payment plan patterns — catch hallucinated down payments, installments, years
+    DOWN_PAYMENT_PATTERNS = [
+        r'(\d+(?:\.\d+)?)\s*%\s*(?:down\s*payment|مقدم|دفعة أولى|down)',
+        r'(?:down\s*payment|مقدم|دفعة أولى)\s*(?:of\s+)?(\d+(?:\.\d+)?)\s*%',
+    ]
+
+    INSTALLMENT_PATTERNS = [
+        # Monthly: "25,000 monthly" or "25,000 شهري" or "25K/month"
+        r'(\d[\d,]*(?:\.\d+)?)\s*(?:EGP|جنيه)?\s*(?:monthly|شهري|per month|/month|شهرياً)',
+        r'(?:قسط|installment|monthly)\s*(?:of\s+)?(\d[\d,]*(?:\.\d+)?)\s*(?:EGP|جنيه)?',
+    ]
+
+    INSTALLMENT_YEARS_PATTERNS = [
+        r'(\d+)\s*(?:years|سنوات|سنة|سنين)\s*(?:installment|تقسيط|أقساط)?',
+        r'(?:installment|تقسيط|أقساط)\s*(?:over|على|لمدة)\s*(\d+)\s*(?:years|سنوات|سنة|سنين)',
+    ]
+
+    SIZE_PATTERNS = [
+        r'(\d[\d,]*)\s*(?:sqm|م²|متر مربع|square meter)',
+    ]
+
     def __init__(self):
         self.verification_results: List[Dict] = []
 
@@ -110,7 +131,13 @@ class VerifierAgent:
             )
             corrections.extend(date_corrections)
 
-            # 5. Calculate overall confidence
+            # 5. Verify payment plan claims (down payment, installments, years, size)
+            payment_corrections = self._verify_payment_plans(
+                response_text, properties_mentioned
+            )
+            corrections.extend(payment_corrections)
+
+            # 6. Calculate overall confidence
             total_claims = len(self.verification_results)
             verified_claims = sum(1 for r in self.verification_results if r["verified"])
 
@@ -369,6 +396,126 @@ class VerifierAgent:
                             "mentioned": match.strip(),
                             "actual": actual,
                         })
+
+        return corrections
+
+    def _verify_payment_plans(
+        self,
+        response_text: str,
+        properties_mentioned: List[Dict],
+    ) -> List[Dict]:
+        """Verify payment plan claims (down payment %, installment amounts, years, sizes)
+        against the provided property data."""
+        corrections = []
+        if not properties_mentioned:
+            return corrections
+
+        # Build lookup from properties
+        valid_down_payments = set()
+        valid_installments = set()
+        valid_years = set()
+        valid_sizes = set()
+        for prop in properties_mentioned:
+            dp = prop.get("down_payment") or prop.get("down_payment_percentage")
+            if dp is not None:
+                valid_down_payments.add(int(dp))
+            inst = prop.get("monthly_installment")
+            if inst is not None and float(inst) > 0:
+                valid_installments.add(float(inst))
+            yrs = prop.get("installment_years")
+            if yrs is not None:
+                valid_years.add(int(yrs))
+            sz = prop.get("size_sqm")
+            if sz is not None and int(sz) > 0:
+                valid_sizes.add(int(sz))
+
+        # Check down payment percentages
+        for pattern in self.DOWN_PAYMENT_PATTERNS:
+            for match in re.findall(pattern, response_text, re.IGNORECASE):
+                try:
+                    claimed = float(match)
+                    found = any(abs(claimed - vdp) <= 1 for vdp in valid_down_payments) if valid_down_payments else True
+                    self.verification_results.append({
+                        "claim": f"Down payment {claimed}%",
+                        "mentioned": claimed,
+                        "verified": found,
+                    })
+                    if not found and valid_down_payments:
+                        corrections.append({
+                            "type": "down_payment",
+                            "mentioned": f"{claimed}%",
+                            "actual": f"{next(iter(valid_down_payments))}%",
+                        })
+                except (ValueError, TypeError):
+                    continue
+
+        # Check installment amounts
+        for pattern in self.INSTALLMENT_PATTERNS:
+            for match in re.findall(pattern, response_text, re.IGNORECASE):
+                try:
+                    claimed = float(match.replace(",", ""))
+                    if claimed < 1000:  # Skip tiny numbers that aren't installments
+                        continue
+                    found = any(abs(claimed - vi) / vi <= 0.10 for vi in valid_installments) if valid_installments else True
+                    self.verification_results.append({
+                        "claim": f"Installment {claimed:,.0f}",
+                        "mentioned": claimed,
+                        "verified": found,
+                    })
+                    if not found and valid_installments:
+                        closest = min(valid_installments, key=lambda v: abs(v - claimed))
+                        corrections.append({
+                            "type": "installment",
+                            "mentioned": f"{claimed:,.0f} EGP",
+                            "actual": f"{closest:,.0f} EGP",
+                        })
+                except (ValueError, TypeError):
+                    continue
+
+        # Check installment years
+        for pattern in self.INSTALLMENT_YEARS_PATTERNS:
+            for match in re.findall(pattern, response_text, re.IGNORECASE):
+                try:
+                    claimed = int(match)
+                    if claimed < 1 or claimed > 30:  # Sanity check
+                        continue
+                    found = claimed in valid_years if valid_years else True
+                    self.verification_results.append({
+                        "claim": f"Installment {claimed} years",
+                        "mentioned": claimed,
+                        "verified": found,
+                    })
+                    if not found and valid_years:
+                        corrections.append({
+                            "type": "installment_years",
+                            "mentioned": f"{claimed} years",
+                            "actual": f"{next(iter(valid_years))} years",
+                        })
+                except (ValueError, TypeError):
+                    continue
+
+        # Check size claims
+        for pattern in self.SIZE_PATTERNS:
+            for match in re.findall(pattern, response_text, re.IGNORECASE):
+                try:
+                    claimed = int(match.replace(",", ""))
+                    if claimed < 10:  # Skip tiny numbers
+                        continue
+                    found = any(abs(claimed - vs) / vs <= 0.05 for vs in valid_sizes) if valid_sizes else True
+                    self.verification_results.append({
+                        "claim": f"Size {claimed} sqm",
+                        "mentioned": claimed,
+                        "verified": found,
+                    })
+                    if not found and valid_sizes:
+                        closest = min(valid_sizes, key=lambda v: abs(v - claimed))
+                        corrections.append({
+                            "type": "size",
+                            "mentioned": f"{claimed} sqm",
+                            "actual": f"{closest} sqm",
+                        })
+                except (ValueError, TypeError):
+                    continue
 
         return corrections
 

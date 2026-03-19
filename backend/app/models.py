@@ -8,7 +8,7 @@ Includes pgvector support for AI semantic search (when available).
 
 import enum
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, JSON
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 from app.database import Base
@@ -164,6 +164,9 @@ class Property(Base):
 
     # Vector Embedding for Semantic Search (1536 dim for OpenAI text-embedding-3-small)
     embedding: Mapped[Vector] = mapped_column(Vector(1536), nullable=True)
+
+    # Full-text search tsvector (generated column — see migration 023)
+    search_tsv = mapped_column(TSVECTOR, nullable=True)
 
     # Availability
     is_available: Mapped[bool] = mapped_column(Boolean, default=True)

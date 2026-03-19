@@ -22,6 +22,8 @@ interface JwtPayload extends JsonObject {
   exp?: number;
 }
 
+const TOKEN_EXPIRY_SKEW_MS = 30_000;
+
 type StreamProperty = JsonObject;
 type StreamUiAction = JsonObject;
 type StreamPsychology = JsonObject;
@@ -176,6 +178,23 @@ api.interceptors.response.use(
         isRefreshing = false;
         onTokenRefreshFailed(refreshError);
 
+        // If another tab/session rotated tokens while this request was in-flight,
+        // retry once with the freshest token instead of force-signing-out.
+        if (typeof window !== 'undefined') {
+          const latestRefreshToken = localStorage.getItem('refresh_token');
+          const latestAccessToken = localStorage.getItem('access_token');
+          if (
+            latestRefreshToken &&
+            latestAccessToken &&
+            latestRefreshToken !== refreshToken
+          ) {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${latestAccessToken}`;
+            }
+            return api(originalRequest);
+          }
+        }
+
         // Only force logout on invalid/expired refresh token.
         // Network/server failures should not sign users out abruptly.
         if (isInvalidRefreshResponse(refreshError)) {
@@ -203,7 +222,7 @@ export const isAuthenticated = (): boolean => {
   try {
     const payload = token.split('.')[1];
     const decoded = JSON.parse(atob(payload)) as { exp?: number };
-    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+    if (decoded.exp && decoded.exp * 1000 < (Date.now() - TOKEN_EXPIRY_SKEW_MS)) {
       return false; // Token is expired
     }
   } catch {
@@ -214,29 +233,44 @@ export const isAuthenticated = (): boolean => {
 
 /**
  * Helper: Silently refresh the access token using the stored refresh token.
- * Returns true on success, false on failure (clears tokens on failure).
+ * Returns true on success, false on failure.
  */
+let refreshTokenPromise: Promise<boolean> | null = null;
+
 export const refreshAccessToken = async (): Promise<boolean> => {
   if (typeof window === 'undefined') return false;
+  if (refreshTokenPromise) return refreshTokenPromise;
+
   const refreshToken = localStorage.getItem('refresh_token');
   if (!refreshToken) return false;
-  try {
-    const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {
-      refresh_token: refreshToken,
-    });
-    localStorage.setItem('access_token', data.access_token as string);
-    if (data.refresh_token) {
-      localStorage.setItem('refresh_token', data.refresh_token as string);
+
+  refreshTokenPromise = (async () => {
+    try {
+      const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {
+        refresh_token: refreshToken,
+      });
+      localStorage.setItem('access_token', data.access_token as string);
+      if (data.refresh_token) {
+        localStorage.setItem('refresh_token', data.refresh_token as string);
+      }
+      return true;
+    } catch (error) {
+      // If tokens changed while request was running (another tab refreshed), keep session alive.
+      const latestRefreshToken = localStorage.getItem('refresh_token');
+      if (latestRefreshToken && latestRefreshToken !== refreshToken) {
+        return true;
+      }
+
+      if (!isInvalidRefreshResponse(error)) {
+        console.warn('[Auth] refreshAccessToken transient failure; session preserved for retry.');
+      }
+      return false;
+    } finally {
+      refreshTokenPromise = null;
     }
-    return true;
-  } catch (error) {
-    if (isInvalidRefreshResponse(error)) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user_full_name');
-    }
-    return false;
-  }
+  })();
+
+  return refreshTokenPromise;
 };
 
 /**
@@ -298,7 +332,7 @@ export const storeAuthTokens = (accessToken: string, refreshToken?: string): voi
 /**
  * V6: Streaming Chat Response Types
  */
-export type StreamEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'follow_up' | 'error';
+export type StreamEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'follow_up' | 'error' | 'status' | 'correction';
 
 export interface StreamEvent {
   type: StreamEventType;
@@ -313,6 +347,7 @@ export interface StreamEvent {
   readiness_score?: number;
   detected_language?: string;
   showing_strategy?: string;
+  corrected_text?: string;
 }
 
 export interface StreamChatCallbacks {
@@ -331,6 +366,8 @@ export interface StreamChatCallbacks {
   }) => void;
   onFollowUp?: (followUp: FollowUpPayload) => void;
   onError: (error: string) => void;
+  onStatus?: (message: string) => void;
+  onCorrection?: (correctedText: string) => void;
 }
 
 /**
@@ -438,6 +475,12 @@ export const streamChat = async (
               break;
             case 'error':
               callbacks.onError(data.message || 'Unknown error');
+              break;
+            case 'status':
+              if (callbacks.onStatus && data.message) callbacks.onStatus(data.message);
+              break;
+            case 'correction':
+              if (callbacks.onCorrection && data.corrected_text) callbacks.onCorrection(data.corrected_text);
               break;
           }
         } catch (e) {

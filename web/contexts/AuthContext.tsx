@@ -42,15 +42,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(() => {
     void (async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      const hasRefreshToken = typeof window !== 'undefined' ? !!localStorage.getItem('refresh_token') : false;
+
       if (!isAuthenticated()) {
-        // Access token is missing or expired — try a silent refresh first
-        const refreshed = await refreshAccessToken();
+        // Access token appears expired/missing — try silent refresh first.
+        const refreshed = hasRefreshToken ? await refreshAccessToken() : false;
         if (!refreshed) {
-          setUser(null);
+          // Keep user if we can still decode identity from existing token.
+          // Avoid abrupt signout on transient refresh/network failures.
+          const fallbackUser = token ? getCurrentUserFromToken() : null;
+          setUser(prev => {
+            if (fallbackUser) {
+              return {
+                id: fallbackUser.sub || '',
+                email: fallbackUser.email,
+                full_name: fallbackUser.full_name,
+                role: fallbackUser.role as string | undefined,
+              };
+            }
+            return prev;
+          });
           setLoading(false);
           return;
         }
       }
+
       const userData = getCurrentUserFromToken();
       setUser(userData ? { id: userData.sub || '', email: userData.email, full_name: userData.full_name, role: userData.role as string | undefined } : null);
       setLoading(false);
@@ -99,9 +116,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const refreshed = await refreshAccessToken();
         if (refreshed) {
           refreshUser();
-        } else {
-          // If refresh cannot be performed, re-evaluate auth state.
-          refreshUser();
         }
       }
     };
@@ -123,6 +137,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
+  }, [refreshUser]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'access_token' || event.key === 'refresh_token' || event.key === null) {
+        refreshUser();
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, [refreshUser]);
 
   const login = (accessToken: string, refreshToken?: string, fullName?: string) => {

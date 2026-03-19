@@ -107,9 +107,10 @@ async def test_property_not_found_error(test_client):
 async def test_ai_service_error(test_client):
     """Test 503 when AI service (Claude/OpenAI) fails"""
 
-    # Mock Claude API failure
-    with patch("app.ai_engine.claude_sales_agent.anthropic.messages.create") as mock_claude:
-        mock_claude.side_effect = Exception("Claude API unavailable")
+    # Mock Anthropic API failure (wolf_orchestrator is the active AI engine)
+    with patch("app.ai_engine.wolf_orchestrator.AsyncAnthropic") as mock_cls:
+        mock_instance = mock_cls.return_value
+        mock_instance.messages.create.side_effect = Exception("Claude API unavailable")
 
         response = await test_client.post("/api/chat", json={
             "session_id": "test-ai-error",
@@ -487,9 +488,10 @@ async def test_circuit_breaker_resets_on_success(reset_circuit_breakers):
 async def test_claude_circuit_breaker_integration(test_client, reset_circuit_breakers):
     """Test Claude API circuit breaker in real request"""
 
-    # Mock Claude API to fail
-    with patch("app.ai_engine.claude_sales_agent.anthropic.messages.create") as mock_claude:
-        mock_claude.side_effect = Exception("Claude API rate limit")
+    # Mock Anthropic API to fail (wolf_orchestrator is the active AI engine)
+    with patch("app.ai_engine.wolf_orchestrator.AsyncAnthropic") as mock_cls:
+        mock_claude = mock_cls.return_value
+        mock_claude.messages.create.side_effect = Exception("Claude API rate limit")
 
         # Send requests until circuit opens
         for i in range(5):

@@ -324,6 +324,81 @@ Before responding to this message, you MUST call: {tool_list}
 
         return True  # No specific claims, so no validation needed
 
+    def verify_number_provenance(
+        self,
+        response: str,
+        context_properties: List[Dict[str, Any]],
+        analytics_context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract ALL numeric/currency values from the AI response and verify
+        each one exists in the context properties or computed analytics.
+        Returns unmatched numbers that may be hallucinated.
+        """
+        # Extract all numbers from the response that look like property data
+        number_patterns = [
+            # Currency: "5,000,000 EGP", "5M EGP", "5 million"
+            (r'(\d[\d,]*(?:\.\d+)?)\s*(?:مليون|million|M)\s*(?:جنيه|EGP)?', 'currency_m'),
+            (r'(?:EGP|جنيه)\s*(\d[\d,]*(?:\.\d+)?)', 'currency'),
+            (r'(\d[\d,]*(?:\.\d+)?)\s*(?:EGP|جنيه)', 'currency'),
+            # Price per sqm
+            (r'(\d[\d,]*(?:\.\d+)?)\s*(?:per sqm|للمتر|/م)', 'price_per_sqm'),
+            # Percentages (down payment, ROI)
+            (r'(\d+(?:\.\d+)?)\s*%', 'percentage'),
+            # Size: "150 sqm"
+            (r'(\d[\d,]*)\s*(?:sqm|م²|متر مربع)', 'size'),
+        ]
+
+        # Build set of valid numbers from context properties (±5% tolerance)
+        valid_numbers = set()
+        for prop in (context_properties or []):
+            for key in ('price', 'price_per_sqm', 'size_sqm', 'bedrooms', 'bathrooms',
+                        'down_payment', 'installment_years', 'monthly_installment',
+                        'maintenance_fee_pct', 'delivery_payment', 'land_area'):
+                val = prop.get(key)
+                if val is not None:
+                    try:
+                        valid_numbers.add(float(val))
+                    except (ValueError, TypeError):
+                        pass
+
+        # Add analytics context numbers if available
+        if analytics_context:
+            for key, val in analytics_context.items():
+                if isinstance(val, (int, float)):
+                    valid_numbers.add(float(val))
+
+        unmatched = []
+        all_claims = []
+        for pattern, cat in number_patterns:
+            for match in re.findall(pattern, response, re.IGNORECASE):
+                try:
+                    raw = match.replace(",", "")
+                    num = float(raw)
+                    if cat == 'currency_m':
+                        num *= 1_000_000
+                    if num < 1:  # Skip trivially small numbers
+                        continue
+                    # Check if this number matches any context number within ±5%
+                    matched = any(
+                        abs(num - v) / max(v, 1) <= 0.05
+                        for v in valid_numbers
+                    ) if valid_numbers else True   # No context → can't flag
+
+                    claim = {"value": num, "category": cat, "matched": matched}
+                    all_claims.append(claim)
+                    if not matched:
+                        unmatched.append(claim)
+                except (ValueError, TypeError):
+                    continue
+
+        return {
+            "total_claims": len(all_claims),
+            "matched": len(all_claims) - len(unmatched),
+            "unmatched": unmatched,
+            "provenance_ok": len(unmatched) == 0,
+        }
+
     def reset_session(self) -> None:
         """Reset context for new session."""
         self.known_context = {

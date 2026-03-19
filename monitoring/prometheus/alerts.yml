@@ -133,6 +133,43 @@ groups:
         expr: |
           100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
         for: 10m
+
+  # Scraper Health Alerts
+  - name: scraper_health
+    interval: 5m
+    rules:
+      - alert: ScraperHighNullRate
+        expr: |
+          osool_scrape_null_rate{field="price"} > 0.15
+        for: 0m
+        labels:
+          severity: critical
+          category: scraper
+        annotations:
+          summary: "Scraper returning high null rate for prices"
+          description: "Null rate for {{ $labels.field }}: {{ $value | humanizePercentage }} (threshold: 15%)"
+
+      - alert: ScraperHighErrorRate
+        expr: |
+          osool_scrape_errors / osool_scrape_total > 0.3
+        for: 0m
+        labels:
+          severity: warning
+          category: scraper
+        annotations:
+          summary: "Scraper validation error rate above 30%"
+          description: "{{ $value | humanizePercentage }} of scraped properties failed validation"
+
+      - alert: ScraperAnomalyDetected
+        expr: |
+          osool_scrape_anomalies > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: scraper
+        annotations:
+          summary: "Price anomaly detected in scrape batch"
+          description: "{{ $value }} area(s) showing suspicious price deviations — upsert halted"
         labels:
           severity: warning
           category: system

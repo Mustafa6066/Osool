@@ -2,13 +2,13 @@
 Vector Search Service
 ---------------------
 Handles semantic search for properties using OpenAI Embeddings and pgvector.
-Phase 1: Production-ready with fallback mechanisms.
+Supports three modes: vector-only, text-only, and hybrid (vector + FTS with RRF).
 """
 
 import os
 import logging
 from typing import List, Optional
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, text, func as sa_func, literal_column
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Property
 from app.database import get_db
@@ -17,6 +17,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+
+_async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# RRF constant (standard value from the original paper)
+RRF_K = 60
 
 _async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -67,269 +72,241 @@ async def search_properties(
     is_delivered: bool = None,
     finishing: str = None,
     is_nawy_now: bool = None,
+    search_mode: str = "hybrid",
 ) -> List[dict]:
     """
-    Search for properties using semantic similarity with STRICT threshold enforcement.
+    Search for properties using semantic similarity, full-text search, or hybrid (both + RRF).
 
-    Phase 7 Production Enhancement:
-    - Primary: pgvector cosine similarity search with 0.7 minimum threshold
-    - ANTI-HALLUCINATION: Returns empty if no results meet threshold
-    - Fallback: Text search when pgvector not available
-    - Direct price filtering for budget enforcement
-    - NEW: sale_type, is_delivered, finishing, is_nawy_now filters
+    Modes:
+    - "hybrid" (default): Runs vector + FTS in parallel, merges via Reciprocal Rank Fusion
+    - "vector": Vector-only cosine similarity search
+    - "text":   Full-text / keyword search only
 
-    Args:
-        db: Database session
-        query_text: User search query
-        limit: Maximum number of results
-        similarity_threshold: Minimum similarity score (0-1), default 0.7
-        price_min: Minimum price filter (optional)
-        price_max: Maximum price filter (optional)
-        sale_type: Filter by sale type: "Resale", "Developer", "Nawy Now" (optional)
-        is_delivered: Filter for delivered/ready-to-move properties (optional)
-        finishing: Filter by finishing: "Finished", "Semi-Finished", "Core & Shell" (optional)
-        is_nawy_now: Filter for Nawy Now mortgage properties (optional)
-
-    Returns:
-        List of property dicts with similarity scores and _source metadata
+    Fallback chain: hybrid → vector-only → text search → keyword split → empty
     """
     try:
-        # FORCE DISABLE vector search when pgvector extension is not on PostgreSQL
-        # The Python package being installed doesn't mean the DB has the extension
-        # Set ENABLE_VECTOR_SEARCH=1 in env when using pgvector-enabled PostgreSQL (Supabase, Neon)
-        import os
         VECTOR_SEARCH_ENABLED = os.getenv("ENABLE_VECTOR_SEARCH", "0") == "1"
-        
-        if VECTOR_SEARCH_ENABLED:
+
+        def _build_filters():
+            """Build common SQLAlchemy filter conditions."""
+            filters = [Property.is_available == True]
+            if price_min is not None:
+                filters.append(Property.price >= price_min)
+            if price_max is not None:
+                filters.append(Property.price <= price_max)
+            if sale_type is not None:
+                filters.append(Property.sale_type == sale_type)
+            if is_delivered is not None:
+                filters.append(Property.is_delivered == is_delivered)
+            if finishing is not None:
+                filters.append(Property.finishing.ilike(f"%{finishing}%"))
+            if is_nawy_now is not None:
+                filters.append(Property.is_nawy_now == is_nawy_now)
+            return filters
+
+        # --- Vector search sub-routine ---
+        async def _vector_search(embedding, threshold) -> List[tuple]:
+            """Returns list of (Property, similarity_score) tuples."""
+            similarity_expr = 1 - Property.embedding.cosine_distance(embedding)
+            filters = _build_filters() + [similarity_expr >= threshold]
+            stmt = (
+                select(Property, similarity_expr.label('similarity'))
+                .filter(*filters)
+                .order_by(similarity_expr.desc())
+                .limit(limit * 2)  # fetch extra for RRF merge
+            )
+            result = await db.execute(stmt)
+            return [(row.Property, float(row.similarity)) for row in result.all()]
+
+        # --- Full-text search sub-routine ---
+        async def _fts_search() -> List[tuple]:
+            """Returns list of (Property, ts_rank_score) tuples using the search_tsv generated column."""
             try:
-                # Try vector search first
+                ts_query = sa_func.plainto_tsquery('english', query_text)
+                rank_expr = sa_func.ts_rank(Property.search_tsv, ts_query)
+                filters = _build_filters() + [Property.search_tsv.op('@@')(ts_query)]
+                stmt = (
+                    select(Property, rank_expr.label('fts_rank'))
+                    .filter(*filters)
+                    .order_by(rank_expr.desc())
+                    .limit(limit * 2)
+                )
+                result = await db.execute(stmt)
+                return [(row.Property, float(row.fts_rank)) for row in result.all()]
+            except Exception as fts_err:
+                logger.warning(f"FTS search failed (search_tsv column may not exist yet): {fts_err}")
+                return []
+
+        # --- RRF merge ---
+        def _rrf_merge(vector_results: List[tuple], fts_results: List[tuple]) -> List[dict]:
+            """Merge two ranked lists using Reciprocal Rank Fusion."""
+            scores = {}  # property_id -> {rrf_score, property, sources}
+
+            for rank, (prop, sim_score) in enumerate(vector_results, start=1):
+                scores[prop.id] = {
+                    "property": prop,
+                    "rrf_score": 1.0 / (RRF_K + rank),
+                    "vector_score": sim_score,
+                    "fts_score": None,
+                    "sources": ["vector"],
+                }
+
+            for rank, (prop, fts_rank) in enumerate(fts_results, start=1):
+                if prop.id in scores:
+                    scores[prop.id]["rrf_score"] += 1.0 / (RRF_K + rank)
+                    scores[prop.id]["fts_score"] = fts_rank
+                    scores[prop.id]["sources"].append("fts")
+                else:
+                    scores[prop.id] = {
+                        "property": prop,
+                        "rrf_score": 1.0 / (RRF_K + rank),
+                        "vector_score": None,
+                        "fts_score": fts_rank,
+                        "sources": ["fts"],
+                    }
+
+            # Sort by RRF score descending, take top `limit`
+            ranked = sorted(scores.values(), key=lambda x: x["rrf_score"], reverse=True)[:limit]
+
+            return [
+                _prop_to_dict(
+                    entry["property"],
+                    similarity_score=entry["vector_score"],
+                    source="hybrid" if len(entry["sources"]) > 1 else entry["sources"][0],
+                )
+                for entry in ranked
+            ]
+
+        # --- Main search logic ---
+        if VECTOR_SEARCH_ENABLED and search_mode in ("hybrid", "vector"):
+            try:
                 embedding = await get_embedding(query_text)
-        
+
                 if embedding:
-                    logger.info(f"🔎 PostgreSQL Vector Search (threshold: {similarity_threshold}): '{query_text}'")
+                    # Try strict threshold first
+                    vector_results = await _vector_search(embedding, similarity_threshold)
 
-                    # Helper function to execute search with specific threshold
-                    async def _execute_vector_search(current_threshold):
-                        similarity_expr = 1 - Property.embedding.cosine_distance(embedding)
-                        filters = [
-                            Property.is_available == True,
-                            similarity_expr >= current_threshold
+                    # Relax threshold if no results
+                    if not vector_results and similarity_threshold > 0.5:
+                        logger.warning(f"⚠️ No matches at {similarity_threshold}, relaxing to 0.50")
+                        vector_results = await _vector_search(embedding, 0.50)
+
+                    if search_mode == "hybrid":
+                        # Run FTS in parallel with already-fetched vector results
+                        fts_results = await _fts_search()
+
+                        if vector_results or fts_results:
+                            merged = _rrf_merge(vector_results, fts_results)
+                            logger.info(
+                                f"🔀 Hybrid search: {len(vector_results)} vector + {len(fts_results)} FTS → {len(merged)} merged"
+                            )
+                            return merged
+
+                    elif vector_results:
+                        # Vector-only mode
+                        logger.info(f"🔎 Vector search: {len(vector_results)} results (best: {vector_results[0][1]:.2f})")
+                        return [
+                            _prop_to_dict(prop, similarity_score=score, source="vector")
+                            for prop, score in vector_results[:limit]
                         ]
-                        # Apply price filters if specified
-                        if price_min is not None:
-                            filters.append(Property.price >= price_min)
-                        if price_max is not None:
-                            filters.append(Property.price <= price_max)
-                        # Apply sale_type filter (Resale / Developer / Nawy Now)
-                        if sale_type is not None:
-                            filters.append(Property.sale_type == sale_type)
-                        # Apply delivery status filter
-                        if is_delivered is not None:
-                            filters.append(Property.is_delivered == is_delivered)
-                        # Apply finishing filter
-                        if finishing is not None:
-                            filters.append(Property.finishing.ilike(f"%{finishing}%"))
-                        # Apply Nawy Now filter
-                        if is_nawy_now is not None:
-                            filters.append(Property.is_nawy_now == is_nawy_now)
-                        
-                        stmt = (
-                            select(Property, similarity_expr.label('similarity'))
-                            .filter(*filters)
-                            .order_by(similarity_expr.desc())
-                            .limit(limit)
-                        )
-                        result = await db.execute(stmt)
-                        return result.all()
 
-                    # Try High Precision First (The "Perfect Match")
-                    rows = await _execute_vector_search(similarity_threshold)
-
-                    if not rows and similarity_threshold > 0.5:
-                        logger.warning(
-                            f"⚠️ No exact matches for '{query_text}' at {similarity_threshold}. Widening search radius to 0.50..."
-                        )
-                        # Fallback: Widen the net (The "Opportunity")
-                        rows = await _execute_vector_search(0.50)
-
-                    if not rows:
-                        logger.warning(
-                            f"⚠️ No properties meet 50% similarity threshold. Falling back to Keyword Search."
-                        )
-                        # Do NOT return [] here. Fall through to text search.
-                        raise Exception("Zero vector matches found - triggering fallback")
-
-                    # Convert to dicts with similarity scores
-                    properties = []
-                    for row in rows:
-                        prop = row.Property
-                        prop_dict = {
-                            "id": prop.id,
-                            "title": prop.title,
-                            "description": prop.description,
-                            "type": prop.type,
-                            "location": prop.location,
-                            "compound": prop.compound,
-                            "developer": prop.developer,
-                            "price": prop.price,
-                            "price_per_sqm": prop.price_per_sqm,
-                            "size_sqm": prop.size_sqm,
-                            "bedrooms": prop.bedrooms,
-                            "bathrooms": prop.bathrooms,
-                            "finishing": prop.finishing,
-                            "delivery_date": prop.delivery_date,
-                            "down_payment": prop.down_payment,
-                            "installment_years": prop.installment_years,
-                            "monthly_installment": prop.monthly_installment,
-                            "image_url": prop.image_url,
-                            "nawy_url": prop.nawy_url,
-                            "sale_type": prop.sale_type,
-                            "is_available": prop.is_available,
-                            "is_delivered": getattr(prop, 'is_delivered', None),
-                            "is_cash_only": getattr(prop, 'is_cash_only', None),
-                            "land_area": getattr(prop, 'land_area', None),
-                            "nawy_reference": getattr(prop, 'nawy_reference', None),
-                            "is_nawy_now": getattr(prop, 'is_nawy_now', None),
-                            "_source": "database",
-                            "_similarity_score": float(row.similarity)
-                        }
-                        properties.append(prop_dict)
-
-                    logger.info(f"Found {len(properties)} properties (best score: {properties[0]['_similarity_score']:.2f})")
-                    return properties
+                    # Fall through to text search if no results
+                    logger.warning("⚠️ No vector/hybrid matches. Falling through to text search.")
 
             except Exception as vector_error:
-                # pgvector query failed (likely TEXT column instead of VECTOR or extension missing)
                 logger.warning(f"Vector search failed, falling back to text search: {vector_error}")
-                # Fall through to text search below
 
-        # TEXT SEARCH FALLBACK (when pgvector not available or vector search failed)
-        # TEXT SEARCH STRATEGY 1: Exact Phrase Match with Price Filtering
-        logger.info(f"🔍 Text Search Attempt 1: Exact phrase '{query_text}'")
-        search_term = f"%{query_text}%"
-
-        # Build base filters
-        base_filters = [
-            Property.is_available == True,
-            or_(
-                Property.title.ilike(search_term),
-                Property.location.ilike(search_term),
-                Property.compound.ilike(search_term),
-                Property.description.ilike(search_term),
-                Property.developer.ilike(search_term),
-                Property.type.ilike(search_term)
-            )
-        ]
-        
-        # Apply price filters if specified
-        if price_min is not None:
-            base_filters.append(Property.price >= price_min)
-        if price_max is not None:
-            base_filters.append(Property.price <= price_max)
-        # Apply sale_type / delivery / finishing / nawy_now filters to text search too
-        if sale_type is not None:
-            base_filters.append(Property.sale_type == sale_type)
-        if is_delivered is not None:
-            base_filters.append(Property.is_delivered == is_delivered)
-        if finishing is not None:
-            base_filters.append(Property.finishing.ilike(f"%{finishing}%"))
-        if is_nawy_now is not None:
-            base_filters.append(Property.is_nawy_now == is_nawy_now)
-
-        stmt = select(Property).filter(*base_filters).limit(limit)
-
-        result = await db.execute(stmt)
-        properties = result.scalars().all()
-
-        # TEXT SEARCH STRATEGY 2: Split Keywords (if Exact Match fails)
-        if not properties and len(query_text.split()) > 1:
-            logger.info(f"🔍 Text Search Attempt 2: Split keywords")
-            keywords = query_text.split()
-            # Filter out common stop words (English + Arabic)
-            stop_words = {
-                # English
-                'in', 'at', 'the', 'a', 'an', 'for', 'of', 'with', 'under', 'above', 'below',
-                # Arabic
-                'في', 'من', 'إلى', 'على', 'عن', 'مع', 'تحت', 'فوق', 'عند', 'إن', 'أن', 'ال', 'و', 'أو'
-            }
-            keywords = [k for k in keywords if k.lower() not in stop_words and len(k) > 1]
-            
-            if keywords:
-                # Construct OR conditions for each keyword
-                conditions = []
-                for word in keywords:
-                    term = f"%{word}%"
-                    conditions.append(Property.title.ilike(term))
-                    conditions.append(Property.location.ilike(term))
-                    conditions.append(Property.compound.ilike(term))
-                    conditions.append(Property.type.ilike(term))
-                
-                stmt = select(Property).filter(
-                    Property.is_available == True,
-                    or_(*conditions)
-                )
-                
-                # Apply all filters (mirror Strategy 1 logic)
-                if price_min is not None:
-                    stmt = stmt.filter(Property.price >= price_min)
-                if price_max is not None:
-                    stmt = stmt.filter(Property.price <= price_max)
-                if sale_type is not None:
-                    stmt = stmt.filter(Property.sale_type == sale_type)
-                if is_delivered is not None:
-                    stmt = stmt.filter(Property.is_delivered == is_delivered)
-                if finishing is not None:
-                    stmt = stmt.filter(Property.finishing.ilike(f"%{finishing}%"))
-                if is_nawy_now is not None:
-                    stmt = stmt.filter(Property.is_nawy_now == is_nawy_now)
-                
-                stmt = stmt.limit(limit)
-                
-                result = await db.execute(stmt)
-                properties = result.scalars().all()
-
-        if not properties:
-            logger.warning(f"No properties found via text search for query: '{query_text}'")
-            return []
-
-        # Convert to dicts without similarity scores (text search fallback)
-        return [
-            {
-                "id": p.id,
-                "title": p.title,
-                "description": p.description,
-                "type": p.type,
-                "location": p.location,
-                "compound": p.compound,
-                "developer": p.developer,
-                "price": p.price,
-                "price_per_sqm": p.price_per_sqm,
-                "size_sqm": p.size_sqm,
-                "bedrooms": p.bedrooms,
-                "bathrooms": p.bathrooms,
-                "finishing": p.finishing,
-                "delivery_date": p.delivery_date,
-                "down_payment": p.down_payment,
-                "installment_years": p.installment_years,
-                "monthly_installment": p.monthly_installment,
-                "image_url": p.image_url,
-                "nawy_url": p.nawy_url,
-                "sale_type": p.sale_type,
-                "is_available": p.is_available,
-                "is_delivered": getattr(p, 'is_delivered', None),
-                "is_cash_only": getattr(p, 'is_cash_only', None),
-                "land_area": getattr(p, 'land_area', None),
-                "nawy_reference": getattr(p, 'nawy_reference', None),
-                "is_nawy_now": getattr(p, 'is_nawy_now', None),
-                "_source": "text_search_fallback",
-                "_similarity_score": None
-            }
-            for p in properties
-        ]
+        # TEXT SEARCH FALLBACK
+        return await _text_search_fallback(db, query_text, limit, _build_filters)
 
     except Exception as e:
         logger.error(f"Property search failed: {e}")
         return []
+
+
+def _prop_to_dict(prop: Property, similarity_score=None, source="database") -> dict:
+    """Convert a Property ORM object to a dict with search metadata."""
+    return {
+        "id": prop.id,
+        "title": prop.title,
+        "description": prop.description,
+        "type": prop.type,
+        "location": prop.location,
+        "compound": prop.compound,
+        "developer": prop.developer,
+        "price": prop.price,
+        "price_per_sqm": prop.price_per_sqm,
+        "size_sqm": prop.size_sqm,
+        "bedrooms": prop.bedrooms,
+        "bathrooms": prop.bathrooms,
+        "finishing": prop.finishing,
+        "delivery_date": prop.delivery_date,
+        "down_payment": prop.down_payment,
+        "installment_years": prop.installment_years,
+        "monthly_installment": prop.monthly_installment,
+        "image_url": prop.image_url,
+        "nawy_url": prop.nawy_url,
+        "sale_type": prop.sale_type,
+        "is_available": prop.is_available,
+        "is_delivered": getattr(prop, 'is_delivered', None),
+        "is_cash_only": getattr(prop, 'is_cash_only', None),
+        "land_area": getattr(prop, 'land_area', None),
+        "nawy_reference": getattr(prop, 'nawy_reference', None),
+        "is_nawy_now": getattr(prop, 'is_nawy_now', None),
+        "_source": source,
+        "_similarity_score": similarity_score,
+    }
+
+
+async def _text_search_fallback(db: AsyncSession, query_text: str, limit: int, build_filters_fn) -> List[dict]:
+    """Text search fallback: exact phrase → keyword split → empty."""
+    # Strategy 1: Exact phrase match
+    logger.info(f"🔍 Text Search Attempt 1: Exact phrase '{query_text}'")
+    search_term = f"%{query_text}%"
+
+    base_filters = build_filters_fn() + [
+        or_(
+            Property.title.ilike(search_term),
+            Property.location.ilike(search_term),
+            Property.compound.ilike(search_term),
+            Property.description.ilike(search_term),
+            Property.developer.ilike(search_term),
+            Property.type.ilike(search_term),
+        )
+    ]
+
+    stmt = select(Property).filter(*base_filters).limit(limit)
+    result = await db.execute(stmt)
+    properties = result.scalars().all()
+
+    # Strategy 2: Split keywords
+    if not properties and len(query_text.split()) > 1:
+        logger.info(f"🔍 Text Search Attempt 2: Split keywords")
+        stop_words = {
+            'in', 'at', 'the', 'a', 'an', 'for', 'of', 'with', 'under', 'above', 'below',
+            'في', 'من', 'إلى', 'على', 'عن', 'مع', 'تحت', 'فوق', 'عند', 'إن', 'أن', 'ال', 'و', 'أو',
+        }
+        keywords = [k for k in query_text.split() if k.lower() not in stop_words and len(k) > 1]
+
+        if keywords:
+            conditions = []
+            for word in keywords:
+                term = f"%{word}%"
+                conditions.append(Property.title.ilike(term))
+                conditions.append(Property.location.ilike(term))
+                conditions.append(Property.compound.ilike(term))
+                conditions.append(Property.type.ilike(term))
+
+            filters = build_filters_fn() + [or_(*conditions)]
+            stmt = select(Property).filter(*filters).limit(limit)
+            result = await db.execute(stmt)
+            properties = result.scalars().all()
+
+    if not properties:
+        logger.warning(f"No properties found via text search for query: '{query_text}'")
+        return []
+
+    return [_prop_to_dict(p, source="text_search_fallback") for p in properties]
 
 
 async def validate_property_exists(db: AsyncSession, property_id: int) -> bool:

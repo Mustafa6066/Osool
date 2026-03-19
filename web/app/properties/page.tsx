@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFilterParams } from '@/hooks/useFilterParams';
 import AppShell from '@/components/nav/AppShell';
 import PropertyFilter from '@/components/PropertyFilter';
 import { toggleFavorite, fetchFavorites } from '@/lib/gamification';
@@ -246,6 +247,14 @@ function PropertyCardSkeleton() {
 }
 
 export default function PropertiesPage() {
+    return (
+        <Suspense>
+            <PropertiesPageInner />
+        </Suspense>
+    );
+}
+
+function PropertiesPageInner() {
     const { t, language } = useLanguage();
     const { isAuthenticated } = useAuth();
     const [properties, setProperties] = useState<PropertyItem[]>([]);
@@ -274,15 +283,7 @@ export default function PropertiesPage() {
             });
         }
     };
-    const [filters, setFilters] = useState<Filters>({
-        location: 'all',
-        type: 'all',
-        minPrice: 0,
-        maxPrice: 50000000,
-        bedrooms: 0,
-    });
-    const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'date'>('date');
-    const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+    const { filters, setFilters, sortBy, setSortBy, viewMode, setViewMode, shareUrl } = useFilterParams();
     const [showFilters, setShowFilters] = useState(false);
     const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
@@ -566,20 +567,31 @@ export default function PropertiesPage() {
                                 <option value="price-desc">{language === 'ar' ? '\u0627\u0644\u0633\u0639\u0631: \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649' : 'Price: High to Low'}</option>
                             </select>
 
-                            {/* View Toggle */}
-                            <div className="flex items-center rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
-                                <button
-                                    onClick={() => setViewMode('grid')}
-                                    className={`p-2.5 ${viewMode === 'grid' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-secondary)]'}`}
-                                >
-                                    <Grid3X3 className="w-5 h-5" />
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('map')}
-                                    className={`p-2.5 ${viewMode === 'map' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-secondary)]'}`}
-                                >
-                                    <Map className="w-5 h-5" />
-                                </button>
+                            {/* View Toggle + Share */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
+                                    <button
+                                        onClick={() => setViewMode('grid')}
+                                        className={`p-2.5 ${viewMode === 'grid' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-secondary)]'}`}
+                                    >
+                                        <Grid3X3 className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('map')}
+                                        className={`p-2.5 ${viewMode === 'map' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-secondary)]'}`}
+                                    >
+                                        <Map className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                {shareUrl && (
+                                    <button
+                                        onClick={() => { navigator.clipboard.writeText(shareUrl); }}
+                                        className="px-3 py-2.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors text-sm"
+                                        title={language === 'ar' ? 'نسخ رابط الفلاتر' : 'Copy filter link'}
+                                    >
+                                        {language === 'ar' ? '🔗 نسخ الرابط' : '🔗 Share'}
+                                    </button>
+                                )}
                             </div>
                         </div>
 

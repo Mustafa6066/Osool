@@ -15,10 +15,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
-from app.ai_engine.openai_service import osool_ai
-from app.ai_engine.wolf_orchestrator import wolf_brain as hybrid_brain  # Backward compat alias
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
-from app.ai_engine.claude_sales_agent import claude_sales_agent
+from app.ai_engine.cost_tracker import cost_tracker
 from app.services.paymob_service import paymob_service
 from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, create_refresh_token_async
 from app.database import get_db
@@ -666,7 +664,7 @@ async def analyze_contract(
             detail="Contract text too short. Please provide more content."
         )
     
-    result = await osool_ai.analyze_contract_with_egyptian_context(req.text)
+    result = hybrid_brain_prod.audit_contract(req.text)
     
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
@@ -682,18 +680,17 @@ async def smart_valuation(
     """
     📊 AI Property Valuation with Market Reasoning
     
-    Returns:
-    - Price range (min-max) in EGP
-    - Price per sqm
-    - Detailed reasoning based on market trends
-    - Investment verdict
+    Powered by hybrid_brain_prod (XGBoost + GPT-4o).
+    Accepts the simpler ValuationRequest schema and adapts parameters.
     """
-    result = await osool_ai.get_smart_valuation(
+    finishing_map = {
+        "Core & Shell": 0, "Semi Finished": 1,
+        "Fully Finished": 2, "Ultra Lux": 3,
+    }
+    result = hybrid_brain_prod.get_valuation(
         location=req.location,
-        size_sqm=req.size_sqm,
-        finishing=req.finishing,
-        bedrooms=req.bedrooms,
-        property_type=req.property_type
+        size=req.size_sqm,
+        finishing=finishing_map.get(req.finishing, 2),
     )
     
     if "error" in result:
@@ -710,16 +707,17 @@ async def compare_price(
     """
     💰 Compare Asking Price vs. Market Value
     
-    Tells the buyer if the seller's price is:
-    - BARGAIN (unusually low - verify why)
-    - FAIR (within market range)
-    - OVERPRICED (negotiate down)
+    Powered by hybrid_brain_prod (XGBoost + GPT-4o).
     """
-    result = await osool_ai.compare_price_to_market(
+    finishing_map = {
+        "Core & Shell": 0, "Semi Finished": 1,
+        "Fully Finished": 2, "Ultra Lux": 3,
+    }
+    result = hybrid_brain_prod.compare_asking_price(
         asking_price=req.asking_price,
         location=req.location,
-        size_sqm=req.size_sqm,
-        finishing=req.finishing
+        size=req.size_sqm,
+        finishing=finishing_map.get(req.finishing, 2),
     )
     
     if "error" in result:
@@ -1002,7 +1000,7 @@ async def chat_with_agent(
             "session_id": req.session_id,
             "analytics": analytics_data,
             "agentic_action": agentic_action,  # V4: Indicates if pivot occurred
-            "cost": claude_sales_agent.get_cost_summary(),
+            "cost": cost_tracker.get_cost_summary(),
             # V5: Frontend-facing intelligence signals
             "suggestions": suggestions,
             "lead_score": card_readiness.get("readiness_score", 0) if card_readiness else 0,
@@ -1049,7 +1047,6 @@ async def chat_stream(
 
     async def generate():
         try:
-            from app.ai_engine.claude_sales_agent import claude_sales_agent
             from app.models import ChatMessage
             from sqlalchemy import select
 
@@ -1144,6 +1141,12 @@ async def chat_stream(
 
             # Run Wolf Brain as a task with keepalive heartbeats
             # Prevents mobile carrier NAT from dropping idle TCP connections
+            # Use a queue to receive granular status updates from the pipeline
+            status_queue = asyncio.Queue()
+
+            async def _status_callback(msg: str):
+                await status_queue.put(msg)
+
             processing_task = asyncio.create_task(wolf_brain.process_turn(
                 query=req.message,
                 history=history_for_loop,
@@ -1151,13 +1154,29 @@ async def chat_stream(
                 language=req.language,
                 session_id=req.session_id,
                 streaming=True,  # Request streaming context
+                status_callback=_status_callback,
             ))
 
-            # Send SSE keepalive comments every 5s while Wolf Brain processes
+            # Drain status queue and send keepalives while Wolf Brain processes
             while not processing_task.done():
-                done_tasks, _ = await asyncio.wait({processing_task}, timeout=5.0)
+                done_tasks, _ = await asyncio.wait({processing_task}, timeout=2.0)
+                # Drain any pending status messages
+                while not status_queue.empty():
+                    try:
+                        status_msg = status_queue.get_nowait()
+                        yield f"data: {json.dumps({'type': 'status', 'message': status_msg}, ensure_ascii=False)}\n\n"
+                    except asyncio.QueueEmpty:
+                        break
                 if not done_tasks:
                     yield ": keepalive\n\n"
+
+            # Drain remaining status messages after task completion
+            while not status_queue.empty():
+                try:
+                    status_msg = status_queue.get_nowait()
+                    yield f"data: {json.dumps({'type': 'status', 'message': status_msg}, ensure_ascii=False)}\n\n"
+                except asyncio.QueueEmpty:
+                    break
 
             ai_result = processing_task.result()
 
@@ -1204,6 +1223,33 @@ async def chat_stream(
                         await asyncio.sleep(0.015)
                 if buffer:
                     yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
+
+            # ── POST-STREAM VERIFICATION: Anti-Hallucination Interceptor ──
+            # The verifier only ran in the non-streaming path before.
+            # Now we verify the fully-assembled streamed text against DB facts.
+            try:
+                from app.ai_engine.verifier_agent import verifier_agent
+                properties_for_verify = search_results[:5] if search_results else []
+                verification = await verifier_agent.verify_response(
+                    response_text=response_text,
+                    properties_mentioned=properties_for_verify,
+                    session=db,
+                )
+                if verification.get("corrections"):
+                    logger.info(
+                        f"\U0001f50d STREAM VERIFIER: {len(verification['corrections'])} corrections found"
+                    )
+                    corrected_text = await verifier_agent.rewrite_hallucinated_response(
+                        response_text=response_text,
+                        corrections=verification["corrections"],
+                    )
+                    if corrected_text != response_text:
+                        # Emit correction event — frontend replaces the streamed text
+                        yield f"data: {json.dumps({'type': 'correction', 'corrected_text': corrected_text}, ensure_ascii=False)}\n\n"
+                        response_text = corrected_text
+                        logger.info("\u2705 STREAM VERIFIER: Response auto-corrected")
+            except Exception as verify_err:
+                logger.warning(f"Post-stream verification skipped: {verify_err}")
 
             # Generate follow-up suggestions if not already populated
             if not suggestions and response_text:
@@ -1261,102 +1307,8 @@ async def chat_stream(
 
 
 # ═══════════════════════════════════════════════════════════════
-# HYBRID AI ENDPOINTS (XGBoost + GPT-4o)
+# HYBRID AI ENDPOINTS (XGBoost + GPT-4o) — Production
 # ═══════════════════════════════════════════════════════════════
-
-@router.post("/ai/hybrid-valuation")
-async def hybrid_valuation(
-    req: HybridValuationRequest,
-    user: User = Depends(get_current_user)  # Security Fix: Require authentication
-):
-    """
-    🧠 Hybrid AI Valuation (XGBoost + GPT-4o)
-    
-    Combines:
-    - XGBoost: Precise statistical price prediction based on Cairo market data
-    - GPT-4o: Market context and reasoning about WHY the price is what it is
-    
-    Returns:
-    - predicted_price: Exact EGP value from XGBoost
-    - market_status: Hot/Stable/Cool
-    - reasoning_bullets: 3 market insights explaining the price
-    """
-    result = hybrid_brain.get_valuation(
-        location=req.location,
-        size=req.size,
-        finishing=req.finishing,
-        floor=req.floor,
-        is_compound=req.is_compound
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
-    
-    return result
-
-
-@router.post("/ai/audit-contract")
-async def audit_contract(
-    req: ContractAnalysisRequest,
-    user: User = Depends(get_current_user)  # Security Fix: Require authentication
-):
-    """
-    ⚖️ Egyptian Legal Contract Audit
-    
-    Uses the Hybrid Brain's legal analysis with strict Egyptian law context.
-    
-    Returns:
-    - risk_score: 0-100
-    - verdict: Safe/Risky/Scam
-    - red_flags: Specific dangerous clauses
-    - missing_clauses: What should be there
-    """
-    if len(req.text) < 50:
-        raise HTTPException(
-            status_code=400,
-            detail="Contract text too short. Please provide more content."
-        )
-    
-    result = hybrid_brain.audit_contract(req.text)
-    
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
-    
-    return result
-
-
-@router.post("/ai/compare-asking-price")
-async def compare_asking(
-    req: PriceComparisonRequest,
-    user: User = Depends(get_current_user)  # Security Fix: Require authentication
-):
-    """
-    💵 Compare Asking Price (Hybrid Version)
-    
-    Uses XGBoost fair price + GPT-4o context to determine if
-    a seller's asking price is BARGAIN/FAIR/OVERPRICED.
-    """
-    # Convert finishing string to int if needed
-    finishing_map = {
-        "Core & Shell": 0,
-        "Semi Finished": 1,
-        "Fully Finished": 2,
-        "Ultra Lux": 3
-    }
-    finishing_int = finishing_map.get(req.finishing, 2)
-    
-    result = hybrid_brain.compare_asking_price(
-        asking_price=req.asking_price,
-        location=req.location,
-        size=req.size_sqm,
-        finishing=finishing_int
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
-    
-    return result
-
 
 @router.post("/ai/prod/valuation")
 async def production_valuation(

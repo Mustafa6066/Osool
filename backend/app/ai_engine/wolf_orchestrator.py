@@ -500,10 +500,12 @@ class WolfBrain:
         session_id: Optional[str] = None,
         streaming: bool = False,
         behavioral_signals: Optional[Dict] = None,
+        status_callback: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         The Main Thinking Loop - Wrapper for Session Management.
         When streaming=True, returns _stream_context for real SSE streaming.
+        status_callback: async callable(str) to emit pipeline status messages for SSE.
         """
         async with AsyncSessionLocal() as session:
             return await self._process_turn_logic(
@@ -515,6 +517,7 @@ class WolfBrain:
                 session_id=session_id,
                 streaming=streaming,
                 behavioral_signals=behavioral_signals,
+                status_callback=status_callback,
             )
 
     async def _process_turn_logic(
@@ -527,6 +530,7 @@ class WolfBrain:
         session_id: Optional[str] = None,
         streaming: bool = False,
         behavioral_signals: Optional[Dict] = None,
+        status_callback: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         The Core Thinking Loop.
@@ -572,6 +576,13 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # Run Intent (LLM), Psychology (Regex), and Lead Scoring (Logic) in parallel
             
+            # Emit status for streaming clients
+            if status_callback:
+                try:
+                    await status_callback("🐺 Understanding your question..." if language != "ar" else "🐺 بفهم سؤالك...")
+                except Exception:
+                    pass
+
             # wrapper for async psychology
             async def run_psychology():
                 # We pass None for intent initially to run in parallel
@@ -842,6 +853,11 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 4A: ANALYTICS ENRICHMENT (Always-On Market Intelligence)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if status_callback:
+                try:
+                    await status_callback("📊 Analyzing market data..." if language != "ar" else "📊 بحلل بيانات السوق...")
+                except Exception:
+                    pass
             analytics_context = await self._build_analytics_context(intent, session, market_layer)
             if analytics_context.get("has_analytics"):
                 logger.info(f"📊 ANALYTICS ENRICHMENT: Built context for {analytics_context.get('location', 'N/A')}")
@@ -1111,6 +1127,11 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 6: THE SMART HUNT (Agentic Search with Reflexion)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if status_callback:
+                try:
+                    await status_callback("🔍 Searching properties..." if language != "ar" else "🔍 بدور على عقارات...")
+                except Exception:
+                    pass
             properties = []
             scored_properties = []
             hunt_strategy = "none"
@@ -1184,6 +1205,11 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 7: BENCHMARKING & SCORING (Async with DB)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if status_callback:
+                try:
+                    await status_callback("🧠 Preparing recommendations..." if language != "ar" else "🧠 بجهز التوصيات...")
+                except Exception:
+                    pass
             # Pass session for real-time benchmarking
             if properties:
                 scored_properties = await analytical_engine.score_properties(properties, session=session)

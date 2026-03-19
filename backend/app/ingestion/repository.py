@@ -199,6 +199,42 @@ async def upsert_properties(
     result = UpsertResult()
     now = datetime.now(timezone.utc)
 
+    # ── Anomaly Detection: halt upsert if price data looks corrupted ──
+    try:
+        from app.ingestion.anomaly_detector import anomaly_detector, send_alert
+        async with AsyncSessionLocal() as anomaly_db:
+            prop_dicts = [
+                {"location": p.location, "compound": p.compound, "price": p.price}
+                for p in properties
+                if p.price and p.price > 0
+            ]
+            anomaly_result = await anomaly_detector.check_batch(prop_dicts, anomaly_db)
+            if not anomaly_result["safe"]:
+                anomaly_details = "\n".join(
+                    f"  • {a['area']}: {a['direction']} {a['deviation_pct']}% "
+                    f"(incoming median: {a['incoming_median']:,.0f}, "
+                    f"baseline: {a['baseline_median']:,.0f})"
+                    for a in anomaly_result["anomalies"]
+                )
+                logger.error(
+                    f"🚨 ANOMALY DETECTOR HALTED UPSERT (run={run_id}):\n{anomaly_details}"
+                )
+                await send_alert(
+                    title=f"Scrape Anomaly — Upsert Halted (run {run_id[:8]})",
+                    message=(
+                        f"Anomaly detected in {len(anomaly_result['anomalies'])} area(s):\n"
+                        f"{anomaly_details}\n\n"
+                        f"Batch of {len(properties)} properties was NOT written to DB."
+                    ),
+                    severity="critical",
+                )
+                result.errors = len(properties)
+                return result
+    except ImportError:
+        pass  # anomaly_detector not available — proceed normally
+    except Exception as anomaly_err:
+        logger.warning(f"Anomaly detection skipped (non-fatal): {anomaly_err}")
+
     async with AsyncSessionLocal() as db:
         # Prefetch existing hashes for all URLs in this batch (one round trip)
         urls = [p.nawy_url for p in properties if p.nawy_url]

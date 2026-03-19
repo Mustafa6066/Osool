@@ -1181,6 +1181,20 @@ export default function ChatInterface() {
                 },
                 onToolStart: () => { },
                 onToolEnd: () => { },
+                onStatus: (statusMsg) => {
+                    // Show pipeline status in the thinking bubble
+                    setMessages(prev => prev.map(m =>
+                        m.id === aiMsgId && m.isTyping ? { ...m, statusText: statusMsg } : m
+                    ));
+                },
+                onCorrection: (correctedText) => {
+                    // Post-stream verification found hallucinations — replace text
+                    fullResponse = correctedText;
+                    streamBufferRef.current = correctedText;
+                    setMessages(prev => prev.map(m =>
+                        m.id === aiMsgId ? { ...m, content: correctedText } : m
+                    ));
+                },
                 onComplete: (data) => {
                     // Cancel any pending RAF and do final authoritative update
                     if (rafIdRef.current !== null) {
