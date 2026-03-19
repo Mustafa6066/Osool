@@ -20,41 +20,70 @@ depends_on = None
 
 
 def upgrade():
+    # Each operation is wrapped in a PL/pgSQL DO block with exception handling
+    # so that individual failures don't crash the entire migration.
+    # This prevents container crash-loops on Railway when an operation
+    # fails (e.g., missing extension, wrong column type, permissions).
+
     # 1. HNSW index on embedding column for approximate nearest neighbor search
-    #    m=16 (connections per node), ef_construction=64 (build-time accuracy)
-    #    Uses cosine distance operator class to match existing queries
     op.execute("""
-        CREATE INDEX IF NOT EXISTS ix_properties_embedding_hnsw
-        ON properties
-        USING hnsw (embedding vector_cosine_ops)
-        WITH (m = 16, ef_construction = 64);
+        DO $$ BEGIN
+            CREATE INDEX IF NOT EXISTS ix_properties_embedding_hnsw
+            ON properties
+            USING hnsw (embedding vector_cosine_ops)
+            WITH (m = 16, ef_construction = 64);
+            RAISE NOTICE 'HNSW index created';
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'HNSW index skipped: %', SQLERRM;
+        END $$;
     """)
 
     # 2. Generated tsvector column for full-text search (BM25-like ranking)
-    #    Combines title (weight A), compound+location (weight B), description (weight C)
     op.execute("""
-        ALTER TABLE properties
-        ADD COLUMN IF NOT EXISTS search_tsv tsvector
-        GENERATED ALWAYS AS (
-            setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
-            setweight(to_tsvector('english', coalesce(compound, '')), 'B') ||
-            setweight(to_tsvector('english', coalesce(location, '')), 'B') ||
-            setweight(to_tsvector('english', coalesce(developer, '')), 'C') ||
-            setweight(to_tsvector('english', coalesce(description, '')), 'D')
-        ) STORED;
+        DO $$ BEGIN
+            ALTER TABLE properties
+            ADD COLUMN IF NOT EXISTS search_tsv tsvector
+            GENERATED ALWAYS AS (
+                setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+                setweight(to_tsvector('english', coalesce(compound, '')), 'B') ||
+                setweight(to_tsvector('english', coalesce(location, '')), 'B') ||
+                setweight(to_tsvector('english', coalesce(developer, '')), 'C') ||
+                setweight(to_tsvector('english', coalesce(description, '')), 'D')
+            ) STORED;
+            RAISE NOTICE 'FTS tsvector column created';
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'FTS tsvector column skipped: %', SQLERRM;
+        END $$;
     """)
 
-    # 3. GIN index on tsvector column for fast full-text search
+    # 3. GIN index on tsvector column (only if the column exists)
     op.execute("""
-        CREATE INDEX IF NOT EXISTS ix_properties_search_tsv
-        ON properties USING gin (search_tsv);
+        DO $$ BEGIN
+            CREATE INDEX IF NOT EXISTS ix_properties_search_tsv
+            ON properties USING gin (search_tsv);
+            RAISE NOTICE 'FTS GIN index created';
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'FTS GIN index skipped: %', SQLERRM;
+        END $$;
     """)
 
     # 4. pg_trgm extension + trigram index for fuzzy compound name matching
-    op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
     op.execute("""
-        CREATE INDEX IF NOT EXISTS ix_properties_compound_trgm
-        ON properties USING gin (compound gin_trgm_ops);
+        DO $$ BEGIN
+            CREATE EXTENSION IF NOT EXISTS pg_trgm;
+            RAISE NOTICE 'pg_trgm extension created';
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'pg_trgm extension skipped: %', SQLERRM;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE INDEX IF NOT EXISTS ix_properties_compound_trgm
+            ON properties USING gin (compound gin_trgm_ops);
+            RAISE NOTICE 'Trigram index created';
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Trigram index skipped: %', SQLERRM;
+        END $$;
     """)
 
 
