@@ -186,6 +186,8 @@ export default function ChatMessage({
     });
   };
 
+  const msgIsArabic = msg.role !== 'user' && isArabic(msg.content);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
@@ -193,7 +195,7 @@ export default function ChatMessage({
       transition={{ type: 'spring', damping: 26, stiffness: 200 }}
       className="mb-5 sm:mb-6"
     >
-      <div className="flex gap-3 sm:gap-4">
+      <div className="flex gap-3 sm:gap-4" dir={msgIsArabic ? 'rtl' : undefined}>
         {/* Avatar column */}
         <div className="flex flex-shrink-0 mt-1">
           {msg.role === 'user' ? null : (
@@ -218,7 +220,7 @@ export default function ChatMessage({
             </motion.div>
           ) : (
             /* ── Agent response ── */
-            <div className="text-[14px] sm:text-[15px] leading-[1.65] sm:leading-relaxed text-[var(--color-text-secondary)] pt-0.5 sm:pt-1" dir="auto">
+            <div className="text-[14px] sm:text-[15px] leading-[1.65] sm:leading-relaxed text-[var(--color-text-secondary)] pt-0.5 sm:pt-1" dir={msgIsArabic ? 'rtl' : 'ltr'}>
               <StreamingText content={msg.content} animate={msg.id === lastAiMsgId} />
 
               {/* Visualizations */}

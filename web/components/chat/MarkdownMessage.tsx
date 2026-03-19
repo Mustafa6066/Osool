@@ -36,10 +36,10 @@ export default function MarkdownMessage({ content }: MarkdownMessageProps) {
             return <p className="mb-1.5 md:mb-3 last:mb-0 leading-[1.6] md:leading-relaxed text-end" {...props}>{children}</p>;
           },
           ul: ({ node, ...props }) => (
-            <ul className={`list-disc mb-2 md:mb-3 space-y-0.5 md:space-y-1 ${msgIsArabic ? 'pe-5' : 'ps-5'}`} {...props} />
+            <ul className="list-disc mb-2 md:mb-3 space-y-0.5 md:space-y-1 ps-5" {...props} />
           ),
           ol: ({ node, ...props }) => (
-            <ol className={`list-decimal mb-2 md:mb-3 space-y-0.5 md:space-y-1 ${msgIsArabic ? 'pe-5' : 'ps-5'}`} {...props} />
+            <ol className="list-decimal mb-2 md:mb-3 space-y-0.5 md:space-y-1 ps-5" {...props} />
           ),
           li: ({ node, ...props }) => <li className="mb-0.5 md:mb-1" {...props} />,
           strong: ({ node, ...props }) => (
@@ -53,7 +53,7 @@ export default function MarkdownMessage({ content }: MarkdownMessageProps) {
           h3: ({ node, ...props }) => <h3 className="text-base font-medium mb-1.5 md:mb-2 mt-1.5 md:mt-2" {...props} />,
           blockquote: ({ node, ...props }) => (
             <blockquote
-              className={`${msgIsArabic ? 'border-e-2 pe-4' : 'border-s-2 ps-4'} border-emerald-500/40 py-1 my-2 text-[var(--color-text-secondary)]`}
+              className="border-s-2 ps-4 border-emerald-500/40 py-1 my-2 text-[var(--color-text-secondary)]"
               {...props}
             />
           ),
