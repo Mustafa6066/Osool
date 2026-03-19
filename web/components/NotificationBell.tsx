@@ -20,7 +20,11 @@ interface Notification {
   data?: Record<string, unknown>;
 }
 
-export default function NotificationBell() {
+interface NotificationBellProps {
+  buttonClassName?: string;
+}
+
+export default function NotificationBell({ buttonClassName }: NotificationBellProps) {
   const { user, isAuthenticated } = useAuth();
   const { language } = useLanguage();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -103,13 +107,17 @@ export default function NotificationBell() {
 
   if (!isAuthenticated) return null;
 
+  const resolvedButtonClass = buttonClassName
+    ? `relative flex items-center justify-center transition-colors ${buttonClassName}`
+    : 'w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors relative';
+
   return (
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen(!open)}
         aria-label={language === 'ar' ? 'الإشعارات' : 'Notifications'}
         aria-expanded={open}
-        className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors relative"
+        className={resolvedButtonClass}
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (

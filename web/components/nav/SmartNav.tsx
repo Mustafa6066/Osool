@@ -57,7 +57,7 @@ function getDefaultLauncherPosition(): Position {
 }
 
 function DockIconButton({ icon: Icon, active = false, label, onClick, href }: IconButtonProps) {
-  const className = `group flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
+  const className = `group shrink-0 flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
     active
       ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
       : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -292,20 +292,22 @@ export default function SmartNav({ onInvite }: SmartNavProps) {
             }`}
             aria-label={language === 'ar' ? 'لوحة التنقل العائمة' : 'Floating navigation panel'}
           >
-            <div className="flex items-center justify-between gap-2 pb-2">
-              <DockIconButton
-                icon={Sparkles}
-                label={language === 'ar' ? 'الرئيسية' : 'Home'}
-                href="/"
-              />
+            <div className="flex items-center justify-center">
+              <div className="flex max-w-full items-center justify-center gap-1.5 overflow-x-auto overflow-y-visible whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <DockIconButton
+                  icon={Sparkles}
+                  label={language === 'ar' ? 'الرئيسية' : 'Home'}
+                  href="/"
+                />
 
-              <div className="flex items-center gap-1.5">
+                <div className="h-6 w-px shrink-0 bg-[var(--color-border)]" aria-hidden />
+
                 <DockIconButton
                   icon={Search}
                   label={language === 'ar' ? 'اسأل أصول' : 'Ask Osool'}
                   onClick={triggerSearch}
                 />
-                <NotificationBell />
+                <NotificationBell buttonClassName="h-10 w-10 shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]" />
                 <DockIconButton
                   icon={theme === 'dark' ? Sun : Moon}
                   label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
@@ -316,11 +318,9 @@ export default function SmartNav({ onInvite }: SmartNavProps) {
                   label={language === 'en' ? 'العربية' : 'English'}
                   onClick={toggleLanguage}
                 />
-              </div>
-            </div>
 
-            <div className="border-t border-[var(--color-border)] pt-3">
-              <div className="flex flex-wrap gap-1.5">
+                <div className="h-6 w-px shrink-0 bg-[var(--color-border)]" aria-hidden />
+
                 {items.map((item) => (
                   <DockIconButton
                     key={item.key}
@@ -339,6 +339,8 @@ export default function SmartNav({ onInvite }: SmartNavProps) {
                     onClick={() => handleNavigate('/admin')}
                   />
                 )}
+
+                <div className="h-6 w-px shrink-0 bg-[var(--color-border)]" aria-hidden />
 
                 {isAuthenticated ? (
                   <>
