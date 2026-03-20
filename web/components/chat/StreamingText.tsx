@@ -72,7 +72,7 @@ export default function StreamingText({ content, animate, forceRTL = false }: St
   const isRTL = forceRTL || /[\u0600-\u06FF]/.test(displayed);
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} className={isRTL ? 'text-end' : 'text-start'}>
+    <div dir={isRTL ? 'rtl' : 'ltr'} className="text-start">
       <div className="whitespace-pre-wrap leading-relaxed text-[15px] text-[var(--color-text-secondary)]">
         {displayed}
         {/* Animated cursor — pulses while streaming */}

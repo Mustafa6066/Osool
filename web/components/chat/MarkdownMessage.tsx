@@ -21,7 +21,7 @@ export default function MarkdownMessage({ content, forceRTL = false }: MarkdownM
   const normalized = normalizeMarkdown(content);
 
   return (
-    <div dir={msgIsArabic ? 'rtl' : 'ltr'} className={msgIsArabic ? 'text-end' : 'text-start'}>
+    <div dir={msgIsArabic ? 'rtl' : 'ltr'} className="text-start">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -34,7 +34,7 @@ export default function MarkdownMessage({ content, forceRTL = false }: MarkdownM
               );
               return <p className="mb-1.5 md:mb-3 last:mb-0 leading-[1.6] md:leading-relaxed text-start" {...props}>{annotated}</p>;
             }
-            return <p className="mb-1.5 md:mb-3 last:mb-0 leading-[1.6] md:leading-relaxed text-end" {...props}>{children}</p>;
+            return <p className="mb-1.5 md:mb-3 last:mb-0 leading-[1.6] md:leading-relaxed text-start" {...props}>{children}</p>;
           },
           ul: ({ node, ...props }) => (
             <ul className="list-disc mb-2 md:mb-3 space-y-0.5 md:space-y-1 ps-5" {...props} />

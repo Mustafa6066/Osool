@@ -201,7 +201,7 @@ export default function ChatMessage({
       transition={{ type: 'spring', damping: 26, stiffness: 200 }}
       className="mb-5 sm:mb-6"
     >
-      <div className={`flex gap-3 sm:gap-4 ${msgIsArabic ? 'flex-row-reverse' : ''}`} dir={msgIsArabic ? 'rtl' : undefined}>
+      <div className="flex gap-3 sm:gap-4" dir={msgIsArabic ? 'rtl' : undefined}>
         {/* Avatar column */}
         <div className="flex flex-shrink-0 mt-1">
           {msg.role === 'user' ? null : (
