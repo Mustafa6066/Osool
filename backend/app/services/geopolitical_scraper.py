@@ -14,7 +14,7 @@ Data Sources (RSS feeds + free APIs):
 Processing Pipeline:
 1. Fetch raw articles from RSS/API sources
 2. Filter for relevance (keyword + region matching)
-3. LLM summarization: extract impact on Egyptian RE market
+3. Rule-based summarization: extract impact on Egyptian RE market (zero tokens)
 4. Classify impact level (high/medium/low) and tag impact areas
 5. Store in GeopoliticalEvent table
 
@@ -28,10 +28,9 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -143,8 +142,7 @@ for kw_list in RELEVANCE_KEYWORDS.values():
 
 
 # ═══════════════════════════════════════════════════════════════
-# IMPACT → REAL ESTATE MAPPING (Rule-based fallback)
-# Used when LLM summarization is unavailable
+# IMPACT → REAL ESTATE MAPPING (Rule-based, zero tokens)
 # ═══════════════════════════════════════════════════════════════
 
 IMPACT_MAPPING: Dict[str, Dict[str, Any]] = {
@@ -348,69 +346,11 @@ def _assess_impact_level(article: Dict[str, str], category: str, matched_keyword
 
 
 # ═══════════════════════════════════════════════════════════════
-# LLM SUMMARIZATION (Optional Enhancement)
-# Falls back to rule-based mapping if LLM unavailable
+# RULE-BASED SUMMARIZATION (zero tokens)
 # ═══════════════════════════════════════════════════════════════
 
-async def _llm_summarize_impact(title: str, description: str, category: str) -> Optional[Dict[str, str]]:
-    """
-    Use GPT-4o-mini to generate a concise real-estate-impact summary.
-    Returns {"summary": ..., "real_estate_impact": ..., "impact_tags": [...]}
-    Falls back to None if LLM unavailable.
-    """
-    try:
-        import os
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            return None
-
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=api_key)
-
-        prompt = f"""You are a senior Egyptian real estate investment analyst. 
-Analyze this news event and explain its impact on the Egyptian real estate market.
-
-EVENT: {title}
-DETAILS: {description[:500]}
-CATEGORY: {category}
-
-Respond in JSON format:
-{{
-  "summary": "2-3 sentence summary of the event focused on economic/market impact",
-  "real_estate_impact": "2-3 sentence analysis of how this specifically affects Egyptian real estate (prices, construction costs, demand, foreign investment, payment strategies)",
-  "sentiment_score": 0.0,
-  "impact_tags": ["tag1", "tag2", "tag3"]
-}}
-
-sentiment_score is a float from -1.0 (very negative for Egyptian RE market) to +1.0 (very positive).
-Examples: currency devaluation = -0.7, new metro line = +0.5, stable inflation = +0.2
-
-Valid tags: inflation_hedge, construction_costs, currency_devaluation, supply_chain, 
-interest_rates, mortgage_affordability, foreign_investment, demand_increase, 
-price_appreciation, developer_repricing, off_plan_advantage, rental_yield, 
-shipping_disruption, capital_preservation, infrastructure, regulatory_change"""
-
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=400,
-            response_format={"type": "json_object"},
-        )
-
-        content = response.choices[0].message.content
-        if not content:
-            return None
-        result = json.loads(content)
-        return result
-
-    except Exception as e:
-        logger.warning(f"LLM summarization failed (non-fatal): {e}")
-        return None
-
-
 def _rule_based_summary(article: Dict[str, str], category: str) -> Dict[str, Any]:
-    """Fallback: generate summary from rule-based mapping when LLM is unavailable."""
+    """Generate summary from rule-based mapping — zero token cost."""
     mapping = IMPACT_MAPPING.get(category, IMPACT_MAPPING["inflation"])
     return {
         "summary": f"{article['title']}. {article.get('description', '')[:200]}",
@@ -462,14 +402,11 @@ async def _is_duplicate(db: AsyncSession, title: str, source: str) -> bool:
 # MAIN SCRAPER PIPELINE
 # ═══════════════════════════════════════════════════════════════
 
-async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> Dict[str, Any]:
+async def scrape_geopolitical_events(db: AsyncSession) -> Dict[str, Any]:
     """
     Main pipeline: Fetch → Filter → Summarize → Store.
-    
-    Args:
-        db: Async database session
-        use_llm: Whether to use GPT-4o-mini for summarization (costs ~$0.01/run)
-    
+    Zero token cost — uses rule-based impact summarization only.
+
     Returns:
         {"fetched": int, "relevant": int, "stored": int, "errors": int}
     """
@@ -522,15 +459,8 @@ async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> 
                 # Impact assessment
                 impact_level = _assess_impact_level(article, category, keywords)
 
-                # Summarization (LLM with rule-based fallback)
-                summary_data: Optional[Dict[str, Any]] = None
-                if use_llm:
-                    summary_data = await _llm_summarize_impact(
-                        article["title"], article.get("description", ""), category
-                    )
-
-                if not summary_data:
-                    summary_data = _rule_based_summary(article, category)
+                # Summarization (rule-based, zero tokens)
+                summary_data: Dict[str, Any] = _rule_based_summary(article, category)
 
                 # Parse tags
                 tags = summary_data.get("impact_tags", [])
@@ -617,5 +547,5 @@ async def run_geopolitical_scraper():
     """Standalone runner for the geopolitical scraper (used by scheduler)."""
     from app.database import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
-        result = await scrape_geopolitical_events(db, use_llm=True)
+        result = await scrape_geopolitical_events(db)
         return result

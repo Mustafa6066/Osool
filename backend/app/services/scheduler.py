@@ -111,7 +111,7 @@ async def run_geopolitical_scraper():
         from app.services.geopolitical_scraper import scrape_geopolitical_events
 
         async with AsyncSessionLocal() as db:
-            result = await scrape_geopolitical_events(db, use_llm=True)
+            result = await scrape_geopolitical_events(db)
             logger.info(
                 f"[CRON] Geopolitical scraper completed: "
                 f"stored={result.get('stored', 0)}, relevant={result.get('relevant', 0)}"

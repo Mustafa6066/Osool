@@ -1004,7 +1004,7 @@ async def admin_trigger_geopolitical_scraper(
     Runs inline (typically < 30s).
     """
     from app.services.geopolitical_scraper import scrape_geopolitical_events
-    result = await scrape_geopolitical_events(db, use_llm=True)
+    result = await scrape_geopolitical_events(db)
     return {"status": "Geopolitical scraper completed", "triggered_by": admin.email, **result}
 
 
