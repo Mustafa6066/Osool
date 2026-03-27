@@ -532,6 +532,52 @@ async def admin_trigger_nawy_scrape(
     return {"status": "Nawy scrape started in background", "triggered_by": admin.email}
 
 
+@router.get("/scraper/status")
+async def admin_scraper_status(admin: User = Depends(require_super_admin)):
+    """
+    Admin: Get current scraper status and next scheduled run times.
+    Returns last scrape result (if available) + scheduler job details.
+    """
+    import os, json
+    from pathlib import Path
+
+    status_files = [
+        Path("/app/data/scrape_status.json"),
+        Path("data/scrape_status.json"),
+        Path(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "scrape_status.json")),
+    ]
+    last_scrape = None
+    for path in status_files:
+        if path.exists():
+            try:
+                last_scrape = json.loads(path.read_text())
+            except Exception:
+                pass
+            break
+
+    try:
+        from app.services.scheduler import scheduler
+        scraper_jobs = [
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
+            }
+            for job in scheduler.get_jobs()
+            if "scraper" in job.id or "scrape" in job.id
+        ]
+        scheduler_running = scheduler.running
+    except Exception as e:
+        scraper_jobs = []
+        scheduler_running = False
+
+    return {
+        "scheduler_running": scheduler_running,
+        "scraper_jobs": scraper_jobs,
+        "last_scrape": last_scrape,
+    }
+
+
 @router.post("/scraper/economic")
 @limiter.limit("2/minute")  # SECURITY: Each call executes external scraping + DB writes
 async def admin_trigger_economic_scraper(

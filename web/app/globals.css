@@ -63,6 +63,11 @@
    ═══════════════════════════════════════════════ */
 
 :root {
+  /* Sidebar dimensions */
+  --sidenav-collapsed-width: 56px;
+  --sidenav-expanded-width: 220px;
+  --sidenav-mobile-bar-height: 64px;
+
   /* Spacing grid — 4pt base */
   --spacing-xs: 4px;
   --spacing-sm: 8px;

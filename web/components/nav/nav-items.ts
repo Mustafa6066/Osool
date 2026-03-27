@@ -19,14 +19,24 @@ export interface NavItem {
   href: string;
 }
 
-/** Authenticated users — first 4 items appear in mobile bottom bar */
-export const AUTH_NAV: NavItem[] = [
-  { key: 'chat',      label: 'Chat',    labelAr: 'المحادثة',  icon: MessageSquare,   href: '/chat' },
-  { key: 'explore',   label: 'Explore', labelAr: 'استكشف',    icon: Compass,         href: '/explore' },
-  { key: 'saved',     label: 'Saved',   labelAr: 'المحفوظات', icon: Heart,           href: '/favorites' },
-  { key: 'dashboard', label: 'Home',    labelAr: 'الرئيسية',  icon: LayoutDashboard, href: '/dashboard' },
-  { key: 'market',    label: 'Market',  labelAr: 'السوق',     icon: TrendingUp,      href: '/market' },
+/** Authenticated users — primary navigation items */
+export const AUTH_NAV_PRIMARY: NavItem[] = [
+  { key: 'chat',       label: 'Chat',       labelAr: 'المحادثة',  icon: MessageSquare,   href: '/chat' },
+  { key: 'explore',    label: 'Explore',    labelAr: 'استكشف',    icon: Compass,         href: '/explore' },
+  { key: 'areas',      label: 'Areas',      labelAr: 'المناطق',   icon: MapPin,          href: '/areas' },
+  { key: 'developers', label: 'Developers', labelAr: 'المطورون',  icon: Building2,       href: '/developers' },
+  { key: 'projects',   label: 'Projects',   labelAr: 'المشاريع',  icon: Layers,          href: '/projects' },
 ];
+
+/** Authenticated users — secondary navigation items */
+export const AUTH_NAV_SECONDARY: NavItem[] = [
+  { key: 'dashboard', label: 'Dashboard', labelAr: 'الرئيسية',  icon: LayoutDashboard, href: '/dashboard' },
+  { key: 'saved',     label: 'Saved',     labelAr: 'المحفوظات', icon: Heart,           href: '/favorites' },
+  { key: 'market',    label: 'Market',    labelAr: 'السوق',     icon: TrendingUp,      href: '/market' },
+];
+
+/** Authenticated users — all items combined (backward compat) */
+export const AUTH_NAV: NavItem[] = [...AUTH_NAV_PRIMARY, ...AUTH_NAV_SECONDARY];
 
 /** Public visitors — first 4 items appear in mobile bottom bar */
 export const PUBLIC_NAV: NavItem[] = [

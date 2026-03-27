@@ -634,34 +634,27 @@ export default function AgentInterface() {
                     />
                   </div>
 
-                  {/* Mobile suggestion cards */}
-                  <div className="md:hidden w-full max-w-[800px] mx-auto mt-3.5 px-1">
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {minimalEmptySuggestions.slice(0, 3).map((s, i) => (
+                  {/* Suggestion cards — 2×2 grid on all breakpoints */}
+                  <div className="w-full max-w-[600px] mx-auto mt-4 px-3">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {minimalEmptySuggestions.slice(0, 4).map((s, i) => (
                         <button
-                          key={`mobile-${i}`}
+                          key={i}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                          className="shrink-0 rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                          className="flex flex-col items-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 text-start transition-all hover:border-emerald-500/30 hover:bg-[var(--color-surface-elevated)] active:scale-[0.98]"
                         >
-                          <span dir="auto" className="block max-w-[70vw] truncate whitespace-nowrap">{s.label}</span>
+                          <span dir="auto" className="text-[12px] font-semibold text-[var(--color-text-primary)] leading-snug line-clamp-2">
+                            {s.label}
+                          </span>
+                          {s.snippet && (
+                            <span className="mt-1 text-[11px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
+                              {s.snippet}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
-                  </div>
-
-                  {/* Desktop suggestion grid */}
-                  <div className="hidden md:flex w-full max-w-3xl mx-auto flex-wrap gap-2 mt-5 px-4 justify-center">
-                    {minimalEmptySuggestions.map((s, i) => (
-                      <button
-                        key={i}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                        className="rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                      >
-                        <span className="block max-w-[260px] truncate whitespace-nowrap" dir="auto">{s.label}</span>
-                      </button>
-                    ))}
                   </div>
 
                   {/* Past sessions */}

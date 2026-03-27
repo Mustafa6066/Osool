@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import SmartNav from '@/components/nav/SmartNav';
+import SideNav from '@/components/nav/SideNav';
 import InvitationModal from '@/components/InvitationModal';
 
 interface AppShellProps {
@@ -16,14 +16,12 @@ export default function AppShell({ children }: AppShellProps) {
     <>
       <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-      {/* Content area — reserve space for floating nav launcher */}
-      <div
-        className="flex flex-col min-h-dvh pt-0 pb-12 overflow-x-hidden overflow-y-auto"
-      >
+      <SideNav onInvite={openInvite} />
+
+      {/* Main content — offset by sidebar collapsed width on desktop, pad bottom for mobile tab bar */}
+      <div className="flex flex-col min-h-dvh lg:pl-14 pb-16 lg:pb-0 overflow-x-hidden overflow-y-auto">
         {children}
       </div>
-
-      <SmartNav onInvite={openInvite} />
     </>
   );
 }

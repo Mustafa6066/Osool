@@ -4,7 +4,7 @@ LLM Normalization Service
 Pillar 3: AI-powered edge normalization.
 
 Takes the raw JSON payload extracted from Nawy.com (either from __NEXT_DATA__
-or XHR interception) and uses gpt-4o-mini with structured JSON output to:
+or XHR interception) and uses Claude Haiku with structured JSON output to:
 
   1. Standardize property types → strict Literal enum
   2. Normalize finishing status → strict Literal enum
@@ -12,9 +12,9 @@ or XHR interception) and uses gpt-4o-mini with structured JSON output to:
   4. Extract and type-coerce numeric fields (price, size, bedrooms, etc.)
   5. Return Pydantic v2-validated NormalizedProperty objects
 
-Cost note: gpt-4o-mini at $0.00015/1K input + $0.0006/1K output.
+Cost note: claude-haiku-4-5-20251001 is fast and affordable.
            With ~500 tokens per unit call, 30 units/compound, 500 compounds:
-           ≈ $1.15 per full scrape run.
+           Comparable cost to gpt-4o-mini with better instruction following.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ import logging
 import os
 from typing import Any, List, Literal, Optional
 
-from openai import AsyncOpenAI
+import anthropic
 from pydantic import BaseModel, Field, field_validator, model_validator
 from tenacity import (
     retry,
@@ -210,8 +210,8 @@ class NormalizationResult(BaseModel):
 # LLM Client + System Prompt
 # ─────────────────────────────────────────────────────────────────────────────
 
-_openai_api_key = os.getenv("OPENAI_API_KEY")
-_openai_client = AsyncOpenAI(api_key=_openai_api_key) if _openai_api_key else None
+_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+_anthropic_client = anthropic.AsyncAnthropic(api_key=_anthropic_api_key) if _anthropic_api_key else None
 
 MAX_UNITS_PER_COMPOUND = int(os.getenv("MAX_UNITS_PER_COMPOUND", "30"))
 
@@ -312,7 +312,7 @@ REQUIRED OUTPUT SCHEMA (JSON only, no markdown)
 )
 async def _call_llm_normalize(raw_unit_json: str) -> NormalizedProperty:
     """
-    Single gpt-4o-mini call with JSON response format enforcement.
+    Single Claude Haiku call for property normalization.
 
     Tenacity retries on any exception (rate limits, transient network errors).
     Pydantic v2 validates the response; ValidationError propagates to caller.
@@ -326,21 +326,30 @@ async def _call_llm_normalize(raw_unit_json: str) -> NormalizedProperty:
     Raises:
         ValidationError: If LLM output doesn't match schema after 3 retries.
     """
-    response = await _openai_client.chat.completions.create(
-        model=os.getenv("GPT_MINI_MODEL", "gpt-4o-mini"),
-        response_format={"type": "json_object"},
+    response = await _anthropic_client.messages.create(
+        model=os.getenv("CLAUDE_HAIKU_MODEL", "claude-haiku-4-5-20251001"),
+        max_tokens=1024,
+        temperature=0,
+        system=SYSTEM_PROMPT,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": f"Normalize this Nawy.com property JSON:\n\n{raw_unit_json}",
             },
         ],
-        temperature=0,
-        max_tokens=900,
     )
 
-    raw_output = response.choices[0].message.content
+    raw_output = response.content[0].text.strip()
+
+    # Strip markdown code fences if Claude wraps the JSON
+    if raw_output.startswith("```"):
+        parts = raw_output.split("```")
+        # parts[1] is the content between first pair of fences
+        inner = parts[1] if len(parts) > 1 else raw_output
+        if inner.startswith("json"):
+            inner = inner[4:]
+        raw_output = inner.strip()
+
     return NormalizedProperty.model_validate_json(raw_output)
 
 

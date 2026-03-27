@@ -139,6 +139,35 @@ async def run_image_mirror():
         logger.error(f"[CRON] Image mirror failed: {e}")
         raise
 
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=600), reraise=True)
+async def run_nawy_scrape_scheduled():
+    """
+    Every-15-days Nawy property scraper job.
+    Runs on the 1st and 15th of each month at 03:00 UTC.
+    Writes directly to the database, then triggers post-scrape processing.
+    """
+    logger.info("[CRON] Starting scheduled 15-day Nawy scrape...")
+    try:
+        from app.services.nawy_scraper import run_nawy_scrape
+        result = await run_nawy_scrape()
+        logger.info(
+            f"[CRON] Nawy scrape completed: "
+            f"scraped={result.get('scraped', 0)}, "
+            f"upserted={result.get('upserted', 0)}, "
+            f"errors={result.get('errors', 0)}"
+        )
+        # Trigger post-scrape cleanup immediately after scraping
+        await run_post_scrape_processing()
+        # Notify Orchestrator
+        await _notify_orchestrator("property_scrape_complete", {
+            "significantChanges": result.get("upserted", 0),
+            "trigger": "scheduled_15day",
+        })
+    except Exception as e:
+        logger.error(f"[CRON] Scheduled Nawy scrape failed: {e}")
+        raise
+
+
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
 async def run_marketing_generator():
     """Bi-weekly marketing material generation AI job."""
@@ -215,6 +244,16 @@ def init_scheduler():
         misfire_grace_time=3600,
     )
 
+    # Nawy Property Scraper: Every 15 days (1st and 15th of month) at 03:00 UTC
+    scheduler.add_job(
+        run_nawy_scrape_scheduled,
+        trigger=CronTrigger(day="1,15", hour=3, minute=0),
+        id="biweekly_nawy_scraper",
+        name="Bi-weekly Nawy Property Scraper (every 15 days)",
+        replace_existing=True,
+        misfire_grace_time=7200,  # 2h grace — scrape takes up to 60 min
+    )
+
     # Marketing Material Generation: Bi-weekly (1st and 15th of the month) at 06:00 UTC
     scheduler.add_job(
         run_marketing_generator,
@@ -237,7 +276,8 @@ def init_scheduler():
 
     scheduler.start()
     logger.info("✅ APScheduler started with cron jobs:")
-    logger.info("   📅 Post-Scrape Processing: Sundays 04:30 UTC (after Railway Cron scraper)")
+    logger.info("   📅 Nawy Scraper: 1st/15th of month 03:00 UTC (every 15 days)")
+    logger.info("   📅 Post-Scrape Processing: Sundays 04:30 UTC")
     logger.info("   📅 Economic Scraper: Sundays 03:30 UTC")
     logger.info("   📅 Geopolitical Scraper: Daily 04:00 UTC")
     logger.info("   📅 Image Mirror: Sundays 05:00 UTC")

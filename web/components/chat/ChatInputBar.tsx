@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Paperclip } from 'lucide-react';
 import VoiceOrb from '@/components/VoiceOrb';
 import type { RecordingStatus } from '@/hooks/useVoiceRecording';
 
@@ -19,6 +19,7 @@ interface ChatInputProps {
   transcriptHighlight: boolean;
   onVoiceToggle: () => void;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  onFileAttach?: () => void;
 }
 
 /* ═══════════════════════════════════════════════
@@ -38,6 +39,7 @@ export default function ChatInput({
   transcriptHighlight,
   onVoiceToggle,
   inputRef,
+  onFileAttach,
 }: ChatInputProps) {
   // Auto-resize textarea
   useEffect(() => {
@@ -106,6 +108,17 @@ export default function ChatInput({
           />
 
           <div className="flex-shrink-0 pb-2 md:pb-3 pe-2 md:pe-3 flex items-center gap-1.5">
+            {onFileAttach && (
+              <button
+                type="button"
+                onClick={onFileAttach}
+                aria-label={language === 'ar' ? 'إرفاق ملف' : 'Attach file'}
+                title={language === 'ar' ? 'إرفاق ملف' : 'Attach file'}
+                className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors"
+              >
+                <Paperclip className="w-4 h-4" strokeWidth={1.8} />
+              </button>
+            )}
             <VoiceOrb
               status={voiceStatus}
               amplitude={amplitude}
