@@ -72,11 +72,11 @@ normalize_properties_fn = None
 NormalizedProperty = None
 
 try:
-    from app.ingestion.llm_normalizer import normalize_properties as _normalize_properties, NormalizedProperty as _NormalizedProperty
+    from app.ingestion.deterministic_normalizer import normalize_properties as _normalize_properties, NormalizedProperty as _NormalizedProperty
     normalize_properties_fn = _normalize_properties
     NormalizedProperty = _NormalizedProperty
     PIPELINE_AVAILABLE = True
-    print("✅ Ingestion pipeline loaded (NEXT_DATA + LLM normalizer active)", flush=True)
+    print("✅ Ingestion pipeline loaded (NEXT_DATA + deterministic normalizer — 0 tokens)", flush=True)
 except ImportError:
     print("⚠️  Ingestion pipeline not available — Regex-only mode", flush=True)
 

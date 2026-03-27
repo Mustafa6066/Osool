@@ -28,7 +28,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import AsyncSessionLocal
 from app.models import Property
-from app.ingestion.llm_normalizer import NormalizedProperty
+from app.ingestion.deterministic_normalizer import NormalizedProperty
 
 logger = logging.getLogger(__name__)
 
@@ -94,76 +94,10 @@ def compute_content_hash(prop: NormalizedProperty) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Embedding Generation (mirrors vector_search.py exactly)
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def _generate_embedding(prop: NormalizedProperty) -> Optional[List[float]]:
-    """
-    Generates a 1536-dim OpenAI text-embedding-3-small vector.
-
-    Text format is designed to capture the property's investible identity:
-    type, location, finishing quality, and price anchoring for cosine similarity.
-
-    Mirrors the pattern in app/services/vector_search.py:get_embedding()
-    — uses openai_breaker circuit breaker + cost_monitor tracking.
-
-    Returns:
-        List of 1536 floats, or None on failure (upsert proceeds without embedding).
-    """
-    from openai import AsyncOpenAI
-
-    # circuit_breaker / cost_monitor live in app.services which may not be
-    # available in the stripped-down scraper container.
-    try:
-        from app.services.circuit_breaker import openai_breaker
-    except ImportError:
-        openai_breaker = None
-    try:
-        from app.services.cost_monitor import cost_monitor
-    except ImportError:
-        cost_monitor = None
-
-    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    compound_str = f", {prop.compound}" if prop.compound else ""
-    desc_snippet = (prop.description or "")[:200].strip()
-    desc_part = f" {desc_snippet}" if desc_snippet else ""
-
-    embedding_text = (
-        f"{prop.type} in {prop.location}{compound_str}, by {prop.developer or 'Unknown Developer'}. "
-        f"Size: {prop.size_sqm}sqm, {prop.bedrooms} bedrooms, {prop.finishing}. "
-        f"Price: {prop.price:,.0f} EGP.{desc_part}"
-    )
-
-    try:
-        async def _call():
-            response = await client.embeddings.create(
-                input=embedding_text,
-                model="text-embedding-3-small",
-            )
-            token_count = response.usage.total_tokens
-            if cost_monitor:
-                cost_monitor.log_usage(
-                    model="text-embedding-3-small",
-                    input_tokens=token_count,
-                    output_tokens=0,
-                    context="ingestion_embedding",
-                )
-            return response.data[0].embedding
-
-        if openai_breaker:
-            return await openai_breaker.call_async(_call)
-        return await _call()
-
-    except Exception as exc:
-        logger.warning(
-            "[repo] Embedding generation failed for '%s' @ %s — upsert will proceed without vector. Error: %s",
-            prop.title,
-            prop.nawy_url,
-            exc,
-        )
-        return None
+# Embedding generation removed — scraper is zero-token.
+# New/updated properties are stored with embedding=NULL.
+# Full-text search via search_tsv (tsvector) column remains active.
+# To backfill embeddings, run the standalone embed_backfill task.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -276,7 +210,7 @@ async def upsert_properties(
                     continue
 
                 # ── Expensive path: new or changed ─────────────────────────
-                embedding = await _generate_embedding(prop)
+                embedding = None  # zero-token: embeddings skipped at scrape time
 
                 row = _build_row(prop, run_id, now, new_hash, embedding)
                 batch_buffer.append(row)
