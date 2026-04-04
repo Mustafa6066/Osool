@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Sparkles, Sun, Moon, LogOut, Shield, Languages, Gift,
   LogIn, Settings, ChevronRight, Menu, X,
@@ -20,6 +20,7 @@ import NotificationBell from '@/components/NotificationBell';
 /* ─── Constants ─────────────────────────────── */
 const SPRING = { type: 'spring' as const, damping: 28, stiffness: 240 };
 const EASE_OUT = { duration: 0.18, ease: [0.16, 1, 0.3, 1] as const };
+const MOBILE_HIDE_THRESHOLD = 10;
 
 /* ─── Types ──────────────────────────────────── */
 interface SideNavProps {
@@ -279,7 +280,7 @@ function UserDropdown({
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: 8 }}
       transition={EASE_OUT}
-      className={`absolute bottom-14 z-[200] w-[200px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/98 shadow-xl backdrop-blur-xl ${
+      className={`absolute bottom-14 z-[200] w-[200px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl ${
         isRTL ? 'right-2' : 'left-2'
       }`}
     >
@@ -343,11 +344,78 @@ export default function SideNav({ onInvite }: SideNavProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileNavVisible, setMobileNavVisible] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const lastScrollTopRef = useRef(0);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => { setMounted(true); }, []);
   // Close on route change
-  useEffect(() => { setMobileMenuOpen(false); setShowUserMenu(false); }, [pathname]);
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setShowUserMenu(false);
+    setMobileNavVisible(true);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const isMobileViewport = () => window.matchMedia('(max-width: 1023px)').matches;
+
+    const updateVisibility = (nextScrollTop: number) => {
+      const clampedTop = Math.max(0, nextScrollTop);
+      const delta = clampedTop - lastScrollTopRef.current;
+
+      if (clampedTop <= 16) {
+        setMobileNavVisible(true);
+        lastScrollTopRef.current = clampedTop;
+        return;
+      }
+
+      if (Math.abs(delta) < MOBILE_HIDE_THRESHOLD) {
+        return;
+      }
+
+      setMobileNavVisible(delta < 0);
+      lastScrollTopRef.current = clampedTop;
+    };
+
+    const handleScroll = (event: Event) => {
+      if (!isMobileViewport() || mobileMenuOpen) {
+        return;
+      }
+
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        updateVisibility(target.scrollTop);
+        return;
+      }
+
+      updateVisibility(window.scrollY || document.documentElement.scrollTop || 0);
+    };
+
+    const handleResize = () => {
+      if (!isMobileViewport()) {
+        setMobileNavVisible(true);
+      }
+    };
+
+    lastScrollTopRef.current = window.scrollY || document.documentElement.scrollTop || 0;
+
+    document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      document.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [mounted, mobileMenuOpen]);
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      setMobileNavVisible(true);
+    }
+  }, [mobileMenuOpen]);
 
   const handleLogout = useCallback(() => {
     logout();
@@ -525,11 +593,22 @@ export default function SideNav({ onInvite }: SideNavProps) {
       {/* ╔══════════════════════════════╗
           ║  MOBILE BOTTOM TAB BAR       ║
           ╚══════════════════════════════╝ */}
-      <nav
-        className={`lg:hidden fixed bottom-0 inset-x-0 z-50 flex items-stretch
-                    border-t border-[var(--color-border)] bg-[var(--color-surface)]/97
-                    backdrop-blur-2xl`}
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      <motion.nav
+        initial={false}
+        animate={{
+          y: mobileNavVisible ? 0 : 110,
+          opacity: mobileNavVisible ? 1 : 0,
+        }}
+        transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        className={`lg:hidden fixed inset-x-3 z-50 flex items-stretch rounded-[26px]
+                    border border-[var(--color-border)] bg-[var(--color-surface)]/95
+                    backdrop-blur-2xl shadow-[0_18px_40px_rgba(0,0,0,0.2)]`}
+        style={{
+          bottom: 'max(12px, env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'max(6px, env(safe-area-inset-bottom, 0px))',
+          pointerEvents: mobileNavVisible ? 'auto' : 'none',
+        }}
+        aria-hidden={!mobileNavVisible}
       >
         {mobileItems.map((item) => {
           const isActive = item.key === activeKey;
@@ -540,7 +619,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
             <Link
               key={item.key}
               href={item.href}
-              className="flex flex-1 flex-col items-center justify-center gap-1 min-h-[56px] py-2 px-1 relative"
+              className="flex flex-1 flex-col items-center justify-center gap-1 min-h-[58px] py-2 px-1.5 relative"
               aria-label={label}
             >
               {isActive && (
@@ -574,7 +653,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
         {/* More tab */}
         <button
           onClick={() => setMobileMenuOpen(true)}
-          className="flex flex-1 flex-col items-center justify-center gap-1 min-h-[56px] py-2 px-1"
+          className="flex flex-1 flex-col items-center justify-center gap-1 min-h-[58px] py-2 px-1.5"
           aria-label={language === 'ar' ? 'المزيد' : 'More'}
         >
           <Menu
@@ -585,7 +664,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
             {language === 'ar' ? 'المزيد' : 'More'}
           </span>
         </button>
-      </nav>
+      </motion.nav>
 
       {/* ╔══════════════════════════════╗
           ║  MOBILE MENU SHEET           ║
@@ -609,7 +688,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={SPRING}
-              className="lg:hidden fixed bottom-0 inset-x-0 z-[70] rounded-t-3xl border-t border-[var(--color-border)] bg-[var(--color-surface)]/98 backdrop-blur-2xl px-4 pt-3"
+              className="lg:hidden fixed bottom-0 inset-x-0 z-[70] rounded-t-3xl border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 pt-3"
               style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 16px)' }}
             >
               {/* Drag handle */}
