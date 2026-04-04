@@ -19,7 +19,7 @@ export default function AppShell({ children }: AppShellProps) {
       <SideNav onInvite={openInvite} />
 
       {/* Main content — offset by sidebar collapsed width on desktop, pad bottom for floating mobile nav */}
-      <div className="flex flex-col min-h-dvh lg:ps-14 pb-24 lg:pb-0 overflow-x-hidden overflow-y-auto">
+      <div className="flex flex-col min-h-dvh lg:ps-14 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] lg:pb-0 overflow-x-hidden overflow-y-auto">
         {children}
       </div>
     </>

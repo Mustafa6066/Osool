@@ -600,10 +600,11 @@ export default function SideNav({ onInvite }: SideNavProps) {
           opacity: mobileNavVisible ? 1 : 0,
         }}
         transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        className={`lg:hidden fixed inset-x-3 z-50 flex items-stretch rounded-[26px]
+        className={`lg:hidden fixed left-1/2 -translate-x-1/2 z-50 flex items-stretch rounded-[26px]
                     border border-[var(--color-border)] bg-[var(--color-surface)]/95
                     backdrop-blur-2xl shadow-[0_18px_40px_rgba(0,0,0,0.2)]`}
         style={{
+          width: 'min(680px, calc(100vw - max(12px, env(safe-area-inset-left, 0px)) - max(12px, env(safe-area-inset-right, 0px))))',
           bottom: 'max(12px, env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'max(6px, env(safe-area-inset-bottom, 0px))',
           pointerEvents: mobileNavVisible ? 'auto' : 'none',
@@ -619,7 +620,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
             <Link
               key={item.key}
               href={item.href}
-              className="flex flex-1 flex-col items-center justify-center gap-1 min-h-[58px] py-2 px-1.5 relative"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 min-h-[58px] max-[420px]:min-h-[52px] py-2 max-[420px]:py-1.5 px-1.5 relative"
               aria-label={label}
             >
               {isActive && (
@@ -630,7 +631,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                 />
               )}
               <Icon
-                className={`relative z-10 h-5 w-5 transition-colors ${
+                className={`relative z-10 h-5 w-5 max-[420px]:h-4 max-[420px]:w-4 transition-colors ${
                   isActive
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-[var(--color-text-muted)]'
@@ -638,7 +639,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                 strokeWidth={isActive ? 2.4 : 1.8}
               />
               <span
-                className={`relative z-10 text-[10px] font-medium transition-colors leading-none ${
+                className={`relative z-10 max-w-full truncate text-[10px] font-medium transition-colors leading-none max-[420px]:hidden ${
                   isActive
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-[var(--color-text-muted)]'
@@ -653,14 +654,14 @@ export default function SideNav({ onInvite }: SideNavProps) {
         {/* More tab */}
         <button
           onClick={() => setMobileMenuOpen(true)}
-          className="flex flex-1 flex-col items-center justify-center gap-1 min-h-[58px] py-2 px-1.5"
+          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 min-h-[58px] max-[420px]:min-h-[52px] py-2 max-[420px]:py-1.5 px-1.5"
           aria-label={language === 'ar' ? 'المزيد' : 'More'}
         >
           <Menu
-            className="h-5 w-5 text-[var(--color-text-muted)]"
+            className="h-5 w-5 max-[420px]:h-4 max-[420px]:w-4 text-[var(--color-text-muted)]"
             strokeWidth={1.8}
           />
-          <span className="text-[10px] font-medium text-[var(--color-text-muted)] leading-none">
+          <span className="max-w-full truncate text-[10px] font-medium text-[var(--color-text-muted)] leading-none max-[420px]:hidden">
             {language === 'ar' ? 'المزيد' : 'More'}
           </span>
         </button>
