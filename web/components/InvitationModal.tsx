@@ -125,6 +125,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                                         type="text"
                                         value={invitation.invitation_link}
                                         readOnly
+                                        aria-label="Invitation link"
                                         className="flex-1 bg-transparent text-sm text-slate-700 dark:text-slate-300 outline-none truncate"
                                     />
                                     <button

@@ -157,7 +157,7 @@ function tierColor(tier: string): string {
     case "CRITICAL":
       return "text-rose-600 border-rose-600/50 animate-pulse";
     default:
-      return "text-[#555] border-[#333]";
+      return "text-[#A3A3A3] border-[#333]";
   }
 }
 
@@ -240,7 +240,7 @@ function CardHeader({
     <div className="mb-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
         <Icon className="h-4 w-4 text-lime-400" />
-        <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-[#888]">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-[#A3A3A3]">
           {label}
         </span>
       </div>
@@ -339,7 +339,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
             <h3 className="text-xl font-bold text-white">
               {lang === "ar" ? data.nameAr : data.name}
             </h3>
-            <p className="mt-0.5 font-mono text-[11px] text-[#555]">
+            <p className="mt-0.5 font-mono text-[11px] text-[#A3A3A3]">
               {lang === "ar" ? data.name : data.nameAr}
             </p>
           </div>
@@ -404,7 +404,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                     style={{ height: `${height}%` }}
                   />
                   {/* Hover value */}
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold text-[#555] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold text-[#A3A3A3] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {p.delayMonths > 0 ? `${p.delayMonths}m` : "0"}
                   </span>
                   {/* Tooltip */}
@@ -412,7 +412,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                     <p className="whitespace-nowrap font-mono text-[9px] text-white">
                       {p.name}
                     </p>
-                    <p className="font-mono text-[9px] text-[#888]">
+                    <p className="font-mono text-[9px] text-[#A3A3A3]">
                       {p.delayMonths > 0
                         ? `${p.delayMonths} ${t.months} ${t.delay.toLowerCase()}`
                         : t.onTrack}
@@ -425,7 +425,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
           {/* Bar letter labels */}
           <div className="mb-3 flex gap-1">
             {data.projects.map((_, i) => (
-              <span key={i} className="flex-1 text-center font-mono text-[8px] text-[#444]">
+              <span key={i} className="flex-1 text-center font-mono text-[8px] text-[#969696]">
                 {String.fromCharCode(65 + i)}
               </span>
             ))}
@@ -434,7 +434,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
           {/* Aggregate stats */}
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-none border border-[#222] bg-black p-3 text-center">
-              <p className="font-mono text-[10px] uppercase text-[#555]">
+              <p className="font-mono text-[10px] uppercase text-[#A3A3A3]">
                 {t.avgDelay}
               </p>
               <p
@@ -442,10 +442,10 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
               >
                 {data.avgDelayMonths.toFixed(1)}
               </p>
-              <p className="font-mono text-[9px] text-[#444]">{t.months}</p>
+              <p className="font-mono text-[9px] text-[#969696]">{t.months}</p>
             </div>
             <div className="rounded-none border border-[#222] bg-black p-3 text-center">
-              <p className="font-mono text-[10px] uppercase text-[#555]">
+              <p className="font-mono text-[10px] uppercase text-[#A3A3A3]">
                 {t.onTimeRate}
               </p>
               <p
@@ -453,18 +453,18 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
               >
                 {(data.onTimeRate * 100).toFixed(0)}%
               </p>
-              <p className="font-mono text-[9px] text-[#444]">
+              <p className="font-mono text-[9px] text-[#969696]">
                 {data.deliveredProjects} {t.delivered.toLowerCase()}
               </p>
             </div>
             <div className="rounded-none border border-[#222] bg-black p-3 text-center">
-              <p className="font-mono text-[10px] uppercase text-[#555]">
+              <p className="font-mono text-[10px] uppercase text-[#A3A3A3]">
                 {t.delivered}
               </p>
               <p className="mt-1 font-mono text-lg font-bold text-white">
                 {data.deliveredProjects}
               </p>
-              <p className="font-mono text-[9px] text-[#444]">
+              <p className="font-mono text-[9px] text-[#969696]">
                 / {data.totalProjects}
               </p>
             </div>
@@ -526,7 +526,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                   </span>
                 </div>
               </div>
-              <p className="mt-2 font-mono text-[9px] text-[#555]">
+              <p className="mt-2 font-mono text-[9px] text-[#A3A3A3]">
                 {t.analysisNote} {totalDataPoints} {t.dataPoints}
               </p>
             </div>
@@ -539,12 +539,12 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
               <span className="font-mono text-3xl font-bold text-white">
                 #{data.marketRank}
               </span>
-              <span className="font-mono text-sm text-[#555]">
+              <span className="font-mono text-sm text-[#A3A3A3]">
                 {t.outOf} {data.marketTotal}
               </span>
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <span className="font-mono text-[10px] uppercase text-[#555]">
+              <span className="font-mono text-[10px] uppercase text-[#A3A3A3]">
                 {t.topPercentile}:
               </span>
               <span className="font-mono text-sm font-bold text-lime-400">
@@ -596,7 +596,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                 >
                   {/* Value label above bar */}
                   <span
-                    className="absolute left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold text-[#444] opacity-0 transition-opacity group-hover:opacity-100 whitespace-nowrap"
+                    className="absolute left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold text-[#969696] opacity-0 transition-opacity group-hover:opacity-100 whitespace-nowrap"
                     style={{ bottom: `calc(${height}% + 4px)` }}
                   >
                     {yr.roi.toFixed(1)}%
@@ -612,7 +612,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
           <div className="flex gap-2">
             {data.yearlyRoi.map((yr, i) => (
               <div key={i} className="flex-1 text-center">
-                <span className="font-mono text-[9px] text-[#555]">
+                <span className="font-mono text-[9px] text-[#A3A3A3]">
                   {yr.year}
                 </span>
               </div>
@@ -621,7 +621,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
 
           {/* ROI summary row */}
           <div className="mt-3 flex items-center justify-between rounded-none border border-[#222] bg-black px-3 py-2">
-            <span className="font-mono text-[10px] uppercase text-[#555]">
+            <span className="font-mono text-[10px] uppercase text-[#A3A3A3]">
               {t.yearlyTrend}
             </span>
             {data.yearlyRoi.length >= 2 && (
@@ -677,7 +677,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
               return (
                 <div key={key}>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="font-mono text-[10px] uppercase text-[#666]">
+                    <span className="font-mono text-[10px] uppercase text-[#909090]">
                       {label}
                     </span>
                     <span
@@ -720,7 +720,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="pb-2 text-start font-mono text-[9px] font-bold uppercase tracking-wider text-[#555]"
+                      className="pb-2 text-start font-mono text-[9px] font-bold uppercase tracking-wider text-[#A3A3A3]"
                     >
                       {h}
                     </th>
@@ -743,18 +743,18 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                       <td className="py-2 pe-3 font-mono text-xs text-white">
                         {p.name}
                       </td>
-                      <td className="py-2 pe-3 font-mono text-[11px] text-[#888]">
+                      <td className="py-2 pe-3 font-mono text-[11px] text-[#A3A3A3]">
                         {p.location}
                       </td>
-                      <td className="py-2 pe-3 font-mono text-[11px] text-[#888]">
+                      <td className="py-2 pe-3 font-mono text-[11px] text-[#A3A3A3]">
                         {p.launchYear}
                       </td>
-                      <td className="py-2 pe-3 font-mono text-[11px] text-[#888]">
+                      <td className="py-2 pe-3 font-mono text-[11px] text-[#A3A3A3]">
                         {p.promisedDelivery}
                       </td>
-                      <td className="py-2 pe-3 font-mono text-[11px] text-[#888]">
+                      <td className="py-2 pe-3 font-mono text-[11px] text-[#A3A3A3]">
                         {p.actualDelivery ?? (
-                          <Minus className="h-3 w-3 text-[#444]" />
+                          <Minus className="h-3 w-3 text-[#969696]" />
                         )}
                       </td>
                       <td className="py-2 pe-3">
@@ -782,7 +782,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
                             {fmtPct(p.roiPercent)}
                           </span>
                         ) : (
-                          <span className="font-mono text-[11px] text-[#444]">
+                          <span className="font-mono text-[11px] text-[#969696]">
                             {t.na}
                           </span>
                         )}
@@ -818,7 +818,7 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
             ).map(([, label, bg]) => (
               <span
                 key={label}
-                className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#555]"
+                className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#A3A3A3]"
               >
                 <span className={`h-2 w-2 rounded-sm ${bg}`} />
                 {label}
@@ -830,12 +830,12 @@ export default function DeveloperAnalysis({ data, lang, isRTL }: Props) {
 
       {/* ══ ANALYSIS TIMESTAMP ══ */}
       <div className="mt-3 flex items-center justify-between px-1">
-        <span className="flex items-center gap-2 font-mono text-[9px] text-[#333]">
+        <span className="flex items-center gap-2 font-mono text-[9px] text-[#8F8F8F]">
           <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime-400 opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-lime-400" /></span>
           <span className="text-lime-400/60">LIVE</span>
           {data.analysisTimestamp}
         </span>
-        <span className="font-mono text-[9px] text-[#333]">
+        <span className="font-mono text-[9px] text-[#8F8F8F]">
           OSOOL CORE — DEVELOPER DEEP-DIVE TELEMETRY
         </span>
       </div>
@@ -861,7 +861,7 @@ function MetricChip({
     <div
       className={`flex flex-col items-center rounded-none border border-[#222] border-l-2 ${positive ? "border-l-lime-400" : "border-l-rose-500"} bg-[#0a0a0a] px-3 py-2.5 ${className}`}
     >
-      <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-[#555] sm:text-[9px]">
+      <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-[#A3A3A3] sm:text-[9px]">
         {label}
       </span>
       <span
@@ -869,7 +869,7 @@ function MetricChip({
       >
         {value}
         {suffix && (
-          <span className="text-[10px] text-[#555]">{suffix}</span>
+          <span className="text-[10px] text-[#A3A3A3]">{suffix}</span>
         )}
       </span>
     </div>
@@ -888,7 +888,7 @@ function ProfileRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="font-mono text-[10px] uppercase text-[#555]">
+      <span className="font-mono text-[10px] uppercase text-[#A3A3A3]">
         {label}
       </span>
       <span
@@ -899,3 +899,4 @@ function ProfileRow({
     </div>
   );
 }
+

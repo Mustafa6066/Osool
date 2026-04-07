@@ -366,6 +366,22 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ APScheduler: Init skipped ({e})")
 
+    # Phase 11: Redis connectivity check — critical for token blacklist in production
+    try:
+        from app.services.cache import cache
+        if cache.redis:
+            cache.redis.ping()
+            logger.info("✅ Redis: CONNECTED (token blacklist active)")
+        elif os.getenv("ENVIRONMENT") == "production":
+            logger.error("❌ Redis: UNAVAILABLE in production — token blacklist degraded!")
+        else:
+            logger.warning("⚠️ Redis: Not configured (using in-memory fallback)")
+    except Exception as e:
+        if os.getenv("ENVIRONMENT") == "production":
+            logger.error(f"❌ Redis: Connection failed in production — {e}")
+        else:
+            logger.warning(f"⚠️ Redis: Connection failed ({e})")
+
     logger.info("✅ AI Intelligence Layer: READY")
     logger.info("✅ CoInvestor Agent (Claude 3.5 Sonnet): READY")
     logger.info("✅ Hybrid Brain (XGBoost + GPT-4o): READY")

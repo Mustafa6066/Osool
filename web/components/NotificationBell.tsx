@@ -109,7 +109,7 @@ export default function NotificationBell({ buttonClassName }: NotificationBellPr
 
   const resolvedButtonClass = buttonClassName
     ? `relative flex items-center justify-center transition-colors ${buttonClassName}`
-    : 'w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors relative';
+    : 'relative flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] md:h-9 md:w-9';
 
   return (
     <div className="relative" ref={panelRef}>
@@ -134,7 +134,7 @@ export default function NotificationBell({ buttonClassName }: NotificationBellPr
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute end-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-xl shadow-black/10 z-50"
+            className="absolute end-0 top-full mt-2 w-[min(92vw,20rem)] max-h-96 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl shadow-black/10 z-50"
           >
             <div className="px-4 py-3 border-b border-[var(--color-border)]">
               <div className="text-sm font-semibold text-[var(--color-text-primary)]">

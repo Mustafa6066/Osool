@@ -78,7 +78,7 @@ export default function DockContextPanel() {
           transition={{ type: 'spring', damping: 22, stiffness: 120 }}
           className="fixed bottom-[68px] sm:bottom-[92px] start-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 z-40 max-w-[94vw]"
         >
-          <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-lg">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg">
             {panelData.chips.map((chip) => {
               const Icon = chip.icon;
               return (

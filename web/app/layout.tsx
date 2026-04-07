@@ -14,6 +14,7 @@ import OrchestratorTracker from '@/components/OrchestratorTracker';
 import { LeadScoreProvider } from '@/contexts/LeadScoreContext';
 import PriorityHandoff from '@/components/PriorityHandoff';
 import HapticFeedback from '@/components/HapticFeedback';
+import { WebVitalsReporter } from '@/components/WebVitalsReporter';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -42,8 +43,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Osool | AI Real Estate Advisor for Egypt",
-  description: "Chat with CoInvestor, your AI-powered real estate advisor. Get instant property matches, price analysis, and investment insights for Egyptian properties.",
-  keywords: ["real estate", "Egypt", "AI", "property", "CoInvestor", "investment", "New Cairo", "Sheikh Zayed", "عقارات", "مصر"],
+  description: "Chat with Osool Advisor, your AI-powered real estate guide. Get instant property matches, price analysis, and investment insights for Egyptian properties.",
+  keywords: ["real estate", "Egypt", "AI", "property", "Osool Advisor", "investment", "New Cairo", "Sheikh Zayed", "عقارات", "مصر"],
   authors: [{ name: "Osool" }],
   openGraph: {
     title: "Osool | AI Real Estate Advisor for Egypt",
@@ -60,7 +61,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${inter.variable} ${cairo.variable}`}
+      className={`${inter.variable} ${cairo.variable}`}
       suppressHydrationWarning
     >
       <head>
@@ -68,8 +69,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
         />
-        {/* Material Symbols — used by existing components; migrate to Lucide in Phase 2 */}
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+
       </head>
       <body className="relative min-h-dvh overflow-x-hidden antialiased">
         <ErrorBoundaryProvider>
@@ -81,7 +81,7 @@ export default function RootLayout({
                     {/* Skip to content — accessibility */}
                     <a
                       href="#main-content"
-                      className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[200] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:outline-none"
+                      className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:start-3 focus:z-[200] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:ring-2 focus:ring-[var(--color-primary)]"
                     >
                       Skip to main content
                     </a>
@@ -104,6 +104,7 @@ export default function RootLayout({
                     <Suspense fallback={null}>
                       <OrchestratorTracker />
                     </Suspense>
+                    <WebVitalsReporter />
                   </LeadScoreProvider>
                 </GamificationProvider>
               </AuthProvider>

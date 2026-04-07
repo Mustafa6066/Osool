@@ -2,11 +2,11 @@
 
 import { motion } from "framer-motion";
 import { 
-    BanknotesIcon, 
-    CalendarDaysIcon,
-    ArrowTrendingDownIcon,
-    SparklesIcon
-} from "@heroicons/react/24/outline";
+    Banknote, 
+    CalendarDays,
+    TrendingDown,
+    Sparkles
+} from "lucide-react";
 
 interface PaymentPlan {
     property_id?: string;
@@ -56,7 +56,7 @@ export default function PaymentPlanComparison({
             <div className="bg-gradient-to-r from-amber-600/20 to-orange-600/20 px-6 py-4 border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                        <BanknotesIcon className="w-5 h-5 text-amber-400" />
+                        <Banknote className="w-5 h-5 text-amber-400" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">مقارنة خطط السداد 💳</h3>
@@ -71,7 +71,7 @@ export default function PaymentPlanComparison({
                     {best_down_payment && (
                         <div className="bg-gradient-to-br from-green-950/40 to-emerald-950/30 rounded-xl p-4 border border-green-500/20">
                             <div className="flex items-center gap-2 mb-3">
-                                <ArrowTrendingDownIcon className="w-4 h-4 text-green-400" />
+                                <TrendingDown className="w-4 h-4 text-green-400" />
                                 <p className="text-xs text-green-400 font-medium">أقل مقدم</p>
                             </div>
                             <p className="text-2xl font-bold text-green-400 mb-1">
@@ -86,7 +86,7 @@ export default function PaymentPlanComparison({
                     {longest_installment && (
                         <div className="bg-gradient-to-br from-blue-950/40 to-indigo-950/30 rounded-xl p-4 border border-blue-500/20">
                             <div className="flex items-center gap-2 mb-3">
-                                <CalendarDaysIcon className="w-4 h-4 text-blue-400" />
+                                <CalendarDays className="w-4 h-4 text-blue-400" />
                                 <p className="text-xs text-blue-400 font-medium">أطول فترة</p>
                             </div>
                             <p className="text-2xl font-bold text-blue-400 mb-1">
@@ -101,7 +101,7 @@ export default function PaymentPlanComparison({
                     {lowest_monthly && (
                         <div className="bg-gradient-to-br from-purple-950/40 to-violet-950/30 rounded-xl p-4 border border-purple-500/20">
                             <div className="flex items-center gap-2 mb-3">
-                                <SparklesIcon className="w-4 h-4 text-purple-400" />
+                                <Sparkles className="w-4 h-4 text-purple-400" />
                                 <p className="text-xs text-purple-400 font-medium">أقل قسط شهري</p>
                             </div>
                             <p className="text-2xl font-bold text-purple-400 mb-1">

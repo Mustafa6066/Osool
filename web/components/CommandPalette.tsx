@@ -62,10 +62,10 @@ export default function CommandPalette() {
         {
             id: 'chat',
             label: 'Open Advisor Chat',
-            description: 'Ask CoInvestor anything about the Egyptian market',
+            description: 'Ask Osool Advisor anything about the Egyptian market',
             icon: Sparkles,
             action: () => { router.push('/chat'); close(); },
-            keywords: ['chat', 'advisor', 'ask', 'ai', 'coinvestor'],
+            keywords: ['chat', 'advisor', 'ask', 'ai', 'osool'],
         },
         {
             id: 'favorites',
@@ -273,6 +273,7 @@ export default function CommandPalette() {
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={language === 'ar' ? 'اكتب أمراً أو اسأل أصول...' : 'Type a command or ask Osool...'}
+                        aria-label="Command palette"
                         className="flex-1 bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
                     />
                     <kbd className="hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-background)]/50 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)] sm:inline">

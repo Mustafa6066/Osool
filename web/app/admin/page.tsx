@@ -8,7 +8,6 @@ import {
   Bot,
   Building2,
   ChevronRight,
-  Clock3,
   Database,
   Loader2,
   MessageSquare,
@@ -70,13 +69,13 @@ type MarketIndicator = {
   last_updated: string | null;
 };
 
-const TABS: Array<{ key: Tab; label: string; icon: typeof Shield }> = [
-  { key: 'overview', label: 'Overview', icon: Activity },
-  { key: 'conversations', label: 'Conversations', icon: MessageSquare },
-  { key: 'users', label: 'Users', icon: Users },
-  { key: 'tickets', label: 'Tickets', icon: TicketIcon },
-  { key: 'scrapers', label: 'Scrapers and data', icon: Database },
-  { key: 'marketing', label: 'Marketing Content', icon: FileText },
+const TABS: Array<{ key: Tab; label: string; icon: typeof Shield; tier: 'primary' | 'secondary' }> = [
+  { key: 'overview', label: 'Overview', icon: Activity, tier: 'primary' },
+  { key: 'conversations', label: 'Conversations', icon: MessageSquare, tier: 'primary' },
+  { key: 'users', label: 'Users', icon: Users, tier: 'primary' },
+  { key: 'tickets', label: 'Tickets', icon: TicketIcon, tier: 'primary' },
+  { key: 'scrapers', label: 'Scrapers and data', icon: Database, tier: 'secondary' },
+  { key: 'marketing', label: 'Marketing content', icon: FileText, tier: 'secondary' },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -114,6 +113,7 @@ export default function AdminPage() {
   const [ticketReplyContent, setTicketReplyContent] = useState('');
   const [ticketReplying, setTicketReplying] = useState(false);
   const [marketingGenerating, setMarketingGenerating] = useState(false);
+  const [showAdvancedTabs, setShowAdvancedTabs] = useState(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [roleUpdating, setRoleUpdating] = useState<number | null>(null);
@@ -185,6 +185,13 @@ export default function AdminPage() {
         pollIntervalRef.current = null;
       }
     };
+  }, [activeTab]);
+
+  useEffect(() => {
+    const isSecondaryTab = TABS.some((tab) => tab.key === activeTab && tab.tier === 'secondary');
+    if (isSecondaryTab) {
+      setShowAdvancedTabs(true);
+    }
   }, [activeTab]);
 
   const VALID_ROLES = ['investor', 'agent', 'admin', 'blocked'];
@@ -322,14 +329,22 @@ export default function AdminPage() {
       return [] as Array<{ label: string; value: number; icon: typeof Shield; tone: string }>;
     }
     return [
-      { label: 'Total users', value: dashboard.overview.total_users, icon: Users, tone: 'text-blue-500' },
-      { label: 'Total messages', value: dashboard.overview.total_messages, icon: MessageSquare, tone: 'text-emerald-500' },
-      { label: 'Properties', value: dashboard.overview.total_properties, icon: Building2, tone: 'text-amber-500' },
-      { label: 'Active listings', value: dashboard.overview.active_properties, icon: TrendingUp, tone: 'text-emerald-500' },
-      { label: 'Chat sessions', value: dashboard.overview.total_sessions, icon: Activity, tone: 'text-cyan-500' },
-      { label: 'Transactions', value: dashboard.overview.total_transactions, icon: Zap, tone: 'text-rose-500' },
-      { label: 'New users (7d)', value: dashboard.recent_activity.new_users_7d, icon: UserIcon, tone: 'text-indigo-500' },
-      { label: 'Messages (24h)', value: dashboard.recent_activity.messages_24h, icon: Clock3, tone: 'text-teal-500' },
+      { label: 'Total users', value: dashboard.overview.total_users, icon: Users, tone: 'text-[var(--color-primary-dark)]' },
+      { label: 'Total messages', value: dashboard.overview.total_messages, icon: MessageSquare, tone: 'text-[var(--color-primary)]' },
+      { label: 'Active listings', value: dashboard.overview.active_properties, icon: TrendingUp, tone: 'text-[var(--color-teal-accent)]' },
+      { label: 'Transactions', value: dashboard.overview.total_transactions, icon: Zap, tone: 'text-[var(--color-text-secondary)]' },
+    ];
+  }, [dashboard]);
+
+  const overviewSnapshot = useMemo(() => {
+    if (!dashboard) {
+      return [] as Array<{ label: string; value: number }>;
+    }
+    return [
+      { label: 'Properties tracked', value: dashboard.overview.total_properties },
+      { label: 'Chat sessions', value: dashboard.overview.total_sessions },
+      { label: 'New users (7d)', value: dashboard.recent_activity.new_users_7d },
+      { label: 'Messages (24h)', value: dashboard.recent_activity.messages_24h },
     ];
   }, [dashboard]);
 
@@ -348,7 +363,7 @@ export default function AdminPage() {
     <AdminShell
       eyebrow="Admin operations"
       title="Run oversight, support, and data operations from one control surface."
-      subtitle="This route keeps the cross-functional admin work together: overview, customer conversations, user control, support triage, and scraper operations."
+      subtitle="This route keeps cross-functional admin work aligned: overview, conversations, user control, ticket triage, and advanced data workflows when needed."
       actions={actions}
     >
       {scraperStatus ? (
@@ -367,7 +382,7 @@ export default function AdminPage() {
         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Workspace lanes</div>
           <div className="mt-4 flex flex-wrap gap-2">
-            {TABS.map((tab) => {
+            {(showAdvancedTabs ? TABS : TABS.filter((tab) => tab.tier === 'primary')).map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
               return (
@@ -392,6 +407,17 @@ export default function AdminPage() {
                 </button>
               );
             })}
+            {!showAdvancedTabs ? (
+              <button
+                type="button"
+                onClick={() => setShowAdvancedTabs(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                aria-label="Show advanced admin lanes"
+              >
+                <ChevronRight className="h-4 w-4" />
+                More lanes
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -444,6 +470,18 @@ export default function AdminPage() {
                 })}
               </section>
 
+              <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Operational snapshot</div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {overviewSnapshot.map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{item.label}</div>
+                      <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)]">{formatNumber(item.value)}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
               <section className="grid gap-6 lg:grid-cols-[1fr_0.92fr]">
                 <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Admin focus</div>
@@ -489,13 +527,14 @@ export default function AdminPage() {
             <>
               <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 lg:col-span-2">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                  <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Search by user name, email, or message preview"
-                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 pl-10 pr-4 text-sm text-[var(--color-text-primary)] outline-none"
+                    aria-label="Search conversations"
+                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 ps-10 pe-4 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 focus-visible:border-[var(--color-primary)] transition-all"
                   />
                 </div>
                 <div className="mt-6 space-y-3">
@@ -568,13 +607,14 @@ export default function AdminPage() {
       {activeTab === 'users' ? (
         <section className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search users"
-              className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 pl-10 pr-4 text-sm text-[var(--color-text-primary)] outline-none"
+              aria-label="Search users"
+              className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 ps-10 pe-4 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 focus-visible:border-[var(--color-primary)] transition-all"
             />
           </div>
           <div className="mt-6 overflow-x-auto rounded-2xl border border-[var(--color-border)]">
@@ -661,9 +701,9 @@ export default function AdminPage() {
         <section className="space-y-6">
           {!selectedTicket && ticketStats ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <StatusCard label="Open" value={ticketStats.open} tone="text-blue-500" />
-              <StatusCard label="In progress" value={ticketStats.in_progress} tone="text-amber-500" />
-              <StatusCard label="Resolved" value={ticketStats.resolved} tone="text-emerald-500" />
+              <StatusCard label="Open" value={ticketStats.open} tone="text-[var(--color-primary-dark)]" />
+              <StatusCard label="In progress" value={ticketStats.in_progress} tone="text-[var(--semantic-warning)]" />
+              <StatusCard label="Resolved" value={ticketStats.resolved} tone="text-[var(--semantic-success)]" />
               <StatusCard label="Closed" value={ticketStats.closed} tone="text-[var(--color-text-muted)]" />
               <StatusCard label="Total" value={ticketStats.total} tone="text-[var(--color-text-primary)]" />
             </div>
@@ -740,7 +780,8 @@ export default function AdminPage() {
                     }
                   }}
                   placeholder="Reply as admin"
-                  className="flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none"
+                  aria-label="Reply as admin"
+                  className="flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 focus-visible:border-[var(--color-primary)] transition-all"
                 />
                 <button
                   type="button"
@@ -823,7 +864,7 @@ export default function AdminPage() {
           <section className="grid gap-4 md:grid-cols-3">
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-                <Building2 className="h-5 w-5 text-blue-500" />
+                <Building2 className="h-5 w-5 text-[var(--color-primary-dark)]" />
                 Scrape Nawy
               </div>
               <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">Scrapes all Nawy compound pages, normalises data via AI, and upserts into the database. Runs in background (~30–60 min).</p>
@@ -843,7 +884,7 @@ export default function AdminPage() {
             </div>
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-                <TrendingUp className="h-5 w-5 text-amber-500" />
+                <TrendingUp className="h-5 w-5 text-[var(--semantic-warning)]" />
                 Economic scraper
               </div>
               <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">Fetches exchange rate, inflation, gold, and banking indicators used in market interpretation layers.</p>

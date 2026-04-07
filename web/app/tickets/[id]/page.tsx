@@ -288,7 +288,7 @@ export default function TicketDetailPage() {
                       onChange={(event) => setReplyContent(event.target.value)}
                       rows={5}
                       placeholder={t('ticketDetail.replyPlaceholder')}
-                      className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus:border-emerald-500/40"
+                      className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus-visible:border-[var(--color-primary)]/40 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
                     />
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)]">

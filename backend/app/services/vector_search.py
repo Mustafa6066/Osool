@@ -23,8 +23,6 @@ _async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # RRF constant (standard value from the original paper)
 RRF_K = 60
 
-_async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 async def get_embedding(text: str) -> Optional[List[float]]:
     """
     Phase 4: Generate embedding for text using OpenAI with circuit breaker and cost monitoring.
@@ -73,6 +71,9 @@ async def search_properties(
     finishing: str = None,
     is_nawy_now: bool = None,
     search_mode: str = "hybrid",
+    compound: str = None,
+    location: str = None,
+    developer: str = None,
 ) -> List[dict]:
     """
     Search for properties using semantic similarity, full-text search, or hybrid (both + RRF).
@@ -90,6 +91,12 @@ async def search_properties(
         def _build_filters():
             """Build common SQLAlchemy filter conditions."""
             filters = [Property.is_available == True]
+            if compound is not None:
+                filters.append(Property.compound.ilike(f"%{compound}%"))
+            if location is not None:
+                filters.append(Property.location.ilike(f"%{location}%"))
+            if developer is not None:
+                filters.append(Property.developer.ilike(f"%{developer}%"))
             if price_min is not None:
                 filters.append(Property.price >= price_min)
             if price_max is not None:
@@ -122,6 +129,7 @@ async def search_properties(
         async def _fts_search() -> List[tuple]:
             """Returns list of (Property, ts_rank_score) tuples using the search_tsv generated column."""
             try:
+                # Try English config first (matches stored tsvector stemming)
                 ts_query = sa_func.plainto_tsquery('english', query_text)
                 rank_expr = sa_func.ts_rank(Property.search_tsv, ts_query)
                 filters = _build_filters() + [Property.search_tsv.op('@@')(ts_query)]
@@ -132,7 +140,23 @@ async def search_properties(
                     .limit(limit * 2)
                 )
                 result = await db.execute(stmt)
-                return [(row.Property, float(row.fts_rank)) for row in result.all()]
+                rows = [(row.Property, float(row.fts_rank)) for row in result.all()]
+
+                # Fallback to 'simple' config for Arabic/mixed-language queries
+                if not rows:
+                    ts_query_simple = sa_func.plainto_tsquery('simple', query_text)
+                    rank_expr_simple = sa_func.ts_rank(Property.search_tsv, ts_query_simple)
+                    filters_simple = _build_filters() + [Property.search_tsv.op('@@')(ts_query_simple)]
+                    stmt_simple = (
+                        select(Property, rank_expr_simple.label('fts_rank'))
+                        .filter(*filters_simple)
+                        .order_by(rank_expr_simple.desc())
+                        .limit(limit * 2)
+                    )
+                    result_simple = await db.execute(stmt_simple)
+                    rows = [(row.Property, float(row.fts_rank)) for row in result_simple.all()]
+
+                return rows
             except Exception as fts_err:
                 logger.warning(f"FTS search failed (search_tsv column may not exist yet): {fts_err}")
                 return []
@@ -295,6 +319,7 @@ async def _text_search_fallback(db: AsyncSession, query_text: str, limit: int, b
                 conditions.append(Property.title.ilike(term))
                 conditions.append(Property.location.ilike(term))
                 conditions.append(Property.compound.ilike(term))
+                conditions.append(Property.developer.ilike(term))
                 conditions.append(Property.type.ilike(term))
 
             filters = build_filters_fn() + [or_(*conditions)]

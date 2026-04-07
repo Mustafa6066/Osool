@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
   MapPin,
@@ -93,7 +94,7 @@ function PropertyLinePanel({
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       <div className="relative w-28 h-20 sm:w-32 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--color-surface-elevated)]">
-        <img src={prop.image} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <Image src={prop.image} alt={prop.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="(max-width: 640px) 112px, 128px" />
         {index === 0 && (
           <span className="absolute top-1.5 start-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-500/90 text-white px-2 py-0.5 text-[9px] font-semibold">
             <Sparkles className="w-2.5 h-2.5" />

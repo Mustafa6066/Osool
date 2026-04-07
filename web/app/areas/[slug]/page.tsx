@@ -95,11 +95,11 @@ export default async function AreaPage({ params }: Props) {
             <div className="text-xs text-[var(--color-text-muted)]"><T k="areaPage.egpSqm" /></div>
           </div>
           <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-            <div className="text-2xl font-bold text-blue-500">{formatRate(area.price_growth_ytd)}</div>
+            <div className="text-2xl font-bold text-[var(--color-primary-dark)]">{formatRate(area.price_growth_ytd)}</div>
             <div className="text-xs text-[var(--color-text-muted)]"><T k="areaPage.yoyGrowth" /></div>
           </div>
           <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-            <div className="text-2xl font-bold text-purple-500">{formatRate(area.rental_yield)}</div>
+            <div className="text-2xl font-bold text-[var(--color-teal-accent)]">{formatRate(area.rental_yield)}</div>
             <div className="text-xs text-[var(--color-text-muted)]"><T k="areaPage.rentalYield" /></div>
           </div>
           <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">

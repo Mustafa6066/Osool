@@ -151,9 +151,10 @@ export default function AreaAnalysis({ area, comparison, heatmap }: AreaAnalysis
                                         </span>
                                         <div className="flex-1 h-2 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
                                             <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${barW}%` }}
+                                                initial={{ scaleX: 0 }}
+                                                animate={{ scaleX: barW / 100 }}
                                                 transition={{ duration: 0.8, delay: 0.2 }}
+                                                style={{ transformOrigin: 'left' }}
                                                 className={`h-full rounded-full ${isCurrentArea ? 'bg-blue-500' : 'bg-[var(--color-text-muted)]/30'}`}
                                             />
                                         </div>

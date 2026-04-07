@@ -91,11 +91,11 @@ export default async function AreasPage() {
                           <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-[0.15em]"><T k="areaPage.egpSqm" /></div>
                         </div>
                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                          <div className="text-lg font-bold text-blue-500">{formatRate(area.price_growth_ytd)}</div>
+                          <div className="text-lg font-bold text-[var(--color-primary-dark)]">{formatRate(area.price_growth_ytd)}</div>
                           <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-[0.15em]"><T k="areaPage.growth" /></div>
                         </div>
                         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                          <div className="text-lg font-bold text-violet-500">{formatRate(area.rental_yield)}</div>
+                          <div className="text-lg font-bold text-[var(--color-teal-accent)]">{formatRate(area.rental_yield)}</div>
                           <div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-[0.15em]"><T k="areaPage.yield" /></div>
                         </div>
                       </div>

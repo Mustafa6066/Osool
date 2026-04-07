@@ -71,12 +71,12 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-gradient-to-br from-[#1a1c2e] to-[#2d3748] border border-white/10 rounded-2xl overflow-hidden hover:border-blue-500/30 transition-all group shadow-xl hover:shadow-2xl hover:shadow-blue-500/20 max-w-sm"
+            className="group max-w-sm overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-500/30 hover:shadow-lg"
         >
             {/* Image Section */}
-            <div className="relative h-48 overflow-hidden bg-gray-800">
+            <div className="relative h-48 overflow-hidden bg-[var(--color-surface-elevated)]">
                 {!imageLoaded && (
-                    <div className="absolute inset-0 bg-gray-700 animate-pulse" />
+                    <div className="absolute inset-0 animate-pulse bg-[var(--color-surface-elevated)]" />
                 )}
                 <Image
                     src={imageUrl}
@@ -87,17 +87,17 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                     onLoad={() => setImageLoaded(true)}
                     className={`object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                     placeholder="blur"
-                    blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWExYzJlIi8+PC9zdmc+"
+                    blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWEyMTJkIi8+PC9zdmc+"
                 />
 
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
                 {/* Status Badge */}
                 {property.is_available !== false && (
-                    <div className="absolute top-3 left-3 bg-green-500 text-white text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1 shadow-lg">
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                        Available
+                    <div className="absolute top-3 left-3 flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/12 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shadow-sm">
+                        <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                        Available now
                     </div>
                 )}
 
@@ -106,7 +106,7 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                     <button
                         onClick={handleToggleFavorite}
                         aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                        className="p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all"
+                        className="rounded-full border border-white/25 bg-black/25 p-2 text-white backdrop-blur-sm transition-colors hover:bg-black/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
                     >
                         <Heart
                             size={16}
@@ -116,19 +116,19 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                     <button
                         onClick={handleShare}
                         aria-label="Share property"
-                        className="p-2 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all"
+                        className="rounded-full border border-white/25 bg-black/25 p-2 text-white backdrop-blur-sm transition-colors hover:bg-black/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
                     >
                         <Share2 size={16} className="text-white" />
                     </button>
                 </div>
 
                 {/* Price Tag */}
-                <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-2 rounded-lg shadow-lg">
-                    <div className="text-blue-600 font-bold text-lg">
+                <div className="absolute bottom-3 left-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/95 px-3 py-2 shadow-md backdrop-blur-sm">
+                    <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                         {(property.price / 1000000).toFixed(2)}M EGP
                     </div>
                     {property.price_per_sqm && (
-                        <div className="text-gray-600 text-xs">
+                        <div className="text-xs text-[var(--color-text-secondary)]">
                             {property.price_per_sqm.toLocaleString()} EGP/m²
                         </div>
                     )}
@@ -138,53 +138,53 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
             {/* Content Section */}
             <div className="p-4">
                 {/* Title */}
-                <h4 className="text-white font-bold text-lg mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
+                <h4 className="mb-2 line-clamp-2 text-lg font-bold text-[var(--color-text-primary)] transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
                     {property.title}
                 </h4>
 
                 {/* Location */}
-                <div className="flex items-center text-gray-400 text-sm mb-3">
-                    <MapPin size={14} className="mr-1.5 text-blue-400" />
+                <div className="mb-3 flex items-center text-sm text-[var(--color-text-secondary)]">
+                    <MapPin size={14} className="mr-1.5 text-emerald-500" />
                     {property.location}
                 </div>
 
                 {/* Property Details Grid */}
                 <div className="grid grid-cols-3 gap-2 mb-4">
-                    <div className="flex flex-col items-center text-center bg-white/5 p-2 rounded-lg border border-white/10">
-                        <Bed size={16} className="text-blue-400 mb-1" />
-                        <span className="text-white font-semibold text-sm">{property.bedrooms}</span>
-                        <span className="text-gray-400 text-xs">Beds</span>
+                    <div className="flex flex-col items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-2 text-center">
+                        <Bed size={16} className="mb-1 text-emerald-500" />
+                        <span className="text-sm font-semibold text-[var(--color-text-primary)]">{property.bedrooms}</span>
+                        <span className="text-xs text-[var(--color-text-muted)]">Beds</span>
                     </div>
-                    <div className="flex flex-col items-center text-center bg-white/5 p-2 rounded-lg border border-white/10">
-                        <Ruler size={16} className="text-purple-400 mb-1" />
-                        <span className="text-white font-semibold text-sm">{property.size_sqm}</span>
-                        <span className="text-gray-400 text-xs">m²</span>
+                    <div className="flex flex-col items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-2 text-center">
+                        <Ruler size={16} className="mb-1 text-teal-500" />
+                        <span className="text-sm font-semibold text-[var(--color-text-primary)]">{property.size_sqm}</span>
+                        <span className="text-xs text-[var(--color-text-muted)]">m²</span>
                     </div>
                     {property.property_type && (
-                        <div className="flex flex-col items-center text-center bg-white/5 p-2 rounded-lg border border-white/10">
-                            <TrendingUp size={16} className="text-green-400 mb-1" />
-                            <span className="text-white font-semibold text-xs line-clamp-1">{property.property_type}</span>
-                            <span className="text-gray-400 text-xs">Type</span>
+                        <div className="flex flex-col items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-2 text-center">
+                            <TrendingUp size={16} className="mb-1 text-emerald-500" />
+                            <span className="line-clamp-1 text-xs font-semibold text-[var(--color-text-primary)]">{property.property_type}</span>
+                            <span className="text-xs text-[var(--color-text-muted)]">Type</span>
                         </div>
                     )}
                 </div>
 
                 {/* Developer and Delivery */}
                 {(property.developer || property.delivery_date) && (
-                    <div className="space-y-2 mb-4 p-3 bg-white/5 rounded-lg border border-white/10">
+                    <div className="mb-4 space-y-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-3">
                         {property.developer && (
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-gray-400">Developer:</span>
-                                <span className="text-white font-semibold">{property.developer}</span>
+                                <span className="text-[var(--color-text-muted)]">Developer:</span>
+                                <span className="font-semibold text-[var(--color-text-primary)]">{property.developer}</span>
                             </div>
                         )}
                         {property.delivery_date && (
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-gray-400 flex items-center gap-1">
+                                <span className="flex items-center gap-1 text-[var(--color-text-muted)]">
                                     <Calendar size={12} />
                                     Delivery:
                                 </span>
-                                <span className="text-green-400 font-semibold">{property.delivery_date}</span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{property.delivery_date}</span>
                             </div>
                         )}
                     </div>
@@ -193,17 +193,21 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                 {/* Action Buttons */}
                 <div className="grid grid-cols-2 gap-2">
                     <button
-                        onClick={() => window.open(property.url || "#", "_blank")}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-sm py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 font-semibold shadow-lg shadow-blue-600/30"
+                        onClick={() => {
+                            if (!property.url) return;
+                            window.open(property.url, '_blank', 'noopener,noreferrer');
+                        }}
+                        disabled={!property.url}
+                        className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        View Details
+                        Open listing
                         <ExternalLink size={14} />
                     </button>
                     <button
-                        className="bg-white/10 hover:bg-white/20 border border-white/20 hover:border-blue-500/50 text-white text-sm py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 font-semibold"
+                        className="flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-2.5 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:border-emerald-500/35 hover:bg-emerald-500/8 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
                         onClick={handleContact}
                     >
-                        Contact
+                        Talk to advisor
                         <ArrowRight size={14} />
                     </button>
                 </div>

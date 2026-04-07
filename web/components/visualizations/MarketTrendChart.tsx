@@ -40,7 +40,7 @@ export default function MarketTrendChart({ location, data, isRTL = false }: Mark
         historical: isRTL ? 'تاريخي' : 'Historical',
         forecast: isRTL ? 'متوقع' : 'Forecast',
         marketInsights: isRTL ? 'رؤى السوق' : 'Market Insights',
-        aiPowered: isRTL ? 'تحليل مدعوم بـ CoInvestor باستخدام 3,000+ معاملة' : 'Analysis powered by CoInvestor using 3,000+ transactions',
+        aiPowered: isRTL ? 'تحليل مدعوم بـ Osool Advisor باستخدام 3,000+ معاملة' : 'Analysis powered by Osool Advisor using 3,000+ transactions',
         trendLabels: {
             Bullish: isRTL ? 'صاعد' : 'Bullish',
             Bearish: isRTL ? 'هابط' : 'Bearish',

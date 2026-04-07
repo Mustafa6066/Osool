@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+import type { KeyboardEvent } from 'react';
 import { MapPin, TrendingUp, TrendingDown, Star, ArrowUpRight, Bed, Bath, Maximize } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -61,6 +63,13 @@ export default function PropertyCardEnhanced({
         onSelect?.(property);
     };
 
+    const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleCardClick();
+        }
+    };
+
     // Horizontal compact variant for inline chat display
     if (variant === 'horizontal') {
         return (
@@ -69,13 +78,17 @@ export default function PropertyCardEnhanced({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: index * 0.08, ease: 'easeOut' }}
                 onClick={handleCardClick}
+                onKeyDown={handleCardKeyDown}
+                role="button"
+                tabIndex={0}
+                aria-label={isRTL ? `عرض العقار ${property.title}` : `View property ${property.title}`}
                 className="group flex gap-3 p-3 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/30 bg-[var(--color-surface)] cursor-pointer transition-all duration-200 hover:shadow-md"
                 dir={isRTL ? 'rtl' : 'ltr'}
             >
                 {/* Thumbnail */}
-                <div className="w-16 h-16 rounded-lg flex-shrink-0 overflow-hidden bg-[var(--color-surface-elevated)]">
+                <div className="relative w-16 h-16 rounded-lg flex-shrink-0 overflow-hidden bg-[var(--color-surface-elevated)]">
                     {property.image ? (
-                        <img src={property.image} alt={property.title} className="w-full h-full object-cover" />
+                        <Image src={property.image} alt={property.title} fill className="object-cover" sizes="64px" />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-xl opacity-30">🏠</div>
                     )}
@@ -106,6 +119,10 @@ export default function PropertyCardEnhanced({
             transition={{ duration: 0.5, delay: index * 0.1, ease: 'easeOut' }}
             className="group rounded-2xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-black/10 hover:border-[var(--color-border-light)] max-w-full sm:max-w-[400px]"
             onClick={handleCardClick}
+            onKeyDown={handleCardKeyDown}
+            role="button"
+            tabIndex={0}
+            aria-label={isRTL ? `عرض العقار ${property.title}` : `View property ${property.title}`}
             dir={isRTL ? 'rtl' : 'ltr'}
         >
             {/* Image Section */}
@@ -114,6 +131,8 @@ export default function PropertyCardEnhanced({
                     <img
                         src={property.image}
                         alt={property.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                     />
                 ) : (
@@ -128,18 +147,18 @@ export default function PropertyCardEnhanced({
                 {/* Badges */}
                 <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} flex flex-col gap-1.5`}>
                     {isTopPick && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold">
                             <Star size={9} className="fill-current" />
                             {isRTL ? 'مميز' : 'Top Pick'}
                         </span>
                     )}
                     {property.badge && !isTopPick && (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-bold">
                             {property.badge}
                         </span>
                     )}
                     {property.growthBadge && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-bold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-bold">
                             <TrendingUp size={9} />
                             {property.growthBadge}
                         </span>
@@ -222,7 +241,7 @@ export default function PropertyCardEnhanced({
                         e.stopPropagation();
                         onViewDetails?.(property.id);
                     }}
-                    className="w-full py-2.5 rounded-xl text-xs font-semibold bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-all duration-200 flex items-center justify-center gap-1.5"
+                    className="w-full min-h-11 py-2.5 rounded-xl text-xs font-semibold bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-all duration-200 flex items-center justify-center gap-1.5"
                 >
                     {isRTL ? 'عرض التفاصيل' : 'View Details'}
                     <ArrowUpRight size={13} />

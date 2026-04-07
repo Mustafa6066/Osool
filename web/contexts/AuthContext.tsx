@@ -160,11 +160,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (fullName) {
       localStorage.setItem('user_full_name', fullName);
     }
+    // Set non-httpOnly cookie so middleware can detect auth state
+    document.cookie = 'osool_auth_active=1; path=/; max-age=' + (30 * 24 * 60 * 60) + '; samesite=lax';
     refreshUser();
   };
 
   const logout = () => {
     setUser(null);
+    // Clear the auth indicator cookie
+    document.cookie = 'osool_auth_active=; path=/; max-age=0';
+    // Also clear httpOnly cookies via server route
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     apiLogout();
   };
 

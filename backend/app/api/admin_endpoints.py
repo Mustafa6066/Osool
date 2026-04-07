@@ -355,20 +355,38 @@ async def admin_list_conversations(
         .offset(offset)
     )
 
-    sessions = []
-    for row in result.all():
-        # Get first user message as preview
-        preview_result = await db.execute(
-            select(ChatMessage.content)
+    rows = result.all()
+
+    # Batch-fetch first user message preview for all sessions in ONE query (fixes N+1)
+    session_ids = [row.session_id for row in rows]
+    previews = {}
+    if session_ids:
+        from sqlalchemy import literal_column
+        preview_subq = (
+            select(
+                ChatMessage.session_id,
+                ChatMessage.content,
+                func.row_number().over(
+                    partition_by=ChatMessage.session_id,
+                    order_by=ChatMessage.created_at.asc()
+                ).label("rn")
+            )
             .where(
-                ChatMessage.session_id == row.session_id,
+                ChatMessage.session_id.in_(session_ids),
                 ChatMessage.role == "user",
             )
-            .order_by(ChatMessage.created_at.asc())
-            .limit(1)
+            .subquery()
         )
-        preview = preview_result.scalar_one_or_none()
+        preview_result = await db.execute(
+            select(preview_subq.c.session_id, preview_subq.c.content)
+            .where(preview_subq.c.rn == 1)
+        )
+        for sid, content in preview_result.all():
+            previews[sid] = content
 
+    sessions = []
+    for row in rows:
+        preview = previews.get(row.session_id)
         sessions.append({
             "session_id": row.session_id,
             "user_id": row.user_id,

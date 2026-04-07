@@ -2,11 +2,11 @@
 
 import { motion } from "framer-motion";
 import {
-    HomeModernIcon,
-    CurrencyDollarIcon,
-    ArrowsPointingOutIcon,
-    UsersIcon
-} from "@heroicons/react/24/outline";
+    Home,
+    DollarSign,
+    Maximize,
+    Users
+} from "lucide-react";
 
 interface PropertyTypeAnalysisProps {
     analysis: {
@@ -77,22 +77,22 @@ export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyT
                 {/* Key Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
-                        <CurrencyDollarIcon className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
+                        <DollarSign className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">متوسط السعر</p>
                         <p className="text-sm font-bold text-emerald-400">{formatCurrency(analysis.avg_price)}</p>
                     </div>
                     <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
-                        <ArrowsPointingOutIcon className="w-5 h-5 text-blue-400 mx-auto mb-2" />
+                        <Maximize className="w-5 h-5 text-blue-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">متوسط المساحة</p>
                         <p className="text-sm font-bold text-blue-400">{Math.round(analysis.avg_size)} م²</p>
                     </div>
                     <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
-                        <HomeModernIcon className="w-5 h-5 text-amber-400 mx-auto mb-2" />
+                        <Home className="w-5 h-5 text-amber-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">سعر المتر</p>
                         <p className="text-sm font-bold text-amber-400">{formatCurrency(analysis.avg_price_per_sqm)}</p>
                     </div>
                     <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
-                        <UsersIcon className="w-5 h-5 text-purple-400 mx-auto mb-2" />
+                        <Users className="w-5 h-5 text-purple-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">عدد متاح</p>
                         <p className="text-sm font-bold text-purple-400">{analysis.count} وحدة</p>
                     </div>

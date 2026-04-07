@@ -82,7 +82,7 @@ export default function PriorityHandoff() {
 
     return (
         <div className="fixed bottom-4 end-4 z-40 max-w-sm animate-in slide-in-from-bottom-4 fade-in duration-500">
-            <div className={`rounded-2xl border p-4 shadow-2xl backdrop-blur-xl ${
+            <div className={`rounded-2xl border p-4 shadow-2xl ${
                 isHotLead
                     ? 'border-amber-500/30 bg-gradient-to-br from-amber-950/90 to-zinc-900/95 shadow-amber-500/10'
                     : 'border-emerald-500/20 bg-zinc-900/95 shadow-emerald-500/5'

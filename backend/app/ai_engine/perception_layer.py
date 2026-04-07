@@ -646,6 +646,17 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
                 filters["location"] = normalized
                 break
         
+        # Extract compound name (check COMPOUND_ALIASES — longer aliases first)
+        sorted_compound_aliases = sorted(COMPOUND_ALIASES.keys(), key=len, reverse=True)
+        for alias in sorted_compound_aliases:
+            if alias in query_lower:
+                canonical, area = COMPOUND_ALIASES[alias]
+                filters["keywords"] = canonical
+                # Set area as location if not already set
+                if "location" not in filters and area:
+                    filters["location"] = area
+                break
+
         # Extract property type (check multi-word aliases first)
         sorted_aliases = sorted(PROPERTY_TYPE_ALIASES.keys(), key=len, reverse=True)
         for alias in sorted_aliases:

@@ -99,13 +99,14 @@ export default function ConversationHistory({
                 {/* Search */}
                 <div className="p-2">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
+                        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
                         <input
                             type="text"
                             placeholder="Search..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl pl-9 pr-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+                            aria-label="Search conversations"
+                            className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl ps-9 pe-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:border-transparent transition-all"
                         />
                     </div>
                 </div>
@@ -146,7 +147,7 @@ export default function ConversationHistory({
                                 <button
                                     aria-label="Delete conversation"
                                     onClick={(e) => handleDelete(conv.id, e)}
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-xl hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500"
+                                    className="absolute right-2 top-2 flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-opacity hover:bg-red-500/10 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -179,7 +180,7 @@ export default function ConversationHistory({
                             animate={{ x: 0 }}
                             exit={{ x: -300 }}
                             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="fixed left-0 top-0 h-full w-80 bg-[var(--color-surface)] border-r border-[var(--color-border)] z-50 flex flex-col shadow-2xl md:hidden"
+                            className="fixed left-0 top-0 z-50 flex h-full w-[min(90vw,22rem)] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl md:hidden"
                         >
                             {/* Header */}
                             <div className="p-4 border-b border-[var(--color-border)]">
@@ -191,7 +192,7 @@ export default function ConversationHistory({
                                     <button
                                         aria-label="Close"
                                         onClick={onClose}
-                                        className="md:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1.5 rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors"
+                                        className="md:hidden flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
@@ -199,13 +200,14 @@ export default function ConversationHistory({
 
                                 {/* Search */}
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
+                                    <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
                                     <input
                                         type="text"
                                         placeholder="Search conversations..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl pl-10 pr-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+                                        aria-label="Search conversations"
+                                        className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-2xl ps-10 pe-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:border-transparent transition-all"
                                     />
                                 </div>
 
@@ -215,7 +217,7 @@ export default function ConversationHistory({
                                         onNewConversation();
                                         onClose();
                                     }}
-                                    className="w-full mt-3 bg-gradient-to-r from-emerald-500 to-emerald-500 hover:from-emerald-600 hover:to-emerald-600 text-white font-semibold py-2.5 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2"
+                                    className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-500 px-4 py-2.5 font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:from-emerald-600 hover:to-emerald-600 hover:shadow-emerald-500/40"
                                 >
                                     <MessageSquare className="w-4 h-4" />
                                     New Conversation
@@ -273,7 +275,7 @@ export default function ConversationHistory({
                                             <button
                                                 aria-label="Delete conversation"
                                                 onClick={(e) => handleDelete(conv.id, e)}
-                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-xl hover:bg-red-500/10 text-[var(--color-text-muted)] hover:text-red-500"
+                                                className="absolute right-2 top-2 flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-opacity hover:bg-red-500/10 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>

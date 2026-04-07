@@ -72,7 +72,11 @@ function ScoreRing({ score }: { score: number }) {
         return () => clearTimeout(t);
     }, [score]);
 
-    const color = score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#ef4444';
+    const color = score >= 70
+        ? 'var(--semantic-success)'
+        : score >= 45
+            ? 'var(--semantic-warning)'
+            : 'var(--semantic-danger)';
 
     return (
         <div className="relative w-16 h-16 flex-shrink-0">
@@ -136,17 +140,23 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                     src={property.image}
                     className="w-full h-full object-cover"
                     alt={property.title}
+                    loading="lazy"
+                    decoding="async"
                 />
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                 {/* Status pill */}
-                <div className="absolute top-3 end-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md text-[var(--color-text-primary)] px-3 py-1 rounded-full text-[11px] font-semibold shadow-sm border border-black/5 dark:border-white/10">
+                <div className="absolute top-3 end-3 bg-white dark:bg-gray-900 text-[var(--color-text-primary)] px-3 py-1 rounded-full text-[11px] font-semibold shadow-sm border border-black/5 dark:border-white/10">
                     {property.status}
                 </div>
                 {/* Price overlay at bottom */}
                 <div className="absolute bottom-0 start-0 end-0 px-5 pb-4 pt-8">
                     <p className="text-white text-[22px] font-bold tracking-tight drop-shadow">
-                        <AnimatedNum target={property.price / 1_000_000} decimals={2} suffix="M EGP" />
+                        <AnimatedNum
+                            target={property.price / 1_000_000}
+                            decimals={2}
+                            suffix={isRTL ? ' مليون ج.م' : 'M EGP'}
+                        />
                     </p>
                 </div>
             </motion.div>
@@ -197,9 +207,10 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                                     <div className="h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mt-0.5">
                                         <motion.div
                                             className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${Math.min(property.metrics?.roi ? property.metrics.roi * 5 : 0, 100)}%` }}
+                                            initial={{ scaleX: 0 }}
+                                            animate={{ scaleX: Math.min(property.metrics?.roi ? property.metrics.roi * 5 : 0, 100) / 100 }}
                                             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+                                            style={{ transformOrigin: 'left' }}
                                         />
                                     </div>
                                 )}
@@ -281,7 +292,7 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
 
     /* ─── header ─── */
     const header = (
-        <div className="h-14 border-b border-[var(--color-border)]/50 flex items-center justify-between px-5 flex-shrink-0 bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm">
+        <div className="h-14 border-b border-[var(--color-border)]/50 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--color-surface)]">
             <div className="flex items-center gap-2.5">
                 <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">
                     {isRTL ? 'تفاصيل العقار' : 'Property Details'}
@@ -293,7 +304,7 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
             <button
                 onClick={onClose}
                 aria-label={isRTL ? 'إغلاق التفاصيل' : 'Close details'}
-                className="w-8 h-8 flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-gray-100/60 dark:bg-gray-800/60 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all"
+                className="w-11 h-11 flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-gray-100/60 dark:bg-gray-800/60 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all"
             >
                 <X className="w-4 h-4" strokeWidth={2} />
             </button>
@@ -323,7 +334,7 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                         transition={{ type: 'spring', damping: 30, stiffness: 320 }}
                         className="
                             fixed inset-0 z-50 flex flex-col
-                            bg-[var(--color-surface)]/98 backdrop-blur-2xl
+                            bg-[var(--color-surface)]
                             lg:static lg:inset-auto lg:z-auto
                             lg:w-[380px] lg:flex-shrink-0
                             lg:border-s border-[var(--color-border)]/50

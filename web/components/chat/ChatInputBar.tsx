@@ -74,11 +74,11 @@ export default function ChatInput({
         <AnimatePresence>
           {(voiceStatus === 'recording' || voiceStatus === 'processing') && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={{ y: -6, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -6, opacity: 0 }}
               transition={{ duration: 0.25 }}
-              className="px-5 pt-3 pb-0 flex items-center gap-2.5 overflow-hidden"
+              className="px-5 pt-3 pb-0 flex items-center gap-2.5"
             >
               <VoiceOrb status={voiceStatus} amplitude={amplitude} onClick={onVoiceToggle} isRTL={language === 'ar'} size="sm" />
               <span className="ms-auto text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold animate-pulse flex-shrink-0">
@@ -97,6 +97,7 @@ export default function ChatInput({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
+            aria-label={language === 'ar' ? 'اكتب رسالتك' : 'Type your message'}
             placeholder={
               language === 'ar'
                 ? 'اسأل عن العقارات، بيانات السوق، أو الاستثمار...'
@@ -114,7 +115,7 @@ export default function ChatInput({
                 onClick={onFileAttach}
                 aria-label={language === 'ar' ? 'إرفاق ملف' : 'Attach file'}
                 title={language === 'ar' ? 'إرفاق ملف' : 'Attach file'}
-                className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors"
+                className="inline-flex h-11 w-11 items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors"
               >
                 <Paperclip className="w-4 h-4" strokeWidth={1.8} />
               </button>
@@ -131,7 +132,7 @@ export default function ChatInput({
               disabled={disabled || !value.trim()}
               aria-label={language === 'ar' ? 'إرسال الرسالة' : 'Send message'}
               title="Send message"
-              className="p-2 md:p-2.5 bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-xl hover:opacity-90 active:scale-95 transition-all duration-150 disabled:opacity-20 disabled:pointer-events-none"
+              className="inline-flex h-11 w-11 items-center justify-center bg-[var(--color-text-primary)] text-[var(--color-background)] rounded-xl hover:opacity-90 active:scale-95 transition-all duration-150 disabled:opacity-20 disabled:pointer-events-none"
             >
               <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
             </button>

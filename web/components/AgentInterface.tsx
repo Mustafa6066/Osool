@@ -293,8 +293,8 @@ export default function AgentInterface() {
             const uiActions = Array.isArray(data.ui_actions) ? (data.ui_actions as UiAction[]) : [];
             const artifacts: Artifacts | null = allProps.length > 0 ? { property: allProps[0] } : null;
             const finalContent = accumulatedText || (conversationLanguage === 'ar'
-              ? 'أنا CoInvestor، وكيل الذكاء العقاري الخاص بك. كيف أقدر أساعدك النهارده؟'
-              : "I'm CoInvestor, your real estate intelligence agent. How can I assist you today?");
+              ? 'أنا Osool Advisor، مستشار الاستثمار العقاري الخاص بك. كيف أقدر أساعدك النهارده؟'
+              : "I'm Osool Advisor, your real estate intelligence guide. How can I assist you today?");
 
             setMessages(prev => {
               const hasMsg = prev.some(m => m.id === aiMsgId);
@@ -324,7 +324,7 @@ export default function AgentInterface() {
             if (artifacts) setActiveContext(artifacts);
           },
           onError: (error) => {
-            console.error('[CoInvestor] Stream Error:', error);
+            console.error('[Osool Advisor] Stream Error:', error);
             const errorContent = conversationLanguage === 'ar'
               ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟'
               : 'A brief analysis issue occurred. Could you try again?';
@@ -339,7 +339,7 @@ export default function AgentInterface() {
         'auto'
       );
     } catch (error: unknown) {
-      console.warn('[CoInvestor] SSE failed, falling back to POST:', getErrorMessage(error, 'Unknown'));
+      console.warn('[Osool Advisor] SSE failed, falling back to POST:', getErrorMessage(error, 'Unknown'));
       try {
         const response = await api.post('/api/chat', {
           message: content,
@@ -371,7 +371,7 @@ export default function AgentInterface() {
         triggerXP(5, 'Asked a question');
         if (allProps.length > 0) setActiveContext({ property: allProps[0] });
       } catch (fallbackErr: unknown) {
-        console.error('[CoInvestor] Fallback POST failed:', fallbackErr);
+        console.error('[Osool Advisor] Fallback POST failed:', fallbackErr);
         const errorMsg = conversationLanguage === 'ar'
           ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟'
           : 'A brief analysis issue occurred. Could you try again?';
@@ -615,6 +615,9 @@ export default function AgentInterface() {
                     <p className="text-[0.92rem] sm:text-[0.98rem] md:text-[1.02rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-2 sm:px-4 md:px-0" dir="auto">
                       {conversationLanguage === 'ar' ? 'اسأل مباشرة عن العقارات أو السوق أو الاستثمار.' : 'Ask directly about properties, market data, or investment decisions.'}
                     </p>
+                    <p className="mt-1.5 text-[0.78rem] text-[var(--color-text-muted)] max-w-md mx-auto" dir="auto">
+                      {conversationLanguage === 'ar' ? 'جرّب أحد الاقتراحات أدناه أو اكتب سؤالك مباشرة' : 'Try a suggestion below, or type your own question'}
+                    </p>
                   </div>
 
                   {/* Input */}
@@ -637,23 +640,29 @@ export default function AgentInterface() {
                   {/* Suggestion cards — 2×2 grid on all breakpoints */}
                   <div className="w-full max-w-[600px] mx-auto mt-4 px-3">
                     <div className="grid grid-cols-2 gap-2.5">
-                      {minimalEmptySuggestions.slice(0, 4).map((s, i) => (
-                        <button
-                          key={i}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
-                          className="flex flex-col items-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 text-start transition-all hover:border-emerald-500/30 hover:bg-[var(--color-surface-elevated)] active:scale-[0.98]"
-                        >
-                          <span dir="auto" className="text-[12px] font-semibold text-[var(--color-text-primary)] leading-snug line-clamp-2">
-                            {s.label}
-                          </span>
-                          {s.snippet && (
-                            <span className="mt-1 text-[11px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
-                              {s.snippet}
-                            </span>
-                          )}
-                        </button>
-                      ))}
+                      {minimalEmptySuggestions.slice(0, 4).map((s, i) => {
+                        const Icon = s.icon;
+                        return (
+                          <button
+                            key={i}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => { handleSendMessage(s.prompt); setTimeout(() => inputRef.current?.focus(), 100); }}
+                            className="flex flex-col items-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 text-start transition-all hover:border-emerald-500/30 hover:bg-[var(--color-surface-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 active:scale-[0.98] group"
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              {Icon && <Icon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
+                              <span dir="auto" className="text-[12px] font-semibold text-[var(--color-text-primary)] leading-snug line-clamp-1">
+                                {s.label}
+                              </span>
+                            </div>
+                            {(conversationLanguage === 'ar' ? s.snippetAr : s.snippet) && (
+                              <span className="text-[11px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
+                                {conversationLanguage === 'ar' ? s.snippetAr : s.snippet}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -702,7 +711,7 @@ export default function AgentInterface() {
 
               {/* ── Messages ── */}
               {hasStarted && (
-                <div className="px-2.5 sm:px-4 pt-4 sm:pt-6 pb-28 sm:pb-10">
+                <div className="px-2.5 sm:px-4 pt-4 sm:pt-6 pb-28 sm:pb-10" role="log" aria-live="polite" aria-label={conversationLanguage === 'ar' ? 'رسائل المحادثة' : 'Chat messages'}>
                   {messages.map((msg, index) => (
                     <ChatMessage
                       key={msg.id}
@@ -728,7 +737,12 @@ export default function AgentInterface() {
 
                   {/* Thinking steps */}
                   {isTyping && (
-                    <ThinkingSteps lastUserMessage={messages.length > 0 ? messages[messages.length - 1].content : ''} />
+                    <>
+                      <div className="sr-only" role="status" aria-live="assertive">
+                        {conversationLanguage === 'ar' ? 'أصول يحلل طلبك...' : 'Osool is analyzing your request...'}
+                      </div>
+                      <ThinkingSteps lastUserMessage={messages.length > 0 ? messages[messages.length - 1].content : ''} />
+                    </>
                   )}
 
                   {/* Context-aware skeleton */}
@@ -786,7 +800,7 @@ export default function AgentInterface() {
                 />
                 <div className="text-center mt-1.5 md:mt-3">
                   <p className="text-[10px] md:text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">
-                    {conversationLanguage === 'ar' ? 'CoInvestor وكيل ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'CoInvestor is an AI agent. Please verify critical investment data independently.'}
+                    {conversationLanguage === 'ar' ? 'Osool Advisor أداة ذكاء اصطناعي. يرجى التحقق من بيانات الاستثمار المهمة بشكل مستقل.' : 'Osool Advisor is an AI agent. Please verify critical investment data independently.'}
                   </p>
                 </div>
               </div>
@@ -840,7 +854,15 @@ export default function AgentInterface() {
                   {pastSessions.length === 0 ? (
                     <div className="text-center py-12 text-[var(--color-text-muted)]">
                       <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm">{conversationLanguage === 'ar' ? 'لا توجد محادثات سابقة بعد' : 'No past conversations yet'}</p>
+                      <p className="text-sm font-medium text-[var(--color-text-primary)] mb-1">{conversationLanguage === 'ar' ? 'لا توجد محادثات سابقة' : 'No past conversations'}</p>
+                      <p className="text-xs text-[var(--color-text-muted)] mb-4 max-w-[200px] mx-auto">{conversationLanguage === 'ar' ? 'ابدأ أول محادثة وستظهر هنا' : 'Start your first analysis and it will appear here'}</p>
+                      <button
+                        onClick={() => { handleNewChat(); setHistoryOpen(false); }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-emerald-500 border border-emerald-500/30 rounded-full hover:bg-emerald-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 transition-colors"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {conversationLanguage === 'ar' ? 'ابدأ محادثة' : 'Start a conversation'}
+                      </button>
                     </div>
                   ) : (
                     pastSessions.map(s => (

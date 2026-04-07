@@ -387,13 +387,16 @@ class UserMemory(Base):
 
     Example: Session 1 user says "wife hates open kitchens" → stored.
              Session 2 user looks at unit with American kitchen → AI warns them.
+
+    SECURITY: memory_json and preferences_text are encrypted at rest via Fernet.
+    Use the encrypt/decrypt properties instead of raw column access.
     """
     __tablename__ = "user_memories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
 
-    # Core memory fields (JSON serialized)
+    # Core memory fields (JSON serialized) — ENCRYPTED AT REST
     memory_json: Mapped[str] = mapped_column(Text, nullable=True)  # Full ConversationMemory dict
 
     # Quick-access fields for common lookups
@@ -402,7 +405,7 @@ class UserMemory(Base):
     preferred_areas: Mapped[str] = mapped_column(String, nullable=True)  # Comma-separated
     investment_vs_living: Mapped[str] = mapped_column(String, nullable=True)
 
-    # Free-text preferences (e.g., "wife hates open kitchens", "needs garden")
+    # Free-text preferences — ENCRYPTED AT REST
     preferences_text: Mapped[str] = mapped_column(Text, nullable=True)
 
     # Timestamps
@@ -410,6 +413,27 @@ class UserMemory(Base):
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
+
+    # ── Encryption helpers ────────────────────────────────────────────────
+    @property
+    def decrypted_memory_json(self) -> str | None:
+        from app.utils.encryption import decrypt_field
+        return decrypt_field(self.memory_json)
+
+    @decrypted_memory_json.setter
+    def decrypted_memory_json(self, value: str | None):
+        from app.utils.encryption import encrypt_field
+        self.memory_json = encrypt_field(value)
+
+    @property
+    def decrypted_preferences_text(self) -> str | None:
+        from app.utils.encryption import decrypt_field
+        return decrypt_field(self.preferences_text)
+
+    @decrypted_preferences_text.setter
+    def decrypted_preferences_text(self, value: str | None):
+        from app.utils.encryption import encrypt_field
+        self.preferences_text = encrypt_field(value)
 
 
 # ═══════════════════════════════════════════════════════════════

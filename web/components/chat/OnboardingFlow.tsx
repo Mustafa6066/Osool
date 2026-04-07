@@ -75,14 +75,15 @@ export default function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowPro
     };
 
     return (
-        <div className="w-full max-w-2xl mx-auto my-8 p-6 bg-[var(--color-surface)]/60 backdrop-blur-xl border border-[var(--color-border)] rounded-3xl shadow-xl overflow-hidden relative">
+        <div className="w-full max-w-2xl mx-auto my-8 p-6 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl shadow-xl overflow-hidden relative">
             {/* Progress Bar */}
             <div className="absolute top-0 start-0 w-full h-1.5 bg-[var(--color-surface)]">
                 <motion.div 
                     className="h-full bg-emerald-500"
-                    initial={{ width: '33%' }}
-                    animate={{ width: step === 'goal' ? '33%' : step === 'region' ? '66%' : step === 'budget' ? '90%' : '100%' }}
+                    initial={{ scaleX: 0.33 }}
+                    animate={{ scaleX: step === 'goal' ? 0.33 : step === 'region' ? 0.66 : step === 'budget' ? 0.9 : 1 }}
                     transition={{ duration: 0.5 }}
+                    style={{ transformOrigin: 'left' }}
                 />
             </div>
 

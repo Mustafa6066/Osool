@@ -6,7 +6,7 @@ import {
     Trash2, Edit2, Search,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 
 interface Conversation {
@@ -87,6 +87,7 @@ export default function ChatSidebar({
     isRTL = false,
 }: ChatSidebarProps) {
     const { logout } = useAuth();
+    const prefersReducedMotion = useReducedMotion();
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -116,7 +117,7 @@ export default function ChatSidebar({
             <div className="flex-shrink-0 px-3 pt-3 pb-2 border-b border-[var(--color-border)]">
                 <button
                     onClick={onNewInquiry}
-                    className="flex w-full items-center gap-2 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] px-3 py-2.5 text-[13px] font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-border)] transition-colors"
+                    className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2.5 text-[13px] font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-border)]"
                 >
                     <Plus size={15} strokeWidth={2.2} />
                     <span>{isRTL ? 'محادثة جديدة' : 'New chat'}</span>
@@ -132,6 +133,7 @@ export default function ChatSidebar({
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder={isRTL ? 'بحث في المحادثات' : 'Search conversations'}
+                        aria-label="Search conversations"
                         className="flex-1 bg-transparent text-[12px] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none"
                         dir={isRTL ? 'rtl' : 'ltr'}
                     />
@@ -171,13 +173,18 @@ export default function ChatSidebar({
                                 const isActive = item.id === activeConversationId;
 
                                 return (
-                                    <div
+                                    <motion.div
                                         key={item.id}
-                                        className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] cursor-pointer transition-colors ${
+                                        className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] transition-colors ${
                                             isActive
                                                 ? 'bg-emerald-500/10 text-[var(--color-text-primary)]'
                                                 : 'hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]'
                                         }`}
+                                        initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                                        whileHover={prefersReducedMotion ? undefined : { x: isRTL ? -2 : 2 }}
+                                        whileTap={prefersReducedMotion ? undefined : { scale: 0.995 }}
                                         onClick={() => {
                                             onSearchClick?.(item);
                                             if (item.id) onSelectConversation?.(item.id);
@@ -191,25 +198,33 @@ export default function ChatSidebar({
                                             {item.query}
                                         </span>
 
-                                        {isHovered && (
-                                            <div className="flex items-center gap-0.5 shrink-0">
-                                                <button
-                                                    className="p-1 rounded-lg hover:bg-[var(--color-border)] transition-colors"
-                                                    onClick={e => e.stopPropagation()}
-                                                    aria-label="Rename"
+                                        <AnimatePresence>
+                                            {isHovered && (
+                                                <motion.div
+                                                    className="flex items-center gap-0.5 shrink-0"
+                                                    initial={prefersReducedMotion ? false : { opacity: 0, x: isRTL ? -6 : 6 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: isRTL ? -4 : 4 }}
+                                                    transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
                                                 >
-                                                    <Edit2 size={12} className="text-[var(--color-text-muted)]" />
-                                                </button>
-                                                <button
-                                                    className="p-1 rounded-lg hover:bg-red-500/10 transition-colors"
-                                                    onClick={e => e.stopPropagation()}
-                                                    aria-label="Delete"
-                                                >
-                                                    <Trash2 size={12} className="text-[var(--color-text-muted)] hover:text-red-500" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
+                                                    <button
+                                                        className="p-1 rounded-lg hover:bg-[var(--color-border)] transition-colors"
+                                                        onClick={e => e.stopPropagation()}
+                                                        aria-label="Rename"
+                                                    >
+                                                        <Edit2 size={12} className="text-[var(--color-text-muted)]" />
+                                                    </button>
+                                                    <button
+                                                        className="p-1 rounded-lg hover:bg-red-500/10 transition-colors"
+                                                        onClick={e => e.stopPropagation()}
+                                                        aria-label="Delete"
+                                                    >
+                                                        <Trash2 size={12} className="text-[var(--color-text-muted)] hover:text-red-500" />
+                                                    </button>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </motion.div>
                                 );
                             })}
                         </div>
@@ -222,14 +237,14 @@ export default function ChatSidebar({
                 <div className="flex items-center gap-1">
                     <Link
                         href="/settings"
-                        className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] transition-colors"
+                        className="flex min-h-11 flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
                     >
                         <Settings size={15} strokeWidth={1.8} />
                         <span>{isRTL ? 'إعدادات' : 'Settings'}</span>
                     </Link>
                     <button
                         onClick={() => logout()}
-                        className="flex items-center justify-center h-9 w-9 rounded-xl text-[var(--color-text-muted)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                        className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-red-500/10 hover:text-red-500"
                         title={isRTL ? 'خروج' : 'Sign out'}
                     >
                         <LogOut size={15} strokeWidth={1.8} />
@@ -243,7 +258,7 @@ export default function ChatSidebar({
         <>
             {/* Desktop sidebar */}
             <aside
-                className={`hidden lg:flex flex-col w-[260px] shrink-0 border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-xl h-full overflow-hidden ${
+                className={`hidden lg:flex flex-col w-[260px] shrink-0 border-[var(--color-border)] bg-[var(--color-surface)] h-full overflow-hidden ${
                     isRTL ? 'border-l' : 'border-r'
                 }`}
             >
@@ -258,19 +273,24 @@ export default function ChatSidebar({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
+                            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                             onClick={onClose}
                             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                         />
                         <motion.aside
-                            initial={{ x: isRTL ? 280 : -280 }}
+                            initial={prefersReducedMotion ? false : { x: isRTL ? 280 : -280, opacity: 0.98 }}
                             animate={{ x: 0 }}
-                            exit={{ x: isRTL ? 280 : -280 }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className={`fixed ${isRTL ? 'right-0' : 'left-0'} top-0 h-full w-[280px] z-50 lg:hidden bg-[var(--color-surface)] border-[var(--color-border)] ${isRTL ? 'border-l' : 'border-r'}`}
+                            exit={prefersReducedMotion ? { opacity: 0 } : { x: isRTL ? 280 : -280, opacity: 0.98 }}
+                            transition={
+                                prefersReducedMotion
+                                    ? { duration: 0 }
+                                    : { duration: 0.32, ease: [0.16, 1, 0.3, 1] }
+                            }
+                            className={`fixed ${isRTL ? 'right-0' : 'left-0'} top-0 h-full w-[min(88vw,320px)] z-50 lg:hidden bg-[var(--color-surface)] border-[var(--color-border)] ${isRTL ? 'border-l' : 'border-r'}`}
                         >
                             <button
                                 onClick={onClose}
-                                className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors`}
+                                className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]`}
                             >
                                 <X size={16} />
                             </button>

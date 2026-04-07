@@ -185,7 +185,7 @@ export default function WhatsAppHandoffModal({ isOpen, onClose, context }: Whats
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t('whatsapp.namePlaceholder')}
-                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus:border-emerald-500/50"
+                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus-visible:border-[var(--color-primary)]/50 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
                     autoComplete="name"
                   />
                 </div>
@@ -203,7 +203,7 @@ export default function WhatsAppHandoffModal({ isOpen, onClose, context }: Whats
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder={t('whatsapp.phonePlaceholder')}
-                      className={`w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] py-2.5 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus:border-emerald-500/50 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'}`}
+                      className={`w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] py-2.5 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus-visible:border-[var(--color-primary)]/50 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'}`}
                       autoComplete="tel"
                       dir="ltr"
                     />
@@ -221,7 +221,7 @@ export default function WhatsAppHandoffModal({ isOpen, onClose, context }: Whats
                     onChange={(e) => setNote(e.target.value)}
                     placeholder={t('whatsapp.notePlaceholder')}
                     rows={2}
-                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus:border-emerald-500/50 resize-none"
+                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus-visible:border-[var(--color-primary)]/50 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 resize-none"
                   />
                 </div>
 

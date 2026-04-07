@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from "@heroicons/react/24/outline";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface ComparisonRow {
     label: string;
@@ -84,8 +84,8 @@ export default function FinancialComparisonTable({
                                                 </div>
                                                 {showTrends && val.change !== undefined && (
                                                     <div className={`text-[11px] mt-0.5 inline-flex items-center gap-1 ${trendColor}`}>
-                                                        {val.trend === 'up' && <ArrowTrendingUpIcon className="w-3 h-3" />}
-                                                        {val.trend === 'down' && <ArrowTrendingDownIcon className="w-3 h-3" />}
+                                                        {val.trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                                                        {val.trend === 'down' && <TrendingDown className="w-3 h-3" />}
                                                         {Math.abs(val.change).toFixed(1)}%
                                                     </div>
                                                 )}
@@ -160,10 +160,10 @@ export default function FinancialComparisonTable({
                                                 {showTrends && val.change !== undefined && (
                                                     <div className={`flex items-center gap-1 text-xs ${trendColor}`}>
                                                         {val.trend === 'up' && (
-                                                            <ArrowTrendingUpIcon className="w-3 h-3" />
+                                                            <TrendingUp className="w-3 h-3" />
                                                         )}
                                                         {val.trend === 'down' && (
-                                                            <ArrowTrendingDownIcon className="w-3 h-3" />
+                                                            <TrendingDown className="w-3 h-3" />
                                                         )}
                                                         {Math.abs(val.change).toFixed(1)}%
                                                     </div>

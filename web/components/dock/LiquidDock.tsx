@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'framer-motion';
 import { Sparkles, Sun, Moon, Gift, LogOut, User, Shield, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -25,6 +25,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
   const { theme, toggleTheme } = useTheme();
   const { language, toggleLanguage } = useLanguage();
   const { xpQueue, achievementQueue } = useGamification();
+  const prefersReducedMotion = useReducedMotion();
   const activeKey = getActiveKey(pathname);
 
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -69,9 +70,9 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
           <motion.nav
             aria-label="Main navigation"
             className="relative flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl liquid-glass dock-shadow"
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 120, delay: 0.1 }}
+            initial={prefersReducedMotion ? false : { y: 80, opacity: 0 }}
+            animate={prefersReducedMotion ? undefined : { y: 0, opacity: 1 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 22, stiffness: 120, delay: 0.1 }}
           >
             {/* ── Nav items ── */}
             {items.map((item, i) => {
@@ -87,9 +88,9 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                   aria-current={isActive ? 'page' : undefined}
                   className={`relative overflow-hidden flex items-center justify-center h-[52px] sm:h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 transition-all duration-300 ease-out ${isActive ? 'w-[100px] sm:w-[120px] px-3' : 'w-[52px] sm:w-11 px-0'}`}
                   animate={{
-                    scale: hoveredIndex === i ? 1.18 : isActive ? 1.06 : 1,
+                    scale: prefersReducedMotion ? (isActive ? 1.02 : 1) : hoveredIndex === i ? 1.18 : isActive ? 1.06 : 1,
                   }}
-                  transition={{ type: 'spring', bounce: 0.35, duration: 0.35 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', bounce: 0.25, duration: 0.28 }}
                 >
                   {/* Active blob */}
                   {isActive && (
@@ -148,9 +149,9 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                 onClick={() => router.push('/admin')}
                 aria-label="Admin"
                 className={`relative overflow-hidden flex items-center justify-center h-[52px] sm:h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 transition-all duration-300 ease-out ${activeKey === 'admin' ? 'w-[100px] sm:w-[120px] px-3' : 'w-[52px] sm:w-11 px-0'}`}
-                whileHover={{ scale: 1.12 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: 'spring', bounce: 0.35, duration: 0.35 }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.12 }}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', bounce: 0.25, duration: 0.28 }}
               >
                 {activeKey === 'admin' && (
                   <motion.div
@@ -198,8 +199,8 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                   })
                 )
               }
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={prefersReducedMotion ? undefined : { scale: 1.06 }}
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
               className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
             >
               <Sparkles className="w-4 h-4" />
@@ -223,8 +224,8 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                   })
                 )
               }
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={prefersReducedMotion ? undefined : { scale: 1.1 }}
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
               aria-label="Search"
               className="sm:hidden flex items-center justify-center w-11 h-11 rounded-2xl text-[var(--color-text-muted)] hover:text-emerald-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
             >
@@ -331,8 +332,8 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
             ) : (
               <motion.button
                 onClick={() => router.push('/login')}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-colors"
               >
                 <User className="w-3.5 h-3.5" />

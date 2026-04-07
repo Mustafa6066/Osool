@@ -17,11 +17,11 @@ import {
 
 // Color palette for developer lines
 const COLORS = [
-    "#3b82f6", // blue
-    "#10b981", // emerald
-    "#f59e0b", // amber
-    "#ef4444", // red
-    "#8b5cf6", // violet
+    "var(--chart-primary-semantic)",
+    "var(--chart-secondary)",
+    "var(--semantic-warning)",
+    "var(--semantic-danger)",
+    "var(--chart-tertiary)",
 ];
 
 interface DataPoint {
@@ -207,9 +207,9 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
                                 type="monotone"
                                 dataKey="area_price"
                                 name={displayName || "متوسط المنطقة"}
-                                stroke="#3b82f6"
+                                stroke="var(--chart-primary-semantic)"
                                 strokeWidth={3}
-                                dot={{ r: 4, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }}
+                                dot={{ r: 4, fill: "var(--chart-primary-semantic)", stroke: "var(--color-surface)", strokeWidth: 2 }}
                                 activeDot={{ r: 6 }}
                             />
 
@@ -248,12 +248,18 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
                                         <span className={`text-[9px] font-bold tabular-nums ${isPositive ? "text-emerald-500" : "text-red-400"}`}>
                                             {dp.yoy_growth > 0 ? "+" : ""}{dp.yoy_growth.toFixed(0)}%
                                         </span>
-                                        <motion.div
-                                            initial={{ height: 0 }}
-                                            animate={{ height: `${Math.max(barH, 5)}%` }}
-                                            transition={{ duration: 0.6, delay: 0.1 }}
-                                            className={`w-full rounded-t-sm ${isPositive ? "bg-emerald-500/40" : "bg-red-400/40"}`}
-                                        />
+                                        <div className="relative h-6 w-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ scaleY: 0 }}
+                                                animate={{ scaleY: 1 }}
+                                                transition={{ duration: 0.6, delay: 0.1 }}
+                                                style={{
+                                                    height: `${Math.max(barH, 5)}%`,
+                                                    transformOrigin: 'bottom',
+                                                }}
+                                                className={`absolute inset-x-0 bottom-0 rounded-t-sm ${isPositive ? "bg-emerald-500/40" : "bg-red-400/40"}`}
+                                            />
+                                        </div>
                                         <span className="text-[9px] text-[var(--color-text-muted)]">{dp.year}</span>
                                     </div>
                                 );

@@ -30,8 +30,8 @@ export default function VoiceOrb({
 
   const baseClass =
     size === 'sm'
-      ? 'p-1.5 transition-colors rounded-full'
-      : 'chatgpt-input-btn rounded-full';
+      ? 'inline-flex min-h-11 min-w-11 p-1.5 transition-colors rounded-full'
+      : 'chatgpt-input-btn rounded-full min-h-11 min-w-11';
 
   return (
     <motion.button
@@ -103,7 +103,7 @@ export default function VoiceOrb({
                   width: size === 'sm' ? 2.5 : 3,
                   height: size === 'sm' ? 12 : 14,
                   borderRadius: 2,
-                  backgroundColor: 'var(--osool-deep-teal, #0d9488)',
+                  backgroundColor: 'var(--osool-deep-teal)',
                   transformOrigin: 'center center',
                 }}
               />

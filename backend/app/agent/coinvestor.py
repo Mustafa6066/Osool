@@ -33,7 +33,7 @@ class CoInvestorAgent:
         logger.info("🚀 CoInvestorAgent initialized with Wolf Brain V7")
         self.memory_utils = ConversationMemory()  # Utility for loop detection
 
-    async def process_message(self, user_input: str, session_id: str, history: List[BaseMessage] = [], behavioral_signals: dict = None) -> Dict[str, Any]:
+    async def process_message(self, user_input: str, session_id: str, history: List[BaseMessage] = [], behavioral_signals: dict = None, orchestrator_context: str = "") -> Dict[str, Any]:
         """
         Main entry point.
         
@@ -47,6 +47,14 @@ class CoInvestorAgent:
 
         # 1. Convert LangChain history to Wolf Brain format (List[Dict])
         chat_history_dicts = self._convert_history(history)
+
+        # 1b. Prepend orchestrator cross-platform context so Wolf Brain is aware
+        #     of the user's lead score, preferred developers, and intent signals.
+        if orchestrator_context:
+            chat_history_dicts.insert(0, {
+                "role": "system",
+                "content": orchestrator_context,
+            })
 
         # 2. Execute Wolf Brain Logic
         try:

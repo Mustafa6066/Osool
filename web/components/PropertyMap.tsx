@@ -178,7 +178,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                 const icon = L.divIcon({
                     className: 'osool-map-marker',
                     html: `<div style="
-                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
                         color: white;
                         font-size: 11px;
                         font-weight: 700;
@@ -233,7 +233,8 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                         {/* Close button */}
                         <button
                             onClick={() => setSelectedProperty(null)}
-                            className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                            aria-label={language === 'ar' ? 'إغلاق البطاقة' : 'Close property card'}
+                            className="absolute top-3 right-3 z-10 w-11 h-11 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -243,6 +244,8 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                             <img
                                 src={selectedProperty.image}
                                 alt={language === 'ar' ? selectedProperty.titleAr : selectedProperty.title}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = 'none';

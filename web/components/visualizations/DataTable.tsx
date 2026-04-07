@@ -2,11 +2,11 @@
 
 import { motion } from "framer-motion";
 import { 
-    ChevronUpIcon, 
-    ChevronDownIcon,
-    ArrowTrendingUpIcon,
-    ArrowTrendingDownIcon
-} from "@heroicons/react/24/outline";
+    ChevronUp, 
+    ChevronDown,
+    TrendingUp,
+    TrendingDown
+} from "lucide-react";
 import { isValidElement, useMemo, useState, type ReactNode } from "react";
 
 type DataTableRow = Record<string, unknown>;
@@ -243,9 +243,9 @@ export default function DataTable({
                                                     {col.header}
                                                     {sortable && sortKey === col.key && (
                                                         sortOrder === 'asc' ? (
-                                                            <ChevronUpIcon className="w-4 h-4" />
+                                                            <ChevronUp className="w-4 h-4" />
                                                         ) : (
-                                                            <ChevronDownIcon className="w-4 h-4" />
+                                                            <ChevronDown className="w-4 h-4" />
                                                         )
                                                     )}
                                                 </div>
@@ -310,8 +310,8 @@ export const tableFormatters = {
     // Format percentage with arrow
     percentageWithTrend: (value: number, icon = true) => (
         <span className={`flex items-center gap-1 ${value > 0 ? 'text-green-400' : value < 0 ? 'text-red-400' : ''}`}>
-            {icon && value > 0 && <ArrowTrendingUpIcon className="w-4 h-4" />}
-            {icon && value < 0 && <ArrowTrendingDownIcon className="w-4 h-4" />}
+            {icon && value > 0 && <TrendingUp className="w-4 h-4" />}
+            {icon && value < 0 && <TrendingDown className="w-4 h-4" />}
             {Math.abs(value).toFixed(1)}%
         </span>
     ),

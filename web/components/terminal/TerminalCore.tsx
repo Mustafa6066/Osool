@@ -444,18 +444,18 @@ export default function TerminalCore() {
         </div>
         {/* Row 2: Metadata — hidden on very small screens, shown on sm+ */}
         <div className="hidden items-center gap-4 border-t border-[#111] px-4 py-1.5 sm:flex">
-          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#444]">
+          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#9A9A9A]">
             <Globe className="h-3 w-3" />
             {t.langLabel}: {language.toUpperCase()}
           </span>
-          <span className="font-mono text-[9px] uppercase text-[#444]">
+          <span className="font-mono text-[9px] uppercase text-[#9A9A9A]">
             {t.sessionLabel}: {user?.id ? String(user.id).slice(0, 8) : "ANON"}
           </span>
-          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#444]">
+          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#9A9A9A]">
             <Cpu className="h-3 w-3" />
             PIPELINE: ACTIVE
           </span>
-          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#444]">
+          <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#9A9A9A]">
             <Database className="h-3 w-3" />
             DB: CONNECTED
           </span>
@@ -479,14 +479,14 @@ export default function TerminalCore() {
             <h1 className="mb-1 font-mono text-xl font-bold uppercase tracking-[0.25em] text-white sm:text-2xl">
               OSOOL CORE
             </h1>
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.3em] text-[#444]">
+            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.3em] text-[#9A9A9A]">
               COMMAND &amp; TELEMETRY TERMINAL
             </p>
 
             {/* Blinking cursor */}
             <div className="mb-8 mt-4 flex items-center gap-2">
               <span className="h-[2px] w-3 bg-lime-400 terminal-cursor" />
-              <span className="font-mono text-[11px] uppercase tracking-widest text-[#555]">
+              <span className="font-mono text-[11px] uppercase tracking-widest text-[#A3A3A3]">
                 {t.hint}
               </span>
             </div>
@@ -500,7 +500,7 @@ export default function TerminalCore() {
                     setInputValue(ex);
                     inputRef.current?.focus();
                   }}
-                  className="group rounded-none border border-[#222] bg-[#0a0a0a] px-4 py-3 text-start font-mono text-xs text-[#666] transition-colors hover:border-lime-400/40 hover:text-lime-400"
+                  className="group rounded-none border border-[#222] bg-[#0a0a0a] px-4 py-3 text-start font-mono text-xs text-[#909090] transition-colors hover:border-lime-400/40 hover:text-lime-400"
                 >
                   <span className="text-lime-400/50 group-hover:text-lime-400">{">"}</span>{" "}
                   {ex}
@@ -516,7 +516,7 @@ export default function TerminalCore() {
                 { icon: Zap, label: "WOLF SCORE", ok: true },
                 { icon: Radio, label: "TELEMETRY", ok: true },
               ].map(({ icon: Icon, label, ok }) => (
-                <span key={label} className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#444]">
+                <span key={label} className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-[#9A9A9A]">
                   <Icon className="h-3 w-3" />
                   {label}:
                   <span className={ok ? "text-lime-400" : "text-rose-500"}>
@@ -540,7 +540,7 @@ export default function TerminalCore() {
               {/* Command row */}
               <div className="flex items-center gap-2">
                 <ChevronRight className="h-3 w-3 shrink-0 text-lime-400" />
-                <span className="font-mono text-[10px] font-bold uppercase text-[#555] sm:text-[11px]">
+                <span className="font-mono text-[10px] font-bold uppercase text-[#A3A3A3] sm:text-[11px]">
                   {t.queryExecuted}:
                 </span>
                 <span className="flex-1 truncate font-mono text-xs text-white">
@@ -553,7 +553,7 @@ export default function TerminalCore() {
               {(entry.latencyMs != null || entry.confidence != null) && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-3 ps-5">
                   {entry.latencyMs != null && (
-                    <span className="flex items-center gap-1 font-mono text-[9px] text-[#444] sm:text-[10px]">
+                    <span className="flex items-center gap-1 font-mono text-[9px] text-[#9A9A9A] sm:text-[10px]">
                       <Clock className="h-3 w-3" />
                       {t.latency}: {entry.latencyMs}ms
                     </span>
@@ -628,7 +628,7 @@ export default function TerminalCore() {
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={t.placeholder}
             disabled={isProcessing}
-            className="flex-1 bg-transparent font-mono text-sm text-white placeholder-[#333] outline-none disabled:opacity-50"
+            className="flex-1 bg-transparent font-mono text-sm text-white placeholder-[#5f5f5f] outline-none disabled:opacity-50"
             autoComplete="off"
             spellCheck={false}
           />
@@ -650,7 +650,7 @@ function StatusBadge({
   t: (typeof T)["en"];
 }) {
   const map = {
-    queued: { label: t.queued, cls: "text-[#555] border-[#333]" },
+    queued: { label: t.queued, cls: "text-[#A3A3A3] border-[#4A4A4A]" },
     executing: {
       label: t.executing,
       cls: "text-yellow-500 border-yellow-500/30 animate-pulse",
@@ -681,7 +681,7 @@ function ExecutingLine({ label, delay }: { label: string; delay: number }) {
   return (
     <div className="flex items-center gap-2 terminal-slide-up">
       <Loader2 className="h-3 w-3 animate-spin text-lime-400 shrink-0" />
-      <span className="font-mono text-[10px] uppercase tracking-wider text-[#555]">
+      <span className="font-mono text-[10px] uppercase tracking-wider text-[#A3A3A3]">
         {label}
       </span>
     </div>

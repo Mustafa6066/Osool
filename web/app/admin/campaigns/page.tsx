@@ -162,12 +162,13 @@ export default function CampaignsPage() {
                   value={form.name}
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
                   placeholder="Campaign name"
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none"
+                  aria-label="Campaign name"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all"
                 />
                 <select
                   value={form.platform}
                   onChange={(event) => setForm({ ...form, platform: event.target.value })}
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all"
                 >
                   <option value="meta">Meta</option>
                   <option value="google">Google</option>
@@ -177,20 +178,23 @@ export default function CampaignsPage() {
                   value={form.budget}
                   onChange={(event) => setForm({ ...form, budget: event.target.value })}
                   placeholder="Budget in EGP"
+                  aria-label="Budget in EGP"
                   type="number"
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all"
                 />
                 <input
                   value={form.target_areas}
                   onChange={(event) => setForm({ ...form, target_areas: event.target.value })}
                   placeholder="Target areas, comma separated"
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none"
+                  aria-label="Target areas"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all"
                 />
                 <input
                   value={form.target_intents}
                   onChange={(event) => setForm({ ...form, target_intents: event.target.value })}
                   placeholder="Target intents, comma separated"
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none sm:col-span-2"
+                  aria-label="Target intents"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all sm:col-span-2"
                 />
               </div>
               <div className="mt-6 flex justify-end">

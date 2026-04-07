@@ -121,14 +121,14 @@ function LoginContent() {
                     <label className="block">
                         <span className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.emailAddress')}</span>
                         <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                            <Mail className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
                             <input
                                 type="email"
                                 required
                                 value={email}
                                 onChange={(event) => setEmail(event.target.value)}
                                 placeholder={t('login.emailPlaceholder')}
-                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 pl-10 pr-4 text-[var(--color-text-primary)] outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 ps-10 pe-4 text-[var(--color-text-primary)] outline-none transition-all focus-visible:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
                             />
                         </div>
                     </label>
@@ -136,14 +136,14 @@ function LoginContent() {
                     <label className="block">
                         <span className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.password')}</span>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                            <Lock className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
                             <input
                                 type="password"
                                 required
                                 value={password}
                                 onChange={(event) => setPassword(event.target.value)}
                                 placeholder="········"
-                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 pl-10 pr-4 text-[var(--color-text-primary)] outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 ps-10 pe-4 text-[var(--color-text-primary)] outline-none transition-all focus-visible:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
                             />
                         </div>
                     </label>

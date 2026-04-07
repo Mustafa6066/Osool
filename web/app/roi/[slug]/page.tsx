@@ -55,13 +55,13 @@ export default async function ROIPage({ params }: Props) {
                 <div className="text-xs text-[var(--color-text-muted)]">YoY Growth</div>
               </div>
               <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-                <div className="text-2xl font-bold text-purple-500">
+                <div className="text-2xl font-bold text-[var(--color-teal-accent)]">
                   {content.liveData.areaMetrics.rental_yield?.toFixed(1)}%
                 </div>
                 <div className="text-xs text-[var(--color-text-muted)]">Rental Yield</div>
               </div>
               <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-                <div className="text-2xl font-bold text-blue-500">
+                <div className="text-2xl font-bold text-[var(--color-primary-dark)]">
                   {(content.liveData.areaMetrics.avg_price_per_meter / 1000).toFixed(0)}K
                 </div>
                 <div className="text-xs text-[var(--color-text-muted)]">EGP/m²</div>

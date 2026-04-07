@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    TrendingUp, TrendingDown, Sparkles, X, Activity,
-    Shield, Building2, Eye, ChevronRight, Star, StarOff,
-    Zap, BarChart3, ArrowUpRight, ArrowDownRight, Minus,
+    TrendingUp, Sparkles, X, Activity,
+    Shield, ChevronRight, Star,
+    Zap, BarChart3, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 
 /* ── Types ── */
@@ -57,7 +57,7 @@ const Sparkline = ({ data, positive }: { data: number[], positive: boolean }) =>
             <polyline
                 points={points}
                 fill="none"
-                stroke={positive ? '#10b981' : '#ef4444'}
+                stroke={positive ? 'var(--semantic-success)' : 'var(--semantic-danger)'}
                 strokeWidth={1.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -104,6 +104,8 @@ const VERIFICATION_EVENTS: VerificationEvent[] = [
     { id: '3', text: 'Contract Verified: Mountain View iCity', textAr: 'عقد موثق: ماونتن فيو آي سيتي', timestamp: '15m ago' },
 ];
 
+const MARKET_DATA_SOURCE: 'sample' | 'live' = 'sample';
+
 /* ── Main Component ── */
 export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSidebarProps) {
     const [isOpen, setIsOpen] = useState(false);
@@ -116,6 +118,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
     });
 
     const isAr = language === 'ar';
+    const isLiveData = MARKET_DATA_SOURCE === 'live';
 
     useEffect(() => {
         try { localStorage.setItem('osool_watchlist', JSON.stringify([...watchlist])); } catch {}
@@ -163,21 +166,37 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
             {/* ── Collapsed pill trigger ── */}
             <AnimatePresence>
                 {!isOpen && (
-                    <motion.button
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        onClick={() => setIsOpen(true)}
-                        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 hidden lg:flex items-center gap-2 pl-3 pr-2 py-2.5 rounded-l-2xl border border-r-0 border-[var(--color-border)]/60 bg-[var(--color-surface)]/80 backdrop-blur-xl hover:bg-[var(--color-surface)] shadow-lg transition-all group"
-                        title={isAr ? 'نبض السوق' : 'Market Pulse'}
-                    >
-                        <Activity className="w-4 h-4 text-emerald-500 group-hover:animate-pulse" />
-                        <span className="text-[11px] font-semibold text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)] transition-colors writing-mode-vertical hidden xl:block"
-                            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                    <>
+                        <motion.button
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            onClick={() => setIsOpen(true)}
+                            aria-label={isAr ? 'فتح نبض السوق' : 'Open market pulse'}
+                            className="fixed right-0 top-1/2 -translate-y-1/2 z-40 hidden lg:flex items-center gap-2 pl-3 pr-2 py-2.5 rounded-l-2xl border border-r-0 border-[var(--color-border)]/60 bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)] shadow-lg transition-all group"
+                            title={isAr ? 'نبض السوق' : 'Market Pulse'}
                         >
-                            {isAr ? 'نبض السوق' : 'PULSE'}
-                        </span>
-                    </motion.button>
+                            <Activity className="w-4 h-4 text-emerald-500 group-hover:animate-pulse" />
+                            <span className="text-[11px] font-semibold text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)] transition-colors writing-mode-vertical hidden xl:block"
+                                style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                            >
+                                {isAr ? 'نبض السوق' : 'PULSE'}
+                            </span>
+                        </motion.button>
+
+                        <motion.button
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            onClick={() => setIsOpen(true)}
+                            aria-label={isAr ? 'فتح نبض السوق' : 'Open market pulse'}
+                            className="fixed right-4 z-40 lg:hidden inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-[12px] font-semibold text-[var(--color-text-primary)] shadow-lg"
+                            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 92px)' }}
+                        >
+                            <Activity className="w-4 h-4 text-emerald-500" />
+                            {isAr ? 'نبض السوق' : 'Market Pulse'}
+                        </motion.button>
+                    </>
                 )}
             </AnimatePresence>
 
@@ -199,7 +218,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: 380, opacity: 0 }}
                             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-                            className="fixed right-0 top-0 bottom-0 w-[340px] lg:w-[360px] bg-[var(--color-surface)]/95 backdrop-blur-2xl border-l border-[var(--color-border)]/50 z-50 flex flex-col shadow-[-10px_0_40px_rgba(0,0,0,0.08)]"
+                            className="fixed right-0 top-0 bottom-0 w-[340px] lg:w-[360px] bg-[var(--color-surface)] border-l border-[var(--color-border)]/50 z-50 flex flex-col shadow-[-10px_0_40px_rgba(0,0,0,0.08)]"
                             dir={isAr ? 'rtl' : 'ltr'}
                         >
                             {/* ── Header ── */}
@@ -214,13 +233,14 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                                         </span>
                                         <div className="flex items-center gap-1.5">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            <span className="text-[10px] text-[var(--color-text-muted)]">{isAr ? 'مباشر' : 'Live'}</span>
+                                            <span className="text-[10px] text-[var(--color-text-muted)]">{isLiveData ? (isAr ? 'مباشر' : 'Live') : (isAr ? 'بيانات تجريبية' : 'Sample data')}</span>
                                         </div>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => setIsOpen(false)}
-                                    className="p-1.5 hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors"
+                                    aria-label={isAr ? 'إغلاق نبض السوق' : 'Close market pulse'}
+                                    className="inline-flex h-11 w-11 items-center justify-center hover:bg-[var(--color-surface-elevated)] rounded-lg transition-colors"
                                 >
                                     <X className="w-4 h-4 text-[var(--color-text-muted)]" />
                                 </button>
@@ -272,7 +292,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                                     <div className="flex items-center gap-2 mb-3">
                                         <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                                         <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
-                                            {isAr ? 'اتجاهات أسبوعية' : 'Weekly Trends'}
+                                            {isLiveData ? (isAr ? 'اتجاهات أسبوعية' : 'Weekly Trends') : (isAr ? 'لقطة الاتجاهات' : 'Trend Snapshot')}
                                         </span>
                                     </div>
                                     <div className="space-y-1.5">
@@ -281,12 +301,27 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                                                 key={trend.id}
                                                 className="flex items-center gap-3 rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-background)]/60 hover:bg-[var(--color-background)] p-3 transition-all group cursor-pointer"
                                                 onClick={() => handleTrendClick(trend)}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                        event.preventDefault();
+                                                        handleTrendClick(trend);
+                                                    }
+                                                }}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-label={isAr
+                                                    ? `تحليل اتجاهات ${trend.areaAr}`
+                                                    : `Analyze trend for ${trend.area}`}
                                             >
                                                 {/* Star / Watchlist */}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); toggleWatchlist(trend.id); }}
-                                                    className="p-0.5 flex-shrink-0"
+                                                    className="inline-flex h-11 w-11 items-center justify-center flex-shrink-0 rounded-lg"
                                                     title={watchlist.has(trend.id) ? 'Remove from watchlist' : 'Add to watchlist'}
+                                                    aria-label={watchlist.has(trend.id)
+                                                        ? (isAr ? 'إزالة من قائمة المتابعة' : 'Remove from watchlist')
+                                                        : (isAr ? 'إضافة إلى قائمة المتابعة' : 'Add to watchlist')}
+                                                    aria-pressed={watchlist.has(trend.id)}
                                                 >
                                                     {watchlist.has(trend.id)
                                                         ? <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
@@ -352,11 +387,16 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                             <div className="p-4 border-t border-[var(--color-border)]/50">
                                 <button
                                     onClick={() => { onPrompt(isAr ? 'أعطيني ملخص كامل عن وضع السوق العقاري النهاردة' : 'Give me a full market summary for today'); setIsOpen(false); }}
-                                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-semibold transition-colors flex items-center justify-center gap-2"
+                                    className="w-full min-h-11 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-semibold transition-colors flex items-center justify-center gap-2"
                                 >
                                     <BarChart3 className="w-3.5 h-3.5" />
                                     {isAr ? 'ملخص السوق الكامل' : 'Full Market Summary'}
                                 </button>
+                                <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
+                                    {isLiveData
+                                        ? (isAr ? 'تعتمد الرؤى على تدفق بيانات مباشر.' : 'Insights are based on live market feeds.')
+                                        : (isAr ? 'هذه اللوحة تستخدم بيانات تجريبية للعرض التوضيحي.' : 'This panel is currently using sample data for preview.')}
+                                </p>
                             </div>
                         </motion.aside>
                     </>

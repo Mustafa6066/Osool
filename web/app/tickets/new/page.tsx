@@ -223,7 +223,7 @@ export default function NewTicketPage() {
                     onChange={(event) => setSubject(event.target.value)}
                     maxLength={200}
                     placeholder={t('ticketNew.formSubjectPlaceholder')}
-                    className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus:border-emerald-500/40"
+                    className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus-visible:border-[var(--color-primary)]/40 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
                   />
                 </div>
 
@@ -284,7 +284,7 @@ export default function NewTicketPage() {
                     rows={10}
                     maxLength={5000}
                     placeholder={t('ticketNew.formDescriptionPlaceholder')}
-                    className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus:border-emerald-500/40"
+                    className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus-visible:border-[var(--color-primary)]/40 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
                   />
                   <div className="mt-2 text-right text-xs text-[var(--color-text-muted)]">{description.length}/5000</div>
                 </div>

@@ -802,13 +802,54 @@ async def chat_with_agent(
         await db.commit()
 
         print(f"📤 Sending {len(chat_history)} history items to Wolf Brain")
-        
+
+        # ── Orchestrator Context Injection ─────────────────────────────────────
+        # Fetch enriched user context from the Orchestrator to give Wolf Brain
+        # memory across both systems (SEO/marketing journey + chat sessions).
+        orchestrator_ctx_str = ""
+        try:
+            from app.api.orchestrator_endpoints import _fetch_from_orchestrator
+            import asyncio as _asyncio
+            orch_data, trending_data = await _asyncio.gather(
+                _fetch_from_orchestrator(f"/user-context/{user.id}"),
+                _fetch_from_orchestrator("/trending"),
+                return_exceptions=True,
+            )
+            if isinstance(orch_data, Exception):
+                orch_data = {}
+            if isinstance(trending_data, Exception):
+                trending_data = {}
+            parts = []
+            if isinstance(orch_data, dict) and orch_data.get("signalCount", 0) > 0:
+                if orch_data.get("preferredDevelopers"):
+                    parts.append(f"Preferred developers: {', '.join(orch_data['preferredDevelopers'][:5])}")
+                if orch_data.get("preferredAreas"):
+                    parts.append(f"Preferred areas: {', '.join(orch_data['preferredAreas'][:5])}")
+                if orch_data.get("intentTypes"):
+                    parts.append(f"Recent interests: {', '.join(orch_data['intentTypes'][:5])}")
+                if orch_data.get("leadScore", 0) > 0:
+                    parts.append(f"Engagement level: {orch_data.get('tier', 'new')} (score: {orch_data['leadScore']})")
+                if orch_data.get("suggestedTopics"):
+                    parts.append(f"Suggested topics: {', '.join(orch_data['suggestedTopics'][:3])}")
+            if isinstance(trending_data, dict):
+                top_devs = [d.get("developer") or d.get("name", "") for d in trending_data.get("trendingDevelopers", [])[:3] if d]
+                top_locs = [l.get("location") or l.get("name", "") for l in trending_data.get("trendingLocations", [])[:3] if l]
+                if top_devs:
+                    parts.append(f"Trending developers right now: {', '.join(filter(None, top_devs))}")
+                if top_locs:
+                    parts.append(f"Trending locations right now: {', '.join(filter(None, top_locs))}")
+            if parts:
+                orchestrator_ctx_str = "\n[Cross-Platform Market Intelligence]\n" + "\n".join(parts) + "\n"
+        except Exception as orch_err:
+            logger.debug(f"Orchestrator context unavailable (non-fatal): {orch_err}")
+
         # V7: Use Wolf Brain via coinvestor_agent.process_message
         ai_result = await coinvestor_agent.process_message(
             user_input=sanitized_message,  # SECURITY: Use sanitized message
             session_id=req.session_id,
             history=chat_history,
             behavioral_signals=req.behavioral_signals.model_dump() if req.behavioral_signals else None,
+            orchestrator_context=orchestrator_ctx_str,
         )
         
         print(f"📥 Wolf Brain returned response: {len(ai_result.get('response', ''))} chars")

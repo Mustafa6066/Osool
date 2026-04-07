@@ -157,15 +157,27 @@
   font-weight: 600;
   border: 1px solid var(--color-border);
   border-radius: 9999px;
-  padding: 0.3rem 0.55rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
   color: var(--color-text-secondary);
   background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-  transition: all 0.18s ease;
+  transition:
+    color 0.18s var(--ease-out-expo),
+    background-color 0.18s var(--ease-out-expo),
+    border-color 0.18s var(--ease-out-expo),
+    transform 0.18s var(--ease-out-expo),
+    box-shadow 0.18s var(--ease-out-expo);
 }
 
 .chatgpt-action-btn:hover {
   color: var(--color-text-primary);
   background: var(--chatgpt-hover-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -16px rgba(0, 0, 0, 0.45);
+}
+
+.chatgpt-action-btn:active {
+  transform: scale(0.98);
 }
 
 .chatgpt-cursor {
@@ -210,6 +222,17 @@
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   padding: 0.45rem;
+  transition:
+    border-color 0.22s var(--ease-out-expo),
+    box-shadow 0.22s var(--ease-out-expo),
+    background-color 0.22s var(--ease-out-expo),
+    transform 0.22s var(--ease-out-expo);
+}
+
+.chatgpt-input:focus-within {
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+  box-shadow: 0 10px 30px -26px color-mix(in srgb, var(--color-primary) 36%, transparent);
+  transform: translateY(-1px);
 }
 
 .chatgpt-input textarea {
@@ -228,14 +251,19 @@
 
 .chatgpt-input-btn,
 .chatgpt-send-btn {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 0.72rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 0;
-  transition: all 0.18s ease;
+  transition:
+    color 0.15s var(--ease-out-expo),
+    background-color 0.15s var(--ease-out-expo),
+    transform 0.15s var(--ease-out-expo),
+    box-shadow 0.15s var(--ease-out-expo),
+    opacity 0.15s var(--ease-out-expo);
 }
 
 .chatgpt-input-btn {
@@ -246,6 +274,7 @@
 .chatgpt-input-btn:hover {
   color: var(--color-text-primary);
   background: var(--chatgpt-hover-bg);
+  transform: translateY(-1px);
 }
 
 .chatgpt-send-btn {
@@ -260,6 +289,11 @@
 
 .chatgpt-send-btn:not(:disabled):hover {
   transform: scale(1.04);
+  box-shadow: 0 12px 20px -14px rgba(0, 0, 0, 0.45);
+}
+
+.chatgpt-send-btn:not(:disabled):active {
+  transform: scale(0.96);
 }
 
 .chatgpt-disclaimer {
@@ -318,12 +352,22 @@
   border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   background: color-mix(in srgb, var(--color-surface) 90%, transparent);
   padding: 0.72rem 0.78rem;
-  transition: all 0.18s ease;
+  transition:
+    border-color 0.2s var(--ease-out-expo),
+    background-color 0.2s var(--ease-out-expo),
+    transform 0.2s var(--ease-out-expo),
+    box-shadow 0.2s var(--ease-out-expo);
 }
 
 .chatgpt-suggestion:hover {
   border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
   background: color-mix(in srgb, var(--color-surface-hover) 92%, transparent);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 28px -26px rgba(0, 0, 0, 0.45);
+}
+
+.chatgpt-suggestion:active {
+  transform: scale(0.99);
 }
 
 .chatgpt-suggestion-title {
@@ -346,12 +390,32 @@
   .chatgpt-message-layout { gap: 0.75rem; }
   .chatgpt-avatar { width: 2rem; height: 2rem; }
   .chatgpt-message-content { font-size: 0.95rem; }
+  .chatgpt-action-btn {
+    min-height: 2rem;
+    padding: 0.3rem 0.55rem;
+  }
+  .chatgpt-input-btn,
+  .chatgpt-send-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
   .chatgpt-input textarea { max-height: 160px; }
   .chatgpt-empty-state { padding-top: 2.3rem; }
 }
 
 @media (min-width: 768px) {
   .chatgpt-suggestions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chatgpt-action-btn,
+  .chatgpt-input,
+  .chatgpt-input-btn,
+  .chatgpt-send-btn,
+  .chatgpt-suggestion {
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
 }
 
 /* ── Property Insights Modal ─────────────────────────────────── */

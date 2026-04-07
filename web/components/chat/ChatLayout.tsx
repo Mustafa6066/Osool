@@ -34,7 +34,7 @@ export default function ChatLayout() {
         setActiveUIActions([]);
         setChatInsight(null);
         setIsModalOpen(false);
-        window.location.reload(); // Simple reset for now
+        setRecentSearches([]);
     };
 
     // Handle property selection from card click - Opens modal

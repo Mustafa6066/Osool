@@ -28,6 +28,7 @@
 
   /* Secondary — Deep Teal */
   --color-teal-accent: #0D9488;
+  --color-secondary: #0D9488;
 
   /* NOTE: Spacing tokens live in :root (NOT @theme) to avoid
      poisoning Tailwind's max-w-sm/md/lg/xl/2xl/3xl utilities. */
@@ -99,7 +100,7 @@
   --glass-border: rgba(0, 0, 0, 0.06);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --glass-blur: 20px;
+  --glass-blur: 16px;
 
   /* Ambient glow (body::before gradient) */
   --ambient-1: rgba(16, 185, 129, 0.06);
@@ -192,6 +193,7 @@
   --color-text-muted: #71717A;
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-light: rgba(255, 255, 255, 0.04);
+  --color-secondary: #2DD4BF;
 
   /* Glass — dark variant */
   --glass-bg: rgba(17, 17, 19, 0.78);
@@ -328,6 +330,40 @@ body > div:first-child {
 @layer utilities {
   .font-display { font-family: var(--font-display); }
   .font-cairo { font-family: var(--font-cairo), sans-serif; }
+
+  /* Shared button primitives for legacy class compatibility */
+  .btn-primary,
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border-radius: var(--radius-full);
+    padding: 0.7rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    transition: background-color 0.2s var(--ease-out-quart), border-color 0.2s var(--ease-out-quart), color 0.2s var(--ease-out-quart), transform 0.12s var(--ease-out-quart);
+  }
+  .btn-primary {
+    border: 1px solid transparent;
+    background: var(--color-text-primary);
+    color: var(--color-background);
+  }
+  .btn-primary:hover {
+    background: var(--color-primary-dark);
+    color: #fff;
+  }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-secondary {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+  }
+  .btn-secondary:hover {
+    border-color: color-mix(in oklab, var(--color-primary) 42%, var(--color-border));
+    background: var(--color-surface-hover);
+  }
 
   /* ── Liquid Glass — the flagship effect ── */
   .liquid-glass {

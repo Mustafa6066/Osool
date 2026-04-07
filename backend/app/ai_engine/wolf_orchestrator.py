@@ -1694,9 +1694,10 @@ class WolfBrain:
             query_parts.append(filters['property_type'])
         if 'keywords' in filters:
             query_parts.append(filters['keywords'])
-        if 'budget_max' in filters and filters['budget_max']:
-            budget_mil = filters['budget_max'] / 1_000_000
-            query_parts.append(f"under {budget_mil} million")
+        # NOTE: budget_max/min deliberately excluded from query_text —
+        # numeric budget text ("under 7.5 million") pollutes the semantic
+        # embedding and hurts similarity scores. Budget is applied as a
+        # structured DB filter in search_properties() instead.
         # Include sale_type in query text for semantic search
         if 'sale_type' in filters and filters['sale_type']:
             sale_type_map = {"resale": "Resale", "developer": "Developer", "nawy_now": "Nawy Now"}
@@ -1720,6 +1721,13 @@ class WolfBrain:
                        "core": "Core & Shell", "unfinished": "Core & Shell", "lux": "Finished", "ready": "Finished"}
             finishing_db = fin_map.get(filters['finishing'].lower(), filters['finishing'])
 
+        # Extract compound name from keywords for structured DB filter
+        compound_name = filters.get('keywords') or filters.get('compound')
+
+        # Extract location and developer for structured DB filters
+        location_name = filters.get('location')
+        developer_name = filters.get('developer')
+
         # Vector search with full filter support
         results = await db_search_properties(
             db=db,
@@ -1732,6 +1740,9 @@ class WolfBrain:
             is_delivered=filters.get('is_delivered'),
             finishing=finishing_db,
             is_nawy_now=filters.get('is_nawy_now'),
+            compound=compound_name,
+            location=location_name,
+            developer=developer_name,
         )
         
         # Apply additional filters (belt & suspenders post-filter)
@@ -1747,6 +1758,13 @@ class WolfBrain:
         if 'property_type' in filters and filters['property_type']:
             ptype = filters['property_type'].lower()
             results = [r for r in results if ptype in r.get('type', '').lower()]
+        
+        # Compound post-filter: prioritize exact compound matches when a compound was requested
+        if compound_name and results:
+            compound_lower = compound_name.lower()
+            compound_matches = [r for r in results if compound_lower in (r.get('compound') or '').lower()]
+            if compound_matches:
+                results = compound_matches
         
         return results[:10]  # Top 10
 
@@ -1859,10 +1877,24 @@ class WolfBrain:
                 return alternatives, "budget_pivot", pivot_msg, None
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        # REFLEXION: Relaxed Search (Keep only location, drop all other filters)
+        # REFLEXION: Relaxed Search (Keep location + compound if present, drop other filters)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         location = filters.get("location", "")
+        compound_kw = filters.get("keywords") or filters.get("compound")
         if location:
+            # Try location + compound first (preserves user's compound intent)
+            if compound_kw:
+                relaxed_filters = {"location": location, "keywords": compound_kw}
+                alternatives = await self._search_database(relaxed_filters, db_session=session)
+                if alternatives:
+                    logger.info(f"🔄 SMART HUNT: Relaxed search success (location+compound: {location}/{compound_kw}, {len(alternatives)} results)")
+                    if language == "ar":
+                        pivot_msg = f"المواصفات المحددة مش متاحة دلوقتي، بس دي أفضل الخيارات المتاحة في {compound_kw}."
+                    else:
+                        pivot_msg = f"Those exact specs aren't available, but here are the best options in {compound_kw}."
+                    return alternatives, "relaxed_search", pivot_msg, None
+
+            # Fall back to location only
             relaxed_filters = {"location": location}
             alternatives = await self._search_database(relaxed_filters, db_session=session)
             if alternatives:
@@ -1892,6 +1924,21 @@ class WolfBrain:
                 else:
                     pivot_msg = "Nothing in that area at this budget, but I found opportunities in other areas worth checking."
                 return alternatives, "any_area_search", pivot_msg, None
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # REFLEXION: Compound Direct Search (drop ALL filters except compound name)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        compound_name = filters.get("keywords") or filters.get("compound")
+        if compound_name:
+            compound_filters = {"keywords": compound_name}
+            alternatives = await self._search_database(compound_filters, db_session=session)
+            if alternatives:
+                logger.info(f"🔄 SMART HUNT: Compound direct search success ({compound_name}, {len(alternatives)} results)")
+                if language == "ar":
+                    pivot_msg = f"المواصفات المحددة مش متاحة دلوقتي في {compound_name}، بس دي الوحدات المتاحة في الكمباوند."
+                else:
+                    pivot_msg = f"Those exact specs aren't available in {compound_name}, but here are the available units in the compound."
+                return alternatives, "compound_direct", pivot_msg, None
 
         # All strategies failed — execute Sourcing Pivot before giving up
         logger.info("🔄 SMART HUNT: All reflexion strategies failed → trying Sourcing Pivot")

@@ -116,7 +116,7 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                         >
                             <User size={18} />
-                            <span>Chat with CoInvestor</span>
+                            <span>Chat with Osool Advisor</span>
                         </Link>
                     </div>
 

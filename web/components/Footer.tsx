@@ -10,7 +10,7 @@ export default function Footer() {
 
     const quickLinks = [
         { href: '/', label: t('nav.home') },
-        { href: '/ai-advisor', label: 'Chat with CoInvestor' },
+        { href: '/chat', label: 'Chat with Osool Advisor' },
         { href: '/properties', label: t('nav.properties') },
     ];
 
@@ -38,9 +38,9 @@ export default function Footer() {
                         </p>
 
                         {/* AI Badge */}
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-500/30">
-                            <Sparkles className="w-4 h-4 text-purple-400" />
-                            <span className="text-sm font-medium text-purple-300">{t('footer.poweredBy')}</span>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/30">
+                            <Sparkles className="w-4 h-4 text-emerald-400" />
+                            <span className="text-sm font-medium text-emerald-300">{t('footer.poweredBy')}</span>
                         </div>
                     </div>
 

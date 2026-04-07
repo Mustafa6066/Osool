@@ -32,7 +32,7 @@ export const translations = {
             subtitle: "AI-powered intelligence for smarter real estate decisions",
             intelligentSearch: {
                 title: "Intelligent Property Search",
-                description: "CoInvestor understands natural language in Egyptian Arabic and English. Just chat like you would with a friend.",
+                description: "Osool Advisor understands natural language in Egyptian Arabic and English. Just chat like you would with a friend.",
             },
             aiValuation: {
                 title: "AI Price Valuation",
@@ -52,7 +52,7 @@ export const translations = {
             },
             proactiveRecommendations: {
                 title: "Proactive Recommendations",
-                description: "CoInvestor doesn't just answer questions—it suggests properties, analyses, and next steps based on your needs.",
+                description: "Osool Advisor doesn't just answer questions—it suggests properties, analyses, and next steps based on your needs.",
             },
         },
 
@@ -331,12 +331,12 @@ export const translations = {
             priorityUrgentDesc: "Critical and time-sensitive.",
         },
 
-        // Landing Page (CoInvestor)
+        // Landing Page (Osool Advisor)
         landing: {
             badge: "AI-Powered Insights V2.0",
             headline: "The Intelligence Behind Your",
             headlineHighlight: "Next Investment.",
-            description: "CoInvestor is the state-of-the-art AI advisor for the Egyptian real estate market. Analyze, compare, and invest with data-driven confidence in Cairo and beyond.",
+            description: "Osool Advisor is the state-of-the-art AI advisor for the Egyptian real estate market. Analyze, compare, and invest with data-driven confidence in Cairo and beyond.",
             startAnalysis: "Start Analysis",
             viewDemo: "View Demo",
             trustedBy: "Trusted by 2,000+ investors",
@@ -361,11 +361,11 @@ export const translations = {
             roiForecastingDesc: "Predictive models estimate your property's future value growth over 5 and 10 years.",
             developerComparisons: "Developer Comparisons",
             developerComparisonsDesc: "Unbiased side-by-side comparisons. See delivery history, finish quality, and resale value retention.",
-            askCoInvestorAnything: "Ask CoInvestor Anything",
+            askCoInvestorAnything: "Ask Osool Advisor Anything",
             askCoInvestorDescription: "\"What is the average price per meter in Sheikh Zayed?\" \"Compare payment plans for Zed Towers vs. O West.\"",
             tryAIChat: "Try AI Chat",
             readyToInvest: "Ready to invest with confidence?",
-            readyToInvestDesc: "Join the waiting list for CoInvestor Premium and get exclusive access to off-market opportunities.",
+            readyToInvestDesc: "Join the waiting list for Osool Advisor Premium and get exclusive access to off-market opportunities.",
             heroBadge: "Intelligent Real Estate",
             heroTitle: "Make confident property decisions in Egypt.",
             heroSubtitle: "AI-powered research, developer trust checks, and pricing clarity — all in one calm workspace.",
@@ -411,7 +411,7 @@ export const translations = {
 
         // Chat Interface
         chatInterface: {
-            title: "CoInvestor Advisor",
+            title: "Osool Advisor",
             subtitle: "Real Estate Intelligence",
             platform: "Platform",
             dashboard: "Dashboard",
@@ -424,7 +424,7 @@ export const translations = {
             priceTrendsPrompt: "Show price trends in New Cairo",
             compareDevelopersPrompt: "Compare developers in 5th Settlement",
             bestROIPrompt: "Best ROI in North Coast",
-            inputPlaceholder: "Ask CoInvestor about real estate...",
+            inputPlaceholder: "Ask Osool Advisor about real estate...",
             disclaimer: "AI can make mistakes. Please verify important information.",
             topPick: "Top Pick",
             highGrowth: "High Growth",
@@ -453,7 +453,7 @@ export const translations = {
             requestInvitation: "Request an invitation",
             needInvitationCode: "You need an invitation code from an existing user to sign up",
             joinTitle: "Join Osool",
-            joinSubtitle: "Create your account to chat with CoInvestor",
+            joinSubtitle: "Create your account to chat with Osool Advisor",
             validating: "Validating invitation...",
             invitedByLabel: "Invited by",
             minChars: "Minimum 8 characters",
@@ -478,7 +478,7 @@ export const translations = {
             standardAccess: "Standard Access",
             unlimitedInvitations: "Unlimited Invitation Links",
             invitationsRemaining: "Invitations Remaining",
-            vipDescription: "As a top-tier partner, you have uncapped potential to grow your network. Share the power of CoInvestor without restrictions.",
+            vipDescription: "As a top-tier partner, you have uncapped potential to grow your network. Share the power of Osool Advisor without restrictions.",
             standardDescription: "Invite friends to verify properties. Each link is single-use and exclusive.",
             goToChat: "Go to Chat Agent",
             totalGenerated: "Total Generated",
@@ -657,7 +657,7 @@ export const translations = {
             noSaved: "No saved properties yet",
             browsePrompt: "Browse properties and tap the heart icon to save them here for easy comparison.",
             explore: "Explore Properties",
-            askCoInvestor: "Ask CoInvestor about this",
+            askCoInvestor: "Ask Osool Advisor about this",
             beds: "Beds",
             remove: "Remove from favorites",
             badge: "Saved workspace",
@@ -1104,7 +1104,7 @@ export const translations = {
             subtitle: "ذكاء اصطناعي متقدم لقرارات عقارية أذكى",
             intelligentSearch: {
                 title: "بحث ذكي عن العقارات",
-                description: "CoInvestor يفهم اللغة الطبيعية بالعربية المصرية والإنجليزية. اتكلم معاه عادي زي ما تتكلم مع صاحبك.",
+                description: "Osool Advisor يفهم اللغة الطبيعية بالعربية المصرية والإنجليزية. اتكلم معاه عادي زي ما تتكلم مع صاحبك.",
             },
             aiValuation: {
                 title: "تقييم الأسعار بالذكاء الاصطناعي",
@@ -1124,7 +1124,7 @@ export const translations = {
             },
             proactiveRecommendations: {
                 title: "توصيات استباقية",
-                description: "CoInvestor مش بس بيرد على الأسئلة—هو بيقترح عقارات وتحليلات والخطوات الجاية بناءً على احتياجاتك.",
+                description: "Osool Advisor مش بس بيرد على الأسئلة—هو بيقترح عقارات وتحليلات والخطوات الجاية بناءً على احتياجاتك.",
             },
         },
 
@@ -1403,12 +1403,12 @@ export const translations = {
             priorityUrgentDesc: "حرج وحساس للوقت.",
         },
 
-        // Landing Page (CoInvestor)
+        // Landing Page (Osool Advisor)
         landing: {
             badge: "رؤى مدعومة بالذكاء الاصطناعي V2.0",
             headline: "الذكاء وراء",
             headlineHighlight: "استثمارك القادم.",
-            description: "CoInvestor هو مستشار الذكاء الاصطناعي المتطور للسوق العقاري المصري. حلل، قارن، واستثمر بثقة في القاهرة وما حولها.",
+            description: "Osool Advisor هو مستشار الذكاء الاصطناعي المتطور للسوق العقاري المصري. حلل، قارن، واستثمر بثقة في القاهرة وما حولها.",
             startAnalysis: "ابدأ التحليل",
             viewDemo: "شاهد العرض",
             trustedBy: "موثوق من أكثر من 2,000 مستثمر",
@@ -1433,11 +1433,11 @@ export const translations = {
             roiForecastingDesc: "نماذج تنبؤية تقدر نمو قيمة عقارك المستقبلية على مدى 5 و 10 سنوات.",
             developerComparisons: "مقارنات المطورين",
             developerComparisonsDesc: "مقارنات محايدة جنباً إلى جنب. شاهد تاريخ التسليم وجودة التشطيب وقيمة إعادة البيع.",
-            askCoInvestorAnything: "اسأل CoInvestor أي شيء",
+            askCoInvestorAnything: "اسأل Osool Advisor أي شيء",
             askCoInvestorDescription: "\"متوسط سعر المتر في الشيخ زايد كام؟\" \"قارن خطط الدفع في زيد تاورز و أو ويست.\"",
             tryAIChat: "جرب الدردشة الذكية",
             readyToInvest: "جاهز للاستثمار بثقة؟",
-            readyToInvestDesc: "انضم لقائمة الانتظار لـ CoInvestor Premium واحصل على وصول حصري لفرص خارج السوق.",
+            readyToInvestDesc: "انضم لقائمة الانتظار لـ Osool Advisor Premium واحصل على وصول حصري لفرص خارج السوق.",
             heroBadge: "ذكاء عقاري",
             heroTitle: "اتخذ قرارات عقارية واثقة في مصر.",
             heroSubtitle: "بحث مدعوم بالذكاء الاصطناعي، فحوصات ثقة المطورين، ووضوح التسعير — في مساحة عمل هادئة واحدة.",
@@ -1483,7 +1483,7 @@ export const translations = {
 
         // Chat Interface
         chatInterface: {
-            title: "مستشار CoInvestor",
+            title: "مستشار Osool Advisor",
             subtitle: "ذكاء عقاري",
             platform: "المنصة",
             dashboard: "لوحة التحكم",
@@ -1496,7 +1496,7 @@ export const translations = {
             priceTrendsPrompt: "أظهر اتجاهات الأسعار في التجمع الخامس",
             compareDevelopersPrompt: "قارن بين المطورين في التجمع الخامس",
             bestROIPrompt: "أفضل عائد استثمار في الساحل الشمالي",
-            inputPlaceholder: "اسأل CoInvestor عن العقارات...",
+            inputPlaceholder: "اسأل Osool Advisor عن العقارات...",
             disclaimer: "الذكاء الاصطناعي قد يخطئ. يرجى التحقق من المعلومات المهمة.",
             topPick: "اختيار مميز",
             highGrowth: "نمو عالي",
@@ -1525,7 +1525,7 @@ export const translations = {
             requestInvitation: "اطلب دعوة",
             needInvitationCode: "تحتاج كود دعوة من مستخدم حالي للتسجيل",
             joinTitle: "انضم لأصول",
-            joinSubtitle: "أنشئ حسابك للتحدث مع CoInvestor",
+            joinSubtitle: "أنشئ حسابك للتحدث مع Osool Advisor",
             validating: "جاري التحقق من الدعوة...",
             invitedByLabel: "بدعوة من",
             minChars: "8 أحرف كحد أدنى",
@@ -1550,7 +1550,7 @@ export const translations = {
             standardAccess: "وصول عادي",
             unlimitedInvitations: "روابط دعوة غير محدودة",
             invitationsRemaining: "الدعوات المتبقية",
-            vipDescription: "كشريك من الدرجة الأولى، لديك إمكانات غير محدودة لتنمية شبكتك. شارك قوة CoInvestor بدون قيود.",
+            vipDescription: "كشريك من الدرجة الأولى، لديك إمكانات غير محدودة لتنمية شبكتك. شارك قوة Osool Advisor بدون قيود.",
             standardDescription: "ادعُ أصدقاءك للتحقق من العقارات. كل رابط يُستخدم مرة واحدة وحصري.",
             goToChat: "انتقل لوكيل الدردشة",
             totalGenerated: "إجمالي المُنشأ",
@@ -1729,7 +1729,7 @@ export const translations = {
             noSaved: "لا توجد عقارات محفوظة بعد",
             browsePrompt: "تصفح العقارات وانقر على القلب لحفظها هنا للمقارنة.",
             explore: "استكشف العقارات",
-            askCoInvestor: "اسأل CoInvestor عن هذا",
+            askCoInvestor: "اسأل Osool Advisor عن هذا",
             beds: "غرف",
             remove: "إزالة من المفضلة",
             badge: "مساحة المحفوظات",

@@ -26,7 +26,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const items = isAuthenticated ? AUTH_NAV : PUBLIC_NAV;
+  const items = (isAuthenticated ? AUTH_NAV : PUBLIC_NAV).slice(0, 4);
   const isAdmin = user?.role === 'admin';
 
   useEffect(() => setUserMenuOpen(false), [pathname]);
@@ -46,13 +46,13 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
       <header className="fixed top-0 inset-x-0 z-50 flex justify-center px-3 pt-3 pointer-events-none">
         <nav
           aria-label="Main navigation"
-          className="pointer-events-auto flex items-center gap-0.5 rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-2xl border border-[var(--color-border)] shadow-lg shadow-black/[0.04] px-2 py-1.5 w-full max-w-5xl"
+          className="pointer-events-auto flex items-center gap-0.5 rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-lg shadow-black/[0.04] px-2 py-1.5 w-full max-w-5xl"
         >
           {/* Logo */}
           <Link
             href={isAuthenticated ? '/dashboard' : '/'}
             aria-label="Osool home"
-            className="flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--color-text-primary)] text-[var(--color-background)] shrink-0 hover:scale-105 transition-transform"
+            className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-text-primary)] text-[var(--color-background)] shrink-0 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 md:h-9 md:w-9"
           >
             <Sparkles className="w-4 h-4" strokeWidth={2.5} />
           </Link>
@@ -66,7 +66,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
                     isActive
                       ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
                       : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]'
@@ -82,7 +82,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             {isAdmin && (
               <Link
                 href="/admin"
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
                   activeKey === 'admin'
                     ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]'
@@ -108,7 +108,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
                   new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, metaKey: true, bubbles: true })
                 )
               }
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:h-9 md:w-9"
               aria-label="Search (Ctrl+K)"
             >
               <Search className="w-4 h-4" />
@@ -118,7 +118,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             <button
               onClick={toggleTheme}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="hidden sm:flex w-9 h-9 rounded-xl items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+              className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:h-9 md:w-9"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -127,7 +127,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             <button
               onClick={toggleLanguage}
               aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:h-9 md:w-9"
             >
               <span
                 className="text-xs font-bold"
@@ -145,7 +145,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
                   aria-label="User menu"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="true"
-                  className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[var(--color-surface-elevated)] transition-colors"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-[var(--color-surface-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:h-9 md:w-9"
                 >
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-[10px] font-bold">
                     {(user?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
@@ -189,7 +189,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             ) : (
               <Link
                 href="/login"
-                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-semibold hover:bg-emerald-500/20 transition-colors"
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-semibold hover:bg-emerald-500/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
               >
                 {language === 'ar' ? 'دخول' : 'Login'}
               </Link>
@@ -199,7 +199,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             <button
               onClick={() => setMoreOpen(true)}
               aria-label="Open navigation menu"
-              className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:hidden"
             >
               <Menu className="w-4 h-4" />
             </button>

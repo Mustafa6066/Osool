@@ -67,7 +67,7 @@ function SideNavItem({
 
   const inner = (
     <div
-      className={`relative flex h-10 w-full items-center rounded-xl transition-all duration-150 ${
+      className={`relative flex h-11 w-full items-center rounded-xl transition-all duration-150 ${
         isExpanded ? 'px-3 gap-3' : 'justify-center'
       } ${
         isActive
@@ -130,7 +130,13 @@ function SideNavItem({
   }
 
   return (
-    <Link href={item.href} className="w-full" aria-label={label} title={label}>
+    <Link
+      href={item.href}
+      className="w-full"
+      aria-label={label}
+      title={label}
+      aria-current={isActive ? 'page' : undefined}
+    >
       {inner}
     </Link>
   );
@@ -162,7 +168,7 @@ function SideActionButton({
         title={label}
         onMouseEnter={() => !isExpanded && setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        className={`flex h-10 w-full items-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] transition-colors ${
+        className={`flex h-11 w-full items-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] transition-colors ${
           isExpanded ? 'px-3 gap-3' : 'justify-center'
         }`}
       >
@@ -211,7 +217,7 @@ function AvatarButton({
     <button
       onClick={onOpenMenu}
       aria-label="User menu"
-      className={`flex h-10 w-full items-center rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors ${
+      className={`flex h-11 w-full items-center rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors ${
         isExpanded ? 'px-3 gap-3' : 'justify-center'
       }`}
     >
@@ -345,6 +351,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileNavVisible, setMobileNavVisible] = useState(true);
+  const [showSecondary, setShowSecondary] = useState(false);
   const [mounted, setMounted] = useState(false);
   const lastScrollTopRef = useRef(0);
   const prefersReducedMotion = useReducedMotion();
@@ -367,7 +374,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
       const delta = clampedTop - lastScrollTopRef.current;
 
       if (clampedTop <= 16) {
-        setMobileNavVisible(true);
+        setMobileNavVisible((prev) => (prev ? prev : true));
         lastScrollTopRef.current = clampedTop;
         return;
       }
@@ -376,8 +383,22 @@ export default function SideNav({ onInvite }: SideNavProps) {
         return;
       }
 
-      setMobileNavVisible(delta < 0);
+      const nextVisible = delta < 0;
+      setMobileNavVisible((prev) => (prev === nextVisible ? prev : nextVisible));
       lastScrollTopRef.current = clampedTop;
+    };
+
+    let rafId: number | null = null;
+    let pendingTop = 0;
+
+    const scheduleVisibility = (nextScrollTop: number) => {
+      pendingTop = nextScrollTop;
+      if (rafId !== null) return;
+
+      rafId = window.requestAnimationFrame(() => {
+        updateVisibility(pendingTop);
+        rafId = null;
+      });
     };
 
     const handleScroll = (event: Event) => {
@@ -387,11 +408,11 @@ export default function SideNav({ onInvite }: SideNavProps) {
 
       const target = event.target;
       if (target instanceof HTMLElement) {
-        updateVisibility(target.scrollTop);
+        scheduleVisibility(target.scrollTop);
         return;
       }
 
-      updateVisibility(window.scrollY || document.documentElement.scrollTop || 0);
+      scheduleVisibility(window.scrollY || document.documentElement.scrollTop || 0);
     };
 
     const handleResize = () => {
@@ -406,6 +427,9 @@ export default function SideNav({ onInvite }: SideNavProps) {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
       document.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleResize);
     };
@@ -416,6 +440,12 @@ export default function SideNav({ onInvite }: SideNavProps) {
       setMobileNavVisible(true);
     }
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (secondaryItems.some((item) => item.key === activeKey)) {
+      setShowSecondary(true);
+    }
+  }, [activeKey, secondaryItems]);
 
   const handleLogout = useCallback(() => {
     logout();
@@ -434,14 +464,13 @@ export default function SideNav({ onInvite }: SideNavProps) {
       {/* ╔══════════════════════════════╗
           ║  DESKTOP SIDEBAR (lg+)       ║
           ╚══════════════════════════════╝ */}
-      <motion.nav
+      <nav
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => { setIsExpanded(false); setShowUserMenu(false); }}
-        animate={{ width: isExpanded ? 220 : 56 }}
-        transition={SPRING}
         className={`hidden lg:flex fixed top-0 bottom-0 z-50 flex-col overflow-hidden
                     border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-2xl
                     shadow-[1px_0_0_0_var(--color-border)]
+                    ${isExpanded ? 'w-[220px]' : 'w-14'}
                     ${isRTL ? 'right-0 border-l' : 'left-0 border-r'}`}
       >
         {/* Brand */}
@@ -485,10 +514,21 @@ export default function SideNav({ onInvite }: SideNavProps) {
           ))}
 
           {/* Secondary */}
-          {secondaryItems.length > 0 && (
+          {secondaryItems.length > 0 && isExpanded && (
             <>
               <NavDivider />
-              {secondaryItems.map((item) => (
+              <button
+                onClick={() => setShowSecondary((v) => !v)}
+                className="flex h-11 w-full items-center justify-between rounded-xl px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
+                aria-expanded={showSecondary}
+                aria-label={language === 'ar' ? 'إظهار أقسام إضافية' : 'Toggle additional sections'}
+              >
+                <span>{language === 'ar' ? 'المزيد' : 'More'}</span>
+                <ChevronRight
+                  className={`h-3.5 w-3.5 transition-transform ${showSecondary ? 'rotate-90' : ''}`}
+                />
+              </button>
+              {showSecondary && secondaryItems.map((item) => (
                 <SideNavItem
                   key={item.key}
                   item={item}
@@ -517,7 +557,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
         {/* Footer actions */}
         <div className="flex flex-col gap-0.5 border-t border-[var(--color-border)] px-2 py-3">
           {/* Notification bell */}
-          <div className={`flex h-10 w-full items-center rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors ${
+          <div className={`flex h-11 w-full items-center rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors ${
             isExpanded ? 'px-3 gap-3' : 'justify-center'
           }`}>
             <NotificationBell
@@ -588,7 +628,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
             />
           )}
         </div>
-      </motion.nav>
+      </nav>
 
       {/* ╔══════════════════════════════╗
           ║  MOBILE BOTTOM TAB BAR       ║
@@ -622,6 +662,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
               href={item.href}
               className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 min-h-[58px] max-[420px]:min-h-[52px] py-2 max-[420px]:py-1.5 px-1.5 relative"
               aria-label={label}
+              aria-current={isActive ? 'page' : undefined}
             >
               {isActive && (
                 <motion.span
@@ -639,7 +680,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                 strokeWidth={isActive ? 2.4 : 1.8}
               />
               <span
-                className={`relative z-10 max-w-full truncate text-[10px] font-medium transition-colors leading-none max-[420px]:hidden ${
+                className={`relative z-10 max-w-full truncate text-[10px] max-[420px]:text-[9px] font-medium transition-colors leading-none ${
                   isActive
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-[var(--color-text-muted)]'
@@ -661,7 +702,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
             className="h-5 w-5 max-[420px]:h-4 max-[420px]:w-4 text-[var(--color-text-muted)]"
             strokeWidth={1.8}
           />
-          <span className="max-w-full truncate text-[10px] font-medium text-[var(--color-text-muted)] leading-none max-[420px]:hidden">
+          <span className="max-w-full truncate text-[10px] max-[420px]:text-[9px] font-medium text-[var(--color-text-muted)] leading-none">
             {language === 'ar' ? 'المزيد' : 'More'}
           </span>
         </button>
@@ -698,7 +739,8 @@ export default function SideNav({ onInvite }: SideNavProps) {
               {/* Close */}
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-elevated)]"
+                aria-label={language === 'ar' ? 'إغلاق القائمة' : 'Close menu'}
+                className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-surface-elevated)]"
               >
                 <X size={16} className="text-[var(--color-text-muted)]" />
               </button>
@@ -719,6 +761,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                       key={item.key}
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
+                      aria-current={isActive ? 'page' : undefined}
                       className={`flex flex-col items-center gap-1.5 rounded-2xl p-3 transition-colors ${
                         isActive
                           ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
@@ -735,6 +778,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                   <Link
                     href="/admin"
                     onClick={() => setMobileMenuOpen(false)}
+                    aria-current={activeKey === 'admin' ? 'page' : undefined}
                     className={`flex flex-col items-center gap-1.5 rounded-2xl p-3 transition-colors ${
                       activeKey === 'admin'
                         ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
