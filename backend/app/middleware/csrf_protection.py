@@ -48,6 +48,7 @@ CSRF_EXEMPT_PATHS = {
     "/metrics",  # Monitoring
     "/docs",  # API docs
     "/openapi.json",  # API schema
+    "/api/analytics/web-vitals",  # sendBeacon cannot send custom headers — telemetry only
 }
 
 

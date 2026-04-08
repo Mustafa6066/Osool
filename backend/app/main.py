@@ -208,7 +208,7 @@ from app.middleware.csrf_protection import CSRFProtectionMiddleware
 # Order (outer → inner): CORS → Rate Limiter → CSRF → Security Headers
 
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(CSRFProtectionMiddleware)  # CRITICAL-3 fix: was defined but never registered
+app.add_middleware(CSRFProtectionMiddleware, allowed_origins=origins)  # CRITICAL-3 fix: was defined but never registered
 app.add_middleware(SimpleRateLimiterMiddleware)
 
 # CORS MIDDLEWARE - MUST BE ADDED LAST (executes first in middleware chain)
