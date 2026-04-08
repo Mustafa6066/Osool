@@ -1,35 +1,61 @@
-# Dockerfile for Osool Backend
-# Python 3.10 Slim
-FROM python:3.10-slim
+# Osool Backend - Production Dockerfile
+# Multi-stage build: builder installs deps, runner is lean production image.
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV WORKDIR /app
+# ============================================
+# Stage 1: Builder - Install Dependencies
+# ============================================
+FROM python:3.10-slim AS builder
 
-# Install system dependencies (gcc, libpq-dev for psycopg2)
-RUN apt-get update && apt-get install -y \
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser
+# ============================================
+# Stage 2: Runner - Production Image
+# ============================================
+FROM python:3.10-slim
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app:$PYTHONPATH"
 
-# Switch to non-root user
-USER appuser
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Expose port
+RUN useradd -m -u 1000 osool && \
+    mkdir -p /app && \
+    chown -R osool:osool /app
+
+COPY --from=builder --chown=osool:osool /opt/venv /opt/venv
+
+WORKDIR /app
+
+COPY --chown=osool:osool . /app
+
+RUN chmod +x /app/docker-entrypoint.sh
+
+USER osool
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
 EXPOSE 8000
 
-# Run command (can be overridden by docker-compose)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
