@@ -21,7 +21,7 @@ const PROTECTED_ROUTES = [
 // Routes that authenticated users should NOT see (redirect to /dashboard)
 const AUTH_ROUTES = ['/login', '/signup'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check for auth token in cookies (preferred) or fallback to localStorage indicator
