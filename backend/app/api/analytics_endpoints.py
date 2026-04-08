@@ -4,11 +4,13 @@ Analytics Endpoints — Dual-Engine Dashboard Data
 Aggregated analytics: traffic, leads, conversions, pipeline.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from typing import Optional
 from datetime import datetime, timedelta
+import json
 import logging
 
 from app.auth import get_current_user
@@ -198,3 +200,30 @@ async def market_snapshot(
         "top_intent": top_intent,
         "total_interactions": total_interactions,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# WEB VITALS TELEMETRY (sendBeacon — no auth, CSRF-exempt)
+# ═══════════════════════════════════════════════════════════════
+
+@router.post("/web-vitals", status_code=204)
+async def ingest_web_vitals(request: Request):
+    """
+    Accept Core Web Vitals metrics sent via navigator.sendBeacon.
+    sendBeacon sends JSON as text/plain, so we read the raw body
+    and parse manually. No auth required — telemetry only.
+    Returns 204 No Content.
+    """
+    try:
+        raw = await request.body()
+        if not raw:
+            return Response(status_code=204)
+        payload = json.loads(raw)
+        name = payload.get("name", "UNKNOWN")
+        value = payload.get("value", 0)
+        rating = payload.get("rating", "unknown")
+        logger.info("[web-vitals] %s=%.2f rating=%s", name, float(value), rating)
+    except Exception:
+        # Never 500 on telemetry — swallow and return 204
+        pass
+    return Response(status_code=204)
