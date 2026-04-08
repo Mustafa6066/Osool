@@ -36,6 +36,7 @@ import {
   getAdminUsers,
   getTicketStats,
   triggerEconomicScraper,
+  triggerGeopoliticalScraper,
   triggerPropertyScraper,
   triggerNawyScraper,
   updateAdminMarketIndicator,
@@ -270,11 +271,12 @@ export default function AdminPage() {
     }
   };
 
-  const handleTriggerScraper = async (type: 'properties' | 'economic' | 'nawy') => {
+  const handleTriggerScraper = async (type: 'properties' | 'economic' | 'nawy' | 'geopolitical') => {
     const labels: Record<string, string> = {
       properties: 'post-scrape processing',
       nawy: 'Nawy scrape',
       economic: 'economic scraper',
+      geopolitical: 'geopolitical scraper',
     };
     const label = labels[type] || type;
     setScraperStatus(`Running ${label}...`);
@@ -283,6 +285,8 @@ export default function AdminPage() {
         await triggerPropertyScraper();
       } else if (type === 'nawy') {
         await triggerNawyScraper();
+      } else if (type === 'geopolitical') {
+        await triggerGeopoliticalScraper();
       } else {
         await triggerEconomicScraper();
       }
@@ -890,6 +894,16 @@ export default function AdminPage() {
               <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">Fetches exchange rate, inflation, gold, and banking indicators used in market interpretation layers.</p>
               <button type="button" onClick={() => void handleTriggerScraper('economic')} className="mt-5 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]">
                 Run economic scraper
+              </button>
+            </div>
+            <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
+                <TrendingUp className="h-5 w-5 text-blue-500" />
+                Geopolitical scraper
+              </div>
+              <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">Pulls RSS feeds from Al Jazeera, Reuters, BBC Middle East, and Egyptian news sources. Classifies events by impact level and stores them for the AI context layer.</p>
+              <button type="button" onClick={() => void handleTriggerScraper('geopolitical')} className="mt-5 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]">
+                Run geopolitical scraper
               </button>
             </div>
           </section>

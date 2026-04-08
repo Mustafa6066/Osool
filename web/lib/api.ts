@@ -743,6 +743,12 @@ export const triggerEconomicScraper = async () => {
   return data;
 };
 
+/** Trigger geopolitical & macro events scraper (admin) */
+export const triggerGeopoliticalScraper = async () => {
+  const { data } = await api.post('/api/admin/scraper/geopolitical');
+  return data;
+};
+
 /** Get market indicators (admin) */
 export const getAdminMarketIndicators = async () => {
   const { data } = await api.get('/api/admin/market-indicators');
