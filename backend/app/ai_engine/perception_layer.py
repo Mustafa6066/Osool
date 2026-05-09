@@ -374,7 +374,8 @@ class PerceptionLayer:
             for msg in history[-2:]:
                 if isinstance(msg, dict):
                     context += "|" + msg.get("content", "")[:50]
-        return hashlib.md5(context.encode()).hexdigest()
+        # Using SHA256 for deterministic cache key (non-security context)
+        return hashlib.sha256(context.encode()).hexdigest()
     
     def _cache_intent(self, key: str, intent: Intent):
         """Cache intent with LRU eviction."""
