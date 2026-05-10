@@ -73,10 +73,6 @@ class CostMonitor:
 
     DAILY_BUDGET_THRESHOLD = 100  # USD - alert if exceeded
 
-    def __init__(self):
-        """Initialize cost monitor"""
-        pass
-
     def log_usage(
         self,
         model: str,
