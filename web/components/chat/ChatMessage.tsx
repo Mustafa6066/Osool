@@ -142,13 +142,24 @@ export default function ChatMessage({
   const hasMultipleVisualizations = prioritizedUiActions.length > 1;
 
   useEffect(() => {
-    setIsMobileVizOpen(false);
-    setMobileVizIndex(0);
+    const resetTimer = window.setTimeout(() => {
+      setIsMobileVizOpen(false);
+      setMobileVizIndex(0);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(resetTimer);
+    };
   }, [msg.id]);
 
   useEffect(() => {
     if (mobileVizIndex >= prioritizedUiActions.length) {
-      setMobileVizIndex(0);
+      const clampTimer = window.setTimeout(() => {
+        setMobileVizIndex(0);
+      }, 0);
+      return () => {
+        window.clearTimeout(clampTimer);
+      };
     }
   }, [mobileVizIndex, prioritizedUiActions.length]);
 
@@ -329,6 +340,66 @@ export default function ChatMessage({
                 onValuation={onValuation}
                 onCompare={onCompare}
               />
+
+              {/* Inline Upsell Block */}
+              {msg.showUpsell && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: EASE_EXPO }}
+                  className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4"
+                  dir={msgIsArabic ? 'rtl' : 'ltr'}
+                >
+                  <div className="mb-3 flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="text-sm font-semibold">
+                      {msgIsArabic ? 'تحليل أعمق متاح' : 'Deeper analysis available'}
+                    </span>
+                  </div>
+
+                  {typeof msg.quotaRemaining === 'number' && (
+                    <p className="mb-3 text-xs text-[var(--color-text-muted)]">
+                      {msgIsArabic
+                        ? `الرسائل المتبقية في المسار المجاني: ${msg.quotaRemaining}`
+                        : `Free-path messages remaining: ${msg.quotaRemaining}`}
+                    </p>
+                  )}
+
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    {(msg.ctaActions && msg.ctaActions.length > 0 ? msg.ctaActions : [
+                      { id: 'talk_to_consultant', label: 'Talk to Consultant', type: 'consultant' },
+                      { id: 'unlock_premium', label: 'Unlock Premium', type: 'upgrade' },
+                    ]).slice(0, 2).map((action, idx) => {
+                      const actionType = String(action.type || 'consultant').toLowerCase();
+                      const label = String(
+                        action.label
+                        || (idx === 0 ? 'Talk to Consultant' : 'Unlock Premium')
+                      );
+
+                      const prompt = actionType === 'upgrade'
+                        ? (msgIsArabic
+                          ? 'أريد تفعيل Osool Premium'
+                          : 'I want to unlock Osool Premium')
+                        : (msgIsArabic
+                          ? 'أريد التحدث مع مستشار أول'
+                          : 'I want to talk to a senior consultant');
+
+                      return (
+                        <button
+                          key={String(action.id || idx)}
+                          type="button"
+                          onClick={() => onSendMessage(prompt)}
+                          className={actionType === 'upgrade'
+                            ? 'rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700'
+                            : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:border-emerald-500/40'}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
 
               {/* Actions + Suggestions (only shown when not typing) */}
               {!isTyping && (

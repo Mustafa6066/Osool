@@ -281,7 +281,18 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
 
                 {/* CTA */}
                 <div className="pb-2">
-                    <button className="w-full py-3.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-[14px] font-semibold text-[14px] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/10 dark:shadow-white/10 flex items-center justify-center gap-2">
+                    <button
+                        onClick={() => {
+                            if (!onPrompt || !property) return;
+                            onPrompt(
+                                isRTL
+                                    ? `ساعدني في ترتيب معاينة خاصة لـ "${property.title}" في ${property.location}`
+                                    : `Help me arrange a private viewing for "${property.title}" in ${property.location}`
+                            );
+                        }}
+                        disabled={!onPrompt || !property}
+                        className="w-full py-3.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-[14px] font-semibold text-[14px] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/10 dark:shadow-white/10 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+                    >
                         {isRTL ? 'طلب معاينة خاصة' : 'Request Private Viewing'}
                         <ChevronRight className="w-4 h-4 opacity-70" strokeWidth={2.5} />
                     </button>

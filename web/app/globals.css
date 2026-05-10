@@ -64,6 +64,9 @@
    ═══════════════════════════════════════════════ */
 
 :root {
+  --font-inter: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-cairo: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
+
   /* Sidebar dimensions */
   --sidenav-collapsed-width: 56px;
   --sidenav-expanded-width: 220px;
@@ -106,6 +109,19 @@
   --ambient-1: rgba(16, 185, 129, 0.06);
   --ambient-2: rgba(13, 148, 136, 0.04);
   --ambient-3: rgba(16, 185, 129, 0.03);
+
+  /* Neural signal surfaces */
+  --neural-primary: #0D9488;
+  --neural-primary-soft: rgba(13, 148, 136, 0.22);
+  --neural-primary-faint: rgba(13, 148, 136, 0.08);
+  --neural-panel-bg: rgba(255, 255, 255, 0.74);
+  --neural-border: rgba(9, 9, 11, 0.08);
+  --neural-shadow: 0 18px 42px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --neural-node-bg: rgba(240, 253, 250, 0.78);
+  --neural-node-border: rgba(13, 148, 136, 0.22);
+  --neural-graph-bg: rgba(240, 253, 250, 0.52);
+  --neural-metric-bg: rgba(255, 255, 255, 0.62);
+  --neural-active-bg: rgba(13, 148, 136, 0.08);
 
   /* Chat */
   --chat-surface: rgba(255, 255, 255, 0.8);
@@ -205,6 +221,18 @@
   --ambient-1: rgba(16, 185, 129, 0.04);
   --ambient-2: rgba(13, 148, 136, 0.03);
   --ambient-3: rgba(16, 185, 129, 0.02);
+
+  --neural-primary: #34D399;
+  --neural-primary-soft: rgba(52, 211, 153, 0.22);
+  --neural-primary-faint: rgba(52, 211, 153, 0.08);
+  --neural-panel-bg: rgba(17, 17, 19, 0.7);
+  --neural-border: rgba(255, 255, 255, 0.09);
+  --neural-shadow: 0 24px 54px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --neural-node-bg: rgba(16, 185, 129, 0.08);
+  --neural-node-border: rgba(52, 211, 153, 0.2);
+  --neural-graph-bg: rgba(9, 9, 11, 0.42);
+  --neural-metric-bg: rgba(255, 255, 255, 0.04);
+  --neural-active-bg: rgba(52, 211, 153, 0.08);
 
   --chat-surface: rgba(17, 17, 19, 0.8);
   --chat-border: rgba(255, 255, 255, 0.04);
@@ -477,6 +505,26 @@ body > div:first-child {
     width: 100%; max-width: 100%; overflow-x: auto;
   }
   .ai-visualization svg { max-width: 100%; height: auto; }
+
+  /* Neural signal surfaces */
+  .neural-panel {
+    position: relative;
+    isolation: isolate;
+  }
+  .neural-panel-sheen {
+    background:
+      linear-gradient(120deg, transparent 0%, var(--neural-primary-faint) 42%, transparent 72%),
+      radial-gradient(circle at 12% 18%, var(--neural-primary-soft), transparent 34%);
+    opacity: 0.72;
+  }
+  .neural-graph-grid {
+    background-image:
+      linear-gradient(to right, var(--neural-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--neural-border) 1px, transparent 1px);
+    background-size: 18px 18px;
+    mask-image: linear-gradient(to right, transparent 0%, black 14%, black 86%, transparent 100%);
+  }
+  .animate-neural-node { animation: neural-node-pulse 1.8s ease-in-out infinite; }
 }
 
 
@@ -542,6 +590,11 @@ body > div:first-child {
 @keyframes voiceBar {
   0%, 100% { transform: scaleY(0.35); opacity: 0.6; }
   50% { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes neural-node-pulse {
+  0%, 100% { opacity: 0.34; transform: scale(0.92); }
+  50% { opacity: 0.84; transform: scale(1.05); }
 }
 
 @keyframes ambient-pulse {

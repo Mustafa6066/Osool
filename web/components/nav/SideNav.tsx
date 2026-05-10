@@ -21,6 +21,7 @@ import NotificationBell from '@/components/NotificationBell';
 const SPRING = { type: 'spring' as const, damping: 28, stiffness: 240 };
 const EASE_OUT = { duration: 0.18, ease: [0.16, 1, 0.3, 1] as const };
 const MOBILE_HIDE_THRESHOLD = 10;
+const EMPTY_NAV_ITEMS: NavItem[] = [];
 
 /* ─── Types ──────────────────────────────────── */
 interface SideNavProps {
@@ -345,23 +346,32 @@ export default function SideNav({ onInvite }: SideNavProps) {
   const isRTL = language === 'ar';
   const isAdmin = user?.role === 'admin';
   const primaryItems = isAuthenticated ? AUTH_NAV_PRIMARY : PUBLIC_NAV;
-  const secondaryItems = isAuthenticated ? AUTH_NAV_SECONDARY : [];
+  const secondaryItems = isAuthenticated ? AUTH_NAV_SECONDARY : EMPTY_NAV_ITEMS;
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileNavVisible, setMobileNavVisible] = useState(true);
   const [showSecondary, setShowSecondary] = useState(false);
+  const [showSecondaryMobile, setShowSecondaryMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
   const lastScrollTopRef = useRef(0);
   const prefersReducedMotion = useReducedMotion();
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   // Close on route change
   useEffect(() => {
-    setMobileMenuOpen(false);
-    setShowUserMenu(false);
-    setMobileNavVisible(true);
+    const timer = window.setTimeout(() => {
+      setMobileMenuOpen(false);
+      setShowUserMenu(false);
+      setMobileNavVisible(true);
+      setShowSecondaryMobile(false);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [pathname]);
 
   useEffect(() => {
@@ -436,15 +446,17 @@ export default function SideNav({ onInvite }: SideNavProps) {
   }, [mounted, mobileMenuOpen]);
 
   useEffect(() => {
-    if (mobileMenuOpen) {
-      setMobileNavVisible(true);
-    }
+    if (!mobileMenuOpen) return;
+
+    const timer = window.setTimeout(() => setMobileNavVisible(true), 0);
+    return () => window.clearTimeout(timer);
   }, [mobileMenuOpen]);
 
   useEffect(() => {
-    if (secondaryItems.some((item) => item.key === activeKey)) {
-      setShowSecondary(true);
-    }
+    if (!secondaryItems.some((item) => item.key === activeKey)) return;
+
+    const timer = window.setTimeout(() => setShowSecondary(true), 0);
+    return () => window.clearTimeout(timer);
   }, [activeKey, secondaryItems]);
 
   const handleLogout = useCallback(() => {
@@ -454,10 +466,10 @@ export default function SideNav({ onInvite }: SideNavProps) {
 
   if (!mounted) return null;
 
-  /* ── Mobile items (bottom 5) ── */
+  /* ── Mobile items (bottom tabs + more) ── */
   const mobileItems: NavItem[] = isAuthenticated
-    ? [AUTH_NAV_PRIMARY[0], AUTH_NAV_PRIMARY[1], AUTH_NAV_SECONDARY[1], AUTH_NAV_SECONDARY[2]]
-    : [PUBLIC_NAV[0], PUBLIC_NAV[1], PUBLIC_NAV[2], PUBLIC_NAV[3]];
+    ? [AUTH_NAV_PRIMARY[0], AUTH_NAV_PRIMARY[1], AUTH_NAV_SECONDARY[0]]
+    : [PUBLIC_NAV[0], PUBLIC_NAV[1], PUBLIC_NAV[2]];
 
   return (
     <>
@@ -660,7 +672,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
             <Link
               key={item.key}
               href={item.href}
-              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 min-h-[58px] max-[420px]:min-h-[52px] py-2 max-[420px]:py-1.5 px-1.5 relative"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 min-h-[60px] max-[420px]:min-h-[54px] py-2 max-[420px]:py-1.5 px-1.5 relative"
               aria-label={label}
               aria-current={isActive ? 'page' : undefined}
             >
@@ -680,7 +692,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                 strokeWidth={isActive ? 2.4 : 1.8}
               />
               <span
-                className={`relative z-10 max-w-full truncate text-[10px] max-[420px]:text-[9px] font-medium transition-colors leading-none ${
+                className={`relative z-10 max-w-full truncate text-[11px] max-[420px]:text-[10px] font-medium transition-colors leading-none ${
                   isActive
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-[var(--color-text-muted)]'
@@ -695,14 +707,14 @@ export default function SideNav({ onInvite }: SideNavProps) {
         {/* More tab */}
         <button
           onClick={() => setMobileMenuOpen(true)}
-          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 min-h-[58px] max-[420px]:min-h-[52px] py-2 max-[420px]:py-1.5 px-1.5"
+          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 min-h-[60px] max-[420px]:min-h-[54px] py-2 max-[420px]:py-1.5 px-1.5"
           aria-label={language === 'ar' ? 'المزيد' : 'More'}
         >
           <Menu
             className="h-5 w-5 max-[420px]:h-4 max-[420px]:w-4 text-[var(--color-text-muted)]"
             strokeWidth={1.8}
           />
-          <span className="max-w-full truncate text-[10px] max-[420px]:text-[9px] font-medium text-[var(--color-text-muted)] leading-none">
+          <span className="max-w-full truncate text-[11px] max-[420px]:text-[10px] font-medium text-[var(--color-text-muted)] leading-none">
             {language === 'ar' ? 'المزيد' : 'More'}
           </span>
         </button>
@@ -749,9 +761,9 @@ export default function SideNav({ onInvite }: SideNavProps) {
                 {language === 'ar' ? 'التنقل' : 'Navigate'}
               </p>
 
-              {/* All nav items */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
-                {[...primaryItems, ...secondaryItems].map((item) => {
+              {/* Primary nav items */}
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {primaryItems.map((item) => {
                   const isActive = item.key === activeKey;
                   const Icon = item.icon;
                   const label = language === 'ar' ? item.labelAr : item.label;
@@ -790,6 +802,56 @@ export default function SideNav({ onInvite }: SideNavProps) {
                   </Link>
                 )}
               </div>
+
+              {/* Secondary nav items behind progressive disclosure */}
+              {secondaryItems.length > 0 && (
+                <div className="mb-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2.5">
+                  <button
+                    onClick={() => setShowSecondaryMobile((v) => !v)}
+                    className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)]"
+                    aria-expanded={showSecondaryMobile}
+                    aria-label={language === 'ar' ? 'إظهار أقسام إضافية' : 'Toggle additional sections'}
+                  >
+                    <span>{language === 'ar' ? 'أقسام إضافية' : 'Additional sections'}</span>
+                    <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showSecondaryMobile ? 'rotate-90' : ''}`} />
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {showSecondaryMobile && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={EASE_OUT}
+                        className="mt-2 grid grid-cols-3 gap-2 overflow-hidden"
+                      >
+                        {secondaryItems.map((item) => {
+                          const isActive = item.key === activeKey;
+                          const Icon = item.icon;
+                          const label = language === 'ar' ? item.labelAr : item.label;
+
+                          return (
+                            <Link
+                              key={item.key}
+                              href={item.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              aria-current={isActive ? 'page' : undefined}
+                              className={`flex flex-col items-center gap-1.5 rounded-2xl p-3 transition-colors ${
+                                isActive
+                                  ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
+                                  : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]'
+                              }`}
+                            >
+                              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.2 : 1.8} />
+                              <span className="text-[11px] font-medium leading-tight text-center">{label}</span>
+                            </Link>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
 
               <div className="h-px bg-[var(--color-border)] mb-4" />
 

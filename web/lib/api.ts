@@ -10,7 +10,7 @@
  * - TypeScript support for type safety
  */
 
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
 type JsonObject = Record<string, unknown>;
 
@@ -28,6 +28,7 @@ type StreamProperty = JsonObject;
 type StreamUiAction = JsonObject;
 type StreamPsychology = JsonObject;
 type FollowUpPayload = JsonObject;
+type SkipAuthRedirectConfig = AxiosRequestConfig & { _skipAuthRedirect?: boolean };
 
 // Base URL from environment or default to localhost (strip trailing slash)
 const envUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -363,6 +364,11 @@ export interface StreamEvent {
   detected_language?: string;
   showing_strategy?: string;
   corrected_text?: string;
+  response_type?: string;
+  show_upsell?: boolean;
+  upsell_reason?: string | null;
+  quota_remaining?: number;
+  cta_actions?: Array<Record<string, unknown>>;
 }
 
 export interface StreamChatCallbacks {
@@ -378,6 +384,11 @@ export interface StreamChatCallbacks {
     readiness_score?: number;
     detected_language?: string;
     showing_strategy?: string;
+    response_type?: string;
+    show_upsell?: boolean;
+    upsell_reason?: string | null;
+    quota_remaining?: number;
+    cta_actions?: Array<Record<string, unknown>>;
   }) => void;
   onFollowUp?: (followUp: FollowUpPayload) => void;
   onError: (error: string) => void;
@@ -481,6 +492,11 @@ export const streamChat = async (
                 readiness_score: data.readiness_score || 0,
                 detected_language: data.detected_language || 'ar',
                 showing_strategy: data.showing_strategy || 'NONE',
+                response_type: data.response_type,
+                show_upsell: data.show_upsell,
+                upsell_reason: data.upsell_reason,
+                quota_remaining: data.quota_remaining,
+                cta_actions: data.cta_actions || [],
               });
               break;
             case 'follow_up':
@@ -691,7 +707,8 @@ export interface AdminMessage {
 export const checkAdmin = async (): Promise<{ is_admin: boolean; email: string; name: string }> => {
   // _skipAuthRedirect: admin check failing (401) should not force a redirect;
   // the admin page handles 401 by setting isAdmin=false and showing access-denied UI.
-  const { data } = await api.get('/api/admin/check', { _skipAuthRedirect: true } as any);
+  const adminCheckConfig: SkipAuthRedirectConfig = { _skipAuthRedirect: true };
+  const { data } = await api.get('/api/admin/check', adminCheckConfig);
   return data;
 };
 

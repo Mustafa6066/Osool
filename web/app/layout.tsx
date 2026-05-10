@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from 'react';
-import { Inter, Cairo } from 'next/font/google';
 import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -15,20 +14,6 @@ import { LeadScoreProvider } from '@/contexts/LeadScoreContext';
 import PriorityHandoff from '@/components/PriorityHandoff';
 import HapticFeedback from '@/components/HapticFeedback';
 import { WebVitalsReporter } from '@/components/WebVitalsReporter';
-
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  display: 'swap',
-  variable: '--font-inter',
-});
-
-const cairo = Cairo({
-  subsets: ['arabic', 'latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  display: 'swap',
-  variable: '--font-cairo',
-});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -61,7 +46,6 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${cairo.variable}`}
       suppressHydrationWarning
     >
       <head>
@@ -86,15 +70,6 @@ export default function RootLayout({
                       Skip to main content
                     </a>
 
-                    {/* App shell */}
-                    <div
-                      id="app-root"
-                      className="relative z-10 flex min-h-dvh w-full flex-col overflow-x-hidden"
-                    >
-                      <main id="main-content" className="flex-1">
-                        {children}
-                      </main>
-                    </div>
                     {/* App shell */}
                     <div
                       id="app-root"

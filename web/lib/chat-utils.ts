@@ -102,6 +102,11 @@ export interface Message {
   readinessScore?: number;
   suggestions?: string[];
   detectedLanguage?: string;
+  responseType?: string;
+  showUpsell?: boolean;
+  upsellReason?: string | null;
+  quotaRemaining?: number;
+  ctaActions?: Array<Record<string, unknown>>;
 }
 
 export interface PastSession {

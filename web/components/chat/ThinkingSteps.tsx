@@ -4,9 +4,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Search, MapPin, Sparkles, BarChart2, Shield, MessageSquare, Check,
+  AlertTriangle, Route,
 } from 'lucide-react';
 import { AgentAvatar } from '@/components/chat/ChatMessage';
 import { isArabic } from '@/lib/chat-utils';
+import type { NeuralPhase, NeuralSignalStep } from '@/components/chat/neural-signals';
 
 interface ThinkingStep {
   label: string;
@@ -14,7 +16,36 @@ interface ThinkingStep {
   duration: number;
 }
 
-export default function ThinkingSteps({ lastUserMessage }: { lastUserMessage: string }) {
+interface ThinkingStepsProps {
+  lastUserMessage: string;
+  signalSteps?: NeuralSignalStep[];
+  phase?: NeuralPhase;
+}
+
+function iconForPhase(phase: NeuralPhase) {
+  if (phase === 'routing') return Route;
+  if (phase === 'searching') return MapPin;
+  if (phase === 'analyzing') return BarChart2;
+  if (phase === 'responding') return MessageSquare;
+  if (phase === 'error') return AlertTriangle;
+  return Sparkles;
+}
+
+function SignalStepMarker({ step }: { step: NeuralSignalStep }) {
+  if (step.status === 'active') {
+    return <div className="w-4 h-4 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin flex-shrink-0" />;
+  }
+
+  const Icon = step.status === 'complete' ? Check : step.status === 'error' ? AlertTriangle : iconForPhase(step.phase);
+  return React.createElement(Icon, { className: 'w-4 h-4 flex-shrink-0' });
+}
+
+function PhaseMarker({ phase }: { phase: NeuralPhase }) {
+  const Icon = iconForPhase(phase);
+  return React.createElement(Icon, { className: 'w-4 h-4' });
+}
+
+export default function ThinkingSteps({ lastUserMessage, signalSteps = [], phase = 'routing' }: ThinkingStepsProps) {
   const [visibleSteps, setVisibleSteps] = useState(0);
   const msgIsArabic = isArabic(lastUserMessage);
 
@@ -59,6 +90,10 @@ export default function ThinkingSteps({ lastUserMessage }: { lastUserMessage: st
   }, [lastUserMessage, msgIsArabic]);
 
   useEffect(() => {
+    if (signalSteps.length > 0) {
+      return;
+    }
+
     const resetTimer = window.setTimeout(() => setVisibleSteps(0), 0);
     const timers = steps.map((step, i) =>
       window.setTimeout(() => setVisibleSteps(i + 1), step.duration)
@@ -67,7 +102,49 @@ export default function ThinkingSteps({ lastUserMessage }: { lastUserMessage: st
       window.clearTimeout(resetTimer);
       timers.forEach(window.clearTimeout);
     };
-  }, [steps]);
+  }, [steps, signalSteps.length]);
+
+  if (signalSteps.length > 0) {
+    const visibleSignalSteps = signalSteps.slice(-4);
+
+    return (
+      <div className="flex gap-4 mb-6 animate-fade-in" dir={msgIsArabic ? 'rtl' : 'ltr'}>
+        <AgentAvatar thinking />
+        <div className="flex-1 flex flex-col gap-2 pt-1">
+          {visibleSignalSteps.map((step) => {
+            const isCurrent = step.status === 'active';
+            const isDone = step.status === 'complete';
+
+            return (
+              <motion.div
+                key={step.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28 }}
+                className={`flex items-center gap-2.5 text-[13px] ${
+                  isCurrent
+                    ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                    : isDone
+                      ? 'text-[var(--color-text-muted)]'
+                      : 'text-red-500'
+                }`}
+              >
+                <SignalStepMarker step={step} />
+                <span dir="auto">{step.label}</span>
+              </motion.div>
+            );
+          })}
+
+          {visibleSignalSteps.length === 0 && (
+            <div className="flex items-center gap-2 text-[13px] text-emerald-600 dark:text-emerald-400 font-medium">
+              <PhaseMarker phase={phase} />
+              <span>{msgIsArabic ? 'بدء التحليل...' : 'Starting analysis...'}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-4 mb-6 animate-fade-in" dir={msgIsArabic ? 'rtl' : 'ltr'}>

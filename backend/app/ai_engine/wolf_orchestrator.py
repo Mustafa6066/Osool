@@ -60,6 +60,7 @@ from .conversation_memory import ConversationMemory, CrossSessionIntelligence
 from .lead_scoring import score_lead, LeadTemperature, BehaviorSignal
 from .wolf_checklist import validate_checklist, WolfChecklistResult
 from .verifier_agent import verifier_agent
+from .verifier import log_hallucination_flags
 from .suggestion_engine import generate_suggestions_from_turn
 from .proactive_insights import proactive_engine
 
@@ -1369,6 +1370,30 @@ class WolfBrain:
                         logger.info(f"✅ VERIFIER INTERCEPTOR: Response auto-corrected ({len(verification['corrections'])} fixes)")
             except Exception as e:
                 logger.warning(f"Verifier agent skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # POST-SPEAK: Hallucination Guardrail (Token-Guard inspired, async)
+            # Fire-and-forget Haiku verifier that extracts atomic claims and
+            # logs unverified ones to `hallucination_flags` for admin review.
+            # Zero user-latency impact: runs in background.
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                properties_for_guardrail = (
+                    scored_properties[:5] if showing_strategy == 'FULL_LIST'
+                    else (scored_properties[:1] if showing_strategy == 'TEASER' else [])
+                )
+                asyncio.create_task(
+                    log_hallucination_flags(
+                        response_text=response_text,
+                        properties_mentioned=properties_for_guardrail,
+                        agent_name="wolf_brain",
+                        session_id=session_id,
+                        user_id=user_id,
+                        query=query,
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Hallucination guardrail enqueue failed: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # POST-SPEAK: Smart Follow-Up Suggestions

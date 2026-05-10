@@ -20,7 +20,8 @@ from app.auth import get_current_user
 from app.database import get_db, AsyncSessionLocal
 from app.models import (User, ChatMessage, Property, Transaction, 
                         MarketIndicator, ConversationAnalytics, 
-                        Ticket, TicketReply, GeopoliticalEvent, MarketingMaterial)
+                        Ticket, TicketReply, GeopoliticalEvent, MarketingMaterial,
+                        HallucinationFlag)
 
 logger = logging.getLogger(__name__)
 
@@ -1118,3 +1119,180 @@ async def generate_marketing_materials_endpoint(
     background_tasks.add_task(run_generation)
     
     return {"message": "Marketing materials generation started in background. Answers will appear as they are generated — refresh in a few minutes."}
+
+
+# ═══════════════════════════════════════════════════════════════
+# HALLUCINATION GUARDRAIL (Token-Guard inspired)
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/hallucination-flags")
+async def list_hallucination_flags(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    agent_name: Optional[str] = Query(None, description="Filter by agent name (e.g. wolf_brain)"),
+    claim_type: Optional[str] = Query(None, description="Filter by claim_type: price|roi|area|delivery|developer|legal|other"),
+    severity: Optional[str] = Query(None, pattern="^(low|medium|high)$"),
+    since_hours: int = Query(168, ge=1, le=24 * 90, description="Look back window in hours (default 7d)"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """
+    List flagged (unverified) factual claims produced by the post-SPEAK
+    Haiku verifier. Ordered newest-first.
+    """
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.utcnow() - timedelta(hours=since_hours)
+    stmt = select(HallucinationFlag).where(HallucinationFlag.created_at >= cutoff)
+    if agent_name:
+        stmt = stmt.where(HallucinationFlag.agent_name == agent_name)
+    if claim_type:
+        stmt = stmt.where(HallucinationFlag.claim_type == claim_type)
+    if severity:
+        stmt = stmt.where(HallucinationFlag.severity == severity)
+
+    total_q = select(func.count()).select_from(stmt.subquery())
+    total = (await db.execute(total_q)).scalar() or 0
+
+    stmt = stmt.order_by(desc(HallucinationFlag.created_at)).limit(limit).offset(offset)
+    rows = (await db.execute(stmt)).scalars().all()
+
+    return {
+        "total": int(total),
+        "limit": limit,
+        "offset": offset,
+        "since_hours": since_hours,
+        "items": [
+            {
+                "id": r.id,
+                "agent_name": r.agent_name,
+                "session_id": r.session_id,
+                "user_id": r.user_id,
+                "query": r.query,
+                "response_text": r.response_text,
+                "claim_text": r.claim_text,
+                "claim_type": r.claim_type,
+                "severity": r.severity,
+                "evidence_source": r.evidence_source,
+                "verifier_model": r.verifier_model,
+                "verifier_reason": r.verifier_reason,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/hallucination-flags/summary")
+async def hallucination_flags_summary(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    since_hours: int = Query(168, ge=1, le=24 * 90),
+):
+    """
+    Lightweight rollup: counts per (agent_name, claim_type, severity)
+    over the look-back window. Feeds the admin dashboard tile.
+    """
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.utcnow() - timedelta(hours=since_hours)
+
+    total = (
+        await db.execute(
+            select(func.count(HallucinationFlag.id)).where(
+                HallucinationFlag.created_at >= cutoff
+            )
+        )
+    ).scalar() or 0
+
+    by_type_rows = (
+        await db.execute(
+            select(
+                HallucinationFlag.claim_type,
+                func.count(HallucinationFlag.id),
+            )
+            .where(HallucinationFlag.created_at >= cutoff)
+            .group_by(HallucinationFlag.claim_type)
+        )
+    ).all()
+
+    by_severity_rows = (
+        await db.execute(
+            select(
+                HallucinationFlag.severity,
+                func.count(HallucinationFlag.id),
+            )
+            .where(HallucinationFlag.created_at >= cutoff)
+            .group_by(HallucinationFlag.severity)
+        )
+    ).all()
+
+    by_agent_rows = (
+        await db.execute(
+            select(
+                HallucinationFlag.agent_name,
+                func.count(HallucinationFlag.id),
+            )
+            .where(HallucinationFlag.created_at >= cutoff)
+            .group_by(HallucinationFlag.agent_name)
+        )
+    ).all()
+
+    return {
+        "since_hours": since_hours,
+        "total": int(total),
+        "by_claim_type": {row[0]: int(row[1]) for row in by_type_rows},
+        "by_severity": {row[0]: int(row[1]) for row in by_severity_rows},
+        "by_agent": {row[0]: int(row[1]) for row in by_agent_rows},
+    }
+
+
+@router.get("/hallucination-flags/top-claims")
+async def hallucination_top_claims(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    since_hours: int = Query(168, ge=1, le=24 * 90),
+    limit: int = Query(25, ge=1, le=200),
+):
+    """
+    Exact-string clustering: top repeated `claim_text` values.
+    A weekly BullMQ/cron job can layer TF-IDF + KMeans on top for
+    fuzzy clustering; this endpoint gives immediate admin signal without ML.
+    """
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.utcnow() - timedelta(hours=since_hours)
+
+    stmt = (
+        select(
+            HallucinationFlag.claim_text,
+            HallucinationFlag.claim_type,
+            HallucinationFlag.agent_name,
+            func.count(HallucinationFlag.id).label("occurrences"),
+            func.max(HallucinationFlag.created_at).label("last_seen"),
+        )
+        .where(HallucinationFlag.created_at >= cutoff)
+        .group_by(
+            HallucinationFlag.claim_text,
+            HallucinationFlag.claim_type,
+            HallucinationFlag.agent_name,
+        )
+        .order_by(desc("occurrences"))
+        .limit(limit)
+    )
+    rows = (await db.execute(stmt)).all()
+
+    return {
+        "since_hours": since_hours,
+        "clusters": [
+            {
+                "claim_text": row[0],
+                "claim_type": row[1],
+                "agent_name": row[2],
+                "occurrences": int(row[3]),
+                "last_seen": row[4].isoformat() if row[4] else None,
+            }
+            for row in rows
+        ],
+    }
+

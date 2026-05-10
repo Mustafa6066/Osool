@@ -115,3 +115,6 @@ check_db_live.py
 inspect_nextdata.py
 test_dump_nextdata.py
 next_data_dump.json
+
+.vercel
+.env*.local

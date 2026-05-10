@@ -18,9 +18,10 @@ from typing import Optional
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.cost_tracker import cost_tracker
 from app.services.paymob_service import paymob_service
-from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, create_refresh_token_async
+from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, create_refresh_token_async
 from app.database import get_db
 from app.models import User, Property, Transaction, PaymentApproval
+from app.ai_engine.local_router import local_router
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends, status, Request
@@ -1066,7 +1067,7 @@ async def chat_stream(
     req: ChatRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)  # REQUIRED auth - no anonymous access
+    user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
     🌊 Streaming AI Chat Endpoint (V6: Real-time Token Streaming)
@@ -1089,7 +1090,107 @@ async def chat_stream(
     async def generate():
         try:
             from app.models import ChatMessage
-            from sqlalchemy import select
+            from sqlalchemy import func, select
+
+            def _viewer_kind(current_user: Optional[User]) -> str:
+                if current_user is None:
+                    return "anonymous"
+                tier = (getattr(current_user, "subscription_tier", "free") or "free").lower()
+                if getattr(current_user, "role", "").lower() == "admin" or tier in {"premium", "admin"}:
+                    return "premium"
+                return "free"
+
+            kind = _viewer_kind(user)
+
+            # Count user messages before persisting current one for quota checks.
+            count_stmt = select(func.count(ChatMessage.id)).where(
+                ChatMessage.session_id == req.session_id,
+                ChatMessage.role == "user",
+            )
+            if user:
+                count_stmt = count_stmt.where(ChatMessage.user_id == user.id)
+            else:
+                count_stmt = count_stmt.where(ChatMessage.user_id.is_(None))
+
+            session_count_before = (await db.execute(count_stmt)).scalar() or 0
+            session_count_after = session_count_before + 1
+
+            # Save user message first so chat history and quotas are consistent.
+            user_message = ChatMessage(
+                session_id=req.session_id,
+                user_id=user.id if user else None,
+                role="user",
+                content=req.message,
+            )
+            db.add(user_message)
+            try:
+                await db.commit()
+            except Exception as commit_err:
+                await db.rollback()
+                logger.error(f"Failed to save user message: {commit_err}", exc_info=True)
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Database error. Please try again.'}, ensure_ascii=False)}\n\n"
+                return
+
+            # Anonymous + free users are always handled by deterministic local path.
+            if kind in {"anonymous", "free"}:
+                local_limit = 3 if kind == "anonymous" else 5
+                quota_remaining = max(local_limit - session_count_after, 0)
+
+                if kind == "anonymous" and session_count_after > local_limit:
+                    local_result = local_router._generate_upsell_response("DEPTH_LIMIT")
+                else:
+                    local_result = await local_router.process_query_async(
+                        query=req.message,
+                        session_count=session_count_after,
+                        db=db,
+                    )
+
+                response_text = clean_response_text(local_result.get("text", ""))
+                chunks = response_text.split()
+                buffer = ""
+                for word in chunks:
+                    if buffer:
+                        buffer += " "
+                    buffer += word
+                    if len(buffer.split()) >= 3 or word.endswith((".", "!", "?", "،")):
+                        yield f"data: {json.dumps({'type': 'token', 'content': buffer + ' '}, ensure_ascii=False)}\n\n"
+                        buffer = ""
+                if buffer:
+                    yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
+
+                ai_message = ChatMessage(
+                    session_id=req.session_id,
+                    user_id=user.id if user else None,
+                    role="assistant",
+                    content=response_text,
+                    properties_json=json.dumps(local_result.get("properties", []), ensure_ascii=False)
+                    if local_result.get("properties")
+                    else None,
+                )
+                db.add(ai_message)
+                try:
+                    await db.commit()
+                except Exception as commit_err:
+                    await db.rollback()
+                    logger.error(f"Failed to save local AI response: {commit_err}", exc_info=True)
+
+                done_payload = {
+                    "type": "done",
+                    "properties": local_result.get("properties", []),
+                    "ui_actions": [],
+                    "suggestions": [],
+                    "lead_score": 0,
+                    "readiness_score": 0,
+                    "detected_language": req.language if req.language in {"ar", "en"} else "ar",
+                    "showing_strategy": "LOCAL_FREE_PATH",
+                    "response_type": local_result.get("response_type", "free_local"),
+                    "show_upsell": local_result.get("show_upsell", False),
+                    "upsell_reason": local_result.get("upsell_reason"),
+                    "quota_remaining": quota_remaining,
+                    "cta_actions": local_result.get("cta_actions", []),
+                }
+                yield f"data: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
+                return
 
             # Load chat history
             chat_history = []
@@ -1109,22 +1210,6 @@ async def chat_stream(
                 elif msg.role == "assistant":
                     from langchain_core.messages import AIMessage
                     chat_history.append(AIMessage(content=msg.content))
-
-            # Save user message (linked to authenticated user)
-            user_message = ChatMessage(
-                session_id=req.session_id,
-                user_id=user.id,  # Link message to authenticated user
-                role="user",
-                content=req.message
-            )
-            db.add(user_message)
-            try:
-                await db.commit()
-            except Exception as commit_err:
-                await db.rollback()
-                logger.error(f"Failed to save user message: {commit_err}", exc_info=True)
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Database error. Please try again.'}, ensure_ascii=False)}\n\n"
-                return
 
             # Send initial tool indication
             yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'wolf_brain'}, ensure_ascii=False)}\n\n"

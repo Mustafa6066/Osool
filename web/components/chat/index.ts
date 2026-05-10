@@ -10,3 +10,4 @@ export { default as ChatInputBar } from './ChatInputBar';
 export { default as StreamingText } from './StreamingText';
 export { default as MarkdownMessage } from './MarkdownMessage';
 export { default as ThinkingSteps } from './ThinkingSteps';
+export { default as OrchestratorSignalPanel } from './OrchestratorSignalPanel';

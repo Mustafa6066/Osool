@@ -35,16 +35,6 @@ celery_app.conf.update(
 # PERIODIC TASKS (BEAT)
 # ---------------------------------------------------------------------------
 
-@celery_app.task(name="scrape_nawy")
-def scrape_nawy_task():
-    """
-    Nawy property scraping is now handled by the Railway Cron container
-    (nawy_scraper_v2.py, runs Sundays 03:00 UTC). This task is a no-op stub
-    to preserve Celery Beat schedule registration without breaking anything.
-    """
-    return {"status": "noop — scraping handled by Railway Cron (nawy_scraper_v2.py)"}
-
-
 @celery_app.task(name="scrape_geopolitical", bind=True, max_retries=2, autoretry_for=(Exception,), retry_backoff=True)
 def scrape_geopolitical_task(self):
     """

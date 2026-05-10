@@ -91,6 +91,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String)
     full_name: Mapped[str] = mapped_column(String)
     role: Mapped[str] = mapped_column(String, default="investor") # investor, admin
+    subscription_tier: Mapped[str] = mapped_column(String(20), default="free")  # free, premium, admin
 
     # Phase 2: KYC Fields (kept for database compatibility, not used in Phase 1)
     national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
@@ -951,3 +952,49 @@ class MarketingMaterial(Base):
     answer_en: Mapped[str] = mapped_column(Text, nullable=True)
     last_updated: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
     last_run_status: Mapped[str] = mapped_column(String(50), nullable=True)
+
+
+class HallucinationFlag(Base):
+    """
+    Claim-level hallucination flags produced by the post-SPEAK verifier
+    (ai_engine/verifier.py). One row per unverified atomic claim.
+
+    Weekly clustering job groups `claim_text` by TF-IDF + KMeans to surface
+    recurring hallucination patterns (e.g. "AI keeps inventing developer X").
+
+    Inspired by Token-Guard's three-stage decoder (token → segment → global
+    clustering), adapted for Anthropic's hosted Claude API.
+    """
+    __tablename__ = "hallucination_flags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    # Which agent produced the response (e.g. 'wolf_brain', 'chat-agent')
+    agent_name: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+
+    # Conversation/user context — both nullable so anonymous sessions still log
+    session_id: Mapped[str] = mapped_column(String(128), index=True, nullable=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=True)
+
+    # What the user asked + what the AI said (truncated in verifier.py)
+    query: Mapped[str] = mapped_column(Text, nullable=True)
+    response_text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # The atomic claim + type — indexed for clustering
+    claim_text: Mapped[str] = mapped_column(String(500), index=True, nullable=False)
+    claim_type: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+
+    # Verification outcome
+    verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    evidence_source: Mapped[str] = mapped_column(String(128), nullable=True)
+    severity: Mapped[str] = mapped_column(String(16), index=True, default="medium", nullable=False)
+
+    # Verifier metadata (useful when model strings change)
+    verifier_model: Mapped[str] = mapped_column(String(128), nullable=True)
+    verifier_reason: Mapped[str] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+    user = relationship("User")

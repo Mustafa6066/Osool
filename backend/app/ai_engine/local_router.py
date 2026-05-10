@@ -1,3 +1,5 @@
+import asyncio
+import inspect
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -33,16 +35,19 @@ class LocalRouter:
              # Needs clarification, handle gracefully without LLM
              return {
                  "type": "clarification",
+                 "response_type": "free_local",
                  "text": "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget.",
                  "properties": [],
-                 "show_upsell": False
+                 "show_upsell": False,
+                 "upsell_reason": None,
+                 "cta_actions": []
              }
 
         # Query Database
         properties = self._query_database(db, intent_data)
 
         # Run Analytical Engine (inject scores and bargain info)
-        enriched_properties = self._enrich_with_analytics(properties, intent_data["area"])
+        enriched_properties = asyncio.run(self._enrich_with_analytics_async(properties, intent_data["area"]))
 
         # Generate Text Response
         response_text = template_generator.generate_response(
@@ -53,9 +58,59 @@ class LocalRouter:
 
         return {
             "type": "success",
+            "response_type": "free_local",
             "text": response_text,
             "properties": enriched_properties[:1], # Send top property for the UI card
-            "show_upsell": False
+            "show_upsell": False,
+            "upsell_reason": None,
+            "cta_actions": []
+        }
+
+    async def process_query_async(self, query: str, session_count: int, db) -> Dict[str, Any]:
+        """
+        Async-compatible version for FastAPI AsyncSession routes.
+        """
+        # 1. Trigger 2: Depth Limit
+        if session_count >= 5:
+            return self._generate_upsell_response("DEPTH_LIMIT")
+
+        # 2. Extract Intent
+        intent_data = local_intent_extractor.extract_intent(query)
+
+        # 3. Trigger 1 & 3: Complex or Action Intent
+        if intent_data["intent"] == "COMPLEX":
+            return self._generate_upsell_response("COMPLEX")
+        if intent_data["intent"] == "ACTION":
+            return self._generate_upsell_response("ACTION")
+
+        # 4. Handle Normal Search
+        if not intent_data["area"] or not intent_data["max_budget"]:
+            return {
+                "type": "clarification",
+                "response_type": "free_local",
+                "text": "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget.",
+                "properties": [],
+                "show_upsell": False,
+                "upsell_reason": None,
+                "cta_actions": [],
+            }
+
+        properties = await self._query_database_async(db, intent_data)
+        enriched_properties = await self._enrich_with_analytics_async(properties, intent_data["area"])
+        response_text = template_generator.generate_response(
+            enriched_properties,
+            intent_data["area"],
+            intent_data["max_budget"],
+        )
+
+        return {
+            "type": "success",
+            "response_type": "free_local",
+            "text": response_text,
+            "properties": enriched_properties[:1],
+            "show_upsell": False,
+            "upsell_reason": None,
+            "cta_actions": [],
         }
 
     def _query_database(self, db: Session, intent: Dict[str, Any]) -> List[Dict]:
@@ -84,6 +139,28 @@ class LocalRouter:
         # Convert to dict for easier manipulation
         return [self._prop_to_dict(p) for p in results]
 
+    async def _query_database_async(self, db, intent: Dict[str, Any]) -> List[Dict]:
+        """
+        AsyncSession variant for fast stream route integration.
+        """
+        stmt = select(Property).where(Property.is_available == True)
+
+        if intent["area"]:
+            stmt = stmt.where(Property.location.ilike(f"%{intent['area']}%"))
+
+        if intent["max_budget"]:
+            stmt = stmt.where(Property.price <= intent["max_budget"])
+
+        if intent["property_type"]:
+            stmt = stmt.where(Property.type.ilike(f"%{intent['property_type']}%"))
+
+        if intent["rooms"]:
+            stmt = stmt.where(Property.bedrooms >= intent["rooms"])
+
+        stmt = stmt.order_by(Property.price.asc()).limit(10)
+        results = (await db.execute(stmt)).scalars().all()
+        return [self._prop_to_dict(p) for p in results]
+
     def _prop_to_dict(self, prop: Property) -> Dict:
         return {
             "id": prop.id,
@@ -103,17 +180,26 @@ class LocalRouter:
             "bargain_percentage": prop.bargain_percentage
         }
 
-    def _enrich_with_analytics(self, properties: List[Dict], area: str) -> List[Dict]:
+    async def _resolve_area_avg_price(self, area: str) -> int:
+        """
+        Resolve the analytics helper whether it returns a value or a coroutine.
+        """
+        try:
+            candidate = analytical_engine._get_area_avg_price(area)
+            if inspect.isawaitable(candidate):
+                return int(await candidate)
+            return int(candidate)
+        except Exception:
+            return 50000
+
+    async def _enrich_with_analytics_async(self, properties: List[Dict], area: str) -> List[Dict]:
          """
          Uses the local analytical engine to score properties.
          """
          if not properties:
              return []
 
-         try:
-             area_avg_price = analytical_engine._get_area_avg_price(area)
-         except Exception:
-             area_avg_price = 50000 # Fallback
+         area_avg_price = await self._resolve_area_avg_price(area)
 
          for prop in properties:
              prop["area_avg_price"] = area_avg_price
@@ -140,26 +226,47 @@ class LocalRouter:
          properties.sort(key=lambda x: x.get("osool_score", 0), reverse=True)
          return properties
 
+    def _enrich_with_analytics(self, properties: List[Dict], area: str) -> List[Dict]:
+         return asyncio.run(self._enrich_with_analytics_async(properties, area))
+
 
     def _generate_upsell_response(self, trigger_type: str) -> Dict[str, Any]:
         """
         Generates the graceful handoff message.
         """
         text = ""
+        upsell_reason = None
         if trigger_type == "COMPLEX":
             text = "That is a brilliant question. Analyzing inflation hedging, geopolitical impacts, and precise predictive ROI requires our Dual-Engine AI and deep market forecasting tools."
+            upsell_reason = "complex_forecasting"
         elif trigger_type == "DEPTH_LIMIT":
             text = "You've been asking some great, in-depth questions! To get more detailed, personalized insights and unlimited analysis..."
+            upsell_reason = "depth_limit"
         elif trigger_type == "ACTION":
             text = "Excellent choice! To schedule a visit or get official details, connecting with a human expert or using our premium tools is the best next step."
+            upsell_reason = "action_intent"
 
         text += "\n\nTo get a personalized, predictive analysis, choose one of the options below:"
 
         return {
             "type": "upsell",
+            "response_type": "free_local",
             "text": text,
             "properties": [],
-            "show_upsell": True
+            "show_upsell": True,
+            "upsell_reason": upsell_reason,
+            "cta_actions": [
+                {
+                    "id": "talk_to_consultant",
+                    "label": "Talk to Consultant",
+                    "type": "consultant",
+                },
+                {
+                    "id": "unlock_premium",
+                    "label": "Unlock Premium",
+                    "type": "upgrade",
+                },
+            ],
         }
 
 local_router = LocalRouter()

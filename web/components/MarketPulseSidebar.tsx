@@ -119,6 +119,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
 
     const isAr = language === 'ar';
     const isLiveData = MARKET_DATA_SOURCE === 'live';
+    const isSampleData = !isLiveData;
 
     useEffect(() => {
         try { localStorage.setItem('osool_watchlist', JSON.stringify([...watchlist])); } catch {}
@@ -249,12 +250,27 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                             {/* ── Scrollable Content ── */}
                             <div className="flex-1 overflow-y-auto p-4 space-y-5">
 
+                                {isSampleData && (
+                                    <section className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-3.5">
+                                        <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                            {isAr ? 'بيانات تجريبية' : 'Sample data in use'}
+                                        </p>
+                                        <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+                                            {isAr
+                                                ? 'هذه الشاشة توضيحية فقط حالياً. اعتمد على التحليل المباشر داخل المحادثة قبل اتخاذ أي قرار استثماري.'
+                                                : 'This panel is illustrative right now. Use live advisor analysis before making investment decisions.'}
+                                        </p>
+                                    </section>
+                                )}
+
                                 {/* ── AI Opportunity ── */}
                                 <section>
                                     <div className="flex items-center gap-2 mb-3">
                                         <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                                         <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
-                                            {isAr ? 'تنبيهات الذكاء الاصطناعي' : 'AI Alerts'}
+                                            {isSampleData
+                                                ? (isAr ? 'رؤى توضيحية' : 'Illustrative Insights')
+                                                : (isAr ? 'تنبيهات الذكاء الاصطناعي' : 'AI Alerts')}
                                         </span>
                                     </div>
                                     <div className="space-y-2.5">
@@ -268,7 +284,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                                                     <div className="flex-1 min-w-0">
                                                         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1.5">
                                                             <Zap className="w-3 h-3" />
-                                                            {insight.tag}
+                                                            {isSampleData ? (isAr ? 'توضيحي' : 'Illustrative') : insight.tag}
                                                         </span>
                                                         <p className="text-[13px] font-semibold text-[var(--color-text-primary)] leading-snug mb-1">
                                                             {isAr ? insight.titleAr : insight.title}
@@ -280,7 +296,10 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                                                     <ChevronRight className="w-4 h-4 text-amber-500/50 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-4" />
                                                 </div>
                                                 <span className="inline-flex items-center gap-1 mt-2.5 text-[10px] font-medium text-amber-600/80 dark:text-amber-400/80 group-hover:text-amber-600 dark:group-hover:text-amber-400">
-                                                    {isAr ? 'اضغط للتحليل' : 'Click to Analyze'} <ArrowUpRight className="w-3 h-3" />
+                                                    {isSampleData
+                                                        ? (isAr ? 'افتح السيناريو' : 'Explore scenario')
+                                                        : (isAr ? 'اضغط للتحليل' : 'Click to Analyze')}
+                                                    <ArrowUpRight className="w-3 h-3" />
                                                 </span>
                                             </button>
                                         ))}
@@ -362,7 +381,9 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                                     <div className="flex items-center gap-2 mb-3">
                                         <Shield className="w-3.5 h-3.5 text-blue-500" />
                                         <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
-                                            {isAr ? 'التحقق والتوثيق' : 'Verification Feed'}
+                                            {isSampleData
+                                                ? (isAr ? 'تدفق تحقق تجريبي' : 'Simulated Verification Feed')
+                                                : (isAr ? 'التحقق والتوثيق' : 'Verification Feed')}
                                         </span>
                                     </div>
                                     <div className="space-y-2">

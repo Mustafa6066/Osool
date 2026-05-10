@@ -18,6 +18,7 @@ class AqarmapStealthScraper:
     def __init__(self):
         # E.g., http://username:password@proxy.iproyal.com:12345
         self.proxy_url = os.getenv("IPROYAL_PROXY_URL")
+        self.obscura_cdp_url = os.getenv("OBSCURA_CDP_URL")
 
     async def scrape_new_cairo(self, pages: int = 2) -> List[Dict[str, Any]]:
         """
@@ -28,20 +29,7 @@ class AqarmapStealthScraper:
 
         try:
             async with async_playwright() as p:
-                launch_args = {
-                    "headless": True,
-                    "args": [
-                        "--disable-blink-features=AutomationControlled",
-                        "--disable-infobars"
-                    ]
-                }
-                if self.proxy_url:
-                    launch_args["proxy"] = {"server": self.proxy_url}
-
-                browser = await p.chromium.launch(**launch_args)
-
-                # Using Obscura techniques implicitly via context options
-                context = await browser.new_context(
+                context_kwargs = dict(
                     user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     viewport={"width": 1920, "height": 1080},
                     device_scale_factor=1,
@@ -49,6 +37,27 @@ class AqarmapStealthScraper:
                     is_mobile=False,
                     java_script_enabled=True,
                 )
+
+                browser = None
+                context = None
+
+                if self.obscura_cdp_url:
+                    logger.info("Connecting to Obscura CDP endpoint: %s", self.obscura_cdp_url)
+                    browser = await p.chromium.connect_over_cdp(self.obscura_cdp_url)
+                    context = browser.contexts[0] if browser.contexts else await browser.new_context(**context_kwargs)
+                else:
+                    launch_args = {
+                        "headless": True,
+                        "args": [
+                            "--disable-blink-features=AutomationControlled",
+                            "--disable-infobars"
+                        ]
+                    }
+                    if self.proxy_url:
+                        launch_args["proxy"] = {"server": self.proxy_url}
+
+                    browser = await p.chromium.launch(**launch_args)
+                    context = await browser.new_context(**context_kwargs)
 
                 # Add scripts to bypass bot detection
                 await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")

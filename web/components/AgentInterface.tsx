@@ -23,12 +23,27 @@ import MarketPulseSidebar from '@/components/MarketPulseSidebar';
 import MessageSkeleton from '@/components/chat/MessageSkeleton';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { useVoicePlayback } from '@/hooks/useVoicePlayback';
+import NeuralBackground from '@/components/NeuralBackground';
+import OrchestratorSignalPanel from '@/components/chat/OrchestratorSignalPanel';
 
 /* ── Decomposed components ── */
 import ChatMessage from '@/components/chat/ChatMessage';
 import { AgentAvatar } from '@/components/chat/ChatMessage';
 import ChatInputBar from '@/components/chat/ChatInputBar';
 import ThinkingSteps from '@/components/chat/ThinkingSteps';
+import {
+  composeSignalLabel,
+  completeSignalLabel,
+  errorSignalLabel,
+  inferPhaseFromSignal,
+  initialSignalLabel,
+  labelForTool,
+  responseTypeToRouteLabel,
+  type NeuralPhase,
+  type NeuralSignalSnapshot,
+  type NeuralSignalStep,
+  type NeuralStepStatus,
+} from '@/components/chat/neural-signals';
 
 import {
   isArabic,
@@ -131,6 +146,11 @@ export default function AgentInterface() {
   const [conversationLeadScore, setConversationLeadScore] = useState(0);
   const [conversationReadiness, setConversationReadiness] = useState(0);
   const [conversationLanguage, setConversationLanguage] = useState('ar');
+  const [neuralPhase, setNeuralPhase] = useState<NeuralPhase>('idle');
+  const [signalSteps, setSignalSteps] = useState<NeuralSignalStep[]>([]);
+  const [signalRouteLabel, setSignalRouteLabel] = useState('Intelligence path');
+  const [lastSignalStatus, setLastSignalStatus] = useState('');
+  const [isLocalSignalPath, setIsLocalSignalPath] = useState(false);
   const [lastAiMsgId, setLastAiMsgId] = useState<number | null>(null);
   const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -145,12 +165,127 @@ export default function AgentInterface() {
   const sessionIdRef = useRef<string>(getOrCreateSessionId());
   const hasFetchedHistory = useRef(false);
   const seededPromptRef = useRef<string | null>(null);
+  const signalStepCounterRef = useRef(0);
+  const signalResetTimerRef = useRef<number | null>(null);
 
   const userName = user?.full_name || user?.email?.split('@')[0] || (conversationLanguage === 'ar' ? 'مستثمر' : 'there');
   const hasStarted = messages.length > 0;
   const userMessageCount = messages.filter(m => m.role === 'user').length;
   const isAnonymous = !user;
   const isGated = isAnonymous && userMessageCount >= FREE_MESSAGE_LIMIT;
+
+  const clearSignalResetTimer = useCallback(() => {
+    if (signalResetTimerRef.current !== null) {
+      window.clearTimeout(signalResetTimerRef.current);
+      signalResetTimerRef.current = null;
+    }
+  }, []);
+
+  const completeActiveSignalStep = useCallback((status: NeuralStepStatus = 'complete') => {
+    setSignalSteps((prev): NeuralSignalStep[] => prev.map((step): NeuralSignalStep => (
+      step.status === 'active' ? { ...step, status } : step
+    )));
+  }, []);
+
+  const pushSignalStep = useCallback((label: string, phase: NeuralPhase, source: NeuralSignalStep['source'] = 'stream') => {
+    const normalized = label.trim();
+    if (!normalized) return;
+
+    const id = `signal_${Date.now()}_${signalStepCounterRef.current += 1}`;
+    setNeuralPhase(phase);
+    setLastSignalStatus(normalized);
+    setSignalSteps((prev): NeuralSignalStep[] => {
+      const completed = prev.map((step): NeuralSignalStep => (
+        step.status === 'active' ? { ...step, status: 'complete' as const } : step
+      ));
+      const previous = completed[completed.length - 1];
+      if (previous?.label.toLowerCase() === normalized.toLowerCase()) return completed;
+      const nextStep: NeuralSignalStep = { id, label: normalized, phase, status: 'active', source, timestamp: Date.now() };
+      return [...completed, nextStep].slice(-8);
+    });
+  }, []);
+
+  const beginNeuralSignal = useCallback(() => {
+    clearSignalResetTimer();
+    signalStepCounterRef.current = 0;
+    const initialLabel = initialSignalLabel(conversationLanguage);
+    const route = responseTypeToRouteLabel(undefined, conversationLanguage);
+
+    setNeuralPhase('routing');
+    setSignalRouteLabel(route.label);
+    setIsLocalSignalPath(false);
+    setLastSignalStatus(initialLabel);
+    setSignalSteps([{
+      id: `signal_${Date.now()}_0`,
+      label: initialLabel,
+      phase: 'routing',
+      status: 'active',
+      source: 'system',
+      timestamp: Date.now(),
+    }]);
+  }, [clearSignalResetTimer, conversationLanguage]);
+
+  const settleNeuralSignal = useCallback((phase: 'complete' | 'error', label: string, responseType?: string) => {
+    clearSignalResetTimer();
+    const route = responseTypeToRouteLabel(responseType, conversationLanguage);
+    const status: NeuralStepStatus = phase === 'error' ? 'error' : 'complete';
+
+    setNeuralPhase(phase);
+    setSignalRouteLabel(route.label);
+    setIsLocalSignalPath(route.isLocalPath);
+    setLastSignalStatus(label);
+    setSignalSteps((prev): NeuralSignalStep[] => {
+      const source: NeuralSignalStep['source'] = route.isLocalPath ? 'local' : 'stream';
+      const completed = prev.map((step): NeuralSignalStep => (
+        step.status === 'active' ? { ...step, status } : step
+      ));
+      return [...completed, {
+        id: `signal_${Date.now()}_${signalStepCounterRef.current += 1}`,
+        label,
+        phase,
+        status,
+        source,
+        timestamp: Date.now(),
+      }].slice(-8);
+    });
+
+    signalResetTimerRef.current = window.setTimeout(() => {
+      setNeuralPhase('idle');
+      setLastSignalStatus('');
+    }, phase === 'error' ? 4500 : 3200);
+  }, [clearSignalResetTimer, conversationLanguage]);
+
+  const resetNeuralSignal = useCallback(() => {
+    clearSignalResetTimer();
+    setNeuralPhase('idle');
+    setSignalSteps([]);
+    setSignalRouteLabel(responseTypeToRouteLabel(undefined, conversationLanguage).label);
+    setLastSignalStatus('');
+    setIsLocalSignalPath(false);
+  }, [clearSignalResetTimer, conversationLanguage]);
+
+  const neuralIntensity = useMemo(() => {
+    if (neuralPhase === 'idle') return 0.18;
+    if (neuralPhase === 'routing') return 0.48;
+    if (neuralPhase === 'searching') return 0.72;
+    if (neuralPhase === 'analyzing') return 0.86;
+    if (neuralPhase === 'responding') return 0.78;
+    if (neuralPhase === 'complete') return 0.42;
+    return 0.62;
+  }, [neuralPhase]);
+
+  const neuralSnapshot = useMemo<NeuralSignalSnapshot>(() => ({
+    phase: neuralPhase,
+    steps: signalSteps,
+    routeLabel: signalRouteLabel || responseTypeToRouteLabel(undefined, conversationLanguage).label,
+    lastStatus: lastSignalStatus,
+    intensity: neuralIntensity,
+    isLocalPath: isLocalSignalPath,
+  }), [conversationLanguage, isLocalSignalPath, lastSignalStatus, neuralIntensity, neuralPhase, signalRouteLabel, signalSteps]);
+
+  const signalPanelVisible = hasStarted && neuralPhase !== 'idle';
+
+  useEffect(() => () => clearSignalResetTimer(), [clearSignalResetTimer]);
 
   /* ── Voice ── */
   const { status: voiceStatus, isListening, amplitude, startRecording, stopRecording } = useVoiceRecording({
@@ -266,6 +401,7 @@ export default function AgentInterface() {
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsTyping(true);
+    beginNeuralSignal();
 
     const aiMsgId = Date.now() + 1;
     let accumulatedText = '';
@@ -280,6 +416,7 @@ export default function AgentInterface() {
             accumulatedText += (typeof token === 'string' ? token : '');
             if (!streamingStarted) {
               streamingStarted = true;
+              pushSignalStep(composeSignalLabel(conversationLanguage), 'responding', 'stream');
               setIsTyping(false);
               setMessages(prev => [...prev, { id: aiMsgId, role: 'agent', content: accumulatedText }]);
             } else {
@@ -287,9 +424,20 @@ export default function AgentInterface() {
               setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: currentText } : m));
             }
           },
-          onToolStart: () => {},
-          onToolEnd: () => {},
+          onToolStart: (tool) => {
+            const label = labelForTool(tool, conversationLanguage);
+            pushSignalStep(label, inferPhaseFromSignal(`${tool} ${label}`), 'tool');
+          },
+          onToolEnd: () => {
+            completeActiveSignalStep('complete');
+          },
+          onStatus: (message) => {
+            const phase = inferPhaseFromSignal(message);
+            const source = /local|free|zero|deterministic/i.test(message) ? 'local' : 'stream';
+            pushSignalStep(message, phase, source);
+          },
           onComplete: (data) => {
+            settleNeuralSignal('complete', completeSignalLabel(conversationLanguage), data.response_type);
             const allProps = Array.isArray(data.properties) ? data.properties.map(mapChatPropertyToProperty) : [];
             const uiActions = Array.isArray(data.ui_actions) ? (data.ui_actions as UiAction[]) : [];
             const artifacts: Artifacts | null = allProps.length > 0 ? { property: allProps[0] } : null;
@@ -311,6 +459,11 @@ export default function AgentInterface() {
                 readinessScore: data.readiness_score || 0,
                 detectedLanguage: data.detected_language || 'ar',
                 showingStrategy: data.showing_strategy || 'NONE',
+                responseType: data.response_type,
+                showUpsell: data.show_upsell,
+                upsellReason: data.upsell_reason,
+                quotaRemaining: data.quota_remaining,
+                ctaActions: data.cta_actions || [],
               };
               if (!hasMsg) return [...prev, msgData];
               return prev.map(m => m.id === aiMsgId ? { ...m, ...msgData } : m);
@@ -326,6 +479,7 @@ export default function AgentInterface() {
           },
           onError: (error) => {
             console.error('[Osool Advisor] Stream Error:', error);
+            settleNeuralSignal('error', errorSignalLabel(conversationLanguage));
             const errorContent = conversationLanguage === 'ar'
               ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟'
               : 'A brief analysis issue occurred. Could you try again?';
@@ -342,6 +496,7 @@ export default function AgentInterface() {
     } catch (error: unknown) {
       console.warn('[Osool Advisor] SSE failed, falling back to POST:', getErrorMessage(error, 'Unknown'));
       try {
+        pushSignalStep(conversationLanguage === 'ar' ? 'تشغيل الرد البديل' : 'Using fallback response', 'analyzing', 'stream');
         const response = await api.post('/api/chat', {
           message: content,
           session_id: sessionIdRef.current,
@@ -369,10 +524,12 @@ export default function AgentInterface() {
         setConversationLeadScore(data.lead_score || 0);
         setConversationReadiness(data.readiness_score || 0);
         if (data.detected_language) setConversationLanguage(data.detected_language);
+        settleNeuralSignal('complete', completeSignalLabel(conversationLanguage), undefined);
         triggerXP(5, 'Asked a question');
         if (allProps.length > 0) setActiveContext({ property: allProps[0] });
       } catch (fallbackErr: unknown) {
         console.error('[Osool Advisor] Fallback POST failed:', fallbackErr);
+        settleNeuralSignal('error', errorSignalLabel(conversationLanguage));
         const errorMsg = conversationLanguage === 'ar'
           ? 'حصل مشكلة بسيطة في التحليل. ممكن تعيد السؤال تاني؟'
           : 'A brief analysis issue occurred. Could you try again?';
@@ -381,7 +538,7 @@ export default function AgentInterface() {
     } finally {
       setIsTyping(false);
     }
-  }, [inputValue, isTyping, user, messages, conversationLanguage, triggerXP]);
+  }, [beginNeuralSignal, completeActiveSignalStep, conversationLanguage, inputValue, isTyping, messages, pushSignalStep, settleNeuralSignal, triggerXP, user]);
 
   /* ── New chat ── */
   const handleNewChat = useCallback(() => {
@@ -395,12 +552,13 @@ export default function AgentInterface() {
     setConversationReadiness(0);
     setConversationLanguage('ar');
     setLastAiMsgId(null);
+    resetNeuralSignal();
     seededPromptRef.current = null;
     const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     sessionIdRef.current = newId;
     sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, newId);
     sessionStorage.removeItem(STORAGE_KEYS.MESSAGES);
-  }, []);
+  }, [resetNeuralSignal]);
 
   /* ── URL prompt seeding ── */
   useEffect(() => {
@@ -440,11 +598,12 @@ export default function AgentInterface() {
       setIsPinnedToBottom(true);
       setShowNewMessagesCue(false);
       setLastAiMsgId(null);
+      resetNeuralSignal();
       setHistoryOpen(false);
     } catch (err) {
       console.error('[History] Failed to load session', err);
     }
-  }, []);
+  }, [resetNeuralSignal]);
 
   /* ── Retry ── */
   const handleRetry = useCallback(async (msgIndex: number) => {
@@ -564,11 +723,12 @@ export default function AgentInterface() {
   return (
     <LayoutGroup>
       <div className="flex h-full min-h-0 w-full bg-[var(--color-background)] text-[var(--color-text-primary)] overflow-hidden selection:bg-emerald-500/15 relative">
-        <main className="flex-1 flex flex-col relative min-w-0 h-full w-full min-h-0 z-0">
+        <NeuralBackground phase={neuralPhase} intensity={neuralIntensity} />
+        <main className="flex-1 flex flex-col relative min-w-0 h-full w-full min-h-0 z-10">
 
           {/* ── Top bar (in-conversation) ── */}
           {hasStarted && (
-            <div className="sticky top-0 start-0 end-0 z-30 bg-[var(--color-background)] border-b border-[var(--color-border)]/40">
+            <div className="sticky top-0 start-0 end-0 z-30 bg-[var(--color-background)]/88 backdrop-blur-xl border-b border-[var(--color-border)]/40">
               <div className="max-w-full lg:max-w-[980px] mx-auto px-3 sm:px-4 md:px-6">
                 <div className="flex items-center justify-between py-2">
                   <span className="text-[12px] font-medium text-[var(--color-text-primary)] tracking-tight">
@@ -736,13 +896,23 @@ export default function AgentInterface() {
                     />
                   ))}
 
+                  <OrchestratorSignalPanel
+                    snapshot={neuralSnapshot}
+                    language={conversationLanguage}
+                    visible={signalPanelVisible}
+                  />
+
                   {/* Thinking steps */}
                   {isTyping && (
                     <>
                       <div className="sr-only" role="status" aria-live="assertive">
                         {conversationLanguage === 'ar' ? 'أصول يحلل طلبك...' : 'Osool is analyzing your request...'}
                       </div>
-                      <ThinkingSteps lastUserMessage={messages.length > 0 ? messages[messages.length - 1].content : ''} />
+                      <ThinkingSteps
+                        lastUserMessage={messages.length > 0 ? messages[messages.length - 1].content : ''}
+                        signalSteps={signalSteps}
+                        phase={neuralPhase}
+                      />
                     </>
                   )}
 
@@ -784,7 +954,7 @@ export default function AgentInterface() {
 
           {/* Floating input (in-conversation) */}
           {hasStarted && !isGated && !anonGateShown && (
-            <div className="sticky bottom-0 start-0 end-0 z-40 px-2 sm:px-6 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-6 pt-2 bg-[var(--color-background)]/96 backdrop-blur-sm pointer-events-none border-t border-[var(--color-border)]/30">
+            <div className="sticky bottom-0 start-0 end-0 z-40 px-2 sm:px-6 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-6 pt-2 bg-[var(--color-background)]/88 backdrop-blur-xl pointer-events-none border-t border-[var(--color-border)]/30">
               <div className="max-w-[800px] mx-auto relative pointer-events-auto">
                 <ChatInputBar
                   value={inputValue}
