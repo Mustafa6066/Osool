@@ -243,6 +243,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ROUTES
 # ═══════════════════════════════════════════════════════════════
 
+from app.api.chat import router as chat_router
+app.include_router(chat_router, prefix="/api/v1")
 app.include_router(api_router)
 app.include_router(auth_router)
 app.include_router(gamification_router)

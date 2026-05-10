@@ -165,6 +165,10 @@ class Property(Base):
 
     # Availability
     is_available: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Zero-Token AI Engine fields
+    osool_score: Mapped[float] = mapped_column(Float, nullable=True)
+    bargain_percentage: Mapped[float] = mapped_column(Float, nullable=True)
+    url: Mapped[str] = mapped_column(String(500), unique=True, nullable=True)
 
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
