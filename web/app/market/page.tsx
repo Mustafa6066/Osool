@@ -43,6 +43,23 @@ function typedEntries<TValue>(record: Record<string, TValue>): Array<[string, TV
   return Object.entries(record) as Array<[string, TValue]>;
 }
 
+type MarketRawProperty = Parameters<typeof computeDetailedStats>[0][number];
+
+function isMarketRawProperty(value: unknown): value is MarketRawProperty {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.price === 'number' &&
+    typeof candidate.pricePerSqm === 'number' &&
+    typeof candidate.location === 'string' &&
+    typeof candidate.developer === 'string'
+  );
+}
+
 /** Demand badge based on unit count relative to market */
 function getDemandTag(count: number, maxCount: number): { labelKey: string; color: string } {
   const ratio = count / maxCount;
@@ -143,7 +160,7 @@ export default function MarketStatisticsPage() {
         }
         const text = await response.text();
         const raw = parseDataJsPayload(text);
-        const properties = raw.properties || [];
+        const properties = (raw.properties || []).filter(isMarketRawProperty);
         if (!properties.length) {
           throw new Error('No market data available');
         }
