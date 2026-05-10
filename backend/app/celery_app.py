@@ -66,6 +66,10 @@ celery_app.conf.beat_schedule = {
         "task": "scrape_nawy",
         "schedule": 21600.0, # 6 hours in seconds
     },
+    "scrape-aqarmap-weekly": {
+        "task": "scrape_aqarmap",
+        "schedule": 302400.0,  # 3.5 days in seconds (roughly twice a week)
+    },
     "scrape-geopolitical-daily": {
         "task": "scrape_geopolitical",
         "schedule": 86400.0,  # 24 hours in seconds
