@@ -1,15 +1,9 @@
 import { getDeveloper, getDeveloperProjects } from '@/lib/seo-api';
 import { developerJsonLd } from '@/lib/json-ld';
-import { getEnrichedSEO } from '@/lib/seo-content';
-import { EnrichedBody } from '@/components/seo/EnrichedContent';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import AppShell from '@/components/nav/AppShell';
-import { developerBrief } from '@/lib/decision-support';
-import { T } from '@/components/T';
-
-export const revalidate = 3600; // ISR: 1 hour
+import SmartNav from '@/components/SmartNav';
 
 const fmt = (n: number) => n.toLocaleString('en-EG');
 
@@ -30,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-function Stat({ label, value, suffix }: { label: React.ReactNode; value?: number | null; suffix?: string }) {
+function Stat({ label, value, suffix }: { label: string; value?: number | null; suffix?: string }) {
   if (!value) return null;
   return (
     <div className="text-center p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]">
@@ -54,82 +48,44 @@ export default async function DeveloperPage({ params }: Props) {
     notFound();
   }
 
-  // Fetch AI-generated enriched content from Orchestrator (non-blocking)
-  const enrichedContent = await getEnrichedSEO('developer_profile', slug).catch(() => null);
-
-  const brief = developerBrief(dev);
-
   return (
-    <AppShell>
-    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
+    <SmartNav>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)] pb-20 md:pb-0">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(developerJsonLd(dev)) }}
       />
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto px-4 py-16">
         {/* Header */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
-          <Link href="/developers" className="hover:text-emerald-500"><T k="comparePage.developers" /></Link>
+          <Link href="/developers" className="hover:text-emerald-500">Developers</Link>
           <span className="mx-2">/</span>
           <span>{dev.name}</span>
         </nav>
 
-        <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
-          <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
-              {brief.trustLabel}
-            </div>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight">{dev.name}</h1>
-            {dev.name_ar && (
-              <p className="mt-2 text-lg text-[var(--color-text-muted)]" dir="rtl">{dev.name_ar}</p>
-            )}
-            <p className="mt-5 max-w-3xl text-base leading-7 text-[var(--color-text-secondary)]">
-              {dev.description || brief.verdict}
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="devPage.bestFor" /></div>
-              <div className="mt-2 text-base font-semibold">{brief.bestFor}</div>
-            </div>
-            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="devPage.mainWatchout" /></div>
-              <div className="mt-2 text-base font-semibold">{brief.risk}</div>
-            </div>
-          </div>
-        </section>
+        <h1 className="text-3xl font-bold mb-2">{dev.name}</h1>
+        {dev.name_ar && (
+          <p className="text-lg text-[var(--color-text-muted)] mb-4" dir="rtl">{dev.name_ar}</p>
+        )}
+        <p className="text-[var(--color-text-secondary)] max-w-3xl mb-8">
+          {dev.description}
+        </p>
 
         {/* Score Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Stat label={<T k="devPage.overallScore" />} value={dev.overall_score} suffix="/100" />
-          <Stat label={<T k="devPage.delivery" />} value={dev.avg_delivery_score} suffix="/100" />
-          <Stat label={<T k="devPage.finishQuality" />} value={dev.avg_finish_quality} suffix="/100" />
-          <Stat label={<T k="devPage.resaleRetention" />} value={dev.avg_resale_retention} suffix="%" />
-          <Stat label={<T k="devPage.paymentFlex" />} value={dev.payment_flexibility} suffix="/100" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-12">
+          <Stat label="Overall Score" value={dev.overall_score} suffix="/100" />
+          <Stat label="Delivery" value={dev.avg_delivery_score} suffix="/100" />
+          <Stat label="Finish Quality" value={dev.avg_finish_quality} suffix="/100" />
+          <Stat label="Resale Retention" value={dev.avg_resale_retention} suffix="%" />
+          <Stat label="Payment Flex" value={dev.payment_flexibility} suffix="/100" />
         </div>
-
-        <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="devPage.whyScoreMatters" /></h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-              <T k="devPage.deliveryHelps" />
-            </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-              <T k="devPage.resaleStrength" />
-            </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-              <T k="devPage.paymentFlexNote" />
-            </div>
-          </div>
-        </section>
 
         {/* Projects */}
         <h2 className="text-xl font-semibold mb-4">
-          <T k="devPage.projectsBy" /> {dev.name} ({(projects || []).length})
+          Projects by {dev.name} ({projects.length})
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          {(projects || []).map((p) => (
+          {projects.map((p) => (
             <Link
               key={p.id}
               href={`/projects/${p.slug}`}
@@ -156,23 +112,18 @@ export default async function DeveloperPage({ params }: Props) {
           ))}
         </div>
 
-        {/* Orchestrator AI-Generated Developer Profile */}
-        {enrichedContent && (
-          <EnrichedBody content={enrichedContent} />
-        )}
-
         {/* Compare CTA */}
         <div className="mt-12 p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-center">
-          <h3 className="text-lg font-semibold mb-2"><T k="devPage.compareWith" /> {dev.name}</h3>
+          <h3 className="text-lg font-semibold mb-2">Compare {dev.name} with other developers</h3>
           <Link
             href="/developers"
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm"
           >
-            <T k="devPage.viewAllDevelopers" /> →
+            View All Developers →
           </Link>
         </div>
       </div>
     </main>
-    </AppShell>
+    </SmartNav>
   );
 }

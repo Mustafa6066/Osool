@@ -10,25 +10,34 @@
 # Get this URL from Railway after deploying backend
 NEXT_PUBLIC_API_URL=https://osool-production.up.railway.app
 
-# Optional: same-frontend entry point for the Orchestrator admin console
-# This powers /admin/orchestrator inside the main Osool frontend.
-NEXT_PUBLIC_ORCHESTRATOR_ADMIN_URL=https://your-orchestrator-admin-domain
-
-# Optional but recommended: Orchestrator API base URL for data reads and webhook proxying.
-# Example: https://your-orchestrator-api.up.railway.app
-NEXT_PUBLIC_ORCHESTRATOR_URL=
-
-# Required if NEXT_PUBLIC_ORCHESTRATOR_URL is set and the Orchestrator enforces webhook auth.
-# Must exactly match the Orchestrator WEBHOOK_SECRET value.
-ORCHESTRATOR_WEBHOOK_SECRET=
-
-# Required for server-side data proxy routes such as /api/orchestrator and /api/orchestrator-data.
-ORCHESTRATOR_API_KEY=
-
 # IMPORTANT:
 # - NO trailing slash!
 # - Must be the full Railway URL
 # - Update this after deploying to Railway
+
+# ─────────────────────────────────────────────────────────────
+# OSOOL ORCHESTRATOR (Webhook + Data enrichment)
+# ─────────────────────────────────────────────────────────────
+# The deployed URL of the orchestrator API (Railway)
+NEXT_PUBLIC_ORCHESTRATOR_URL=https://your-orchestrator.railway.app
+# Must match WEBHOOK_SECRET set in the orchestrator Railway service
+# Generate with: openssl rand -hex 32
+ORCHESTRATOR_WEBHOOK_SECRET=<same-value-as-orchestrator-WEBHOOK_SECRET>
+# Must match API_KEY set in the orchestrator Railway service
+ORCHESTRATOR_API_KEY=<same-value-as-orchestrator-API_KEY>
+
+# ─────────────────────────────────────────────────────────────
+# OSOOL ORCHESTRATOR ADMIN URL (Optional)
+# ─────────────────────────────────────────────────────────────
+# The deployed URL of the @osool/admin Vite app (e.g. from Railway)
+# This powers the "Advanced SEO Engine" link in the frontend admin dashboard
+NEXT_PUBLIC_ADMIN_URL=https://your-admin-domain.railway.app
+
+# ─────────────────────────────────────────────────────────────
+# THIRDWEB (Web3 Wallet)
+# ─────────────────────────────────────────────────────────────
+# Get from: https://thirdweb.com/dashboard
+NEXT_PUBLIC_THIRDWEB_CLIENT_ID=YOUR_THIRDWEB_CLIENT_ID_HERE
 
 # ─────────────────────────────────────────────────────────────
 # WHATSAPP CONTACT (PropertyCard contact button)
@@ -41,8 +50,9 @@ NEXT_PUBLIC_WHATSAPP_NUMBER=201001234567
 # ═══════════════════════════════════════════════════════════════
 # 1. Deploy backend to Railway FIRST
 # 2. Copy Railway URL to NEXT_PUBLIC_API_URL
-# 3. Deploy frontend to Vercel
-# 4. Update Railway FRONTEND_DOMAIN with Vercel URL
+# 3. Get ThirdWeb Client ID from dashboard
+# 4. Deploy frontend to Vercel
+# 5. Update Railway FRONTEND_DOMAIN with Vercel URL
 # ═══════════════════════════════════════════════════════════════
 
 # ═══════════════════════════════════════════════════════════════

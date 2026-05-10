@@ -95,6 +95,15 @@ export default function RootLayout({
                         {children}
                       </main>
                     </div>
+                    {/* App shell */}
+                    <div
+                      id="app-root"
+                      className="relative z-10 flex min-h-dvh w-full flex-col overflow-x-hidden"
+                    >
+                      <main id="main-content" className="flex-1">
+                        {children}
+                      </main>
+                    </div>
 
                     {/* Global overlays */}
                     <GamificationOverlay />

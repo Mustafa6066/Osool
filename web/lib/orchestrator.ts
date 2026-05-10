@@ -34,88 +34,85 @@ async function sendWebhook(path: string, payload: Record<string, unknown>): Prom
         }).catch(() => {
             /* Silently ignore — never block the user */
         });
-    } catch {
-        /* Silently ignore */
-    }
-}
-
-// ── Public API ─────────────────────────────────────────────────────────────────
-
-/**
- * Track a chat message (user or assistant).
- * Call after every message exchange.
- */
-export function trackChatMessage(params: {
-    sessionId: string;
-    anonymousId: string;
-    userId?: string;
-    message: { role: 'user' | 'assistant'; content: string };
-    pageUrl?: string;
-    locale?: 'en' | 'ar';
-}): void {
-    sendWebhook('/chat-message', {
-        eventType: 'chat_message',
-        sessionId: params.sessionId,
-        userId: params.userId,
-        anonymousId: params.anonymousId,
-        message: {
-            role: params.message.role,
-            content: params.message.content,
+    /**
+     * Track a property view.
+     * Call when a user opens a property detail page.
+     */
+    export function trackPropertyView(params: {
+        anonymousId: string;
+        userId?: string;
+        propertyId: string;
+        developerId?: string;
+        location?: string;
+        priceRange?: { min: number; max: number };
+    }): void {
+        sendWebhook('/page-view', {
+            eventType: 'page_view',
+            userId: params.userId,
+            anonymousId: params.anonymousId,
+            url: typeof window !== 'undefined' ? window.location.href : '',
+            pageType: 'project',
+            referrer: typeof document !== 'undefined' ? document.referrer : '',
+            utmParams: {},
             timestamp: new Date().toISOString(),
-        },
-        pageContext: {
-            url: params.pageUrl || (typeof window !== 'undefined' ? window.location.href : ''),
-            pageType: 'chat',
-            locale: params.locale || 'ar',
-        },
-    });
-}
+            properties: {
+                propertyId: params.propertyId,
+                developerId: params.developerId,
+                location: params.location,
+                priceRange: params.priceRange,
+            },
+        });
+    }
 
-/**
- * Track a chat session ending.
- * Call when the user navigates away or closes the chat.
- */
-export function trackChatSessionEnd(params: {
-    sessionId: string;
-    anonymousId: string;
-    userId?: string;
-    messageCount: number;
-    durationSeconds: number;
-}): void {
-    sendWebhook('/chat-session-end', {
-        eventType: 'chat_session_end',
-        sessionId: params.sessionId,
-        userId: params.userId,
-        anonymousId: params.anonymousId,
-        messageCount: params.messageCount,
-        durationSeconds: params.durationSeconds,
-        lastPageUrl: typeof window !== 'undefined' ? window.location.href : '',
-    });
-}
+    /**
+     * Track a search action.
+     * Call when a user performs a property search or filter.
+     */
+    export function trackSearch(params: {
+        anonymousId: string;
+        userId?: string;
+        query?: string;
+        filters?: Record<string, unknown>;
+        resultCount?: number;
+    }): void {
+        sendWebhook('/page-view', {
+            eventType: 'page_view',
+            userId: params.userId,
+            anonymousId: params.anonymousId,
+            url: typeof window !== 'undefined' ? window.location.href : '',
+            pageType: 'other',
+            referrer: typeof document !== 'undefined' ? document.referrer : '',
+            utmParams: {},
+            timestamp: new Date().toISOString(),
+            properties: {
+                action: 'search',
+                query: params.query,
+                filters: params.filters,
+                resultCount: params.resultCount,
+            },
+        });
+    }
 
-/**
- * Track a page view.
- * Call on every page navigation.
- */
-export function trackPageView(params: {
-    anonymousId: string;
-    userId?: string;
-    pageType?: 'landing' | 'comparison' | 'roi' | 'project' | 'guide' | 'chat' | 'other';
-}): void {
-    sendWebhook('/page-view', {
-        eventType: 'page_view',
-        userId: params.userId,
-        anonymousId: params.anonymousId,
-        url: typeof window !== 'undefined' ? window.location.href : '',
-        pageType: params.pageType || 'other',
-        referrer: typeof document !== 'undefined' ? document.referrer : '',
-        utmParams: typeof window !== 'undefined'
-            ? Object.fromEntries(new URLSearchParams(window.location.search).entries())
-            : {},
-        timestamp: new Date().toISOString(),
-    });
-}
-
+    /**
+     * Track a user memory update (budget, location preferences, etc.).
+     * Call when the user's investment profile is updated or inferred.
+     */
+    export function trackUserMemoryUpdate(params: {
+        anonymousId: string;
+        userId?: string;
+        budgetRange?: { min: number; max: number; currency: string };
+        preferredLocations?: string[];
+        preferredDevelopers?: string[];
+        propertyTypes?: string[];
+    }): void {
+        sendWebhook('/user-memory-update', {
+            eventType: 'user_memory_update',
+            userId: params.userId,
+            anonymousId: params.anonymousId,
+            preferences: {
+                budgetRange: params.budgetRange,
+                preferredLocations: params.preferredLocations,
+                preferredDevelopers: params.preferredDevelopers,
 /**
  * Track a signup or waitlist join.
  * Call after successful registration.

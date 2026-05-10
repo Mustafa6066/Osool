@@ -188,6 +188,7 @@ export default function AgentInterface() {
 
   /* ── Fetch past sessions ── */
   useEffect(() => {
+    if (!user) return;
     if (hasFetchedHistory.current) return;
     hasFetchedHistory.current = true;
     api.get('/api/chat/history').then(res => {
@@ -196,7 +197,7 @@ export default function AgentInterface() {
       );
       setPastSessions(sessions);
     }).catch(() => {});
-  }, []);
+  }, [user]);
 
   /* ── Scroll management ── */
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {

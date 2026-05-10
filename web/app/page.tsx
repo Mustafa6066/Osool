@@ -1,230 +1,392 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { motion, useReducedMotion } from 'framer-motion';
 import {
-  ArrowRight, Sparkles, ShieldCheck, LineChart, BrainCircuit,
+    ArrowRight, Building2, TrendingUp, GitCompare,
+    BarChart3, Sparkles
 } from 'lucide-react';
-import AppShell from '@/components/nav/AppShell';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-const SPRING_UP = { type: 'spring' as const, damping: 28, stiffness: 210 };
-
-const CAPABILITIES = [
-  {
-    key: 'market-intel',
-    icon: LineChart,
-    enTitle: 'Market Intelligence',
-    arTitle: 'ذكاء السوق',
-    enDesc: 'Reads pricing shifts, rental yield movement, and local momentum signals in real-time.',
-    arDesc: 'يرصد تغيرات الأسعار وعوائد الإيجار وإشارات الزخم المحلي في الوقت الحقيقي.',
-  },
-  {
-    key: 'risk-audit',
-    icon: ShieldCheck,
-    enTitle: 'Risk Audit',
-    arTitle: 'تدقيق المخاطر',
-    enDesc: 'Highlights delivery risk, developer reliability, and downside exposure before commitment.',
-    arDesc: 'يكشف مخاطر التسليم وموثوقية المطور والتعرض للهبوط قبل اتخاذ القرار.',
-  },
-  {
-    key: 'decision-agent',
-    icon: BrainCircuit,
-    enTitle: 'Decision Agent',
-    arTitle: 'وكيل القرار',
-    enDesc: 'Turns natural language goals into ranked opportunities and next best actions.',
-    arDesc: 'يحوّل أهدافك المكتوبة إلى فرص مرتبة وخطوات عملية تالية.',
-  },
-];
+import ProfileDropdown from '@/components/ProfileDropdown';
+import InvitationModal from '@/components/InvitationModal';
+import ThemeToggle from '@/components/ThemeToggle';
+import LanguageToggle from '@/components/LanguageToggle';
+import AICapabilityShowcase from '@/components/AICapabilityShowcase';
 
 export default function Home() {
-  const { language, t } = useLanguage();
-  const isAr = language === 'ar';
-  const prefersReducedMotion = useReducedMotion();
+    const { isAuthenticated, loading, user } = useAuth();
+    const { t, language } = useLanguage();
+    const [showInvitationModal, setShowInvitationModal] = useState(false);
 
-  return (
-    <AppShell>
-      <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-28 left-[20%] h-72 w-72 rounded-full bg-emerald-500/8 blur-[90px]" />
-          <div className="absolute top-[30%] right-[12%] h-64 w-64 rounded-full bg-teal-500/8 blur-[90px]" />
-        </div>
+    const developers = ['EMAAR', 'SODIC', 'ORASCOM', 'PALM HILLS', 'MOUNTAIN VIEW', 'TMG'];
 
-        {/* Hero */}
-        <section className="relative mx-auto max-w-6xl px-4 pt-16 pb-12 sm:px-6 lg:px-10">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-            <motion.div
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 28 }}
-              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={prefersReducedMotion ? { duration: 0 } : SPRING_UP}
-              dir={isAr ? 'rtl' : 'ltr'}
-            >
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-                <Sparkles className="h-3.5 w-3.5" />
-                {isAr ? 'محرك قرار استثماري' : 'Investment Decision Engine'}
-              </div>
+    return (
+        <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)] selection:bg-emerald-500/20 selection:text-emerald-200 overflow-x-hidden">
+            {/* Invitation Modal */}
+            <InvitationModal
+                isOpen={showInvitationModal}
+                onClose={() => setShowInvitationModal(false)}
+            />
 
-              <h1 className="mt-6 text-4xl font-semibold tracking-tight text-[var(--color-text-primary)] sm:text-5xl lg:text-6xl leading-[1.05]">
-                {isAr
-                  ? (
-                    <>
-                      قرارات استثمار عقاري
-                      <br />
-                      أوضح وأهدأ
-                    </>
-                  )
-                  : (
-                    <>
-                      Confident Real Estate Decisions
-                      <br />
-                      With Less Noise
-                    </>
-                  )}
-              </h1>
+            {/* Floating Navigation */}
+            <header className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4">
+                <div className="flex items-center justify-between h-14 w-full max-w-5xl bg-[var(--color-surface)]/80 backdrop-blur-2xl border border-[var(--color-border)]/50 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.04)] px-4 sm:px-6">
+                    {/* Logo */}
+                    <Link href="/" className="flex items-center gap-2.5 group">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-900 to-gray-700 dark:from-white dark:to-gray-200 flex items-center justify-center text-white dark:text-gray-900 shadow-sm transition-transform group-hover:scale-105 group-hover:shadow-md">
+                            <span className="text-[11px] font-bold tracking-wider">OA</span>
+                        </div>
+                        <span className="text-[15px] font-semibold tracking-tight text-[var(--color-text-primary)]">Osool<span className="text-emerald-500">.ai</span></span>
+                    </Link>
 
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-[var(--color-text-secondary)] sm:text-lg">
-                {isAr
-                  ? 'أصول يحوّل بيانات السوق المعقدة إلى توصية عملية: ماذا تشتري، لماذا، وما مستوى المخاطرة.'
-                  : 'Osool turns complex market data into an actionable recommendation: what to buy, why, and with which risk level.'}
-              </p>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                        {!loading && !isAuthenticated && (
+                            <Link href="/login" className="hidden md:block text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-gray-100 dark:hover:bg-gray-800/80 rounded-full transition-all px-4 py-2">
+                                Log in
+                            </Link>
+                        )}
+                        <LanguageToggle />
+                        <ThemeToggle />
 
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Link
-                  href="/chat"
-                  className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-background)] transition-transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {t('landing.ctaStart')}
-                </Link>
-                <Link
-                  href="/explore"
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
-                >
-                  {t('landing.ctaExplore')}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-            </motion.div>
+                        {loading ? (
+                            <div className="w-24 h-9 bg-[var(--color-surface-hover)] rounded-full animate-pulse ml-2" />
+                        ) : isAuthenticated ? (
+                            <>
+                                <button
+                                    onClick={() => setShowInvitationModal(true)}
+                                    className="bg-gray-100 dark:bg-gray-800/80 text-[var(--color-text-primary)] text-[13px] font-medium py-2 px-4 rounded-full transition-all hover:bg-gray-200 dark:hover:bg-gray-700 hidden sm:flex items-center gap-2"
+                                >
+                                    <span>Invite</span>
+                                    <ArrowRight size={14} strokeWidth={2} />
+                                </button>
+                                <div className="ml-1">
+                                    <ProfileDropdown onGenerateInvitation={() => setShowInvitationModal(true)} />
+                                </div>
+                            </>
+                        ) : (
+                            <Link href="/signup" className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[13px] font-semibold py-2 px-5 rounded-full transition-transform hover:scale-105 active:scale-95 shadow-sm flex items-center gap-2 ml-2">
+                                <span>Get Started</span>
+                                <ArrowRight size={14} strokeWidth={2} />
+                            </Link>
+                        )}
+                    </div>
+                </div>
+            </header>
 
-            {/* AI visual panel */}
-            <motion.div
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 28 }}
-              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={prefersReducedMotion ? { duration: 0 } : { ...SPRING_UP, delay: 0.1 }}
-              className="relative"
-            >
-              <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">
-                    {isAr ? 'ملخص ثقة القرار' : 'Decision Confidence Summary'}
-                  </div>
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            {/* Hero Section */}
+            <section className="relative px-4 pt-36 pb-20 md:pt-44 md:pb-28 max-w-6xl mx-auto w-full">
+                <div className="flex flex-col items-center text-center gap-6">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/8 border border-emerald-500/15 mb-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">AI-Powered Real Estate Intelligence</span>
+                    </div>
+
+                    <h1 className="text-[3rem] sm:text-[4rem] lg:text-[5rem] font-semibold leading-[1.05] tracking-tight max-w-4xl">
+                        The intelligence behind your{' '}
+                        <span className="text-emerald-500">next investment</span>
+                    </h1>
+
+                    <p className="text-[17px] md:text-lg text-[var(--color-text-secondary)] font-medium leading-relaxed max-w-2xl mt-2">
+                        CoInvestor analyzes the Egyptian real estate market with AI precision. Get instant insights on pricing, ROI forecasts, and developer audits.
+                    </p>
+
+                    <div className="flex flex-wrap gap-4 mt-6 justify-center">
+                        <Link
+                            href={isAuthenticated ? "/chat" : "/login"}
+                            className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 h-12 px-8 rounded-full font-semibold text-[15px] hover:scale-105 active:scale-95 transition-all shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center gap-2"
+                        >
+                            Start Analysis
+                            <ArrowRight size={18} strokeWidth={2.5} />
+                        </Link>
+                        <Link
+                            href="#demo"
+                            className="h-12 px-8 rounded-full font-semibold text-[15px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm transition-all flex items-center shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
+                        >
+                            View Demo
+                        </Link>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-8 text-sm text-[var(--color-text-muted)]">
+                        <div className="flex -space-x-1.5">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="w-6 h-6 rounded-full border-2 border-[var(--color-background)] bg-emerald-500/20" />
+                            ))}
+                        </div>
+                        <p className="text-xs">Trusted by 2,000+ investors</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Dashboard Preview */}
+            <section className="px-4 pb-20 max-w-5xl mx-auto">
+                <div className="relative bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-2xl shadow-black/5 dark:shadow-black/30 overflow-hidden">
+                    {/* Window Chrome */}
+                    <div className="px-5 py-3 border-b border-[var(--color-border)] flex items-center gap-2">
+                        <div className="flex gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-text-muted)]/20" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-text-muted)]/20" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-text-muted)]/20" />
+                        </div>
+                        <div className="flex-1 flex justify-center">
+                            <div className="px-3 py-0.5 bg-[var(--color-background)] rounded text-[10px] font-mono text-[var(--color-text-muted)]">
+                                coinvestor.osool.ai
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 md:p-8 flex flex-col gap-5">
+                        {/* Stats */}
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="bg-[var(--color-background)] p-4 rounded-xl border border-[var(--color-border)]">
+                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">New Capital Growth</p>
+                                <div className="flex items-baseline gap-1.5">
+                                    <span className="text-xl font-semibold">+12.4%</span>
+                                    <span className="text-[10px] text-emerald-500 font-medium">YTD</span>
+                                </div>
+                            </div>
+                            <div className="bg-[var(--color-background)] p-4 rounded-xl border border-[var(--color-border)]">
+                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Predicted ROI</p>
+                                <div className="flex items-baseline gap-1.5">
+                                    <span className="text-xl font-semibold">18%</span>
+                                    <span className="text-[10px] text-[var(--color-text-muted)]">Annual</span>
+                                </div>
+                            </div>
+                            <div className="bg-[var(--color-background)] p-4 rounded-xl border border-[var(--color-border)]">
+                                <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Liquidity Score</p>
+                                <div className="flex items-baseline gap-1.5">
+                                    <span className="text-xl font-semibold">87</span>
+                                    <span className="text-[10px] text-emerald-500 font-medium">/100</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Chart */}
+                        <div className="bg-[var(--color-background)] rounded-xl border border-[var(--color-border)] p-5 relative h-48">
+                            <div className="absolute top-4 left-5 flex items-center gap-2">
+                                <span className="text-xs font-medium text-[var(--color-text-primary)]">Price Trend</span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-medium">Live</span>
+                            </div>
+                            <svg className="w-full h-full" viewBox="0 0 400 160" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="rgb(16,185,129)" stopOpacity="0.15" />
+                                        <stop offset="100%" stopColor="rgb(16,185,129)" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                <path d="M0,130 Q40,120 80,100 T160,90 T240,60 T320,45 L400,20 L400,160 L0,160 Z" fill="url(#chartGradient)" />
+                                <path d="M0,130 Q40,120 80,100 T160,90 T240,60 T320,45 L400,20" fill="none" stroke="rgb(16,185,129)" strokeWidth="2" strokeLinecap="round" />
+                                <circle cx="400" cy="20" r="3" fill="rgb(16,185,129)" className="animate-pulse" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Developer Ticker */}
+            <section id="developers" className="border-y border-[var(--color-border)] py-8 overflow-hidden">
+                <div className="max-w-6xl mx-auto px-4 mb-4">
+                    <p className="text-center text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-[0.15em]">
+                        Trusted insights on properties from
+                    </p>
+                </div>
+                <div className="relative flex overflow-x-hidden">
+                    <div className="animate-marquee whitespace-nowrap flex items-center gap-16 px-8 opacity-40">
+                        {[...developers, ...developers].map((dev, idx) => (
+                            <span key={idx} className="text-xl font-semibold text-[var(--color-text-muted)] tracking-wide">
+                                {dev}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Feature Grid */}
+            <section id="market" className="py-24 px-4 max-w-5xl mx-auto w-full">
+                <div className="flex flex-col gap-3 mb-14 max-w-xl">
+                    <h2 className="text-3xl md:text-4xl font-medium tracking-tight">
+                        Smarter investment decisions
+                    </h2>
+                    <p className="text-[var(--color-text-secondary)]">
+                        AI-powered tools to uncover hidden opportunities in the Egyptian property market.
+                    </p>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-                      {isAr ? 'يعتمد التقييم على' : 'Assessment Inputs'}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Real-time Analysis */}
+                    <div className="md:col-span-2 group relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7 hover:border-emerald-500/20 transition-all duration-300">
+                        <div className="flex flex-col h-full justify-between">
+                            <div>
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/8 flex items-center justify-center text-emerald-500 mb-5">
+                                    <BarChart3 size={20} />
+                                </div>
+                                <h3 className="text-xl font-medium mb-2">Real-time Analysis</h3>
+                                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-md">
+                                    Live data tracking market trends across Cairo, New Capital, and North Coast. Thousands of data points processed daily.
+                                </p>
+                            </div>
+                            <div className="mt-6">
+                                <Link href="/chat" className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium text-sm group/link">
+                                    <span>View Market Report</span>
+                                    <ArrowRight size={14} className="group-hover/link:translate-x-0.5 transition-transform" />
+                                </Link>
+                            </div>
+                        </div>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                      <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[var(--color-text-secondary)]">{isAr ? 'اتجاه السعر' : 'Price Trend'}</span>
-                      <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[var(--color-text-secondary)]">{isAr ? 'جودة التسليم' : 'Delivery Reliability'}</span>
-                      <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[var(--color-text-secondary)]">{isAr ? 'مرونة السداد' : 'Payment Flexibility'}</span>
-                    </div>
-                  </div>
 
-                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                    <div className="flex items-center justify-between text-[11px] text-[var(--color-text-muted)]">
-                      <span>{isAr ? 'مستوى الثقة الحالي' : 'Current Confidence'}</span>
-                      <span className="font-semibold text-emerald-600">94%</span>
+                    {/* ROI Forecasting */}
+                    <div className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7 hover:border-emerald-500/20 transition-all duration-300">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/8 flex items-center justify-center text-emerald-500 mb-5">
+                            <TrendingUp size={20} />
+                        </div>
+                        <h3 className="text-lg font-medium mb-2">ROI Forecasting</h3>
+                        <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mb-5">
+                            Predictive models estimate future value growth over 5 and 10 years.
+                        </p>
+                        <div className="h-20 w-full bg-[var(--color-background)] rounded-lg border border-[var(--color-border)] flex items-end px-2 pb-2 gap-1">
+                            {[40, 55, 45, 70, 85].map((height, idx) => (
+                                <div key={idx} className="w-1/5 bg-emerald-500 rounded-sm transition-all" style={{ height: `${height}%`, opacity: 0.15 + (idx * 0.2) }} />
+                            ))}
+                        </div>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-emerald-500/15">
-                      <motion.div
-                        initial={prefersReducedMotion ? false : { scaleX: 0 }}
-                        whileInView={prefersReducedMotion ? undefined : { scaleX: 1 }}
-                        viewport={{ once: true }}
-                        transition={prefersReducedMotion ? { duration: 0 } : { duration: 1.2, ease: 'easeOut' }}
-                        className="h-full rounded-full bg-emerald-500 origin-left"
-                        style={{ width: '94%' }}
-                      />
+
+                    {/* Developer Comparisons */}
+                    <div className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7 hover:border-emerald-500/20 transition-all duration-300">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/8 flex items-center justify-center text-emerald-500 mb-5">
+                            <GitCompare size={20} />
+                        </div>
+                        <h3 className="text-lg font-medium mb-2">Developer Comparisons</h3>
+                        <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                            Unbiased side-by-side comparisons. Delivery history, finish quality, and resale value retention.
+                        </p>
                     </div>
-                  </div>
+
+                    {/* AI Chat Demo */}
+                    <div id="demo" className="md:col-span-2 group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-dark,var(--color-surface))] p-7 hover:border-emerald-500/20 transition-all duration-300 scroll-mt-24 overflow-hidden relative">
+                        <div className="flex flex-col sm:flex-row gap-6 items-start">
+                            <div className="flex-1">
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/15 mb-4">
+                                    <Sparkles size={12} className="text-emerald-500" />
+                                    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">CoInvestor Assistant</span>
+                                </div>
+                                <h3 className="text-xl font-medium mb-2">Ask CoInvestor Anything</h3>
+                                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mb-5">
+                                    &ldquo;Average price per meter in Sheikh Zayed?&rdquo;<br />
+                                    &ldquo;Compare Zed Towers vs. O West payment plans.&rdquo;
+                                </p>
+                                <Link
+                                    href={isAuthenticated ? "/chat" : "/login"}
+                                    className="bg-[var(--color-text-primary)] text-[var(--color-background)] px-5 py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity inline-block"
+                                >
+                                    Try AI Chat
+                                </Link>
+                            </div>
+                            <div className="w-full sm:w-5/12 bg-[var(--color-background)] rounded-xl p-4 border border-[var(--color-border)] flex flex-col gap-2.5">
+                                <div className="self-end bg-[var(--color-surface)] text-[var(--color-text-primary)] text-xs p-3 rounded-2xl rounded-br-md max-w-[90%] border border-[var(--color-border)]">
+                                    Is it a good time to buy in New Alamein?
+                                </div>
+                                <div className="self-start text-[var(--color-text-secondary)] text-xs p-3 max-w-[90%] leading-relaxed">
+                                    <span className="text-emerald-500 font-medium block mb-1 text-[10px] uppercase tracking-wider">CoInvestor Analysis</span>
+                                    Seasonal demand is peaking. Prices rose 8% in Q1 2024. Rental yields averaging 7-9%.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
+            </section>
 
-        {/* Capabilities */}
-        <section className="mx-auto max-w-6xl px-4 pb-14 sm:px-6 lg:px-10">
-          <div className="mb-6" dir={isAr ? 'rtl' : 'ltr'}>
-            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
-              {isAr ? 'قدرات الذكاء الاصطناعي في أصول' : 'What Osool AI Does Best'}
-            </h2>
-            <p className="mt-2 text-sm sm:text-base text-[var(--color-text-secondary)] max-w-2xl">
-              {isAr
-                ? 'تصميم بسيط، تحليلات عميقة، ومخرجات قابلة للتنفيذ فوراً.'
-                : 'Minimal interface, deep analytics, and actionable outputs in seconds.'}
-            </p>
-          </div>
+            {/* AI Capability Showcase */}
+            <AICapabilityShowcase />
 
-          <div className="grid gap-4 md:grid-cols-3">
-            {CAPABILITIES.map((cap, i) => {
-              const Icon = cap.icon;
-              return (
-                <motion.div
-                  key={cap.key}
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 22 }}
-                  whileInView={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-5%' }}
-                  transition={prefersReducedMotion ? { duration: 0 } : { ...SPRING_UP, delay: i * 0.08 }}
-                  className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-600">
-                      <Icon className="h-5 w-5" />
+            {/* CTA */}
+            <section className="py-24 border-t border-[var(--color-border)]">
+                <div className="max-w-2xl mx-auto px-4 text-center">
+                    <h2 className="text-3xl md:text-4xl font-medium mb-4 tracking-tight">
+                        Ready to invest with confidence?
+                    </h2>
+                    <p className="text-[var(--color-text-secondary)] mb-8 max-w-lg mx-auto">
+                        Join the waiting list for CoInvestor Premium and get exclusive access to off-market opportunities.
+                    </p>
+                    {!isAuthenticated && (
+                        <Link
+                            href="/signup"
+                            className="inline-flex h-11 px-7 items-center rounded-xl bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium text-sm hover:opacity-90 transition-opacity"
+                        >
+                            Get Early Access
+                        </Link>
+                    )}
+                </div>
+            </section>
+
+            {/* Explore SEO Section */}
+            <section className="py-16 border-t border-[var(--color-border)]">
+                <div className="max-w-5xl mx-auto px-4">
+                    <h2 className="text-2xl font-medium mb-6 text-center tracking-tight">
+                        Explore the Egyptian Market
+                    </h2>
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <Link
+                            href="/developers"
+                            className="group p-5 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all bg-[var(--color-surface)]"
+                        >
+                            <p className="font-semibold group-hover:text-emerald-500 transition-colors">Top Developers</p>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                Compare 14+ Egyptian developers by delivery, quality, and resale scores.
+                            </p>
+                        </Link>
+                        <Link
+                            href="/areas"
+                            className="group p-5 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all bg-[var(--color-surface)]"
+                        >
+                            <p className="font-semibold group-hover:text-emerald-500 transition-colors">Investment Areas</p>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                12 high-growth areas with price trends, rental yields, and project availability.
+                            </p>
+                        </Link>
+                        <Link
+                            href="/projects"
+                            className="group p-5 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all bg-[var(--color-surface)]"
+                        >
+                            <p className="font-semibold group-hover:text-emerald-500 transition-colors">Verified Projects</p>
+                            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                30+ compounds, resorts, and towers with pricing and payment plans.
+                            </p>
+                        </Link>
                     </div>
-                    <div className="h-2 w-2 rounded-full bg-emerald-500/70" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-semibold text-[var(--color-text-primary)]" dir={isAr ? 'rtl' : 'ltr'}>
-                    {isAr ? cap.arTitle : cap.enTitle}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]" dir={isAr ? 'rtl' : 'ltr'}>
-                    {isAr ? cap.arDesc : cap.enDesc}
-                  </p>
-                </motion.div>
-              );
-            })}
-          </div>
-        </section>
+                </div>
+            </section>
 
-        {/* Final CTA */}
-        <section className="mx-auto max-w-4xl px-4 pb-20 text-center sm:px-6 lg:px-10">
-          <motion.div
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 22 }}
-            whileInView={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={prefersReducedMotion ? { duration: 0 } : SPRING_UP}
-            className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-10"
-          >
-            <h2 className="text-2xl font-semibold tracking-tight text-[var(--color-text-primary)] sm:text-3xl" dir={isAr ? 'rtl' : 'ltr'}>
-              {isAr ? 'ابدأ جلسة التحليل الآن' : 'Start Your Analysis Session'}
-            </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-[var(--color-text-secondary)]" dir={isAr ? 'rtl' : 'ltr'}>
-              {isAr
-                ? 'اكتب هدفك الاستثماري، ودع أصول يقترح لك أفضل الفرص مع تحليل المخاطر والعائد.'
-                : 'Describe your investment goal and let Osool return ranked opportunities with risk and return diagnostics.'}
-            </p>
-            <Link
-              href="/chat"
-              className="mt-7 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
-            >
-              <Sparkles className="h-4 w-4" />
-              {t('landing.ctaButton')}
-            </Link>
-          </motion.div>
-        </section>
-      </div>
-    </AppShell>
-  );
+            {/* Footer */}
+            <footer className="border-t border-[var(--color-border)] py-10">
+                <div className="max-w-5xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded bg-[var(--color-text-primary)] text-[var(--color-background)] flex items-center justify-center">
+                            <span className="text-[7px] font-bold">A</span>
+                        </div>
+                        <span className="text-sm font-medium">CoInvestor</span>
+                    </div>
+                    <div className="flex gap-6 text-xs text-[var(--color-text-muted)]">
+                        <Link href="/developers" className="hover:text-[var(--color-text-primary)] transition-colors">Developers</Link>
+                        <Link href="/areas" className="hover:text-[var(--color-text-primary)] transition-colors">Areas</Link>
+                        <Link href="/projects" className="hover:text-[var(--color-text-primary)] transition-colors">Projects</Link>
+                        <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Privacy</a>
+                        <a href="#" className="hover:text-[var(--color-text-primary)] transition-colors">Terms</a>
+                    </div>
+                    <div className="text-xs text-[var(--color-text-muted)]">
+                        © 2024 CoInvestor Intelligence
+                    </div>
+                </div>
+            </footer>
+
+            <style jsx global>{`
+                html { scroll-behavior: smooth; }
+                @keyframes marquee {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+                .animate-marquee { animation: marquee 30s linear infinite; }
+            `}</style>
+        </main>
+    );
 }

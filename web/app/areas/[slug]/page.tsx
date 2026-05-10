@@ -1,15 +1,8 @@
 import { getArea, getAreaProjects, getAreaPriceHistory } from '@/lib/seo-api';
-import { areaJsonLd } from '@/lib/json-ld';
-import { getEnrichedSEO } from '@/lib/seo-content';
-import { EnrichedBody, LivePropertyCards } from '@/components/seo/EnrichedContent';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import AppShell from '@/components/nav/AppShell';
-import { areaBrief, formatRate } from '@/lib/decision-support';
-import { T } from '@/components/T';
-
-export const revalidate = 3600; // ISR: 1 hour
+import SmartNav from '@/components/SmartNav';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -41,87 +34,57 @@ export default async function AreaPage({ params }: Props) {
     notFound();
   }
 
-  // Fetch AI-generated enriched content from Orchestrator (non-blocking)
-  const enrichedContent = await getEnrichedSEO('location_guide', slug).catch(() => null);
-
-  const brief = areaBrief(area);
-
   return (
-    <AppShell>
-    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(areaJsonLd(area)) }}
-      />
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+    <SmartNav>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)] pb-20 md:pb-0">
+      <div className="max-w-5xl mx-auto px-4 py-10">
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
-          <Link href="/areas" className="hover:text-emerald-500"><T k="comparePage.areas" /></Link>
+          <Link href="/areas" className="hover:text-emerald-500">Areas</Link>
           <span className="mx-2">/</span>
           <span>{area.name}</span>
         </nav>
 
-        <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
-          <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
-              {brief.strategy}
-            </div>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight">{area.name}</h1>
-            {area.name_ar && (
-              <p className="mt-2 text-lg text-[var(--color-text-muted)]" dir="rtl">{area.name_ar}</p>
-            )}
-            <p className="mt-5 max-w-3xl text-base leading-7 text-[var(--color-text-secondary)]">
-              {area.description || brief.thesis}
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="areaPage.bestFor" /></div>
-              <div className="mt-2 text-base font-semibold">{brief.bestFor}</div>
-            </div>
-            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="areaPage.mainWatchout" /></div>
-              <div className="mt-2 text-base font-semibold">{brief.risk}</div>
-            </div>
-          </div>
-        </section>
+        <h1 className="text-3xl font-bold mb-2">{area.name}</h1>
+        {area.name_ar && (
+          <p className="text-lg text-[var(--color-text-muted)] mb-4" dir="rtl">{area.name_ar}</p>
+        )}
+        <p className="text-[var(--color-text-secondary)] max-w-3xl mb-8">
+          {area.description}
+        </p>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
             <div className="text-2xl font-bold text-emerald-500">
               {area.avg_price_per_meter ? `${(area.avg_price_per_meter / 1000).toFixed(0)}K` : '—'}
             </div>
-            <div className="text-xs text-[var(--color-text-muted)]"><T k="areaPage.egpSqm" /></div>
+            <div className="text-xs text-[var(--color-text-muted)]">EGP/sqm</div>
           </div>
           <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-            <div className="text-2xl font-bold text-[var(--color-primary-dark)]">{formatRate(area.price_growth_ytd)}</div>
-            <div className="text-xs text-[var(--color-text-muted)]"><T k="areaPage.yoyGrowth" /></div>
+            <div className="text-2xl font-bold text-blue-500">{area.price_growth_ytd}%</div>
+            <div className="text-xs text-[var(--color-text-muted)]">YoY Growth</div>
           </div>
           <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-            <div className="text-2xl font-bold text-[var(--color-teal-accent)]">{formatRate(area.rental_yield)}</div>
-            <div className="text-xs text-[var(--color-text-muted)]"><T k="areaPage.rentalYield" /></div>
+            <div className="text-2xl font-bold text-purple-500">{area.rental_yield}%</div>
+            <div className="text-xs text-[var(--color-text-muted)]">Rental Yield</div>
           </div>
           <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
             <div className="text-2xl font-bold">{projects.length}</div>
-            <div className="text-xs text-[var(--color-text-muted)]"><T k="areaPage.projectsCount" /></div>
+            <div className="text-xs text-[var(--color-text-muted)]">Projects</div>
           </div>
         </div>
 
         {/* Price History Table */}
-        {priceHistory?.length > 0 && (
-          <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-            <h2 className="text-xl font-semibold mb-4"><T k="areaPage.priceHistoryTitle" /></h2>
-            <p className="mb-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-              <T k="areaPage.priceHistoryNote" />
-            </p>
+        {priceHistory.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-xl font-semibold mb-4">Price History (Last 12 Months)</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--color-border)]">
-                    <th className="text-left py-2 px-3"><T k="areaPage.date" /></th>
-                    <th className="text-right py-2 px-3"><T k="areaPage.avgPrice" /></th>
-                    <th className="text-right py-2 px-3"><T k="areaPage.transactions" /></th>
+                    <th className="text-left py-2 px-3">Date</th>
+                    <th className="text-right py-2 px-3">Avg EGP/sqm</th>
+                    <th className="text-right py-2 px-3">Transactions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -144,10 +107,10 @@ export default async function AreaPage({ params }: Props) {
 
         {/* Projects in Area */}
         <h2 className="text-xl font-semibold mb-4">
-          <T k="areaPage.projectsIn" /> {area.name} ({(projects || []).length})
+          Projects in {area.name} ({projects.length})
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
-          {(projects || []).map((p) => (
+          {projects.map((p) => (
             <Link
               key={p.id}
               href={`/projects/${p.slug}`}
@@ -158,7 +121,7 @@ export default async function AreaPage({ params }: Props) {
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">
                   {p.project_type}
                 </span>
-                {p.expected_delivery && <span><T k="projPage.delivery" /> {new Date(p.expected_delivery).getFullYear()}</span>}
+                {p.expected_delivery && <span>Delivery {new Date(p.expected_delivery).getFullYear()}</span>}
               </div>
               {p.min_price_per_meter && p.max_price_per_meter && (
                 <div className="mt-2 text-sm">
@@ -168,26 +131,8 @@ export default async function AreaPage({ params }: Props) {
             </Link>
           ))}
         </div>
-
-        {/* Orchestrator AI-Generated Area Guide */}
-        {enrichedContent && (
-          <EnrichedBody content={enrichedContent} />
-        )}
-
-        {/* Live Top-ROI Properties from Orchestrator */}
-        {enrichedContent?.liveData?.topROIProperties && (
-          <LivePropertyCards properties={enrichedContent.liveData.topROIProperties} />
-        )}
-
-        <div className="rounded-[28px] border border-emerald-500/20 bg-emerald-500/10 p-6 text-center">
-          <h3 className="text-lg font-semibold"><T k="areaPage.wantBest" /></h3>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]"><T k="areaPage.askAdvisor" /></p>
-          <Link href="/chat" className="mt-4 inline-flex rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]">
-            <T k="areaPage.openAdvisor" />
-          </Link>
-        </div>
       </div>
     </main>
-    </AppShell>
+    </SmartNav>
   );
 }

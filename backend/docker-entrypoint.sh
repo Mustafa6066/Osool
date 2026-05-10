@@ -16,7 +16,7 @@ echo -e "${GREEN}[*] Osool Backend Starting...${NC}"
 # ==========================================
 # 1. Wait for Database
 # ==========================================
-echo -e "${YELLOW}[1/7] Waiting for PostgreSQL...${NC}"
+echo -e "${YELLOW}[1/5] Waiting for PostgreSQL...${NC}"
 
 if command -v psql >/dev/null 2>&1 && [ -n "$POSTGRES_HOST" ]; then
     # Traditional docker-compose environment with psql available
@@ -35,7 +35,7 @@ fi
 # ==========================================
 # 2. Wait for Redis
 # ==========================================
-echo -e "${YELLOW}[2/7] Checking Redis...${NC}"
+echo -e "${YELLOW}[2/5] Checking Redis...${NC}"
 
 if [ -n "$REDIS_URL" ]; then
     if command -v redis-cli >/dev/null 2>&1 && [ -n "$REDIS_HOST" ]; then
@@ -58,7 +58,7 @@ fi
 # ==========================================
 # 3. Run Database Migrations
 # ==========================================
-echo -e "${YELLOW}[3/7] Running database migrations...${NC}"
+echo -e "${YELLOW}[3/5] Running database migrations...${NC}"
 
 alembic upgrade head
 
@@ -72,18 +72,15 @@ fi
 # ==========================================
 # 4. Data Ingestion (if database is empty)
 # ==========================================
-echo -e "${YELLOW}[4/7] Checking property data ingestion...${NC}"
+echo -e "${YELLOW}[4/6] Checking property data ingestion...${NC}"
 
 PROPERTY_COUNT=$(python -c "
-import asyncio
-from app.database import AsyncSessionLocal
-from sqlalchemy import select, func
+from app.database import SessionLocal
 from app.models import Property
-async def count():
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(select(func.count(Property.id)))
-        return result.scalar() or 0
-print(asyncio.run(count()))
+db = SessionLocal()
+count = db.query(Property).count()
+db.close()
+print(count)
 " 2>/dev/null || echo "0")
 
 echo "Properties in database: ${PROPERTY_COUNT}"
@@ -91,10 +88,7 @@ echo "Properties in database: ${PROPERTY_COUNT}"
 if [ "$PROPERTY_COUNT" -eq "0" ]; then
     echo -e "${YELLOW}Database is empty - running data ingestion...${NC}"
 
-    PROPERTIES_JSON="data/properties.json"
-    if [ ! -f "$PROPERTIES_JSON" ]; then
-        PROPERTIES_JSON="../data/properties.json"
-    fi
+    PROPERTIES_JSON="../data/properties.json"
     if [ -f "$PROPERTIES_JSON" ]; then
         echo "Found properties.json - ingesting data..."
         python ingest_data_postgres.py
@@ -112,50 +106,19 @@ else
 fi
 
 # ==========================================
-# 5. SEO & Marketing Seed Data (if incomplete)
+# 4.5. Seed Developers & Areas (if empty)
 # ==========================================
-echo -e "${YELLOW}[5/7] Checking SEO seed data...${NC}"
-
-SEO_COUNTS=$(python -c "
-import asyncio
-from app.database import AsyncSessionLocal
-from sqlalchemy import select, func
-from app.models import Developer, Area, SEOProject
-async def check():
-    async with AsyncSessionLocal() as s:
-        devs = (await s.execute(select(func.count(Developer.id)))).scalar() or 0
-        areas = (await s.execute(select(func.count(Area.id)))).scalar() or 0
-        projects = (await s.execute(select(func.count(SEOProject.id)))).scalar() or 0
-        return f'{devs},{areas},{projects}'
-print(asyncio.run(check()))
-" 2>/dev/null || echo "0,0,0")
-
-IFS=',' read -r SEO_DEV_COUNT SEO_AREA_COUNT SEO_PROJECT_COUNT <<EOF
-${SEO_COUNTS}
-EOF
-
-echo "SEO dataset counts: developers=${SEO_DEV_COUNT}, areas=${SEO_AREA_COUNT}, projects=${SEO_PROJECT_COUNT}"
-
-if [ "$SEO_DEV_COUNT" -eq "0" ] || [ "$SEO_AREA_COUNT" -eq "0" ] || [ "$SEO_PROJECT_COUNT" -eq "0" ]; then
-    echo -e "${YELLOW}SEO dataset incomplete - running bootstrap seed...${NC}"
-    python -m scripts.seed_bootstrap
-
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ SEO seed data loaded${NC}"
-    else
-        echo -e "${RED}✗ SEO seed failed - continuing anyway${NC}"
-    fi
-else
-    echo -e "${GREEN}✓ SEO data already seeded (${SEO_DEV_COUNT} developers, ${SEO_AREA_COUNT} areas, ${SEO_PROJECT_COUNT} projects)${NC}"
-fi
+echo -e "${YELLOW}[4.5/6] Seeding developers & areas data if missing...${NC}"
+python check_and_seed.py && echo -e "${GREEN}✓ Developers & areas seeding complete${NC}" || echo -e "${YELLOW}⚠ Developer/area seed warning - continuing anyway${NC}"
 
 # ==========================================
-# 6. Environment Validation (Production Only)
+# 5. Environment Validation (Production Only)
 # ==========================================
 if [ "${ENVIRONMENT}" = "production" ]; then
-    echo -e "${YELLOW}[6/7] Validating production environment...${NC}"
+    echo -e "${YELLOW}[5/6] Validating production environment...${NC}"
 
     REQUIRED_VARS=(
+        "WALLET_ENCRYPTION_KEY"
         "JWT_SECRET_KEY"
         "DATABASE_URL"
         "OPENAI_API_KEY"
@@ -177,13 +140,13 @@ if [ "${ENVIRONMENT}" = "production" ]; then
 
     echo -e "${GREEN}✓ All required environment variables present${NC}"
 else
-    echo -e "${YELLOW}[6/7] Running in ${ENVIRONMENT} mode - skipping strict validation${NC}"
+    echo -e "${YELLOW}[5/6] Running in ${ENVIRONMENT} mode - skipping strict validation${NC}"
 fi
 
 # ==========================================
-# 7. Start Application
+# 6. Start Application
 # ==========================================
-echo -e "${YELLOW}[7/7] Starting application server...${NC}"
+echo -e "${YELLOW}[6/6] Starting application server...${NC}"
 echo -e "${GREEN}[+] Osool Backend is ONLINE${NC}"
 
 # Production: Use Gunicorn with Uvicorn workers

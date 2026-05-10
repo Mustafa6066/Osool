@@ -21,7 +21,6 @@ export async function POST(
 ) {
   if (!ORCHESTRATOR_URL) {
     // Orchestrator not configured — silently accept so the frontend never errors
-    console.warn('⚠️ NEXT_PUBLIC_ORCHESTRATOR_URL not set — webhooks are disabled. Set this env var to enable orchestrator integration.');
     return NextResponse.json({}, { status: 202 });
   }
 
@@ -29,15 +28,12 @@ export async function POST(
   const path = pathSegments.join('/');
   const targetUrl = `${ORCHESTRATOR_URL}/webhooks/${path}`;
 
-  if (!WEBHOOK_SECRET) {
-    console.warn(`[Webhook] ORCHESTRATOR_WEBHOOK_SECRET not set for ${path} — webhook forwarding is disabled.`);
-    return NextResponse.json({ accepted: false, disabled: 'missing_webhook_secret' }, { status: 202 });
-  }
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  headers['x-webhook-secret'] = WEBHOOK_SECRET;
+  if (WEBHOOK_SECRET) {
+    headers['x-webhook-secret'] = WEBHOOK_SECRET;
+  }
 
   // Forward client IP for rate limiting on the Orchestrator side
   const forwarded = request.headers.get('x-forwarded-for');
@@ -51,21 +47,11 @@ export async function POST(
       body,
     });
 
-    if (response.status === 401 || response.status === 403) {
-      const responseBody = await response.text();
-      console.error(`[Webhook] Orchestrator rejected ${path} with ${response.status}. Check ORCHESTRATOR_WEBHOOK_SECRET parity between Vercel and Orchestrator. Response: ${responseBody}`);
-      return NextResponse.json({ accepted: false, disabled: 'webhook_auth_failed' }, { status: 202 });
-    }
-
     // Return the Orchestrator's response status (202, 400, etc.)
     const responseBody = await response.text();
     return new NextResponse(responseBody, { status: response.status });
-  } catch (err) {
-    // Orchestrator unreachable — log for monitoring, but don't fail the client
-    console.error(`[Webhook] Orchestrator unreachable at ${targetUrl}:`, err instanceof Error ? err.message : err);
-    return NextResponse.json(
-      { error: 'orchestrator_unreachable', target: path },
-      { status: 502 }
-    );
+  } catch {
+    // Orchestrator unreachable — silently accept so the frontend never errors
+    return NextResponse.json({}, { status: 202 });
   }
 }

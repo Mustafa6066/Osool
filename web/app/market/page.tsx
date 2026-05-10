@@ -101,6 +101,36 @@ export default function MarketStatisticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const parseDataJsPayload = (txt: string): { properties?: unknown[] } => {
+    const candidates: string[] = [];
+
+    candidates.push(txt.trim());
+
+    const assignMatch = txt.match(/=\s*(\{[\s\S]*\})\s*;?\s*$/);
+    if (assignMatch?.[1]) {
+      candidates.push(assignMatch[1]);
+    }
+
+    const start = txt.indexOf('{');
+    const end = txt.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      candidates.push(txt.slice(start, end + 1));
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(candidate) as { properties?: unknown[] };
+        if (Array.isArray(parsed.properties)) {
+          return parsed;
+        }
+      } catch {
+        // Try the next candidate.
+      }
+    }
+
+    throw new Error('Could not parse market data');
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -108,15 +138,11 @@ export default function MarketStatisticsPage() {
         setError(null);
 
         const response = await fetch('/assets/js/data.js');
-        const text = await response.text();
-        const start = text.indexOf('{');
-        const end = text.lastIndexOf('}');
-
-        if (start === -1 || end === -1) {
-          throw new Error('Could not parse market data');
+        if (!response.ok) {
+          throw new Error(`data.js HTTP ${response.status}`);
         }
-
-        const raw = JSON.parse(text.slice(start, end + 1));
+        const text = await response.text();
+        const raw = parseDataJsPayload(text);
         const properties = raw.properties || [];
         if (!properties.length) {
           throw new Error('No market data available');

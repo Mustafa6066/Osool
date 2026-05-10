@@ -3,12 +3,11 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, UserPlus, Mail, Lock, User, Gift, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { trackSignup } from '@/lib/orchestrator';
 import { getAnonymousId } from '@/lib/session';
-import AppShell from '@/components/nav/AppShell';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
@@ -18,14 +17,6 @@ interface InvitationStatus {
     valid: boolean;
     message: string;
     invited_by?: string;
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-    if (error instanceof Error && error.message) {
-        return error.message;
-    }
-
-    return fallback;
 }
 
 function SignupContent() {
@@ -81,7 +72,7 @@ function SignupContent() {
         } catch (err) {
             setInvitationStatus({
                 valid: false,
-                message: t('signup.validationFailed')
+                message: 'Failed to validate invitation code'
             });
         } finally {
             setIsValidating(false);
@@ -94,14 +85,6 @@ function SignupContent() {
         debounceRef.current = setTimeout(() => validateInvitation(code), 500);
     };
 
-    // Real-time password strength
-    const passwordChecks = {
-        length: password.length >= 8,
-        uppercase: /[A-Z]/.test(password),
-        number: /[0-9]/.test(password),
-    };
-    const passwordValid = passwordChecks.length && passwordChecks.uppercase && passwordChecks.number;
-
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -109,19 +92,19 @@ function SignupContent() {
 
         // Validate inputs
         if (!fullName.trim()) {
-            setError(t('signup.errorNoName'));
+            setError('Please enter your full name');
             return;
         }
         if (!email.trim() || !EMAIL_REGEX.test(email)) {
-            setError(t('signup.errorInvalidEmail'));
+            setError('Please enter a valid email address');
             return;
         }
-        if (!passwordValid) {
-            setError(t('signup.errorWeakPassword'));
+        if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+            setError('Password must be at least 8 characters with 1 uppercase letter and 1 number');
             return;
         }
         if (!invitationCode.trim()) {
-            setError(t('signup.errorNoInvitation'));
+            setError('Invitation code is required. Please request an invitation from an existing user.');
             return;
         }
 
@@ -153,59 +136,33 @@ function SignupContent() {
             localStorage.setItem('user_id', data.user_id);
             contextLogin(data.access_token, data.refresh_token, data.full_name || data.display_name);
 
-            // Notify orchestrator of signup
+            // Notify orchestrator — triggers welcome email sequence + lead scoring
             trackSignup({
+                userId: data.user_id,
                 email,
                 name: fullName,
-                source: invitationCode ? 'invitation' : 'direct',
+                source: 'signup',
                 anonymousId: getAnonymousId(),
-                userId: data.user_id,
             });
 
             // Redirect to chat
             router.push('/chat');
-        } catch (err: unknown) {
-            setError(getErrorMessage(err, 'Signup failed'));
+        } catch (err: any) {
+            setError(err.message);
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <AppShell>
-        <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:py-14">
-            <section className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-10">
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {t('signup.badge')}
-                </div>
-                <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{t('signup.title')}</h1>
-                <p className="mt-4 text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
-                    {t('signup.subtitle')}
-                </p>
-
-                <div className="mt-8 space-y-3">
-                    {[
-                      'signup.benefitShortlists',
-                      'signup.benefitContext',
-                      'signup.benefitGuidance',
-                    ].map((key) => (
-                      <div key={key} className="flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                          <Sparkles className="h-4 w-4" />
-                        </div>
-                        <div className="text-sm leading-6 text-[var(--color-text-primary)]">{t(key)}</div>
-                      </div>
-                    ))}
-                </div>
-            </section>
-
-            <section className="bg-[var(--color-surface)] rounded-[36px] shadow-xl border border-[var(--color-border)] p-8 space-y-6">
-                <div className="space-y-2">
-                    <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center">
+        <div style={{ width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem' }} className="bg-[var(--color-background)]">
+            <div style={{ width: '100%', maxWidth: '28rem' }} className="bg-[var(--color-surface)] rounded-3xl shadow-xl border border-[var(--color-border)] p-8 space-y-6">
+                {/* Header */}
+                <div className="text-center space-y-2">
+                    <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
                         <UserPlus className="w-8 h-8 text-emerald-500" />
                     </div>
-                    <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">{t('auth.joinTitle')}</h2>
+                    <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">{t('auth.joinTitle')}</h1>
                     <p className="text-[var(--color-text-muted)] text-sm">
                         {t('auth.joinSubtitle')}
                     </p>
@@ -254,13 +211,13 @@ function SignupContent() {
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.fullName')}</label>
                         <div className="relative">
-                            <User className="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
                             <input
                                 type="text"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
-                                placeholder={t('signup.namePlaceholder')}
-                                className="w-full ps-10 pe-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 focus-visible:border-[var(--color-primary)] outline-none transition-all"
+                                placeholder="Ahmed Mohamed"
+                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
                     </div>
@@ -269,13 +226,13 @@ function SignupContent() {
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.emailAddress')}</label>
                         <div className="relative">
-                            <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder={t('signup.emailPlaceholder')}
-                                className="w-full ps-10 pe-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 focus-visible:border-[var(--color-primary)] outline-none transition-all"
+                                placeholder="ahmed@example.com"
+                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
                     </div>
@@ -284,42 +241,29 @@ function SignupContent() {
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.password')}</label>
                         <div className="relative">
-                            <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="········"
-                                className="w-full ps-10 pe-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 focus-visible:border-[var(--color-primary)] outline-none transition-all"
+                                placeholder="••••••••"
+                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
-                        {password.length > 0 && (
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                                <span className={`text-xs flex items-center gap-1 ${passwordChecks.length ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.length ? '\u2713' : '\u25CB'} {t('signup.passwordMinChars')}
-                                </span>
-                                <span className={`text-xs flex items-center gap-1 ${passwordChecks.uppercase ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.uppercase ? '\u2713' : '\u25CB'} {t('signup.passwordUppercase')}
-                                </span>
-                                <span className={`text-xs flex items-center gap-1 ${passwordChecks.number ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'}`}>
-                                    {passwordChecks.number ? '\u2713' : '\u25CB'} {t('signup.passwordNumber')}
-                                </span>
-                            </div>
-                        )}
-                        {!password.length && <p className="text-xs text-[var(--color-text-muted)]">{t('auth.minChars')}</p>}
+                        <p className="text-xs text-[var(--color-text-muted)]">{t('auth.minChars')}</p>
                     </div>
 
                     {/* Invitation Code */}
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.invitationCode')}</label>
                         <div className="relative">
-                            <Gift className="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
+                            <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
                             <input
                                 type="text"
                                 value={invitationCode}
                                 onChange={(e) => handleInvitationChange(e.target.value)}
-                                placeholder={t('signup.invitationPlaceholder')}
-                                className="w-full ps-10 pe-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 focus-visible:border-[var(--color-primary)] outline-none transition-all"
+                                placeholder="Enter invitation code"
+                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
                         </div>
                         <p className="text-xs text-[var(--color-text-muted)]">
@@ -347,6 +291,7 @@ function SignupContent() {
                     </button>
                 </form>
 
+                {/* Footer */}
                 <div className="pt-4 text-center border-t border-[var(--color-border)]">
                     <p className="text-sm text-[var(--color-text-muted)]">
                         {t('auth.alreadyHaveAccount')}{' '}
@@ -355,9 +300,8 @@ function SignupContent() {
                         </Link>
                     </p>
                 </div>
-            </section>
+            </div>
         </div>
-        </AppShell>
     );
 }
 
