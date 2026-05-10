@@ -6,6 +6,7 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Sentry } from '@/lib/monitoring';
 
 interface Props {
   children: ReactNode;
@@ -38,9 +39,14 @@ export class ErrorBoundary extends Component<Props, State> {
       this.props.onError(error, errorInfo);
     }
 
-    // TODO: Send error to monitoring service (Sentry, LogRocket, etc.)
-    // Example:
-    // Sentry.captureException(error, { contexts: { react: errorInfo } });
+    // Send error to monitoring service (Relayed via backend to Sentry)
+    Sentry.captureException(error, {
+      contexts: {
+        react: {
+          componentStack: errorInfo.componentStack || undefined
+        }
+      }
+    });
   }
 
   handleReset = () => {

@@ -9,6 +9,7 @@
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ReactNode } from 'react';
+import { Sentry } from '@/lib/monitoring';
 
 export function ErrorBoundaryProvider({ children }: { children: ReactNode }) {
   return (
@@ -17,10 +18,16 @@ export function ErrorBoundaryProvider({ children }: { children: ReactNode }) {
         // Log to console in development
         console.error('App Error:', error, errorInfo);
         
-        // TODO: Send to monitoring service in production
-        // if (process.env.NODE_ENV === 'production') {
-        //   Sentry.captureException(error, { contexts: { react: errorInfo } });
-        // }
+        // Send to monitoring service in production (Relayed via backend)
+        if (process.env.NODE_ENV === 'production') {
+          Sentry.captureException(error, {
+            contexts: {
+              react: {
+                componentStack: errorInfo.componentStack || undefined
+              }
+            }
+          });
+        }
       }}
     >
       {children}
