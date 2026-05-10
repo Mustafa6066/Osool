@@ -42,7 +42,7 @@ function isDarkMode() {
         document.documentElement.getAttribute('data-theme') === 'dark';
 }
 
-export default function NeuralBackground({ phase = 'idle', intensity = 0.22 }: NeuralBackgroundProps) {
+export default function NeuralBackground({ phase = 'idle', intensity = 0.5 }: NeuralBackgroundProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>(0);
 
@@ -72,11 +72,11 @@ export default function NeuralBackground({ phase = 'idle', intensity = 0.22 }: N
         };
 
         const drawBackgroundField = (timestamp: number, dark: boolean) => {
-            const alphaBase = dark ? 0.08 : 0.055;
+            const alphaBase = dark ? 0.15 : 0.12;
             const sweep = (Math.sin(timestamp * 0.00018) + 1) / 2;
 
             const field = ctx.createLinearGradient(0, 0, width, height);
-            field.addColorStop(0, `rgba(${palette.primary}, ${alphaBase * signal})`);
+            field.addColorStop(0, `rgba(${palette.primary}, ${alphaBase * signal * 0.8})`);
             field.addColorStop(0.45, `rgba(${palette.secondary}, ${alphaBase * 0.55 * signal})`);
             field.addColorStop(1, `rgba(${palette.tertiary}, ${alphaBase * 0.38 * signal})`);
             ctx.fillStyle = field;
@@ -84,7 +84,7 @@ export default function NeuralBackground({ phase = 'idle', intensity = 0.22 }: N
 
             const band = ctx.createLinearGradient(width * (0.15 + sweep * 0.35), 0, width * (0.65 + sweep * 0.25), height);
             band.addColorStop(0, `rgba(${palette.tertiary}, 0)`);
-            band.addColorStop(0.48, `rgba(${palette.tertiary}, ${0.035 * signal})`);
+            band.addColorStop(0.48, `rgba(${palette.tertiary}, ${0.08 * signal})`);
             band.addColorStop(1, `rgba(${palette.tertiary}, 0)`);
             ctx.fillStyle = band;
             ctx.fillRect(0, 0, width, height);
@@ -104,8 +104,8 @@ export default function NeuralBackground({ phase = 'idle', intensity = 0.22 }: N
                 ctx.beginPath();
                 ctx.moveTo(a.x, a.y);
                 ctx.lineTo(b.x, b.y);
-                ctx.lineWidth = 1;
-                ctx.strokeStyle = `rgba(${edgeIndex % 3 === 0 ? palette.primary : palette.secondary}, ${(dark ? 0.18 : 0.12) * signal * (0.42 + pulse * 0.58)})`;
+                ctx.lineWidth = 1.2;
+                ctx.strokeStyle = `rgba(${edgeIndex % 3 === 0 ? palette.primary : palette.secondary}, ${(dark ? 0.32 : 0.22) * signal * (0.42 + pulse * 0.58)})`;
                 ctx.stroke();
             });
 
@@ -114,7 +114,7 @@ export default function NeuralBackground({ phase = 'idle', intensity = 0.22 }: N
                 const radius = 1.4 + signal * 2.2 + pulse * 1.2;
                 ctx.beginPath();
                 ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(${index % 2 ? palette.primary : palette.tertiary}, ${(dark ? 0.34 : 0.24) * signal})`;
+                ctx.fillStyle = `rgba(${index % 2 ? palette.primary : palette.tertiary}, ${(dark ? 0.48 : 0.35) * signal})`;
                 ctx.fill();
             });
         };
