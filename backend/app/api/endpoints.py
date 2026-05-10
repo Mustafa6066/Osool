@@ -93,6 +93,15 @@ class HybridValuationRequest(BaseModel):
     is_compound: int = Field(1, description="1 if in gated compound, 0 otherwise")
 
 
+class FrontendErrorRequest(BaseModel):
+    """Request model for reporting frontend errors."""
+    error_message: str = Field(..., description="The error message")
+    error_stack: Optional[str] = Field(None, description="The error stack trace")
+    component_stack: Optional[str] = Field(None, description="The React component stack")
+    user_id: Optional[str] = Field(None, description="The ID of the user who encountered the error")
+    url: Optional[str] = Field(None, description="The URL where the error occurred")
+
+
 
 # Phase 1: Payment request model (kept for Paymob integration)
 class PaymentInitiateRequest(BaseModel):
@@ -260,6 +269,39 @@ async def prometheus_metrics(_key: str = Depends(verify_api_key)):
     """
     from app.services.metrics import metrics_endpoint
     return metrics_endpoint()
+
+
+@router.post("/monitor/frontend-error")
+async def report_frontend_error(req: FrontendErrorRequest):
+    """
+    Relay frontend errors to Sentry.
+    Allows the frontend to report rendering errors without needing the full Sentry SDK.
+    """
+    SENTRY_DSN = os.getenv("SENTRY_DSN")
+    if SENTRY_DSN:
+        try:
+            import sentry_sdk
+            with sentry_sdk.push_scope() as scope:
+                if req.user_id:
+                    scope.set_user({"id": req.user_id})
+                if req.url:
+                    scope.set_tag("url", req.url)
+                scope.set_tag("source", "frontend-boundary")
+                scope.set_context("react", {
+                    "component_stack": req.component_stack,
+                    "error_stack": req.error_stack
+                })
+
+                sentry_sdk.capture_message(
+                    f"Frontend Error: {req.error_message}",
+                    level="error"
+                )
+        except Exception as e:
+            logger.error(f"Failed to relay frontend error to Sentry: {e}")
+
+    # Always log to local console
+    logger.error(f"❌ Frontend Error: {req.error_message} | URL: {req.url}")
+    return {"status": "received"}
 
 
 @router.get("/property/{property_id}")

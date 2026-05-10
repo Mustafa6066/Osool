@@ -117,6 +117,29 @@ export function trackPageView(params: {
 }
 
 /**
+ * Track a frontend error.
+ */
+export function trackError(params: {
+    anonymousId: string;
+    userId?: string;
+    errorMessage: string;
+    errorStack?: string;
+    componentStack?: string;
+    url?: string;
+}): void {
+    sendWebhook('/frontend-error', {
+        eventType: 'frontend_error',
+        userId: params.userId,
+        anonymousId: params.anonymousId,
+        errorMessage: params.errorMessage,
+        errorStack: params.errorStack,
+        componentStack: params.componentStack,
+        url: params.url || (typeof window !== 'undefined' ? window.location.href : ''),
+        timestamp: new Date().toISOString(),
+    });
+}
+
+/**
  * Track a signup or waitlist join.
  * Call after successful registration.
  */
