@@ -13,7 +13,7 @@ interface Column {
     key: string;
     header: string;
     align?: 'left' | 'center' | 'right';
-    format?: (value: any) => string | React.ReactNode;
+    format?: (value: unknown) => string | React.ReactNode;
     width?: string;
 }
 
@@ -21,7 +21,7 @@ interface DataTableProps {
     title?: string;
     subtitle?: string;
     columns: Column[];
-    data: Record<string, any>[];
+    data: Record<string, unknown>[];
     sortable?: boolean;
     striped?: boolean;
     hoverable?: boolean;
@@ -31,7 +31,7 @@ interface DataTableProps {
     maxHeight?: string;
     defaultSortKey?: string;
     defaultSortOrder?: 'asc' | 'desc';
-    onRowClick?: (row: Record<string, any>, index: number) => void;
+    onRowClick?: (row: Record<string, unknown>, index: number) => void;
     emptyMessage?: string;
 }
 

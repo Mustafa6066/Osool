@@ -66,6 +66,28 @@ const fmtPriceFull = (v: number): string => {
     return v.toLocaleString("en-EG");
 };
 
+// Custom tooltip component defined outside to avoid "Cannot create components during render"
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 shadow-xl text-xs" dir="rtl">
+            <p className="font-bold text-[var(--color-text-primary)] mb-1.5">{label}</p>
+            {payload.map((entry: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 mb-0.5">
+                    <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: entry.color }}
+                    />
+                    <span className="text-[var(--color-text-muted)]">{entry.name}:</span>
+                    <span className="font-semibold text-[var(--color-text-primary)] tabular-nums">
+                        {fmtPriceFull(entry.value)} EGP/م²
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 export default function PriceGrowthChart(props: PriceGrowthChartProps) {
     const {
         location,
@@ -103,28 +125,6 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
         current_growth_rate && current_growth_rate < 10
             ? (current_growth_rate * 100).toFixed(0)
             : safeNum(current_growth_rate).toFixed(0);
-
-    // Custom tooltip
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (!active || !payload?.length) return null;
-        return (
-            <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 shadow-xl text-xs" dir="rtl">
-                <p className="font-bold text-[var(--color-text-primary)] mb-1.5">{label}</p>
-                {payload.map((entry: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 mb-0.5">
-                        <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: entry.color }}
-                        />
-                        <span className="text-[var(--color-text-muted)]">{entry.name}:</span>
-                        <span className="font-semibold text-[var(--color-text-primary)] tabular-nums">
-                            {fmtPriceFull(entry.value)} EGP/م²
-                        </span>
-                    </div>
-                ))}
-            </div>
-        );
-    };
 
     return (
         <motion.div

@@ -8,7 +8,6 @@ import {
   RefreshCw,
   Plus,
   Megaphone,
-  DollarSign,
   Eye,
   MousePointer,
   ToggleLeft,

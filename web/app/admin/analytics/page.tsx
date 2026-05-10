@@ -53,7 +53,7 @@ interface MarketSnapshot {
 /* ── Main Component ──────────────────────────────────────── */
 
 export default function AnalyticsDashboard() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);

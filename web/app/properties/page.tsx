@@ -271,7 +271,7 @@ export default function PropertiesPage() {
     };
 
     // Normalize API property to our internal format
-    const normalizeProperty = useCallback((p: any): PropertyItem => {
+    const normalizeProperty = useCallback((p: Partial<PropertyItem> & Record<string, unknown>): PropertyItem => {
         return {
             id: String(p.id),
             title: p.title || p.name || '',
@@ -329,7 +329,7 @@ export default function PropertiesPage() {
             const end = txt.lastIndexOf('}');
             if (start !== -1 && end !== -1) {
                 const raw = JSON.parse(txt.substring(start, end + 1));
-                const props = (raw.properties || []) as any[];
+                const props = (raw.properties || []) as (Partial<PropertyItem> & Record<string, unknown>)[];
                 if (props.length > 0) {
                     const normalized = props.map(normalizeProperty);
                     setProperties(normalized);

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Banknote, Building2, AlertTriangle, ArrowRight } from "lucide-react";
+import { Banknote, Building2, AlertTriangle } from "lucide-react";
 import {
     BarChart,
     Bar,
@@ -175,8 +175,8 @@ export default function CertificatesVsProperty({
                             dataKey="name"
                             type="category"
                             width={200}
-                            tick={(props: any) => {
-                                const { x, y, payload } = props;
+                            tick={(tickProps: any) => {
+                                const { x, y, payload } = tickProps;
                                 return (
                                     <text
                                         x={x}

@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     Shield, Users, MessageSquare, Building2, TrendingUp,
-    Loader2, ChevronRight, Search, RefreshCw, Eye,
+    Loader2, ChevronRight, Search, RefreshCw,
     Activity, Clock, ArrowLeft, Bot, User as UserIcon,
     Database, Zap, AlertCircle, Ticket as TicketIcon, Send
 } from 'lucide-react';
@@ -38,6 +38,12 @@ import {
 
 type Tab = 'overview' | 'conversations' | 'users' | 'scrapers' | 'tickets';
 
+interface MarketIndicator {
+    key: string;
+    value: number;
+    source: string;
+}
+
 export default function AdminPage() {
     const { user, isAuthenticated, loading: authLoading } = useAuth();
     const router = useRouter();
@@ -55,7 +61,7 @@ export default function AdminPage() {
         user: { id: number; email: string; full_name: string; role: string } | null;
         messages: AdminMessage[];
     } | null>(null);
-    const [indicators, setIndicators] = useState<any[]>([]);
+    const [indicators, setIndicators] = useState<MarketIndicator[]>([]);
 
     // Ticket states
     const [adminTickets, setAdminTickets] = useState<AdminTicket[]>([]);
@@ -151,16 +157,13 @@ export default function AdminPage() {
         } finally {
             setLoadingData(false);
         }
-    }, [activeTab, isAdmin]);
+    }, [activeTab, isAdmin, ticketStatusFilter]);
 
     useEffect(() => {
-        if (isAdmin) loadTabData();
-    }, [activeTab, isAdmin]);
-
-    // Reload tickets when status filter changes
-    useEffect(() => {
-        if (isAdmin && activeTab === 'tickets') loadTabData();
-    }, [ticketStatusFilter]);
+        if (isAdmin) {
+            loadTabData();
+        }
+    }, [isAdmin, loadTabData]);
 
     const openConversation = async (sessionId: string) => {
         setLoadingData(true);
@@ -183,9 +186,12 @@ export default function AdminPage() {
                 await triggerEconomicScraper();
             }
             setScraperStatus(`${type} scraper completed successfully.`);
-            if (activeTab === 'scrapers') loadTabData();
+            if (activeTab === 'scrapers') {
+                loadTabData();
+            }
         } catch (err) {
             setScraperStatus(`${type} scraper failed. Check logs.`);
+            console.error(err);
         }
         setTimeout(() => setScraperStatus(null), 5000);
     };
@@ -870,7 +876,7 @@ export default function AdminPage() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {indicators.map((ind: any) => (
+                                                    {indicators.map((ind: MarketIndicator) => (
                                                         <tr key={ind.key} className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors">
                                                             <td className="py-2 px-3 text-[var(--color-text-primary)] font-medium">{ind.key.replace(/_/g, ' ')}</td>
                                                             <td className="py-2 px-3 text-[var(--color-text-primary)] font-mono">

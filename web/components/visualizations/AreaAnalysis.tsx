@@ -3,12 +3,10 @@
 import { motion } from "framer-motion";
 import {
     MapPinIcon,
-    TrendingUpIcon,
     HomeIcon,
     UsersIcon,
     CheckCircleIcon,
     XCircleIcon,
-    BuildingIcon,
     BarChart3Icon
 } from "lucide-react";
 

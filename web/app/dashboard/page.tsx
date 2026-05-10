@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import {
     Gift,
     Copy,
@@ -75,8 +74,9 @@ export default function DashboardPage() {
             const data = await generateInvitation();
             setGeneratedInvite(data);
             await fetchInvitations(); // Refresh list
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to generate invitation');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? (err as any).response?.data?.detail || err.message : 'Failed to generate invitation';
+            setError(errorMessage);
         } finally {
             setIsGenerating(false);
         }

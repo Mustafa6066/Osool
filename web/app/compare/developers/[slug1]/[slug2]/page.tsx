@@ -1,4 +1,4 @@
-import { compareDevelopers, getDeveloper, getDeveloperProjects } from '@/lib/seo-api';
+import { getDeveloper, getDeveloperProjects } from '@/lib/seo-api';
 import { comparisonJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';

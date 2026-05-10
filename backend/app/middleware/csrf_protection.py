@@ -206,7 +206,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             csrf_header = request.headers.get(CSRF_HEADER_NAME)
             
             # Also check body for token (for form submissions)
-             if not csrf_header:
+            if not csrf_header:
                 # Try to get from form data (only for content-type application/x-www-form-urlencoded)
                 content_type = request.headers.get("content-type", "")
                 if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:

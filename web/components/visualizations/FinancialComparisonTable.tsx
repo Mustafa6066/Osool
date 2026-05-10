@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from "@heroicons/react/24/outline";
-import DataTable, { tableFormatters } from "./DataTable";
+import DataTable from "./DataTable";
 
 interface ComparisonRow {
     label: string;
