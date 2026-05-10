@@ -8,6 +8,11 @@ import { useReportWebVitals } from 'next/web-vitals';
  */
 export function WebVitalsReporter() {
   useReportWebVitals((metric) => {
+    // Keep this fully opt-in to avoid noisy console errors on clients that block analytics endpoints.
+    if (process.env.NEXT_PUBLIC_ENABLE_WEB_VITALS_REPORTING !== 'true') {
+      return;
+    }
+
     // Log to console in dev for debugging
     if (process.env.NODE_ENV === 'development') {
       console.log(`[WebVital] ${metric.name}: ${metric.value.toFixed(2)} (${metric.rating})`);
@@ -27,7 +32,11 @@ export function WebVitalsReporter() {
       });
 
       if (navigator.sendBeacon) {
-        navigator.sendBeacon(`${analyticsUrl}/api/analytics/web-vitals`, body);
+        try {
+          navigator.sendBeacon(`${analyticsUrl}/api/analytics/web-vitals`, body);
+        } catch {
+          // Non-critical telemetry should never surface errors to end users.
+        }
       }
     }
   });

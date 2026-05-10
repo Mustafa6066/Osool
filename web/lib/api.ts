@@ -120,6 +120,12 @@ function addRefreshSubscriber(
   refreshSubscribers.push({ resolve, reject });
 }
 
+function getRefreshUrl(): string {
+  return typeof window !== 'undefined'
+    ? '/api/auth/refresh'
+    : `${BASE_URL}/api/auth/refresh`;
+}
+
 api.interceptors.response.use(
   (response) => {
     // Pass through successful responses
@@ -159,8 +165,10 @@ api.interceptors.response.use(
 
       try {
         // Call refresh endpoint to get new access token
-        const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {
+        const { data } = await axios.post(getRefreshUrl(), {
           refresh_token: refreshToken,
+        }, {
+          withCredentials: true,
         });
 
         // Store new access token
@@ -254,8 +262,10 @@ export const refreshAccessToken = async (): Promise<boolean> => {
 
   refreshTokenPromise = (async () => {
     try {
-      const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {
+      const { data } = await axios.post(getRefreshUrl(), {
         refresh_token: refreshToken,
+      }, {
+        withCredentials: true,
       });
       localStorage.setItem('access_token', data.access_token as string);
       if (data.refresh_token) {

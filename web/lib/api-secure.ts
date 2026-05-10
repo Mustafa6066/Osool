@@ -62,6 +62,12 @@ function setCsrfToken(token: string) {
   }
 }
 
+function getRefreshUrl(): string {
+  return typeof window !== 'undefined'
+    ? '/api/auth/refresh'
+    : `${BASE_URL}/api/auth/refresh`;
+}
+
 // Initialize CSRF token from sessionStorage, or fetch a fresh one
 if (typeof window !== 'undefined') {
   const storedToken = sessionStorage.getItem('csrf_token');
@@ -139,7 +145,7 @@ api.interceptors.response.use(
 
         // Call refresh endpoint (uses refresh token cookie)
         const { data } = await axios.post(
-          `${BASE_URL}/api/auth/refresh`,
+          getRefreshUrl(),
           refreshToken ? { refresh_token: refreshToken } : {},
           { withCredentials: true }
         );
@@ -318,9 +324,11 @@ export const refreshToken = async (): Promise<boolean> => {
       ? localStorage.getItem('refresh_token')
       : null;
 
-    const response = await api.post('/api/auth/refresh', localRefreshToken ? {
+    const response = await axios.post(getRefreshUrl(), localRefreshToken ? {
       refresh_token: localRefreshToken,
-    } : {});
+    } : {}, {
+      withCredentials: true,
+    });
 
     if (typeof window !== 'undefined' && response.data?.access_token) {
       localStorage.setItem('access_token', response.data.access_token as string);
