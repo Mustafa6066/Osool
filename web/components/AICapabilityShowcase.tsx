@@ -258,11 +258,7 @@ export default function AICapabilityShowcase() {
                                         <Icon size={15} />
                                     </div>
                                     <div>
-<<<<<<< HEAD
                                         <span className="text-xs font-semibold text-[var(--color-text-primary)]">Osool Advisor</span>
-=======
-                                        <span className="text-xs font-semibold text-[var(--color-text-primary)]">CoInvestor</span>
->>>>>>> origin/jules-9893074592554942457-42a4832d
                                         <span className="text-[10px] text-[var(--color-text-muted)] ml-2">AI Analysis</span>
                                     </div>
                                 </div>
@@ -313,16 +309,9 @@ export default function AICapabilityShowcase() {
                                         <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">Data confidence</span>
                                         <div className="flex-1 h-1 bg-[var(--color-border)] rounded-full overflow-hidden">
                                             <motion.div
-<<<<<<< HEAD
-                                                initial={{ scaleX: 0 }}
-                                                animate={{ scaleX: demo.answer.confidence / 100 }}
-                                                transition={{ delay: 1.1, duration: 0.8, ease: 'easeOut' }}
-                                                style={{ transformOrigin: 'left' }}
-=======
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${demo.answer.confidence}%` }}
                                                 transition={{ delay: 1.1, duration: 0.8, ease: 'easeOut' }}
->>>>>>> origin/jules-9893074592554942457-42a4832d
                                                 className={`h-full rounded-full ${colors.bar}`}
                                             />
                                         </div>

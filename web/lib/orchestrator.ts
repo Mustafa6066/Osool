@@ -34,85 +34,13 @@ async function sendWebhook(path: string, payload: Record<string, unknown>): Prom
         }).catch(() => {
             /* Silently ignore — never block the user */
         });
-    /**
-     * Track a property view.
-     * Call when a user opens a property detail page.
-     */
-    export function trackPropertyView(params: {
-        anonymousId: string;
-        userId?: string;
-        propertyId: string;
-        developerId?: string;
-        location?: string;
-        priceRange?: { min: number; max: number };
-    }): void {
-        sendWebhook('/page-view', {
-            eventType: 'page_view',
-            userId: params.userId,
-            anonymousId: params.anonymousId,
-            url: typeof window !== 'undefined' ? window.location.href : '',
-            pageType: 'project',
-            referrer: typeof document !== 'undefined' ? document.referrer : '',
-            utmParams: {},
-            timestamp: new Date().toISOString(),
-            properties: {
-                propertyId: params.propertyId,
-                developerId: params.developerId,
-                location: params.location,
-                priceRange: params.priceRange,
-            },
-        });
+    } catch {
+        /* Silently ignore */
     }
+}
 
-    /**
-     * Track a search action.
-     * Call when a user performs a property search or filter.
-     */
-    export function trackSearch(params: {
-        anonymousId: string;
-        userId?: string;
-        query?: string;
-        filters?: Record<string, unknown>;
-        resultCount?: number;
-    }): void {
-        sendWebhook('/page-view', {
-            eventType: 'page_view',
-            userId: params.userId,
-            anonymousId: params.anonymousId,
-            url: typeof window !== 'undefined' ? window.location.href : '',
-            pageType: 'other',
-            referrer: typeof document !== 'undefined' ? document.referrer : '',
-            utmParams: {},
-            timestamp: new Date().toISOString(),
-            properties: {
-                action: 'search',
-                query: params.query,
-                filters: params.filters,
-                resultCount: params.resultCount,
-            },
-        });
-    }
+// ── Public API ─────────────────────────────────────────────────────────────────
 
-    /**
-     * Track a user memory update (budget, location preferences, etc.).
-     * Call when the user's investment profile is updated or inferred.
-     */
-    export function trackUserMemoryUpdate(params: {
-        anonymousId: string;
-        userId?: string;
-        budgetRange?: { min: number; max: number; currency: string };
-        preferredLocations?: string[];
-        preferredDevelopers?: string[];
-        propertyTypes?: string[];
-    }): void {
-        sendWebhook('/user-memory-update', {
-            eventType: 'user_memory_update',
-            userId: params.userId,
-            anonymousId: params.anonymousId,
-            preferences: {
-                budgetRange: params.budgetRange,
-                preferredLocations: params.preferredLocations,
-                preferredDevelopers: params.preferredDevelopers,
 /**
  * Track a signup or waitlist join.
  * Call after successful registration.
