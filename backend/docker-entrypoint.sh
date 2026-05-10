@@ -13,6 +13,10 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}[*] Osool Backend Starting...${NC}"
 
+# In production, keep startup fast to satisfy platform health checks.
+# Set RUN_BOOTSTRAP_ON_START=true if you intentionally want ingestion/seeding on boot.
+RUN_BOOTSTRAP_ON_START="${RUN_BOOTSTRAP_ON_START:-false}"
+
 # ==========================================
 # 1. Wait for Database
 # ==========================================
@@ -72,6 +76,9 @@ fi
 # ==========================================
 # 4. Data Ingestion (if database is empty)
 # ==========================================
+if [ "${ENVIRONMENT}" = "production" ] && [ "${RUN_BOOTSTRAP_ON_START}" != "true" ]; then
+    echo -e "${YELLOW}[4/6] Skipping property data ingestion on production startup (RUN_BOOTSTRAP_ON_START=${RUN_BOOTSTRAP_ON_START})${NC}"
+else
 echo -e "${YELLOW}[4/6] Checking property data ingestion...${NC}"
 
 PROPERTY_COUNT=$(python -c "
@@ -104,12 +111,17 @@ if [ "$PROPERTY_COUNT" -eq "0" ]; then
 else
     echo -e "${GREEN}✓ Database already contains ${PROPERTY_COUNT} properties${NC}"
 fi
+fi
 
 # ==========================================
 # 4.5. Seed Developers & Areas (if empty)
 # ==========================================
+if [ "${ENVIRONMENT}" = "production" ] && [ "${RUN_BOOTSTRAP_ON_START}" != "true" ]; then
+    echo -e "${YELLOW}[4.5/6] Skipping developer/area seeding on production startup (RUN_BOOTSTRAP_ON_START=${RUN_BOOTSTRAP_ON_START})${NC}"
+else
 echo -e "${YELLOW}[4.5/6] Seeding developers & areas data if missing...${NC}"
 python check_and_seed.py && echo -e "${GREEN}✓ Developers & areas seeding complete${NC}" || echo -e "${YELLOW}⚠ Developer/area seed warning - continuing anyway${NC}"
+fi
 
 # ==========================================
 # 5. Environment Validation (Production Only)
