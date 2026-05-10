@@ -42,6 +42,29 @@ async function sendWebhook(path: string, payload: Record<string, unknown>): Prom
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 /**
+ * Track a page view.
+ * Call on every page navigation.
+ */
+export function trackPageView(params: {
+    anonymousId: string;
+    userId?: string;
+    pageType?: 'landing' | 'comparison' | 'roi' | 'project' | 'guide' | 'chat' | 'other';
+}): void {
+    sendWebhook('/page-view', {
+        eventType: 'page_view',
+        userId: params.userId,
+        anonymousId: params.anonymousId,
+        url: typeof window !== 'undefined' ? window.location.href : '',
+        pageType: params.pageType || 'other',
+        referrer: typeof document !== 'undefined' ? document.referrer : '',
+        utmParams: typeof window !== 'undefined'
+            ? Object.fromEntries(new URLSearchParams(window.location.search).entries())
+            : {},
+        timestamp: new Date().toISOString(),
+    });
+}
+
+/**
  * Track a signup or waitlist join.
  * Call after successful registration.
  */
