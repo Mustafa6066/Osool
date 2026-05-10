@@ -50,7 +50,7 @@ interface PriceGrowthChartProps {
     current_growth_rate?: number;
 }
 
-const safeNum = (v: any, fallback = 0): number => {
+const safeNum = (v: unknown, fallback = 0): number => {
     const n = typeof v === "number" ? v : Number(v);
     return isFinite(n) ? n : fallback;
 };
@@ -67,12 +67,12 @@ const fmtPriceFull = (v: number): string => {
 };
 
 // Custom tooltip component defined outside to avoid "Cannot create components during render"
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
     if (!active || !payload?.length) return null;
     return (
         <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 shadow-xl text-xs" dir="rtl">
             <p className="font-bold text-[var(--color-text-primary)] mb-1.5">{label}</p>
-            {payload.map((entry: any, i: number) => (
+            {payload.map((entry: { name: string; value: number; color: string }, i: number) => (
                 <div key={i} className="flex items-center gap-2 mb-0.5">
                     <span
                         className="w-2 h-2 rounded-full flex-shrink-0"
@@ -107,7 +107,7 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
 
     // Build chart data — merge area data + developer lines into one dataset
     const chartData = data_points.map((dp) => {
-        const row: any = {
+        const row: Record<string, number | null> = {
             year: dp.year,
             area_price: safeNum(dp.price_sqm),
             yoy: safeNum(dp.yoy_growth),

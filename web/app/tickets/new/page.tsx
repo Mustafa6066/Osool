@@ -63,8 +63,9 @@ export default function NewTicketPage() {
                 priority,
             });
             router.push(`/tickets/${ticket.id}`);
-        } catch (err: any) {
-            setError(err?.response?.data?.detail || 'Failed to create ticket. Please try again.');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? (err as any).response?.data?.detail || err.message : 'Failed to create ticket. Please try again.';
+            setError(errorMessage);
         } finally {
             setSubmitting(false);
         }

@@ -42,6 +42,7 @@ interface MarketIndicator {
     key: string;
     value: number;
     source: string;
+    last_updated?: string;
 }
 
 export default function AdminPage() {

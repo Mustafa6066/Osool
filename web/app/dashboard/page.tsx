@@ -12,16 +12,12 @@ import {
     UserCheck,
     Search,
     Filter,
-    MoreHorizontal,
     Plus,
-    X,
     ShieldCheck,
     AlertCircle,
-    Award,
-    Heart,
-    MapPin
+    Award
 } from 'lucide-react';
-import { generateInvitation, getMyInvitations, MyInvitationsResponse, getCurrentUserFromToken, InvitationResponse } from '@/lib/api';
+import { generateInvitation, getMyInvitations, MyInvitationsResponse, InvitationResponse } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -31,8 +27,8 @@ import InvestorProfileCard from '@/components/InvestorProfileCard';
 import { TIER_COLORS } from '@/lib/gamification';
 
 export default function DashboardPage() {
-    const { user, isAuthenticated, loading } = useAuth();
-    const { profile, achievements } = useGamification();
+    const { isAuthenticated, loading } = useAuth();
+    const { profile } = useGamification();
     const { language, t } = useLanguage();
     const router = useRouter();
     const [invitationsData, setInvitationsData] = useState<MyInvitationsResponse | null>(null);

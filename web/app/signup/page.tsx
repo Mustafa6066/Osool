@@ -147,8 +147,9 @@ function SignupContent() {
 
             // Redirect to chat
             router.push('/chat');
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Signup failed';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

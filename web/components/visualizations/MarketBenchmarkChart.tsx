@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Building2 } from "lucide-react";
 
 interface MarketBenchmarkChartProps {
     market_segment?: {

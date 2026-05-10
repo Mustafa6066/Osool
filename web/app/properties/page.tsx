@@ -366,7 +366,7 @@ export default function PropertiesPage() {
 
     // Client-side filtering and sorting
     const filteredProperties = useMemo(() => {
-        let result = properties.filter((p) => {
+        const result = properties.filter((p) => {
             if (filters.location !== 'all' && p.city !== filters.location) return false;
             if (filters.type !== 'all' && p.type !== filters.type) return false;
             if (p.price < filters.minPrice || p.price > filters.maxPrice) return false;

@@ -14,11 +14,15 @@ load_dotenv()
 # Database URL from env (fail-fast for security)
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError(
-        "DATABASE_URL environment variable must be set. "
-        "No fallback provided for security. "
-        "Example: postgresql+asyncpg://user:password@localhost:5432/dbname"
-    )
+    # Check if we are running in a test environment
+    if os.getenv("ENVIRONMENT") == "testing" or os.getenv("PYTEST_CURRENT_TEST"):
+        DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/osool_test"
+    else:
+        raise ValueError(
+            "DATABASE_URL environment variable must be set. "
+            "No fallback provided for security. "
+            "Example: postgresql+asyncpg://user:password@localhost:5432/dbname"
+        )
 
 # Convert postgresql:// to postgresql+asyncpg:// for async driver
 # Railway provides postgresql:// but async SQLAlchemy needs asyncpg driver
