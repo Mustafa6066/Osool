@@ -151,11 +151,61 @@ DATABASE_URL=postgresql://...
 
 ---
 
+## 🚀 Production Deployment
+
+### Current Targets
+
+- Frontend (Next.js): Vercel (`https://osool-ten.vercel.app`)
+- Backend (FastAPI): Railway (`https://osool-production.up.railway.app`)
+
+### Deploy Frontend (Vercel)
+
+```bash
+cd Osool-Platform
+vercel deploy --prod --yes
+```
+
+### Deploy Backend (Railway)
+
+```bash
+cd Osool-Platform
+railway up --ci
+```
+
+### Production Health Checks
+
+```powershell
+Invoke-WebRequest -Uri "https://osool-ten.vercel.app/chat" -UseBasicParsing -TimeoutSec 20
+Invoke-WebRequest -Uri "https://osool-production.up.railway.app/health" -UseBasicParsing -TimeoutSec 20
+```
+
+Expected results:
+
+- Vercel chat page returns `200`
+- Railway health returns `200` with `{"status":"healthy",...}`
+
+### Chat Stream Validation (New Path)
+
+The chat stream path now uses a same-origin Next.js proxy (`/api/chat/stream`) that bootstraps CSRF before forwarding to backend stream endpoints.
+
+Validated production behavior:
+
+- Stream request completes successfully
+- Local free route markers are present in stream payload/UI
+- No browser-side CSRF mismatch on the user chat path
+
+---
+
 ## 🧪 Testing
 
 ```bash
 # Backend (syntax check)
 cd backend && python -m compileall app/
+```
+
+```bash
+# Frontend production build
+cd web && npm run build
 ```
 
 ---

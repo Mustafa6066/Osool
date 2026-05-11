@@ -7,6 +7,10 @@
 ```
 Frontend (Next.js)
 │
+├── POST /api/chat/stream (Next.js same-origin proxy)
+│      ├── GET /api/seo/projects (CSRF bootstrap)
+│      └── POST backend /api/chat/stream  ──►  CoInvestorAgent  ──►  WolfBrain.process_turn()
+│
 ├── POST /chat/stream  ──►  CoInvestorAgent  ──►  WolfBrain.process_turn()
 ├── POST /chat          ──►  CoInvestorAgent  ──►  WolfBrain.process_turn()
 │
@@ -74,3 +78,9 @@ Lightweight token cost accounting. Tracks cumulative input/output tokens with Cl
 - `wolf_orchestrator.py` exports `hybrid_brain = wolf_brain` (line 4264)
 - `__init__.py` exposes `get_hybrid_brain()` → returns wolf_brain
 - These aliases exist for any external scripts that import `hybrid_brain`
+
+## Production Stream Notes (May 2026)
+
+- Frontend stream requests are routed through Next.js API proxy at `web/app/api/chat/stream/route.ts`.
+- Proxy bootstraps CSRF using backend `GET /api/seo/projects` before forwarding stream requests.
+- This avoids browser-side CSRF mismatch/CORS issues while preserving backend CSRF enforcement.
