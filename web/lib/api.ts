@@ -126,6 +126,12 @@ function getRefreshUrl(): string {
     : `${BASE_URL}/api/auth/refresh`;
 }
 
+function getStreamUrl(): string {
+  return typeof window !== 'undefined'
+    ? '/api/chat/stream'
+    : `${BASE_URL}/api/chat/stream`;
+}
+
 let streamCsrfToken: string | null = null;
 
 async function ensureStreamCsrfToken(forceRefresh = false): Promise<string | null> {
@@ -489,7 +495,7 @@ export const streamChat = async (
         : null;
       const csrfToken = await ensureStreamCsrfToken(forceCsrfRefresh);
 
-      return fetch(`${BASE_URL}/api/chat/stream`, {
+      return fetch(getStreamUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
