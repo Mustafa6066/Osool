@@ -140,19 +140,33 @@ async function ensureStreamCsrfToken(forceRefresh = false): Promise<string | nul
   }
 
   try {
-    const response = await fetch(`${BASE_URL}/api/auth/csrf-token`, {
+    // Primary bootstrap path used by production smoke tests.
+    const seoBootstrap = await fetch(`${BASE_URL}/api/seo/projects`, {
       method: 'GET',
       credentials: 'include',
     });
 
-    const headerToken = response.headers.get('x-csrf-token');
+    const headerToken = seoBootstrap.headers.get('x-csrf-token');
     if (headerToken) {
       streamCsrfToken = headerToken;
       sessionStorage.setItem('csrf_token', headerToken);
       return headerToken;
     }
 
-    const payload = (await response.json().catch(() => ({}))) as { csrf_token?: string };
+    // Fallback path for environments that expose a dedicated CSRF endpoint.
+    const csrfResponse = await fetch(`${BASE_URL}/api/auth/csrf-token`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    const csrfHeaderToken = csrfResponse.headers.get('x-csrf-token');
+    if (csrfHeaderToken) {
+      streamCsrfToken = csrfHeaderToken;
+      sessionStorage.setItem('csrf_token', csrfHeaderToken);
+      return csrfHeaderToken;
+    }
+
+    const payload = (await csrfResponse.json().catch(() => ({}))) as { csrf_token?: string };
     if (payload.csrf_token) {
       streamCsrfToken = payload.csrf_token;
       sessionStorage.setItem('csrf_token', payload.csrf_token);
