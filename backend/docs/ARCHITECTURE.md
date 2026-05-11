@@ -84,3 +84,21 @@ Lightweight token cost accounting. Tracks cumulative input/output tokens with Cl
 - Frontend stream requests are routed through Next.js API proxy at `web/app/api/chat/stream/route.ts`.
 - Proxy bootstraps CSRF using backend `GET /api/seo/projects` before forwarding stream requests.
 - This avoids browser-side CSRF mismatch/CORS issues while preserving backend CSRF enforcement.
+
+## UX Routing Contract (Free Path vs Consultant Handoff)
+
+Production UI now exposes routing state to users as a first-class signal:
+
+- Free/local path: visible "local/free" mode indicator and remaining free quota.
+- Consultant handoff path: visible handoff indicator with business CTAs.
+
+Expected handoff CTAs:
+
+- `Talk to Consultant`
+- `Unlock Premium`
+
+Acceptance criteria in production:
+
+1. Simple property request stays on local free path and displays free mode context.
+2. Complex macro-risk/inflation intent triggers consultant handoff messaging.
+3. Handoff response surfaces CTA actions for consultant and premium paths.

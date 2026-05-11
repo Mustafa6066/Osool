@@ -194,6 +194,49 @@ Validated production behavior:
 - Local free route markers are present in stream payload/UI
 - No browser-side CSRF mismatch on the user chat path
 
+### Post-Release Validation Workflow (May 2026)
+
+Use this sequence after shipping chat-path updates:
+
+```bash
+# 1) Push code/docs
+git add .
+git commit -m "docs: update production validation and chat-path checks"
+git push origin main
+```
+
+```bash
+# 2) Railway production deploy/verify
+railway up --ci
+railway status
+```
+
+```bash
+# 3) Vercel production deploy (project: osool)
+vercel deploy --prod --yes
+```
+
+```powershell
+# 4) Endpoint checks
+Invoke-WebRequest -Uri "https://osool-ten.vercel.app/chat" -UseBasicParsing -TimeoutSec 20
+Invoke-WebRequest -Uri "https://osool-production.up.railway.app/health" -UseBasicParsing -TimeoutSec 20
+```
+
+Expected:
+
+- Vercel `/chat` returns `200`
+- Railway `/health` returns `200` and `{"status":"healthy",...}`
+
+### Playwright Acceptance Check (Business Scenario)
+
+On production `/chat`, verify the user can clearly see whether they are in free mode or consultant handoff mode:
+
+1. Start a new conversation.
+2. Send a free-path query: `I need an apartment in New Cairo for 8 million and 3 rooms`.
+3. Confirm free mode UI appears (banner and/or route badge), including remaining free quota.
+4. Send a complex-intent query: `I need a macro forecast for New Cairo prices under inflation and currency risk for the next 3 years`.
+5. Confirm consultant handoff UI appears with visible CTA actions (`Talk to Consultant`, `Unlock Premium`).
+
 ---
 
 ## 🧪 Testing
