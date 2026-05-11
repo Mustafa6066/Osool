@@ -13,6 +13,7 @@ import SuggestionChips from '@/components/SuggestionChips';
 import type { SuggestionChipItem } from '@/components/SuggestionChips';
 import SpeakerButton from '@/components/SpeakerButton';
 import type { PlaybackStatus } from '@/hooks/useVoicePlayback';
+import { responseTypeToRouteLabel } from '@/components/chat/neural-signals';
 import {
   isArabic, shouldRenderUiAction,
   type Message, type Property, type AnalyticsContext, type UiAction,
@@ -204,6 +205,8 @@ export default function ChatMessage({
     || hasArabicChars
     || isArabic(msg.content)
   );
+  const routeInfo = responseTypeToRouteLabel(msg.responseType, msg.detectedLanguage || conversationLanguage);
+  const showRouteState = msg.role === 'agent' && (Boolean(msg.responseType) || Boolean(msg.showUpsell));
 
   return (
     <motion.div
@@ -238,6 +241,25 @@ export default function ChatMessage({
           ) : (
             /* ── Agent response ── */
             <div className="text-[14px] sm:text-[15px] leading-[1.65] sm:leading-relaxed text-[var(--color-text-secondary)] pt-0.5 sm:pt-1" dir={msgIsArabic ? 'rtl' : 'ltr'}>
+              {showRouteState && (
+                <div className="mb-2.5 flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.13em] ${msg.showUpsell
+                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                    : routeInfo.isLocalPath
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-sky-500/15 text-sky-700 dark:text-sky-300'}`}>
+                    {msg.showUpsell
+                      ? (msgIsArabic ? 'تحويل للاستشاري' : 'Consultant Handoff')
+                      : routeInfo.label}
+                  </span>
+                  {typeof msg.quotaRemaining === 'number' && routeInfo.isLocalPath && (
+                    <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                      {msgIsArabic ? `المتبقي مجاناً: ${msg.quotaRemaining}` : `Free remaining: ${msg.quotaRemaining}`}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <StreamingText content={msg.content} animate={msg.id === lastAiMsgId} forceRTL={msgIsArabic} />
 
               {/* Visualizations */}
@@ -353,9 +375,15 @@ export default function ChatMessage({
                   <div className="mb-3 flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
                     <Sparkles className="h-4 w-4" />
                     <span className="text-sm font-semibold">
-                      {msgIsArabic ? 'تحليل أعمق متاح' : 'Deeper analysis available'}
+                      {msgIsArabic ? 'هذا السؤال يحتاج تحليل تنبؤي متقدم' : 'This question needs predictive deep analysis'}
                     </span>
                   </div>
+
+                  <p className="mb-3 text-xs leading-relaxed text-[var(--color-text-secondary)]" dir="auto">
+                    {msgIsArabic
+                      ? 'تم تفعيل مسار التحويل: يمكنك التحدث مع مستشار أول مجاناً أو فتح Osool Premium لتحليل ROI/التضخم والمخاطر الجيوسياسية.'
+                      : 'You are now in handoff mode: talk to a senior consultant for free, or unlock Osool Premium for ROI, inflation, and geopolitical forecasting.'}
+                  </p>
 
                   {typeof msg.quotaRemaining === 'number' && (
                     <p className="mb-3 text-xs text-[var(--color-text-muted)]">
@@ -367,7 +395,7 @@ export default function ChatMessage({
 
                   <div className="flex flex-col gap-2 sm:flex-row">
                     {(msg.ctaActions && msg.ctaActions.length > 0 ? msg.ctaActions : [
-                      { id: 'talk_to_consultant', label: 'Talk to Consultant', type: 'consultant' },
+                      { id: 'talk_to_consultant', label: 'Talk to a Senior Consultant (Free)', type: 'consultant' },
                       { id: 'unlock_premium', label: 'Unlock Premium', type: 'upgrade' },
                     ]).slice(0, 2).map((action, idx) => {
                       const actionType = String(action.type || 'consultant').toLowerCase();

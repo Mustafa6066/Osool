@@ -174,6 +174,67 @@ export default function AgentInterface() {
   const isAnonymous = !user;
   const isGated = isAnonymous && userMessageCount >= FREE_MESSAGE_LIMIT;
 
+  const latestAgentMessage = useMemo(
+    () => [...messages].reverse().find((message) => message.role === 'agent'),
+    [messages]
+  );
+
+  const latestRoute = useMemo(
+    () => responseTypeToRouteLabel(latestAgentMessage?.responseType, conversationLanguage),
+    [latestAgentMessage?.responseType, conversationLanguage]
+  );
+
+  const isConsultantHandoff = useMemo(() => {
+    if (!latestAgentMessage) return false;
+
+    const hasCta = Array.isArray(latestAgentMessage.ctaActions) && latestAgentMessage.ctaActions.length > 0;
+    const upsellSignal = latestAgentMessage.showUpsell || hasCta;
+    if (upsellSignal) return true;
+
+    const reason = (latestAgentMessage.upsellReason || '').toLowerCase();
+    return /complex|forecast|macro|inflation|hedge|consult|roi/i.test(reason);
+  }, [latestAgentMessage]);
+
+  const businessMode: 'free' | 'consultant' | 'premium' = useMemo(() => {
+    if (isConsultantHandoff) return 'consultant';
+    if (latestRoute.isLocalPath || isLocalSignalPath) return 'free';
+    return 'premium';
+  }, [isConsultantHandoff, latestRoute.isLocalPath, isLocalSignalPath]);
+
+  const businessModeCopy = useMemo(() => {
+    const isAr = conversationLanguage === 'ar';
+
+    if (businessMode === 'consultant') {
+      return {
+        chip: isAr ? 'تحويل إلى الاستشاري' : 'Consultant Handoff',
+        title: isAr
+          ? 'هذا السؤال يحتاج تحليل تنبؤي عميق'
+          : 'This question needs predictive deep analysis',
+        description: isAr
+          ? 'أنت الآن على مسار التحويل: إمّا التحدث مع مستشار أول أو فتح Osool Premium للتحليل المتقدم.'
+          : 'You are now on the monetization handoff path: talk to a senior consultant or unlock Osool Premium.',
+      };
+    }
+
+    if (businessMode === 'premium') {
+      return {
+        chip: isAr ? 'مسار الذكاء الكامل' : 'Full Intelligence Path',
+        title: isAr ? 'التحليل يتم عبر محرك أصول المتقدم' : 'Analysis is running on Osool advanced intelligence',
+        description: isAr
+          ? 'هذا المسار يدعم التحليلات العميقة متعددة العوامل وحالات السوق المعقدة.'
+          : 'This path supports deep multi-factor analytics and complex market scenarios.',
+      };
+    }
+
+    return {
+      chip: isAr ? 'المسار المجاني بدون توكن' : 'Zero-Token Free Path',
+      title: isAr ? 'تحليل فوري من المحرك المحلي' : 'Instant response from local analytical engine',
+      description: isAr
+        ? 'أنت على المسار المجاني: استخراج نية محلي + SQL + تقييم سعري دون استهلاك توكنات.'
+        : 'You are on the free path: local intent parsing + SQL retrieval + deterministic pricing without token spend.',
+    };
+  }, [businessMode, conversationLanguage]);
+
   const clearSignalResetTimer = useCallback(() => {
     if (signalResetTimerRef.current !== null) {
       window.clearTimeout(signalResetTimerRef.current);
@@ -873,6 +934,61 @@ export default function AgentInterface() {
               {/* ── Messages ── */}
               {hasStarted && (
                 <div className="px-2.5 sm:px-4 pt-4 sm:pt-6 pb-28 sm:pb-10" role="log" aria-live="polite" aria-label={conversationLanguage === 'ar' ? 'رسائل المحادثة' : 'Chat messages'}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="mb-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-3.5 sm:p-4"
+                    dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${businessMode === 'consultant'
+                        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                        : businessMode === 'premium'
+                          ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+                          : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'}`}>
+                        {businessModeCopy.chip}
+                      </span>
+                      {typeof latestAgentMessage?.quotaRemaining === 'number' && businessMode !== 'premium' && (
+                        <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                          {conversationLanguage === 'ar'
+                            ? `المتبقي في المسار المجاني: ${latestAgentMessage.quotaRemaining}`
+                            : `Free-path remaining: ${latestAgentMessage.quotaRemaining}`}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]" dir="auto">
+                      {businessModeCopy.title}
+                    </p>
+                    <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-text-secondary)]" dir="auto">
+                      {businessModeCopy.description}
+                    </p>
+
+                    {businessMode === 'consultant' && (
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => handleSendMessage(conversationLanguage === 'ar'
+                            ? 'أريد التحدث مع مستشار أول الآن'
+                            : 'I want to talk to a senior consultant now')}
+                          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-2.5 text-[12px] font-medium text-[var(--color-text-primary)] transition-colors hover:border-emerald-500/40"
+                        >
+                          {conversationLanguage === 'ar' ? 'التحدث مع مستشار أول (مجاني)' : 'Talk to a Senior Consultant (Free)'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSendMessage(conversationLanguage === 'ar'
+                            ? 'أريد تفعيل Osool Premium للتحليلات التنبؤية'
+                            : 'I want to unlock Osool Premium for predictive analysis')}
+                          className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-semibold text-white transition-colors hover:bg-emerald-700"
+                        >
+                          {conversationLanguage === 'ar' ? 'فتح Osool Premium' : 'Unlock Osool Premium'}
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+
                   {messages.map((msg, index) => (
                     <ChatMessage
                       key={msg.id}
