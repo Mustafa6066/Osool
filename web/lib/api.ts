@@ -126,6 +126,45 @@ function getRefreshUrl(): string {
     : `${BASE_URL}/api/auth/refresh`;
 }
 
+let streamCsrfToken: string | null = null;
+
+async function ensureStreamCsrfToken(forceRefresh = false): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+
+  if (!streamCsrfToken) {
+    streamCsrfToken = sessionStorage.getItem('csrf_token');
+  }
+
+  if (streamCsrfToken && !forceRefresh) {
+    return streamCsrfToken;
+  }
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/auth/csrf-token`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    const headerToken = response.headers.get('x-csrf-token');
+    if (headerToken) {
+      streamCsrfToken = headerToken;
+      sessionStorage.setItem('csrf_token', headerToken);
+      return headerToken;
+    }
+
+    const payload = (await response.json().catch(() => ({}))) as { csrf_token?: string };
+    if (payload.csrf_token) {
+      streamCsrfToken = payload.csrf_token;
+      sessionStorage.setItem('csrf_token', payload.csrf_token);
+      return payload.csrf_token;
+    }
+  } catch {
+    // Non-fatal: endpoint may be unavailable in some environments.
+  }
+
+  return null;
+}
+
 api.interceptors.response.use(
   (response) => {
     // Pass through successful responses
@@ -430,18 +469,21 @@ export const streamChat = async (
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   try {
-    const openStream = async (): Promise<Response> => {
+    const openStream = async (forceCsrfRefresh = false): Promise<Response> => {
       const accessToken = typeof window !== 'undefined'
         ? localStorage.getItem('access_token')
         : null;
+      const csrfToken = await ensureStreamCsrfToken(forceCsrfRefresh);
 
       return fetch(`${BASE_URL}/api/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
           ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({ message, session_id: sessionId, language }),
+        credentials: 'include',
         signal: controller.signal,
       });
     };
@@ -454,6 +496,11 @@ export const streamChat = async (
       if (refreshed) {
         response = await openStream();
       }
+    }
+
+    // CSRF token may rotate; refresh once and retry.
+    if (response.status === 403) {
+      response = await openStream(true);
     }
 
     if (!response.ok) {
