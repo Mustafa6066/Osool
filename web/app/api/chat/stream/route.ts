@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
+function extractCookieValue(setCookieHeader: string, key: string): string | null {
+  const pattern = new RegExp(`${key}=([^;]+)`);
+  const match = setCookieHeader.match(pattern);
+  return match?.[1] ?? null;
+}
+
 /**
  * Same-origin stream proxy:
  * - Bootstraps backend CSRF cookie + token
@@ -23,8 +29,10 @@ export async function POST(request: NextRequest) {
       cache: 'no-store',
     });
 
-    const csrfToken = bootstrap.headers.get('x-csrf-token') || '';
+    const csrfHeaderToken = bootstrap.headers.get('x-csrf-token') || '';
     const setCookie = bootstrap.headers.get('set-cookie') || '';
+    const csrfCookie = extractCookieValue(setCookie, 'csrftoken');
+    const csrfToken = csrfHeaderToken || csrfCookie || '';
 
     const authHeader = request.headers.get('authorization');
     const headers: Record<string, string> = {
@@ -36,8 +44,8 @@ export async function POST(request: NextRequest) {
     if (csrfToken) {
       headers['X-CSRF-Token'] = csrfToken;
     }
-    if (setCookie) {
-      headers['Cookie'] = setCookie;
+    if (csrfCookie) {
+      headers['Cookie'] = `csrftoken=${csrfCookie}`;
     }
     if (authHeader) {
       headers['Authorization'] = authHeader;
