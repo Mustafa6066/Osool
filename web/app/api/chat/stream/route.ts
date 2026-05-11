@@ -8,6 +8,19 @@ function extractCookieValue(setCookieHeader: string, key: string): string | null
   return match?.[1] ?? null;
 }
 
+function extractCookiePairs(setCookieHeader: string): string {
+  if (!setCookieHeader) return '';
+
+  // Split combined Set-Cookie header while preserving cookie attributes.
+  const cookies = setCookieHeader
+    .split(/,(?=\s*[^;,\s]+=)/)
+    .map((chunk) => chunk.trim())
+    .map((cookie) => cookie.split(';')[0])
+    .filter(Boolean);
+
+  return cookies.join('; ');
+}
+
 /**
  * Same-origin stream proxy:
  * - Bootstraps backend CSRF cookie + token
@@ -31,6 +44,7 @@ export async function POST(request: NextRequest) {
 
     const csrfHeaderToken = bootstrap.headers.get('x-csrf-token') || '';
     const setCookie = bootstrap.headers.get('set-cookie') || '';
+    const cookieHeader = extractCookiePairs(setCookie);
     const csrfCookie = extractCookieValue(setCookie, 'csrftoken');
     const csrfToken = csrfHeaderToken || csrfCookie || '';
 
@@ -44,8 +58,8 @@ export async function POST(request: NextRequest) {
     if (csrfToken) {
       headers['X-CSRF-Token'] = csrfToken;
     }
-    if (csrfCookie) {
-      headers['Cookie'] = `csrftoken=${csrfCookie}`;
+    if (cookieHeader) {
+      headers['Cookie'] = cookieHeader;
     }
     if (authHeader) {
       headers['Authorization'] = authHeader;
