@@ -30,6 +30,10 @@ const nextConfig = {
                 protocol: 'https',
                 hostname: 'nawy.com',
             },
+            {
+                protocol: 'https',
+                hostname: 'placehold.co',
+            },
         ],
     },
 };
