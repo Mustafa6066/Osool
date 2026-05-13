@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import re
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -19,16 +20,16 @@ class LocalRouter:
         """
         # 1. Trigger 2: Depth Limit
         if session_count >= 5:
-            return self._generate_upsell_response("DEPTH_LIMIT")
+            return self._generate_upsell_response("DEPTH_LIMIT", query)
 
         # 2. Extract Intent
         intent_data = local_intent_extractor.extract_intent(query)
 
         # 3. Trigger 1 & 3: Complex or Action Intent
         if intent_data["intent"] == "COMPLEX":
-            return self._generate_upsell_response("COMPLEX")
+            return self._generate_upsell_response("COMPLEX", query)
         elif intent_data["intent"] == "ACTION":
-            return self._generate_upsell_response("ACTION")
+            return self._generate_upsell_response("ACTION", query)
 
         # 4. Handle Normal Search
         if not intent_data["area"] or not intent_data["max_budget"]:
@@ -36,7 +37,7 @@ class LocalRouter:
              return {
                  "type": "clarification",
                  "response_type": "free_local",
-                 "text": "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget.",
+                 "text": self._get_clarification_text(query),
                  "properties": [],
                  "show_upsell": False,
                  "upsell_reason": None,
@@ -72,23 +73,23 @@ class LocalRouter:
         """
         # 1. Trigger 2: Depth Limit
         if session_count >= 5:
-            return self._generate_upsell_response("DEPTH_LIMIT")
+            return self._generate_upsell_response("DEPTH_LIMIT", query)
 
         # 2. Extract Intent
         intent_data = local_intent_extractor.extract_intent(query)
 
         # 3. Trigger 1 & 3: Complex or Action Intent
         if intent_data["intent"] == "COMPLEX":
-            return self._generate_upsell_response("COMPLEX")
+            return self._generate_upsell_response("COMPLEX", query)
         if intent_data["intent"] == "ACTION":
-            return self._generate_upsell_response("ACTION")
+            return self._generate_upsell_response("ACTION", query)
 
         # 4. Handle Normal Search
         if not intent_data["area"] or not intent_data["max_budget"]:
             return {
                 "type": "clarification",
                 "response_type": "free_local",
-                "text": "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget.",
+                "text": self._get_clarification_text(query),
                 "properties": [],
                 "show_upsell": False,
                 "upsell_reason": None,
@@ -230,23 +231,47 @@ class LocalRouter:
          return asyncio.run(self._enrich_with_analytics_async(properties, area))
 
 
-    def _generate_upsell_response(self, trigger_type: str) -> Dict[str, Any]:
+    def _contains_arabic(self, text: str) -> bool:
+        return bool(text and re.search(r"[\u0600-\u06FF]", text))
+
+    def _get_clarification_text(self, query: str) -> str:
+        if self._contains_arabic(query):
+            return "علشان أجيب لك أفضل الفرص، قولي المنطقة اللي تفضلها (مثال: القاهرة الجديدة) والميزانية القصوى."
+        return "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget."
+
+    def _generate_upsell_response(self, trigger_type: str, query: str = "") -> Dict[str, Any]:
         """
         Generates the graceful handoff message.
         """
+        is_arabic = self._contains_arabic(query)
         text = ""
         upsell_reason = None
         if trigger_type == "COMPLEX":
-            text = "That is a brilliant question. Analyzing inflation hedging, geopolitical impacts, and precise predictive ROI requires our Dual-Engine AI and deep market forecasting tools."
+            if is_arabic:
+                text = "سؤال ممتاز جدًا. تحليل التحوط من التضخم وتأثير العوامل الجيوسياسية وتوقع العائد بدقة يحتاج محركنا المتقدم وأدوات تحليل سوق أعمق."
+            else:
+                text = "That is a brilliant question. Analyzing inflation hedging, geopolitical impacts, and precise predictive ROI requires our Dual-Engine AI and deep market forecasting tools."
             upsell_reason = "complex_forecasting"
         elif trigger_type == "DEPTH_LIMIT":
-            text = "You've been asking some great, in-depth questions! To get more detailed, personalized insights and unlimited analysis..."
+            if is_arabic:
+                text = "أسئلتك ممتازة ومفصلة! لو تحب تحليل أعمق ومخصص بشكل كامل مع استخدام غير محدود..."
+            else:
+                text = "You've been asking some great, in-depth questions! To get more detailed, personalized insights and unlimited analysis..."
             upsell_reason = "depth_limit"
         elif trigger_type == "ACTION":
-            text = "Excellent choice! To schedule a visit or get official details, connecting with a human expert or using our premium tools is the best next step."
+            if is_arabic:
+                text = "اختيار ممتاز! لحجز معاينة أو الحصول على التفاصيل الرسمية، أفضل خطوة هي التواصل مع خبير أو استخدام الأدوات المتقدمة."
+            else:
+                text = "Excellent choice! To schedule a visit or get official details, connecting with a human expert or using our premium tools is the best next step."
             upsell_reason = "action_intent"
 
-        text += "\n\nTo get a personalized, predictive analysis, choose one of the options below:"
+        if is_arabic:
+            text += "\n\nللحصول على تحليل تنبؤي ومخصص، اختر أحد الخيارات التالية:"
+        else:
+            text += "\n\nTo get a personalized, predictive analysis, choose one of the options below:"
+
+        consultant_label = "تواصل مع مستشار" if is_arabic else "Talk to Consultant"
+        premium_label = "فتح الباقة المتقدمة" if is_arabic else "Unlock Premium"
 
         return {
             "type": "upsell",
@@ -258,12 +283,12 @@ class LocalRouter:
             "cta_actions": [
                 {
                     "id": "talk_to_consultant",
-                    "label": "Talk to Consultant",
+                    "label": consultant_label,
                     "type": "consultant",
                 },
                 {
                     "id": "unlock_premium",
-                    "label": "Unlock Premium",
+                    "label": premium_label,
                     "type": "upgrade",
                 },
             ],
