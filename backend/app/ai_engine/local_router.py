@@ -14,7 +14,7 @@ class LocalRouter:
     Coordinates the Zero-Token Free Path logic.
     """
 
-    def process_query(self, query: str, session_count: int, db: Session) -> Dict[str, Any]:
+    def process_query(self, query: str, session_count: int, db: Session, previous_queries: List[str] | None = None) -> Dict[str, Any]:
         """
         Processes a user query and returns a response dict.
         """
@@ -24,6 +24,7 @@ class LocalRouter:
 
         # 2. Extract Intent
         intent_data = local_intent_extractor.extract_intent(query)
+        intent_data = self._merge_previous_intent(intent_data, previous_queries or [])
 
         # 3. Trigger 1 & 3: Complex or Action Intent
         if intent_data["intent"] == "COMPLEX":
@@ -61,7 +62,8 @@ class LocalRouter:
         response_text = template_generator.generate_response(
             enriched_properties,
             intent_data["area"],
-            intent_data["max_budget"]
+            intent_data["max_budget"],
+            language=self._detect_language(query, previous_queries or [])
         )
 
         return {
@@ -74,7 +76,13 @@ class LocalRouter:
             "cta_actions": []
         }
 
-    async def process_query_async(self, query: str, session_count: int, db) -> Dict[str, Any]:
+    async def process_query_async(
+        self,
+        query: str,
+        session_count: int,
+        db,
+        previous_queries: List[str] | None = None,
+    ) -> Dict[str, Any]:
         """
         Async-compatible version for FastAPI AsyncSession routes.
         """
@@ -84,6 +92,7 @@ class LocalRouter:
 
         # 2. Extract Intent
         intent_data = local_intent_extractor.extract_intent(query)
+        intent_data = self._merge_previous_intent(intent_data, previous_queries or [])
 
         # 3. Trigger 1 & 3: Complex or Action Intent
         if intent_data["intent"] == "COMPLEX":
@@ -116,6 +125,7 @@ class LocalRouter:
             enriched_properties,
             intent_data["area"],
             intent_data["max_budget"],
+            language=self._detect_language(query, previous_queries or []),
         )
 
         return {
@@ -247,6 +257,30 @@ class LocalRouter:
 
     def _contains_arabic(self, text: str) -> bool:
         return bool(text and re.search(r"[\u0600-\u06FF]", text))
+
+    def _detect_language(self, query: str, previous_queries: List[str]) -> str:
+        if self._contains_arabic(query) or any(self._contains_arabic(item) for item in previous_queries):
+            return "ar"
+        return "en"
+
+    def _merge_previous_intent(self, intent_data: Dict[str, Any], previous_queries: List[str]) -> Dict[str, Any]:
+        if intent_data.get("intent") != "SEARCH" or not previous_queries:
+            return intent_data
+
+        merged = dict(intent_data)
+        for previous_query in previous_queries:
+            previous_intent = local_intent_extractor.extract_intent(previous_query)
+            if previous_intent.get("intent") != "SEARCH":
+                continue
+
+            for key in ("area", "property_type", "max_budget", "rooms"):
+                if not merged.get(key) and previous_intent.get(key):
+                    merged[key] = previous_intent[key]
+
+            if merged.get("area") and merged.get("max_budget"):
+                break
+
+        return merged
 
     def _get_clarification_text(
         self,

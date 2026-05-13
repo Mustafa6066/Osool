@@ -1206,6 +1206,17 @@ async def chat_stream(
             session_count_before = (await db.execute(count_stmt)).scalar() or 0
             session_count_after = session_count_before + 1
 
+            history_stmt = select(ChatMessage.content).where(
+                ChatMessage.session_id == req.session_id,
+                ChatMessage.role == "user",
+            )
+            if user:
+                history_stmt = history_stmt.where(ChatMessage.user_id == user.id)
+            else:
+                history_stmt = history_stmt.where(ChatMessage.user_id.is_(None))
+            history_stmt = history_stmt.order_by(ChatMessage.created_at.desc()).limit(6)
+            previous_user_messages = [row[0] for row in (await db.execute(history_stmt)).all()]
+
             # Save user message first so chat history and quotas are consistent.
             user_message = ChatMessage(
                 session_id=req.session_id,
@@ -1234,6 +1245,7 @@ async def chat_stream(
                         query=req.message,
                         session_count=session_count_after,
                         db=db,
+                        previous_queries=previous_user_messages,
                     )
 
                 response_text = clean_response_text(local_result.get("text", ""))

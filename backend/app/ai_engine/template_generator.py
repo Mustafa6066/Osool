@@ -7,11 +7,21 @@ class TemplateGenerator:
     """
 
     @staticmethod
-    def generate_response(properties: List[Dict], area: str, budget: int) -> str:
+    def generate_response(properties: List[Dict], area: str, budget: int, language: str = "en") -> str:
         """
         Generates the automated response text based on the top property match.
         """
+        is_arabic = language == "ar"
+        area_label_map = {
+            "new cairo": "القاهرة الجديدة",
+            "sheikh zayed": "الشيخ زايد",
+            "6th of october": "6 أكتوبر",
+        }
+        area_display = area_label_map.get((area or "").lower(), area.title() if area else "the selected area")
+
         if not properties:
+            if is_arabic:
+                return f"بحثت في {area_display} ضمن ميزانية {budget:,.0f} جنيه، ومش لاقي وحدات مطابقة بدقة حاليًا. ممكن تزود الميزانية قليلًا أو توسع المنطقة؟"
             return f"I couldn't find any properties matching your criteria in {area.title() if area else 'the selected area'} within {budget:,.0f} EGP."
 
         count = len(properties)
@@ -38,6 +48,36 @@ class TemplateGenerator:
         dp_amt = top_prop.get("down_payment", 0)
         # Assuming dp is an amount, calculate pct
         dp_pct = (dp_amt / price) * 100 if price and dp_amt else 10
+
+        if is_arabic:
+            intro = f"تمام. بناءً على بيانات السوق الحالية في {area_display}، حللت **{count} وحدة مناسبة** ضمن ميزانية {budget:,.0f} جنيه.\n\n"
+
+            deal_desc = "أفضل فرصة ظاهرة حاليًا حسب المحرك التحليلي المحلي:\n"
+            deal_desc += f"🏢 **المشروع:** {project} - {sale_type}\n"
+
+            if budget > price:
+                savings = budget - price
+                deal_desc += f"💰 **السعر:** {price:,.0f} جنيه ({savings/1000:,.0f} ألف أقل من ميزانيتك)\n"
+            else:
+                deal_desc += f"💰 **السعر:** {price:,.0f} جنيه\n"
+
+            deal_desc += f"📐 **المساحة:** {size} متر ({bedrooms} غرف)\n\n"
+
+            why_best = "📊 **ليه دي من أفضل الفرص؟**\n"
+            why_best += f"سعر المتر هنا حوالي **{price_sqm:,.0f} جنيه/متر**. "
+
+            if discount_pct > 0:
+                why_best += f"بيانات السوق عندنا بتشير إن متوسط المنطقة حوالي **{area_avg_price:,.0f} جنيه/متر**، يعني السعر أقل من السوق بحوالي **{discount_pct:.1f}%**.\n\n"
+            else:
+                why_best += f"السعر قريب من القيمة العادلة في {area_display}.\n\n"
+
+            score_desc = f"كمان الوحدة واخدة **تقييم أصول {int(osool_score)}/100**"
+            if years > 0:
+                score_desc += f" لأنها بتقدم خطة سداد {years} سنوات ومقدم حوالي {int(dp_pct)}%، وده يخلي التدفق النقدي أريح."
+            else:
+                score_desc += " بسبب الموقع والقيمة مقارنة بالسوق."
+
+            return intro + deal_desc + why_best + score_desc
 
         # Constructing the message
         intro = f"Hello! Based on current market data for {area.title()}, I have analyzed **{count} matching properties** within your {budget:,.0f} EGP budget.\n\n"
