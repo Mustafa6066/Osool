@@ -13,6 +13,7 @@ const nextConfig = {
         root: webRoot,
     },
     images: {
+        dangerouslyAllowSVG: true,
         remotePatterns: [
             {
                 protocol: 'https',
