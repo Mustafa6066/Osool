@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
@@ -21,17 +22,18 @@ class ChatResponse(BaseModel):
     show_upsell: bool
 
 @router.post("/chat", response_model=ChatResponse)
-async def process_chat(request: ChatRequest, db: Session = Depends(get_db)):
+async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     """
     Main endpoint for the Chat Interface.
     Routes free users through the Zero-Token Local Path.
     """
 
     # Track session count for Depth Limit trigger
-    session_count = db.query(ChatMessage).filter(
+    session_count_stmt = select(func.count()).where(
         ChatMessage.session_id == request.session_id,
         ChatMessage.role == "user"
-    ).count()
+    )
+    session_count = (await db.execute(session_count_stmt)).scalar_one()
 
     # Save user message
     user_msg = ChatMessage(
@@ -40,12 +42,12 @@ async def process_chat(request: ChatRequest, db: Session = Depends(get_db)):
         content=request.message
     )
     db.add(user_msg)
-    db.commit()
+    await db.commit()
 
     try:
         if request.is_free_user:
             # Route through Zero-Token AI Engine
-            response_data = local_router.process_query(
+            response_data = await local_router.process_query_async(
                 query=request.message,
                 session_count=session_count,
                 db=db
@@ -58,7 +60,7 @@ async def process_chat(request: ChatRequest, db: Session = Depends(get_db)):
                 content=response_data["text"]
             )
             db.add(ai_msg)
-            db.commit()
+            await db.commit()
 
             return ChatResponse(**response_data)
         else:
@@ -72,5 +74,5 @@ async def process_chat(request: ChatRequest, db: Session = Depends(get_db)):
             )
 
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
