@@ -74,6 +74,22 @@ import bcrypt
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
+
+def _load_forced_free_test_emails() -> set[str]:
+    """Load comma-separated forced-free test emails from env."""
+    raw = os.getenv("FORCE_FREE_TEST_EMAILS", "")
+    return {item.strip().lower() for item in raw.split(",") if item.strip()}
+
+
+FORCE_FREE_TEST_EMAILS = _load_forced_free_test_emails()
+
+
+def is_forced_free_test_user_email(email: Optional[str]) -> bool:
+    """Return True when the email is configured as an always-free test account."""
+    if not email:
+        return False
+    return email.strip().lower() in FORCE_FREE_TEST_EMAILS
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password using bcrypt directly. Handles 72-byte limit."""
     try:

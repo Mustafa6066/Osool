@@ -18,7 +18,7 @@ from typing import Optional
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.cost_tracker import cost_tracker
 from app.services.paymob_service import paymob_service
-from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, create_refresh_token_async
+from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, create_refresh_token_async, is_forced_free_test_user_email
 from app.database import get_db
 from app.models import User, Property, Transaction, PaymentApproval
 from app.ai_engine.local_router import local_router
@@ -264,6 +264,30 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         if health_status["status"] == "healthy":
             health_status["status"] = "degraded"
 
+    # 4. Orchestrator Dependency Check
+    try:
+        from app.services.orchestrator_client import get_orchestrator_health_status
+
+        orchestrator = get_orchestrator_health_status()
+        if not orchestrator["configured"]:
+            health_status["checks"]["orchestrator"] = {
+                "status": "not_configured",
+                "message": "Orchestrator integration disabled",
+            }
+        else:
+            circuit_state = orchestrator["circuit_breaker"]["state"]
+            health_status["checks"]["orchestrator"] = {
+                "status": "healthy" if circuit_state == "closed" else "degraded",
+                "circuit_breaker": circuit_state,
+                "time_until_retry": orchestrator["circuit_breaker"]["time_until_retry"],
+            }
+            if circuit_state == "open" and health_status["status"] == "healthy":
+                health_status["status"] = "degraded"
+    except Exception as e:
+        health_status["checks"]["orchestrator"] = {"status": "degraded", "error": str(e)}
+        if health_status["status"] == "healthy":
+            health_status["status"] = "degraded"
+
     # Response time
     health_status["response_time_ms"] = round((time.time() - start_time) * 1000, 2)
 
@@ -271,6 +295,71 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     status_code = 200 if health_status["status"] == "healthy" else 503
 
     return JSONResponse(content=health_status, status_code=status_code)
+
+
+@router.get("/ready")
+async def readiness_check(db: AsyncSession = Depends(get_db)):
+    """
+    Strict readiness probe for traffic routing.
+
+    Returns 200 only when critical dependencies are reachable.
+    Returns 503 if any required check fails.
+    """
+    import os
+    import time
+
+    started = time.time()
+    environment = os.getenv("ENVIRONMENT", "development")
+    require_redis_raw = os.getenv("STRICT_READINESS_REDIS")
+    require_redis = (
+        require_redis_raw.lower() == "true"
+        if isinstance(require_redis_raw, str)
+        else environment == "production"
+    )
+
+    checks = {
+        "database": {"status": "healthy"},
+        "redis": {"status": "healthy" if require_redis else "optional"},
+    }
+
+    ready = True
+
+    # Database must always be reachable.
+    try:
+        from sqlalchemy import text
+        await db.execute(text("SELECT 1"))
+    except Exception as e:
+        logger.error("Readiness check — database error: %s", e)
+        checks["database"] = {"status": "down", "error": "Database connection failed"}
+        ready = False
+
+    # Redis can be optional in non-production unless STRICT_READINESS_REDIS=true.
+    try:
+        from app.services.cache import cache
+        if cache.redis:
+            cache.redis.ping()
+            checks["redis"] = {"status": "healthy"}
+        else:
+            checks["redis"] = {"status": "down" if require_redis else "optional", "error": "Redis not configured"}
+            if require_redis:
+                ready = False
+    except Exception as e:
+        logger.error("Readiness check — redis error: %s", e)
+        checks["redis"] = {"status": "down" if require_redis else "degraded", "error": "Redis connection failed"}
+        if require_redis:
+            ready = False
+
+    status_code = 200 if ready else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ready" if ready else "not_ready",
+            "service": "Osool Registry API",
+            "environment": environment,
+            "checks": checks,
+            "response_time_ms": round((time.time() - started) * 1000, 2),
+        },
+    )
 
 
 @router.get("/metrics")
@@ -1095,6 +1184,8 @@ async def chat_stream(
             def _viewer_kind(current_user: Optional[User]) -> str:
                 if current_user is None:
                     return "anonymous"
+                if is_forced_free_test_user_email(getattr(current_user, "email", None)):
+                    return "free"
                 tier = (getattr(current_user, "subscription_tier", "free") or "free").lower()
                 if getattr(current_user, "role", "").lower() == "admin" or tier in {"premium", "admin"}:
                     return "premium"

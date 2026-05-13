@@ -36,6 +36,7 @@ from app.auth import (
     verify_refresh_token_async,
     revoke_refresh_token_async,
     oauth2_scheme_optional,
+    is_forced_free_test_user_email,
 )
 from app.services.sms_service import sms_service
 from app.services.email_service import email_service, create_verification_token, is_verification_token_valid, consume_verification_token
@@ -1033,6 +1034,14 @@ class SeedBetaUsersRequest(BaseModel):
     admin_secret: str
 
 
+class EnsureFreeTestUserRequest(BaseModel):
+    """Create or update a dedicated free-plan test user (admin protected)."""
+    admin_secret: str
+    email: EmailStr
+    password: str
+    full_name: str = "Free Plan Tester"
+
+
 # Security Fix C2: Beta accounts loaded from env var instead of hardcoded passwords.
 # Set BETA_ACCOUNTS_JSON env var with base64-encoded JSON array of account objects.
 # Each object: {"full_name": "...", "email": "...", "password": "...", "role": "admin|investor"}
@@ -1134,4 +1143,84 @@ async def seed_beta_users(
         "created": created,
         "updated": updated,
         "total": len(BETA_ACCOUNTS)
+    }
+
+
+@router.post("/admin/ensure-free-test-user")
+async def ensure_free_test_user(
+    req: EnsureFreeTestUserRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create or update a dedicated test user that always stays on free plan.
+
+    - Upserts the account by email
+    - Forces role=investor and subscription_tier=free
+    - Marks the account as verified for quick login in QA
+    - Signals whether email is listed in FORCE_FREE_TEST_EMAILS
+    """
+    from sqlalchemy import select
+
+    admin_key = os.getenv("ADMIN_API_KEY")
+    if not admin_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="ADMIN_API_KEY not configured"
+        )
+    if not _secrets.compare_digest(req.admin_secret, admin_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin secret"
+        )
+
+    if len(req.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long"
+        )
+
+    result = await db.execute(select(User).filter(User.email == req.email))
+    user = result.scalar_one_or_none()
+
+    operation = "updated"
+    if user is None:
+        user = User(
+            full_name=req.full_name,
+            email=req.email,
+            password_hash=get_password_hash(req.password),
+            role="investor",
+            subscription_tier="free",
+            is_verified=True,
+            email_verified=True,
+            kyc_status="approved",
+            invitations_sent=0,
+        )
+        db.add(user)
+        operation = "created"
+    else:
+        user.full_name = req.full_name
+        user.password_hash = get_password_hash(req.password)
+        user.role = "investor"
+        user.subscription_tier = "free"
+        user.is_verified = True
+        user.email_verified = True
+        if (user.kyc_status or "").lower() in {"", "pending"}:
+            user.kyc_status = "approved"
+
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info("[FREE-TEST-USER] %s account %s", operation, req.email)
+
+    return {
+        "status": "success",
+        "operation": operation,
+        "user_id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "subscription_tier": user.subscription_tier,
+        "forced_free_via_env": is_forced_free_test_user_email(user.email),
+        "force_free_env_var": "FORCE_FREE_TEST_EMAILS",
+        "message": "Free-plan test user is ready"
     }
