@@ -7,7 +7,13 @@ class TemplateGenerator:
     """
 
     @staticmethod
-    def generate_response(properties: List[Dict], area: str, budget: int, language: str = "en") -> str:
+    def generate_response(
+        properties: List[Dict],
+        area: str,
+        budget: int,
+        language: str = "en",
+        compound: str | None = None,
+    ) -> str:
         """
         Generates the automated response text based on the top property match.
         """
@@ -18,11 +24,13 @@ class TemplateGenerator:
             "6th of october": "6 أكتوبر",
         }
         area_display = area_label_map.get((area or "").lower(), area.title() if area else "the selected area")
+        target_display = f"{compound} في {area_display}" if is_arabic and compound else area_display
+        target_display_en = f"{compound} in {area_display}" if compound else area_display
 
         if not properties:
             if is_arabic:
-                return f"بحثت في {area_display} ضمن ميزانية {budget:,.0f} جنيه، ومش لاقي وحدات مطابقة بدقة حاليًا. ممكن تزود الميزانية قليلًا أو توسع المنطقة؟"
-            return f"I couldn't find any properties matching your criteria in {area.title() if area else 'the selected area'} within {budget:,.0f} EGP."
+                return f"بحثت في {target_display} ضمن ميزانية {budget:,.0f} جنيه، ومش لاقي وحدات مطابقة بدقة حاليًا. ممكن تزود الميزانية قليلًا أو توسع المنطقة؟"
+            return f"I couldn't find any properties matching your criteria in {target_display_en} within {budget:,.0f} EGP."
 
         count = len(properties)
         top_prop = properties[0]
@@ -50,7 +58,7 @@ class TemplateGenerator:
         dp_pct = (dp_amt / price) * 100 if price and dp_amt else 10
 
         if is_arabic:
-            intro = f"تمام. بناءً على بيانات السوق الحالية في {area_display}، حللت **{count} وحدة مناسبة** ضمن ميزانية {budget:,.0f} جنيه.\n\n"
+            intro = f"تمام. بناءً على بيانات السوق الحالية في {target_display}، حللت **{count} وحدة مناسبة** ضمن ميزانية {budget:,.0f} جنيه.\n\n"
 
             deal_desc = "أفضل فرصة ظاهرة حاليًا حسب المحرك التحليلي المحلي:\n"
             deal_desc += f"🏢 **المشروع:** {project} - {sale_type}\n"
@@ -69,7 +77,7 @@ class TemplateGenerator:
             if discount_pct > 0:
                 why_best += f"بيانات السوق عندنا بتشير إن متوسط المنطقة حوالي **{area_avg_price:,.0f} جنيه/متر**، يعني السعر أقل من السوق بحوالي **{discount_pct:.1f}%**.\n\n"
             else:
-                why_best += f"السعر قريب من القيمة العادلة في {area_display}.\n\n"
+                why_best += f"السعر قريب من القيمة العادلة في {target_display}.\n\n"
 
             score_desc = f"كمان الوحدة واخدة **تقييم أصول {int(osool_score)}/100**"
             if years > 0:
@@ -80,7 +88,7 @@ class TemplateGenerator:
             return intro + deal_desc + why_best + score_desc
 
         # Constructing the message
-        intro = f"Hello! Based on current market data for {area.title()}, I have analyzed **{count} matching properties** within your {budget:,.0f} EGP budget.\n\n"
+        intro = f"Hello! Based on current market data for {target_display_en}, I have analyzed **{count} matching properties** within your {budget:,.0f} EGP budget.\n\n"
 
         deal_desc = f"Here is the absolute best deal currently available based on our local analytical engine:\n"
         deal_desc += f"🏢 **Project:** {project} - {sale_type}\n"

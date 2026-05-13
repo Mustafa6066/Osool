@@ -6,7 +6,25 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+from app.ai_engine.local_intent import local_intent_extractor
 from app.ai_engine.local_router import local_router
+
+
+def test_local_intent_merges_arabic_compound_context():
+    first_turn = "عن سعر شقة بالم هيلز التجمع"
+    second_turn = "7 مليون"
+
+    first_intent = local_intent_extractor.extract_intent(first_turn)
+    second_intent = local_intent_extractor.extract_intent(second_turn)
+    merged = local_router._merge_previous_intent(second_intent, [first_turn])
+
+    assert first_intent["area"] == "new cairo"
+    assert first_intent["compound"] == "Palm Hills"
+    assert first_intent["property_type"] == "apartment"
+    assert merged["area"] == "new cairo"
+    assert merged["compound"] == "Palm Hills"
+    assert merged["property_type"] == "apartment"
+    assert merged["max_budget"] == 7_000_000
 
 
 def test_local_router_returns_local_success_payload():

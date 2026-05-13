@@ -35,6 +35,33 @@ class LocalIntentExtractor:
         "studio": ["studio", "استوديو", "ستوديو"]
     }
 
+    COMPOUND_MAPPING = {
+        "palm hills": "Palm Hills",
+        "palm hill": "Palm Hills",
+        "palmhills": "Palm Hills",
+        "plan hills": "Palm Hills",
+        "بالم هيلز": "Palm Hills",
+        "بالم هيلس": "Palm Hills",
+        "بالمهيلز": "Palm Hills",
+        "سراي": "Sarai",
+        "sarai": "Sarai",
+        "mountain view": "Mountain View",
+        "ماونتن فيو": "Mountain View",
+        "hyde park": "Hyde Park",
+        "هايد بارك": "Hyde Park",
+        "zed east": "ZED East",
+        "zed": "ZED",
+        "زيد": "ZED",
+        "taj city": "Taj City",
+        "تاج سيتي": "Taj City",
+        "sodic": "Sodic",
+        "سوديك": "Sodic",
+        "badya": "Badya",
+        "بادية": "Badya",
+        "waterway": "Waterway",
+        "واتر واي": "Waterway",
+    }
+
     COMPLEX_KEYWORDS = [
         "roi", "inflation", "hedge", "geopolitical", "predict", "forecast", "compare", "risk", "macro",
         "تضخم", "عائد", "مقارنة", "توقعات", "سياسي", "اقتصادي", "استثمار"
@@ -53,6 +80,7 @@ class LocalIntentExtractor:
         """
         normalized = query.translate(self.ARABIC_DIGITS_MAP).lower()
         normalized = normalized.replace("٫", ".").replace("،", ",")
+        normalized = normalized.replace("ـ", "")
         normalized = normalized.replace("mn", "million")
         normalized = re.sub(r"\s+", " ", normalized).strip()
         return normalized
@@ -96,6 +124,7 @@ class LocalIntentExtractor:
         intent_data = {
             "intent": "SEARCH",
             "area": None,
+            "compound": None,
             "property_type": None,
             "max_budget": None,
             "rooms": None
@@ -117,16 +146,22 @@ class LocalIntentExtractor:
                 intent_data["area"] = value
                 break
 
-        # 4. Extract Property Type
+        # 4. Extract Compound / Developer Brand
+        for key, value in self.COMPOUND_MAPPING.items():
+            if key in query_lower:
+                intent_data["compound"] = value
+                break
+
+        # 5. Extract Property Type
         for prop_type, keywords in self.PROPERTY_TYPES.items():
             if any(kw in query_lower for kw in keywords):
                 intent_data["property_type"] = prop_type
                 break
 
-        # 5. Extract Budget (Regex + ranges)
+        # 6. Extract Budget (Regex + ranges)
         intent_data["max_budget"] = self._extract_budget(query_lower)
 
-        # 6. Extract Rooms
+        # 7. Extract Rooms
         # Matches: "3 rooms", "3 غرف", "3 bedroom", "3-bedroom"
         rooms_match = re.search(r'(\d+)\s*(?:rooms?|bedrooms?|غرف|غرفة)', query_lower)
         if rooms_match:

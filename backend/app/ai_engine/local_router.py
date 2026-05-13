@@ -3,7 +3,7 @@ import inspect
 import re
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from app.models import Property
 from app.ai_engine.local_intent import local_intent_extractor
 from app.ai_engine.template_generator import template_generator
@@ -45,6 +45,7 @@ class LocalRouter:
                      area_missing=area_missing,
                      budget_missing=budget_missing,
                      area=intent_data.get("area"),
+                     compound=intent_data.get("compound"),
                  ),
                  "properties": [],
                  "show_upsell": False,
@@ -63,7 +64,8 @@ class LocalRouter:
             enriched_properties,
             intent_data["area"],
             intent_data["max_budget"],
-            language=self._detect_language(query, previous_queries or [])
+            language=self._detect_language(query, previous_queries or []),
+            compound=intent_data.get("compound"),
         )
 
         return {
@@ -112,6 +114,7 @@ class LocalRouter:
                     area_missing=area_missing,
                     budget_missing=budget_missing,
                     area=intent_data.get("area"),
+                    compound=intent_data.get("compound"),
                 ),
                 "properties": [],
                 "show_upsell": False,
@@ -126,6 +129,7 @@ class LocalRouter:
             intent_data["area"],
             intent_data["max_budget"],
             language=self._detect_language(query, previous_queries or []),
+            compound=intent_data.get("compound"),
         )
 
         return {
@@ -146,6 +150,14 @@ class LocalRouter:
 
         if intent["area"]:
             stmt = stmt.where(Property.location.ilike(f"%{intent['area']}%"))
+
+        if intent.get("compound"):
+            stmt = stmt.where(
+                or_(
+                    Property.compound.ilike(f"%{intent['compound']}%"),
+                    Property.developer.ilike(f"%{intent['compound']}%"),
+                )
+            )
 
         if intent["max_budget"]:
              stmt = stmt.where(Property.price <= intent["max_budget"])
@@ -172,6 +184,14 @@ class LocalRouter:
 
         if intent["area"]:
             stmt = stmt.where(Property.location.ilike(f"%{intent['area']}%"))
+
+        if intent.get("compound"):
+            stmt = stmt.where(
+                or_(
+                    Property.compound.ilike(f"%{intent['compound']}%"),
+                    Property.developer.ilike(f"%{intent['compound']}%"),
+                )
+            )
 
         if intent["max_budget"]:
             stmt = stmt.where(Property.price <= intent["max_budget"])
@@ -273,11 +293,11 @@ class LocalRouter:
             if previous_intent.get("intent") != "SEARCH":
                 continue
 
-            for key in ("area", "property_type", "max_budget", "rooms"):
+            for key in ("area", "compound", "property_type", "max_budget", "rooms"):
                 if not merged.get(key) and previous_intent.get(key):
                     merged[key] = previous_intent[key]
 
-            if merged.get("area") and merged.get("max_budget"):
+            if merged.get("area") and merged.get("max_budget") and merged.get("compound"):
                 break
 
         return merged
@@ -288,6 +308,7 @@ class LocalRouter:
         area_missing: bool,
         budget_missing: bool,
         area: str | None = None,
+        compound: str | None = None,
     ) -> str:
         is_arabic = self._contains_arabic(query)
 
@@ -298,12 +319,13 @@ class LocalRouter:
                 "6th of october": "6 أكتوبر",
             }
             area_label = area_label_map.get((area or "").lower(), area or "")
+            target_label = f"{compound} في {area_label}" if compound and area_label else compound or area_label
 
             if area_missing and budget_missing:
                 return "علشان أجيب لك أفضل الفرص، قولي المنطقة اللي تفضلها (مثال: القاهرة الجديدة) والميزانية القصوى."
             if budget_missing and not area_missing:
-                if area_label:
-                    return f"تمام، فهمت إنك مهتم بـ {area_label}. قولي الميزانية القصوى وأنا أطلع لك أفضل الفرص فورًا."
+                if target_label:
+                    return f"تمام، فهمت إنك مهتم بـ {target_label}. قولي الميزانية القصوى وأنا أطلع لك أفضل الفرص فورًا."
                 return "تمام، قولي الميزانية القصوى وأنا أطلع لك أفضل الفرص فورًا."
             if area_missing and not budget_missing:
                 return "ممتاز. قولي المنطقة اللي تفضلها (مثال: القاهرة الجديدة) علشان أحدد لك أفضل الخيارات ضمن ميزانيتك."
@@ -313,7 +335,8 @@ class LocalRouter:
             return "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget."
         if budget_missing and not area_missing:
             area_label = (area or "selected area").title()
-            return f"Great, I understood your preferred area is {area_label}. Please share your maximum budget and I will fetch the best options right away."
+            target_label = f"{compound} in {area_label}" if compound else area_label
+            return f"Great, I understood you are interested in {target_label}. Please share your maximum budget and I will fetch the best options right away."
         if area_missing and not budget_missing:
             return "Great, please share your preferred area (e.g., New Cairo) so I can fetch the best options within your budget."
         return "Great, are you looking for an apartment or a villa?"
