@@ -136,7 +136,15 @@ origins = [
     "https://osool-one.vercel.app", # Specific Vercel deployment
     "https://osool-ten.vercel.app", # Latest Vercel deployment
     "https://osool.eg",  # Production (Core)
+    "https://osool-production.up.railway.app",  # Railway deployment
 ]
+
+extra_origins = os.getenv("ALLOWED_ORIGINS", "")
+if extra_origins:
+    origins.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
+
+# Keep order stable while removing duplicates
+origins = list(dict.fromkeys(origins))
 
 if os.getenv("ENVIRONMENT") == "production":
     origins = [o for o in origins if not o.startswith("http://localhost")]
@@ -221,6 +229,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Admin-Key", "X-CSRF-Token"],
+    expose_headers=["X-CSRF-Token"],
 )
 
 app.state.limiter = limiter

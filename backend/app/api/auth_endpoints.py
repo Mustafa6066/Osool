@@ -13,6 +13,7 @@ Import this in endpoints.py to add all auth routes.
 import os
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +40,11 @@ from app.auth import (
 from app.services.sms_service import sms_service
 from app.services.email_service import email_service, create_verification_token, is_verification_token_valid, consume_verification_token
 from app.security.account_lockout import AccountLockoutManager
+from app.middleware.csrf_protection import (
+    CSRF_COOKIE_NAME,
+    CSRF_HEADER_NAME,
+    generate_csrf_token,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -152,6 +158,31 @@ class AuthResponse(BaseModel):
     token_type: str
     user_id: int
     is_new_user: bool
+
+
+@router.get("/csrf-token")
+async def get_csrf_token(request: Request):
+    """
+    Return a CSRF token for SPA bootstrap and recovery flows.
+
+    The middleware also manages CSRF cookies globally, but this dedicated endpoint
+    keeps frontend initialization deterministic across deployments.
+    """
+    csrf_token = request.cookies.get(CSRF_COOKIE_NAME) or generate_csrf_token()
+    is_secure = request.url.scheme == "https" or os.getenv("ENVIRONMENT") == "production"
+
+    response = JSONResponse({"csrf_token": csrf_token})
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=csrf_token,
+        httponly=False,
+        secure=is_secure,
+        samesite="strict",
+        max_age=86400,
+        path="/",
+    )
+    response.headers[CSRF_HEADER_NAME] = csrf_token
+    return response
 
 
 # ═══════════════════════════════════════════════════════════════
