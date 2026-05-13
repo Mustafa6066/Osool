@@ -34,10 +34,17 @@ class LocalRouter:
         # 4. Handle Normal Search
         if not intent_data["area"] or not intent_data["max_budget"]:
              # Needs clarification, handle gracefully without LLM
+             area_missing = not bool(intent_data["area"])
+             budget_missing = not bool(intent_data["max_budget"])
              return {
                  "type": "clarification",
                  "response_type": "free_local",
-                 "text": self._get_clarification_text(query),
+                 "text": self._get_clarification_text(
+                     query=query,
+                     area_missing=area_missing,
+                     budget_missing=budget_missing,
+                     area=intent_data.get("area"),
+                 ),
                  "properties": [],
                  "show_upsell": False,
                  "upsell_reason": None,
@@ -86,10 +93,17 @@ class LocalRouter:
 
         # 4. Handle Normal Search
         if not intent_data["area"] or not intent_data["max_budget"]:
+            area_missing = not bool(intent_data["area"])
+            budget_missing = not bool(intent_data["max_budget"])
             return {
                 "type": "clarification",
                 "response_type": "free_local",
-                "text": self._get_clarification_text(query),
+                "text": self._get_clarification_text(
+                    query=query,
+                    area_missing=area_missing,
+                    budget_missing=budget_missing,
+                    area=intent_data.get("area"),
+                ),
                 "properties": [],
                 "show_upsell": False,
                 "upsell_reason": None,
@@ -234,10 +248,41 @@ class LocalRouter:
     def _contains_arabic(self, text: str) -> bool:
         return bool(text and re.search(r"[\u0600-\u06FF]", text))
 
-    def _get_clarification_text(self, query: str) -> str:
-        if self._contains_arabic(query):
-            return "علشان أجيب لك أفضل الفرص، قولي المنطقة اللي تفضلها (مثال: القاهرة الجديدة) والميزانية القصوى."
-        return "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget."
+    def _get_clarification_text(
+        self,
+        query: str,
+        area_missing: bool,
+        budget_missing: bool,
+        area: str | None = None,
+    ) -> str:
+        is_arabic = self._contains_arabic(query)
+
+        if is_arabic:
+            area_label_map = {
+                "new cairo": "القاهرة الجديدة",
+                "sheikh zayed": "الشيخ زايد",
+                "6th of october": "6 أكتوبر",
+            }
+            area_label = area_label_map.get((area or "").lower(), area or "")
+
+            if area_missing and budget_missing:
+                return "علشان أجيب لك أفضل الفرص، قولي المنطقة اللي تفضلها (مثال: القاهرة الجديدة) والميزانية القصوى."
+            if budget_missing and not area_missing:
+                if area_label:
+                    return f"تمام، فهمت إنك مهتم بـ {area_label}. قولي الميزانية القصوى وأنا أطلع لك أفضل الفرص فورًا."
+                return "تمام، قولي الميزانية القصوى وأنا أطلع لك أفضل الفرص فورًا."
+            if area_missing and not budget_missing:
+                return "ممتاز. قولي المنطقة اللي تفضلها (مثال: القاهرة الجديدة) علشان أحدد لك أفضل الخيارات ضمن ميزانيتك."
+            return "ممتاز، هل تحب شقة ولا فيلا؟"
+
+        if area_missing and budget_missing:
+            return "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget."
+        if budget_missing and not area_missing:
+            area_label = (area or "selected area").title()
+            return f"Great, I understood your preferred area is {area_label}. Please share your maximum budget and I will fetch the best options right away."
+        if area_missing and not budget_missing:
+            return "Great, please share your preferred area (e.g., New Cairo) so I can fetch the best options within your budget."
+        return "Great, are you looking for an apartment or a villa?"
 
     def _generate_upsell_response(self, trigger_type: str, query: str = "") -> Dict[str, Any]:
         """
