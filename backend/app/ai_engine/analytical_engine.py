@@ -1779,9 +1779,12 @@ class OsoolScore:
     rental_score: int       # V2: Rental yield attractiveness
     location_score: int     # V2: Location premium/demand level
     verdict: str  # BARGAIN, FAIR, PREMIUM, BELOW_COST
+    confidence: str         # HIGH / MEDIUM / LOW — data availability
+    score_range: tuple      # (low, high) — ±band reflecting confidence
 
     def __init__(self, total_score=0, value_score=0, growth_score=0,
-                 developer_score=0, rental_score=0, location_score=0, verdict="FAIR"):
+                 developer_score=0, rental_score=0, location_score=0,
+                 verdict="FAIR", confidence="MEDIUM", score_range=None):
         self.total_score = total_score
         self.value_score = value_score
         self.growth_score = growth_score
@@ -1789,6 +1792,13 @@ class OsoolScore:
         self.rental_score = rental_score
         self.location_score = location_score
         self.verdict = verdict
+        self.confidence = confidence
+        # Default band: ±10 for HIGH, ±15 for MEDIUM, ±25 for LOW
+        if score_range is None:
+            band = {"HIGH": 10, "MEDIUM": 15, "LOW": 25}.get(confidence, 15)
+            self.score_range = (max(0, total_score - band), min(100, total_score + band))
+        else:
+            self.score_range = score_range
 
     def to_dict(self) -> Dict:
         return {
@@ -1801,7 +1811,12 @@ class OsoolScore:
                 "rental": self.rental_score,
                 "location": self.location_score,
             },
-            "verdict": self.verdict
+            "verdict": self.verdict,
+            "confidence": self.confidence,
+            "score_range": {
+                "low": self.score_range[0],
+                "high": self.score_range[1],
+            },
         }
 
 
@@ -2294,42 +2309,51 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
             developer = (property_data.get("developer", "") or property_data.get("developer_name", "") or "").lower()
 
             # 1. VALUE SCORE (Price/sqm vs market) — 0-100
+            # Recalibrated curve: at-market = 50 (neutral), not 70.
+            # Anchors: ratio 0.70 → 0, 1.00 → 50, 1.30 → 100. Linear between.
             price_per_sqm = price / size_sqm if size_sqm > 0 else 0
             market_avg = await self._get_area_avg_price(location, session)
 
-            if price_per_sqm > 0 and market_avg > 0:
-                # Ratio > 1 means cheap vs market, < 1 means expensive
+            has_market_data = price_per_sqm > 0 and market_avg > 0
+            if has_market_data:
                 value_ratio = market_avg / price_per_sqm
-                # Map: 0.5 ratio -> 0, 1.0 ratio -> 70, 1.5 ratio -> 100
-                value_score = min(100, max(0, int(value_ratio * 70)))
-            elif price == 0:
-                # No price data — give neutral score
-                value_score = 50
+                value_score = int(round((value_ratio - 0.70) * (100 / 0.60)))
+                value_score = max(0, min(100, value_score))
             else:
-                value_score = 50
+                value_score = 50  # neutral when price or market data missing
 
             # 2. GROWTH SCORE (Area appreciation) — 0-100
-            growth_rate = self._get_appreciation_rate(location)
+            # Prefer Area table row (admin-editable); fall back to in-code constants.
+            from app.services import market_data_repository as mkt
+            growth_rate = await mkt.get_area_growth(location, session)
+            if growth_rate is None:
+                growth_rate = self._get_appreciation_rate(location)
             # Map: 0% -> 40, 50% -> 60, 100% -> 75, 200% -> 100
             growth_score = min(100, max(40, int(40 + min(growth_rate, 3.0) * 20)))
 
             # 3. DEVELOPER SCORE — 0-100
-            developer_score = 60  # Default for unknown
-            if developer:
-                if any(d in developer for d in TIER1_DEVELOPERS):
-                    developer_score = 95
-                elif any(d in developer for d in TIER2_DEVELOPERS):
-                    developer_score = 80
-                # Check DEVELOPER_GRAPH for additional matches
-                for dev_key, dev_data in DEVELOPER_GRAPH.items():
-                    dev_names = [dev_key, dev_data.get('name_en', '').lower(), dev_data.get('name_ar', '')]
-                    if any(name and name.lower() in developer for name in dev_names):
-                        tier = dev_data.get('tier', 3)
-                        developer_score = {1: 95, 2: 80}.get(tier, 65)
-                        break
+            # DB first: developers.overall_score is the admin-curated value.
+            db_dev_score = await mkt.get_developer_score(developer, session)
+            if db_dev_score is not None:
+                developer_score = int(round(db_dev_score))
+            else:
+                developer_score = 60  # Default for unknown
+                if developer:
+                    if any(d in developer for d in TIER1_DEVELOPERS):
+                        developer_score = 95
+                    elif any(d in developer for d in TIER2_DEVELOPERS):
+                        developer_score = 80
+                    # Check DEVELOPER_GRAPH for additional matches
+                    for dev_key, dev_data in DEVELOPER_GRAPH.items():
+                        dev_names = [dev_key, dev_data.get('name_en', '').lower(), dev_data.get('name_ar', '')]
+                        if any(name and name.lower() in developer for name in dev_names):
+                            tier = dev_data.get('tier', 3)
+                            developer_score = {1: 95, 2: 80}.get(tier, 65)
+                            break
 
             # 4. RENTAL SCORE (Yield attractiveness) — 0-100
-            rental_yield = self._get_rental_yield(location)
+            db_yield = await mkt.get_area_rental_yield(location, session)
+            rental_yield = db_yield if db_yield is not None else self._get_rental_yield(location)
             # Map: 5% -> 50, 6.5% -> 65, 7.5% -> 75, 10% -> 100
             rental_score = min(100, max(30, int(rental_yield * 1000)))
 
@@ -2360,15 +2384,29 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
             )
             total_score = max(0, min(100, total_score))
 
-            # VERDICT
-            if value_score > 85 and total_score > 80:
+            # VERDICT — recalibrated against the new value_score curve
+            # (at-market = 50, ~12% below = 70, ~25% below = 85+)
+            if value_score >= 85 and total_score >= 80:
                 verdict = "BELOW_COST"  # Buying below replacement cost
-            elif value_score > 75:
-                verdict = "BARGAIN"
-            elif value_score > 55:
-                verdict = "FAIR"
+            elif value_score >= 70:
+                verdict = "BARGAIN"     # ≥12% below market
+            elif value_score >= 40:
+                verdict = "FAIR"        # Within ~18% of market
             else:
-                verdict = "PREMIUM"
+                verdict = "PREMIUM"     # Significantly above market
+
+            # CONFIDENCE — reflects how much real data backed the score
+            # HIGH: have both market avg and a known developer/location
+            # MEDIUM: have market avg OR developer/location data
+            # LOW: missing market avg AND developer unknown
+            known_developer = developer_score != 60  # 60 is the "unknown" default
+            known_location = location_score != 60
+            if has_market_data and (known_developer or known_location):
+                confidence = "HIGH"
+            elif has_market_data or known_developer or known_location:
+                confidence = "MEDIUM"
+            else:
+                confidence = "LOW"
 
             return OsoolScore(
                 total_score=total_score,
@@ -2378,6 +2416,7 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
                 rental_score=rental_score,
                 location_score=location_score,
                 verdict=verdict,
+                confidence=confidence,
             )
         except Exception as e:
             logger.error(f"score_property error: {e}", exc_info=True)
@@ -2385,7 +2424,7 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
             return OsoolScore(
                 total_score=50, value_score=50, growth_score=50,
                 developer_score=50, rental_score=50, location_score=50,
-                verdict="FAIR"
+                verdict="FAIR", confidence="LOW",
             )
     
     async def score_properties(

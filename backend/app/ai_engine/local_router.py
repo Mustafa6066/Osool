@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, select
 from app.models import Property
@@ -53,11 +53,15 @@ class LocalRouter:
                  "cta_actions": []
              }
 
-        # Query Database
-        properties = self._query_database(db, intent_data)
+        # Query Database with tiered fallback
+        properties, fallback_meta = asyncio.run(self._query_with_fallback(db, intent_data))
+
+        effective_area = intent_data["area"]
+        if fallback_meta and fallback_meta.get("tier") == "area_swap" and properties:
+            effective_area = properties[0].get("location") or intent_data["area"]
 
         # Run Analytical Engine (inject scores and bargain info)
-        enriched_properties = asyncio.run(self._enrich_with_analytics_async(properties, intent_data["area"]))
+        enriched_properties = asyncio.run(self._enrich_with_analytics_async(properties, effective_area))
 
         # Generate Text Response
         response_text = template_generator.generate_response(
@@ -66,6 +70,7 @@ class LocalRouter:
             intent_data["max_budget"],
             language=self._detect_language(query, previous_queries or []),
             compound=intent_data.get("compound"),
+            fallback_meta=fallback_meta,
         )
 
         return {
@@ -75,7 +80,8 @@ class LocalRouter:
             "properties": enriched_properties[:1], # Send top property for the UI card
             "show_upsell": False,
             "upsell_reason": None,
-            "cta_actions": []
+            "cta_actions": [],
+            "fallback_tier": (fallback_meta or {}).get("tier"),
         }
 
     async def process_query_async(
@@ -122,14 +128,22 @@ class LocalRouter:
                 "cta_actions": [],
             }
 
-        properties = await self._query_database_async(db, intent_data)
-        enriched_properties = await self._enrich_with_analytics_async(properties, intent_data["area"])
+        properties, fallback_meta = await self._query_with_fallback(db, intent_data)
+
+        # If a fallback swapped area (e.g., Sodic in Sheikh Zayed instead of New Cairo),
+        # enrich against the actual property location for accurate price-per-sqm framing.
+        effective_area = intent_data["area"]
+        if fallback_meta and fallback_meta.get("tier") == "area_swap" and properties:
+            effective_area = properties[0].get("location") or intent_data["area"]
+
+        enriched_properties = await self._enrich_with_analytics_async(properties, effective_area)
         response_text = template_generator.generate_response(
             enriched_properties,
             intent_data["area"],
             intent_data["max_budget"],
             language=self._detect_language(query, previous_queries or []),
             compound=intent_data.get("compound"),
+            fallback_meta=fallback_meta,
         )
 
         return {
@@ -140,6 +154,7 @@ class LocalRouter:
             "show_upsell": False,
             "upsell_reason": None,
             "cta_actions": [],
+            "fallback_tier": (fallback_meta or {}).get("tier"),
         }
 
     def _query_database(self, db: Session, intent: Dict[str, Any]) -> List[Dict]:
@@ -205,6 +220,102 @@ class LocalRouter:
         stmt = stmt.order_by(Property.price.asc()).limit(10)
         results = (await db.execute(stmt)).scalars().all()
         return [self._prop_to_dict(p) for p in results]
+
+    async def _query_with_fallback(
+        self,
+        db,
+        intent: Dict[str, Any],
+    ) -> Tuple[List[Dict], Optional[Dict[str, Any]]]:
+        """
+        Tiered fallback search: try the exact criteria first, then progressively
+        relax to surface the best next-best option. Returns (properties, meta);
+        meta is ``None`` for an exact match and otherwise describes which
+        constraint was relaxed so the template generator can frame the pitch.
+        """
+        base_budget = intent.get("max_budget")
+        base_compound = intent.get("compound")
+        base_area = intent.get("area")
+
+        # Tier 1: exact match
+        props = await self._query_database_async(db, intent)
+        if props:
+            return props, None
+
+        # Tier 2: same compound + area, stretch budget by +25%.
+        # Surfaces "just over budget" deals which are usually worth pitching.
+        if base_budget and base_compound and base_area:
+            relaxed = dict(intent)
+            relaxed["max_budget"] = int(base_budget * 1.25)
+            props = await self._query_database_async(db, relaxed)
+            if props:
+                return props, {
+                    "tier": "budget_stretch",
+                    "original_budget": base_budget,
+                    "stretched_budget": relaxed["max_budget"],
+                    "compound": base_compound,
+                    "area": base_area,
+                }
+
+        # Tier 3: same area + budget, drop compound.
+        # "Sodic isn't in stock here, but here's the best alternative in your area."
+        if base_compound and base_area and base_budget:
+            relaxed = dict(intent)
+            relaxed["compound"] = None
+            props = await self._query_database_async(db, relaxed)
+            if props:
+                return props, {
+                    "tier": "compound_swap",
+                    "missing_compound": base_compound,
+                    "area": base_area,
+                    "budget": base_budget,
+                }
+
+        # Tier 4: same compound, swap area (within budget).
+        # "Your developer of choice doesn't have units here — but they have great ones in X."
+        if base_compound and base_budget:
+            relaxed = dict(intent)
+            relaxed["area"] = None
+            props = await self._query_database_async(db, relaxed)
+            if props:
+                return props, {
+                    "tier": "area_swap",
+                    "missing_area": base_area,
+                    "compound": base_compound,
+                    "budget": base_budget,
+                }
+
+        # Tier 5: drop compound AND stretch budget +50% in the same area.
+        if base_area and base_budget:
+            relaxed = dict(intent)
+            relaxed["compound"] = None
+            relaxed["max_budget"] = int(base_budget * 1.5)
+            props = await self._query_database_async(db, relaxed)
+            if props:
+                return props, {
+                    "tier": "compound_swap_budget_stretch",
+                    "missing_compound": base_compound,
+                    "original_budget": base_budget,
+                    "stretched_budget": relaxed["max_budget"],
+                    "area": base_area,
+                }
+
+        # Tier 6: drop budget cap entirely, keep area; closest above-budget unit wins.
+        if base_area:
+            relaxed = dict(intent)
+            relaxed["compound"] = None
+            relaxed["max_budget"] = None
+            relaxed["property_type"] = None
+            relaxed["rooms"] = None
+            props = await self._query_database_async(db, relaxed)
+            if props:
+                return props, {
+                    "tier": "budget_uncapped",
+                    "missing_compound": base_compound,
+                    "original_budget": base_budget,
+                    "area": base_area,
+                }
+
+        return [], None
 
     def _prop_to_dict(self, prop: Property) -> Dict:
         return {

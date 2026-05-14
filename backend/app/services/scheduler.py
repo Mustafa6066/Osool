@@ -27,8 +27,73 @@ logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler(timezone="UTC")
 
+_scheduler_lock_fd = None
+_scheduler_lock_owner = False
+_scheduler_lock_path = os.getenv("SCHEDULER_LOCK_FILE", "/tmp/osool_apscheduler.lock")
+
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+
+
+def _acquire_scheduler_lock() -> bool:
+    """
+    Ensure only one process starts APScheduler.
+
+    In production, Gunicorn runs multiple worker processes and each worker executes
+    FastAPI startup events. Without an inter-process lock, all workers will start
+    their own scheduler and each cron job runs multiple times.
+    """
+    global _scheduler_lock_fd, _scheduler_lock_owner
+
+    if _scheduler_lock_owner:
+        return True
+
+    # fcntl is available on Linux (Railway) and unavailable on Windows.
+    # Windows local dev usually runs a single process, so we allow startup.
+    try:
+        import fcntl
+    except ImportError:
+        logger.warning("APScheduler lock unavailable on this OS; continuing without inter-process lock")
+        return True
+
+    lock_dir = os.path.dirname(_scheduler_lock_path)
+    if lock_dir:
+        os.makedirs(lock_dir, exist_ok=True)
+
+    fd = os.open(_scheduler_lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        return False
+
+    os.ftruncate(fd, 0)
+    os.write(fd, str(os.getpid()).encode("utf-8"))
+    _scheduler_lock_fd = fd
+    _scheduler_lock_owner = True
+    return True
+
+
+def _release_scheduler_lock() -> None:
+    global _scheduler_lock_fd, _scheduler_lock_owner
+
+    if _scheduler_lock_fd is None:
+        _scheduler_lock_owner = False
+        return
+
+    try:
+        import fcntl
+        fcntl.flock(_scheduler_lock_fd, fcntl.LOCK_UN)
+    except Exception:
+        pass
+
+    try:
+        os.close(_scheduler_lock_fd)
+    except Exception:
+        pass
+
+    _scheduler_lock_fd = None
+    _scheduler_lock_owner = False
 
 
 async def _notify_orchestrator(event_type: str, payload: dict):
@@ -203,6 +268,14 @@ def init_scheduler():
     Initialize and start the APScheduler with weekly cron jobs.
     Called once during FastAPI startup.
     """
+    if scheduler.running:
+        logger.info("APScheduler already running in pid=%s; skipping re-init", os.getpid())
+        return
+
+    if not _acquire_scheduler_lock():
+        logger.info("APScheduler already owned by another worker; skipping init in pid=%s", os.getpid())
+        return
+
     # Post-scrape processing: Every Sunday at 04:30 UTC
     # Runs after the Railway Cron scraper container (03:00 UTC) completes.
     scheduler.add_job(
@@ -291,6 +364,7 @@ def init_scheduler():
 
 def shutdown_scheduler():
     """Gracefully stop the scheduler."""
-    if scheduler.running:
+    if scheduler.running and _scheduler_lock_owner:
         scheduler.shutdown(wait=False)
         logger.info("⏹️ APScheduler shut down")
+    _release_scheduler_lock()

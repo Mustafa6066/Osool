@@ -168,6 +168,46 @@ async def readiness_check():
         )
 
 
+@router.get("/service-status")
+async def service_status():
+    """
+    Public, user-safe degraded-mode summary.
+
+    Returns which user-facing capabilities are running on a fallback path so the
+    frontend can show a banner ("Live pricing data temporarily unavailable —
+    showing recent estimates"). Does not leak internal failure counts or stack
+    traces; keep this endpoint stable for UI consumers.
+    """
+    from app.services.cache import cache as _cache
+
+    redis_ok = _cache.redis is not None
+    valuation_ok = openai_breaker.state != CircuitState.OPEN
+    chat_ok = claude_breaker.state != CircuitState.OPEN
+
+    # User-facing degraded flags. "operating mode" wording avoids the misleading
+    # "offline" label — this is server-side fault tolerance, not offline support.
+    capabilities = {
+        "live_pricing": {
+            "mode": "live" if valuation_ok else "fallback",
+            "message": None if valuation_ok else "Using cached estimates — live valuation temporarily unavailable.",
+        },
+        "ai_chat": {
+            "mode": "live" if chat_ok else "fallback",
+            "message": None if chat_ok else "AI assistant is in reduced mode — replies may be slower.",
+        },
+        "session_cache": {
+            "mode": "live" if redis_ok else "fallback",
+            "message": None if redis_ok else "Session cache running on in-memory fallback.",
+        },
+    }
+    any_degraded = any(c["mode"] == "fallback" for c in capabilities.values())
+
+    return {
+        "operating_mode": "degraded" if any_degraded else "normal",
+        "capabilities": capabilities,
+    }
+
+
 @router.get("/liveness")
 async def liveness_check():
     """

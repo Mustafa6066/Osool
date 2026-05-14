@@ -3,6 +3,29 @@ Osool Hybrid Intelligence Engine (Production)
 ---------------------------------------------
 Combines statistical model inference (via dedicated MLOps endpoint)
 with GPT-4o for market reasoning and legal context.
+
+─────────────────────────────────────────────────────────────────────────────
+DUAL-VALUATION ARCHITECTURE — read before changing pricing logic
+─────────────────────────────────────────────────────────────────────────────
+There are TWO valuation paths in this repository, intentionally kept separate:
+
+  1. THIS FILE (Osool-Platform, Python, OpenAI GPT-4o + XGBoost MLOps)
+     Used by: authenticated user dashboard (/api/ai/valuation, /api/ai/compare-price).
+     Data source: MLOps XGBoost endpoint + DB-backed Area/Developer tables
+     (via app.services.market_data_repository).
+     Strength: real ML predictions, confidence bands, admin-editable inputs.
+
+  2. Osool-orchestrator/apps/api/src/agents/brain/plugins/valuation.plugin.ts
+     (TypeScript, Anthropic Claude)
+     Used by: the marketing/SEO chat agent on the public site.
+     Data source: hardcoded constants in @osool/shared.
+     Strength: low-latency, no DB dependency, good for top-of-funnel chat.
+
+The two MUST NOT be merged without a migration plan — they have different
+SLAs, billing, and authentication models. If outputs need to agree, prefer
+having the orchestrator call this Platform endpoint as the source of truth,
+rather than duplicating inference in TypeScript.
+─────────────────────────────────────────────────────────────────────────────
 """
 
 import os
@@ -187,8 +210,22 @@ class OsoolHybridBrainProd:
             if predicted_price is not None:
                 result["predicted_price"] = int(predicted_price)
                 result["source"] = "XGBoost (MLOps) + GPT-4o Hybrid"
+                result["confidence"] = "HIGH"
+                # XGBoost training error band ±10% — surfaced for the UI
+                result["price_range"] = {
+                    "low": int(predicted_price * 0.90),
+                    "high": int(predicted_price * 1.10),
+                }
             else:
-                result["source"] = "GPT-4o Market Estimation (MLOps Offline or Unknown Location)"
+                result["source"] = "GPT-4o Market Estimation (MLOps Unavailable or Unknown Location)"
+                result["confidence"] = "LOW"
+                # Wider band when only the LLM estimated — ±20%
+                gpt_price = int(result.get("predicted_price") or 0)
+                if gpt_price > 0:
+                    result["price_range"] = {
+                        "low": int(gpt_price * 0.80),
+                        "high": int(gpt_price * 1.20),
+                    }
 
             # Cache the result
             self._cache[cache_key] = result
@@ -205,6 +242,11 @@ class OsoolHybridBrainProd:
                     else "Unable to calculate price — both MLOps and AI unavailable."
                 ],
                 "source": "XGBoost Only" if fallback_price else "Error",
+                "confidence": "MEDIUM" if fallback_price else "NONE",
+                "price_range": (
+                    {"low": int(fallback_price * 0.90), "high": int(fallback_price * 1.10)}
+                    if fallback_price else None
+                ),
                 "error": str(e)
             }
 

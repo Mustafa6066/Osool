@@ -18,10 +18,10 @@ limiter = Limiter(key_func=get_remote_address)
 
 from app.auth import get_current_user
 from app.database import get_db, AsyncSessionLocal
-from app.models import (User, ChatMessage, Property, Transaction, 
-                        MarketIndicator, ConversationAnalytics, 
+from app.models import (User, ChatMessage, Property, Transaction,
+                        MarketIndicator, ConversationAnalytics,
                         Ticket, TicketReply, GeopoliticalEvent, MarketingMaterial,
-                        HallucinationFlag)
+                        HallucinationFlag, Area, Developer)
 
 logger = logging.getLogger(__name__)
 
@@ -689,6 +689,138 @@ async def admin_update_market_indicator(
         "source": source,
         "updated_by": admin.email,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# MARKET DATA (Areas + Developers) — replaces hardcoded constants
+# ═══════════════════════════════════════════════════════════════
+
+
+class UpdateAreaMarketRequest(BaseModel):
+    """Validated update for an area's pricing/growth/yield metrics."""
+    avg_price_per_meter: Optional[float] = Field(None, ge=0, le=10_000_000)
+    price_growth_ytd: Optional[float] = Field(None, ge=-1.0, le=10.0)
+    rental_yield: Optional[float] = Field(None, ge=0, le=1.0)
+    predicted_roi_5y: Optional[float] = Field(None, ge=-1.0, le=10.0)
+
+
+class UpdateDeveloperScoreRequest(BaseModel):
+    """Validated update for a developer's composite score."""
+    overall_score: float = Field(..., ge=0, le=100)
+
+
+@router.get("/market-data/areas")
+async def admin_list_area_market_data(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admin: list every area with its current pricing/growth/yield metrics."""
+    result = await db.execute(select(Area).order_by(Area.name))
+    areas = result.scalars().all()
+    return {
+        "total": len(areas),
+        "areas": [
+            {
+                "id": a.id,
+                "slug": a.slug,
+                "name": a.name,
+                "name_ar": a.name_ar,
+                "avg_price_per_meter": a.avg_price_per_meter,
+                "price_growth_ytd": a.price_growth_ytd,
+                "rental_yield": a.rental_yield,
+                "predicted_roi_5y": a.predicted_roi_5y,
+                "updated_at": a.updated_at.isoformat() if a.updated_at else None,
+            }
+            for a in areas
+        ],
+    }
+
+
+@router.patch("/market-data/areas/{slug}")
+@limiter.limit("20/minute")
+async def admin_update_area_market_data(
+    slug: str,
+    body: UpdateAreaMarketRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admin: update one or more market metrics on an Area row.
+
+    Any field left null in the request is preserved. The in-process market_data
+    cache is cleared so the new value takes effect immediately.
+    """
+    result = await db.execute(select(Area).where(Area.slug == slug))
+    area = result.scalar_one_or_none()
+    if not area:
+        raise HTTPException(status_code=404, detail=f"Area '{slug}' not found")
+
+    updates = body.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(area, field, value)
+
+    await db.commit()
+
+    from app.services.market_data_repository import clear_cache
+    cleared = clear_cache()
+
+    logger.info(
+        f"Admin {admin.email} updated area {slug}: {updates} "
+        f"(cleared {cleared} cached entries)"
+    )
+    return {
+        "slug": slug,
+        "updated_fields": list(updates.keys()),
+        "cache_entries_cleared": cleared,
+        "updated_by": admin.email,
+    }
+
+
+@router.patch("/market-data/developers/{slug}")
+@limiter.limit("20/minute")
+async def admin_update_developer_score(
+    slug: str,
+    body: UpdateDeveloperScoreRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admin: update a developer's composite score (used in property scoring)."""
+    result = await db.execute(select(Developer).where(Developer.slug == slug))
+    dev = result.scalar_one_or_none()
+    if not dev:
+        raise HTTPException(status_code=404, detail=f"Developer '{slug}' not found")
+
+    dev.overall_score = body.overall_score
+    await db.commit()
+
+    from app.services.market_data_repository import clear_cache
+    cleared = clear_cache()
+
+    logger.info(
+        f"Admin {admin.email} set developer {slug} overall_score = {body.overall_score}"
+    )
+    return {
+        "slug": slug,
+        "overall_score": body.overall_score,
+        "cache_entries_cleared": cleared,
+        "updated_by": admin.email,
+    }
+
+
+@router.post("/market-data/refresh-cache")
+async def admin_refresh_market_data_cache(
+    admin: User = Depends(require_admin),
+):
+    """Admin: force-clear the in-process market data cache.
+
+    Use after bulk-importing areas/developers via a script so scoring picks up the
+    new rows without a process restart.
+    """
+    from app.services.market_data_repository import clear_cache
+    cleared = clear_cache()
+    logger.info(f"Admin {admin.email} cleared market data cache ({cleared} entries)")
+    return {"cleared": cleared, "by": admin.email}
 
 
 # ═══════════════════════════════════════════════════════════════

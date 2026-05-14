@@ -5,15 +5,32 @@ Non-blocking, fire-and-forget, gracefully degrades when orchestrator is unavaila
 
 import os
 import logging
+import json
+import uuid
+import time
+import hmac
+import hashlib
 from typing import Optional, Dict, Any
 
 import httpx
+from app.services.circuit_breaker import CircuitBreaker
+from app.services.http_resilience import request_with_retry
 
 logger = logging.getLogger(__name__)
 
 _ORCHESTRATOR_URL = (os.getenv("ORCHESTRATOR_URL") or "").rstrip("/")
 _ORCHESTRATOR_API_KEY = os.getenv("ORCHESTRATOR_API_KEY") or ""
 _TIMEOUT = 3.0
+_orchestrator_breaker = CircuitBreaker(failure_threshold=4, timeout=30)
+
+
+def get_orchestrator_health_status() -> Dict[str, Any]:
+    """Return lightweight orchestrator dependency health for monitoring endpoints."""
+    return {
+        "configured": bool(_ORCHESTRATOR_URL),
+        "timeout_seconds": _TIMEOUT,
+        "circuit_breaker": _orchestrator_breaker.status,
+    }
 
 
 async def fetch_user_context(user_id: int) -> Optional[Dict[str, Any]]:
@@ -24,15 +41,26 @@ async def fetch_user_context(user_id: int) -> Optional[Dict[str, Any]]:
     if not _ORCHESTRATOR_URL:
         return None
 
-    try:
+    async def _request_context() -> Optional[Dict[str, Any]]:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.get(
+            resp = await request_with_retry(
+                client,
+                "GET",
                 f"{_ORCHESTRATOR_URL}/data/user-context/{user_id}",
+                service_name="orchestrator_user_context",
+                timeout=_TIMEOUT,
+                max_attempts=3,
                 headers={"x-api-key": _ORCHESTRATOR_API_KEY},
             )
             if resp.status_code == 200:
                 return resp.json()
+            if resp.status_code == 404:
+                return None
             logger.warning("Orchestrator user-context returned %d for user %s", resp.status_code, user_id)
+            return None
+
+    try:
+        return await _orchestrator_breaker.call_async(_request_context)
     except httpx.TimeoutException:
         logger.warning("Orchestrator user-context timed out for user %s", user_id)
     except httpx.ConnectError:
@@ -74,16 +102,38 @@ async def sync_user_memory(
     if preferences_text:
         payload["preferencesText"] = preferences_text
 
-    try:
+    body = json.dumps(payload, separators=(",", ":"))
+    timestamp = str(int(time.time()))
+    nonce = str(uuid.uuid4())
+    signature = hmac.new(
+        webhook_secret.encode("utf-8"),
+        body.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    async def _push_memory() -> None:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            await client.post(
+            resp = await request_with_retry(
+                client,
+                "POST",
                 f"{_ORCHESTRATOR_URL}/webhooks/user-memory",
-                json=payload,
+                service_name="orchestrator_user_memory_sync",
+                timeout=_TIMEOUT,
+                max_attempts=3,
                 headers={
                     "Content-Type": "application/json",
                     "x-webhook-secret": webhook_secret,
+                    "x-webhook-signature": signature,
+                    "x-webhook-timestamp": timestamp,
+                    "x-webhook-nonce": nonce,
                 },
+                content=body,
             )
+            if resp.status_code >= 400:
+                logger.warning("Failed to sync user memory: orchestrator returned %d", resp.status_code)
+
+    try:
+        await _orchestrator_breaker.call_async(_push_memory)
     except httpx.TimeoutException:
         logger.warning("Failed to sync user memory: orchestrator timed out")
     except httpx.ConnectError:

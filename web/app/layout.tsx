@@ -14,6 +14,7 @@ import { LeadScoreProvider } from '@/contexts/LeadScoreContext';
 import PriorityHandoff from '@/components/PriorityHandoff';
 import HapticFeedback from '@/components/HapticFeedback';
 import { WebVitalsReporter } from '@/components/WebVitalsReporter';
+import ServiceStatusBanner from '@/components/ServiceStatusBanner';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -75,6 +76,7 @@ export default function RootLayout({
                       id="app-root"
                       className="relative z-10 flex min-h-dvh w-full flex-col overflow-x-hidden"
                     >
+                      <ServiceStatusBanner />
                       <main id="main-content" className="flex-1">
                         {children}
                       </main>
