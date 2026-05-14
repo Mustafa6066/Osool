@@ -317,27 +317,37 @@ class LocalRouter:
                 "new cairo": "القاهرة الجديدة",
                 "sheikh zayed": "الشيخ زايد",
                 "6th of october": "6 أكتوبر",
+                "north coast": "الساحل الشمالي",
+                "new capital": "العاصمة الإدارية",
             }
             area_label = area_label_map.get((area or "").lower(), area or "")
             target_label = f"{compound} في {area_label}" if compound and area_label else compound or area_label
 
             if area_missing and budget_missing:
+                if compound:
+                    return f"تمام، فهمت إنك مهتم بـ {compound}. قولي المنطقة المفضلة (مثال: القاهرة الجديدة) والميزانية القصوى علشان أطلع لك أفضل الفرص فورًا."
                 return "علشان أجيب لك أفضل الفرص، قولي المنطقة اللي تفضلها (مثال: القاهرة الجديدة) والميزانية القصوى."
             if budget_missing and not area_missing:
                 if target_label:
                     return f"تمام، فهمت إنك مهتم بـ {target_label}. قولي الميزانية القصوى وأنا أطلع لك أفضل الفرص فورًا."
                 return "تمام، قولي الميزانية القصوى وأنا أطلع لك أفضل الفرص فورًا."
             if area_missing and not budget_missing:
+                if compound:
+                    return f"ممتاز. عندي اهتمامك بـ {compound} وميزانيتك. قولي المنطقة المفضلة (مثال: القاهرة الجديدة) علشان أحدد لك أفضل الخيارات."
                 return "ممتاز. قولي المنطقة اللي تفضلها (مثال: القاهرة الجديدة) علشان أحدد لك أفضل الخيارات ضمن ميزانيتك."
             return "ممتاز، هل تحب شقة ولا فيلا؟"
 
         if area_missing and budget_missing:
+            if compound:
+                return f"Great, I understood you are interested in {compound}. Please share your preferred area (e.g., New Cairo) and maximum budget so I can fetch the best options right away."
             return "To find the best deals, please tell me your preferred area (e.g., New Cairo) and maximum budget."
         if budget_missing and not area_missing:
             area_label = (area or "selected area").title()
             target_label = f"{compound} in {area_label}" if compound else area_label
             return f"Great, I understood you are interested in {target_label}. Please share your maximum budget and I will fetch the best options right away."
         if area_missing and not budget_missing:
+            if compound:
+                return f"Great, I have your interest in {compound} and budget noted. Please share your preferred area (e.g., New Cairo) so I can fetch the best options."
             return "Great, please share your preferred area (e.g., New Cairo) so I can fetch the best options within your budget."
         return "Great, are you looking for an apartment or a villa?"
 

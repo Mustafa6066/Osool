@@ -35,6 +35,20 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     )
     session_count = (await db.execute(session_count_stmt)).scalar_one()
 
+    # Load prior user messages (newest first) so the local router can merge
+    # entities like area/compound/budget from earlier turns. Without this the
+    # chat becomes effectively stateless and loops on clarification prompts.
+    history_stmt = (
+        select(ChatMessage.content)
+        .where(
+            ChatMessage.session_id == request.session_id,
+            ChatMessage.role == "user",
+        )
+        .order_by(ChatMessage.created_at.desc())
+        .limit(6)
+    )
+    previous_user_messages = [row[0] for row in (await db.execute(history_stmt)).all()]
+
     # Save user message
     user_msg = ChatMessage(
         session_id=request.session_id,
@@ -50,7 +64,8 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             response_data = await local_router.process_query_async(
                 query=request.message,
                 session_count=session_count,
-                db=db
+                db=db,
+                previous_queries=previous_user_messages,
             )
 
             # Save AI response
