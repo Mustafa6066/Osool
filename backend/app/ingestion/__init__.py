@@ -1,13 +1,13 @@
-"""
+﻿"""
 Osool Ingestion Pipeline
 -------------------------
 Autonomous, stealth, differential-hash data pipeline for Nawy.com.
 
 Architecture summary:
-  worker.py        — ARQ task queue entry point + dynamic URL discovery
-  core_scraper.py  — Stealth Playwright async scraper (Next.js __NEXT_DATA__ + XHR)
-  llm_normalizer.py — gpt-4o-mini structured normalization + Pydantic v2 schemas
-  repository.py    — SHA256 differential hash upsert + text-embedding-3-small
+  worker.py        - ARQ task queue entry point + dynamic URL discovery
+  core_scraper.py  - Stealth Playwright async scraper (Next.js __NEXT_DATA__ + XHR)
+  llm_normalizer.py - gpt-4o-mini structured normalization + Pydantic v2 schemas
+  repository.py    - SHA256 differential hash upsert + text-embedding-3-small
 
 Run the worker:
     python -m arq app.ingestion.worker.WorkerSettings
@@ -32,11 +32,17 @@ except ImportError:
     ScraperError = Exception  # type: ignore[assignment,misc]
     scrape_compound = None  # type: ignore[assignment]
 
-from app.ingestion.llm_normalizer import (
-    NormalizedProperty,
-    NormalizationResult,
-    normalize_properties,
-)
+try:
+    from app.ingestion.llm_normalizer import (
+        NormalizedProperty,
+        NormalizationResult,
+        normalize_properties,
+    )
+except ImportError:
+    NormalizedProperty = None  # type: ignore[assignment,misc]
+    NormalizationResult = None  # type: ignore[assignment,misc]
+    normalize_properties = None  # type: ignore[assignment]
+
 from app.ingestion.repository import UpsertResult, upsert_properties
 
 __all__ = [

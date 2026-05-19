@@ -4,10 +4,11 @@ import re
 from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, select
-from app.models import Property
+from app.models import FreePathSession, Property
 from app.ai_engine.local_intent import local_intent_extractor
 from app.ai_engine.template_generator import template_generator
 from app.ai_engine.analytical_engine import analytical_engine
+from app.ai_engine import comparison_dialog
 
 class LocalRouter:
     """
@@ -90,72 +91,55 @@ class LocalRouter:
         session_count: int,
         db,
         previous_queries: List[str] | None = None,
+        session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Async-compatible version for FastAPI AsyncSession routes.
+        Free-path entry point. Funnels every query into the compound-comparison
+        state machine. The legacy area+budget search path is no longer reached
+        from here; non-comparison intents are redirected back to "name 2–3
+        compounds" by `comparison_dialog.handle_turn`.
         """
-        # 1. Trigger 2: Depth Limit
+        # Outer gate: hard session-message cap still wins.
         if session_count >= 5:
             return self._generate_upsell_response("DEPTH_LIMIT", query)
 
-        # 2. Extract Intent
-        intent_data = local_intent_extractor.extract_intent(query)
-        intent_data = self._merge_previous_intent(intent_data, previous_queries or [])
+        # Without a session_id we have no place to persist state — fall back to
+        # the upsell so the user isn't trapped in a one-shot dialog.
+        if not session_id:
+            return self._generate_upsell_response("DEPTH_LIMIT", query)
 
-        # 3. Trigger 1 & 3: Complex or Action Intent
-        if intent_data["intent"] == "COMPLEX":
-            return self._generate_upsell_response("COMPLEX", query)
-        if intent_data["intent"] == "ACTION":
-            return self._generate_upsell_response("ACTION", query)
+        session = await self._load_or_create_session(db, session_id)
 
-        # 4. Handle Normal Search
-        if not intent_data["area"] or not intent_data["max_budget"]:
-            area_missing = not bool(intent_data["area"])
-            budget_missing = not bool(intent_data["max_budget"])
-            return {
-                "type": "clarification",
-                "response_type": "free_local",
-                "text": self._get_clarification_text(
-                    query=query,
-                    area_missing=area_missing,
-                    budget_missing=budget_missing,
-                    area=intent_data.get("area"),
-                    compound=intent_data.get("compound"),
-                ),
-                "properties": [],
-                "show_upsell": False,
-                "upsell_reason": None,
-                "cta_actions": [],
-            }
+        # Second gate: comparison already consumed for this session.
+        if session.comparison_used:
+            return self._generate_upsell_response("COMPARISON_USED", query)
 
-        properties, fallback_meta = await self._query_with_fallback(db, intent_data)
+        response = await comparison_dialog.handle_turn(query, session, db)
+        await db.commit()
+        return response
 
-        # If a fallback swapped area (e.g., Sodic in Sheikh Zayed instead of New Cairo),
-        # enrich against the actual property location for accurate price-per-sqm framing.
-        effective_area = intent_data["area"]
-        if fallback_meta and fallback_meta.get("tier") == "area_swap" and properties:
-            effective_area = properties[0].get("location") or intent_data["area"]
-
-        enriched_properties = await self._enrich_with_analytics_async(properties, effective_area)
-        response_text = template_generator.generate_response(
-            enriched_properties,
-            intent_data["area"],
-            intent_data["max_budget"],
-            language=self._detect_language(query, previous_queries or []),
-            compound=intent_data.get("compound"),
-            fallback_meta=fallback_meta,
+    async def _load_or_create_session(self, db, session_id: str) -> FreePathSession:
+        """
+        Load the per-session free-path state, creating a fresh one on first
+        contact. Commit is deferred to the caller so the session row and the
+        post-dialog state changes land in the same transaction.
+        """
+        existing = (
+            await db.execute(
+                select(FreePathSession).where(FreePathSession.session_id == session_id)
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return existing
+        fresh = FreePathSession(
+            session_id=session_id,
+            state=comparison_dialog.STATE_AWAITING_NAMES,
+            candidate_names=[],
+            comparison_used=False,
         )
-
-        return {
-            "type": "success",
-            "response_type": "free_local",
-            "text": response_text,
-            "properties": enriched_properties[:1],
-            "show_upsell": False,
-            "upsell_reason": None,
-            "cta_actions": [],
-            "fallback_tier": (fallback_meta or {}).get("tier"),
-        }
+        db.add(fresh)
+        await db.flush()
+        return fresh
 
     def _query_database(self, db: Session, intent: Dict[str, Any]) -> List[Dict]:
         """
@@ -487,6 +471,12 @@ class LocalRouter:
             else:
                 text = "Excellent choice! To schedule a visit or get official details, connecting with a human expert or using our premium tools is the best next step."
             upsell_reason = "action_intent"
+        elif trigger_type == "COMPARISON_USED":
+            if is_arabic:
+                text = "خلصت المقارنة المجانية. للوصول للنتائج الكاملة وكمبوندات إضافية، افتح الباقة المتقدمة."
+            else:
+                text = "You've used your free comparison. To unlock full results and additional compounds, upgrade to premium."
+            upsell_reason = "comparison_used"
 
         if is_arabic:
             text += "\n\nللحصول على تحليل تنبؤي ومخصص، اختر أحد الخيارات التالية:"

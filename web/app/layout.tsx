@@ -15,6 +15,7 @@ import PriorityHandoff from '@/components/PriorityHandoff';
 import HapticFeedback from '@/components/HapticFeedback';
 import { WebVitalsReporter } from '@/components/WebVitalsReporter';
 import ServiceStatusBanner from '@/components/ServiceStatusBanner';
+import FluentAppProvider from '@/components/FluentAppProvider';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -60,40 +61,42 @@ export default function RootLayout({
         <ErrorBoundaryProvider>
           <ThemeProvider>
             <LanguageProvider>
-              <AuthProvider>
-                <GamificationProvider>
-                  <LeadScoreProvider>
-                    {/* Skip to content — accessibility */}
-                    <a
-                      href="#main-content"
-                      className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:start-3 focus:z-[200] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:ring-2 focus:ring-[var(--color-primary)]"
-                    >
-                      Skip to main content
-                    </a>
+              <FluentAppProvider>
+                <AuthProvider>
+                  <GamificationProvider>
+                    <LeadScoreProvider>
+                      {/* Skip to content — accessibility */}
+                      <a
+                        href="#main-content"
+                        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:start-3 focus:z-[200] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:ring-2 focus:ring-[var(--color-primary)]"
+                      >
+                        Skip to main content
+                      </a>
 
-                    {/* App shell */}
-                    <div
-                      id="app-root"
-                      className="relative z-10 flex min-h-dvh w-full flex-col overflow-x-hidden"
-                    >
-                      <ServiceStatusBanner />
-                      <main id="main-content" className="flex-1">
-                        {children}
-                      </main>
-                    </div>
+                      {/* App shell */}
+                      <div
+                        id="app-root"
+                        className="relative z-10 flex min-h-dvh w-full flex-col overflow-x-hidden"
+                      >
+                        <ServiceStatusBanner />
+                        <main id="main-content" className="flex-1">
+                          {children}
+                        </main>
+                      </div>
 
-                    {/* Global overlays */}
-                    <GamificationOverlay />
-                    <PriorityHandoff />
-                    <HapticFeedback />
-                    <CommandPalette />
-                    <Suspense fallback={null}>
-                      <OrchestratorTracker />
-                    </Suspense>
-                    <WebVitalsReporter />
-                  </LeadScoreProvider>
-                </GamificationProvider>
-              </AuthProvider>
+                      {/* Global overlays */}
+                      <GamificationOverlay />
+                      <PriorityHandoff />
+                      <HapticFeedback />
+                      <CommandPalette />
+                      <Suspense fallback={null}>
+                        <OrchestratorTracker />
+                      </Suspense>
+                      <WebVitalsReporter />
+                    </LeadScoreProvider>
+                  </GamificationProvider>
+                </AuthProvider>
+              </FluentAppProvider>
             </LanguageProvider>
           </ThemeProvider>
         </ErrorBoundaryProvider>

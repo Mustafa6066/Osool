@@ -66,6 +66,7 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
                 session_count=session_count,
                 db=db,
                 previous_queries=previous_user_messages,
+                session_id=request.session_id,
             )
 
             # Save AI response

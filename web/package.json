@@ -12,6 +12,8 @@
     "test:e2e:viz-fullscreen:headed": "playwright test --headed --config=playwright.visualization.config.ts"
   },
   "dependencies": {
+    "@fluentui/react-components": "^9.73.8",
+    "@fluentui/react-icons": "^2.0.326",
     "@sentry/nextjs": "^10.47.0",
     "@types/leaflet": "^1.9.21",
     "animejs": "^3.2.2",

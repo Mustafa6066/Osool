@@ -159,6 +159,95 @@ class LocalIntentExtractor:
         "نيو جيزة": "New Giza",
     }
 
+    # Entity kind tags for the free-path comparison funnel. Each alias is tagged
+    # as either "developer" (resolves to a flagship compound via flagship_compounds.py)
+    # or "compound" (used as-is). The keys mirror _COMPOUND_MAPPING_RAW but the
+    # canonical values may differ when a brand name is ambiguous.
+    _ENTITY_KIND_RAW: dict[str, tuple[str, str]] = {
+        # Developers — auto-resolve to a flagship compound at dialog time.
+        "hassan allam": ("Hassan Allam", "developer"),
+        "حسن علام": ("Hassan Allam", "developer"),
+        "علام": ("Hassan Allam", "developer"),
+        "sodic": ("Sodic", "developer"),
+        "سوديك": ("Sodic", "developer"),
+        "la vista": ("La Vista", "developer"),
+        "lavista": ("La Vista", "developer"),
+        "لافيستا": ("La Vista", "developer"),
+        "لا فيستا": ("La Vista", "developer"),
+        "emaar": ("Emaar", "developer"),
+        "إعمار": ("Emaar", "developer"),
+        "اعمار": ("Emaar", "developer"),
+        "ora": ("ORA", "developer"),
+        "أورا": ("ORA", "developer"),
+        "tatweer misr": ("Tatweer Misr", "developer"),
+        "تطوير مصر": ("Tatweer Misr", "developer"),
+        "palm hills": ("Palm Hills", "developer"),
+        "palm hill": ("Palm Hills", "developer"),
+        "palmhills": ("Palm Hills", "developer"),
+        "بالم هيلز": ("Palm Hills", "developer"),
+        "بالم هيلس": ("Palm Hills", "developer"),
+        "بالمهيلز": ("Palm Hills", "developer"),
+        "mountain view": ("Mountain View", "developer"),
+        "ماونتن فيو": ("Mountain View", "developer"),
+        "madinet masr": ("Madinet Masr", "developer"),
+        "مدينة مصر": ("Madinet Masr", "developer"),
+
+        # Compounds — used directly.
+        "sarai": ("Sarai", "compound"),
+        "سراي": ("Sarai", "compound"),
+        "hyde park": ("Hyde Park", "compound"),
+        "هايد بارك": ("Hyde Park", "compound"),
+        "zed east": ("ZED East", "compound"),
+        "zed": ("ZED East", "compound"),
+        "زيد": ("ZED East", "compound"),
+        "taj city": ("Taj City", "compound"),
+        "تاج سيتي": ("Taj City", "compound"),
+        "badya": ("Badya", "compound"),
+        "بادية": ("Badya", "compound"),
+        "waterway": ("Waterway", "compound"),
+        "واتر واي": ("Waterway", "compound"),
+        "marassi": ("Marassi", "compound"),
+        "مراسي": ("Marassi", "compound"),
+        "uptown cairo": ("Uptown Cairo", "compound"),
+        "أب تاون": ("Uptown Cairo", "compound"),
+        "icity": ("Mountain View iCity", "compound"),
+        "آي سيتي": ("Mountain View iCity", "compound"),
+        "bloomfields": ("Bloomfields", "compound"),
+        "بلوم فيلدز": ("Bloomfields", "compound"),
+        "fouka bay": ("Fouka Bay", "compound"),
+        "فوكا باي": ("Fouka Bay", "compound"),
+        "cairo festival": ("Cairo Festival City", "compound"),
+        "فستيفال": ("Cairo Festival City", "compound"),
+        "new giza": ("New Giza", "compound"),
+        "نيو جيزة": ("New Giza", "compound"),
+        # Sodic-developer flagship compounds — also accept their literal names.
+        "sodic east": ("Sodic East", "compound"),
+        "سوديك ايست": ("Sodic East", "compound"),
+        # La Vista-developer flagship compounds.
+        "la vista city": ("La Vista City", "compound"),
+        "لافيستا سيتي": ("La Vista City", "compound"),
+        # Hassan Allam flagship compounds.
+        "swan lake": ("Swan Lake", "compound"),
+        "سوان ليك": ("Swan Lake", "compound"),
+        "hap town": ("Hap Town", "compound"),
+        "هاب تاون": ("Hap Town", "compound"),
+        # Tatweer Misr / Mountain View flagship compounds beyond the brand.
+        "mivida": ("Mivida", "compound"),
+        "ميفيدا": ("Mivida", "compound"),
+        # Palm Hills compounds.
+        "palm hills new cairo": ("Palm Hills New Cairo", "compound"),
+        "palm hills katameya": ("Palm Hills Katameya", "compound"),
+    }
+
+    # Comparison-intent triggers — strictly intent-related verbs/phrases.
+    # NB: kept disjoint from COMPLEX_KEYWORDS so that "احسن سعر بين X و Y" enters
+    # the comparison flow rather than the COMPLEX upsell branch.
+    _COMPARISON_INTENT_KEYWORDS_RAW = [
+        "compare", "vs", "versus", "best price", "cheapest", "good deal",
+        "بين", "احسن سعر", "أحسن سعر", "ايه احسن", "إيه أحسن", "مقارنة بين",
+        "أرخص", "ارخص", "افضل سعر", "أفضل سعر", "صفقه", "صفقة",
+    ]
+
     _COMPLEX_KEYWORDS_RAW = [
         "roi", "inflation", "hedge", "geopolitical", "predict", "forecast", "compare", "risk", "macro",
         "تضخم", "عائد", "مقارنة", "توقعات", "سياسي", "اقتصادي", "استثمار"
@@ -174,6 +263,11 @@ class LocalIntentExtractor:
     COMPOUND_MAPPING = _normalize_keys(_COMPOUND_MAPPING_RAW)
     COMPLEX_KEYWORDS = _normalize_keywords(_COMPLEX_KEYWORDS_RAW)
     ACTION_KEYWORDS = _normalize_keywords(_ACTION_KEYWORDS_RAW)
+    # Normalized form of _ENTITY_KIND_RAW: key = normalized alias, value = (canonical, kind).
+    ENTITY_KIND_MAPPING: dict[str, tuple[str, str]] = {
+        _normalize_arabic(k.lower()): v for k, v in _ENTITY_KIND_RAW.items()
+    }
+    COMPARISON_INTENT_KEYWORDS = _normalize_keywords(_COMPARISON_INTENT_KEYWORDS_RAW)
 
     ARABIC_DIGITS_MAP = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
@@ -273,5 +367,69 @@ class LocalIntentExtractor:
             intent_data["rooms"] = int(rooms_match.group(1))
 
         return intent_data
+
+    def extract_entities(self, query: str) -> list[tuple[str, str]]:
+        """
+        Scan the query for compound/developer aliases and return a list of
+        (canonical_name, kind) tuples ordered by where they first appear in
+        the source query. Duplicates (same canonical name from multiple
+        aliases) are dropped, keeping the earliest occurrence.
+
+        Internally, longer aliases are tried first to avoid e.g. "Sodic"
+        consuming the prefix of "Sodic East", but the final return order
+        matches the user's typing order so callers can show suggestions in
+        the user's own sequence.
+        """
+        normalized = self._normalize_query(query)
+        sorted_aliases = sorted(self.ENTITY_KIND_MAPPING.keys(), key=len, reverse=True)
+
+        # Collect (start_pos, canonical, kind) for each non-overlapping match.
+        matches: list[tuple[int, str, str]] = []
+        consumed: list[tuple[int, int]] = []
+
+        def _overlaps(start: int, end: int) -> bool:
+            return any(not (end <= s or start >= e) for s, e in consumed)
+
+        for alias in sorted_aliases:
+            if not alias:
+                continue
+            search_from = 0
+            while True:
+                idx = normalized.find(alias, search_from)
+                if idx == -1:
+                    break
+                end = idx + len(alias)
+                if not _overlaps(idx, end):
+                    canonical, kind = self.ENTITY_KIND_MAPPING[alias]
+                    matches.append((idx, canonical, kind))
+                    consumed.append((idx, end))
+                search_from = end
+
+        # Sort by source position so output mirrors user's typing order.
+        matches.sort(key=lambda m: m[0])
+
+        # Dedupe by canonical name, keeping earliest position.
+        found: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for _, canonical, kind in matches:
+            if canonical not in seen:
+                seen.add(canonical)
+                found.append((canonical, kind))
+
+        return found
+
+    def is_comparison_intent(self, query: str) -> bool:
+        """
+        Return True if the query reads like a price-comparison request — the
+        free path's only first-class intent. The check is permissive on
+        purpose: any mention of "between", "best price", "compare", or naming
+        two entities counts.
+        """
+        normalized = self._normalize_query(query)
+        if any(keyword in normalized for keyword in self.COMPARISON_INTENT_KEYWORDS):
+            return True
+        # Also true if user listed ≥2 known entities, even without a comparison
+        # verb (e.g. "لافيستا و سوديك").
+        return len(self.extract_entities(query)) >= 2
 
 local_intent_extractor = LocalIntentExtractor()

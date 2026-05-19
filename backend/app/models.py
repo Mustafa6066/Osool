@@ -135,6 +135,11 @@ class Property(Base):
     # Pricing
     price: Mapped[float] = mapped_column(Float, index=True)
     price_per_sqm: Mapped[float] = mapped_column(Float, nullable=True)
+    # Explicit developer-vs-resale split. Backfilled from `price` grouped by `sale_type`
+    # in migration 027. Used by the free-path comparison engine to compute the gap
+    # between primary (developer) and secondary (resale) prices per compound.
+    developer_price: Mapped[float] = mapped_column(Float, nullable=True, index=True)
+    resale_price: Mapped[float] = mapped_column(Float, nullable=True, index=True)
 
     # Size & Layout
     size_sqm: Mapped[int] = mapped_column(Integer, index=True)
@@ -997,4 +1002,27 @@ class HallucinationFlag(Base):
         DateTime(timezone=True), server_default=func.now(), index=True
     )
 
-    user = relationship("User")
+
+class FreePathSession(Base):
+    """
+    Per-session state for the free-path compound comparison flow.
+
+    The free-path conversation is a small state machine (AWAITING_NAMES →
+    VALIDATING → MISSING_DATA → COMPARING → DONE). FastAPI is stateless and
+    ChatMessage history is too unstructured to derive the state reliably,
+    so we persist it here keyed by `session_id`.
+    """
+    __tablename__ = "free_path_sessions"
+
+    session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    # AWAITING_NAMES | VALIDATING | MISSING_DATA | COMPARING | DONE
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="AWAITING_NAMES")
+    # JSON list of canonical compound names the user has named so far
+    candidate_names: Mapped[dict] = mapped_column(JSON, nullable=True)
+    # "SINGLE" or "MULTI" once resolved; null while still gathering names
+    mode: Mapped[str] = mapped_column(String(16), nullable=True)
+    property_type_filter: Mapped[str] = mapped_column(String(32), nullable=True)
+    comparison_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

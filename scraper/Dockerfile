@@ -1,12 +1,11 @@
-# Osool Nawy Scraper v3 — Railway Cron Service
-# Full compound discovery + Nawy Now pagination, zero AI tokens
-FROM python:3.10-slim
+# Osool Scraper — Scrapling-based, zero LLM tokens
+# Supports two modes: cron (one-shot crawl) and worker (Redis poller)
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# System dependencies for Playwright/Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
@@ -35,27 +34,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies
 COPY scraper/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright + Chromium browser
 RUN playwright install chromium
 
-# Copy scraper entry point
-COPY nawy_scraper_v3.py .
+# Copy scraper package
+COPY scraper/main.py scraper/worker.py scraper/settings.py /app/
+COPY scraper/sites /app/sites
+COPY scraper/extractors /app/extractors
+COPY scraper/adapters /app/adapters
 
-# Copy ingestion pipeline modules
-COPY backend/app/__init__.py /app/backend/app/__init__.py
-COPY backend/app/ingestion/__init__.py /app/backend/app/ingestion/__init__.py
-COPY backend/app/ingestion/deterministic_normalizer.py /app/backend/app/ingestion/deterministic_normalizer.py
-COPY backend/app/ingestion/repository.py /app/backend/app/ingestion/repository.py
-COPY backend/app/database.py /app/backend/app/database.py
-COPY backend/app/models.py /app/backend/app/models.py
+# Copy backend ingestion modules (reused as-is)
+COPY backend/app/__init__.py /app/app/__init__.py
+COPY backend/app/database.py /app/app/database.py
+COPY backend/app/models.py /app/app/models.py
+COPY backend/app/ingestion/__init__.py /app/app/ingestion/__init__.py
+COPY backend/app/ingestion/scraper_schemas.py /app/app/ingestion/scraper_schemas.py
+COPY backend/app/ingestion/deterministic_normalizer.py /app/app/ingestion/deterministic_normalizer.py
+COPY backend/app/ingestion/repository.py /app/app/ingestion/repository.py
+COPY backend/app/ingestion/anomaly_detector.py /app/app/ingestion/anomaly_detector.py
 
-ENV PYTHONPATH=/app/backend
+ENV PYTHONPATH=/app
 
-RUN mkdir -p backend/backend data
+# Persistent storage for Scrapling adaptive selector state
+RUN mkdir -p /app/.selectors
 
-CMD ["python", "nawy_scraper_v3.py"]
+CMD ["python", "main.py", "--mode=cron"]
