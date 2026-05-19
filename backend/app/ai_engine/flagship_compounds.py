@@ -26,6 +26,14 @@ DEVELOPER_TO_COMPOUNDS: dict[str, List[str]] = {
     "Madinet Masr": ["Sarai", "Taj City"],
 }
 
+
+AREA_TO_COMPARISON_SUGGESTIONS: dict[str, List[str]] = {
+    "new cairo": ["La Vista", "Hassan Allam", "Sodic", "Palm Hills", "Hyde Park", "Sarai", "ZED East"],
+    "sheikh zayed": ["ORA", "Sodic", "Emaar", "Palm Hills", "New Giza"],
+    "6th of october": ["Palm Hills", "Mountain View", "Sodic", "Badya"],
+    "north coast": ["La Vista", "Emaar", "Tatweer Misr", "ORA"],
+}
+
 _MIN_ROWS_FOR_FLAGSHIP = 5
 
 
@@ -65,3 +73,10 @@ def list_developer_compounds(name: str) -> List[str]:
     the user (e.g., "أي كمبوند بالظبط من Hassan Allam؟ مثلاً: Swan Lake, Hap Town.").
     """
     return list(DEVELOPER_TO_COMPOUNDS.get(name, []))
+
+
+def suggest_comparison_names(area: Optional[str], limit: int = 3) -> List[str]:
+    """Return names that make a good resale-vs-developer comparison for an area."""
+    if not area:
+        return []
+    return AREA_TO_COMPARISON_SUGGESTIONS.get(area, [])[:limit]

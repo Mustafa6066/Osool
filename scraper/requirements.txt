@@ -2,6 +2,10 @@
 # Scrapling for adaptive CSS/XPath + stealth. No LLM SDKs.
 
 scrapling>=0.2.9
+curl-cffi>=0.7.0
+patchright>=1.49.0
+msgspec>=0.18.0
+browserforge>=1.1.0
 playwright>=1.40.0
 httpx>=0.26.0
 pydantic>=2.0.0

@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const DEFAULT_APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || 'https://osool-ten.vercel.app';
+const LOCAL_BACKEND_ORIGIN = process.env.NEXT_PUBLIC_LOCAL_APP_ORIGIN || 'http://localhost:3000';
+
+function isLocalHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+}
+
+function isLocalApiTarget(): boolean {
+  try {
+    return isLocalHost(new URL(API_URL).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function getBackendSafeOrigin(request: NextRequest): string {
+  const origin = request.headers.get('origin') || DEFAULT_APP_ORIGIN;
+
+  try {
+    const url = new URL(origin);
+    if (isLocalHost(url.hostname)) {
+      return isLocalApiTarget() ? LOCAL_BACKEND_ORIGIN : DEFAULT_APP_ORIGIN;
+    }
+  } catch {
+    return DEFAULT_APP_ORIGIN;
+  }
+
+  return origin;
+}
 
 function extractCookieValue(setCookieHeader: string, key: string): string | null {
   const pattern = new RegExp(`${key}=([^;]+)`);
@@ -30,8 +59,8 @@ function extractCookiePairs(setCookieHeader: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
-    const origin = request.headers.get('origin') || 'https://osool-ten.vercel.app';
-    const referer = request.headers.get('referer') || 'https://osool-ten.vercel.app/';
+    const origin = getBackendSafeOrigin(request);
+    const referer = `${origin}/`;
 
     const bootstrap = await fetch(`${API_URL}/api/seo/projects`, {
       method: 'GET',
@@ -45,7 +74,7 @@ export async function POST(request: NextRequest) {
     const csrfHeaderToken = bootstrap.headers.get('x-csrf-token') || '';
     const setCookie = bootstrap.headers.get('set-cookie') || '';
     const cookieHeader = extractCookiePairs(setCookie);
-    const csrfCookie = extractCookieValue(setCookie, 'csrftoken');
+    const csrfCookie = extractCookieValue(setCookie, 'csrf_token');
     const csrfToken = csrfHeaderToken || csrfCookie || '';
 
     const authHeader = request.headers.get('authorization');

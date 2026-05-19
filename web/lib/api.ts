@@ -132,59 +132,6 @@ function getStreamUrl(): string {
     : `${BASE_URL}/api/chat/stream`;
 }
 
-let streamCsrfToken: string | null = null;
-
-async function ensureStreamCsrfToken(forceRefresh = false): Promise<string | null> {
-  if (typeof window === 'undefined') return null;
-
-  if (!streamCsrfToken) {
-    streamCsrfToken = sessionStorage.getItem('csrf_token');
-  }
-
-  if (streamCsrfToken && !forceRefresh) {
-    return streamCsrfToken;
-  }
-
-  try {
-    // Primary bootstrap path used by production smoke tests.
-    const seoBootstrap = await fetch(`${BASE_URL}/api/seo/projects`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    const headerToken = seoBootstrap.headers.get('x-csrf-token');
-    if (headerToken) {
-      streamCsrfToken = headerToken;
-      sessionStorage.setItem('csrf_token', headerToken);
-      return headerToken;
-    }
-
-    // Fallback path for environments that expose a dedicated CSRF endpoint.
-    const csrfResponse = await fetch(`${BASE_URL}/api/auth/csrf-token`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    const csrfHeaderToken = csrfResponse.headers.get('x-csrf-token');
-    if (csrfHeaderToken) {
-      streamCsrfToken = csrfHeaderToken;
-      sessionStorage.setItem('csrf_token', csrfHeaderToken);
-      return csrfHeaderToken;
-    }
-
-    const payload = (await csrfResponse.json().catch(() => ({}))) as { csrf_token?: string };
-    if (payload.csrf_token) {
-      streamCsrfToken = payload.csrf_token;
-      sessionStorage.setItem('csrf_token', payload.csrf_token);
-      return payload.csrf_token;
-    }
-  } catch {
-    // Non-fatal: endpoint may be unavailable in some environments.
-  }
-
-  return null;
-}
-
 api.interceptors.response.use(
   (response) => {
     // Pass through successful responses
@@ -489,17 +436,15 @@ export const streamChat = async (
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   try {
-    const openStream = async (forceCsrfRefresh = false): Promise<Response> => {
+    const openStream = async (): Promise<Response> => {
       const accessToken = typeof window !== 'undefined'
         ? localStorage.getItem('access_token')
         : null;
-      const csrfToken = await ensureStreamCsrfToken(forceCsrfRefresh);
 
       return fetch(getStreamUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
           ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({ message, session_id: sessionId, language }),
@@ -518,9 +463,9 @@ export const streamChat = async (
       }
     }
 
-    // CSRF token may rotate; refresh once and retry.
+    // Retry once; the same-origin Next proxy refreshes backend CSRF server-side.
     if (response.status === 403) {
-      response = await openStream(true);
+      response = await openStream();
     }
 
     if (!response.ok) {
@@ -530,6 +475,7 @@ export const streamChat = async (
         const errBody = await response.json();
         if (errBody.detail) errorMsg = errBody.detail;
         else if (errBody.message) errorMsg = errBody.message;
+        else if (errBody.error) errorMsg = errBody.error;
       } catch { /* use default */ }
       throw new Error(errorMsg);
     }

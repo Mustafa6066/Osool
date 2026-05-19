@@ -4,8 +4,8 @@ Comparison engine for the free-path funnel.
 Two modes:
 
 - `compare_compounds` — 2 or 3 compounds. For each compound × property type
-  computes avg developer price and avg resale price, gap = dev_avg − res_avg.
-  Winner is the compound with the largest gap across its types.
+    computes avg developer price and avg resale price, gap = dev_avg − res_avg.
+    Winner is the compound with the largest positive gap across its types.
 
 - `best_deals_in_compound` — single compound. Ranks individual resale listings
   by how far below the compound's developer-price average they are. Returns
@@ -120,7 +120,7 @@ async def compare_compounds(
                     "dev_n": data["dev_n"],
                     "res_n": data["res_n"],
                 }
-                if max_gap is None or gap > max_gap:
+                if gap > 0 and (max_gap is None or gap > max_gap):
                     max_gap = gap
             if data and data["res_n"] > 0:
                 any_resale_present = True
@@ -139,9 +139,10 @@ async def compare_compounds(
             "missing_compound": missing_compound,
         }
 
-    # Pick the winner: largest max_gap_egp. If all are None (no comparable
-    # data anywhere) the winner is None and the caller falls back to upsell.
-    rankable = [c for c in per_compound if c["max_gap_egp"] is not None]
+    # Pick the winner: largest positive max_gap_egp. If all are None (no
+    # bargain gap anywhere) the caller asks for other compounds instead of
+    # declaring a misleading winner.
+    rankable = [c for c in per_compound if c["max_gap_egp"] is not None and c["max_gap_egp"] > 0]
     rankable.sort(key=lambda c: c["max_gap_egp"], reverse=True)
     winner = rankable[0]["compound"] if rankable else None
 

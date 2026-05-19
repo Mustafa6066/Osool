@@ -38,7 +38,7 @@ COPY scraper/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-RUN playwright install chromium
+RUN playwright install chromium && python -m patchright install chromium
 
 # Copy scraper package
 COPY scraper/main.py scraper/worker.py scraper/settings.py /app/

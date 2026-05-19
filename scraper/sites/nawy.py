@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 NAWY_BASE = "https://www.nawy.com"
 
 try:
-    from scrapling import StealthyFetcher
+    from scrapling.fetchers import StealthyFetcher
     _STEALTH_OK = True
 except ImportError:
     StealthyFetcher = None  # type: ignore

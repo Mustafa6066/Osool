@@ -20,7 +20,7 @@ from settings import SELECTORS_DIR
 logger = logging.getLogger(__name__)
 
 try:
-    from scrapling import Adaptor
+    from scrapling.parser import Adaptor
     _SCRAPLING_OK = True
 except ImportError:
     Adaptor = None  # type: ignore

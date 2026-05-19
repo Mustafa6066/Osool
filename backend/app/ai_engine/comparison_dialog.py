@@ -23,9 +23,9 @@ from app.ai_engine.comparison_service import (
     compare_compounds,
 )
 from app.ai_engine.flagship_compounds import (
-    DEVELOPER_TO_COMPOUNDS,
     list_developer_compounds,
     resolve_to_compound,
+    suggest_comparison_names,
 )
 from app.ai_engine.local_intent import local_intent_extractor
 from app.models import FreePathSession
@@ -42,6 +42,17 @@ MODE_SINGLE = "SINGLE"
 MODE_MULTI = "MULTI"
 
 _ARABIC_RE = re.compile(r"[؀-ۿ]")
+
+_DISPLAY_NAME_AR = {
+    "La Vista": "لافيستا",
+    "Hassan Allam": "حسن علام",
+    "Sodic": "سوديك",
+    "Palm Hills": "بالم هيلز",
+    "Mountain View": "ماونتن فيو",
+    "Hyde Park": "هايد بارك",
+    "Sarai": "سراي",
+    "ZED East": "زيد إيست",
+}
 
 
 def _is_arabic(text: str) -> bool:
@@ -84,6 +95,53 @@ def _plain_response(text: str) -> dict[str, Any]:
     }
 
 
+def _display_name(name: str, is_arabic: bool) -> str:
+    if is_arabic:
+        return _DISPLAY_NAME_AR.get(name, name)
+    return name
+
+
+def _format_name_list(names: list[str], is_arabic: bool) -> str:
+    return ("، " if is_arabic else ", ").join(_display_name(n, is_arabic) for n in names)
+
+
+def _area_label(area: Optional[str], is_arabic: bool) -> str:
+    if is_arabic:
+        return copy.AREA_LABEL_AR.get(area or "", area or "")
+    return copy.AREA_LABEL_EN.get(area or "", area or "")
+
+
+def _names_redirect_response(query: str, is_arabic: bool) -> dict[str, Any]:
+    intent = local_intent_extractor.extract_intent(query)
+    area = intent.get("area")
+    suggestions = suggest_comparison_names(area, limit=3)
+    if area and suggestions:
+        template = copy.FREE_PATH_REDIRECT_WITH_AREA_AR if is_arabic else copy.FREE_PATH_REDIRECT_WITH_AREA_EN
+        return _plain_response(template.format(
+            area=_area_label(area, is_arabic),
+            suggestions=_format_name_list(suggestions, is_arabic),
+        ))
+    return _plain_response(copy.FREE_PATH_REDIRECT_AR if is_arabic else copy.FREE_PATH_REDIRECT_EN)
+
+
+def _resolution_note(
+    compound_names: list[str],
+    resolved_from: Optional[dict[str, str]],
+    is_arabic: bool,
+) -> str:
+    if not resolved_from:
+        return ""
+    pairs = []
+    for compound in compound_names:
+        developer = resolved_from.get(compound)
+        if developer:
+            pairs.append(f"{_display_name(developer, is_arabic)} -> {compound}")
+    if not pairs:
+        return ""
+    prefix = "المقارنة استخدمت: " if is_arabic else "Compared concrete compounds: "
+    return prefix + ("، " if is_arabic else ", ").join(pairs)
+
+
 async def handle_turn(
     query: str,
     session: FreePathSession,
@@ -117,18 +175,10 @@ async def _handle_awaiting_names(
     is_arabic: bool,
 ) -> dict[str, Any]:
     entities = local_intent_extractor.extract_entities(query)
+    comparison_intent = local_intent_extractor.is_comparison_intent(query)
 
-    # Non-comparison intent with no entities → redirect.
-    if not entities and not local_intent_extractor.is_comparison_intent(query):
-        return _plain_response(
-            copy.FREE_PATH_REDIRECT_AR if is_arabic else copy.FREE_PATH_REDIRECT_EN
-        )
-
-    if len(entities) == 0:
-        # Intent looks like comparison but no names yet.
-        return _plain_response(
-            copy.FREE_PATH_REDIRECT_AR if is_arabic else copy.FREE_PATH_REDIRECT_EN
-        )
+    if not entities:
+        return _names_redirect_response(query, is_arabic)
 
     if len(entities) > 3:
         names = ", ".join(name for name, _ in entities)
@@ -139,8 +189,12 @@ async def _handle_awaiting_names(
         )
         return _plain_response(text)
 
+    if len(entities) == 1 and entities[0][1] == "developer":
+        return await _run_single_developer(entities[0][0], session, db, is_arabic)
+
     # Resolve any developer entries to flagship compounds.
     resolved: list[str] = []
+    resolved_from: dict[str, str] = {}
     for name, kind in entities:
         if kind == "developer":
             compound = await resolve_to_compound(name, db)
@@ -156,6 +210,8 @@ async def _handle_awaiting_names(
                     developer=name,
                     suggestions=", ".join(suggestions) if suggestions else "—",
                 ))
+            if compound != name:
+                resolved_from[compound] = name
             resolved.append(compound)
         else:
             resolved.append(name)
@@ -171,7 +227,7 @@ async def _handle_awaiting_names(
 
     if len(deduped) == 1:
         return await _run_single_compound(deduped[0], session, db, is_arabic)
-    return await _run_multi_compound(deduped, session, db, is_arabic)
+    return await _run_multi_compound(deduped, session, db, is_arabic, resolved_from)
 
 
 async def _handle_missing_data(
@@ -327,11 +383,114 @@ async def _run_single_compound(
     }
 
 
+async def _run_single_developer(
+    developer_name: str,
+    session: FreePathSession,
+    db: AsyncSession,
+    is_arabic: bool,
+) -> dict[str, Any]:
+    session.mode = MODE_SINGLE
+    session.candidate_names = [developer_name]
+
+    compounds = list_developer_compounds(developer_name)
+    if not compounds:
+        return await _run_single_compound(developer_name, session, db, is_arabic)
+
+    all_deals: list[dict[str, Any]] = []
+    for compound in compounds:
+        result = await best_deals_in_compound(compound, db)
+        if result.get("missing") is False:
+            all_deals.extend(result.get("top_listings") or [])
+
+    all_deals.sort(key=lambda deal: deal.get("gap_egp") or 0, reverse=True)
+    top = all_deals[:3]
+
+    if not top:
+        session.state = STATE_MISSING_DATA
+        template = copy.DEVELOPER_MISSING_DEALS_AR if is_arabic else copy.DEVELOPER_MISSING_DEALS_EN
+        return _plain_response(template.format(
+            developer=_display_name(developer_name, is_arabic),
+            suggestions=", ".join(compounds[:3]) if compounds else "—",
+        ))
+
+    properties: list[dict[str, Any]] = []
+    for i, listing in enumerate(top):
+        compound = listing.get("compound") or developer_name
+        if i == 0:
+            type_label = (
+                copy.TYPE_LABEL_AR.get(listing["type"], listing["type"])
+                if is_arabic else listing["type"].title()
+            )
+            properties.append({
+                "id": listing["property_id"],
+                "title": listing["title"] or f"{type_label} — {compound}",
+                "location": compound,
+                "compound": compound,
+                "developer": listing.get("developer") or developer_name,
+                "type": listing["type"],
+                "type_label": type_label,
+                "size_sqm": listing["size_sqm"],
+                "bedrooms": listing.get("bedrooms") or 0,
+                "price": listing["resale_price"],
+                "price_per_sqm": listing.get("price_per_sqm"),
+                "image_url": listing.get("image_url") or "",
+                "url": listing.get("nawy_url"),
+                "status": "Resale",
+                "dev_avg": listing["dev_avg"],
+                "gap_egp": listing["gap_egp"],
+                "gap_pct": listing.get("gap_pct"),
+                "tags": ["best-deal"] if is_arabic is False else ["أفضل-عرض"],
+                "locked": False,
+            })
+        else:
+            properties.append({
+                "compound": compound,
+                "developer": listing.get("developer") or developer_name,
+                "locked": True,
+                "lock_reason": "premium_required",
+            })
+
+    best = top[0]
+    best_compound = best.get("compound") or developer_name
+    type_label_ar = copy.TYPE_LABEL_AR.get(best["type"], best["type"])
+    if is_arabic:
+        headline = copy.DEVELOPER_TOP_HEADLINE_AR.format(
+            developer=_display_name(developer_name, is_arabic),
+            compound=best_compound,
+            type_ar=type_label_ar,
+            size=best["size_sqm"] or "—",
+            price=_fmt_price_short(best["resale_price"]),
+            gap_egp=_format_egp(best["gap_egp"]),
+        )
+    else:
+        headline = copy.DEVELOPER_TOP_HEADLINE_EN.format(
+            developer=developer_name,
+            compound=best_compound,
+            type_en=best["type"].title(),
+            size=best["size_sqm"] or "—",
+            price=_fmt_price_short(best["resale_price"]),
+            gap_egp=_format_egp(best["gap_egp"]),
+        )
+
+    session.state = STATE_DONE
+    session.comparison_used = True
+    return {
+        "type": "comparison",
+        "response_type": "free_local",
+        "text": headline,
+        "properties": properties,
+        "show_upsell": False,
+        "upsell_reason": None,
+        "cta_actions": [],
+    }
+
+
 async def _run_multi_compound(
     compound_names: list[str],
     session: FreePathSession,
     db: AsyncSession,
     is_arabic: bool,
+    resolved_from: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
     session.mode = MODE_MULTI
     session.candidate_names = list(compound_names)
@@ -346,10 +505,12 @@ async def _run_multi_compound(
         )
 
     if not result["winner"]:
-        session.state = STATE_MISSING_DATA
+        session.state = STATE_AWAITING_NAMES
+        session.candidate_names = []
+        session.comparison_used = False
         return _plain_response(
-            copy.MISSING_RESALE_AR.format(compound=compound_names[0])
-            if is_arabic else copy.MISSING_RESALE_EN.format(compound=compound_names[0])
+            copy.NO_POSITIVE_GAP_AR.format(names=_format_name_list(compound_names, is_arabic))
+            if is_arabic else copy.NO_POSITIVE_GAP_EN.format(names=_format_name_list(compound_names, is_arabic))
         )
 
     # Build property cards: winner card uses real numbers from the best-gap
@@ -433,6 +594,10 @@ async def _run_multi_compound(
             gap_egp=_format_egp(gap),
             type_en=type_key.title(),
         )
+
+    note = _resolution_note(compound_names, resolved_from, is_arabic)
+    if note:
+        headline = f"{headline}\n{note}"
 
     session.state = STATE_DONE
     session.comparison_used = True

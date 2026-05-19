@@ -16,7 +16,7 @@ import type { PlaybackStatus } from '@/hooks/useVoicePlayback';
 import { responseTypeToRouteLabel } from '@/components/chat/neural-signals';
 import {
   isArabic, shouldRenderUiAction,
-  type Message, type Property, type AnalyticsContext, type UiAction,
+  type Message, type Property, type UiAction,
 } from '@/lib/chat-utils';
 
 const VisualizationRenderer = dynamic(
@@ -233,14 +233,14 @@ export default function ChatMessage({
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', damping: 28, stiffness: 250 }}
-              className="bg-[var(--color-surface)] border border-[var(--color-border)]/40 text-[var(--color-text-primary)] px-3.5 py-2.5 sm:px-5 sm:py-3.5 rounded-2xl sm:rounded-3xl sm:rounded-br-md max-w-[90%] sm:max-w-[82%] text-[14px] sm:text-[15px] leading-[1.55] sm:leading-relaxed shadow-sm font-medium"
+              className="bg-[var(--color-text-primary)] text-[var(--color-background)] px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl sm:rounded-[24px] sm:rounded-br-lg max-w-[90%] sm:max-w-[82%] text-[14px] sm:text-[15px] leading-[1.55] sm:leading-relaxed shadow-[0_14px_40px_-28px_rgba(0,0,0,0.8)] font-medium"
               dir="auto"
             >
               {msg.content}
             </motion.div>
           ) : (
             /* ── Agent response ── */
-            <div className="text-[14px] sm:text-[15px] leading-[1.65] sm:leading-relaxed text-[var(--color-text-secondary)] pt-0.5 sm:pt-1" dir={msgIsArabic ? 'rtl' : 'ltr'}>
+            <div className="rounded-[24px] border border-[var(--color-border)]/55 bg-[var(--color-surface)]/88 p-4 sm:p-5 text-[14px] sm:text-[15px] leading-[1.65] sm:leading-relaxed text-[var(--color-text-secondary)] shadow-[0_18px_60px_-42px_rgba(15,23,42,0.65)] backdrop-blur-xl" dir={msgIsArabic ? 'rtl' : 'ltr'}>
               {showRouteState && (
                 <div className="mb-2.5 flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.13em] ${msg.showUpsell
@@ -442,15 +442,17 @@ export default function ChatMessage({
                   >
                     <button
                       onClick={() => copyToClipboard(msg.content, msg.id)}
-                      className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] sm:min-h-9 sm:min-w-9"
                       title={copiedMsgId === msg.id ? 'Copied!' : 'Copy'}
+                      aria-label={copiedMsgId === msg.id ? 'Copied' : 'Copy message'}
                     >
                       {copiedMsgId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     <button
                       onClick={() => onRetry(index)}
-                      className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] sm:min-h-9 sm:min-w-9"
                       title="Retry"
+                      aria-label="Retry response"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>

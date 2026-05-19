@@ -55,7 +55,7 @@ CHECKPOINT_FILE = CRAWL_DIR / "checkpoint.json"
 # ── Optional Scrapling import (falls back to httpx+regex if not installed) ──
 SCRAPLING_AVAILABLE = False
 try:
-    from scrapling import StealthyFetcher, Fetcher
+    from scrapling.fetchers import StealthyFetcher, Fetcher
     SCRAPLING_AVAILABLE = True
     logger.info("✅ Scrapling loaded — adaptive selectors active")
 except ImportError:

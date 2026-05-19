@@ -150,6 +150,7 @@ class LocalIntentExtractor:
         "la vista": "La Vista",
         "lavista": "La Vista",
         "لافيستا": "La Vista",
+        "لافستا": "La Vista",
         "لا فيستا": "La Vista",
         # Cairo Festival City
         "cairo festival": "Cairo Festival City",
@@ -173,6 +174,7 @@ class LocalIntentExtractor:
         "la vista": ("La Vista", "developer"),
         "lavista": ("La Vista", "developer"),
         "لافيستا": ("La Vista", "developer"),
+        "لافستا": ("La Vista", "developer"),
         "لا فيستا": ("La Vista", "developer"),
         "emaar": ("Emaar", "developer"),
         "إعمار": ("Emaar", "developer"),

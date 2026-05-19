@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 AQARMAP_BASE = "https://aqarmap.com.eg"
 
 try:
-    from scrapling import StealthyFetcher
+    from scrapling.fetchers import StealthyFetcher
     _STEALTH_OK = True
 except ImportError:
     StealthyFetcher = None  # type: ignore

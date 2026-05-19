@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter as useNextRouter } from 'next/navigation';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'framer-motion';
 import {
-  Sparkles, MapPin, X, ChevronRight,
+  Sparkles, X, ChevronRight,
   BarChart2, Shield, Search, TrendingUp,
   History, Plus, MessageSquare, Lock,
 } from 'lucide-react';
@@ -13,7 +13,7 @@ import api from '@/lib/api';
 import { streamChat } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
-import { Heart, BarChart3, Scale } from 'lucide-react';
+import { Scale } from 'lucide-react';
 import { toggleFavorite } from '@/lib/gamification';
 import type { SuggestionChipItem } from '@/components/SuggestionChips';
 import OnboardingFlow from '@/components/chat/OnboardingFlow';
@@ -66,6 +66,7 @@ import {
 
 /* ─── Constants ──────────────────────────────── */
 const FREE_MESSAGE_LIMIT = 3;
+type ChatMode = 'compare' | 'market' | 'advisor';
 
 interface ChatResponsePayload {
   properties?: ChatPropertyPayload[];
@@ -85,6 +86,98 @@ interface ChatHistoryMessagePayload {
   role?: string;
   content?: string;
   properties?: Property[];
+}
+
+const getChatModeTabs = (language: string) => {
+  const isAr = language === 'ar';
+  return [
+    {
+      id: 'compare' as const,
+      icon: Scale,
+      label: isAr ? 'مقارنة الأسعار' : 'Price Compare',
+      hint: isAr ? 'مطور مقابل resale' : 'Dev vs resale',
+    },
+    {
+      id: 'market' as const,
+      icon: BarChart2,
+      label: isAr ? 'نبض السوق' : 'Market Pulse',
+      hint: isAr ? 'اتجاهات وسيولة' : 'Trends and liquidity',
+    },
+    {
+      id: 'advisor' as const,
+      icon: Shield,
+      label: isAr ? 'قرار الاستثمار' : 'Investment Fit',
+      hint: isAr ? 'مخاطر وثقة' : 'Risk and confidence',
+    },
+  ];
+};
+
+const getModePlaceholder = (mode: ChatMode, language: string) => {
+  const isAr = language === 'ar';
+  if (mode === 'compare') {
+    return isAr
+      ? 'اكتب 2 أو 3 كمبوندات للمقارنة بين سعر المطور والـ resale...'
+      : 'Name 2 or 3 compounds to compare developer price vs resale...';
+  }
+  if (mode === 'market') {
+    return isAr
+      ? 'اسأل عن اتجاه السعر أو السيولة في منطقة محددة...'
+      : 'Ask about price trends or liquidity in a specific area...';
+  }
+  return isAr
+    ? 'اسأل عن مطور أو مشروع قبل قرار الشراء...'
+    : 'Ask about a developer or project before making a decision...';
+};
+
+function ChatModeTabs({
+  activeMode,
+  onChange,
+  language,
+  compact = false,
+}: {
+  activeMode: ChatMode;
+  onChange: (mode: ChatMode) => void;
+  language: string;
+  compact?: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  const tabs = getChatModeTabs(language);
+
+  return (
+    <div
+      className={`relative grid grid-cols-3 gap-1 rounded-[20px] border border-[var(--color-border)]/70 bg-[var(--color-surface)]/72 p-1 shadow-[0_18px_56px_-42px_rgba(15,23,42,0.72)] backdrop-blur-xl ${compact ? 'w-full' : 'mx-auto w-full max-w-2xl'}`}
+      role="tablist"
+      aria-label={language === 'ar' ? 'أنماط المحادثة' : 'Chat modes'}
+    >
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = activeMode === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(tab.id)}
+            className={`relative isolate flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-2xl px-2.5 py-2 text-center transition-colors ${isActive ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}
+          >
+            {isActive && (
+              <motion.span
+                layoutId="chat-mode-active-tab"
+                className="absolute inset-0 -z-10 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+                transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 360 }}
+              />
+            )}
+            <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-muted)]'}`} strokeWidth={2} />
+            <span className="min-w-0">
+              <span className="block truncate text-[11px] font-semibold leading-tight sm:text-[12px]">{tab.label}</span>
+              {!compact && <span className="mt-0.5 hidden truncate text-[10px] font-medium text-[var(--color-text-muted)] sm:block">{tab.hint}</span>}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /* ─── Anonymous Gate ─────────────────────────── */
@@ -158,6 +251,7 @@ export default function AgentInterface() {
   const [savedPropertyIds, setSavedPropertyIds] = useState<Set<string>>(new Set());
   const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
   const [showNewMessagesCue, setShowNewMessagesCue] = useState(false);
+  const [activeMode, setActiveMode] = useState<ChatMode>('compare');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
@@ -194,6 +288,11 @@ export default function AgentInterface() {
     const reason = (latestAgentMessage.upsellReason || '').toLowerCase();
     return /complex|forecast|macro|inflation|hedge|consult|roi/i.test(reason);
   }, [latestAgentMessage]);
+
+  const inputPlaceholder = useMemo(
+    () => getModePlaceholder(activeMode, conversationLanguage),
+    [activeMode, conversationLanguage]
+  );
 
   const businessMode: 'free' | 'consultant' | 'premium' = useMemo(() => {
     if (isConsultantHandoff) return 'consultant';
@@ -612,6 +711,7 @@ export default function AgentInterface() {
     setConversationLeadScore(0);
     setConversationReadiness(0);
     setConversationLanguage('ar');
+    setActiveMode('compare');
     setLastAiMsgId(null);
     resetNeuralSignal();
     seededPromptRef.current = null;
@@ -789,17 +889,31 @@ export default function AgentInterface() {
 
           {/* ── Top bar (in-conversation) ── */}
           {hasStarted && (
-            <div className="sticky top-0 start-0 end-0 z-30 bg-[var(--color-background)]/88 backdrop-blur-xl border-b border-[var(--color-border)]/40">
+            <div className="sticky top-0 start-0 end-0 z-30 border-b border-[var(--color-border)]/40 bg-[var(--color-background)]/90 backdrop-blur-xl">
               <div className="max-w-full lg:max-w-[980px] mx-auto px-3 sm:px-4 md:px-6">
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-[12px] font-medium text-[var(--color-text-primary)] tracking-tight">
-                    Osool AI <span className="text-[var(--color-text-muted)] font-medium mx-1.5">/</span> <span className="text-[var(--color-text-secondary)] font-medium">{conversationLanguage === 'ar' ? 'جلسة' : 'Session'}</span>
-                  </span>
+                <div className="flex flex-col gap-2 py-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-semibold tracking-tight text-[var(--color-text-primary)]">
+                          Osool AI
+                        </p>
+                        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)]">
+                          {conversationLanguage === 'ar' ? 'جلسة استثمار نشطة' : 'Live investment workspace'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="hidden min-w-[360px] max-w-[470px] flex-1 lg:block">
+                      <ChatModeTabs activeMode={activeMode} onChange={setActiveMode} language={conversationLanguage} compact />
+                    </div>
                   <div className="flex items-center gap-1 md:gap-2">
                     <button
                       onClick={() => setHistoryOpen(true)}
                       aria-label={conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past conversations'}
-                      className="p-1.5 md:p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--color-text-muted)] transition-all hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] active:scale-95"
                       title={conversationLanguage === 'ar' ? 'المحادثات السابقة' : 'Past Conversations'}
                     >
                       <History className="w-4 h-4" strokeWidth={2} />
@@ -807,11 +921,15 @@ export default function AgentInterface() {
                     <button
                       onClick={handleNewChat}
                       aria-label={conversationLanguage === 'ar' ? 'محادثة جديدة' : 'New chat'}
-                      className="p-1.5 md:p-2 hover:bg-[var(--color-surface)] rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-all hover:scale-105 active:scale-95"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--color-text-muted)] transition-all hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)] active:scale-95"
                       title={conversationLanguage === 'ar' ? 'محادثة جديدة' : 'New Chat'}
                     >
                       <Plus className="w-4 h-4" strokeWidth={2} />
                     </button>
+                    </div>
+                  </div>
+                  <div className="lg:hidden">
+                    <ChatModeTabs activeMode={activeMode} onChange={setActiveMode} language={conversationLanguage} compact />
                   </div>
                 </div>
               </div>
@@ -831,15 +949,16 @@ export default function AgentInterface() {
                       <AgentAvatar />
                       <span className="text-[12px] font-semibold text-[var(--color-text-muted)] uppercase tracking-[0.18em]">Osool AI</span>
                     </div>
-                    <h1 className="text-[1.6rem] sm:text-[2rem] md:text-[2.4rem] font-semibold tracking-tight leading-[1.15] mb-2 text-[var(--color-text-primary)]" dir="auto">
+                    <h1 className="text-[1.6rem] sm:text-[2rem] md:text-[2.35rem] font-semibold tracking-tight leading-[1.15] mb-2 text-[var(--color-text-primary)]" dir="auto">
                       {conversationLanguage === 'ar' ? `أهلاً، ${userName}` : `Hello, ${userName}`}
                     </h1>
-                    <p className="text-[0.92rem] sm:text-[0.98rem] md:text-[1.02rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-2 sm:px-4 md:px-0" dir="auto">
-                      {conversationLanguage === 'ar' ? 'اسأل مباشرة عن العقارات أو السوق أو الاستثمار.' : 'Ask directly about properties, market data, or investment decisions.'}
+                    <p className="text-[0.92rem] sm:text-[0.98rem] md:text-[1rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-2 sm:px-4 md:px-0" dir="auto">
+                      {conversationLanguage === 'ar' ? 'ابدأ بمقارنة محددة، قراءة للسوق، أو فحص قرار الاستثمار.' : 'Start with a focused comparison, market read, or investment decision check.'}
                     </p>
-                    <p className="mt-1.5 text-[0.78rem] text-[var(--color-text-muted)] max-w-md mx-auto" dir="auto">
-                      {conversationLanguage === 'ar' ? 'جرّب أحد الاقتراحات أدناه أو اكتب سؤالك مباشرة' : 'Try a suggestion below, or type your own question'}
-                    </p>
+                  </div>
+
+                  <div className="mx-auto mt-5 w-full px-1 sm:px-4">
+                    <ChatModeTabs activeMode={activeMode} onChange={setActiveMode} language={conversationLanguage} />
                   </div>
 
                   {/* Input */}
@@ -856,6 +975,7 @@ export default function AgentInterface() {
                       transcriptHighlight={transcriptHighlight}
                       onVoiceToggle={handleVoiceToggle}
                       inputRef={inputRef}
+                      placeholder={inputPlaceholder}
                     />
                   </div>
 
@@ -1084,6 +1204,7 @@ export default function AgentInterface() {
                   transcriptHighlight={transcriptHighlight}
                   onVoiceToggle={handleVoiceToggle}
                   inputRef={inputRef}
+                  placeholder={inputPlaceholder}
                 />
                 <div className="text-center mt-1.5 md:mt-3">
                   <p className="text-[10px] md:text-[11px] font-medium text-[var(--color-text-muted)]/60" dir="auto">

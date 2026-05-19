@@ -24,6 +24,7 @@ from app.ai_engine.comparison_service import (
 from app.ai_engine.flagship_compounds import (
     DEVELOPER_TO_COMPOUNDS,
     resolve_to_compound,
+    suggest_comparison_names,
 )
 from app.ai_engine.local_intent import local_intent_extractor
 from app.ai_engine.local_router import local_router
@@ -45,11 +46,12 @@ def test_extract_entities_parses_three_developers_arabic():
 
 
 def test_extract_entities_normalizes_arabic_spelling_variants():
-    """'لا فيستا' (with space) and 'لافيستا' (no space) should both resolve."""
+    """Common La Vista spellings should resolve to the same developer."""
     spaced = local_intent_extractor.extract_entities("اريد لا فيستا")
     joined = local_intent_extractor.extract_entities("اريد لافيستا")
-    assert spaced and joined
-    assert spaced[0][0] == joined[0][0] == "La Vista"
+    dropped_i = local_intent_extractor.extract_entities("اريد لافستا")
+    assert spaced and joined and dropped_i
+    assert spaced[0][0] == joined[0][0] == dropped_i[0][0] == "La Vista"
 
 
 def test_extract_entities_dedups_and_preserves_order():
@@ -122,6 +124,11 @@ def test_resolve_to_compound_returns_none_when_no_flagship_stocked():
     assert resolved is None
 
 
+def test_suggest_comparison_names_for_new_cairo():
+    suggestions = suggest_comparison_names("new cairo", limit=3)
+    assert suggestions == ["La Vista", "Hassan Allam", "Sodic"]
+
+
 # ─── Comparison service (compare_compounds) ─────────────────────────────────
 
 
@@ -187,6 +194,37 @@ def test_compare_compounds_drops_low_sample_buckets():
     assert result["winner"] == "A"
 
 
+def test_compare_compounds_ignores_non_positive_gaps_for_winner():
+    """Only a positive developer−resale gap can win the free-path comparison."""
+    db = AsyncMock()
+    rows = [
+        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_500_000, res_n=5),
+        SimpleNamespace(compound="B", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_000_000, res_n=5),
+        SimpleNamespace(compound="C", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=5_200_000, res_n=5),
+    ]
+    db.execute.return_value = _stub_grouped_rows(rows)
+
+    result = asyncio.run(compare_compounds(["A", "B", "C"], db))
+    assert result["winner"] == "C"
+    a = next(c for c in result["per_compound"] if c["compound"] == "A")
+    b = next(c for c in result["per_compound"] if c["compound"] == "B")
+    assert a["max_gap_egp"] is None
+    assert b["max_gap_egp"] is None
+
+
+def test_compare_compounds_returns_no_winner_when_all_gaps_non_positive():
+    db = AsyncMock()
+    rows = [
+        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_500_000, res_n=5),
+        SimpleNamespace(compound="B", ptype="apartment", dev_avg=4_000_000, dev_n=5, res_avg=4_000_000, res_n=5),
+    ]
+    db.execute.return_value = _stub_grouped_rows(rows)
+
+    result = asyncio.run(compare_compounds(["A", "B"], db))
+    assert result["missing_compound"] is None
+    assert result["winner"] is None
+
+
 # ─── Comparison service (best_deals_in_compound) ────────────────────────────
 
 
@@ -203,15 +241,18 @@ def test_best_deals_in_compound_returns_top_k_sorted_by_gap():
     listings = [
         SimpleNamespace(
             id=1, title="Small unit", type="Apartment", size_sqm=120,
-            resale_price=4_800_000, nawy_url="https://x/1", compound="X", is_available=True,
+            bedrooms=2, resale_price=4_800_000, price_per_sqm=40_000,
+            nawy_url="https://x/1", image_url="", developer="Dev X", compound="X", is_available=True,
         ),
         SimpleNamespace(
             id=2, title="Big discount", type="Apartment", size_sqm=140,
-            resale_price=4_200_000, nawy_url="https://x/2", compound="X", is_available=True,
+            bedrooms=3, resale_price=4_200_000, price_per_sqm=30_000,
+            nawy_url="https://x/2", image_url="", developer="Dev X", compound="X", is_available=True,
         ),
         SimpleNamespace(
             id=3, title="Medium", type="Apartment", size_sqm=130,
-            resale_price=4_600_000, nawy_url="https://x/3", compound="X", is_available=True,
+            bedrooms=2, resale_price=4_600_000, price_per_sqm=35_000,
+            nawy_url="https://x/3", image_url="", developer="Dev X", compound="X", is_available=True,
         ),
     ]
     listings_result = MagicMock()
@@ -262,18 +303,22 @@ def _fresh_session() -> FreePathSession:
     )
 
 
-def test_dialog_redirects_when_user_asks_generic_question():
-    """ROI question with no entities in AWAITING_NAMES → redirect prompt, state unchanged."""
+def test_dialog_redirects_broad_tagamoa_best_price_to_named_comparison():
+    """Broad area best-price ask → request 2-3 specific compounds/developers."""
     session = _fresh_session()
     db = AsyncMock()
     response = asyncio.run(
-        comparison_dialog.handle_turn("عايز اعرف ROI في التجمع", session, db)
+        comparison_dialog.handle_turn("ممكن تقولي ايه احسن سعر في كمبوندات التجمع", session, db)
     )
     assert response["type"] == "clarification"
     assert response["show_upsell"] is False
-    # Arabic copy contains the canonical opening phrase.
-    assert "أنا هنا" in response["text"]
+    assert "لافيستا" in response["text"]
+    assert "حسن علام" in response["text"]
+    assert "سوديك" in response["text"]
+    assert "سعر المطور" in response["text"]
+    assert "resale" in response["text"]
     assert session.state == comparison_dialog.STATE_AWAITING_NAMES
+    assert session.comparison_used is False
 
 
 def test_dialog_rejects_too_many_entities():
@@ -287,7 +332,7 @@ def test_dialog_rejects_too_many_entities():
         )
     )
     assert response["type"] == "clarification"
-    assert "اختار 3" in response["text"] or "Pick just 3" in response["text"]
+    assert "اختار 3" in response["text"] or "pick just 3" in response["text"]
     assert session.state == comparison_dialog.STATE_AWAITING_NAMES
 
 
@@ -304,7 +349,8 @@ def test_dialog_single_compound_runs_top_deals_and_terminates():
     listings_result.scalars.return_value.all.return_value = [
         SimpleNamespace(
             id=1, title="Deal", type="Apartment", size_sqm=130,
-            resale_price=4_200_000, nawy_url="https://x", compound="Sarai",
+            bedrooms=2, resale_price=4_200_000, price_per_sqm=32_300,
+            nawy_url="https://x", image_url="", developer="Dev X", compound="Sarai",
             is_available=True,
         ),
     ]
@@ -324,8 +370,105 @@ def test_dialog_single_compound_runs_top_deals_and_terminates():
     assert session.mode == comparison_dialog.MODE_SINGLE
 
 
+def test_dialog_single_compound_compare_phrase_runs_best_price():
+    """Even if the user says 'compare', one named compound returns best prices."""
+    session = _fresh_session()
+    db = AsyncMock()
+
+    dev_result = MagicMock()
+    dev_result.all.return_value = [
+        SimpleNamespace(ptype="apartment", dev_avg=5_000_000, dev_n=10),
+    ]
+    listings_result = MagicMock()
+    listings_result.scalars.return_value.all.return_value = [
+        SimpleNamespace(
+            id=1, title="Deal", type="Apartment", size_sqm=130,
+            bedrooms=2, resale_price=4_200_000, price_per_sqm=32_300,
+            nawy_url="https://x", image_url="", developer="Dev X", compound="Sarai",
+            is_available=True,
+        ),
+    ]
+    db.execute.side_effect = [dev_result, listings_result]
+
+    response = asyncio.run(
+        comparison_dialog.handle_turn("compare sarai", session, db)
+    )
+    assert response["type"] == "comparison"
+    assert response["properties"][0]["compound"] == "Sarai"
+    assert "Best price in" in response["text"]
+    assert session.state == comparison_dialog.STATE_DONE
+    assert session.comparison_used is True
+
+
+def test_dialog_single_developer_returns_best_price_across_compounds(monkeypatch):
+    """One developer named → rank that developer's known projects by best resale gap."""
+    session = _fresh_session()
+    db = AsyncMock()
+
+    monkeypatch.setattr(
+        comparison_dialog,
+        "list_developer_compounds",
+        lambda developer: ["Sodic East", "Villette"],
+    )
+
+    async def fake_best_deals(compound, _db):
+        if compound == "Sodic East":
+            return {
+                "compound": compound,
+                "missing": False,
+                "top_listings": [{
+                    "property_id": 1,
+                    "title": "Sodic East deal",
+                    "type": "apartment",
+                    "size_sqm": 140,
+                    "bedrooms": 2,
+                    "resale_price": 5_000_000,
+                    "price_per_sqm": 35_700,
+                    "dev_avg": 5_500_000,
+                    "gap_egp": 500_000,
+                    "gap_pct": 9.0,
+                    "nawy_url": "https://x/1",
+                    "image_url": "",
+                    "developer": "Sodic",
+                    "compound": "Sodic East",
+                }],
+            }
+        return {
+            "compound": compound,
+            "missing": False,
+            "top_listings": [{
+                "property_id": 2,
+                "title": "Villette deal",
+                "type": "villa",
+                "size_sqm": 240,
+                "bedrooms": 4,
+                "resale_price": 9_000_000,
+                "price_per_sqm": 37_500,
+                "dev_avg": 11_000_000,
+                "gap_egp": 2_000_000,
+                "gap_pct": 18.0,
+                "nawy_url": "https://x/2",
+                "image_url": "",
+                "developer": "Sodic",
+                "compound": "Villette",
+            }],
+        }
+
+    monkeypatch.setattr(comparison_dialog, "best_deals_in_compound", fake_best_deals)
+
+    response = asyncio.run(
+        comparison_dialog.handle_turn("best price sodic", session, db)
+    )
+    assert response["type"] == "comparison"
+    assert response["properties"][0]["compound"] == "Villette"
+    assert "Best price under" in response["text"]
+    assert "Sodic" in response["text"]
+    assert session.state == comparison_dialog.STATE_DONE
+    assert session.comparison_used is True
+
+
 def test_dialog_multi_compound_runs_comparison_and_blurs_losers():
-    """Two compounds named → MULTI mode, returns winner unblurred and the other blurred."""
+    """Two compounds named → MULTI mode, returns winner unlocked and the other locked."""
     session = _fresh_session()
     db = AsyncMock()
     rows = [
@@ -342,12 +485,58 @@ def test_dialog_multi_compound_runs_comparison_and_blurs_losers():
     assert session.state == comparison_dialog.STATE_DONE
     assert session.mode == comparison_dialog.MODE_MULTI
     # Winner has the bigger gap (Sarai: 2M vs Hyde Park: 500K).
-    blurred = [p for p in response["properties"] if p.get("blurred")]
-    unblurred = [p for p in response["properties"] if not p.get("blurred")]
-    assert len(unblurred) == 1
-    assert unblurred[0]["compound"] == "Sarai"
-    assert len(blurred) == 1
-    assert blurred[0]["compound"] == "Hyde Park"
+    locked = [p for p in response["properties"] if p.get("locked")]
+    unlocked = [p for p in response["properties"] if not p.get("locked")]
+    assert len(unlocked) == 1
+    assert unlocked[0]["compound"] == "Sarai"
+    assert len(locked) == 1
+    assert locked[0]["compound"] == "Hyde Park"
+
+
+def test_dialog_named_developers_resolve_to_concrete_compounds():
+    """Canonical user example resolves developers, then compares concrete compounds."""
+    session = _fresh_session()
+    db = AsyncMock()
+
+    stocked = MagicMock()
+    stocked.scalar_one.return_value = 10
+    rows = [
+        SimpleNamespace(compound="La Vista City", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=5_300_000, res_n=5),
+        SimpleNamespace(compound="Swan Lake", ptype="apartment", dev_avg=7_000_000, dev_n=5, res_avg=6_000_000, res_n=5),
+        SimpleNamespace(compound="Sodic East", ptype="apartment", dev_avg=8_000_000, dev_n=5, res_avg=6_500_000, res_n=5),
+    ]
+    db.execute.side_effect = [stocked, stocked, stocked, _stub_grouped_rows(rows)]
+
+    response = asyncio.run(
+        comparison_dialog.handle_turn("احسن سعر بين لافيستا و حسن علام و سوديك", session, db)
+    )
+    assert response["type"] == "comparison"
+    assert response["properties"][0]["compound"] == "Sodic East"
+    assert "المقارنة استخدمت" in response["text"]
+    assert "La Vista City" in response["text"]
+    assert "Swan Lake" in response["text"]
+    assert "Sodic East" in response["text"]
+    assert session.comparison_used is True
+
+
+def test_dialog_multi_compound_no_positive_gap_keeps_session_open():
+    """If resale does not beat developer pricing, do not declare a fake winner."""
+    session = _fresh_session()
+    db = AsyncMock()
+    rows = [
+        SimpleNamespace(compound="Sarai", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=6_100_000, res_n=5),
+        SimpleNamespace(compound="Hyde Park", ptype="apartment", dev_avg=7_000_000, dev_n=5, res_avg=7_000_000, res_n=5),
+    ]
+    db.execute.return_value = _stub_grouped_rows(rows)
+
+    response = asyncio.run(
+        comparison_dialog.handle_turn("compare سراي و هايد بارك", session, db)
+    )
+    assert response["type"] == "clarification"
+    assert response["show_upsell"] is False
+    assert "مفيش فرق" in response["text"]
+    assert session.state == comparison_dialog.STATE_AWAITING_NAMES
+    assert session.comparison_used is False
 
 
 def test_dialog_done_state_returns_upsell_on_next_turn():
