@@ -1246,6 +1246,7 @@ async def chat_stream(
                         session_count=session_count_after,
                         db=db,
                         previous_queries=previous_user_messages,
+                        session_id=req.session_id,
                     )
 
                 response_text = clean_response_text(local_result.get("text", ""))

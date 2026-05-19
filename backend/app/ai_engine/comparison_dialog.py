@@ -299,14 +299,19 @@ async def _run_single_compound(
 
     session.state = STATE_DONE
     session.comparison_used = True
+    # NB: show_upsell stays False on the SUCCESS turn — the blurred property
+    # cards already convey "there's more locked behind upgrade", and the
+    # frontend's consultant-handoff chrome triggers on show_upsell|cta_actions
+    # which would mis-frame this as "your question needs deep analysis".
+    # The upsell fires on the NEXT turn via comparison_used gating.
     return {
         "type": "comparison",
         "response_type": "free_local",
         "text": headline,
         "properties": properties,
-        "show_upsell": True,
-        "upsell_reason": "comparison_used",
-        "cta_actions": _cta_actions(is_arabic),
+        "show_upsell": False,
+        "upsell_reason": None,
+        "cta_actions": [],
     }
 
 
@@ -388,14 +393,15 @@ async def _run_multi_compound(
 
     session.state = STATE_DONE
     session.comparison_used = True
+    # See _run_single_compound for why show_upsell stays False on success.
     return {
         "type": "comparison",
         "response_type": "free_local",
         "text": headline,
         "properties": properties,
-        "show_upsell": True,
-        "upsell_reason": "comparison_used",
-        "cta_actions": _cta_actions(is_arabic),
+        "show_upsell": False,
+        "upsell_reason": None,
+        "cta_actions": [],
     }
 
 

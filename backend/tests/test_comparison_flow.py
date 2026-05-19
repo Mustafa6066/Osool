@@ -314,8 +314,11 @@ def test_dialog_single_compound_runs_top_deals_and_terminates():
         comparison_dialog.handle_turn("احسن عرض في سراي", session, db)
     )
     assert response["type"] == "comparison"
-    assert response["show_upsell"] is True
-    assert response["upsell_reason"] == "comparison_used"
+    # show_upsell stays False on the success turn so the frontend's
+    # consultant-handoff chrome doesn't mis-frame this as "deep analysis needed".
+    # The upsell fires on the NEXT turn via comparison_used gating.
+    assert response["show_upsell"] is False
+    assert response["cta_actions"] == []
     assert session.state == comparison_dialog.STATE_DONE
     assert session.comparison_used is True
     assert session.mode == comparison_dialog.MODE_SINGLE
@@ -335,6 +338,7 @@ def test_dialog_multi_compound_runs_comparison_and_blurs_losers():
         comparison_dialog.handle_turn("compare سراي و هايد بارك", session, db)
     )
     assert response["type"] == "comparison"
+    assert response["show_upsell"] is False
     assert session.state == comparison_dialog.STATE_DONE
     assert session.mode == comparison_dialog.MODE_MULTI
     # Winner has the bigger gap (Sarai: 2M vs Hyde Park: 500K).
