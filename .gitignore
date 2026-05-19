@@ -121,6 +121,7 @@ headers.txt
 payload.json
 backend/deploy_log.txt
 backend/login.json
+logs.txt
 
 .vercel
 .env*.local
