@@ -12,6 +12,8 @@ import {
   Maximize,
   BarChart2,
   TrendingUp,
+  Lock,
+  ArrowUpRight,
 } from 'lucide-react';
 
 interface PropertyMetrics {
@@ -35,6 +37,10 @@ interface Property {
   developer: string;
   tags: string[];
   status: string;
+  locked?: boolean;
+  gap_egp?: number;
+  gap_pct?: number;
+  compound?: string;
 }
 
 interface AnalyticsContext {
@@ -188,6 +194,45 @@ function PropertyLinePanel({
   );
 }
 
+function LockedPaywallTile({ count, isRTL }: { count: number; isRTL: boolean }) {
+  const title = isRTL
+    ? `+${count} ${count === 1 ? 'عرض' : 'عروض'} مقفولة`
+    : `+${count} more ${count === 1 ? 'deal' : 'deals'} locked`;
+  const subtitle = isRTL
+    ? 'افتح الباقة المتقدمة لرؤية الفروقات الكاملة بين سعر المطور والـ resale'
+    : 'Unlock premium to see the full developer-vs-resale gap on every listing';
+  const cta = isRTL ? 'فتح الباقة' : 'Unlock';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      className="group relative flex items-center gap-3 rounded-2xl border border-dashed border-emerald-500/35 bg-gradient-to-br from-emerald-500/8 via-[var(--color-surface)]/55 to-[var(--color-surface)]/40 p-3 sm:p-4 overflow-hidden"
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
+      <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex-shrink-0">
+        <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="text-[13px] sm:text-[14px] font-semibold text-[var(--color-text-primary)]">
+          {title}
+        </h3>
+        <p className="text-[11px] sm:text-[12px] text-[var(--color-text-muted)] mt-0.5">
+          {subtitle}
+        </p>
+      </div>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] sm:text-[12px] font-semibold text-white hover:bg-emerald-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 flex-shrink-0"
+      >
+        {cta}
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      </button>
+    </motion.div>
+  );
+}
+
 export default function BentoResultGrid({
   properties,
   analyticsContext,
@@ -205,6 +250,12 @@ export default function BentoResultGrid({
   const growth = analyticsContext?.growth_rate ?? 0;
   const yield_ = analyticsContext?.rental_yield ?? 0;
   const showStats = !!analyticsContext?.has_analytics && (avgPrice > 0 || growth > 0 || yield_ > 0);
+
+  // Split unlocked listing tiles from locked paywall placeholders. Locked rows
+  // come from the free-path comparison flow where only the winner is fully
+  // visible; the rest collapse into one "+N locked" tile at the bottom.
+  const unlocked = properties.filter((p) => !p.locked);
+  const lockedCount = properties.length - unlocked.length;
 
   return (
     <div className="mt-4 sm:mt-5" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -232,7 +283,7 @@ export default function BentoResultGrid({
       )}
 
       <div className="flex flex-col gap-2.5 sm:gap-3">
-        {properties.map((prop, index) => (
+        {unlocked.map((prop, index) => (
           <PropertyLinePanel
             key={prop.id}
             prop={prop}
@@ -245,6 +296,9 @@ export default function BentoResultGrid({
             onCompare={(e) => onCompare(prop, e)}
           />
         ))}
+        {lockedCount > 0 && (
+          <LockedPaywallTile count={lockedCount} isRTL={isRTL} />
+        )}
       </div>
     </div>
   );

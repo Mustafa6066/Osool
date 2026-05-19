@@ -27,6 +27,14 @@ export interface Property {
   developer: string;
   tags: string[];
   status: string;
+  // Paywall marker — when true, the card renders as an "unlock to see more"
+  // tile instead of a regular property listing. Set by the backend
+  // free-path/comparison flow for non-winner compounds.
+  locked?: boolean;
+  url?: string;
+  compound?: string;
+  gap_egp?: number;
+  gap_pct?: number;
 }
 
 export interface ChatPropertyPayload {
@@ -35,6 +43,7 @@ export interface ChatPropertyPayload {
   name?: string;
   location?: string;
   address?: string;
+  compound?: string;
   price?: number;
   size_sqm?: number;
   size?: number;
@@ -50,6 +59,13 @@ export interface ChatPropertyPayload {
   developer?: string;
   tags?: string[];
   status?: string;
+  // Free-path / comparison payload extras
+  locked?: boolean;
+  lock_reason?: string;
+  url?: string;
+  nawy_url?: string;
+  gap_egp?: number;
+  gap_pct?: number;
 }
 
 export interface UiActionArea {
@@ -201,10 +217,14 @@ export function normalizeMarkdown(content: string): string {
 /* ─── Property Mapper ────────────────────────── */
 
 export function mapChatPropertyToProperty(prop: ChatPropertyPayload): Property {
+  const locked = prop.locked === true;
   return {
     id: prop.id?.toString() || `prop_${Date.now()}_${Math.random()}`,
-    title: prop.title || prop.name || 'Property',
-    location: prop.location || prop.address || 'Location',
+    // Locked rows have no listing data — keep title/location empty so the
+    // paywall tile in BentoResultGrid can render its own copy without
+    // leaking "Property" / "Location" placeholders.
+    title: prop.title || prop.name || (locked ? '' : 'Property'),
+    location: prop.location || prop.address || prop.compound || (locked ? '' : 'Location'),
     price: prop.price || 0,
     currency: 'EGP',
     metrics: {
@@ -217,9 +237,14 @@ export function mapChatPropertyToProperty(prop: ChatPropertyPayload): Property {
       liquidity_rating: prop.liquidity_rating || 'Medium',
     },
     image: prop.image_url || prop.image || 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=800',
-    developer: prop.developer || 'Developer',
+    developer: prop.developer || (locked ? '' : 'Developer'),
     tags: Array.isArray(prop.tags) ? prop.tags.filter((tag): tag is string => typeof tag === 'string') : [],
     status: prop.status || 'Available',
+    locked,
+    url: prop.url || prop.nawy_url,
+    compound: prop.compound,
+    gap_egp: prop.gap_egp,
+    gap_pct: prop.gap_pct,
   };
 }
 

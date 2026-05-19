@@ -250,7 +250,9 @@ async def _run_single_compound(
             if is_arabic else copy.MISSING_RESALE_EN.format(compound=compound_name)
         )
 
-    # Build the property cards: #1 unblurred (full numbers), the rest blurred.
+    # Build the property cards: #1 unblurred (full numbers), the rest locked.
+    # Field names must match the frontend's mapChatPropertyToProperty (chat-utils.ts):
+    # price, location, image_url, developer, bedrooms, size_sqm, price_per_sqm, url, status.
     properties: list[dict[str, Any]] = []
     for i, listing in enumerate(top):
         if i == 0:
@@ -259,23 +261,33 @@ async def _run_single_compound(
                 if is_arabic else listing["type"].title()
             )
             properties.append({
-                "property_id": listing["property_id"],
+                "id": listing["property_id"],
+                "title": listing["title"] or f"{type_label} — {compound_name}",
+                "location": listing.get("compound") or compound_name,
                 "compound": compound_name,
+                "developer": listing.get("developer") or "",
                 "type": listing["type"],
                 "type_label": type_label,
                 "size_sqm": listing["size_sqm"],
-                "resale_price": listing["resale_price"],
+                "bedrooms": listing.get("bedrooms") or 0,
+                "price": listing["resale_price"],
+                "price_per_sqm": listing.get("price_per_sqm"),
+                "image_url": listing.get("image_url") or "",
+                "url": listing.get("nawy_url"),
+                "status": "Resale",
                 "dev_avg": listing["dev_avg"],
                 "gap_egp": listing["gap_egp"],
-                "nawy_url": listing["nawy_url"],
-                "title": listing["title"],
-                "blurred": False,
+                "gap_pct": listing.get("gap_pct"),
+                "tags": ["best-deal"] if is_arabic is False else ["أفضل-عرض"],
+                "locked": False,
             })
         else:
+            # Locked card: explicit marker so the frontend renders a single
+            # "unlock to see more" tile instead of a fake property row.
             properties.append({
                 "compound": compound_name,
-                "blurred": True,
-                "preview": "▒▒▒▒▒▒",
+                "locked": True,
+                "lock_reason": "premium_required",
             })
 
     best = top[0]
@@ -340,24 +352,55 @@ async def _run_multi_compound(
             if is_arabic else copy.MISSING_RESALE_EN.format(compound=compound_names[0])
         )
 
-    # Build property cards: winner unblurred (apt + villa rows), losers blurred.
+    # Build property cards: winner card uses real numbers from the best-gap
+    # segment so the frontend renders it as a regular property tile. Losing
+    # compounds become locked tiles (single paywall row in the UI).
     winner = result["winner"]
     properties: list[dict[str, Any]] = []
     winning_entry = next(c for c in result["per_compound"] if c["compound"] == winner)
+
+    apt_seg = winning_entry.get("apartment")
+    villa_seg = winning_entry.get("villa")
+    if apt_seg and villa_seg:
+        winner_type, winner_seg = (
+            ("apartment", apt_seg) if apt_seg["gap_egp"] >= villa_seg["gap_egp"]
+            else ("villa", villa_seg)
+        )
+    elif apt_seg:
+        winner_type, winner_seg = "apartment", apt_seg
+    elif villa_seg:
+        winner_type, winner_seg = "villa", villa_seg
+    else:
+        winner_type, winner_seg = "apartment", {"gap_egp": 0.0, "res_avg": 0.0}
+
+    type_label = (
+        copy.TYPE_LABEL_AR.get(winner_type, winner_type)
+        if is_arabic else winner_type.title()
+    )
     properties.append({
+        "id": f"compound:{winner}:{winner_type}",
+        "title": f"{type_label} — {winner}",
+        "location": winner,
         "compound": winner,
-        "apartment": winning_entry.get("apartment"),
-        "villa": winning_entry.get("villa"),
+        "type": winner_type,
+        "type_label": type_label,
+        "price": winner_seg.get("res_avg", 0.0),
+        "dev_avg": winner_seg.get("dev_avg"),
+        "gap_egp": winner_seg.get("gap_egp"),
+        "apartment": apt_seg,
+        "villa": villa_seg,
         "max_gap_egp": winning_entry.get("max_gap_egp"),
-        "blurred": False,
+        "status": "Best price",
+        "tags": ["أفضل-عرض"] if is_arabic else ["best-deal"],
+        "locked": False,
     })
     for entry in result["per_compound"]:
         if entry["compound"] == winner:
             continue
         properties.append({
             "compound": entry["compound"],
-            "blurred": True,
-            "preview": "▒▒▒▒▒▒",
+            "locked": True,
+            "lock_reason": "premium_required",
         })
 
     # Pick the type with the bigger gap for the headline copy.

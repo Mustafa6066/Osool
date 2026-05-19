@@ -218,14 +218,25 @@ async def best_deals_in_compound(
         if dev_avg is None or p.resale_price is None:
             continue
         gap = dev_avg - float(p.resale_price)
+        # Surface only true bargains: skip listings where resale ≥ developer benchmark.
+        # A negative gap would otherwise render as "best deal: -2M below developer",
+        # which kills trust in the comparison.
+        if gap <= 0:
+            continue
         deals.append({
             "property_id": p.id,
             "type": ptype,
             "size_sqm": p.size_sqm,
+            "bedrooms": p.bedrooms,
             "resale_price": float(p.resale_price),
+            "price_per_sqm": float(p.price_per_sqm) if p.price_per_sqm else None,
             "dev_avg": dev_avg,
             "gap_egp": gap,
+            "gap_pct": (gap / dev_avg) * 100.0 if dev_avg else None,
             "nawy_url": p.nawy_url,
+            "image_url": p.image_url,
+            "developer": p.developer,
+            "compound": p.compound,
             "title": p.title,
         })
 
