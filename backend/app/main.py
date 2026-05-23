@@ -11,6 +11,7 @@ Features:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import logging
 from dotenv import load_dotenv
 import os
@@ -73,6 +74,110 @@ from app.services.metrics import metrics_endpoint
 # Security: Disable API documentation in production
 _is_production = os.getenv("ENVIRONMENT") == "production"
 
+
+# ═══════════════════════════════════════════════════════════════
+# LIFESPAN (replaces deprecated @app.on_event)
+# Compatible with FastAPI >= 0.93 / Starlette >= 0.20
+# ═══════════════════════════════════════════════════════════════
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup then yield then shutdown."""
+    # ── STARTUP ────────────────────────────────────────────────
+    import os as _os
+    logger.info("🚀 Osool Backend Starting...")
+
+    environment = _os.getenv("ENVIRONMENT", "development")
+    if environment == "production":
+        required_vars = [
+            "JWT_SECRET_KEY",
+            "DATABASE_URL",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+        ]
+        missing_vars = [v for v in required_vars if not _os.getenv(v)]
+        if missing_vars:
+            logger.error(
+                "CRITICAL: Missing required environment variables: %s",
+                ", ".join(missing_vars),
+            )
+
+    try:
+        from app.database import init_db
+        await init_db()
+        logger.info("✅ Database tables: VERIFIED")
+    except Exception as e:
+        logger.warning("⚠️ Database tables: init_db skipped (%s)", e)
+
+    try:
+        from app.ingest_pipeline import create_valuation_tables
+        await create_valuation_tables()
+        logger.info("✅ Valuation Pipeline: valuation_listings table READY")
+    except Exception as e:
+        logger.warning("⚠️ Valuation Pipeline: table init skipped (%s)", e)
+
+    try:
+        from app.intelligence_loop import create_intelligence_tables, start_intelligence_worker
+        await create_intelligence_tables()
+        await start_intelligence_worker()
+        logger.info("✅ Intelligence Loop: telemetry tables READY, drift worker STARTED")
+    except Exception as e:
+        logger.warning("⚠️ Intelligence Loop: startup skipped (%s)", e)
+
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.gamification import gamification_engine
+        async with AsyncSessionLocal() as session:
+            await gamification_engine.seed_achievements(session)
+        logger.info("✅ Gamification Engine: ACHIEVEMENTS SEEDED")
+    except Exception as e:
+        logger.warning("⚠️ Gamification Engine: Seed skipped (%s)", e)
+
+    try:
+        from app.services.scheduler import init_scheduler
+        init_scheduler()
+    except Exception as e:
+        logger.warning("⚠️ APScheduler: Init skipped (%s)", e)
+
+    try:
+        from app.services.cache import cache
+        if cache.redis:
+            cache.redis.ping()
+            logger.info("✅ Redis: CONNECTED (token blacklist active)")
+        elif _os.getenv("ENVIRONMENT") == "production":
+            logger.error("❌ Redis: UNAVAILABLE in production — token blacklist degraded!")
+        else:
+            logger.warning("⚠️ Redis: Not configured (using in-memory fallback)")
+    except Exception as e:
+        if _os.getenv("ENVIRONMENT") == "production":
+            logger.error("❌ Redis: Connection failed in production — %s", e)
+        else:
+            logger.warning("⚠️ Redis: Connection failed (%s)", e)
+
+    logger.info("✅ AI Intelligence Layer: READY")
+    logger.info("✅ CoInvestor Agent (Claude 3.5 Sonnet): READY")
+    logger.info("✅ Hybrid Brain (XGBoost + GPT-4o): READY")
+    logger.info("✅ Gamification Engine: READY")
+    logger.info("✅ Semantic Search (pgvector): READY")
+    logger.info("🎉 Osool Backend is ONLINE (Environment: %s)", environment)
+    logger.info("🐺 Phase 9: AI + Gamification Platform")
+
+    yield  # ── Application runs here ──────────────────────────
+
+    # ── SHUTDOWN ───────────────────────────────────────────────
+    try:
+        from app.services.scheduler import shutdown_scheduler
+        shutdown_scheduler()
+    except Exception:
+        pass
+    try:
+        from app.intelligence_loop import stop_intelligence_worker
+        await stop_intelligence_worker()
+    except Exception:
+        pass
+    logger.info("👋 Osool Backend shutting down")
+
+
 app = FastAPI(
     title="Osool API",
     description="""
@@ -101,7 +206,8 @@ app = FastAPI(
     """,
     version="1.0.0",
     docs_url=None if _is_production else "/docs",
-    redoc_url=None if _is_production else "/redoc"
+    redoc_url=None if _is_production else "/redoc",
+    lifespan=lifespan,
 )
 
 # ═══════════════════════════════════════════════════════════════
@@ -276,18 +382,35 @@ app.include_router(lead_router)
 app.include_router(email_router)
 app.include_router(analytics_router)
 app.include_router(campaign_router)
+
+# Simple health endpoint registered FIRST so Railway healthcheck always
+# gets a fast 200 regardless of startup-event completion status.
+@app.get("/health")
+def health():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "osool-backend"}
+
 app.include_router(health_router)
 app.include_router(orchestrator_router)
 app.include_router(user_prefs_router)
 
-from app.ingest_pipeline import router as ingest_router
-app.include_router(ingest_router)
+try:
+    from app.ingest_pipeline import router as ingest_router
+    app.include_router(ingest_router)
+except Exception as _e:
+    logger.error("Failed to load ingest_pipeline router: %s", _e)
 
-from app.intelligence_loop import router as intelligence_router
-app.include_router(intelligence_router)
+try:
+    from app.intelligence_loop import router as intelligence_router
+    app.include_router(intelligence_router)
+except Exception as _e:
+    logger.error("Failed to load intelligence_loop router: %s", _e)
 
-from app.api.freemium_router import router as freemium_router
-app.include_router(freemium_router)
+try:
+    from app.api.freemium_router import router as freemium_router
+    app.include_router(freemium_router)
+except Exception as _e:
+    logger.error("Failed to load freemium_router: %s", _e)
 
 
 @app.get("/")
@@ -296,12 +419,6 @@ def root():
     # SECURITY: Never expose version, phase, or internal feature names.
     # Attackers use version strings to look up known CVEs.
     return {"status": "online", "service": "Osool API"}
-
-
-@app.get("/health")
-def health():
-    """Health check endpoint"""
-    return {"status": "healthy", "service": "osool-backend"}
 
 
 # Security Fix H4: Lazy import of verify_api_key to protect metrics
@@ -329,121 +446,6 @@ def metrics(_key: str = _Depends(_verify_metrics_key)):
     """
     return metrics_endpoint()
 
-
-# ═══════════════════════════════════════════════════════════════
-# STARTUP EVENT
-# ═══════════════════════════════════════════════════════════════
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Startup validation with security checks.
-    Fails fast if critical environment variables are missing.
-    """
-    import os
-
-    logger.info("🚀 Osool Backend Starting...")
-
-    # Phase 1: Security Validation
-    environment = os.getenv("ENVIRONMENT", "development")
-
-    if environment == "production":
-        required_vars = [
-            "JWT_SECRET_KEY",
-            "DATABASE_URL",
-            "OPENAI_API_KEY",
-            "ANTHROPIC_API_KEY"
-        ]
-
-        missing_vars = [var for var in required_vars if not os.getenv(var)]
-
-        if missing_vars:
-            error_msg = f"CRITICAL: Missing required environment variables: {', '.join(missing_vars)}"
-            logger.error(error_msg)
-            # Log but do NOT raise — allows /health to respond so Railway healthcheck passes.
-            # Individual API endpoints will fail with 500 if they require missing vars.
-
-    # Create missing tables (gamification, etc.) if they don't exist
-    try:
-        from app.database import init_db
-        await init_db()
-        logger.info("✅ Database tables: VERIFIED")
-    except Exception as e:
-        logger.warning(f"⚠️ Database tables: init_db skipped ({e})")
-
-    # Valuation pipeline table (valuation_listings + pgvector extension)
-    try:
-        from app.ingest_pipeline import create_valuation_tables
-        await create_valuation_tables()
-        logger.info("✅ Valuation Pipeline: valuation_listings table READY")
-    except Exception as e:
-        logger.warning(f"⚠️ Valuation Pipeline: table init skipped ({e})")
-
-    # Intelligence loop tables + background drift worker
-    try:
-        from app.intelligence_loop import create_intelligence_tables, start_intelligence_worker
-        await create_intelligence_tables()
-        await start_intelligence_worker()
-        logger.info("✅ Intelligence Loop: telemetry tables READY, drift worker STARTED")
-    except Exception as e:
-        logger.warning(f"⚠️ Intelligence Loop: startup skipped ({e})")
-
-    # Phase 9: Seed gamification achievements
-    try:
-        from app.database import AsyncSessionLocal
-        from app.services.gamification import gamification_engine
-        async with AsyncSessionLocal() as session:
-            await gamification_engine.seed_achievements(session)
-        logger.info("✅ Gamification Engine: ACHIEVEMENTS SEEDED")
-    except Exception as e:
-        logger.warning(f"⚠️ Gamification Engine: Seed skipped ({e})")
-
-    # Phase 10: Initialize APScheduler for weekly scraping jobs
-    try:
-        from app.services.scheduler import init_scheduler
-        init_scheduler()
-    except Exception as e:
-        logger.warning(f"⚠️ APScheduler: Init skipped ({e})")
-
-    # Phase 11: Redis connectivity check — critical for token blacklist in production
-    try:
-        from app.services.cache import cache
-        if cache.redis:
-            cache.redis.ping()
-            logger.info("✅ Redis: CONNECTED (token blacklist active)")
-        elif os.getenv("ENVIRONMENT") == "production":
-            logger.error("❌ Redis: UNAVAILABLE in production — token blacklist degraded!")
-        else:
-            logger.warning("⚠️ Redis: Not configured (using in-memory fallback)")
-    except Exception as e:
-        if os.getenv("ENVIRONMENT") == "production":
-            logger.error(f"❌ Redis: Connection failed in production — {e}")
-        else:
-            logger.warning(f"⚠️ Redis: Connection failed ({e})")
-
-    logger.info("✅ AI Intelligence Layer: READY")
-    logger.info("✅ CoInvestor Agent (Claude 3.5 Sonnet): READY")
-    logger.info("✅ Hybrid Brain (XGBoost + GPT-4o): READY")
-    logger.info("✅ Gamification Engine: READY")
-    logger.info("✅ Semantic Search (pgvector): READY")
-    logger.info(f"🎉 Osool Backend is ONLINE (Environment: {environment})")
-    logger.info(f"🐺 Phase 9: AI + Gamification Platform")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Graceful shutdown: stop scheduled tasks."""
-    try:
-        from app.services.scheduler import shutdown_scheduler
-        shutdown_scheduler()
-    except Exception:
-        pass
-    try:
-        from app.intelligence_loop import stop_intelligence_worker
-        await stop_intelligence_worker()
-    except Exception:
-        pass
-    logger.info("👋 Osool Backend shutting down")
 
 if __name__ == "__main__":
     import uvicorn

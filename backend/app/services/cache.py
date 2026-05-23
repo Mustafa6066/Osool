@@ -16,7 +16,12 @@ class RedisClient:
     def __init__(self):
         self._memory_fallback: dict = {}  # {key: {"value": ..., "expires_at": float}}
         try:
-            self.redis = redis.from_url(REDIS_URL, decode_responses=True)
+            self.redis = redis.from_url(
+                REDIS_URL,
+                decode_responses=True,
+                socket_connect_timeout=3,
+                socket_timeout=3,
+            )
             self.redis.ping()
             print("✅ [Cache] Redis Connected")
         except Exception as e:
