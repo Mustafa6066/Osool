@@ -372,6 +372,8 @@ export interface StreamEvent {
   tool?: string;
   properties?: StreamProperty[];
   ui_actions?: StreamUiAction[];
+  ui_primitive_descriptor?: string;
+  primitive_data?: JsonObject | null;
   psychology?: StreamPsychology;
   message?: string;
   suggestions?: string[];
