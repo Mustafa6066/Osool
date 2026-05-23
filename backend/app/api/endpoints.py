@@ -17,11 +17,13 @@ from typing import Optional
 
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.cost_tracker import cost_tracker
+from app.ai_engine.company_brain import CompanyBrainKernel
+from app.ai_engine.free_tier_gate import FreeTierConversionGate, build_value_sandwich
+from app.ai_engine.wolf_orchestrator import wolf_brain
 from app.services.paymob_service import paymob_service
 from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, create_refresh_token_async, is_forced_free_test_user_email
 from app.database import get_db
 from app.models import User, Property, Transaction
-from app.ai_engine.local_router import local_router
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends, status, Request
@@ -826,7 +828,7 @@ async def chat_with_agent(
     req: ChatRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)  # REQUIRED auth - no anonymous access
+    user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
     💬 Main AI Chat Endpoint (Phase 1: Claude-Powered with Arabic Support)
@@ -842,54 +844,99 @@ async def chat_with_agent(
 
     Frontend can render property cards from the `properties` array.
     """
-    try:
-        from app.agent.coinvestor import coinvestor_agent  # Wolf Brain V7
-    except Exception as e:
-        logger.critical(f"Failed to load Wolf Brain: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=503,
-            detail="AI Service temporarily unavailable. Please try again shortly."
-        )
     from app.models import ChatMessage
     from sqlalchemy import select
     import json
 
     try:
-        # Phase 3: Load last 60 messages from database for this session
-        chat_history = []
-        result = await db.execute(
-            select(ChatMessage)
-            .filter(ChatMessage.session_id == req.session_id)
-            .filter(ChatMessage.user_id == user.id)  # Security: scope to authenticated user
-            .order_by(ChatMessage.created_at.desc())
-            .limit(60)  # Sufficient for Wolf Brain memory
-        )
-        messages = result.scalars().all()
-        
-        print(f"📜 Loaded {len(messages)} messages from DB for session {req.session_id}")
+        def _viewer_kind(current_user: Optional[User]) -> str:
+            if current_user is None:
+                return "anonymous"
+            if is_forced_free_test_user_email(getattr(current_user, "email", None)):
+                return "free"
+            tier = (getattr(current_user, "subscription_tier", "free") or "free").lower()
+            if getattr(current_user, "role", "").lower() == "admin" or tier in {"premium", "admin"}:
+                return "premium"
+            return "free"
 
-        # Convert to LangChain message format for coinvestor_agent
-        for msg in reversed(messages):
-            if msg.role == "user":
-                from langchain_core.messages import HumanMessage
-                chat_history.append(HumanMessage(content=msg.content))
-            elif msg.role == "assistant":
-                from langchain_core.messages import AIMessage
-                chat_history.append(AIMessage(content=msg.content))
+        viewer_kind = _viewer_kind(user)
 
         # SECURITY FIX V5: Sanitize user message before saving to prevent XSS
         from app.utils.input_sanitization import sanitize_user_message
         sanitized_message = sanitize_user_message(req.message)
 
-        # Save user message to database (linked to authenticated user)
+        # Persist user message for all tiers (anonymous messages stored with user_id=None).
         user_message = ChatMessage(
             session_id=req.session_id,
-            user_id=user.id,  # Link message to authenticated user
+            user_id=user.id if user else None,
             role="user",
-            content=sanitized_message  # SECURITY: Sanitized content
+            content=sanitized_message,
         )
         db.add(user_message)
         await db.commit()
+
+        # Deterministic free path: return exactly one anomaly hook + conversion prompt.
+        if viewer_kind in {"anonymous", "free"}:
+            hook = await FreeTierConversionGate.extract_one_anomaly(db)
+            lang = req.language if req.language in {"ar", "en"} else "ar"
+            teaser = build_value_sandwich(hook, language=lang)
+
+            hook_property = {
+                "id": hook.get("property_id") or 0,
+                "title": "La2ta Anomaly",
+                "location": hook.get("location") or "Unknown",
+                "compound": hook.get("compound"),
+                "price": hook.get("asking_price") or 0,
+                "la2ta_score": hook.get("osool_score"),
+                "savings": None,
+                "market_price": hook.get("market_avg_price"),
+            }
+
+            ai_message = ChatMessage(
+                session_id=req.session_id,
+                user_id=user.id if user else None,
+                role="assistant",
+                content=teaser,
+                properties_json=json.dumps([hook_property], ensure_ascii=False),
+            )
+            db.add(ai_message)
+            await db.commit()
+
+            return {
+                "response": teaser,
+                "properties": [hook_property],
+                "visualizations": {},
+                "ui_actions": [{"type": "la2ta_alert", "data": {"properties": [hook_property]}}],
+                "ui_primitive_descriptor": "free_tier_gate_hook",
+                "primitive_data": hook,
+                "session_id": req.session_id,
+                "analytics": {"customer_segment": "free", "lead_temperature": "warm", "lead_score": 20},
+                "cost": cost_tracker.get_cost_summary(),
+                "suggestions": [],
+                "lead_score": 20,
+                "readiness_score": 20,
+                "showing_strategy": "FREE_TIER_GATE_HOOK",
+                "detected_language": lang,
+                "analytics_context": None,
+            }
+
+        # Phase 3: Load last 60 messages from database for this session
+        chat_history = []
+        result = await db.execute(
+            select(ChatMessage)
+            .filter(ChatMessage.session_id == req.session_id)
+            .filter(ChatMessage.user_id == user.id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(60)
+        )
+        messages = result.scalars().all()
+        
+        print(f"📜 Loaded {len(messages)} messages from DB for session {req.session_id}")
+
+        # Convert to Wolf Brain history format
+        for msg in reversed(messages):
+            if msg.role in {"user", "assistant"}:
+                chat_history.append({"role": msg.role, "content": msg.content})
 
         print(f"📤 Sending {len(chat_history)} history items to Wolf Brain")
 
@@ -933,13 +980,22 @@ async def chat_with_agent(
         except Exception as orch_err:
             logger.debug(f"Orchestrator context unavailable (non-fatal): {orch_err}")
 
-        # V7: Use Wolf Brain via coinvestor_agent.process_message
-        ai_result = await coinvestor_agent.process_message(
-            user_input=sanitized_message,  # SECURITY: Use sanitized message
+        system_truth = await CompanyBrainKernel.synthesize_definitive_truth(db)
+        history_with_truth = [{"role": "system", "content": system_truth}] + chat_history
+        if orchestrator_ctx_str:
+            history_with_truth.insert(1, {"role": "system", "content": orchestrator_ctx_str})
+
+        ai_result = await wolf_brain.process_turn(
+            query=sanitized_message,
+            history=history_with_truth,
+            profile={
+                "id": user.id,
+                "email": getattr(user, "email", None),
+                "full_name": getattr(user, "full_name", None),
+            },
+            language=req.language,
             session_id=req.session_id,
-            history=chat_history,
             behavioral_signals=req.behavioral_signals.model_dump() if req.behavioral_signals else None,
-            orchestrator_context=orchestrator_ctx_str,
         )
         
         print(f"📥 Wolf Brain returned response: {len(ai_result.get('response', ''))} chars")
@@ -947,7 +1003,7 @@ async def chat_with_agent(
         # Extract components from result
         response_text = clean_response_text(ai_result.get("response", ""))
         search_results = ai_result.get("properties", [])
-        ui_actions = ai_result.get("charts", [])  # Wolf Brain returns 'charts'
+        ui_actions = ai_result.get("ui_actions") or ai_result.get("charts", [])
         psychology = ai_result.get("psychology")
         agentic_action = ai_result.get("hunt_strategy")  # Reflexion strategy
         suggestions = ai_result.get("suggestions", [])
@@ -1233,23 +1289,26 @@ async def chat_stream(
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Database error. Please try again.'}, ensure_ascii=False)}\n\n"
                 return
 
-            # Anonymous + free users are always handled by deterministic local path.
+            # Anonymous + free users: deterministic single anomaly hook path.
             if kind in {"anonymous", "free"}:
                 local_limit = 3 if kind == "anonymous" else 5
                 quota_remaining = max(local_limit - session_count_after, 0)
 
-                if kind == "anonymous" and session_count_after > local_limit:
-                    local_result = local_router._generate_upsell_response("DEPTH_LIMIT")
-                else:
-                    local_result = await local_router.process_query_async(
-                        query=req.message,
-                        session_count=session_count_after,
-                        db=db,
-                        previous_queries=previous_user_messages,
-                        session_id=req.session_id,
-                    )
+                lang = req.language if req.language in {"ar", "en"} else "ar"
+                hook = await FreeTierConversionGate.extract_one_anomaly(db)
+                response_text = clean_response_text(build_value_sandwich(hook, language=lang))
 
-                response_text = clean_response_text(local_result.get("text", ""))
+                hook_property = {
+                    "id": hook.get("property_id") or 0,
+                    "title": "La2ta Anomaly",
+                    "location": hook.get("location") or "Unknown",
+                    "compound": hook.get("compound"),
+                    "price": hook.get("asking_price") or 0,
+                    "la2ta_score": hook.get("osool_score"),
+                    "savings": None,
+                    "market_price": hook.get("market_avg_price"),
+                }
+
                 chunks = response_text.split()
                 buffer = ""
                 for word in chunks:
@@ -1267,31 +1326,31 @@ async def chat_stream(
                     user_id=user.id if user else None,
                     role="assistant",
                     content=response_text,
-                    properties_json=json.dumps(local_result.get("properties", []), ensure_ascii=False)
-                    if local_result.get("properties")
-                    else None,
+                    properties_json=json.dumps([hook_property], ensure_ascii=False),
                 )
                 db.add(ai_message)
                 try:
                     await db.commit()
                 except Exception as commit_err:
                     await db.rollback()
-                    logger.error(f"Failed to save local AI response: {commit_err}", exc_info=True)
+                    logger.error(f"Failed to save free-tier hook response: {commit_err}", exc_info=True)
 
                 done_payload = {
                     "type": "done",
-                    "properties": local_result.get("properties", []),
-                    "ui_actions": [],
+                    "properties": [hook_property],
+                    "ui_actions": [{"type": "la2ta_alert", "data": {"properties": [hook_property]}}],
+                    "ui_primitive_descriptor": "free_tier_gate_hook",
+                    "primitive_data": hook,
                     "suggestions": [],
-                    "lead_score": 0,
-                    "readiness_score": 0,
-                    "detected_language": req.language if req.language in {"ar", "en"} else "ar",
-                    "showing_strategy": "LOCAL_FREE_PATH",
-                    "response_type": local_result.get("response_type", "free_local"),
-                    "show_upsell": local_result.get("show_upsell", False),
-                    "upsell_reason": local_result.get("upsell_reason"),
+                    "lead_score": 20,
+                    "readiness_score": 20,
+                    "detected_language": lang,
+                    "showing_strategy": "FREE_TIER_GATE_HOOK",
+                    "response_type": "free_tier_gate_hook",
+                    "show_upsell": True,
+                    "upsell_reason": "free_tier_gate",
                     "quota_remaining": quota_remaining,
-                    "cta_actions": local_result.get("cta_actions", []),
+                    "cta_actions": [{"type": "signup", "label": "Unlock full intelligence"}],
                 }
                 yield f"data: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
                 return
@@ -1362,9 +1421,13 @@ async def chat_stream(
             except Exception as orch_err:
                 logger.debug(f"Orchestrator context unavailable: {orch_err}")
 
-            # Prepend orchestrator context to the history so Wolf Brain is aware
+            # Inject definitive company truth before route-level context.
+            system_truth = await CompanyBrainKernel.synthesize_definitive_truth(db)
+            history_for_loop.insert(0, {"role": "system", "content": system_truth})
+
+            # Prepend orchestrator context so Wolf Brain has cross-system awareness.
             if orchestrator_context:
-                history_for_loop.insert(0, {
+                history_for_loop.insert(1, {
                     "role": "system",
                     "content": orchestrator_context,
                 })

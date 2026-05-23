@@ -394,6 +394,8 @@ export interface StreamChatCallbacks {
   onComplete: (data: {
     properties: StreamProperty[];
     ui_actions: StreamUiAction[];
+    ui_primitive_descriptor?: string;
+    primitive_data?: JsonObject | null;
     psychology?: StreamPsychology;
     suggestions?: string[];
     lead_score?: number;
@@ -509,6 +511,8 @@ export const streamChat = async (
               callbacks.onComplete({
                 properties: data.properties || [],
                 ui_actions: data.ui_actions || [],
+                ui_primitive_descriptor: data.ui_primitive_descriptor,
+                primitive_data: data.primitive_data || null,
                 psychology: data.psychology,
                 suggestions: data.suggestions || [],
                 lead_score: data.lead_score || 0,

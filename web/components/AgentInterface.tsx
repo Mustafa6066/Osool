@@ -71,6 +71,8 @@ type ChatMode = 'compare' | 'market' | 'advisor';
 interface ChatResponsePayload {
   properties?: ChatPropertyPayload[];
   ui_actions?: UiAction[];
+  ui_primitive_descriptor?: string;
+  primitive_data?: Record<string, unknown> | null;
   suggestions?: string[];
   lead_score?: number;
   readiness_score?: number;
@@ -599,7 +601,27 @@ export default function AgentInterface() {
           onComplete: (data) => {
             settleNeuralSignal('complete', completeSignalLabel(conversationLanguage), data.response_type);
             const allProps = Array.isArray(data.properties) ? data.properties.map(mapChatPropertyToProperty) : [];
+            const primitiveData = data.primitive_data || null;
+            const primitiveHook = data.ui_primitive_descriptor === 'free_tier_gate_hook' && primitiveData
+              ? {
+                type: 'la2ta_alert',
+                data: {
+                  properties: [{
+                    id: Number((primitiveData as Record<string, unknown>).property_id || 0),
+                    title: 'La2ta Anomaly',
+                    location: String((primitiveData as Record<string, unknown>).location || 'Unknown'),
+                    compound: String((primitiveData as Record<string, unknown>).compound || ''),
+                    price: Number((primitiveData as Record<string, unknown>).asking_price || 0),
+                    market_price: Number((primitiveData as Record<string, unknown>).market_avg_price || 0),
+                    la2ta_score: Number((primitiveData as Record<string, unknown>).osool_score || 0),
+                    savings: null,
+                  }],
+                },
+              } as UiAction
+              : null;
+
             const uiActions = Array.isArray(data.ui_actions) ? (data.ui_actions as UiAction[]) : [];
+            const resolvedUiActions = primitiveHook && uiActions.length === 0 ? [primitiveHook] : uiActions;
             const artifacts: Artifacts | null = allProps.length > 0 ? { property: allProps[0] } : null;
             const finalContent = accumulatedText || (conversationLanguage === 'ar'
               ? 'أنا Osool Advisor، مستشار الاستثمار العقاري الخاص بك. كيف أقدر أساعدك النهارده؟'
@@ -612,7 +634,7 @@ export default function AgentInterface() {
                 role: 'agent',
                 content: finalContent,
                 artifacts,
-                uiActions,
+                uiActions: resolvedUiActions,
                 allProperties: allProps,
                 suggestions: data.suggestions || [],
                 leadScore: data.lead_score || 0,
@@ -634,7 +656,7 @@ export default function AgentInterface() {
             if (data.detected_language) setConversationLanguage(data.detected_language);
             setIsTyping(false);
             triggerXP(5, 'Asked a question');
-            if (data.ui_actions && data.ui_actions.length > 0) triggerXP(15, 'Used analysis tool');
+            if (resolvedUiActions.length > 0) triggerXP(15, 'Used analysis tool');
             if (artifacts) setActiveContext(artifacts);
           },
           onError: (error) => {
@@ -664,14 +686,34 @@ export default function AgentInterface() {
         }, { timeout: 120000 });
         const data = response.data as ChatResponsePayload;
         const allProps = Array.isArray(data.properties) ? data.properties.map(mapChatPropertyToProperty) : [];
+        const primitiveData = data.primitive_data || null;
+        const primitiveHook = data.ui_primitive_descriptor === 'free_tier_gate_hook' && primitiveData
+          ? {
+            type: 'la2ta_alert',
+            data: {
+              properties: [{
+                id: Number((primitiveData as Record<string, unknown>).property_id || 0),
+                title: 'La2ta Anomaly',
+                location: String((primitiveData as Record<string, unknown>).location || 'Unknown'),
+                compound: String((primitiveData as Record<string, unknown>).compound || ''),
+                price: Number((primitiveData as Record<string, unknown>).asking_price || 0),
+                market_price: Number((primitiveData as Record<string, unknown>).market_avg_price || 0),
+                la2ta_score: Number((primitiveData as Record<string, unknown>).osool_score || 0),
+                savings: null,
+              }],
+            },
+          } as UiAction
+          : null;
+
         const uiActions = Array.isArray(data.ui_actions) ? data.ui_actions : [];
+        const resolvedUiActions = primitiveHook && uiActions.length === 0 ? [primitiveHook] : uiActions;
 
         setMessages(prev => [...prev, {
           id: aiMsgId,
           role: 'agent',
           content: data.response || data.message || '',
           artifacts: allProps.length > 0 ? { property: allProps[0] } : null,
-          uiActions,
+          uiActions: resolvedUiActions,
           allProperties: allProps,
           suggestions: data.suggestions || [],
           leadScore: data.lead_score || 0,

@@ -18,7 +18,8 @@ from app.services.market_statistics import compute_detailed_qa_statistics
 
 class CompanyBrainKernel:
     @staticmethod
-    async def synthesize_definitive_truth(db: AsyncSession) -> str:
+    async def synthesize_skills_payload(db: AsyncSession) -> dict[str, Any]:
+        """Structured company-brain payload for orchestrators and chat routing."""
         qa_stats = await compute_detailed_qa_statistics(db)
 
         indicators = (
@@ -44,7 +45,7 @@ class CompanyBrainKernel:
             )
         ).all()
 
-        payload: dict[str, Any] = {
+        return {
             "qa_statistics": qa_stats,
             "market_indicators": {k: float(v) for k, v in indicators},
             "top_anomalies": [
@@ -59,5 +60,9 @@ class CompanyBrainKernel:
                 for r in top_anomalies
             ],
         }
+
+    @staticmethod
+    async def synthesize_definitive_truth(db: AsyncSession) -> str:
+        payload = await CompanyBrainKernel.synthesize_skills_payload(db)
 
         return "[SYSTEM_BRAIN_DEFINITIVE_TRUTH]" + json.dumps(payload, ensure_ascii=False)
