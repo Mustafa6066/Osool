@@ -17,8 +17,9 @@ import logging
 limiter = Limiter(key_func=get_remote_address)
 
 from app.auth import get_current_user
+from app.ai_engine.company_brain import CompanyBrainKernel
 from app.database import get_db, AsyncSessionLocal
-from app.models import (User, ChatMessage, Property, Transaction,
+from app.models import (User, ChatMessage, Property, Transaction, ConsultationBooking,
                         MarketIndicator, ConversationAnalytics,
                         Ticket, TicketReply, GeopoliticalEvent, MarketingMaterial,
                         HallucinationFlag, Area, Developer)
@@ -126,6 +127,10 @@ async def admin_dashboard(
     txn_count = await db.execute(select(func.count(Transaction.id)))
     total_transactions = txn_count.scalar() or 0
 
+    # Total consultations
+    consultation_count = await db.execute(select(func.count(ConsultationBooking.id)))
+    total_consultations = consultation_count.scalar() or 0
+
     # Unique chat sessions
     session_count = await db.execute(
         select(func.count(func.distinct(ChatMessage.session_id)))
@@ -154,6 +159,7 @@ async def admin_dashboard(
             "total_properties": total_properties,
             "active_properties": active_properties,
             "total_transactions": total_transactions,
+            "total_consultations": total_consultations,
             "total_sessions": total_sessions,
         },
         "recent_activity": {
@@ -165,6 +171,16 @@ async def admin_dashboard(
             "name": admin.full_name,
         },
     }
+
+
+@router.get("/system/brain-truth")
+async def system_brain_truth(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Returns the deterministic company-level brain payload for orchestration traces."""
+    payload = await CompanyBrainKernel.synthesize_definitive_truth(db)
+    return {"payload": payload}
 
 
 # ═══════════════════════════════════════════════════════════════

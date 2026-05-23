@@ -20,7 +20,7 @@ from app.ai_engine.cost_tracker import cost_tracker
 from app.services.paymob_service import paymob_service
 from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, create_refresh_token_async, is_forced_free_test_user_email
 from app.database import get_db
-from app.models import User, Property, Transaction, PaymentApproval
+from app.models import User, Property, Transaction
 from app.ai_engine.local_router import local_router
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession

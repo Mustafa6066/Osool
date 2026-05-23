@@ -1,7 +1,7 @@
 """
 Osool Database Models
 ---------------------
-Defines the schema for Users, Properties, Transactions, and Dual-Engine models
+Defines the schema for Users, Properties, Consultations, Transactions (legacy), and Dual-Engine models
 (Developers, Areas, Projects, Intents, Leads, SEO Pages, Campaigns, Email Events).
 Includes pgvector support for AI semantic search (when available).
 """
@@ -115,6 +115,7 @@ class User(Base):
     invited_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)  # Who invited this user
 
     transactions = relationship("Transaction", back_populates="user")
+    consultation_bookings = relationship("ConsultationBooking", back_populates="user")
     chat_messages = relationship("ChatMessage", back_populates="user")
     invitations_created = relationship("Invitation", back_populates="created_by_user", foreign_keys="Invitation.created_by_user_id")
 
@@ -190,8 +191,33 @@ class Property(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ConsultationBooking(Base):
+    """
+    Consultation booking workflow for the high-ticket brokerage model.
+
+    Replaces checkout-first assumptions with service outcomes:
+    - physical_viewing
+    - developer_meeting
+    """
+    __tablename__ = "consultation_bookings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), nullable=True, index=True)
+
+    booking_type: Mapped[str] = mapped_column(String(30))  # physical_viewing, developer_meeting
+    status: Mapped[str] = mapped_column(String(20), default="scheduled")  # scheduled, completed, cancelled
+    scheduled_time: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    assigned_broker_notes: Mapped[str] = mapped_column(Text, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="consultation_bookings")
+    property = relationship("Property")
+
+
 class Transaction(Base):
-    """Payment transaction tracking"""
+    """Legacy payment transaction tracking (kept for backward compatibility)."""
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -214,7 +240,7 @@ class Transaction(Base):
 
 class PaymentApproval(Base):
     """
-    Phase 2: Manual Bank Transfer Approvals
+    Legacy manual bank transfer approvals.
     Admins must verify these before confirming the transaction.
     """
     __tablename__ = "payment_approvals"

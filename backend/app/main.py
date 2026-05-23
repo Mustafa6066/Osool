@@ -59,6 +59,7 @@ from app.api.ticket_endpoints import router as ticket_router
 from app.api.seo_endpoints import router as seo_router
 from app.api.intent_endpoints import router as intent_router
 from app.api.lead_endpoints import router as lead_router
+from app.api.consultation_endpoints import router as consultation_router
 from app.api.email_endpoints import router as email_router
 from app.api.analytics_endpoints import router as analytics_router
 from app.api.campaign_endpoints import router as campaign_router
@@ -379,6 +380,7 @@ app.include_router(ticket_router)
 app.include_router(seo_router)
 app.include_router(intent_router)
 app.include_router(lead_router)
+app.include_router(consultation_router)
 app.include_router(email_router)
 app.include_router(analytics_router)
 app.include_router(campaign_router)

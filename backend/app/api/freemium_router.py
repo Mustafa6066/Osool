@@ -81,7 +81,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user_optional
+from app.ai_engine.free_tier_gate import FreeTierConversionGate, build_value_sandwich
 from app.database import AsyncSessionLocal, get_db
+from app.models import User
 from app.valuation_engine import (
     DEFAULT_CBE_RATE,
     _LA2TA_THRESHOLD,
@@ -1033,6 +1036,45 @@ def _build_arbitrage_alternative(
 # ---------------------------------------------------------------------------
 
 router = APIRouter(prefix="/api/evaluate", tags=["freemium", "valuation"])
+
+
+class FreeTierHookRequest(BaseModel):
+    location_filter: Optional[str] = Field(default=None, max_length=100)
+    compound_filter: Optional[str] = Field(default=None, max_length=120)
+    language: str = Field(default="ar", pattern="^(ar|en|ar-EG|en-US)$")
+
+
+@router.post(
+    "/free-tier-hook",
+    status_code=status.HTTP_200_OK,
+    summary="One-record free-tier anomaly teaser",
+)
+async def free_tier_hook(
+    req: FreeTierHookRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
+    user_tier = (getattr(current_user, "subscription_tier", "free") or "free").lower() if current_user else "anonymous"
+    is_premium = user_tier in _PREMIUM_TIERS
+
+    if is_premium:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="free-tier-hook is for anonymous/free flows only",
+        )
+
+    hook = await FreeTierConversionGate.extract_one_anomaly(
+        db,
+        location_filter=req.location_filter,
+        compound_filter=req.compound_filter,
+    )
+
+    return {
+        "is_premium": False,
+        "hook_property": hook,
+        "value_sandwich": build_value_sandwich(hook, language=req.language),
+        "next_step": "Book a physical viewing or developer meeting for full strategy.",
+    }
 
 
 @router.post(
