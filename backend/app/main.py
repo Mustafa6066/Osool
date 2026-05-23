@@ -280,6 +280,15 @@ app.include_router(health_router)
 app.include_router(orchestrator_router)
 app.include_router(user_prefs_router)
 
+from app.ingest_pipeline import router as ingest_router
+app.include_router(ingest_router)
+
+from app.intelligence_loop import router as intelligence_router
+app.include_router(intelligence_router)
+
+from app.api.freemium_router import router as freemium_router
+app.include_router(freemium_router)
+
 
 @app.get("/")
 def root():
@@ -362,6 +371,23 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Database tables: init_db skipped ({e})")
 
+    # Valuation pipeline table (valuation_listings + pgvector extension)
+    try:
+        from app.ingest_pipeline import create_valuation_tables
+        await create_valuation_tables()
+        logger.info("✅ Valuation Pipeline: valuation_listings table READY")
+    except Exception as e:
+        logger.warning(f"⚠️ Valuation Pipeline: table init skipped ({e})")
+
+    # Intelligence loop tables + background drift worker
+    try:
+        from app.intelligence_loop import create_intelligence_tables, start_intelligence_worker
+        await create_intelligence_tables()
+        await start_intelligence_worker()
+        logger.info("✅ Intelligence Loop: telemetry tables READY, drift worker STARTED")
+    except Exception as e:
+        logger.warning(f"⚠️ Intelligence Loop: startup skipped ({e})")
+
     # Phase 9: Seed gamification achievements
     try:
         from app.database import AsyncSessionLocal
@@ -410,6 +436,11 @@ async def shutdown_event():
     try:
         from app.services.scheduler import shutdown_scheduler
         shutdown_scheduler()
+    except Exception:
+        pass
+    try:
+        from app.intelligence_loop import stop_intelligence_worker
+        await stop_intelligence_worker()
     except Exception:
         pass
     logger.info("👋 Osool Backend shutting down")
