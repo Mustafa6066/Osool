@@ -9,6 +9,7 @@ Phase 4: Security hardening - no hardcoded fallbacks.
 import os
 import httpx
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -45,27 +46,74 @@ REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 Days for refresh tokens
 # In production, Redis is REQUIRED for blacklist integrity (fail closed).
 _token_blacklist_memory = set()
 _IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
+_REDIS_RETRY_INTERVAL_SECONDS = int(os.getenv("REDIS_RETRY_INTERVAL_SECONDS", "30"))
 
 _redis_client_cache = None
-_redis_checked = False
+_redis_last_attempt_at = 0.0
+_redis_unavailable_logged = False
 
 def _get_redis_client():
-    """Get Redis client for token blacklist. Required in production. Cached after first check."""
-    global _redis_client_cache, _redis_checked
-    if _redis_checked:
-        return _redis_client_cache
+    """
+    Get Redis client for token blacklist.
+
+    Uses a cached connection when healthy, and periodically retries when Redis
+    was unavailable at startup so production does not remain permanently degraded.
+    """
+    global _redis_client_cache, _redis_last_attempt_at, _redis_unavailable_logged
+
+    # Fast path: return cached client if still healthy.
+    if _redis_client_cache:
+        try:
+            _redis_client_cache.ping()
+            return _redis_client_cache
+        except Exception:
+            _redis_client_cache = None
+
+    # Throttle reconnect attempts to avoid noisy logs and tight retry loops.
+    now = time.time()
+    if now - _redis_last_attempt_at < _REDIS_RETRY_INTERVAL_SECONDS:
+        return None
+    _redis_last_attempt_at = now
+
+    # First try the shared cache singleton if it has an active Redis client.
     try:
         from app.services.cache import cache
         if cache.redis:
             cache.redis.ping()
             _redis_client_cache = cache.redis
-            _redis_checked = True
+            if _redis_unavailable_logged:
+                logger.info("Redis connection restored for token blacklist")
+            _redis_unavailable_logged = False
             return _redis_client_cache
     except Exception:
         pass
-    if _IS_PRODUCTION:
-        logger.error("Redis unavailable in production — token blacklist degraded")
-    _redis_checked = True
+
+    # Fallback: try creating a direct Redis client so recovery is possible
+    # even if the cache singleton failed once at process startup.
+    try:
+        import redis as redis_lib
+
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            direct_client = redis_lib.from_url(
+                redis_url,
+                decode_responses=True,
+                socket_connect_timeout=3,
+                socket_timeout=3,
+            )
+            direct_client.ping()
+            _redis_client_cache = direct_client
+            if _redis_unavailable_logged:
+                logger.info("Redis connection restored for token blacklist")
+            _redis_unavailable_logged = False
+            return _redis_client_cache
+    except Exception:
+        pass
+
+    if _IS_PRODUCTION and not _redis_unavailable_logged:
+        logger.error("Redis unavailable in production — token blacklist degraded (retrying)")
+        _redis_unavailable_logged = True
+
     return None
 
 # Use direct bcrypt instead of passlib for compatibility
