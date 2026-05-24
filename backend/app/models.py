@@ -7,6 +7,7 @@ Includes pgvector support for AI semantic search (when available).
 """
 
 import enum
+from typing import Optional
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, JSON
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship, Mapped, mapped_column
@@ -129,7 +130,7 @@ class Property(Base):
     title: Mapped[str] = mapped_column(String, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     type: Mapped[str] = mapped_column(String, nullable=True) # Apartment, Villa, Townhouse, etc.
-    location: Mapped[str] = mapped_column(String, index=True)
+    location: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
     compound: Mapped[str] = mapped_column(String, nullable=True)
     developer: Mapped[str] = mapped_column(String, nullable=True)
 
@@ -143,9 +144,9 @@ class Property(Base):
     resale_price: Mapped[float] = mapped_column(Float, nullable=True, index=True)
 
     # Size & Layout
-    size_sqm: Mapped[int] = mapped_column(Integer, index=True)
-    bedrooms: Mapped[int] = mapped_column(Integer)
-    bathrooms: Mapped[int] = mapped_column(Integer, nullable=True)
+    size_sqm: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
+    bedrooms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    bathrooms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     finishing: Mapped[str] = mapped_column(String, nullable=True) # e.g., "Fully Finished"
 
     # Payment Plan

@@ -465,6 +465,30 @@ RULES:
 """
 
 
+def generate_property_teaser_snippet(prop: Any) -> str:
+    """
+    Builds context snippets for properties safely.
+    Handles null residential parameters gracefully when dealing with commercial spaces.
+    """
+    structural_context = ""
+    if prop.beds or prop.baths:
+        beds_txt = f"{prop.beds} غرف" if prop.beds else ""
+        baths_txt = f"{prop.baths} حمام" if prop.baths else ""
+        structural_context = f" ({beds_txt} - {baths_txt})"
+
+    payment_context = "كاش بالكامل"
+    if prop.monthly_installment and prop.installment_years:
+        payment_context = f"قسط شهري: {prop.monthly_installment:,.0f} ج.م على {prop.installment_years} سنة"
+
+    area = getattr(prop, 'area_sqm', None) or getattr(prop, 'size_sqm', None) or 0
+    return (
+        f"- {prop.type} في كمبوند {prop.compound}{structural_context}\n"
+        f"  المساحة: {area} متر مربع\n"
+        f"  السعر المتاح: {prop.price:,.0f} ج.م ({payment_context})\n"
+        f"  رابط المعاينة المباشر: {prop.url}\n"
+    )
+
+
 class WolfBrain:
     """
     The Wolf of Osool - Unified Hybrid Intelligence Engine.

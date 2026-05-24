@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import select, func
 from app.models import Property
 from app.database import Base
+from app.utils.safe_parsers import clean_int, clean_float, clean_str
 
 load_dotenv()
 
@@ -174,25 +175,25 @@ async def ingest_to_postgres(properties: list):
                     title=prop.get('title', ''),
                     description=prop.get('description', ''),
                     type=prop.get('type', ''),
-                    location=prop.get('location', ''),
+                    location=clean_str(prop.get('location')),
                     compound=prop.get('compound', ''),
                     developer=prop.get('developer', ''),
                     price=float(prop.get('price', 0)),
-                    price_per_sqm=float(prop.get('pricePerSqm', 0)),
-                    size_sqm=int(prop.get('area', 0)),
-                    bedrooms=int(prop.get('bedrooms', 0)),
-                    bathrooms=int(prop.get('bathrooms', 0)),
+                    price_per_sqm=clean_float(prop.get('pricePerSqm')),
+                    size_sqm=clean_int(prop.get('area')),
+                    bedrooms=clean_int(prop.get('bedrooms')),
+                    bathrooms=clean_int(prop.get('bathrooms')),
                     finishing=prop.get('finishing', 'N/A'),
                     delivery_date=prop.get('deliveryDate', ''),
-                    down_payment=payment.get('downPayment', 0) if payment else 0,
-                    installment_years=payment.get('installmentYears', 0) if payment else 0,
-                    monthly_installment=float(payment.get('monthlyInstallment', 0)) if payment else 0,
+                    down_payment=clean_int(payment.get('downPayment')) if payment else None,
+                    installment_years=clean_int(payment.get('installmentYears')) if payment else None,
+                    monthly_installment=clean_float(payment.get('monthlyInstallment')) if payment else None,
                     image_url=prop.get('image', ''),
                     nawy_url=prop.get('nawyUrl', ''),
                     sale_type=prop.get('saleType', ''),
                     is_delivered=prop.get('isDelivered', False),
                     is_cash_only=prop.get('isCashOnly', False),
-                    land_area=int(prop.get('landArea', 0)) if prop.get('landArea') else None,
+                    land_area=clean_int(prop.get('landArea')),
                     nawy_reference=prop.get('nawyReference', '') or prop_id_raw,
                     is_nawy_now=prop.get('isNawyNow', False),
                     embedding=embedding,
