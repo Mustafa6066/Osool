@@ -28,7 +28,7 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from sqlalchemy import select, func
@@ -45,36 +45,66 @@ logger = logging.getLogger(__name__)
 # RSS FEED SOURCES
 # ═══════════════════════════════════════════════════════════════
 
-RSS_SOURCES: List[Dict[str, str]] = [
+RSS_SOURCES: List[Dict[str, Any]] = [
     {
         "name": "Al Jazeera English - Middle East",
         "url": "https://www.aljazeera.com/xml/rss/all.xml",
+        "fallback_urls": [
+            "https://www.aljazeera.com/xml/rss/all.xml",
+        ],
         "region": "middle_east",
     },
     {
         "name": "Reuters - World",
         "url": "https://www.reuters.com/world/rss",
+        "fallback_urls": [
+            "https://feeds.reuters.com/reuters/worldNews",
+            "https://feeds.reuters.com/Reuters/worldNews",
+            "https://news.google.com/rss/search?q=Reuters+world&hl=en-US&gl=US&ceid=US:en",
+        ],
         "region": "global",
     },
     {
         "name": "BBC News - Middle East",
         "url": "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
+        "fallback_urls": [
+            "https://feeds.bbci.co.uk/news/world/rss.xml",
+            "https://feeds.bbci.co.uk/news/business/rss.xml",
+        ],
         "region": "middle_east",
     },
     {
         "name": "World Bank - Egypt",
         "url": "https://www.worldbank.org/en/news/all?format=rss",
+        "fallback_urls": [
+            "https://www.worldbank.org/en/news/all?format=atom",
+            "https://news.google.com/rss/search?q=World+Bank+Egypt&hl=en-US&gl=US&ceid=US:en",
+        ],
         "region": "egypt",
     },
     # ── Arabic-language sources ──
     {
         "name": "Enterprise Press - Egypt",
         "url": "https://enterprise.news/feed/",
+        "fallback_urls": [
+            "https://enterpriseam.com/feed/",
+        ],
+        "region": "egypt",
+    },
+    {
+        "name": "Daily News Egypt - Economy",
+        "url": "https://www.dailynewsegypt.com/feed/",
+        "fallback_urls": [
+            "https://www.dailynewsegypt.com/feed/",
+        ],
         "region": "egypt",
     },
     {
         "name": "Al-Borsa News - Egypt Economy",
         "url": "https://www.alborsanews.com/feed/",
+        "fallback_urls": [
+            "https://alborsaanews.com/feed/",
+        ],
         "region": "egypt",
     },
 ]
@@ -234,71 +264,159 @@ IMPACT_MAPPING: Dict[str, Dict[str, Any]] = {
 # RSS FETCH & PARSE
 # ═══════════════════════════════════════════════════════════════
 
-async def _fetch_rss_feed(client: httpx.AsyncClient, source: Dict[str, str]) -> List[Dict[str, str]]:
+def _first_xml_child(item: ET.Element, paths: List[str]) -> Optional[ET.Element]:
+    """Return the first matching XML child element for any of the candidate paths."""
+    for path in paths:
+        el = item.find(path)
+        if el is not None:
+            return el
+    return None
+
+def _candidate_feed_urls(source: Dict[str, Any]) -> List[str]:
+    """Return primary + fallback URLs without duplicates while preserving order."""
+    urls: List[str] = []
+
+    primary = source.get("url")
+    if isinstance(primary, str) and primary.strip():
+        urls.append(primary.strip())
+
+    fallback_urls = source.get("fallback_urls")
+    if isinstance(fallback_urls, list):
+        for value in fallback_urls:
+            if not isinstance(value, str):
+                continue
+            candidate = value.strip()
+            if candidate and candidate not in urls:
+                urls.append(candidate)
+
+    return urls
+
+
+async def _fetch_rss_feed(client: httpx.AsyncClient, source: Dict[str, Any]) -> List[Dict[str, str]]:
     """Fetch and parse a single RSS feed with retry. Returns list of article dicts."""
-    articles: List[Dict[str, str]] = []
-    try:
-        resp = await request_with_retry(
-            client,
-            "GET",
-            source["url"],
-            service_name=f"rss_{source['name']}",
-            timeout=15,
-            max_attempts=3,
-        )
+    source_name = source.get("name", "unknown_source")
 
-        if resp.status_code != 200:
-            logger.warning("RSS fetch failed for %s: HTTP %s", source["name"], resp.status_code)
-            return articles
+    for attempt_index, url in enumerate(_candidate_feed_urls(source), start=1):
+        try:
+            resp = await request_with_retry(
+                client,
+                "GET",
+                url,
+                service_name=f"rss_{source_name}_{attempt_index}",
+                timeout=15,
+                max_attempts=3,
+            )
 
-        content_type = (resp.headers.get("content-type") or "").lower()
-        if "xml" not in content_type and "rss" not in content_type and "atom" not in content_type:
+            if resp.status_code != 200:
+                logger.warning(
+                    "RSS fetch failed for %s (attempt %s, url=%s): HTTP %s",
+                    source_name,
+                    attempt_index,
+                    url,
+                    resp.status_code,
+                )
+                continue
+
+            content_type = (resp.headers.get("content-type") or "").lower()
+            if "xml" not in content_type and "rss" not in content_type and "atom" not in content_type:
+                logger.warning(
+                    "RSS fetch for %s returned non-XML content-type '%s' (attempt %s, url=%s)",
+                    source_name,
+                    content_type or "unknown",
+                    attempt_index,
+                    url,
+                )
+                continue
+
+            root = ET.fromstring(resp.text)
+
+            # Handle both RSS 2.0 (<channel><item>) and Atom (<entry>) formats.
+            items = root.findall(".//item")
+            if not items:
+                items = root.findall(".//{*}item")
+            if not items:
+                items = root.findall(".//{http://www.w3.org/2005/Atom}entry")
+            if not items:
+                items = root.findall(".//{*}entry")
+
+            articles: List[Dict[str, str]] = []
+            for item in items[:30]:  # Limit to newest 30 per source
+                title_el = _first_xml_child(item, [
+                    "title",
+                    "{*}title",
+                ])
+                desc_el = _first_xml_child(item, [
+                    "description",
+                    "summary",
+                    "content",
+                    "{*}description",
+                    "{*}summary",
+                    "{*}content",
+                ])
+                link_el = _first_xml_child(item, [
+                    "link",
+                    "{*}link",
+                ])
+                pub_el = _first_xml_child(item, [
+                    "pubDate",
+                    "published",
+                    "updated",
+                    "{*}pubDate",
+                    "{*}published",
+                    "{*}updated",
+                ])
+
+                title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                description = desc_el.text.strip() if desc_el is not None and desc_el.text else ""
+                link = ""
+                if link_el is not None:
+                    link = link_el.get("href", "") or (link_el.text.strip() if link_el.text else "")
+                pub_date = pub_el.text.strip() if pub_el is not None and pub_el.text else ""
+
+                if title:
+                    articles.append({
+                        "title": title,
+                        "description": _strip_html(description),
+                        "link": link,
+                        "pub_date": pub_date,
+                        "source_name": source_name,
+                        "region": source["region"],
+                    })
+
+            if articles:
+                if attempt_index > 1:
+                    logger.info(
+                        "RSS feed recovered via fallback for %s (url=%s, articles=%s)",
+                        source_name,
+                        url,
+                        len(articles),
+                    )
+                return articles
+
             logger.warning(
-                "RSS fetch for %s returned non-XML content-type '%s'; skipping",
-                source["name"],
-                content_type or "unknown",
+                "RSS parse produced zero articles for %s (attempt %s, url=%s)",
+                source_name,
+                attempt_index,
+                url,
             )
-            return articles
-
-        root = ET.fromstring(resp.text)
-
-        # Handle both RSS 2.0 (<channel><item>) and Atom (<entry>) formats
-        items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
-
-        for item in items[:30]:  # Limit to newest 30 per source
-            title_el = item.find("title") or item.find("{http://www.w3.org/2005/Atom}title")
-            desc_el = (
-                item.find("description")
-                or item.find("{http://www.w3.org/2005/Atom}summary")
-                or item.find("{http://www.w3.org/2005/Atom}content")
+        except ET.ParseError as exc:
+            logger.warning(
+                "XML parse error for %s (attempt %s, url=%s): %s",
+                source_name,
+                attempt_index,
+                url,
+                exc,
             )
-            link_el = item.find("link") or item.find("{http://www.w3.org/2005/Atom}link")
-            pub_el = item.find("pubDate") or item.find("{http://www.w3.org/2005/Atom}published")
+        except Exception as exc:
+            logger.warning(
+                "RSS fetch error for %s (attempt %s, url=%s): %s",
+                source_name,
+                attempt_index,
+                url,
+                exc,
+            )
 
-            title = title_el.text.strip() if title_el is not None and title_el.text else ""
-            description = desc_el.text.strip() if desc_el is not None and desc_el.text else ""
-            link = ""
-            if link_el is not None:
-                link = link_el.get("href", "") or (link_el.text.strip() if link_el.text else "")
-            pub_date = pub_el.text.strip() if pub_el is not None and pub_el.text else ""
-
-            if title:
-                articles.append({
-                    "title": title,
-                    "description": _strip_html(description),
-                    "link": link,
-                    "pub_date": pub_date,
-                    "source_name": source["name"],
-                    "region": source["region"],
-                })
-
-        return articles
-    except ET.ParseError as e:
-        logger.warning(f"XML parse error for {source['name']}: {e}")
-    except Exception as e:
-        logger.warning("RSS fetch error for %s: %s", source["name"], e)
-
-    return articles
+    return []
 
 
 def _strip_html(text: str) -> str:
@@ -423,8 +541,13 @@ async def scrape_geopolitical_events(db: AsyncSession) -> Dict[str, Any]:
 
     async with httpx.AsyncClient(
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; OsoolBot/1.0; +https://osool.eg)",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
             "Accept": "application/rss+xml, application/xml, text/xml, */*",
+            "Accept-Language": "en-US,en;q=0.9,ar;q=0.8",
         },
         follow_redirects=True,
         timeout=20,

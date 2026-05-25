@@ -717,12 +717,34 @@ async def create_valuation_tables() -> None:
             await create_valuation_tables()
     """
     async with engine.begin() as conn:
-        # Ensure the pgvector extension exists before the table (no-op if present)
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.run_sync(
-            Base.metadata.create_all,
-            tables=[ValuationListing.__table__],
-        )
+        advisory_lock_acquired = False
+        if conn.dialect.name == "postgresql":
+            # Serialize DDL across workers to avoid duplicate extension/type races.
+            await conn.execute(
+                text("SELECT pg_advisory_lock(hashtext('osool_valuation_schema_init'))")
+            )
+            advisory_lock_acquired = True
+
+        try:
+            # Ensure pgvector extension exists before creating VECTOR columns.
+            if conn.dialect.name == "postgresql" and _PGVECTOR_AVAILABLE:
+                try:
+                    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                except Exception as exc:
+                    logger.warning(
+                        "pgvector extension unavailable; valuation embedding column may fail if configured as VECTOR: %s",
+                        exc,
+                    )
+
+            await conn.run_sync(
+                Base.metadata.create_all,
+                tables=[ValuationListing.__table__],
+            )
+        finally:
+            if advisory_lock_acquired:
+                await conn.execute(
+                    text("SELECT pg_advisory_unlock(hashtext('osool_valuation_schema_init'))")
+                )
     logger.info("valuation_listings table ready.")
 
 

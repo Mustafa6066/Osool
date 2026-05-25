@@ -511,7 +511,7 @@ async def create_refresh_token_async(db: AsyncSession, user_id: int) -> str:
     await db.commit()
     await db.refresh(refresh_token)
 
-    logger.info(f"✅ Created refresh token (async) for user {user_id}")
+    logger.debug("Created refresh token (async) for user %s", user_id)
     return raw_token
 
 
@@ -543,7 +543,7 @@ async def revoke_refresh_token_async(db: AsyncSession, raw_token: str) -> bool:
     if token_record:
         token_record.is_revoked = True
         await db.commit()
-        logger.info(f"🔒 Revoked refresh token (async) for user {token_record.user_id}")
+        logger.debug("Revoked refresh token (async) for user %s", token_record.user_id)
         return True
     return False
 

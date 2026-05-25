@@ -438,36 +438,40 @@ async def create_intelligence_tables() -> None:
     Safe to call multiple times (idempotent).
     Call from the application startup hook.
     """
-    from sqlalchemy import inspect as sa_inspect
-    from sqlalchemy.schema import CreateTable
+    from app.database import engine
 
-    async with AsyncSessionLocal() as session:
+    async with engine.begin() as conn:
+        advisory_lock_acquired = False
+        if conn.dialect.name == "postgresql":
+            # Serialize DDL across Gunicorn workers to avoid duplicate key races.
+            await conn.execute(
+                text("SELECT pg_advisory_lock(hashtext('osool_intelligence_schema_init'))")
+            )
+            advisory_lock_acquired = True
+
         try:
-            await session.execute(
+            await conn.run_sync(
+                lambda sync_conn: Base.metadata.create_all(
+                    sync_conn,
+                    tables=[
+                        IntelligenceEvent.__table__,
+                        ZoneDriftRecord.__table__,
+                        MultiplierSnapshot.__table__,
+                    ],
+                    checkfirst=True,
+                )
+            )
+            await conn.execute(
                 text(
                     "CREATE INDEX IF NOT EXISTS ix_intelligence_events_window "
                     "ON intelligence_events (recorded_at DESC, event_type)"
                 )
             )
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            # Index may fail if table doesn't exist yet — create_all handles it
-
-    from app.database import engine
-
-    async with engine.begin() as conn:
-        await conn.run_sync(
-            lambda sync_conn: Base.metadata.create_all(
-                sync_conn,
-                tables=[
-                    IntelligenceEvent.__table__,
-                    ZoneDriftRecord.__table__,
-                    MultiplierSnapshot.__table__,
-                ],
-                checkfirst=True,
-            )
-        )
+        finally:
+            if advisory_lock_acquired:
+                await conn.execute(
+                    text("SELECT pg_advisory_unlock(hashtext('osool_intelligence_schema_init'))")
+                )
     logger.info("Intelligence loop tables ready.")
 
 
@@ -1226,6 +1230,69 @@ class IntelligenceWorker:
 # Module-level worker singleton (shared with FastAPI lifespan hooks)
 # ---------------------------------------------------------------------------
 
+_worker_lock_fd: Optional[int] = None
+_worker_lock_owner: bool = False
+_worker_lock_path: str = os.getenv(
+    "INTELLIGENCE_WORKER_LOCK_FILE",
+    "/tmp/osool_intelligence_worker.lock",
+)
+
+
+def _acquire_worker_lock() -> bool:
+    """Ensure only one process starts the intelligence background worker."""
+    global _worker_lock_fd, _worker_lock_owner
+
+    if _worker_lock_owner:
+        return True
+
+    try:
+        import fcntl
+    except ImportError:
+        logger.warning(
+            "Intelligence worker lock unavailable on this OS; continuing without inter-process lock"
+        )
+        return True
+
+    lock_dir = os.path.dirname(_worker_lock_path)
+    if lock_dir:
+        os.makedirs(lock_dir, exist_ok=True)
+
+    fd = os.open(_worker_lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        return False
+
+    os.ftruncate(fd, 0)
+    os.write(fd, str(os.getpid()).encode("utf-8"))
+    _worker_lock_fd = fd
+    _worker_lock_owner = True
+    return True
+
+
+def _release_worker_lock() -> None:
+    global _worker_lock_fd, _worker_lock_owner
+
+    if _worker_lock_fd is None:
+        _worker_lock_owner = False
+        return
+
+    try:
+        import fcntl
+        fcntl.flock(_worker_lock_fd, fcntl.LOCK_UN)
+    except Exception:
+        pass
+
+    try:
+        os.close(_worker_lock_fd)
+    except Exception:
+        pass
+
+    _worker_lock_fd = None
+    _worker_lock_owner = False
+
+
 _worker: Optional[IntelligenceWorker] = None
 
 
@@ -1236,6 +1303,12 @@ async def start_intelligence_worker(
     """Module-level entry point: initialise and start the singleton worker."""
     global _worker
     if _worker is None:
+        if not _acquire_worker_lock():
+            logger.info(
+                "Intelligence worker already owned by another process; skipping start in pid=%s",
+                os.getpid(),
+            )
+            return
         _worker = IntelligenceWorker(
             interval_seconds=interval_seconds,
             alpha=alpha,
@@ -1246,8 +1319,10 @@ async def start_intelligence_worker(
 async def stop_intelligence_worker() -> None:
     """Module-level entry point: stop the singleton worker."""
     global _worker
-    if _worker is not None:
+    if _worker is not None and _worker_lock_owner:
         await _worker.stop()
+    _worker = None
+    _release_worker_lock()
 
 
 def get_worker() -> IntelligenceWorker:

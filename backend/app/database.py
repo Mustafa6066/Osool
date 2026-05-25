@@ -7,6 +7,7 @@ Async setup for PostgreSQL using SQLAlchemy.
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -69,5 +70,15 @@ async def get_db():
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:
-        # await conn.run_sync(Base.metadata.drop_all) # WARNING: Dev only
-        await conn.run_sync(Base.metadata.create_all)
+        advisory_lock_acquired = False
+        if conn.dialect.name == "postgresql":
+            # Serialize metadata DDL across workers to prevent duplicate object races.
+            await conn.execute(text("SELECT pg_advisory_lock(hashtext('osool_base_schema_init'))"))
+            advisory_lock_acquired = True
+
+        try:
+            # await conn.run_sync(Base.metadata.drop_all) # WARNING: Dev only
+            await conn.run_sync(Base.metadata.create_all)
+        finally:
+            if advisory_lock_acquired:
+                await conn.execute(text("SELECT pg_advisory_unlock(hashtext('osool_base_schema_init'))"))
