@@ -13,7 +13,7 @@ Payment Flow:
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, Any
 
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.cost_tracker import cost_tracker
@@ -31,11 +31,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 # Text processing utilities
 from app.utils.text_processing import clean_response_text
+from app.ai_engine.local_intent import local_intent_extractor
 
 router = APIRouter(prefix="/api", tags=["Osool API"])
 limiter = Limiter(key_func=get_remote_address)
@@ -822,6 +824,240 @@ async def compare_price(
 # AI CHAT ENDPOINT (RAG)
 # ═══════════════════════════════════════════════════════════════
 
+_ARABIC_TEXT_RE = re.compile(r"[\u0600-\u06FF]")
+_AREA_AR_LABELS = {
+    "new cairo": "القاهرة الجديدة",
+    "sheikh zayed": "الشيخ زايد",
+    "6th of october": "6 أكتوبر",
+    "north coast": "الساحل الشمالي",
+    "new capital": "العاصمة الإدارية",
+}
+
+
+def _resolve_chat_language(requested_language: str, message: str) -> str:
+    if requested_language in {"ar", "en"}:
+        return requested_language
+    return "ar" if _ARABIC_TEXT_RE.search(message or "") else "en"
+
+
+def _serialize_free_property(prop: Property) -> dict:
+    market_price = prop.developer_price or prop.resale_price
+    return {
+        "id": prop.id,
+        "title": prop.title,
+        "location": prop.location or "Unknown",
+        "compound": prop.compound,
+        "developer": prop.developer,
+        "price": float(prop.price or 0),
+        "market_price": float(market_price) if market_price else None,
+        "la2ta_score": float(prop.osool_score) if prop.osool_score is not None else None,
+        "bargain_percentage": float(prop.bargain_percentage) if prop.bargain_percentage is not None else None,
+        "price_per_sqm": float(prop.price_per_sqm) if prop.price_per_sqm is not None else None,
+        "size_sqm": prop.size_sqm,
+        "bedrooms": prop.bedrooms,
+        "image_url": prop.image_url,
+    }
+
+
+def _format_price_label(value: float | int | None) -> str:
+    try:
+        amount = float(value or 0)
+    except (TypeError, ValueError):
+        amount = 0.0
+
+    if amount >= 1_000_000:
+        return f"{amount / 1_000_000:.1f}M EGP"
+    if amount >= 1_000:
+        return f"{amount / 1_000:.0f}K EGP"
+    return f"{amount:.0f} EGP"
+
+
+def _build_free_search_text(
+    language: str,
+    *,
+    properties: list[dict],
+    area: Optional[str],
+    compound: Optional[str],
+) -> str:
+    if language == "ar":
+        area_label = _AREA_AR_LABELS.get((area or "").lower(), area or "")
+        if compound and area_label:
+            target = f"في {area_label} ضمن {compound}"
+        elif compound:
+            target = f"في مشاريع {compound}"
+        elif area_label:
+            target = f"في {area_label}"
+        else:
+            target = ""
+
+        if properties:
+            best = properties[0]
+            suffix = f" {target}" if target else ""
+            return (
+                f"لقيت لك {len(properties)} فرصة متاحة{suffix}. "
+                f"أفضل اختيار حاليًا: {best.get('title') or 'وحدة مناسبة'} "
+                f"بسعر { _format_price_label(best.get('price')) }."
+            )
+
+        return (
+            "فهمت طلبك، لكن ما فيش نتائج مباشرة بنفس الصياغة الحالية. "
+            "جرّب تضيف ميزانية تقريبية أو عدد الغرف وأنا أطلع لك اختيارات أدق."
+        )
+
+    if compound and area:
+        target = f"in {area} for {compound}"
+    elif compound:
+        target = f"for {compound}"
+    elif area:
+        target = f"in {area}"
+    else:
+        target = "for your request"
+
+    if properties:
+        best = properties[0]
+        return (
+            f"I found {len(properties)} available options {target}. "
+            f"Top current match: {best.get('title') or 'a suitable unit'} "
+            f"at {_format_price_label(best.get('price'))}."
+        )
+
+    return (
+        "I understood your request, but no direct matches were found with the current phrasing. "
+        "Try adding an approximate budget or bedroom count and I will narrow options better."
+    )
+
+
+async def _query_free_tier_matches(
+    db: AsyncSession,
+    *,
+    area: Optional[str],
+    compound: Optional[str],
+    limit: int = 3,
+) -> list[dict]:
+    from sqlalchemy import select, or_, func
+
+    seen_ids: set[int] = set()
+    picked: list[Property] = []
+
+    def _build_statement(use_area: bool, use_compound: bool):
+        stmt = select(Property).where(
+            Property.is_available.is_(True),
+            Property.price.is_not(None),
+            Property.price > 0,
+        )
+
+        if use_area and area:
+            stmt = stmt.where(Property.location.ilike(f"%{area}%"))
+
+        if use_compound and compound:
+            pattern = f"%{compound}%"
+            stmt = stmt.where(
+                or_(
+                    Property.compound.ilike(pattern),
+                    Property.developer.ilike(pattern),
+                    Property.title.ilike(pattern),
+                )
+            )
+
+        return stmt.order_by(
+            func.coalesce(Property.osool_score, 0).desc(),
+            func.coalesce(Property.bargain_percentage, -9999).desc(),
+            Property.price.asc(),
+        ).limit(max(limit * 2, 6))
+
+    if area and compound:
+        plan = [(True, True), (False, True), (True, False), (False, False)]
+    elif compound:
+        plan = [(False, True), (False, False)]
+    elif area:
+        plan = [(True, False), (False, False)]
+    else:
+        plan = [(False, False)]
+
+    for use_area, use_compound in plan:
+        rows = (await db.execute(_build_statement(use_area, use_compound))).scalars().all()
+        for row in rows:
+            if row.id in seen_ids:
+                continue
+            seen_ids.add(row.id)
+            picked.append(row)
+            if len(picked) >= limit:
+                return [_serialize_free_property(prop) for prop in picked]
+
+    return [_serialize_free_property(prop) for prop in picked]
+
+
+async def _build_free_tier_payload(db: AsyncSession, message: str, requested_language: str) -> dict[str, Any]:
+    language = _resolve_chat_language(requested_language, message)
+    intent = local_intent_extractor.extract_intent(message or "")
+    area_hint = intent.get("area")
+    compound_hint = intent.get("compound")
+
+    hook = await FreeTierConversionGate.extract_one_anomaly(
+        db,
+        location_filter=area_hint,
+        compound_filter=compound_hint,
+    )
+
+    if not hook.get("error"):
+        response_text = clean_response_text(build_value_sandwich(hook, language=language))
+        hook_property = {
+            "id": hook.get("property_id") or 0,
+            "title": "La2ta Anomaly",
+            "location": hook.get("location") or "Unknown",
+            "compound": hook.get("compound"),
+            "price": hook.get("asking_price") or 0,
+            "la2ta_score": hook.get("osool_score"),
+            "savings": None,
+            "market_price": hook.get("market_avg_price"),
+        }
+        return {
+            "response": response_text,
+            "properties": [hook_property],
+            "ui_actions": [{"type": "la2ta_alert", "data": {"properties": [hook_property]}}],
+            "ui_primitive_descriptor": "free_tier_gate_hook",
+            "primitive_data": hook,
+            "response_type": "free_tier_gate_hook",
+            "showing_strategy": "FREE_TIER_GATE_HOOK",
+            "show_upsell": True,
+            "upsell_reason": "free_tier_gate",
+            "lead_score": 20,
+            "readiness_score": 20,
+            "detected_language": language,
+            "suggestions": [],
+            "cta_actions": [{"type": "signup", "label": "Unlock full intelligence"}],
+        }
+
+    matches = await _query_free_tier_matches(db, area=area_hint, compound=compound_hint, limit=3)
+    response_text = clean_response_text(
+        _build_free_search_text(
+            language,
+            properties=matches,
+            area=area_hint,
+            compound=compound_hint,
+        )
+    )
+
+    return {
+        "response": response_text,
+        "properties": matches,
+        "ui_actions": [],
+        "ui_primitive_descriptor": "free_tier_search_results",
+        "primitive_data": {
+            "intent": intent,
+            "result_count": len(matches),
+        },
+        "response_type": "free_local_search",
+        "showing_strategy": "FREE_LOCAL_SEARCH",
+        "show_upsell": False,
+        "upsell_reason": None,
+        "lead_score": 25 if matches else 15,
+        "readiness_score": 25 if matches else 15,
+        "detected_language": language,
+        "suggestions": [],
+        "cta_actions": [],
+    }
+
 @router.post("/chat")
 @limiter.limit("20/minute")
 async def chat_with_agent(
@@ -875,48 +1111,46 @@ async def chat_with_agent(
         db.add(user_message)
         await db.commit()
 
-        # Deterministic free path: return exactly one anomaly hook + conversion prompt.
+        # Free path: use contextual anomaly hook when available; otherwise return
+        # query-matched properties instead of an empty placeholder.
         if viewer_kind in {"anonymous", "free"}:
-            hook = await FreeTierConversionGate.extract_one_anomaly(db)
-            lang = req.language if req.language in {"ar", "en"} else "ar"
-            teaser = build_value_sandwich(hook, language=lang)
-
-            hook_property = {
-                "id": hook.get("property_id") or 0,
-                "title": "La2ta Anomaly",
-                "location": hook.get("location") or "Unknown",
-                "compound": hook.get("compound"),
-                "price": hook.get("asking_price") or 0,
-                "la2ta_score": hook.get("osool_score"),
-                "savings": None,
-                "market_price": hook.get("market_avg_price"),
-            }
+            free_payload = await _build_free_tier_payload(db, sanitized_message, req.language)
+            response_text = free_payload["response"]
+            free_properties = free_payload["properties"]
 
             ai_message = ChatMessage(
                 session_id=req.session_id,
                 user_id=user.id if user else None,
                 role="assistant",
-                content=teaser,
-                properties_json=json.dumps([hook_property], ensure_ascii=False),
+                content=response_text,
+                properties_json=json.dumps(free_properties, ensure_ascii=False) if free_properties else None,
             )
             db.add(ai_message)
             await db.commit()
 
             return {
-                "response": teaser,
-                "properties": [hook_property],
+                "response": response_text,
+                "properties": free_properties,
                 "visualizations": {},
-                "ui_actions": [{"type": "la2ta_alert", "data": {"properties": [hook_property]}}],
-                "ui_primitive_descriptor": "free_tier_gate_hook",
-                "primitive_data": hook,
+                "ui_actions": free_payload["ui_actions"],
+                "ui_primitive_descriptor": free_payload["ui_primitive_descriptor"],
+                "primitive_data": free_payload["primitive_data"],
                 "session_id": req.session_id,
-                "analytics": {"customer_segment": "free", "lead_temperature": "warm", "lead_score": 20},
+                "analytics": {
+                    "customer_segment": "free",
+                    "lead_temperature": "warm",
+                    "lead_score": free_payload["lead_score"],
+                },
                 "cost": cost_tracker.get_cost_summary(),
-                "suggestions": [],
-                "lead_score": 20,
-                "readiness_score": 20,
-                "showing_strategy": "FREE_TIER_GATE_HOOK",
-                "detected_language": lang,
+                "suggestions": free_payload["suggestions"],
+                "lead_score": free_payload["lead_score"],
+                "readiness_score": free_payload["readiness_score"],
+                "showing_strategy": free_payload["showing_strategy"],
+                "detected_language": free_payload["detected_language"],
+                "response_type": free_payload["response_type"],
+                "show_upsell": free_payload["show_upsell"],
+                "upsell_reason": free_payload["upsell_reason"],
+                "cta_actions": free_payload["cta_actions"],
                 "analytics_context": None,
             }
 
@@ -1289,25 +1523,14 @@ async def chat_stream(
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Database error. Please try again.'}, ensure_ascii=False)}\n\n"
                 return
 
-            # Anonymous + free users: deterministic single anomaly hook path.
+            # Anonymous + free users: contextual free-tier search path.
             if kind in {"anonymous", "free"}:
                 local_limit = 3 if kind == "anonymous" else 5
                 quota_remaining = max(local_limit - session_count_after, 0)
 
-                lang = req.language if req.language in {"ar", "en"} else "ar"
-                hook = await FreeTierConversionGate.extract_one_anomaly(db)
-                response_text = clean_response_text(build_value_sandwich(hook, language=lang))
-
-                hook_property = {
-                    "id": hook.get("property_id") or 0,
-                    "title": "La2ta Anomaly",
-                    "location": hook.get("location") or "Unknown",
-                    "compound": hook.get("compound"),
-                    "price": hook.get("asking_price") or 0,
-                    "la2ta_score": hook.get("osool_score"),
-                    "savings": None,
-                    "market_price": hook.get("market_avg_price"),
-                }
+                free_payload = await _build_free_tier_payload(db, req.message, req.language)
+                response_text = free_payload["response"]
+                free_properties = free_payload["properties"]
 
                 chunks = response_text.split()
                 buffer = ""
@@ -1326,7 +1549,7 @@ async def chat_stream(
                     user_id=user.id if user else None,
                     role="assistant",
                     content=response_text,
-                    properties_json=json.dumps([hook_property], ensure_ascii=False),
+                    properties_json=json.dumps(free_properties, ensure_ascii=False) if free_properties else None,
                 )
                 db.add(ai_message)
                 try:
@@ -1337,20 +1560,20 @@ async def chat_stream(
 
                 done_payload = {
                     "type": "done",
-                    "properties": [hook_property],
-                    "ui_actions": [{"type": "la2ta_alert", "data": {"properties": [hook_property]}}],
-                    "ui_primitive_descriptor": "free_tier_gate_hook",
-                    "primitive_data": hook,
-                    "suggestions": [],
-                    "lead_score": 20,
-                    "readiness_score": 20,
-                    "detected_language": lang,
-                    "showing_strategy": "FREE_TIER_GATE_HOOK",
-                    "response_type": "free_tier_gate_hook",
-                    "show_upsell": True,
-                    "upsell_reason": "free_tier_gate",
+                    "properties": free_properties,
+                    "ui_actions": free_payload["ui_actions"],
+                    "ui_primitive_descriptor": free_payload["ui_primitive_descriptor"],
+                    "primitive_data": free_payload["primitive_data"],
+                    "suggestions": free_payload["suggestions"],
+                    "lead_score": free_payload["lead_score"],
+                    "readiness_score": free_payload["readiness_score"],
+                    "detected_language": free_payload["detected_language"],
+                    "showing_strategy": free_payload["showing_strategy"],
+                    "response_type": free_payload["response_type"],
+                    "show_upsell": free_payload["show_upsell"],
+                    "upsell_reason": free_payload["upsell_reason"],
                     "quota_remaining": quota_remaining,
-                    "cta_actions": [{"type": "signup", "label": "Unlock full intelligence"}],
+                    "cta_actions": free_payload["cta_actions"],
                 }
                 yield f"data: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
                 return
