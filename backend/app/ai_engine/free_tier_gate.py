@@ -210,7 +210,8 @@ async def _fetch_best_price_candidate(
         benchmark_model.developer_price,
         case((benchmark_sale_type.like("%developer%"), benchmark_model.price), else_=None),
     )
-    developer_avg_expr = (
+
+    developer_avg_same_compound_type_expr = (
         select(func.avg(developer_price_expr))
         .where(
             benchmark_model.is_available.is_(True),
@@ -222,6 +223,44 @@ async def _fetch_best_price_candidate(
         )
         .correlate(Property)
         .scalar_subquery()
+    )
+
+    developer_avg_same_compound_expr = (
+        select(func.avg(developer_price_expr))
+        .where(
+            benchmark_model.is_available.is_(True),
+            benchmark_model.compound.is_not(None),
+            benchmark_model.compound == Property.compound,
+            developer_price_expr.is_not(None),
+        )
+        .correlate(Property)
+        .scalar_subquery()
+    )
+
+    developer_avg_same_developer_type_expr = (
+        select(func.avg(developer_price_expr))
+        .where(
+            benchmark_model.is_available.is_(True),
+            benchmark_model.developer.is_not(None),
+            benchmark_model.developer == Property.developer,
+            func.lower(func.coalesce(benchmark_model.type, ""))
+            == func.lower(func.coalesce(Property.type, "")),
+            developer_price_expr.is_not(None),
+        )
+        .correlate(Property)
+        .scalar_subquery()
+    )
+
+    own_developer_price_expr = func.coalesce(
+        Property.developer_price,
+        case((sale_type_text.like("%developer%"), Property.price), else_=None),
+    )
+
+    developer_avg_expr = func.coalesce(
+        developer_avg_same_compound_type_expr,
+        developer_avg_same_compound_expr,
+        developer_avg_same_developer_type_expr,
+        own_developer_price_expr,
     )
 
     savings_expr = developer_avg_expr - resale_price_expr
