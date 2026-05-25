@@ -26,6 +26,23 @@ _ARABIC_AREA_LABELS = {
     "north coast": "الساحل الشمالي",
     "new capital": "العاصمة الإدارية",
 }
+_AREA_SQL_PATTERNS = {
+    "new cairo": [
+        "new cairo",
+        "fifth settlement",
+        "5th settlement",
+        "tagamoa",
+        "tagamo3",
+        "tagamo3a",
+        "cairo festival",
+        "التجمع",
+        "القاهرة الجديدة",
+    ],
+    "sheikh zayed": ["sheikh zayed", "zayed", "زايد", "الشيخ زايد"],
+    "6th of october": ["6th of october", "6 october", "october", "اكتوبر", "أكتوبر"],
+    "north coast": ["north coast", "sahel", "الساحل", "الساحل الشمالي"],
+    "new capital": ["new capital", "capital", "العاصمة", "العاصمة الادارية", "العاصمة الإدارية"],
+}
 _TYPE_LABELS_AR = {
     "apartment": "شقة",
     "villa": "فيلا",
@@ -283,10 +300,20 @@ async def _fetch_best_price_candidate(
     )
 
     if criteria.get("area"):
-        stmt = stmt.where(
-            Property.location.is_not(None),
-            Property.location.ilike(f"%{criteria['area']}%"),
-        )
+        area_key = criteria["area"]
+        area_patterns = _AREA_SQL_PATTERNS.get(area_key, [area_key])
+        area_predicates = []
+        for pattern in area_patterns:
+            like_pattern = f"%{pattern}%"
+            area_predicates.extend(
+                [
+                    Property.location.ilike(like_pattern),
+                    Property.title.ilike(like_pattern),
+                    Property.compound.ilike(like_pattern),
+                ]
+            )
+        if area_predicates:
+            stmt = stmt.where(or_(*area_predicates))
 
     if criteria.get("compound"):
         pattern = f"%{criteria['compound']}%"
