@@ -51,6 +51,18 @@ _TYPE_LABELS_AR = {
     "duplex": "دوبلكس",
     "studio": "استوديو",
 }
+_FILTER_LABELS_AR = {
+    "bedrooms": "عدد الغرف",
+    "property_type": "نوع الوحدة",
+    "area": "المنطقة",
+    "compound": "الكمبوند/المطور",
+}
+_FILTER_LABELS_EN = {
+    "bedrooms": "bedrooms",
+    "property_type": "property type",
+    "area": "area",
+    "compound": "compound/developer",
+}
 
 
 def _contains_arabic(text: str) -> bool:
@@ -136,6 +148,92 @@ def _build_criteria_text(criteria: dict[str, Any], language: str) -> str:
         beds = " or ".join(str(v) for v in criteria["bedrooms"])
         parts.append(f"bedrooms={beds}")
     return " | ".join(parts)
+
+
+def _is_filter_active(criteria: dict[str, Any], field: str) -> bool:
+    if field == "bedrooms":
+        return bool(criteria.get("bedrooms"))
+    if field == "property_type":
+        return bool(criteria.get("property_type")) or bool(criteria.get("studio"))
+    if field == "area":
+        return bool(criteria.get("area"))
+    if field == "compound":
+        return bool(criteria.get("compound"))
+    return False
+
+
+def _relax_field(criteria: dict[str, Any], field: str) -> dict[str, Any]:
+    relaxed = dict(criteria)
+    if field == "bedrooms":
+        relaxed["bedrooms"] = []
+    elif field == "property_type":
+        relaxed["property_type"] = None
+        relaxed["studio"] = False
+    elif field == "area":
+        relaxed["area"] = None
+    elif field == "compound":
+        relaxed["compound"] = None
+    return relaxed
+
+
+def _build_relaxation_plan(criteria: dict[str, Any]) -> list[tuple[dict[str, Any], list[str]]]:
+    # Progressive one-way relaxation: preserve as many user filters as possible.
+    plan_fields = ["bedrooms", "property_type", "area", "compound"]
+    variants: list[tuple[dict[str, Any], list[str]]] = []
+    current = dict(criteria)
+    removed: list[str] = []
+
+    for field in plan_fields:
+        if not _is_filter_active(current, field):
+            continue
+        current = _relax_field(current, field)
+        removed = [*removed, field]
+        variants.append((dict(current), list(removed)))
+
+    return variants
+
+
+def _render_removed_filters(removed_filters: list[str], language: str) -> str:
+    if not removed_filters:
+        return ""
+    labels = _FILTER_LABELS_AR if language == "ar" else _FILTER_LABELS_EN
+    translated = [labels.get(field, field) for field in removed_filters]
+    separator = "، " if language == "ar" else ", "
+    return separator.join(translated)
+
+
+def _build_pivot_marketing_text(
+    language: str,
+    strict_criteria: dict[str, Any],
+    pivot_criteria: dict[str, Any],
+    removed_filters: list[str],
+    property_card: dict[str, Any],
+) -> str:
+    strict_text = _build_criteria_text(strict_criteria, language)
+    pivot_text = _build_criteria_text(pivot_criteria, language)
+    base_text = _build_best_price_text(language, property_card, pivot_criteria)
+    removed_text = _render_removed_filters(removed_filters, language)
+
+    if language == "ar":
+        intro = ""
+        if strict_text:
+            intro = f"ما لقيتش تطابق كامل لكل الشروط ({strict_text}). "
+        pivot_note = ""
+        if removed_text:
+            pivot_note = f"عملت Pivot ذكي بتخفيف: {removed_text}. "
+        elif pivot_text:
+            pivot_note = f"عملت Pivot ذكي لأقرب اختيار ({pivot_text}). "
+        return f"{intro}{pivot_note}{base_text}"
+
+    intro = ""
+    if strict_text:
+        intro = f"No exact match for all strict criteria ({strict_text}). "
+    pivot_note = ""
+    if removed_text:
+        pivot_note = f"I made a smart pivot by relaxing: {removed_text}. "
+    elif pivot_text:
+        pivot_note = f"I made a smart pivot to the nearest criteria set ({pivot_text}). "
+    return f"{intro}{pivot_note}{base_text}"
 
 
 def _serialize_best_price_property(
@@ -364,6 +462,32 @@ async def _fetch_best_price_candidate(
     }
 
 
+async def _fetch_pivot_candidate(
+    db: AsyncSession,
+    strict_criteria: dict[str, Any],
+) -> Optional[dict[str, Any]]:
+    for relaxed_criteria, removed_filters in _build_relaxation_plan(strict_criteria):
+        candidate = await _fetch_best_price_candidate(
+            db,
+            relaxed_criteria,
+            require_positive_savings=True,
+        )
+        used_positive_savings = True
+        if not candidate:
+            used_positive_savings = False
+            candidate = await _fetch_best_price_candidate(
+                db,
+                relaxed_criteria,
+                require_positive_savings=False,
+            )
+        if candidate:
+            candidate["criteria"] = relaxed_criteria
+            candidate["removed_filters"] = removed_filters
+            candidate["used_positive_savings"] = used_positive_savings
+            return candidate
+    return None
+
+
 async def build_best_price_free_payload(
     db: AsyncSession,
     message: str,
@@ -399,18 +523,85 @@ async def build_best_price_free_payload(
         )
 
     if not candidate:
+        pivot_candidate = await _fetch_pivot_candidate(db, criteria)
+        if pivot_candidate:
+            pivot_criteria = pivot_candidate["criteria"]
+            removed_filters = pivot_candidate["removed_filters"]
+            property_card = _serialize_best_price_property(
+                pivot_candidate["property"],
+                pivot_candidate["resale_price"],
+                pivot_candidate["developer_avg"],
+                pivot_candidate["savings_egp"],
+            )
+            response_text = _build_pivot_marketing_text(
+                language,
+                criteria,
+                pivot_criteria,
+                removed_filters,
+                property_card,
+            )
+            if not pivot_candidate["used_positive_savings"]:
+                if language == "ar":
+                    response_text += " ملاحظة: هذا أقرب سعر متاح حتى لو لم يكن أقل من متوسط سعر المطور."
+                else:
+                    response_text += " Note: this is the nearest available match even when it is not below the developer average."
+
+            return {
+                "response": response_text,
+                "properties": [property_card],
+                "ui_actions": [
+                    {
+                        "type": "price_comparison",
+                        "data": {
+                            "resale_price": property_card["resale_price"],
+                            "developer_avg_price": property_card["developer_avg_price"],
+                            "savings_egp": property_card["savings_egp"],
+                            "savings_pct": property_card["savings_pct"],
+                        },
+                    },
+                    {
+                        "type": "pivot_notice",
+                        "data": {
+                            "removed_filters": removed_filters,
+                            "strict_criteria": criteria,
+                            "pivot_criteria": pivot_criteria,
+                        },
+                    },
+                ],
+                "ui_primitive_descriptor": "free_best_price_pivot_match",
+                "primitive_data": {
+                    "intent": intent,
+                    "criteria": criteria,
+                    "pivot_criteria": pivot_criteria,
+                    "removed_filters": removed_filters,
+                    "pivot_applied": True,
+                    "result_count": 1,
+                    "comparison_basis": "resale_vs_developer_avg_same_compound_type",
+                    "used_positive_savings": pivot_candidate["used_positive_savings"],
+                },
+                "response_type": "free_best_price_pivot",
+                "showing_strategy": "FREE_BEST_PRICE_PIVOT",
+                "show_upsell": False,
+                "upsell_reason": None,
+                "lead_score": 24,
+                "readiness_score": 24,
+                "detected_language": language,
+                "suggestions": [],
+                "cta_actions": [],
+            }
+
         criteria_text = _build_criteria_text(criteria, language)
         if language == "ar":
             response_text = (
-                "لم أجد وحدة مطابقة لكل الشروط الحالية. "
-                "من فضلك عدّل معيارًا واحدًا (مثل المنطقة أو عدد الغرف) وسأرجع لك أقل سعر مع مقارنة المطور فورًا."
+                "لم أجد وحدة مطابقة للشروط الحالية ولا حتى بعد البحث عن أقرب Pivot متاح. "
+                "من فضلك عدّل معيارًا واحدًا وسأرجع لك أقل سعر مع مقارنة المطور فورًا."
             )
             if criteria_text:
                 response_text = f"المعايير الحالية: {criteria_text}. {response_text}"
         else:
             response_text = (
-                "I could not find a listing that matches all current criteria. "
-                "Please relax one filter (area or bedrooms) and I will return the lowest matched resale price with developer comparison."
+                "I could not find an exact match or a viable nearest pivot match with the current criteria. "
+                "Please relax one filter and I will return the lowest matched resale price with developer comparison."
             )
             if criteria_text:
                 response_text = f"Current criteria: {criteria_text}. {response_text}"
