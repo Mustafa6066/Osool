@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 
 from app.auth import get_current_user_optional, is_forced_free_test_user_email
 from app.ai_engine.company_brain import CompanyBrainKernel
-from app.ai_engine.free_tier_gate import FreeTierConversionGate, build_value_sandwich
+from app.ai_engine.free_tier_gate import build_best_price_free_payload
 from app.ai_engine.wolf_orchestrator import wolf_brain
 from app.database import get_db
 from app.models import ChatMessage, User
@@ -91,38 +91,33 @@ async def process_chat(
 
     try:
         kind = _viewer_kind(user)
-        lang = request.language if request.language in {"ar", "en"} else "ar"
 
         if kind in {"anonymous", "free"}:
-            hook = await FreeTierConversionGate.extract_one_anomaly(db)
-            teaser = build_value_sandwich(hook, language=lang)
-            hook_property = {
-                "id": hook.get("property_id") or 0,
-                "title": "La2ta Anomaly",
-                "location": hook.get("location") or "Unknown",
-                "compound": hook.get("compound"),
-                "price": hook.get("asking_price") or 0,
-                "la2ta_score": hook.get("osool_score"),
-                "market_price": hook.get("market_avg_price"),
-            }
+            payload = await build_best_price_free_payload(db, request.message, request.language)
+            response_text = payload.get("response", "")
+            properties = payload.get("properties", [])
+            ui_actions = payload.get("ui_actions", [])
+            show_upsell = bool(payload.get("show_upsell", False))
+            ui_primitive_descriptor = payload.get("ui_primitive_descriptor")
+            primitive_data = payload.get("primitive_data")
 
             ai_msg = ChatMessage(
                 session_id=request.session_id,
                 user_id=user.id if user else None,
                 role="assistant",
-                content=teaser,
+                content=response_text,
             )
             db.add(ai_msg)
             await db.commit()
 
             return ChatResponse(
                 type="success",
-                text=teaser,
-                properties=[hook_property],
-                show_upsell=True,
-                ui_actions=[{"type": "la2ta_alert", "data": {"properties": [hook_property]}}],
-                ui_primitive_descriptor="free_tier_gate_hook",
-                primitive_data=hook,
+                text=response_text,
+                properties=properties,
+                show_upsell=show_upsell,
+                ui_actions=ui_actions,
+                ui_primitive_descriptor=ui_primitive_descriptor,
+                primitive_data=primitive_data,
             )
 
         history = [{"role": "user", "content": text} for text in reversed(previous_user_messages)]

@@ -18,7 +18,7 @@ from typing import Optional, Any
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
 from app.ai_engine.cost_tracker import cost_tracker
 from app.ai_engine.company_brain import CompanyBrainKernel
-from app.ai_engine.free_tier_gate import FreeTierConversionGate, build_value_sandwich
+from app.ai_engine.free_tier_gate import build_best_price_free_payload
 from app.ai_engine.wolf_orchestrator import wolf_brain
 from app.services.paymob_service import paymob_service
 from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, create_refresh_token_async, is_forced_free_test_user_email
@@ -37,7 +37,6 @@ logger = logging.getLogger(__name__)
 
 # Text processing utilities
 from app.utils.text_processing import clean_response_text
-from app.ai_engine.local_intent import local_intent_extractor
 
 router = APIRouter(prefix="/api", tags=["Osool API"])
 limiter = Limiter(key_func=get_remote_address)
@@ -988,75 +987,9 @@ async def _query_free_tier_matches(
 
 
 async def _build_free_tier_payload(db: AsyncSession, message: str, requested_language: str) -> dict[str, Any]:
-    language = _resolve_chat_language(requested_language, message)
-    intent = local_intent_extractor.extract_intent(message or "")
-    area_hint = intent.get("area")
-    compound_hint = intent.get("compound")
-
-    hook = await FreeTierConversionGate.extract_one_anomaly(
-        db,
-        location_filter=area_hint,
-        compound_filter=compound_hint,
-    )
-
-    if not hook.get("error"):
-        response_text = clean_response_text(build_value_sandwich(hook, language=language))
-        hook_property = {
-            "id": hook.get("property_id") or 0,
-            "title": "La2ta Anomaly",
-            "location": hook.get("location") or "Unknown",
-            "compound": hook.get("compound"),
-            "price": hook.get("asking_price") or 0,
-            "la2ta_score": hook.get("osool_score"),
-            "savings": None,
-            "market_price": hook.get("market_avg_price"),
-        }
-        return {
-            "response": response_text,
-            "properties": [hook_property],
-            "ui_actions": [{"type": "la2ta_alert", "data": {"properties": [hook_property]}}],
-            "ui_primitive_descriptor": "free_tier_gate_hook",
-            "primitive_data": hook,
-            "response_type": "free_tier_gate_hook",
-            "showing_strategy": "FREE_TIER_GATE_HOOK",
-            "show_upsell": True,
-            "upsell_reason": "free_tier_gate",
-            "lead_score": 20,
-            "readiness_score": 20,
-            "detected_language": language,
-            "suggestions": [],
-            "cta_actions": [{"type": "signup", "label": "Unlock full intelligence"}],
-        }
-
-    matches = await _query_free_tier_matches(db, area=area_hint, compound=compound_hint, limit=3)
-    response_text = clean_response_text(
-        _build_free_search_text(
-            language,
-            properties=matches,
-            area=area_hint,
-            compound=compound_hint,
-        )
-    )
-
-    return {
-        "response": response_text,
-        "properties": matches,
-        "ui_actions": [],
-        "ui_primitive_descriptor": "free_tier_search_results",
-        "primitive_data": {
-            "intent": intent,
-            "result_count": len(matches),
-        },
-        "response_type": "free_local_search",
-        "showing_strategy": "FREE_LOCAL_SEARCH",
-        "show_upsell": False,
-        "upsell_reason": None,
-        "lead_score": 25 if matches else 15,
-        "readiness_score": 25 if matches else 15,
-        "detected_language": language,
-        "suggestions": [],
-        "cta_actions": [],
-    }
+    payload = await build_best_price_free_payload(db, message, requested_language)
+    payload["response"] = clean_response_text(payload.get("response", ""))
+    return payload
 
 @router.post("/chat")
 @limiter.limit("20/minute")
