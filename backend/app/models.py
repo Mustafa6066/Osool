@@ -1050,6 +1050,10 @@ class FreePathSession(Base):
     mode: Mapped[str] = mapped_column(String(16), nullable=True)
     property_type_filter: Mapped[str] = mapped_column(String(32), nullable=True)
     comparison_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Tracks which compound triggered MISSING_DATA so we replace the right one (CQ1 fix)
+    missing_compound: Mapped[str] = mapped_column(String(256), nullable=True)
+    # Set True after deal-submission CTA shown once per session (D9 timing spec)
+    has_shown_deal_cta: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

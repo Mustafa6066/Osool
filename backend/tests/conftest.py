@@ -12,6 +12,12 @@ from unittest.mock import MagicMock, AsyncMock, patch
 os.environ["ENVIRONMENT"] = "development"
 # JWT secret must be set before auth module is imported (it validates at import time)
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-pytest-minimum-32-chars-long")
+# DATABASE_URL must be set before app.database is imported (fails fast otherwise).
+# Unit tests mock the DB session, so the URL never actually connects.
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://test:test@localhost:5432/osool_test",
+)
 
 
 @pytest.fixture

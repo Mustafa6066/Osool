@@ -55,6 +55,11 @@
 
   /* Brand */
   --osool-deep-teal: #267360;
+
+  /* Semantic — warning (indicative confidence badge, disclaimers) */
+  --color-warning: #F59E0B;
+  --color-warning-light: #FCD34D;
+  --color-warning-dark: #D97706;
 }
 
 
