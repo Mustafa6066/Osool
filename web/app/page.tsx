@@ -7,6 +7,8 @@ import Link from 'next/link';
 import OsoolAvatar from '@/components/osool/OsoolAvatar';
 import OsoolNav from '@/components/osool/OsoolNav';
 import OsoolFooter from '@/components/osool/OsoolFooter';
+import ArchFrame from '@/components/osool/ArchFrame';
+import Mashrabiya from '@/components/osool/Mashrabiya';
 import {
   IconHome,
   IconPaperclip,
@@ -14,15 +16,15 @@ import {
   IconShield,
   IconSpark,
   IconUp,
-  IconWand,
-  IconCalc,
 } from '@/components/osool/Icons';
 
 /**
  * Osool — landing page.
- * Port of Osool Landing.html from the claude.ai/design handoff.
- * Editorial B&W layout with a terracotta accent (#C96442), Inter sans
- * + Newsreader serif italic for display, Cairo for Arabic.
+ * Editorial + Cairene direction per DESIGN.md (2026-05-27 refresh).
+ * Bilingual stacked hero (Newsreader italic + Cairo Display at 60%),
+ * dossier-block proof sections instead of icon-grid pillars, Mashrabiya
+ * watermark on the chat-preview section, Eastern-Arabic-numeral stat
+ * accent in the hero, terracotta + Nile + ochre on warm paper.
  */
 export default function LandingPage() {
   useReveal();
@@ -86,36 +88,64 @@ function Hero() {
         <div className="osool-hero-mark">
           <OsoolAvatar size={88} animated />
         </div>
+
+        {/* Operator-energy eyebrow stat — Eastern Arabic numerals as the
+            page's single deliberate cultural marker. The Latin gloss
+            keeps non-Arabic readers oriented. */}
         <span className="osool-hero-eyebrow">
           <span className="osool-hero-eyebrow-dot" />
-          412 verified units · live in Cairo
+          <span className="osool-numeral-ar" aria-label="412 deals closed">٤١٢</span>
+          <span style={{ marginInlineStart: 8 }}>deals closed · live in Cairo</span>
         </span>
-        <h1>
-          The honest way to <em>buy property</em> in Egypt.
-        </h1>
+
+        {/* Bilingual stacked headline — Latin on top (sells to global
+            investors), Arabic sibling below at 60% (signs the page as
+            Cairo-native to Egyptian buyers). */}
+        <div className="osool-bilingual">
+          <h1>
+            The honest way to <em>buy property</em> in Egypt.
+          </h1>
+          <p className="osool-display-ar" lang="ar">الطريقة الصادقة لشراء العقار في مصر.</p>
+        </div>
+
         <p>
           Verified listings, AI valuation, and contract checks grounded in Egyptian
           property law. All in one conversation.
         </p>
 
-        <div className="osool-composer">
-          <span className="osool-ico">
-            <IconPaperclip size={17} />
-          </span>
-          <input
-            type="text"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && go()}
-            placeholder="Ask Osool anything about real estate in Egypt…"
-          />
-          <span className="osool-ico">
-            <IconMic size={16} />
-          </span>
-          <button type="button" className="osool-send" onClick={go} aria-label="Send">
-            <IconUp size={15} />
-          </button>
-        </div>
+        {/* Signature shape: the composer sits inside an arch-top frame,
+            echoing the OsoolAvatar doorway. Reserve this shape for
+            high-attention surfaces only. */}
+        <ArchFrame
+          outline
+          style={{
+            maxWidth: 620,
+            margin: '0 auto',
+            padding: 0,
+            background: 'transparent',
+            border: 'none',
+            overflow: 'visible',
+          }}
+        >
+          <div className="osool-composer" style={{ marginTop: 12 }}>
+            <span className="osool-ico">
+              <IconPaperclip size={17} />
+            </span>
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && go()}
+              placeholder="Ask Osool anything about real estate in Egypt…"
+            />
+            <span className="osool-ico">
+              <IconMic size={16} />
+            </span>
+            <button type="button" className="osool-send" onClick={go} aria-label="Send">
+              <IconUp size={15} />
+            </button>
+          </div>
+        </ArchFrame>
 
         <div className="osool-hero-chips">
           {chips.map((c) => (
@@ -126,48 +156,41 @@ function Hero() {
         </div>
 
         <div className="osool-hero-trust">
-          <span>CBE Law 194 compliant</span>
-          <span className="osool-sep" />
-          <span>Civil Code 131</span>
-          <span className="osool-sep" />
-          <span>FRA 125-ready</span>
-          <span className="osool-sep" />
-          <span>InstaPay · Fawry escrow</span>
+          <span className="osool-nile-pill">CBE Law 194 compliant</span>
+          <span className="osool-nile-pill">Civil Code 131</span>
+          <span className="osool-nile-pill">FRA 125-ready</span>
+          <span className="osool-nile-pill">InstaPay · Fawry escrow</span>
         </div>
       </div>
     </section>
   );
 }
 
-/* ─── PILLARS ────────────────────────────────────────────────────── */
+/* ─── DOSSIERS (was: icon-grid Pillars) ─────────────────────────── */
 function Pillars() {
   const items: Array<{
-    Icon: typeof IconShield;
     title: string;
     body: string;
-    meta: string;
-    metaSub: string;
+    number: string;
+    numberLabel: string;
   }> = [
     {
-      Icon: IconShield,
-      title: 'Verified Registry',
-      body: 'Every listing is checked against the title registry. Reserved units lock instantly — no double-sells, no surprises at closing.',
-      meta: '0 double-sells',
-      metaSub: 'Since launch',
+      title: 'Verified registry',
+      body: 'Every listing is checked against the title registry. Reserved units lock instantly. No double-sells, no surprises at closing.',
+      number: '0',
+      numberLabel: 'Double-sells, since launch',
     },
     {
-      Icon: IconWand,
-      title: 'AI Valuation',
-      body: "Fair-price model trained on 412 verified Egyptian transactions, CBE FX, and inflation-adjusted real growth. Get the why, not just the number.",
-      meta: '±2.4%',
-      metaSub: 'Median accuracy',
+      title: 'AI valuation',
+      body: 'Fair-price model trained on 412 verified Egyptian transactions, CBE corridor rates, and inflation-adjusted real growth. The number AND the why.',
+      number: '±2.4%',
+      numberLabel: 'Median accuracy',
     },
     {
-      Icon: IconCalc,
-      title: 'Contract Check',
-      body: 'AI scans purchase agreements against Civil Code 131 in seconds — flags arbitration venue, escalators, and delivery penalties before you sign.',
-      meta: '247 clauses',
-      metaSub: 'Reviewed per contract',
+      title: 'Contract check',
+      body: 'Purchase agreements scanned against Civil Code 131 in seconds. Arbitration venue, escalator clauses, delivery penalties — flagged before you sign.',
+      number: '247',
+      numberLabel: 'Clauses reviewed per contract',
     },
   ];
 
@@ -187,19 +210,19 @@ function Pillars() {
           </p>
         </div>
 
-        <div className="osool-pillars osool-reveal">
+        {/* Newspaper-rule dossier blocks. Each column reads like a print
+            feature: serif title, body paragraph, hard number footer.
+            Replaces the generic icon-in-circle SaaS grid pattern. */}
+        <div className="osool-dossiers osool-reveal">
           {items.map((it) => (
-            <div className="osool-pillar" key={it.title}>
-              <span className="osool-pillar-icon">
-                <it.Icon size={18} />
-              </span>
+            <article className="osool-dossier" key={it.title}>
               <h3>{it.title}</h3>
               <p>{it.body}</p>
-              <div className="osool-pillar-meta">
-                <span>{it.metaSub}</span>
-                <b>{it.meta}</b>
+              <div className="osool-dossier-number">
+                <b>{it.number}</b>
+                <span>{it.numberLabel}</span>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </div>
@@ -210,8 +233,15 @@ function Pillars() {
 /* ─── CHAT PREVIEW ───────────────────────────────────────────────── */
 function ChatPreview() {
   return (
-    <section className="osool-section" id="trust" style={{ paddingTop: 32 }}>
-      <div className="osool-container">
+    <section
+      className="osool-section"
+      id="trust"
+      style={{ paddingTop: 32, position: 'relative', overflow: 'hidden' }}
+    >
+      {/* Mashrabiya watermark — Cairo geometric latticework at 5% opacity.
+          Quiet cultural signature behind the chat preview. */}
+      <Mashrabiya tile={72} />
+      <div className="osool-container" style={{ position: 'relative', zIndex: 1 }}>
         <div className="osool-section-head osool-reveal">
           <div>
             <div className="osool-eyebrow">Watch it work</div>

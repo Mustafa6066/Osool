@@ -1,47 +1,84 @@
 /* ═══════════════════════════════════════════════════════════════
-   OSOOL — EDITORIAL THEME (B&W + terracotta accent)
-   Ported from claude.ai/design handoff (2026-05).
-   Layered ON TOP of the legacy v7 "Liquid Glass" tokens.
-   Anything prefixed .osool- is part of this new system; legacy
-   utilities continue to work as before.
+   OSOOL — EDITORIAL + CAIRENE THEME
+   Refined 2026-05-27 per DESIGN.md (Editorial + Cairene direction).
+   Modernist newspaper meets Egyptian craft. Quiet Egyptian motifs
+   on top of the existing editorial typography. Terracotta keystone,
+   Nile blue trust, ochre rare accent, warm paper background.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
   /* Editorial tokens */
   --osool-font-sans: "Inter", "Cairo", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --osool-font-serif: "Newsreader", "ui-serif", "Charter", "Georgia", serif;
+  --osool-font-arabic: "Cairo", "Tajawal", "Inter", sans-serif;
 
+  /* Terracotta — Egyptian clay, the keystone */
   --osool-accent: #C96442;
   --osool-accent-soft: rgba(201, 100, 66, 0.08);
   --osool-accent-mid: rgba(201, 100, 66, 0.18);
   --osool-accent-dark: #B5512F;
 
-  --osool-bg: #FFFFFF;
+  /* Nile blue — trust + verification, anchors the warmth */
+  --osool-nile: #1B4869;
+  --osool-nile-soft: rgba(27, 72, 105, 0.08);
+  --osool-nile-mid: rgba(27, 72, 105, 0.18);
+  --osool-nile-dark: #143553;
+
+  /* Egyptian gold — rarest color, stylistic accent only */
+  --osool-ochre: #C9A66B;
+  --osool-ochre-soft: rgba(201, 166, 107, 0.10);
+  --osool-ochre-mid: rgba(201, 166, 107, 0.22);
+
+  /* Warm paper instead of bleached white. Cards stay crisp white against it. */
+  --osool-bg: #FCFAF6;
   --osool-surface: #FFFFFF;
-  --osool-surface-2: #F6F6F7;
-  --osool-surface-3: #ECECEE;
+  --osool-surface-2: #F4F1EA;
+  --osool-surface-3: #EAE5DA;
+
   --osool-text: #0E0E10;
   --osool-text-2: #3C3C3F;
   --osool-muted: #6E6E73;
   --osool-muted-2: #B8B8BC;
-  --osool-border: #E5E5E8;
-  --osool-border-2: #F0F0F2;
+
+  /* Warmer borders — paper edge, not metal edge */
+  --osool-border: #E8E2D5;
+  --osool-border-2: #F0EBE0;
+
+  /* Arch motion tokens for the section-reveal stroke-draw */
+  --osool-ease-arch: cubic-bezier(.22, 1, .36, 1);
+  --osool-duration-arch: 800ms;
 
   --osool-max: 1180px;
   --osool-gutter: 28px;
 }
 
 [data-theme="dark"] {
-  --osool-bg: #08080A;
-  --osool-surface: #0F0F11;
-  --osool-surface-2: #18181B;
-  --osool-surface-3: #232328;
-  --osool-text: #F5F5F7;
-  --osool-text-2: #C8C8CB;
-  --osool-muted: #8C8C92;
-  --osool-muted-2: #4A4A50;
-  --osool-border: #232327;
-  --osool-border-2: #18181B;
+  /* Warm near-black (not blue-black) to honor the Cairene direction */
+  --osool-bg: #0B0A08;
+  --osool-surface: #14110E;
+  --osool-surface-2: #1C1814;
+  --osool-surface-3: #28221C;
+
+  --osool-text: #F5F1E8;
+  --osool-text-2: #C8C4BB;
+  --osool-muted: #8C8980;
+  --osool-muted-2: #4A4640;
+
+  --osool-border: #2A241D;
+  --osool-border-2: #1C1814;
+
+  /* Lifted accents for dark-mode visibility */
+  --osool-accent: #D87555;
+  --osool-accent-soft: rgba(216, 117, 85, 0.10);
+  --osool-accent-mid: rgba(216, 117, 85, 0.22);
+  --osool-accent-dark: #C96442;
+
+  --osool-nile: #4A7FA8;
+  --osool-nile-soft: rgba(74, 127, 168, 0.10);
+  --osool-nile-mid: rgba(74, 127, 168, 0.22);
+
+  --osool-ochre: #D4B47A;
+  --osool-ochre-soft: rgba(212, 180, 122, 0.12);
 }
 
 /* Apply editorial defaults at the body level. Existing pages can opt out
@@ -1031,4 +1068,178 @@ body {
 .osool-themed ::selection {
   background: var(--osool-text);
   color: var(--osool-bg);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CAIRENE REFRESH — adds bilingual hero, dossier blocks, arch-top
+   signature shape, mashrabiya container, Nile trust pill, and the
+   Eastern-Arabic-numeral stylistic accent. Layered on top of the
+   editorial primitives above; the original hero/pillars patterns
+   stay intact for any page that still uses them.
+   ───────────────────────────────────────────────────────────── */
+
+/* Arabic display sibling under a Latin hero line. Stacked, muted to
+   60% so it reads as a signature, not a translation. */
+.osool-bilingual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.osool-bilingual .osool-display-ar {
+  font-family: var(--osool-font-arabic);
+  font-weight: 700;
+  font-size: clamp(28px, 4.2vw, 52px);
+  line-height: 1.18;
+  letter-spacing: -0.005em;
+  color: var(--osool-text);
+  opacity: 0.6;
+  margin: 0;
+  direction: rtl;
+  max-width: 18ch;
+}
+
+/* Arch-top card shape — signature, used 1-2x per page. Rounded only
+   at the top corners, square at the bottom. Echoes the OsoolAvatar
+   doorway shape without being on-the-nose. */
+.osool-arch-top {
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Newspaper-rule dossier block. Replaces the icon-grid pillars
+   for an editorial column feel. Sections divided by a single hairline
+   in terracotta, not a card border. */
+.osool-dossiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+@media (max-width: 860px) {
+  .osool-dossiers { grid-template-columns: 1fr; }
+}
+.osool-dossier {
+  padding: 32px 36px;
+  border-inline-end: 1px solid var(--osool-accent-mid);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.osool-dossier:last-child {
+  border-inline-end: none;
+}
+@media (max-width: 860px) {
+  .osool-dossier {
+    border-inline-end: none;
+    border-bottom: 1px solid var(--osool-accent-mid);
+    padding: 28px 8px;
+  }
+  .osool-dossier:last-child { border-bottom: none; }
+}
+.osool-dossier h3 {
+  font-family: var(--osool-font-serif);
+  font-size: 26px;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.015em;
+  margin: 0;
+  line-height: 1.15;
+  color: var(--osool-text);
+}
+.osool-dossier p {
+  font-size: 15px;
+  color: var(--osool-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+.osool-dossier-number {
+  margin-top: auto;
+  padding-top: 22px;
+  border-top: 1px solid var(--osool-border-2);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.osool-dossier-number b {
+  font-family: var(--osool-font-serif);
+  font-style: italic;
+  font-size: 34px;
+  font-weight: 500;
+  color: var(--osool-text);
+  letter-spacing: -0.02em;
+  font-feature-settings: "tnum";
+  line-height: 1;
+}
+.osool-dossier-number span {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--osool-muted);
+}
+
+/* Nile trust pill — small badge using Nile blue for verification/
+   compliance signals. Distinct from the terracotta CTA family. */
+.osool-nile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--osool-nile-soft);
+  color: var(--osool-nile);
+  border: 1px solid var(--osool-nile-mid);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-feature-settings: "tnum";
+}
+[data-theme="dark"] .osool-nile-pill {
+  background: var(--osool-nile-soft);
+  color: var(--osool-nile);
+}
+
+/* Eastern-Arabic-numeral stylistic accent. Used ONCE per page max,
+   typically for a hero stat like ٤١٢. Functional digits stay Latin. */
+.osool-numeral-ar {
+  font-family: var(--osool-font-arabic);
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mashrabiya container — wraps the SVG pattern at 5% opacity so
+   the geometric latticework reads as a quiet watermark, not decoration. */
+.osool-mashrabiya {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  z-index: 0;
+}
+[data-theme="dark"] .osool-mashrabiya {
+  opacity: 0.08;
+}
+
+/* Arch stroke-draw animation for section reveals. Plays once when a
+   .osool-reveal element containing .osool-arch-stroke comes into view. */
+@keyframes osool-arch-draw {
+  from { stroke-dashoffset: 200; opacity: 0; }
+  to   { stroke-dashoffset: 0; opacity: 1; }
+}
+.osool-arch-stroke {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  opacity: 0;
+}
+.osool-reveal.in .osool-arch-stroke {
+  animation: osool-arch-draw var(--osool-duration-arch) var(--osool-ease-arch) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .osool-arch-stroke {
+    stroke-dashoffset: 0;
+    opacity: 1;
+    animation: none;
+  }
 }
