@@ -5,7 +5,7 @@ import axios from 'axios';
 import Link from 'next/link';
 
 import { useAuth } from '@/contexts/AuthContext';
-import api, { sendChatMessage, getUserChatSessions, type ChatSession } from '@/lib/api';
+import api, { getUserChatSessions, type ChatSession } from '@/lib/api';
 import {
   getOrCreateSessionId,
   loadFromStorage,
@@ -45,9 +45,11 @@ import './chat.css';
 
 /**
  * Osool Chat — editorial surface from the claude.ai/design handoff,
- * now wired to the real backend.
+ * wired to the real backend with tier-aware routing.
  *
- *   Send       → POST /api/chat        (sendChatMessage)
+ *   Send       → POST /api/v1/chat   (chat.py)
+ *                ?simulate_tier=free is honored only for admin callers
+ *                so the demo toggle can force the zero-LLM free path.
  *   Sessions   → GET  /api/chat/history (getUserChatSessions)
  *   Resume     → GET  /api/chat/history/{session_id}
  *
@@ -362,20 +364,41 @@ export default function ChatPage() {
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // Admins who flipped the demo toggle to "Free" need backend cooperation:
+      // the simulate_tier=free query param forces /api/v1/chat to route us
+      // through the zero-LLM free path (build_best_price_free_payload) instead
+      // of the Wolf orchestrator. The backend silently ignores this param for
+      // non-admin callers — see _viewer_kind() in app/api/chat.py.
+      const params = new URLSearchParams();
+      if (isAdmin && tier === 'free') params.set('simulate_tier', 'free');
+      const url = '/api/v1/chat' + (params.toString() ? `?${params.toString()}` : '');
+
       (async () => {
         try {
-          const data = await sendChatMessage(trimmed, sessionId, lang === 'ar' ? 'ar' : lang === 'en' ? 'en' : 'auto');
+          const res = await api.post(
+            url,
+            {
+              message: trimmed,
+              session_id: sessionId,
+              language: lang === 'ar' ? 'ar' : lang === 'en' ? 'en' : 'auto',
+              is_authenticated: isAuthenticated,
+            },
+            { signal: controller.signal },
+          );
           if (controller.signal.aborted) return;
+          const data = res.data ?? {};
 
           const properties = Array.isArray(data.properties)
             ? data.properties
-                .map((p) => toPropertyCard(p, lang))
-                .filter((p): p is PropertyCard => p !== null)
+                .map((p: unknown) => toPropertyCard(p, lang))
+                .filter((p: PropertyCard | null): p is PropertyCard => p !== null)
             : undefined;
 
+          // /api/v1/chat returns { type, text, properties, show_upsell, ... }
+          // (note: `text`, not `response` — different shape from legacy /api/chat)
           const reply: AiMessage = {
             role: 'ai',
-            text: data.response ?? '',
+            text: typeof data.text === 'string' ? data.text : '',
             properties: properties && properties.length > 0 ? properties : undefined,
           };
 
@@ -399,7 +422,7 @@ export default function ChatPage() {
         }
       })();
     },
-    [lang, sessionId, streaming, T.errorSend],
+    [lang, sessionId, streaming, T.errorSend, isAdmin, isAuthenticated, tier],
   );
 
   const onStop = () => {

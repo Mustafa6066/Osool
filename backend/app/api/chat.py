@@ -30,13 +30,48 @@ class ChatResponse(BaseModel):
     primitive_data: Optional[Dict[str, Any]] = None
 
 
-def _viewer_kind(user: Optional[User]) -> str:
+# Admin email allowlist — mirrors the frontend's check in app/chat/page.tsx
+# so an admin who hasn't been flagged role='admin' in the DB can still
+# trigger the simulate_tier override.
+_ADMIN_EMAILS = {
+    "mustafa@osool.com",
+    "mustafa@osool.eg",
+    "hani@osool.com",
+    "hani@osool.eg",
+}
+
+
+def _is_admin_user(user: Optional[User]) -> bool:
+    """True iff `user` has admin role OR is in the hard-coded admin allowlist."""
+    if user is None:
+        return False
+    if (getattr(user, "role", "") or "").lower() == "admin":
+        return True
+    email = (getattr(user, "email", "") or "").lower().strip()
+    return email in _ADMIN_EMAILS
+
+
+def _viewer_kind(user: Optional[User], simulate_tier: Optional[str] = None) -> str:
+    """
+    Resolve the caller's effective tier for routing.
+
+    Admin-only override: passing simulate_tier="free" forces the
+    "free" routing path even for admins (whose subscription would
+    normally land them on the premium Wolf path). This is the
+    backend half of the /chat "Demo" toggle — letting Osool staff
+    demo the zero-LLM free experience end-to-end without burning
+    Anthropic credits. Non-admin callers can't escalate themselves;
+    the param is silently ignored when present without admin privs.
+    """
+    if simulate_tier == "free" and _is_admin_user(user):
+        return "free"
+
     if user is None:
         return "anonymous"
     if is_forced_free_test_user_email(getattr(user, "email", None)):
         return "free"
     tier = (getattr(user, "subscription_tier", "free") or "free").lower()
-    if getattr(user, "role", "").lower() == "admin" or tier in {"premium", "admin"}:
+    if (getattr(user, "role", "") or "").lower() == "admin" or tier in {"premium", "admin"}:
         return "premium"
     return "free"
 
@@ -45,12 +80,20 @@ def _viewer_kind(user: Optional[User]) -> str:
 async def process_chat(
     chat_request: ChatRequest,
     request: Request,
+    simulate_tier: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
     Main endpoint for the Chat Interface.
-    Routes free users through the Zero-Token Local Path.
+    Routes free users through the Zero-Token Local Path; premium users
+    through the Wolf orchestrator (with Anthropic spend).
+
+    Query params:
+        simulate_tier: "free" → admin-only override forcing the free
+            routing path. Useful for end-to-end demos of the free flow
+            without burning Anthropic credits. Ignored when caller is
+            not admin. See _viewer_kind() docstring.
 
     Rate limit: CHAT_RATE_LIMIT (30/minute) keyed by user_id when authed,
     by IP otherwise — see middleware/rate_limiting.py.
@@ -96,7 +139,7 @@ async def process_chat(
     await db.commit()
 
     try:
-        kind = _viewer_kind(user)
+        kind = _viewer_kind(user, simulate_tier=simulate_tier)
 
         if kind in {"anonymous", "free"}:
             payload = await build_best_price_free_payload(db, chat_request.message, chat_request.language)
