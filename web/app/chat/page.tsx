@@ -392,12 +392,18 @@ export default function ChatPage() {
 
       (async () => {
         try {
+          // language: "auto" lets the backend detect from message content
+          // (Wolf orchestrator's _detect_language). The UI toggle (lang)
+          // only controls the surrounding chrome — sidebar labels, buttons,
+          // error copy — not what language the AI replies in. The user's
+          // message language wins: type Arabic, get Arabic back; type
+          // English, get English back; regardless of the topbar toggle.
           const res = await api.post(
             url,
             {
               message: trimmed,
               session_id: sessionId,
-              language: lang === 'ar' ? 'ar' : lang === 'en' ? 'en' : 'auto',
+              language: 'auto',
               is_authenticated: isAuthenticated,
             },
             { signal: controller.signal },
@@ -439,7 +445,7 @@ export default function ChatPage() {
         }
       })();
     },
-    [lang, sessionId, streaming, T.errorSend, isAdmin, isAuthenticated, tier],
+    [sessionId, streaming, T.errorSend, isAdmin, isAuthenticated, tier, lang],
   );
 
   const onStop = () => {
