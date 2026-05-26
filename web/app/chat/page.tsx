@@ -51,6 +51,29 @@ import './chat.css';
 
 type Lang = 'en' | 'ar';
 type Theme = 'light' | 'dark';
+type DemoTier = 'free' | 'paid';
+
+const DEMO_TIER_KEY = 'osool.demoTier';
+
+/**
+ * Hard-coded admin email allowlist — fallback for cases where the JWT
+ * `role` claim isn't propagating correctly. Matches the backend admin
+ * recognition in app/api/email_endpoints.py.
+ */
+const ADMIN_EMAILS = new Set([
+  'mustafa@osool.com',
+  'mustafa@osool.eg',
+  'hani@osool.com',
+  'hani@osool.eg',
+]);
+
+function isAdminUser(user: { role?: string; email?: string } | null): boolean {
+  if (!user) return false;
+  const role = (user.role ?? '').toLowerCase().trim();
+  if (role === 'admin') return true;
+  const email = (user.email ?? '').toLowerCase().trim();
+  return ADMIN_EMAILS.has(email);
+}
 
 interface UserMessage {
   role: 'user';
@@ -204,10 +227,12 @@ function toPropertyCard(raw: unknown, lang: Lang): PropertyCard | null {
 
 export default function ChatPage() {
   const { user, isAuthenticated } = useAuth();
+  const isAdmin = isAdminUser(user);
 
   const [lang, setLang] = useState<Lang>('en');
   const [theme, setTheme] = useState<Theme>('light');
   const [collapsed, setCollapsed] = useState(false);
+  const [tier, setTier] = useState<DemoTier>('paid');
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -219,6 +244,24 @@ export default function ChatPage() {
   const abortRef = useRef<AbortController | null>(null);
 
   const T = lang === 'ar' ? T_AR : T_EN;
+
+  // Restore the admin's demo-tier choice from localStorage on first mount.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem(DEMO_TIER_KEY);
+    if (saved === 'free' || saved === 'paid') setTier(saved);
+  }, []);
+
+  // Persist tier choice so demos survive reload.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(DEMO_TIER_KEY, tier);
+  }, [tier]);
+
+  const switchTier = (next: DemoTier) => {
+    if (next === tier) return;
+    setTier(next);
+  };
 
   // Apply theme/dir at the document level so reveals + ambient pick it up.
   useEffect(() => {
@@ -419,6 +462,9 @@ export default function ChatPage() {
             T={T}
             theme={theme}
             lang={lang}
+            tier={tier}
+            showDemoToggle={isAdmin}
+            onSwitchTier={switchTier}
             onToggleSidebar={() => setCollapsed((v) => !v)}
             onToggleLang={() => setLang((l) => (l === 'ar' ? 'en' : 'ar'))}
             onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
@@ -439,7 +485,7 @@ export default function ChatPage() {
                     ) : m.pending ? (
                       <Typing key={i} T={T} />
                     ) : (
-                      <AiBubble key={i} msg={m} />
+                      <AiBubble key={i} msg={m} tier={tier} lang={lang} />
                     ),
                   )}
                 </div>
@@ -611,6 +657,9 @@ function Topbar({
   T,
   theme,
   lang,
+  tier,
+  showDemoToggle,
+  onSwitchTier,
   onToggleSidebar,
   onToggleLang,
   onToggleTheme,
@@ -618,10 +667,17 @@ function Topbar({
   T: Translations;
   theme: Theme;
   lang: Lang;
+  tier: DemoTier;
+  showDemoToggle: boolean;
+  onSwitchTier: (next: DemoTier) => void;
   onToggleSidebar: () => void;
   onToggleLang: () => void;
   onToggleTheme: () => void;
 }) {
+  const labelFree = lang === 'ar' ? 'مجاني' : 'Free';
+  const labelPaid = lang === 'ar' ? 'مدفوع' : 'Paid';
+  const labelTag = lang === 'ar' ? 'وضع العرض' : 'Demo';
+
   return (
     <header className="topbar">
       <button type="button" className="icon-btn" onClick={onToggleSidebar} aria-label="Toggle sidebar">
@@ -630,6 +686,31 @@ function Topbar({
       <div className="topbar-title">
         <b>{lang === 'ar' ? T.conv1Title : 'Osool'}</b>
       </div>
+      {showDemoToggle && (
+        <div
+          className="demo-toggle"
+          role="group"
+          aria-label={lang === 'ar' ? 'تبديل وضع العرض' : 'Demo path toggle'}
+        >
+          <span className="demo-toggle-label">{labelTag}</span>
+          <button
+            type="button"
+            className={tier === 'free' ? 'active' : ''}
+            onClick={() => onSwitchTier('free')}
+            aria-pressed={tier === 'free'}
+          >
+            {labelFree}
+          </button>
+          <button
+            type="button"
+            className={tier === 'paid' ? 'active' : ''}
+            onClick={() => onSwitchTier('paid')}
+            aria-pressed={tier === 'paid'}
+          >
+            {labelPaid}
+          </button>
+        </div>
+      )}
       <button type="button" className="icon-btn" onClick={onToggleLang} aria-label="Language">
         <IconGlobe size={16} />
       </button>
@@ -651,7 +732,17 @@ function UserBubble({ content }: { content: string }) {
 
 /* ─── AI bubble ─────────────────────────────────────────────────── */
 
-function AiBubble({ msg }: { msg: AiMessage }) {
+function AiBubble({
+  msg,
+  tier,
+  lang,
+}: {
+  msg: AiMessage;
+  tier: DemoTier;
+  lang: Lang;
+}) {
+  const isFree = tier === 'free';
+
   return (
     <div className="msg-ai">
       <div className="ai-label">
@@ -671,7 +762,13 @@ function AiBubble({ msg }: { msg: AiMessage }) {
         {msg.properties && msg.properties.length > 0 && (
           <>
             <div className="section-label">
-              {msg.properties.length === 1 ? 'Reference comp' : `Top ${msg.properties.length} picks`}
+              {msg.properties.length === 1
+                ? lang === 'ar'
+                  ? 'صفقة مرجعية'
+                  : 'Reference comp'
+                : lang === 'ar'
+                  ? `أفضل ${msg.properties.length}`
+                  : `Top ${msg.properties.length} picks`}
             </div>
             <div className="carousel-shell">
               <div className="carousel">
@@ -681,7 +778,11 @@ function AiBubble({ msg }: { msg: AiMessage }) {
                       className="prop-img"
                       style={
                         p.imageUrl
-                          ? { backgroundImage: `url(${p.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          ? {
+                              backgroundImage: `url(${p.imageUrl})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                            }
                           : undefined
                       }
                     />
@@ -689,8 +790,10 @@ function AiBubble({ msg }: { msg: AiMessage }) {
                       <h5 className="prop-name">{p.name}</h5>
                       <div className="prop-loc">{p.loc}</div>
                       <div className="prop-row1">
-                        <span className="prop-price">{p.price}</span>
-                        {p.score !== null && (
+                        <span className={'prop-price' + (isFree ? ' masked' : '')}>
+                          {isFree ? (lang === 'ar' ? '— مغلق —' : '— locked —') : p.price}
+                        </span>
+                        {p.score !== null && !isFree && (
                           <span className="prop-score-num">
                             <b>{Math.round(p.score)}</b>
                           </span>
@@ -709,6 +812,40 @@ function AiBubble({ msg }: { msg: AiMessage }) {
               </div>
             </div>
           </>
+        )}
+
+        {isFree && msg.properties && msg.properties.length > 0 && (
+          <div className="upgrade-cta">
+            <div className="upgrade-cta-head">
+              <span className="upgrade-cta-eyebrow">
+                {lang === 'ar' ? 'افتح الإجابة الكاملة' : 'Unlock the full answer'}
+              </span>
+            </div>
+            <h4>
+              {lang === 'ar'
+                ? 'كل صفقة، كل أداة، كل سيناريو'
+                : 'See every comp, every lever, every script.'}
+            </h4>
+            <p>
+              {lang === 'ar'
+                ? 'الباقة المدفوعة تفتح جدول الصفقات الكامل، أدوات التفاوض (خصم الكاش، عمولة السمسار، فارق التقسيط)، ونص مساومة ثنائي اللغة.'
+                : 'Premium opens the full comp table, negotiation levers (cash discount, broker commission, payment-plan markup), and a bilingual haggle script you can use straight with the seller.'}
+            </p>
+            <div className="upgrade-cta-skus">
+              <button type="button" className="upgrade-sku">
+                <span className="upgrade-sku-price">EGP 99</span>
+                <span className="upgrade-sku-label">
+                  {lang === 'ar' ? 'هذا الكمبوند · 30 يوم' : 'This compound · 30 days'}
+                </span>
+              </button>
+              <button type="button" className="upgrade-sku">
+                <span className="upgrade-sku-price">EGP 299/mo</span>
+                <span className="upgrade-sku-label">
+                  {lang === 'ar' ? 'كل الكمبوندات · بلا حدود' : 'All compounds · unlimited'}
+                </span>
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
