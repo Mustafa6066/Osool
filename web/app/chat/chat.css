@@ -429,99 +429,101 @@
   gap: 12px;
   min-width: max-content;
 }
+/* Minimal text-first property card. No image header, no badges, no gradient.
+   Editorial type: serif italic compound name, generous whitespace, hairline
+   borders. Score is a tiny inline marker, not a /100 badge. */
 .osool-chat-root .prop-card {
   scroll-snap-align: start;
-  width: 260px;
+  width: 248px;
   flex-shrink: 0;
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  overflow: hidden;
   cursor: pointer;
   transition: border-color .15s ease, transform .15s ease;
+  display: flex;
+  flex-direction: column;
+  text-align: start;
 }
 .osool-chat-root .prop-card:hover {
-  border-color: var(--muted-2);
+  border-color: var(--text);
   transform: translateY(-1px);
 }
+/* Keep the .prop-img element hidden — most listings don't carry curated art,
+   and the gradient placeholders made every card look like a stock template. */
 .osool-chat-root .prop-img {
-  height: 120px;
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, #0F766E, #10B981);
+  display: none;
 }
-.osool-chat-root .prop-card:nth-child(2) .prop-img { background: linear-gradient(135deg, #1E40AF, #60A5FA); }
-.osool-chat-root .prop-card:nth-child(3) .prop-img { background: linear-gradient(135deg, #7C2D12, #F97316); }
-.osool-chat-root .prop-badges {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  display: flex;
-  gap: 5px;
-}
+.osool-chat-root .prop-badges,
 .osool-chat-root .badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-2);
-  font-size: 10.5px;
-  font-weight: 500;
-  border: 1px solid var(--border);
+  display: none;
 }
-.osool-chat-root .badge.accent {
-  color: var(--accent);
-  border-color: var(--accent-mid);
+.osool-chat-root .prop-body {
+  padding: 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.osool-chat-root .prop-body { padding: 12px 14px 14px; }
 .osool-chat-root .prop-name {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-style: italic;
+  font-weight: 400;
   color: var(--text);
-  line-height: 1.35;
-  margin: 0 0 2px;
-  letter-spacing: -0.005em;
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: -0.015em;
 }
 .osool-chat-root .prop-loc {
   font-size: 11.5px;
   color: var(--muted);
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  margin: 0 0 4px;
+  letter-spacing: 0.005em;
 }
 .osool-chat-root .prop-row1 {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
+  padding-top: 4px;
 }
-.osool-chat-root .prop-price { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
-.osool-chat-root .prop-score-num {
-  font-size: 12.5px;
+.osool-chat-root .prop-price {
+  font-size: 17px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text);
+  font-feature-settings: "tnum";
+}
+.osool-chat-root .prop-score-num {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
   display: inline-flex;
   align-items: baseline;
-  gap: 2px;
+  gap: 0;
 }
+.osool-chat-root .prop-score-num b {
+  color: var(--text);
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+/* Slash + 100 hidden — keeping the score as a single number is enough signal
+   for a minimal card; full /100 belongs on a detail page. */
 .osool-chat-root .prop-score-num::after {
-  content: "/100";
-  font-size: 10px;
-  color: var(--muted);
-  font-weight: 400;
+  content: none;
 }
 .osool-chat-root .prop-specs {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-size: 11.5px;
   color: var(--muted);
-  margin-top: 10px;
+  margin: 0;
   padding-top: 10px;
   border-top: 1px solid var(--border-2);
+}
+.osool-chat-root .prop-specs span {
+  letter-spacing: 0.005em;
 }
 
 /* ═════════ EMPTY STATE ═════════ */

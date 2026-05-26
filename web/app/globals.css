@@ -22,14 +22,19 @@
   --font-sans: var(--font-inter), "Manrope", var(--font-cairo), system-ui, sans-serif;
   --font-display: var(--font-inter), "Manrope", var(--font-cairo), sans-serif;
 
-  /* Primary — Emerald AI Signature */
-  --color-primary: #10B981;
-  --color-primary-light: #34D399;
-  --color-primary-dark: #059669;
+  /* Primary — Osool terracotta (was emerald in v7 "Liquid Glass").
+     Remapping here makes every tailwind class that uses bg-primary,
+     text-primary, ring-primary, etc. pick up the editorial accent
+     without rewriting page-level utility classes. */
+  --color-primary: #C96442;
+  --color-primary-light: #D88060;
+  --color-primary-dark: #B5512F;
 
-  /* Secondary — Deep Teal */
-  --color-teal-accent: #0D9488;
-  --color-secondary: #0D9488;
+  /* Secondary — also remapped to the editorial accent for visual coherence.
+     Pages using bg-secondary / text-secondary now read as the same warm
+     terracotta family. */
+  --color-teal-accent: #C96442;
+  --color-secondary: #B5512F;
 
   /* NOTE: Spacing tokens live in :root (NOT @theme) to avoid
      poisoning Tailwind's max-w-sm/md/lg/xl/2xl/3xl utilities. */

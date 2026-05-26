@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 import { useAuth } from '@/contexts/AuthContext';
 import api, { getUserChatSessions, type ChatSession } from '@/lib/api';
@@ -237,8 +238,26 @@ function toPropertyCard(raw: unknown, lang: Lang): PropertyCard | null {
 /* ─── Top-level page ────────────────────────────────────────────── */
 
 export default function ChatPage() {
+  // useSearchParams() needs a Suspense boundary so Next.js can bail
+  // prerendering at the boundary without blocking static export of the rest.
+  return (
+    <Suspense fallback={null}>
+      <ChatPageBody />
+    </Suspense>
+  );
+}
+
+function ChatPageBody() {
   const { user, isAuthenticated } = useAuth();
   const isAdmin = isAdminUser(user);
+
+  // The landing-page hero composer routes here with ?q=<prompt>. Picking
+  // it up via useSearchParams() and auto-sending it (once the session is
+  // ready) means a prompt typed on the landing doesn't get lost when the
+  // user lands on /chat.
+  const searchParams = useSearchParams();
+  const incomingQuery = (searchParams?.get('q') ?? '').trim();
+  const [incomingQueryFired, setIncomingQueryFired] = useState(false);
 
   const [lang, setLang] = useState<Lang>('en');
   const [theme, setTheme] = useState<Theme>('light');
@@ -455,6 +474,28 @@ export default function ChatPage() {
     // Remove the dangling pending bubble.
     setMessages((m) => (m.length && (m[m.length - 1] as AiMessage).pending ? m.slice(0, -1) : m));
   };
+
+  // Auto-send a prompt that arrived via ?q= (from the landing hero composer).
+  // Waits until the session is resolved, the user hasn't already typed
+  // something in this thread, and we haven't fired this incoming prompt
+  // before. Scrubs the param from the URL so a refresh doesn't double-send.
+  useEffect(() => {
+    if (!incomingQuery || incomingQueryFired) return;
+    if (!sessionId || historyLoading) return;
+    if (messages.length > 0) return;
+
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('q');
+        window.history.replaceState({}, '', url.toString());
+      } catch {
+        /* ignore */
+      }
+    }
+    setIncomingQueryFired(true);
+    send(incomingQuery);
+  }, [incomingQuery, incomingQueryFired, sessionId, historyLoading, messages.length, send]);
 
   const startNewConversation = () => {
     const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
