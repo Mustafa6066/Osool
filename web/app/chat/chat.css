@@ -180,7 +180,12 @@
   white-space: nowrap;
   overflow: hidden;
   font-family: inherit;
+  text-decoration: none;
 }
+.osool-chat-root a.sb-item { color: var(--text-2); }
+.osool-chat-root a.sb-item:hover { color: var(--text); text-decoration: none; }
+.osool-chat-root .sb-item > svg { flex-shrink: 0; opacity: 0.6; }
+.osool-chat-root .sb-item:hover > svg { opacity: 0.95; }
 .osool-chat-root .sb-item:hover { background: var(--surface-2); color: var(--text); }
 .osool-chat-root .sb-item.active { background: var(--surface-2); color: var(--text); }
 .osool-chat-root .sb-item-text {

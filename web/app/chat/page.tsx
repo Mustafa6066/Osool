@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import Link from 'next/link';
 
 import { useAuth } from '@/contexts/AuthContext';
 import api, { sendChatMessage, getUserChatSessions, type ChatSession } from '@/lib/api';
@@ -16,6 +17,7 @@ import {
   IconCalc,
   IconChevDown,
   IconGlobe,
+  IconHome,
   IconMessageSquare,
   IconMic,
   IconMoon,
@@ -31,6 +33,13 @@ import {
   IconTrending,
   IconUp,
 } from '@/components/osool/Icons';
+
+/**
+ * Storage key specific to the new chat surface. Distinct from
+ * STORAGE_KEYS.MESSAGES (used by /chat-legacy/AgentInterface) so the two
+ * surfaces don't bleed messages into each other across reloads.
+ */
+const CHAT_V2_MESSAGES_KEY = 'osool_chat_v2_messages';
 
 import './chat.css';
 
@@ -277,21 +286,31 @@ export default function ChatPage() {
 
   // Resolve session id + restore in-flight messages from sessionStorage on mount.
   // We do NOT fetch /api/chat/history/{sid} here — the backend 404s on sessions
-  // it has never seen (which is the normal case for a freshly minted ID), and
-  // querying it produces noise in the console. History from the server is
-  // only loaded when the user explicitly clicks a session in the sidebar.
+  // it has never seen (which is the normal case for a freshly minted ID).
+  // History from the server is only loaded when the user explicitly clicks
+  // a session in the sidebar.
+  //
+  // We also clear any stale data under the legacy MESSAGES key so old
+  // /chat-legacy messages don't bleed into this surface.
   useEffect(() => {
     const sid = getOrCreateSessionId();
     setSessionId(sid);
-    const restored = loadFromStorage<Message[]>(STORAGE_KEYS.MESSAGES, []);
+    if (typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.removeItem(STORAGE_KEYS.MESSAGES);
+      } catch {
+        /* ignore */
+      }
+    }
+    const restored = loadFromStorage<Message[]>(CHAT_V2_MESSAGES_KEY, []);
     if (Array.isArray(restored) && restored.length > 0) setMessages(restored);
     setHistoryLoading(false);
   }, []);
 
-  // Persist messages to sessionStorage so a tab reload mid-conversation
-  // doesn't lose context. Same key the legacy AgentInterface used.
+  // Persist messages to sessionStorage under the v2 key so a tab reload
+  // mid-conversation doesn't lose context.
   useEffect(() => {
-    if (messages.length > 0) saveToStorage(STORAGE_KEYS.MESSAGES, messages);
+    if (messages.length > 0) saveToStorage(CHAT_V2_MESSAGES_KEY, messages);
   }, [messages]);
 
   // Fetch user's session list for the sidebar (auth only).
@@ -395,6 +414,7 @@ export default function ChatPage() {
     const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, newId);
     sessionStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    sessionStorage.removeItem(CHAT_V2_MESSAGES_KEY);
     setSessionId(newId);
     setMessages([]);
   };
@@ -573,6 +593,36 @@ function Sidebar({
       )}
 
       <div className="sb-scroll">
+        {!collapsed && (
+          <>
+            <div className="sb-group-label">{lang === 'ar' ? 'تصفح' : 'Navigate'}</div>
+            <Link href="/" className="sb-item">
+              <IconHome size={14} />
+              <span className="sb-item-text">{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
+            </Link>
+            <Link href="/explore" className="sb-item">
+              <IconSearch size={14} />
+              <span className="sb-item-text">{lang === 'ar' ? 'استكشف' : 'Explore'}</span>
+            </Link>
+            <Link href="/market" className="sb-item">
+              <IconTrending size={14} />
+              <span className="sb-item-text">{lang === 'ar' ? 'السوق' : 'Market'}</span>
+            </Link>
+            <Link href="/properties" className="sb-item">
+              <IconShield size={14} />
+              <span className="sb-item-text">
+                {lang === 'ar' ? 'العقارات' : 'Properties'}
+              </span>
+            </Link>
+            <Link href="/dashboard" className="sb-item">
+              <IconSpark size={14} />
+              <span className="sb-item-text">
+                {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
+              </span>
+            </Link>
+          </>
+        )}
+
         {!collapsed && filtered.length === 0 && (
           <div className="sb-group-label" style={{ opacity: 0.7 }}>
             {T.noConvs}
