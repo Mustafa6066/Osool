@@ -27,7 +27,7 @@ export default async function ProjectsPage() {
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400"><T k="projPage.badge" /></div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]"><T k="projPage.badge" /></div>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight"><T k="projPage.heroTitle" /></h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)]">
               <T k="projPage.heroDesc" />
@@ -52,7 +52,7 @@ export default async function ProjectsPage() {
               <Link
                 key={p.id}
                 href={`/projects/${p.slug}`}
-                className="group block rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-500/40"
+                className="group block rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--osool-accent-mid)]"
               >
                 {(() => {
                   const brief = projectBrief(p);
@@ -60,7 +60,7 @@ export default async function ProjectsPage() {
                     <>
                       <div className="flex flex-wrap items-center gap-2">
                         {p.project_type && (
-                          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
+                          <span className="rounded-full bg-[var(--osool-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--osool-accent)]">
                             {p.project_type}
                           </span>
                         )}
@@ -71,7 +71,7 @@ export default async function ProjectsPage() {
                         )}
                       </div>
 
-                      <h2 className="mt-4 text-2xl font-semibold tracking-tight group-hover:text-emerald-500 transition-colors">{p.name}</h2>
+                      <h2 className="mt-4 text-2xl font-semibold tracking-tight group-hover:text-[var(--osool-accent)] transition-colors">{p.name}</h2>
                       {p.name_ar && <p className="mt-1 text-sm text-[var(--color-text-muted)]" dir="rtl">{p.name_ar}</p>}
 
                       <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">

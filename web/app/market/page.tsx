@@ -34,6 +34,7 @@ import {
   type SizeBracket,
   type PriceBracket,
 } from '@/lib/marketStats';
+import { OSOOL_CHART } from '@/lib/chart-theme';
 
 function formatSqmPrice(value: number): string {
   return `${Math.round(value).toLocaleString('en-EG')} EGP/m²`;
@@ -63,13 +64,13 @@ function isMarketRawProperty(value: unknown): value is MarketRawProperty {
 /** Demand badge based on unit count relative to market */
 function getDemandTag(count: number, maxCount: number): { labelKey: string; color: string } {
   const ratio = count / maxCount;
-  if (ratio >= 0.6) return { labelKey: 'market.demandHigh', color: 'bg-emerald-500/15 text-emerald-500' };
+  if (ratio >= 0.6) return { labelKey: 'market.demandHigh', color: 'bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]' };
   if (ratio >= 0.3) return { labelKey: 'market.demandMedium', color: 'bg-amber-500/15 text-amber-500' };
   return { labelKey: 'market.demandEmerging', color: 'bg-slate-500/15 text-slate-400' };
 }
 
 /** SVG sparkline — deterministic pseudo-trend from avg meter price */
-function MiniSparkline({ avg, color = '#10b981' }: { avg: number; color?: string }) {
+function MiniSparkline({ avg, color = OSOOL_CHART.primary }: { avg: number; color?: string }) {
   // Generate a deterministic 7-point sparkline from the avg value
   const seed = Math.round(avg);
   const points: number[] = [];
@@ -101,7 +102,7 @@ function MiniSparkline({ avg, color = '#10b981' }: { avg: number; color?: string
 /** Payment narrative interpretation */
 function getPaymentNarrative(avgDown: number): { icon: string; labelKey: string; descKey: string; color: string } {
   if (avgDown < 15)
-    return { icon: '🎯', labelKey: 'market.paymentLowBarrier', descKey: 'market.paymentLowBarrierDesc', color: 'text-emerald-500' };
+    return { icon: '🎯', labelKey: 'market.paymentLowBarrier', descKey: 'market.paymentLowBarrierDesc', color: 'text-[var(--osool-accent)]' };
   if (avgDown < 30)
     return { icon: '⚖️', labelKey: 'market.paymentBalanced', descKey: 'market.paymentBalancedDesc', color: 'text-blue-400' };
   return { icon: '💰', labelKey: 'market.paymentCapitalHeavy', descKey: 'market.paymentCapitalHeavyDesc', color: 'text-amber-400' };
@@ -270,7 +271,7 @@ export default function MarketStatisticsPage() {
             className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start"
           >
             <motion.div variants={fadeUp} custom={0} className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-md p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
                 <BarChart3 className="h-3.5 w-3.5" />
                 {t('market.heroBadge')}
               </div>
@@ -289,7 +290,7 @@ export default function MarketStatisticsPage() {
                 </Link>
                 <Link
                   href="/chat?prompt=Summarize the current Egyptian property market for my budget, risk profile, and preferred timeline.&autostart=1"
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)] transition-all hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgba(16,185,129,0.06)]"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)] transition-all hover:border-[var(--osool-accent-mid)] hover:shadow-[0_8px_30px_rgba(201,100,66,0.06)]"
                 >
                   <Sparkles className="h-4 w-4" />
                   {t('market.askAdvisor')}
@@ -303,10 +304,10 @@ export default function MarketStatisticsPage() {
                 { label: t('market.kpiAvgTicket'), value: loading ? '…' : stats ? formatCompactPrice(stats.summary.avg_price) : '\u2014', desc: t('market.kpiAvgTicketDesc'), icon: Wallet },
                 { label: t('market.kpiSupplyLeader'), value: loading ? '…' : supplySignal?.name || '\u2014', desc: loading ? `${t('common.loading')}` : supplySignal ? `${supplySignal.count} ${t('market.kpiActiveUnits')}` : '\u2014', icon: MapPin },
               ].map((card, i) => (
-                <motion.div key={card.label} variants={fadeUp} custom={i + 1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 transition-all hover:border-emerald-500/20">
+                <motion.div key={card.label} variants={fadeUp} custom={i + 1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 transition-all hover:border-[var(--osool-accent-mid)]">
                   <div className="flex items-center justify-between">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{card.label}</div>
-                    <card.icon className="h-4 w-4 text-emerald-500" />
+                    <card.icon className="h-4 w-4 text-[var(--osool-accent)]" />
                   </div>
                   <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{card.value}</div>
                   <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{card.desc}</div>
@@ -317,7 +318,7 @@ export default function MarketStatisticsPage() {
 
           {loading ? (
             <div className="flex items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-24">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
             </div>
           ) : error || !stats ? (
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
@@ -342,7 +343,7 @@ export default function MarketStatisticsPage() {
                       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.areaLeadersLabel')}</div>
                       <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.areaLeadersTitle')}</h2>
                     </div>
-                    <TrendingUp className="h-5 w-5 text-emerald-500" />
+                    <TrendingUp className="h-5 w-5 text-[var(--osool-accent)]" />
                   </div>
 
                   <div className="mt-6 space-y-3">
@@ -352,11 +353,11 @@ export default function MarketStatisticsPage() {
                         <motion.div key={area.name} variants={fadeUp} custom={index}>
                           <Link
                             href={`/chat?prompt=Show me the best value properties in ${encodeURIComponent(area.name)}&autostart=1`}
-                            className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-all hover:border-emerald-500/20 hover:shadow-[0_4px_20px_rgba(16,185,129,0.05)] group"
+                            className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-all hover:border-[var(--osool-accent-mid)] hover:shadow-[0_4px_20px_rgba(201,100,66,0.05)] group"
                           >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--osool-accent)] transition-colors">
                                   {index + 1}. {area.name}
                                 </span>
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${demand.color}`}>{t(demand.labelKey)}</span>
@@ -368,7 +369,7 @@ export default function MarketStatisticsPage() {
                             </div>
                             <div className="flex items-center gap-3">
                               <MiniSparkline avg={area.avg} />
-                              <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatSqmPrice(area.avg)}</div>
+                              <div className="text-sm font-semibold text-[var(--osool-accent)] whitespace-nowrap">{formatSqmPrice(area.avg)}</div>
                             </div>
                           </Link>
                         </motion.div>
@@ -381,7 +382,7 @@ export default function MarketStatisticsPage() {
                   <motion.div variants={fadeUp} custom={0} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5">
                     <div className="flex items-center justify-between">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.statsFloor')}</div>
-                      <TrendingDown className="h-4 w-4 text-emerald-500" />
+                      <TrendingDown className="h-4 w-4 text-[var(--osool-accent)]" />
                     </div>
                     <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{formatSqmPrice(stats.summary.min_meter)}</div>
                     <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('market.statsFloorDesc')}</div>
@@ -389,14 +390,14 @@ export default function MarketStatisticsPage() {
                   <motion.div variants={fadeUp} custom={1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5">
                     <div className="flex items-center justify-between">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.statsCeiling')}</div>
-                      <TrendingUp className="h-4 w-4 text-emerald-500" />
+                      <TrendingUp className="h-4 w-4 text-[var(--osool-accent)]" />
                     </div>
                     <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{formatSqmPrice(stats.summary.max_meter)}</div>
                     <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('market.statsCeilingDesc')}</div>
                   </motion.div>
                   <motion.div variants={fadeUp} custom={2} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 sm:col-span-2">
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-emerald-500" />
+                      <MapPin className="h-4 w-4 text-[var(--osool-accent)]" />
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{stats.summary.areas_count} areas {'\u00B7'} {stats.summary.developers_count} developers {'\u00B7'} {stats.summary.types_count} types</div>
                     </div>
                     <div className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">
@@ -420,7 +421,7 @@ export default function MarketStatisticsPage() {
                       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.developersLabel')}</div>
                       <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.developersTitle')}</h2>
                     </div>
-                    <Building2 className="h-5 w-5 text-emerald-500" />
+                    <Building2 className="h-5 w-5 text-[var(--osool-accent)]" />
                   </div>
 
                   <div className="mt-6 grid gap-3">
@@ -428,12 +429,12 @@ export default function MarketStatisticsPage() {
                       <motion.div key={developer.name} variants={fadeUp} custom={i}>
                         <Link
                           href={`/chat?prompt=Audit the delivery history and pricing of ${encodeURIComponent(developer.name)}&autostart=1`}
-                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 block transition-all hover:border-emerald-500/20 hover:shadow-[0_4px_20px_rgba(16,185,129,0.05)] group"
+                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 block transition-all hover:border-[var(--osool-accent-mid)] hover:shadow-[0_4px_20px_rgba(201,100,66,0.05)] group"
                         >
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{developer.name}</span>
+                                <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--osool-accent)] transition-colors">{developer.name}</span>
                                 {i === 0 && <Crown className="w-3.5 h-3.5 text-amber-400" />}
                               </div>
                               <div className="mt-1 flex items-center gap-2">
@@ -442,8 +443,8 @@ export default function MarketStatisticsPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-3">
-                              <MiniSparkline avg={developer.avg} color="#6366f1" />
-                              <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatSqmPrice(developer.avg)}</div>
+                              <MiniSparkline avg={developer.avg} color={OSOOL_CHART.secondary} />
+                              <div className="text-sm font-semibold text-[var(--osool-accent)] whitespace-nowrap">{formatSqmPrice(developer.avg)}</div>
                             </div>
                           </div>
                         </Link>
@@ -458,7 +459,7 @@ export default function MarketStatisticsPage() {
                       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.affordabilityLabel')}</div>
                       <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.affordabilityTitle')}</h2>
                     </div>
-                    <Wallet className="h-5 w-5 text-emerald-500" />
+                    <Wallet className="h-5 w-5 text-[var(--osool-accent)]" />
                   </div>
 
                   <div className="mt-6 space-y-4">
@@ -470,7 +471,7 @@ export default function MarketStatisticsPage() {
                         </div>
                         <div className="h-2.5 overflow-hidden rounded-full bg-[var(--color-background)]">
                           <motion.div
-                            className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
+                            className="h-full rounded-full bg-gradient-to-r from-[var(--osool-accent)] to-[var(--osool-accent-dark)]"
                             initial={{ width: 0 }}
                             whileInView={{ width: `${Math.min(100, (bracket.count / Math.max(...priceBrackets.map((item) => item.count), 1)) * 100)}%` }}
                             viewport={{ once: true }}
@@ -497,17 +498,17 @@ export default function MarketStatisticsPage() {
                       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.compoundsLabel')}</div>
                       <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.compoundsTitle')}</h2>
                     </div>
-                    <Home className="h-5 w-5 text-emerald-500" />
+                    <Home className="h-5 w-5 text-[var(--osool-accent)]" />
                   </div>
                   <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {topCompounds.map((c, i) => (
                       <motion.div key={c.compound} variants={fadeUp} custom={i}>
                         <Link
                           href={`/chat?prompt=Tell me about ${encodeURIComponent(c.compound)} by ${encodeURIComponent(c.developer)} in ${encodeURIComponent(c.location)}&autostart=1`}
-                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 block transition-all hover:border-emerald-500/20 group"
+                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 block transition-all hover:border-[var(--osool-accent-mid)] group"
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">{c.compound}</span>
+                            <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--osool-accent)] transition-colors truncate">{c.compound}</span>
                             {i === 0 && <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
                           </div>
                           <div className="mt-1.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
@@ -517,7 +518,7 @@ export default function MarketStatisticsPage() {
                           </div>
                           <div className="mt-3 flex items-center justify-between">
                             <span className="text-xs font-medium text-[var(--color-text-secondary)]">{c.count} {t('common.units')}</span>
-                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{formatSqmPrice(c.avg_meter)}</span>
+                            <span className="text-xs font-semibold text-[var(--osool-accent)]">{formatSqmPrice(c.avg_meter)}</span>
                           </div>
                         </Link>
                       </motion.div>
@@ -542,7 +543,7 @@ export default function MarketStatisticsPage() {
                         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.bedroomsLabel')}</div>
                         <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.bedroomsTitle')}</h2>
                       </div>
-                      <Bed className="h-5 w-5 text-emerald-500" />
+                      <Bed className="h-5 w-5 text-[var(--osool-accent)]" />
                     </div>
                     <div className="mt-5 flex flex-wrap gap-2">
                       {roomBreakdown.map((r) => (
@@ -551,7 +552,7 @@ export default function MarketStatisticsPage() {
                           onClick={() => setActiveRoom(activeRoom === r.rooms ? null : r.rooms)}
                           className={`px-3.5 py-2 rounded-full text-xs font-semibold border transition-all ${
                             activeRoom === r.rooms
-                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                              ? 'bg-[var(--osool-accent-soft)] border-[var(--osool-accent-mid)] text-[var(--osool-accent)]'
                               : 'bg-[var(--color-background)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-muted)]'
                           }`}
                         >
@@ -574,7 +575,7 @@ export default function MarketStatisticsPage() {
                           </div>
                           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
                             <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsPerSqm')}</div>
-                            <div className="mt-1 text-lg font-semibold text-emerald-600 dark:text-emerald-400">{formatSqmPrice(active.avgMeter)}</div>
+                            <div className="mt-1 text-lg font-semibold text-[var(--osool-accent)]">{formatSqmPrice(active.avgMeter)}</div>
                           </div>
                         </div>
                       );
@@ -590,7 +591,7 @@ export default function MarketStatisticsPage() {
                         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.sizeLabel')}</div>
                         <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.sizeTitle')}</h2>
                       </div>
-                      <Maximize2 className="h-5 w-5 text-emerald-500" />
+                      <Maximize2 className="h-5 w-5 text-[var(--osool-accent)]" />
                     </div>
                     <div className="mt-6 space-y-3">
                       {sizeBrackets.map((sb, i) => {
@@ -603,7 +604,7 @@ export default function MarketStatisticsPage() {
                             </div>
                             <div className="h-2 overflow-hidden rounded-full bg-[var(--color-background)]">
                               <motion.div
-                                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                                className="h-full rounded-full bg-gradient-to-r from-[var(--osool-nile)] to-[var(--osool-nile-dark)]"
                                 initial={{ width: 0 }}
                                 whileInView={{ width: `${Math.min(100, (sb.count / maxCount) * 100)}%` }}
                                 viewport={{ once: true }}
@@ -632,7 +633,7 @@ export default function MarketStatisticsPage() {
                       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentPulseLabel')}</div>
                       <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.paymentPulseTitle')}</h2>
                     </div>
-                    <CreditCard className="h-5 w-5 text-emerald-500" />
+                    <CreditCard className="h-5 w-5 text-[var(--osool-accent)]" />
                   </div>
 
                   <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -662,8 +663,8 @@ export default function MarketStatisticsPage() {
                   )}
                 </div>
 
-                <div className="rounded-[32px] border border-[var(--color-border)] bg-emerald-500/10 p-6">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+                <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--osool-accent-soft)] p-6">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
                     <Clock3 className="h-4 w-4" />
                     {t('market.nextMoveLabel')}
                   </div>
@@ -674,21 +675,21 @@ export default function MarketStatisticsPage() {
                   <div className="mt-6 space-y-3">
                     <Link
                       href="/areas"
-                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
+                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-[var(--osool-accent-mid)] hover:bg-[var(--color-surface)]"
                     >
                       <span>{t('market.nextMoveCompare')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveFilterYield')}</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/developers"
-                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
+                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-[var(--osool-accent-mid)] hover:bg-[var(--color-surface)]"
                     >
                       <span>{t('market.nextMoveAudit')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveCheckDelivery')}</span></span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/properties"
-                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
+                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-[var(--osool-accent-mid)] hover:bg-[var(--color-surface)]"
                     >
                       <span>{t('market.nextMoveReview')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveBrowse')}</span></span>
                       <ArrowRight className="h-4 w-4" />

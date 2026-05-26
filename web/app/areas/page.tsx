@@ -40,9 +40,9 @@ export default async function AreasPage() {
             <Link
               key={area.id}
               href={`/areas/${area.slug}`}
-              className="group block p-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/50 transition-all"
+              className="group block p-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--osool-accent-mid)] transition-all"
             >
-              <h2 className="text-lg font-semibold mb-1 group-hover:text-emerald-500 transition-colors">
+              <h2 className="text-lg font-semibold mb-1 group-hover:text-[var(--osool-accent)] transition-colors">
                 {area.name}
               </h2>
               <p className="text-sm text-[var(--color-text-muted)] mb-4">
@@ -51,19 +51,19 @@ export default async function AreasPage() {
 
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <div className="text-lg font-bold text-emerald-500">
+                  <div className="text-lg font-bold text-[var(--osool-accent)]">
                     {area.avg_price_per_meter ? `${(area.avg_price_per_meter / 1000).toFixed(0)}K` : '—'}
                   </div>
                   <div className="text-[10px] text-[var(--color-text-muted)]">EGP/sqm</div>
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-blue-500">
+                  <div className="text-lg font-bold text-[var(--osool-nile)]">
                     {area.price_growth_ytd ? `${area.price_growth_ytd}%` : '—'}
                   </div>
                   <div className="text-[10px] text-[var(--color-text-muted)]">YoY Growth</div>
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-purple-500">
+                  <div className="text-lg font-bold text-[var(--osool-ochre)]">
                     {area.rental_yield ? `${area.rental_yield}%` : '—'}
                   </div>
                   <div className="text-[10px] text-[var(--color-text-muted)]">Rental Yield</div>

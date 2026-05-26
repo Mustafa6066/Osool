@@ -28,7 +28,7 @@ export default function ExplorePage() {
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.04)] sm:p-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
               <Compass className="h-3.5 w-3.5" />
               {t('explore.badge')}
             </div>
@@ -44,9 +44,9 @@ export default function ExplorePage() {
                 const Icon = path.icon;
                 return (
                   <Link key={path.href} href={path.href}
-                    className="group rounded-[28px] border border-[var(--color-border)] bg-[var(--color-background)] p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-500/40 hover:shadow-[0_20px_40px_rgba(0,0,0,0.04)]">
+                    className="group rounded-[28px] border border-[var(--color-border)] bg-[var(--color-background)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--osool-accent-mid)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.04)]">
                     <div className="flex items-center justify-between gap-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]">
                         <Icon className="h-5 w-5" />
                       </div>
                       <ArrowRight className={`h-4 w-4 text-[var(--color-text-muted)] transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
@@ -62,7 +62,7 @@ export default function ExplorePage() {
           <div className="space-y-4">
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-7">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                <BarChart3 className="h-4 w-4 text-emerald-500" />
+                <BarChart3 className="h-4 w-4 text-[var(--osool-accent)]" />
                 {t('explore.pulseTitle')}
               </div>
               <div className="mt-4 space-y-4">
@@ -76,8 +76,8 @@ export default function ExplorePage() {
               </div>
             </div>
 
-            <div className="rounded-[32px] border border-[var(--color-border)] bg-gradient-to-br from-emerald-500/12 via-transparent to-transparent p-7">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+            <div className="rounded-[32px] border border-[var(--color-border)] bg-gradient-to-br from-[var(--osool-accent-soft)] via-transparent to-transparent p-7">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
                 {t('explore.fastPath')}
               </div>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight">{t('explore.fastPathTitle')}</h2>

@@ -28,7 +28,7 @@ function Stat({ label, value, suffix }: { label: string; value?: number | null; 
   if (!value) return null;
   return (
     <div className="text-center p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]">
-      <div className="text-2xl font-bold text-emerald-500">
+      <div className="text-2xl font-bold text-[var(--osool-accent)]">
         {value}{suffix}
       </div>
       <div className="text-xs text-[var(--color-text-muted)] mt-1">{label}</div>
@@ -58,7 +58,7 @@ export default async function DeveloperPage({ params }: Props) {
       <div className="max-w-5xl mx-auto px-4 py-16">
         {/* Header */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
-          <Link href="/developers" className="hover:text-emerald-500">Developers</Link>
+          <Link href="/developers" className="hover:text-[var(--osool-accent)]">Developers</Link>
           <span className="mx-2">/</span>
           <span>{dev.name}</span>
         </nav>
@@ -89,11 +89,11 @@ export default async function DeveloperPage({ params }: Props) {
             <Link
               key={p.id}
               href={`/projects/${p.slug}`}
-              className="block p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/50 transition-all"
+              className="block p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--osool-accent-mid)] transition-all"
             >
               <h3 className="font-semibold mb-1">{p.name}</h3>
               <div className="flex flex-wrap gap-2 text-xs text-[var(--color-text-muted)]">
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">
+                <span className="px-2 py-0.5 rounded-full bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]">
                   {p.project_type}
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600">
@@ -113,11 +113,11 @@ export default async function DeveloperPage({ params }: Props) {
         </div>
 
         {/* Compare CTA */}
-        <div className="mt-12 p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-center">
+        <div className="mt-12 p-6 rounded-2xl bg-[var(--osool-accent-soft)] border border-[var(--osool-accent-mid)] text-center">
           <h3 className="text-lg font-semibold mb-2">Compare {dev.name} with other developers</h3>
           <Link
             href="/developers"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--osool-accent)] text-white rounded-lg hover:bg-[var(--osool-accent-dark)] transition-colors text-sm"
           >
             View All Developers →
           </Link>

@@ -59,7 +59,7 @@ function getDefaultLauncherPosition(): Position {
 function DockIconButton({ icon: Icon, active = false, label, onClick, href }: IconButtonProps) {
   const className = `group shrink-0 flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
     active
-      ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+      ? 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]'
       : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
   }`;
 

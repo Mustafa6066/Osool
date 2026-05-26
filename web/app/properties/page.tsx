@@ -474,7 +474,7 @@ function PropertiesPageInner() {
             <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
                 <section className="grid gap-6 lg:grid-cols-[1fr_0.95fr] lg:items-start">
                     <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
                             <ShieldCheck className="h-3.5 w-3.5" />
                             Property decision board
                         </div>
@@ -503,7 +503,7 @@ function PropertiesPageInner() {
                         <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                             <div className="flex items-center justify-between">
                                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Average ticket</div>
-                                <Wallet className="h-4 w-4 text-emerald-500" />
+                                <Wallet className="h-4 w-4 text-[var(--osool-accent)]" />
                             </div>
                             <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">
                                 {boardSummary.averagePrice ? formatCompactPrice(boardSummary.averagePrice) : '—'}
@@ -513,7 +513,7 @@ function PropertiesPageInner() {
                         <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                             <div className="flex items-center justify-between">
                                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Plan-friendly units</div>
-                                <Sparkles className="h-4 w-4 text-emerald-500" />
+                                <Sparkles className="h-4 w-4 text-[var(--osool-accent)]" />
                             </div>
                             <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{boardSummary.planFriendlyCount}</div>
                             <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Units currently showing lower-entry payment structures.</div>
@@ -521,7 +521,7 @@ function PropertiesPageInner() {
                         <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                             <div className="flex items-center justify-between">
                                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Strongest signal</div>
-                                <Building2 className="h-4 w-4 text-emerald-500" />
+                                <Building2 className="h-4 w-4 text-[var(--osool-accent)]" />
                             </div>
                             <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)]">{boardSummary.signalLabel}</div>
                             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{boardSummary.signalBody}</div>
@@ -618,7 +618,7 @@ function PropertiesPageInner() {
                                                 initial={{ opacity: 0, y: 8 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ duration: 0.25, delay: index * 0.03 }}
-                                                className="group relative flex items-stretch gap-0 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/30 transition-colors"
+                                                className="group relative flex items-stretch gap-0 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--osool-accent-mid)] transition-colors"
                                             >
                                                 {/* Thumbnail */}
                                                 <Link href={`/property/${property.id}`} className="relative w-44 flex-shrink-0 overflow-hidden sm:w-52">
@@ -630,7 +630,7 @@ function PropertiesPageInner() {
                                                     />
                                                     <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10" />
                                                     {/* Availability dot */}
-                                                    <span className="absolute left-3 top-3 rounded-full bg-emerald-500/90 px-2.5 py-0.5 text-[10px] font-semibold text-white">
+                                                    <span className="absolute left-3 top-3 rounded-full bg-[var(--osool-accent)] px-2.5 py-0.5 text-[10px] font-semibold text-white">
                                                         {brief.confidenceLabel}
                                                     </span>
                                                 </Link>
@@ -683,7 +683,7 @@ function PropertiesPageInner() {
                                                 <div className="flex flex-shrink-0 flex-col items-end justify-center gap-2 border-l border-[var(--color-border)]/50 px-5 py-4">
                                                     <div className="text-lg font-bold text-[var(--color-text-primary)] whitespace-nowrap">{formatPrice(property.price)}</div>
                                                     {property.aiEstimate > 0 && (
-                                                        <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">{brief.priceSignal}</span>
+                                                        <span className="text-[11px] font-medium text-[var(--osool-accent)]">{brief.priceSignal}</span>
                                                     )}
                                                     <div className="flex items-center gap-1.5 mt-1">
                                                         <Link
@@ -695,13 +695,13 @@ function PropertiesPageInner() {
                                                         </Link>
                                                         <button
                                                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(property.id); }}
-                                                            className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${favoriteIds.has(property.id) ? 'border-red-300 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30' : 'border-[var(--color-border)] hover:border-emerald-500/40'}`}
+                                                            className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${favoriteIds.has(property.id) ? 'border-red-300 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30' : 'border-[var(--color-border)] hover:border-[var(--osool-accent-mid)]'}`}
                                                         >
                                                             <Heart className={`h-3.5 w-3.5 ${favoriteIds.has(property.id) ? 'fill-red-500 text-red-500' : 'text-[var(--color-text-muted)]'}`} />
                                                         </button>
                                                         <Link
                                                             href={`/chat?prompt=${encodeURIComponent(advisorPrompt)}&autostart=1`}
-                                                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-border)] hover:border-emerald-500/40 transition-colors"
+                                                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-border)] hover:border-[var(--osool-accent-mid)] transition-colors"
                                                             title="Ask advisor"
                                                         >
                                                             <Sparkles className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />

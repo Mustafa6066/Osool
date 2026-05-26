@@ -63,7 +63,7 @@ export default function FavoritesPage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
                     <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start mb-8">
                         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-7">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
                                 <Heart className="h-3.5 w-3.5" />
                                 {t('favorites.badge')}
                             </div>
@@ -100,8 +100,8 @@ export default function FavoritesPage() {
                     {!loading && favorites.length === 0 && (
                         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-12">
                             <div className="mx-auto max-w-lg text-center">
-                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-500/10">
-                                    <Heart className="h-10 w-10 text-emerald-500" />
+                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--osool-accent-soft)]">
+                                    <Heart className="h-10 w-10 text-[var(--osool-accent)]" />
                                 </div>
                                 <h2 className="mt-6 text-2xl font-semibold text-[var(--color-text-primary)]">
                                     {t('favorites.emptyTitle')}
@@ -113,15 +113,15 @@ export default function FavoritesPage() {
                                 {/* Mini-roadmap */}
                                 <div className="mx-auto mt-8 grid max-w-sm gap-3 text-left">
                                     <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">1</div>
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--osool-accent-soft)] text-xs font-bold text-[var(--osool-accent)]">1</div>
                                         <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep1')} <span className="font-medium text-[var(--color-text-primary)]">{t('favorites.emptyStep1Example')}</span></div>
                                     </div>
                                     <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">2</div>
-                                        <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep2Intro')} <Heart className="inline h-3.5 w-3.5 text-emerald-500" /> {t('favorites.emptyStep2Desc')}</div>
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--osool-accent-soft)] text-xs font-bold text-[var(--osool-accent)]">2</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep2Intro')} <Heart className="inline h-3.5 w-3.5 text-[var(--osool-accent)]" /> {t('favorites.emptyStep2Desc')}</div>
                                     </div>
                                     <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">3</div>
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--osool-accent-soft)] text-xs font-bold text-[var(--osool-accent)]">3</div>
                                         <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep3')}</div>
                                     </div>
                                 </div>
@@ -136,7 +136,7 @@ export default function FavoritesPage() {
                                     </Link>
                                     <Link
                                         href="/explore"
-                                        className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-6 py-3 text-sm font-medium hover:border-emerald-500/40"
+                                        className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-6 py-3 text-sm font-medium hover:border-[var(--osool-accent-mid)]"
                                     >
                                         {t('favorites.emptyExploreMarket')}
                                     </Link>
@@ -158,7 +158,7 @@ export default function FavoritesPage() {
                             {favorites.map((fav) => (
                                 <div
                                     key={fav.id}
-                                    className="group bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[28px] overflow-hidden hover:border-emerald-500/30 hover:shadow-lg transition-all duration-300"
+                                    className="group bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[28px] overflow-hidden hover:border-[var(--osool-accent-mid)] hover:shadow-lg transition-all duration-300"
                                 >
                                     {/* Image */}
                                     <div className="relative aspect-[16/10] bg-[var(--color-surface-elevated)] overflow-hidden">
@@ -193,7 +193,7 @@ export default function FavoritesPage() {
                                             {(fav.price / 1000000).toFixed(1)}M EGP
                                         </div>
 
-                                        <div className="absolute top-3 left-3 rounded-full bg-emerald-500/90 px-3 py-1 text-[11px] font-semibold text-white">
+                                        <div className="absolute top-3 left-3 rounded-full bg-[var(--osool-accent)] px-3 py-1 text-[11px] font-semibold text-white">
                                             {t('favorites.propertyBadge')}
                                         </div>
                                     </div>
@@ -227,7 +227,7 @@ export default function FavoritesPage() {
                                                 </span>
                                             )}
                                             {fav.price_per_sqm > 0 && (
-                                                <span className="text-emerald-500 font-medium">
+                                                <span className="text-[var(--osool-accent)] font-medium">
                                                     {fav.price_per_sqm.toLocaleString()}/m²
                                                 </span>
                                             )}
@@ -243,7 +243,7 @@ export default function FavoritesPage() {
                                             </Link>
                                             <Link
                                                 href={`/property/${fav.property_id}`}
-                                                className="flex items-center justify-center rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] hover:border-emerald-500/40"
+                                                className="flex items-center justify-center rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] hover:border-[var(--osool-accent-mid)]"
                                             >
                                                 {t('favorites.openDetail')}
                                             </Link>

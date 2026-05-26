@@ -64,9 +64,9 @@ export default async function ProjectDetailPage({ params }: Props) {
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6 flex items-center gap-1">
-          <Link href="/" className="hover:text-emerald-500"><T k="comparePage.home" /></Link>
+          <Link href="/" className="hover:text-[var(--osool-accent)]"><T k="comparePage.home" /></Link>
           <span>/</span>
-          <Link href="/projects" className="hover:text-emerald-500"><T k="projPage.badge" /></Link>
+          <Link href="/projects" className="hover:text-[var(--osool-accent)]"><T k="projPage.badge" /></Link>
           <span>/</span>
           <span className="text-[var(--color-text-primary)]">{project.name}</span>
         </nav>
@@ -76,7 +76,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
           <div className="flex items-center gap-2 mb-2">
             {project.project_type && (
-              <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/10 text-emerald-600 font-medium">
+              <span className="px-2 py-0.5 text-xs rounded-full bg-[var(--osool-accent-soft)] text-[var(--osool-accent)] font-medium">
                 {project.project_type}
               </span>
             )}
@@ -97,12 +97,12 @@ export default async function ProjectDetailPage({ params }: Props) {
           {/* Developer & Area links */}
           <div className="flex flex-wrap gap-4 mt-3 text-sm text-[var(--color-text-secondary)]">
             {developer && (
-              <Link href={`/developers/${(developer as { slug: string }).slug}`} className="hover:text-emerald-500">
+              <Link href={`/developers/${(developer as { slug: string }).slug}`} className="hover:text-[var(--osool-accent)]">
                 🏗️ {(developer as { name: string }).name}
               </Link>
             )}
             {area && (
-              <Link href={`/areas/${(area as { slug: string }).slug}`} className="hover:text-emerald-500">
+              <Link href={`/areas/${(area as { slug: string }).slug}`} className="hover:text-[var(--osool-accent)]">
                 📍 {(area as { name: string }).name}
               </Link>
             )}
@@ -220,7 +220,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         )}
 
         {/* CTA */}
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
+        <div className="bg-[var(--osool-accent-soft)] border border-[var(--osool-accent-mid)] rounded-2xl p-6 text-center">
           <h3 className="text-lg font-semibold mb-2">
             <T k="projPage.interested" /> {project.name}?
           </h3>
@@ -229,7 +229,7 @@ export default async function ProjectDetailPage({ params }: Props) {
           </p>
           <Link
             href="/chat"
-            className="inline-block px-6 py-2 bg-emerald-500 text-white rounded-full font-medium hover:bg-emerald-600 transition-colors"
+            className="inline-block px-6 py-2 bg-[var(--osool-accent)] text-white rounded-full font-medium hover:bg-[var(--osool-accent-dark)] transition-colors"
           >
             <T k="projPage.chatWithAI" />
           </Link>

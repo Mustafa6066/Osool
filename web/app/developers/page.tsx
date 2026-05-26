@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 function ScoreBar({ value, label }: { value: number; label: string }) {
   const color =
-    value >= 85 ? 'bg-emerald-500' : value >= 70 ? 'bg-yellow-500' : 'bg-red-400';
+    value >= 85 ? 'bg-[var(--osool-accent)]' : value >= 70 ? 'bg-[var(--osool-ochre)]' : 'bg-red-400';
   return (
     <div className="flex items-center gap-2 text-xs">
       <span className="w-20 text-[var(--color-text-muted)]">{label}</span>
@@ -54,13 +54,13 @@ export default async function DevelopersPage() {
             <Link
               key={dev.id}
               href={`/developers/${dev.slug}`}
-              className="group block p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/50 transition-all"
+              className="group block p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--osool-accent-mid)] transition-all"
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-emerald-500">#{i + 1}</span>
-                    <h2 className="text-lg font-semibold group-hover:text-emerald-500 transition-colors">
+                    <span className="text-xs font-bold text-[var(--osool-accent)]">#{i + 1}</span>
+                    <h2 className="text-lg font-semibold group-hover:text-[var(--osool-accent)] transition-colors">
                       {dev.name}
                     </h2>
                   </div>
@@ -68,7 +68,7 @@ export default async function DevelopersPage() {
                     Est. {dev.founded_year} · {dev.total_projects} projects
                   </p>
                 </div>
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 font-bold text-lg">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--osool-accent-soft)] text-[var(--osool-accent)] font-bold text-lg">
                   {dev.overall_score}
                 </div>
               </div>

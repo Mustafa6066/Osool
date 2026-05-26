@@ -126,3 +126,7 @@ logs.txt
 .vercel
 .env*.local
 .gstack/
+
+# Coverage and logs (catch-all)
+.coverage
+*.log

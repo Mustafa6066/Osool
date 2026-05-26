@@ -39,7 +39,7 @@ export default async function AreaPage({ params }: Props) {
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)] pb-20 md:pb-0">
       <div className="max-w-5xl mx-auto px-4 py-10">
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
-          <Link href="/areas" className="hover:text-emerald-500">Areas</Link>
+          <Link href="/areas" className="hover:text-[var(--osool-accent)]">Areas</Link>
           <span className="mx-2">/</span>
           <span>{area.name}</span>
         </nav>
@@ -55,7 +55,7 @@ export default async function AreaPage({ params }: Props) {
         {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-            <div className="text-2xl font-bold text-emerald-500">
+            <div className="text-2xl font-bold text-[var(--osool-accent)]">
               {area.avg_price_per_meter ? `${(area.avg_price_per_meter / 1000).toFixed(0)}K` : '—'}
             </div>
             <div className="text-xs text-[var(--color-text-muted)]">EGP/sqm</div>
@@ -114,11 +114,11 @@ export default async function AreaPage({ params }: Props) {
             <Link
               key={p.id}
               href={`/projects/${p.slug}`}
-              className="block p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/50 transition-all"
+              className="block p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--osool-accent-mid)] transition-all"
             >
               <h3 className="font-semibold mb-1">{p.name}</h3>
               <div className="flex flex-wrap gap-2 text-xs text-[var(--color-text-muted)]">
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">
+                <span className="px-2 py-0.5 rounded-full bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]">
                   {p.project_type}
                 </span>
                 {p.expected_delivery && <span>Delivery {new Date(p.expected_delivery).getFullYear()}</span>}
