@@ -8,7 +8,7 @@ Includes pgvector support for AI semantic search (when available).
 
 import enum
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, JSON
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, JSON, Numeric, BigInteger
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -92,7 +92,18 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String)
     full_name: Mapped[str] = mapped_column(String)
     role: Mapped[str] = mapped_column(String, default="investor") # investor, admin
-    subscription_tier: Mapped[str] = mapped_column(String(20), default="free")  # free, premium, admin
+    subscription_tier: Mapped[str] = mapped_column(String(20), default="free")
+    # v1 values: 'free', 'single_compound', 'premium_monthly', 'premium' (legacy), 'admin'.
+    # See app.services.subscription_engine.resolve_access for the resolution semantics.
+
+    # v1 tiered-access columns (migration 032)
+    subscription_expires_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    subscription_auto_renew: Mapped[bool] = mapped_column(Boolean, default=False)
+    unlocked_compound_id: Mapped[str] = mapped_column(String(256), nullable=True)
+    # ^ stores the canonical compound name (matches Property.compound) for the
+    # EGP 99 single-compound SKU. Compared case-insensitively at access time.
 
     # Phase 2: KYC Fields (kept for database compatibility, not used in Phase 1)
     national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
@@ -238,6 +249,56 @@ class Transaction(Base):
 
     user = relationship("User", back_populates="transactions")
     property = relationship("Property")
+
+
+class NegotiationConstant(Base):
+    """
+    Admin-editable Egyptian negotiation multipliers.
+
+    Scoping: global default + per-developer/area/compound overrides.
+    The negotiation_engine resolves with most-specific-wins precedence
+    (compound > area > developer > global). Values may be ranges
+    (value_min != value_max) for levers like cash_discount_pct.
+    """
+    __tablename__ = "negotiation_constants"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    constant_key: Mapped[str] = mapped_column(String(64))
+    scope_type: Mapped[str] = mapped_column(String(16), default="global")  # global|developer|area|compound
+    scope_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    value_min: Mapped[float] = mapped_column(Numeric(12, 6))
+    value_max: Mapped[float] = mapped_column(Numeric(12, 6))
+    unit: Mapped[str] = mapped_column(String(16))  # pct|units|months|egp|flag
+    notes: Mapped[str] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class PropertyPriceSnapshot(Base):
+    """
+    Unit-level price history.
+
+    Inserted by the scraper ingestion pipeline whenever a property's
+    price changes (compare new price vs. last snapshot before insert).
+    Powers the 6-month trend chart (premium feature) and back-tests
+    the negotiation_constants calibration.
+    """
+    __tablename__ = "property_price_snapshot"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    property_id: Mapped[int] = mapped_column(
+        ForeignKey("properties.id", ondelete="CASCADE"), index=True
+    )
+    observed_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    price_egp: Mapped[float] = mapped_column(Numeric(14, 2))
+    price_per_sqm: Mapped[float] = mapped_column(Numeric(12, 2), nullable=True)
+    developer_price: Mapped[float] = mapped_column(Numeric(14, 2), nullable=True)
+    resale_price: Mapped[float] = mapped_column(Numeric(14, 2), nullable=True)
+    source: Mapped[str] = mapped_column(String(64))  # 'nawy' | 'aqarmap' | 'manual' | 'admin'
+    scrape_run_id: Mapped[str] = mapped_column(String(64), nullable=True)
 
 
 class PaymobWebhookEvent(Base):
