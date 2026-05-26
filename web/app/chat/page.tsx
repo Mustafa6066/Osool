@@ -5,7 +5,12 @@ import axios from 'axios';
 
 import { useAuth } from '@/contexts/AuthContext';
 import api, { sendChatMessage, getUserChatSessions, type ChatSession } from '@/lib/api';
-import { getOrCreateSessionId, STORAGE_KEYS } from '@/lib/chat-utils';
+import {
+  getOrCreateSessionId,
+  loadFromStorage,
+  saveToStorage,
+  STORAGE_KEYS,
+} from '@/lib/chat-utils';
 import OsoolAvatar from '@/components/osool/OsoolAvatar';
 import {
   IconCalc,
@@ -227,53 +232,24 @@ export default function ChatPage() {
     };
   }, [theme, lang]);
 
-  // Resolve session id on mount, then load history for it.
+  // Resolve session id + restore in-flight messages from sessionStorage on mount.
+  // We do NOT fetch /api/chat/history/{sid} here — the backend 404s on sessions
+  // it has never seen (which is the normal case for a freshly minted ID), and
+  // querying it produces noise in the console. History from the server is
+  // only loaded when the user explicitly clicks a session in the sidebar.
   useEffect(() => {
     const sid = getOrCreateSessionId();
     setSessionId(sid);
+    const restored = loadFromStorage<Message[]>(STORAGE_KEYS.MESSAGES, []);
+    if (Array.isArray(restored) && restored.length > 0) setMessages(restored);
+    setHistoryLoading(false);
+  }, []);
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.get(`/api/chat/history/${sid}`);
-        if (cancelled) return;
-        const history: HistoryMessage[] = Array.isArray(res.data)
-          ? res.data
-          : (res.data?.messages ?? []);
-        const mapped = history
-          .map((m): Message | null => {
-            if (m.role === 'user') return { role: 'user', content: m.content };
-            if (m.role === 'assistant' || m.role === 'ai') {
-              let properties: PropertyCard[] | undefined;
-              if (m.properties_json) {
-                try {
-                  const arr = JSON.parse(m.properties_json) as unknown;
-                  if (Array.isArray(arr)) {
-                    properties = arr
-                      .map((p) => toPropertyCard(p, lang))
-                      .filter((p): p is PropertyCard => p !== null);
-                    if (properties.length === 0) properties = undefined;
-                  }
-                } catch {
-                  /* ignore malformed history payload */
-                }
-              }
-              return { role: 'ai', text: m.content, properties };
-            }
-            return null;
-          })
-          .filter((m): m is Message => m !== null);
-        setMessages(mapped);
-      } catch {
-        /* Anonymous users get a 404 here — that's fine, we just start fresh. */
-      } finally {
-        if (!cancelled) setHistoryLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Persist messages to sessionStorage so a tab reload mid-conversation
+  // doesn't lose context. Same key the legacy AgentInterface used.
+  useEffect(() => {
+    if (messages.length > 0) saveToStorage(STORAGE_KEYS.MESSAGES, messages);
+  }, [messages]);
 
   // Fetch user's session list for the sidebar (auth only).
   useEffect(() => {
