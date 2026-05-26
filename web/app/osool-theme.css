@@ -964,6 +964,68 @@ body {
   .osool-nav-inner { gap: 12px; }
 }
 
+/* ───── MOBILE — iOS + Android ──────────────────────────────── */
+
+/* Always-on: kill the blue tap flash on every interactive element. */
+.osool-themed button,
+.osool-themed a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 740px) {
+  /* Respect notch + home indicator on devices that report them. */
+  .osool-themed .osool-container {
+    padding-inline-start: max(20px, env(safe-area-inset-left));
+    padding-inline-end: max(20px, env(safe-area-inset-right));
+  }
+  .osool-themed .osool-nav-inner {
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+  .osool-themed .osool-cta-final,
+  .osool-themed .osool-footer {
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
+  }
+
+  /* iOS won't auto-zoom an input ≥16px on focus. The hero composer's
+     placeholder + composed text both grew here so mobile typing doesn't
+     trigger the layout-shifting page zoom. */
+  .osool-composer input {
+    font-size: 16px;
+  }
+
+  /* Touch targets — bump the hero composer's circular send button + chip
+     pills so they pass the 44pt iOS HIG minimum. */
+  .osool-composer .osool-send {
+    width: 44px;
+    height: 44px;
+  }
+  .osool-composer .osool-ico {
+    width: 40px;
+    height: 40px;
+  }
+  .osool-hero-chip {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+  .osool-btn {
+    min-height: 44px;
+  }
+  .osool-btn.osool-btn-sm {
+    min-height: 36px;
+  }
+
+  /* Tighter hero copy on phones */
+  .osool-hero p {
+    font-size: 15.5px;
+    margin: 18px auto 26px;
+  }
+  .osool-hero-trust {
+    margin-top: 36px;
+    font-size: 11px;
+    gap: 10px 18px;
+  }
+}
+
 /* ───── SELECTION ────────────────────────────────────────────── */
 
 .osool-themed ::selection {

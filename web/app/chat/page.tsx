@@ -242,7 +242,13 @@ export default function ChatPage() {
 
   const [lang, setLang] = useState<Lang>('en');
   const [theme, setTheme] = useState<Theme>('light');
-  const [collapsed, setCollapsed] = useState(false);
+  // Sidebar defaults to closed on mobile so the chat surface uses the
+  // full viewport; the topbar's panel button opens the drawer.
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 760px)').matches;
+  });
+  const [isMobile, setIsMobile] = useState(false);
   const [tier, setTier] = useState<DemoTier>('paid');
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -273,6 +279,17 @@ export default function ChatPage() {
     if (next === tier) return;
     setTier(next);
   };
+
+  // Track viewport so we can auto-close the drawer on nav clicks below the
+  // mobile breakpoint without affecting desktop behaviour.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 760px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener?.('change', update);
+    return () => mq.removeEventListener?.('change', update);
+  }, []);
 
   // Apply theme/dir at the document level so reveals + ambient pick it up.
   useEffect(() => {
@@ -496,10 +513,27 @@ export default function ChatPage() {
           lang={lang}
           sessions={sessions}
           currentSessionId={sessionId}
-          onSelectSession={selectSession}
-          onNewConversation={startNewConversation}
+          isMobile={isMobile}
+          onSelectSession={(sid) => {
+            selectSession(sid);
+            if (isMobile) setCollapsed(true);
+          }}
+          onNewConversation={() => {
+            startNewConversation();
+            if (isMobile) setCollapsed(true);
+          }}
+          onCloseDrawer={() => setCollapsed(true)}
           user={user ? { name: user.full_name ?? user.email ?? T.guest, email: user.email ?? '' } : null}
         />
+        {/* Mobile backdrop — only visible/interactive below 760px (CSS) */}
+        {!collapsed && (
+          <button
+            type="button"
+            className="sidebar-backdrop"
+            onClick={() => setCollapsed(true)}
+            aria-label={lang === 'ar' ? 'إغلاق القائمة' : 'Close menu'}
+          />
+        )}
         <main className="main">
           <Topbar
             T={T}
@@ -558,8 +592,10 @@ interface SidebarProps {
   lang: Lang;
   sessions: ChatSession[];
   currentSessionId: string;
+  isMobile: boolean;
   onSelectSession: (sid: string) => void;
   onNewConversation: () => void;
+  onCloseDrawer: () => void;
   user: { name: string; email: string } | null;
 }
 
@@ -569,10 +605,15 @@ function Sidebar({
   lang,
   sessions,
   currentSessionId,
+  isMobile,
   onSelectSession,
   onNewConversation,
+  onCloseDrawer,
   user,
 }: SidebarProps) {
+  const closeOnMobile = () => {
+    if (isMobile) onCloseDrawer();
+  };
   const [q, setQ] = useState('');
 
   const grouped = useMemo(() => groupSessions(sessions, lang), [sessions, lang]);
@@ -619,25 +660,25 @@ function Sidebar({
         {!collapsed && (
           <>
             <div className="sb-group-label">{lang === 'ar' ? 'تصفح' : 'Navigate'}</div>
-            <Link href="/" className="sb-item">
+            <Link href="/" className="sb-item" onClick={closeOnMobile}>
               <IconHome size={14} />
               <span className="sb-item-text">{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
             </Link>
-            <Link href="/explore" className="sb-item">
+            <Link href="/explore" className="sb-item" onClick={closeOnMobile}>
               <IconSearch size={14} />
               <span className="sb-item-text">{lang === 'ar' ? 'استكشف' : 'Explore'}</span>
             </Link>
-            <Link href="/market" className="sb-item">
+            <Link href="/market" className="sb-item" onClick={closeOnMobile}>
               <IconTrending size={14} />
               <span className="sb-item-text">{lang === 'ar' ? 'السوق' : 'Market'}</span>
             </Link>
-            <Link href="/properties" className="sb-item">
+            <Link href="/properties" className="sb-item" onClick={closeOnMobile}>
               <IconShield size={14} />
               <span className="sb-item-text">
                 {lang === 'ar' ? 'العقارات' : 'Properties'}
               </span>
             </Link>
-            <Link href="/dashboard" className="sb-item">
+            <Link href="/dashboard" className="sb-item" onClick={closeOnMobile}>
               <IconSpark size={14} />
               <span className="sb-item-text">
                 {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}

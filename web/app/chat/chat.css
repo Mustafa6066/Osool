@@ -938,3 +938,232 @@
   font-weight: 400;
   letter-spacing: 0;
 }
+
+/* ═════════ MOBILE ═════════
+   iOS Safari + Android Chrome compatibility:
+   - Sidebar becomes a slide-out drawer (≤760px)
+   - Backdrop tap closes it
+   - Composer + topbar respect env(safe-area-inset-*)
+   - Inputs use 16px font-size to prevent iOS auto-zoom on focus
+   - Touch targets bumped to 44pt minimum (iOS HIG)
+   - -webkit-tap-highlight-color removed to suppress the blue flash
+   - -webkit-overflow-scrolling: touch on every scroll container
+*/
+
+.osool-chat-root .sidebar-backdrop {
+  display: none;
+}
+
+/* Always-on iOS smoothness + tap-highlight cleanup */
+.osool-chat-root button,
+.osool-chat-root a {
+  -webkit-tap-highlight-color: transparent;
+}
+.osool-chat-root .thread,
+.osool-chat-root .sb-scroll,
+.osool-chat-root .carousel-shell {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 760px) {
+  /* Single-column shell — sidebar overlays instead of taking grid space */
+  .osool-chat-root .shell {
+    grid-template-columns: 1fr;
+  }
+  .osool-chat-root .shell[data-sidebar="collapsed"] {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sidebar = slide-out drawer */
+  .osool-chat-root .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 296px;
+    max-width: 86vw;
+    z-index: 100;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    transition: transform 0.24s cubic-bezier(.16, 1, .3, 1);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.18);
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-inline-start: max(10px, env(safe-area-inset-left));
+  }
+  [dir="rtl"] .osool-chat-root .sidebar {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+    border-right: none;
+    border-left: 1px solid var(--border);
+    padding-inline-start: 10px;
+    padding-inline-end: max(10px, env(safe-area-inset-right));
+  }
+  .osool-chat-root .shell[data-sidebar="expanded"] .sidebar {
+    transform: translateX(0);
+  }
+  /* Force collapsed-state sidebar to hide entirely (vs. the 56px desktop rail) */
+  .osool-chat-root .shell[data-sidebar="collapsed"] .sidebar {
+    transform: translateX(-100%);
+  }
+  [dir="rtl"] .osool-chat-root .shell[data-sidebar="collapsed"] .sidebar {
+    transform: translateX(100%);
+  }
+
+  /* Backdrop — only visible when drawer open */
+  .osool-chat-root .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 99;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .osool-chat-root .shell[data-sidebar="expanded"] ~ .sidebar-backdrop,
+  .osool-chat-root .shell[data-sidebar="expanded"] .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Topbar — respect notch, bigger tap targets */
+  .osool-chat-root .topbar {
+    padding: 10px 14px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-inline-start: max(14px, env(safe-area-inset-left));
+    padding-inline-end: max(14px, env(safe-area-inset-right));
+    gap: 6px;
+  }
+  .osool-chat-root .topbar-title b {
+    font-size: 13.5px;
+  }
+  .osool-chat-root .icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  /* Demo toggle compresses but stays visible */
+  .osool-chat-root .demo-toggle {
+    padding: 2px;
+  }
+  .osool-chat-root .demo-toggle-label {
+    display: none; /* save horizontal space */
+  }
+  .osool-chat-root .demo-toggle button {
+    padding: 6px 10px;
+    font-size: 11.5px;
+  }
+
+  /* Thread density */
+  .osool-chat-root .thread-inner {
+    padding: 0 16px 20px;
+  }
+  .osool-chat-root .msg-user,
+  .osool-chat-root .ai-body {
+    font-size: 15px;
+  }
+
+  /* Composer — bigger touch targets, iOS-safe bottom inset, 16px font */
+  .osool-chat-root .composer {
+    padding: 4px 14px 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-inline-start: max(14px, env(safe-area-inset-left));
+    padding-inline-end: max(14px, env(safe-area-inset-right));
+  }
+  .osool-chat-root .composer-box {
+    padding: 6px 6px 6px 12px;
+    border-radius: 20px;
+  }
+  .osool-chat-root .composer-attach,
+  .osool-chat-root .composer-tool,
+  .osool-chat-root .voice-orb,
+  .osool-chat-root .send-btn {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+  .osool-chat-root textarea.composer-input {
+    font-size: 16px; /* iOS won't zoom on focus when ≥16px */
+    padding: 10px 4px;
+    line-height: 1.4;
+  }
+
+  /* Empty state — single column suggestions, tighter density */
+  .osool-chat-root .empty {
+    padding: 20px 18px 16px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  .osool-chat-root .empty h1 {
+    font-size: 26px;
+    line-height: 1.15;
+  }
+  .osool-chat-root .empty p {
+    font-size: 13.5px;
+    max-width: 100%;
+  }
+  .osool-chat-root .suggestions {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .osool-chat-root .suggestion {
+    padding: 11px 14px;
+  }
+
+  /* Property carousel — slightly narrower cards for one-handed scroll */
+  .osool-chat-root .prop-card {
+    width: 220px;
+  }
+  .osool-chat-root .carousel-shell {
+    margin: 0 -16px;
+    padding: 4px 16px 6px;
+  }
+
+  /* Summary strip stacks vertically on narrow phones */
+  .osool-chat-root .summary-strip {
+    flex-direction: column;
+  }
+  .osool-chat-root .summary-cell {
+    border-inline-start: 0;
+    border-top: 1px solid var(--border-2);
+  }
+  .osool-chat-root .summary-cell:first-child {
+    border-top: 0;
+  }
+
+  /* Upgrade CTA */
+  .osool-chat-root .upgrade-cta {
+    padding: 14px 14px;
+  }
+  .osool-chat-root .upgrade-cta-skus {
+    grid-template-columns: 1fr;
+  }
+
+  /* Scroll-to-bottom button — clear of the safe-area bottom */
+  .osool-chat-root .scroll-bottom {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Very narrow phones (≤375px) — clip a bit more aggressively */
+@media (max-width: 380px) {
+  .osool-chat-root .topbar {
+    gap: 4px;
+  }
+  .osool-chat-root .topbar-title b {
+    font-size: 13px;
+  }
+  /* Hide share + theme on the topbar to make room for demo toggle + lang */
+  .osool-chat-root .topbar > .icon-btn:last-child {
+    display: none;
+  }
+}
