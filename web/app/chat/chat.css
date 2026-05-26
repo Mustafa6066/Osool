@@ -793,3 +793,143 @@
 @media (prefers-reduced-motion: reduce) {
   .osool-chat-root .empty-mark { animation: none; }
 }
+
+/* ═════════ ADMIN DEMO TOGGLE ═════════ */
+.osool-chat-root .demo-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.osool-chat-root .demo-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.osool-chat-root .demo-toggle-label::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.osool-chat-root .demo-toggle button {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.osool-chat-root .demo-toggle button:hover { color: var(--text); }
+.osool-chat-root .demo-toggle button.active {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* ═════════ UPGRADE CTA INSIDE AI BUBBLE ═════════ */
+.osool-chat-root .upgrade-cta {
+  margin: 14px 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background:
+    radial-gradient(80% 100% at 0% 0%, var(--accent-soft) 0%, transparent 60%),
+    var(--surface);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.osool-chat-root .upgrade-cta-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.osool-chat-root .upgrade-cta-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-mid);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.osool-chat-root .upgrade-cta h4 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: var(--text);
+}
+.osool-chat-root .upgrade-cta p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.osool-chat-root .upgrade-cta-skus {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (max-width: 540px) {
+  .osool-chat-root .upgrade-cta-skus { grid-template-columns: 1fr; }
+}
+.osool-chat-root .upgrade-sku {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  transition: border-color .12s ease, transform .12s ease;
+}
+.osool-chat-root .upgrade-sku:hover {
+  border-color: var(--text);
+  transform: translateY(-1px);
+}
+.osool-chat-root .upgrade-sku-price {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  font-feature-settings: "tnum";
+}
+.osool-chat-root .upgrade-sku-label {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* Masked card price (free path single comp) */
+.osool-chat-root .prop-price.masked {
+  color: var(--muted-2);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}

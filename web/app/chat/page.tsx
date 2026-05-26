@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { useAuth } from '@/contexts/AuthContext';
 import OsoolAvatar from '@/components/osool/OsoolAvatar';
 import {
   IconCalc,
@@ -26,17 +27,25 @@ import {
 import './chat.css';
 
 /**
- * Osool Chat — visual prototype.
+ * Osool Chat — visual prototype, now live at /chat.
  * Port of Osool Chat.html from the claude.ai/design handoff.
  *
- * Live at /chat-preview. The production chat at /chat (AgentInterface)
- * stays untouched until the team decides to swap. This route is a
- * stand-alone interactive design — sample messages, fake AI reply on send.
+ * Demo tiers:
+ *   - "paid"  → full reply: thinking + summary strip + property carousel + levers
+ *   - "free"  → fair-range teaser + one masked comp + upgrade CTA
+ *
+ * Admins see a topbar segmented toggle to flip between the two for live demos.
+ * The chosen tier is persisted in localStorage under "osool.demoTier".
+ * Non-admin users see the paid demo by default (legacy behaviour preserved).
+ *
+ * The production AgentInterface lives at /chat-legacy until backend wiring
+ * for this new surface lands.
  */
 
 type Lang = 'en' | 'ar';
 type Theme = 'light' | 'dark';
-type DemoState = 'empty' | 'results';
+type DemoTier = 'free' | 'paid';
+const DEMO_TIER_KEY = 'osool.demoTier';
 
 type Translations = {
   newConv: string;
@@ -133,15 +142,24 @@ interface PropertyCard {
   name: string;
   loc: string;
   price: string;
-  score: number;
+  score: number | '—';
   beds: number;
   size: string;
   badges?: Array<{ label: string; tone?: 'accent' | 'default' }>;
+  /** When true, the closing price renders as a masked italic placeholder. */
+  priceMasked?: boolean;
 }
 
 interface ThinkingStep {
   title: string;
   meta: string;
+}
+
+interface UpgradeCTA {
+  eyebrow: string;
+  headline: string;
+  body: string;
+  skus: Array<{ price: string; label: string }>;
 }
 
 interface AiMessage {
@@ -151,14 +169,17 @@ interface AiMessage {
   body?: React.ReactNode;
   summary?: SummaryCell[];
   properties?: PropertyCard[];
+  /** Free-tier ammunition card. Render at the end of the AI bubble. */
+  upgradeCTA?: UpgradeCTA;
   pending?: boolean;
 }
 
 type Message = UserMessage | AiMessage;
 
-/* ─── Sample seed conversation ──────────────────────────────────── */
+/* ─── Sample seed conversations ─────────────────────────────────── */
 
-const SEED_MESSAGES: Message[] = [
+/** Paid demo — full AI reply with thinking, summary strip, lever-rich carousel. */
+const PAID_SEED_MESSAGES: Message[] = [
   {
     role: 'user',
     content:
@@ -223,19 +244,105 @@ const SEED_MESSAGES: Message[] = [
   },
 ];
 
+/** Free demo — fair-range teaser, ONE masked comp, upgrade CTA. */
+const FREE_SEED_MESSAGES: Message[] = [
+  {
+    role: 'user',
+    content:
+      "I'm looking at apartments in New Cairo around 8M EGP — 3+ bedrooms. What's the smart pick right now?",
+  },
+  {
+    role: 'ai',
+    thinkingHeader: 'Quick scan · 1.1s',
+    thinking: [
+      { title: 'Pull registry-verified listings in New Cairo, 7-9M EGP band', meta: '412 candidates' },
+      { title: 'Filter to 3+ BR + compute fair-value range', meta: '12 final' },
+    ],
+    body: (
+      <>
+        <p>
+          The honest answer for <strong>New Cairo, 3BR, ~8M EGP</strong>: the fair range is{' '}
+          <strong>6.9M – 9.2M EGP</strong>, median <strong>8.1M</strong>. You&apos;re inside the
+          band, but the picks worth offering on differ by 200-400K once you account for delivery
+          track record and resale liquidity.
+        </p>
+        <p>
+          One reference comp closed in April near the median. <em>Free path shows the headline.</em>
+          {' '}Unlock the comp table, lever breakdown, and the bilingual haggle script to act on it.
+        </p>
+      </>
+    ),
+    summary: [
+      { label: 'Fair range', value: '6.9M – 9.2M EGP', trend: 'Median 8.1M', direction: 'up' },
+    ],
+    properties: [
+      {
+        name: 'Comparable closing · April 2026',
+        loc: 'New Cairo · 3 BR · 188 m²',
+        price: 'Locked',
+        score: '—',
+        beds: 3,
+        size: '188m²',
+        priceMasked: true,
+        badges: [{ label: 'Premium unlocks 9 more', tone: 'accent' }],
+      },
+    ],
+    upgradeCTA: {
+      eyebrow: 'Unlock the full answer',
+      headline: 'See every comp, every lever, every script.',
+      body:
+        'Premium opens the full 10-comp table, negotiation-lever breakdown (cash discount, broker commission, payment-plan markup), a bilingual haggle script you can read straight to the seller, and the interactive coach.',
+      skus: [
+        { price: 'EGP 99', label: 'This compound · 30 days' },
+        { price: 'EGP 299/mo', label: 'All compounds · unlimited' },
+      ],
+    },
+  },
+];
+
+function seedFor(tier: DemoTier): Message[] {
+  return tier === 'free' ? FREE_SEED_MESSAGES : PAID_SEED_MESSAGES;
+}
+
 /* ─── Top-level page ────────────────────────────────────────────── */
 
 export default function ChatPreviewPage() {
+  const { user } = useAuth();
+  const isAdmin = (user?.role ?? '').toLowerCase() === 'admin';
+
   const [lang, setLang] = useState<Lang>('en');
   const [theme, setTheme] = useState<Theme>('light');
   const [collapsed, setCollapsed] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(SEED_MESSAGES);
+  const [tier, setTier] = useState<DemoTier>('paid');
+  const [messages, setMessages] = useState<Message[]>(() => seedFor('paid'));
   const [streaming, setStreaming] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const threadRef = useRef<HTMLDivElement>(null);
 
   const T = lang === 'ar' ? T_AR : T_EN;
+
+  // Restore admin's demo-tier choice from localStorage on first mount.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem(DEMO_TIER_KEY);
+    if (saved === 'free' || saved === 'paid') {
+      setTier(saved);
+      setMessages(seedFor(saved));
+    }
+  }, []);
+
+  // Persist tier changes and re-seed the thread so the demo reflects the choice.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(DEMO_TIER_KEY, tier);
+  }, [tier]);
+
+  const switchTier = (next: DemoTier) => {
+    if (next === tier) return;
+    setTier(next);
+    setMessages(seedFor(next));
+  };
 
   // Apply theme/dir at the document level so reveals + ambient pick it up.
   useEffect(() => {
@@ -273,13 +380,17 @@ export default function ChatPreviewPage() {
     setStreaming(true);
 
     setTimeout(() => {
-      const reply = {
-        ...SEED_MESSAGES[1],
-        role: 'ai' as const,
-      };
+      // Reply mirrors the current demo tier — admins flipping the toggle
+      // change what future replies look like too, not just the seed thread.
+      const seed = seedFor(tier);
+      const aiSeed = seed.find((m): m is AiMessage => m.role === 'ai');
+      if (!aiSeed) {
+        setStreaming(false);
+        return;
+      }
       setMessages((m) => {
         const copy = [...m];
-        copy[copy.length - 1] = reply;
+        copy[copy.length - 1] = { ...aiSeed, role: 'ai' };
         return copy;
       });
       setStreaming(false);
@@ -296,6 +407,9 @@ export default function ChatPreviewPage() {
             T={T}
             theme={theme}
             lang={lang}
+            tier={tier}
+            showDemoToggle={isAdmin}
+            onSwitchTier={switchTier}
             onToggleSidebar={() => setCollapsed((v) => !v)}
             onToggleLang={() => setLang((l) => (l === 'ar' ? 'en' : 'ar'))}
             onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
@@ -416,6 +530,9 @@ function Topbar({
   T,
   theme,
   lang,
+  tier,
+  showDemoToggle,
+  onSwitchTier,
   onToggleSidebar,
   onToggleLang,
   onToggleTheme,
@@ -423,10 +540,17 @@ function Topbar({
   T: Translations;
   theme: Theme;
   lang: Lang;
+  tier: DemoTier;
+  showDemoToggle: boolean;
+  onSwitchTier: (next: DemoTier) => void;
   onToggleSidebar: () => void;
   onToggleLang: () => void;
   onToggleTheme: () => void;
 }) {
+  const labelFree = lang === 'ar' ? 'مجاني' : 'Free';
+  const labelPaid = lang === 'ar' ? 'مدفوع' : 'Paid';
+  const labelTag = lang === 'ar' ? 'وضع العرض' : 'Demo';
+
   return (
     <header className="topbar">
       <button type="button" className="icon-btn" onClick={onToggleSidebar} aria-label="Toggle sidebar">
@@ -435,6 +559,31 @@ function Topbar({
       <div className="topbar-title">
         <b>{lang === 'ar' ? T.conv1Title : 'Villas in New Cairo under 10M'}</b>
       </div>
+      {showDemoToggle && (
+        <div
+          className="demo-toggle"
+          role="group"
+          aria-label={lang === 'ar' ? 'تبديل وضع العرض' : 'Demo path toggle'}
+        >
+          <span className="demo-toggle-label">{labelTag}</span>
+          <button
+            type="button"
+            className={tier === 'free' ? 'active' : ''}
+            onClick={() => onSwitchTier('free')}
+            aria-pressed={tier === 'free'}
+          >
+            {labelFree}
+          </button>
+          <button
+            type="button"
+            className={tier === 'paid' ? 'active' : ''}
+            onClick={() => onSwitchTier('paid')}
+            aria-pressed={tier === 'paid'}
+          >
+            {labelPaid}
+          </button>
+        </div>
+      )}
       <button type="button" className="icon-btn" onClick={onToggleLang} aria-label="Language">
         <IconGlobe size={16} />
       </button>
@@ -513,7 +662,9 @@ function AiBubble({ msg }: { msg: AiMessage }) {
 
         {msg.properties && (
           <>
-            <div className="section-label">Top 3 picks</div>
+            <div className="section-label">
+              {msg.properties.length === 1 ? 'Reference comp' : 'Top 3 picks'}
+            </div>
             <div className="carousel-shell">
               <div className="carousel">
                 {msg.properties.map((p) => (
@@ -531,8 +682,12 @@ function AiBubble({ msg }: { msg: AiMessage }) {
                       <h5 className="prop-name">{p.name}</h5>
                       <div className="prop-loc">{p.loc}</div>
                       <div className="prop-row1">
-                        <span className="prop-price">{p.price}</span>
-                        <span className="prop-score-num"><b>{p.score}</b></span>
+                        <span className={'prop-price' + (p.priceMasked ? ' masked' : '')}>
+                          {p.priceMasked ? '— locked —' : p.price}
+                        </span>
+                        <span className="prop-score-num">
+                          {p.score === '—' ? <b>—</b> : <b>{p.score}</b>}
+                        </span>
                       </div>
                       <div className="prop-specs">
                         <span>{p.beds} BR</span>
@@ -545,6 +700,24 @@ function AiBubble({ msg }: { msg: AiMessage }) {
               </div>
             </div>
           </>
+        )}
+
+        {msg.upgradeCTA && (
+          <div className="upgrade-cta">
+            <div className="upgrade-cta-head">
+              <span className="upgrade-cta-eyebrow">{msg.upgradeCTA.eyebrow}</span>
+            </div>
+            <h4>{msg.upgradeCTA.headline}</h4>
+            <p>{msg.upgradeCTA.body}</p>
+            <div className="upgrade-cta-skus">
+              {msg.upgradeCTA.skus.map((sku) => (
+                <button key={sku.price} type="button" className="upgrade-sku">
+                  <span className="upgrade-sku-price">{sku.price}</span>
+                  <span className="upgrade-sku-label">{sku.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
