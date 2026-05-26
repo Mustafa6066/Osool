@@ -86,12 +86,17 @@ except ImportError:
     )
 
 # ---------------------------------------------------------------------------
-# Singleton ValuationEngine
+# Singleton ValuationEngine — sourced from app.valuation_engine so that
+# runtime CBE-rate updates (driven by the FastAPI lifespan handler reading
+# MarketIndicator) propagate here without restart.
 # ---------------------------------------------------------------------------
 
-#: Shared engine; CBE rate sourced from env with fallback to 22 %.
-_CBE_RATE: float = float(os.getenv("CBE_BASE_RATE", "0.22"))
-_valuation_engine: ValuationEngine = ValuationEngine(cbe_rate=_CBE_RATE)
+
+def _get_valuation_engine() -> ValuationEngine:
+    """Return the process-wide ValuationEngine (rate-current at call time)."""
+    from app import valuation_engine as _ve
+
+    return _ve._engine  # noqa: SLF001 — intentional cross-module sharing
 
 # ---------------------------------------------------------------------------
 # OpenAI async client
@@ -474,7 +479,7 @@ async def _process_and_persist(
     # Step 1 — synchronous valuation hook (no I/O, safe to call without await)
     try:
         metrics: NormalizedAssetMetrics = (
-            _valuation_engine.normalize_asset_price_per_sqm(listing)
+            _get_valuation_engine().normalize_asset_price_per_sqm(listing)
         )
     except (ValueError, AssertionError) as exc:
         raise HTTPException(
@@ -760,7 +765,7 @@ async def ingest_health() -> dict[str, object]:
     """Return service liveness, active CBE rate, and embedding model."""
     return {
         "status": "ok",
-        "cbe_rate": _valuation_engine.cbe_rate,
+        "cbe_rate": _get_valuation_engine().cbe_rate,
         "embedding_model": _EMBEDDING_MODEL,
         "embedding_dim": _EMBEDDING_DIM,
         "pgvector_available": _PGVECTOR_AVAILABLE,

@@ -22,6 +22,8 @@ Design constraints
 
 from __future__ import annotations
 
+import logging
+import os
 from enum import Enum
 from typing import Final, Optional
 
@@ -29,11 +31,18 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+_logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Module-level constants
 # ---------------------------------------------------------------------------
 
-#: Central Bank of Egypt base corridor interest rate (22 % as of 2025).
+#: Central Bank of Egypt base corridor interest rate. Last-resort fallback
+#: used only when neither the ``MarketIndicator`` row nor the
+#: ``CBE_BASE_RATE`` env var is set. Resolution order at startup:
+#:   1. ``MarketIndicator`` row keyed by ``bank_cd_rate`` (refreshed by admin)
+#:   2. ``CBE_BASE_RATE`` env var (operational override)
+#:   3. This constant
 DEFAULT_CBE_RATE: Final[float] = 0.22
 
 #: Discount threshold below the compound mean that flags a La2ta anomaly.
@@ -641,9 +650,63 @@ app = FastAPI(
     redoc_url="/valuation/redoc",
 )
 
-# Module-level engine singleton — CBE rate may be overridden via env var
-# at startup without changing this module.
-_engine: ValuationEngine = ValuationEngine(cbe_rate=DEFAULT_CBE_RATE)
+# Module-level engine singleton. The startup rate is the env override
+# (CBE_BASE_RATE) if present, falling back to DEFAULT_CBE_RATE. The
+# FastAPI app's lifespan handler should call set_cbe_rate() after reading
+# the MarketIndicator row keyed by bank_cd_rate, giving DB the final word.
+def _resolve_startup_cbe_rate() -> float:
+    """Resolve the boot-time CBE rate from env or constant."""
+    raw = os.getenv("CBE_BASE_RATE")
+    if raw is None or raw.strip() == "":
+        return DEFAULT_CBE_RATE
+    try:
+        rate = float(raw)
+    except ValueError:
+        _logger.warning(
+            "CBE_BASE_RATE=%r is not a number; falling back to %.4f",
+            raw,
+            DEFAULT_CBE_RATE,
+        )
+        return DEFAULT_CBE_RATE
+    if not (0.0 < rate < 1.0):
+        _logger.warning(
+            "CBE_BASE_RATE=%.4f outside (0,1); falling back to %.4f",
+            rate,
+            DEFAULT_CBE_RATE,
+        )
+        return DEFAULT_CBE_RATE
+    return rate
+
+
+_engine: ValuationEngine = ValuationEngine(cbe_rate=_resolve_startup_cbe_rate())
+
+
+def set_cbe_rate(new_rate: float, *, source: str = "runtime") -> float:
+    """
+    Replace the module engine with one using ``new_rate``.
+
+    Called by the FastAPI startup hook after reading the latest CBE rate
+    from the ``MarketIndicator`` table. Safe to call repeatedly; raises
+    ``ValueError`` if the rate is outside the open interval (0, 1).
+
+    Returns the rate now in use so callers can log it.
+    """
+    if not (0.0 < new_rate < 1.0):
+        raise ValueError(
+            f"new_rate must be in the open interval (0, 1), got {new_rate!r}."
+        )
+    global _engine
+    previous = _engine.cbe_rate
+    _engine = ValuationEngine(cbe_rate=new_rate)
+    _logger.info(
+        "CBE rate updated: %.4f -> %.4f (source=%s)", previous, new_rate, source
+    )
+    return new_rate
+
+
+def get_cbe_rate() -> float:
+    """Return the CBE rate currently in use by the module engine."""
+    return _engine.cbe_rate
 
 
 # ---------------------------------------------------------------------------

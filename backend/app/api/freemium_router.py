@@ -136,12 +136,17 @@ _IP_PATTERN: Final[re.Pattern[str]] = re.compile(
 _mem_rl: dict[str, dict[str, Any]] = {}
 
 # ---------------------------------------------------------------------------
-# Shared ValuationEngine singleton
+# Shared ValuationEngine singleton — sourced from app.valuation_engine so
+# that runtime CBE-rate updates from the FastAPI lifespan handler reach us
+# without a restart.
 # ---------------------------------------------------------------------------
 
-import os
-_CBE_RATE: float = float(os.getenv("CBE_BASE_RATE", str(DEFAULT_CBE_RATE)))
-_valuation_engine: ValuationEngine = ValuationEngine(cbe_rate=_CBE_RATE)
+
+def _get_valuation_engine() -> ValuationEngine:
+    """Return the process-wide ValuationEngine (rate-current at call time)."""
+    from app import valuation_engine as _ve
+
+    return _ve._engine  # noqa: SLF001 — intentional cross-module sharing
 
 # ---------------------------------------------------------------------------
 # Input / output Pydantic schemas
@@ -1170,7 +1175,7 @@ async def broker_offer_reality_check(
     # ── Step 4: Engine — normalised offer price/sqm ───────────────────────────
     try:
         offer_metrics: NormalizedAssetMetrics = (
-            _valuation_engine.normalize_asset_price_per_sqm(candidate_listing)
+            _get_valuation_engine().normalize_asset_price_per_sqm(candidate_listing)
         )
     except (ValueError, AssertionError) as exc:
         logger.exception(

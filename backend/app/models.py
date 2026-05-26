@@ -239,6 +239,27 @@ class Transaction(Base):
     user = relationship("User", back_populates="transactions")
     property = relationship("Property")
 
+
+class PaymobWebhookEvent(Base):
+    """
+    Idempotency ledger for Paymob webhook deliveries.
+
+    Paymob retries on timeout/5xx; without this guard the handler would
+    re-run side effects (transaction state flip, portfolio creation,
+    property reservation) on each retry. The webhook handler inserts a row
+    keyed by Paymob's own ``obj.id`` BEFORE running side effects; a
+    duplicate insert (IntegrityError) indicates a retry and we short-circuit.
+    """
+    __tablename__ = "paymob_webhook_events"
+
+    paymob_transaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    paymob_order_id: Mapped[str] = mapped_column(String(64), nullable=True, index=True)
+    outcome: Mapped[str] = mapped_column(String(32))  # processed / duplicate / ignored / failed
+    received_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class PaymentApproval(Base):
     """
     Legacy manual bank transfer approvals.

@@ -118,6 +118,31 @@ async def lifespan(app: FastAPI):
         logger.warning("⚠️ Valuation Pipeline: table init skipped (%s)", e)
 
     try:
+        from sqlalchemy import select
+        from app.database import AsyncSessionLocal
+        from app.models import MarketIndicator
+        from app import valuation_engine as _ve
+
+        async with AsyncSessionLocal() as session:
+            row = await session.scalar(
+                select(MarketIndicator).where(MarketIndicator.key == "bank_cd_rate")
+            )
+        if row and row.value:
+            _ve.set_cbe_rate(float(row.value), source=f"db:{row.source or 'unknown'}")
+            logger.info(
+                "✅ CBE Rate: %.4f (from MarketIndicator, updated %s)",
+                row.value,
+                row.last_updated,
+            )
+        else:
+            logger.info(
+                "ℹ️ CBE Rate: %.4f (env/default — no MarketIndicator row)",
+                _ve.get_cbe_rate(),
+            )
+    except Exception as e:
+        logger.warning("⚠️ CBE Rate refresh skipped (%s) — using %.4f", e, 0.22)
+
+    try:
         from app.intelligence_loop import create_intelligence_tables, start_intelligence_worker
         await create_intelligence_tables()
         await start_intelligence_worker()
@@ -220,7 +245,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-# Rate Limiter
+# Rate Limiter (per-IP; user-aware limiter used by /api/v1/chat lives in
+# app/middleware/rate_limiting.py — they share storage via storage_uri).
 limiter = Limiter(key_func=get_remote_address)
 
 # ═══════════════════════════════════════════════════════════════

@@ -312,10 +312,14 @@ class EnvironmentValidator:
         # CORS
         config['FRONTEND_DOMAIN'] = self.validate_url('FRONTEND_DOMAIN', required=False)
         
-        # Redis
-        redis_url = os.getenv('REDIS_URL')
-        if redis_url:
-            self.validate_url('REDIS_URL', required=False, schemes=['redis', 'rediss'])
+        # Redis — required in production for the JWT blacklist (logout/revoke).
+        # Without it, stolen tokens remain valid across replicas.
+        _is_prod = config['ENVIRONMENT'] == 'production'
+        self.validate_url(
+            'REDIS_URL',
+            required=_is_prod,
+            schemes=['redis', 'rediss'],
+        )
         
         # Report results
         if self.errors:

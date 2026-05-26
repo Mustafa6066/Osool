@@ -243,7 +243,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 def invalidate_token(token: str):
     """
     Add token to blacklist (logout functionality).
-    Uses Redis with TTL if available, falls back to in-memory set.
+
+    Redis required in production — if unavailable, raises HTTPException 503
+    so the client knows logout did not persist. In development, falls back
+    to an in-process memory set so local testing continues to work.
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -254,6 +257,16 @@ def invalidate_token(token: str):
             if redis:
                 # Store each JTI as its own key with TTL matching token lifetime
                 redis.setex(f"blacklist:{jti}", 86400, "1")
+            elif _IS_PRODUCTION:
+                logger.error("Token blacklist unavailable (Redis down) — refusing logout")
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "error_code": "BLACKLIST_UNAVAILABLE",
+                        "message": "Logout cannot be persisted right now. Please retry.",
+                        "message_ar": "تعذر تسجيل الخروج حالياً. يرجى إعادة المحاولة.",
+                    },
+                )
             else:
                 _token_blacklist_memory.add(jti)
             logger.info(f"Token {jti[:8]}... invalidated")
@@ -267,11 +280,25 @@ def invalidate_token(token: str):
 def is_token_blacklisted(jti: str) -> bool:
     """
     Check if token is blacklisted.
-    Checks Redis first, falls back to in-memory set.
+
+    Redis required in production — if unavailable, fail closed: raise 503
+    so callers force re-auth rather than silently accept potentially revoked
+    tokens. In development, falls back to the in-process memory set.
     """
     redis = _get_redis_client()
     if redis:
         return bool(redis.get(f"blacklist:{jti}"))
+    if _IS_PRODUCTION:
+        # Fail closed — better to force re-login than to honor a stolen JWT.
+        logger.error("Token blacklist check failed (Redis down) — refusing request")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error_code": "BLACKLIST_UNAVAILABLE",
+                "message": "Authentication backend temporarily unavailable.",
+                "message_ar": "خدمة المصادقة غير متاحة مؤقتاً.",
+            },
+        )
     return jti in _token_blacklist_memory
 
 

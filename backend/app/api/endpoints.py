@@ -655,17 +655,42 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     # 1. Verify source is actually Paymob
     if not hmac_value or not paymob_service.verify_hmac(data, hmac_value):
          raise HTTPException(status_code=403, detail="HMAC verification failed.")
-    
+
     # 2. Extract Data
     try:
+        from app.models import PaymobWebhookEvent
+        from sqlalchemy.exc import IntegrityError
+
         obj = data.get('obj', {})
         order_id = str(obj.get('order', {}).get('id'))
+        paymob_txn_id = str(obj.get('id') or "")
         amount_cents = obj.get('amount_cents')
         success = obj.get('success', False)
-        
+
+        # 2a. Idempotency guard (A7) — claim this paymob_transaction_id
+        # BEFORE running side effects. On retry, the unique-PK insert fails
+        # and we short-circuit without re-processing.
+        if paymob_txn_id:
+            try:
+                db.add(PaymobWebhookEvent(
+                    paymob_transaction_id=paymob_txn_id,
+                    paymob_order_id=order_id,
+                    outcome="received",
+                ))
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                logger.info(
+                    "Webhook: duplicate delivery for paymob_txn_id=%s (order=%s); ignoring",
+                    paymob_txn_id, order_id,
+                )
+                return {"status": "duplicate", "paymob_transaction_id": paymob_txn_id}
+        else:
+            logger.warning("Webhook: missing obj.id — cannot enforce idempotency")
+
         if not success:
             return {"status": "ignored", "reason": "transaction_failed"}
-            
+
         logger.info(f"Webhook: Payment SUCCESS (Order: {order_id})")
 
         # 3. Lookup Transaction in DB
