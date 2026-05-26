@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -75,7 +76,7 @@ def _viewer_kind(user: Optional[User], simulate_tier: Optional[str] = None) -> s
         return "premium"
     return "free"
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat")
 @limiter.limit(CHAT_RATE_LIMIT)
 async def process_chat(
     chat_request: ChatRequest,
@@ -83,7 +84,7 @@ async def process_chat(
     simulate_tier: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     user: Optional[User] = Depends(get_current_user_optional),
-):
+) -> JSONResponse:
     """
     Main endpoint for the Chat Interface.
     Routes free users through the Zero-Token Local Path; premium users
@@ -97,6 +98,14 @@ async def process_chat(
 
     Rate limit: CHAT_RATE_LIMIT (30/minute) keyed by user_id when authed,
     by IP otherwise — see middleware/rate_limiting.py.
+
+    Returns JSONResponse explicitly (not a Pydantic model via
+    response_model) because the slowapi limiter at /middleware/rate_limiting.py
+    has headers_enabled=True and tries to inject X-RateLimit-* headers
+    onto the return value. That hook only accepts a starlette.Response
+    instance, so we must return JSONResponse rather than letting FastAPI
+    serialise a ChatResponse model. The ChatResponse model is still used
+    for schema documentation + payload shaping via .model_dump().
     """
 
     # Track session count for gate logic.
@@ -159,14 +168,16 @@ async def process_chat(
             db.add(ai_msg)
             await db.commit()
 
-            return ChatResponse(
-                type="success",
-                text=response_text,
-                properties=properties,
-                show_upsell=show_upsell,
-                ui_actions=ui_actions,
-                ui_primitive_descriptor=ui_primitive_descriptor,
-                primitive_data=primitive_data,
+            return JSONResponse(
+                content=ChatResponse(
+                    type="success",
+                    text=response_text,
+                    properties=properties,
+                    show_upsell=show_upsell,
+                    ui_actions=ui_actions,
+                    ui_primitive_descriptor=ui_primitive_descriptor,
+                    primitive_data=primitive_data,
+                ).model_dump()
             )
 
         history = [{"role": "user", "content": text} for text in reversed(previous_user_messages)]
@@ -198,12 +209,14 @@ async def process_chat(
         db.add(ai_msg)
         await db.commit()
 
-        return ChatResponse(
-            type="success",
-            text=response_text,
-            properties=properties,
-            show_upsell=False,
-            ui_actions=ui_actions,
+        return JSONResponse(
+            content=ChatResponse(
+                type="success",
+                text=response_text,
+                properties=properties,
+                show_upsell=False,
+                ui_actions=ui_actions,
+            ).model_dump()
         )
 
     except Exception as e:
