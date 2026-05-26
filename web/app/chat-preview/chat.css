@@ -1,0 +1,795 @@
+/* ═══════════════════════════════════════════════════════════════
+   OSOOL CHAT — minimal, calm, document-like
+   Port of styles.css from the claude.ai/design chat handoff.
+
+   All rules are scoped under .osool-chat-root so the existing
+   /chat route (production AgentInterface) is untouched.
+   ═══════════════════════════════════════════════════════════════ */
+
+.osool-chat-root {
+  /* Map the chat-design tokens onto our shared theme variables. */
+  --bg: var(--osool-bg);
+  --surface: var(--osool-surface);
+  --surface-2: var(--osool-surface-2);
+  --surface-3: var(--osool-surface-3);
+  --text: var(--osool-text);
+  --text-2: var(--osool-text-2);
+  --muted: var(--osool-muted);
+  --muted-2: var(--osool-muted-2);
+  --border: var(--osool-border);
+  --border-2: var(--osool-border-2);
+  --accent: var(--osool-accent);
+  --accent-soft: var(--osool-accent-soft);
+  --accent-mid: var(--osool-accent-mid);
+  --accent-dark: var(--osool-accent-dark);
+  --font-sans: var(--osool-font-sans);
+  --font-serif: var(--osool-font-serif);
+  --user-bg: var(--osool-surface-2);
+  --gap-msg: 36px;
+  --thread-px: 32px;
+
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: -0.005em;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.osool-chat-root[data-density="compact"] { --gap-msg: 22px; }
+
+/* Ambient warm-tinted glow behind the shell. */
+.osool-chat-root .ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(50% 40% at 18% 18%, var(--accent-soft) 0%, transparent 70%),
+    radial-gradient(40% 50% at 92% 95%, var(--accent-soft) 0%, transparent 70%);
+  opacity: 0.35;
+}
+
+/* ═════════ SHELL ═════════ */
+.osool-chat-root .shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100dvh;
+}
+.osool-chat-root .shell[data-sidebar="collapsed"] { grid-template-columns: 56px 1fr; }
+
+/* ═════════ SIDEBAR ═════════ */
+.osool-chat-root .sidebar {
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  border-right: 1px solid var(--border-2);
+  padding: 14px 10px 12px;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.osool-chat-root .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 10px;
+}
+.osool-chat-root .brand-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.osool-chat-root .brand-name {
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.osool-chat-root .shell[data-sidebar="collapsed"] .brand-name,
+.osool-chat-root .shell[data-sidebar="collapsed"] .sb-search,
+.osool-chat-root .shell[data-sidebar="collapsed"] .sb-group-label,
+.osool-chat-root .shell[data-sidebar="collapsed"] .sb-item-text,
+.osool-chat-root .shell[data-sidebar="collapsed"] .profile-text,
+.osool-chat-root .shell[data-sidebar="collapsed"] .new-conv-text { display: none; }
+
+.osool-chat-root .new-conv {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s ease, border-color .12s ease;
+}
+.osool-chat-root .new-conv:hover { background: var(--surface-2); }
+
+.osool-chat-root .sb-search {
+  position: relative;
+  margin-bottom: 4px;
+}
+.osool-chat-root .sb-search input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 7px 10px 7px 32px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.osool-chat-root .sb-search input:focus { background: var(--surface-2); }
+.osool-chat-root .sb-search input::placeholder { color: var(--muted); }
+.osool-chat-root .sb-search svg {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+
+.osool-chat-root .sb-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0 -2px;
+  padding: 0 2px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.osool-chat-root .sb-scroll::-webkit-scrollbar { width: 4px; }
+.osool-chat-root .sb-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
+.osool-chat-root .sb-scroll:hover::-webkit-scrollbar-thumb { background: var(--border); }
+
+.osool-chat-root .sb-group-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 14px 10px 4px;
+}
+
+.osool-chat-root .sb-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: start;
+  transition: background .1s ease, color .1s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  font-family: inherit;
+}
+.osool-chat-root .sb-item:hover { background: var(--surface-2); color: var(--text); }
+.osool-chat-root .sb-item.active { background: var(--surface-2); color: var(--text); }
+.osool-chat-root .sb-item-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.osool-chat-root .profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background .12s ease;
+}
+.osool-chat-root .profile:hover { background: var(--surface-2); }
+.osool-chat-root .avatar-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.osool-chat-root .profile-text { flex: 1; min-width: 0; }
+.osool-chat-root .profile-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.osool-chat-root .profile-mail {
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ═════════ MAIN ═════════ */
+.osool-chat-root .main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.osool-chat-root .topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px 12px;
+  background: transparent;
+  z-index: 5;
+}
+.osool-chat-root .topbar-title { flex: 1; min-width: 0; }
+.osool-chat-root .topbar-title b {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.osool-chat-root .icon-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .1s ease, color .1s ease;
+  flex-shrink: 0;
+}
+.osool-chat-root .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+/* ═════════ THREAD ═════════ */
+.osool-chat-root .thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0 0;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.osool-chat-root .thread::-webkit-scrollbar { width: 8px; }
+.osool-chat-root .thread::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; }
+.osool-chat-root .thread:hover::-webkit-scrollbar-thumb { background: var(--border); }
+
+.osool-chat-root .thread-inner {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 0 var(--thread-px) 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-msg);
+}
+
+.osool-chat-root .msg-user {
+  align-self: flex-end;
+  max-width: 84%;
+  background: var(--user-bg);
+  color: var(--text);
+  padding: 12px 18px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.osool-chat-root .msg-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.osool-chat-root .ai-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  margin-bottom: 2px;
+}
+.osool-chat-root .ai-label-mark {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.osool-chat-root .ai-label b {
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+
+.osool-chat-root .ai-body {
+  font-size: 15.5px;
+  line-height: 1.72;
+  color: var(--text);
+}
+.osool-chat-root .ai-body p { margin: 0 0 12px; }
+.osool-chat-root .ai-body p:last-child { margin-bottom: 0; }
+.osool-chat-root .ai-body strong { font-weight: 600; color: var(--text); }
+.osool-chat-root .ai-body ul { margin: 6px 0 14px; padding-inline-start: 22px; }
+.osool-chat-root .ai-body li { margin: 4px 0; }
+.osool-chat-root .ai-body em { color: var(--text-2); }
+
+.osool-chat-root .thinking-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 400;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  font-style: italic;
+  font-family: var(--font-serif);
+  letter-spacing: 0.005em;
+}
+.osool-chat-root .thinking-head:hover { color: var(--text-2); }
+.osool-chat-root .thinking-head .chev { transition: transform .2s; opacity: 0.7; }
+.osool-chat-root .thinking-head[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.osool-chat-root .thinking-body {
+  margin: 8px 0 4px;
+  padding: 0 0 0 14px;
+  border-inline-start: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.osool-chat-root .thinking-step .meta { font-size: 11.5px; color: var(--muted-2); }
+
+/* Summary strip (small KPI row inside an AI reply) */
+.osool-chat-root .summary-strip {
+  display: flex;
+  gap: 0;
+  margin: 14px 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.osool-chat-root .summary-cell {
+  flex: 1;
+  padding: 12px 14px;
+  border-inline-start: 1px solid var(--border-2);
+  min-width: 0;
+}
+.osool-chat-root .summary-cell:first-child { border-inline-start: 0; }
+.osool-chat-root .summary-label { font-size: 11px; color: var(--muted); font-weight: 400; }
+.osool-chat-root .summary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+}
+.osool-chat-root .summary-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.015em;
+  font-feature-settings: "tnum";
+}
+.osool-chat-root .summary-trend { font-size: 11.5px; font-weight: 500; }
+.osool-chat-root .summary-trend.up { color: var(--accent); }
+.osool-chat-root .summary-trend.down { color: #B85C50; }
+
+/* Property carousel */
+.osool-chat-root .section-label {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 500;
+  margin: 18px 0 8px;
+}
+.osool-chat-root .carousel-shell {
+  margin: 0 calc(-1 * var(--thread-px));
+  padding: 4px var(--thread-px) 6px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.osool-chat-root .carousel-shell::-webkit-scrollbar { display: none; }
+.osool-chat-root .carousel {
+  display: flex;
+  gap: 12px;
+  min-width: max-content;
+}
+.osool-chat-root .prop-card {
+  scroll-snap-align: start;
+  width: 260px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.osool-chat-root .prop-card:hover {
+  border-color: var(--muted-2);
+  transform: translateY(-1px);
+}
+.osool-chat-root .prop-img {
+  height: 120px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0F766E, #10B981);
+}
+.osool-chat-root .prop-card:nth-child(2) .prop-img { background: linear-gradient(135deg, #1E40AF, #60A5FA); }
+.osool-chat-root .prop-card:nth-child(3) .prop-img { background: linear-gradient(135deg, #7C2D12, #F97316); }
+.osool-chat-root .prop-badges {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 5px;
+}
+.osool-chat-root .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 10.5px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+}
+.osool-chat-root .badge.accent {
+  color: var(--accent);
+  border-color: var(--accent-mid);
+}
+.osool-chat-root .prop-body { padding: 12px 14px 14px; }
+.osool-chat-root .prop-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+  margin: 0 0 2px;
+  letter-spacing: -0.005em;
+}
+.osool-chat-root .prop-loc {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.osool-chat-root .prop-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.osool-chat-root .prop-price { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.osool-chat-root .prop-score-num {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.osool-chat-root .prop-score-num::after {
+  content: "/100";
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.osool-chat-root .prop-specs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-2);
+}
+
+/* ═════════ EMPTY STATE ═════════ */
+.osool-chat-root .empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px 32px;
+  text-align: center;
+}
+.osool-chat-root .empty-mark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  animation: osool-chat-breathe 5s ease-in-out infinite;
+}
+@keyframes osool-chat-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.03); }
+}
+.osool-chat-root .empty h1 {
+  font-size: 32px;
+  font-weight: 400;
+  font-family: var(--font-serif);
+  letter-spacing: -0.015em;
+  color: var(--text);
+  margin: 14px 0 6px;
+}
+.osool-chat-root .empty p {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 32px;
+  max-width: 460px;
+  line-height: 1.55;
+}
+.osool-chat-root .suggestions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 600px;
+}
+.osool-chat-root .suggestion {
+  text-align: start;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 16px;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  font-family: inherit;
+}
+.osool-chat-root .suggestion:hover {
+  background: var(--surface);
+  border-color: var(--muted-2);
+}
+.osool-chat-root .suggestion-icon {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.osool-chat-root .suggestion-text b {
+  font-size: 13px;
+  font-weight: 500;
+  display: block;
+  color: var(--text);
+}
+.osool-chat-root .suggestion-text small {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: 2px;
+  display: block;
+}
+.osool-chat-root .advisor-cta {
+  margin-top: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s ease;
+}
+.osool-chat-root .advisor-cta:hover { background: var(--surface); }
+
+/* ═════════ COMPOSER ═════════ */
+.osool-chat-root .composer {
+  padding: 4px 24px 20px;
+  background: linear-gradient(180deg, transparent, var(--bg) 40%);
+  position: relative;
+  z-index: 4;
+}
+.osool-chat-root .composer-inner { max-width: 740px; margin: 0 auto; }
+
+.osool-chat-root .stop-btn-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.osool-chat-root .stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.osool-chat-root .stop-btn:hover { color: var(--text); }
+
+.osool-chat-root .composer-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 8px 8px 8px 16px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color .15s ease;
+}
+.osool-chat-root .composer-box:focus-within { border-color: var(--muted-2); }
+
+.osool-chat-root .composer-attach,
+.osool-chat-root .composer-tool {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color .12s ease, background .12s ease;
+}
+.osool-chat-root .composer-attach:hover,
+.osool-chat-root .composer-tool:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.osool-chat-root textarea.composer-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  resize: none;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  min-height: 24px;
+  max-height: 160px;
+  padding: 9px 0;
+  font-family: var(--font-sans);
+}
+.osool-chat-root textarea.composer-input::placeholder { color: var(--muted); }
+
+.osool-chat-root .voice-orb {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .12s ease, background .12s ease;
+}
+.osool-chat-root .voice-orb:hover { color: var(--text); background: var(--surface-2); }
+.osool-chat-root .voice-orb.active { background: var(--accent); color: white; }
+.osool-chat-root .voice-orb.active:hover { background: var(--accent-dark); }
+
+.osool-chat-root .send-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  cursor: pointer;
+  transition: opacity .12s ease, transform .12s ease;
+}
+.osool-chat-root .send-btn:hover:not(:disabled) { transform: scale(1.04); }
+.osool-chat-root .send-btn:disabled {
+  background: var(--surface-2);
+  color: var(--muted-2);
+  cursor: not-allowed;
+}
+
+.osool-chat-root .composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 9px;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 6px;
+  text-align: center;
+}
+
+/* Scroll-to-bottom pill */
+.osool-chat-root .scroll-bottom {
+  position: absolute;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--muted);
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+.osool-chat-root .scroll-bottom.visible { opacity: 1; pointer-events: auto; }
+.osool-chat-root .scroll-bottom:hover { color: var(--text); }
+
+/* Typing — subtle pulse */
+.osool-chat-root .typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+.osool-chat-root .typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: osool-bob 1.4s infinite ease-in-out;
+}
+.osool-chat-root .typing span:nth-child(2) { animation-delay: 0.16s; }
+.osool-chat-root .typing span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes osool-bob {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+  40% { transform: translateY(-3px); opacity: 0.9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .osool-chat-root .empty-mark { animation: none; }
+}

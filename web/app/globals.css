@@ -6,6 +6,7 @@
 
 @import "tailwindcss";
 @import "./legacy-components.css";
+@import "./osool-theme.css";
 
 @config "../tailwind.config.ts";
 @plugin "@tailwindcss/typography";
