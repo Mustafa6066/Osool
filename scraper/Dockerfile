@@ -1,18 +1,16 @@
-# Osool Nawy Scraper — Railway Cron Service
-# Playwright + Chromium headless for weekly property scraping
-FROM python:3.10-slim
+# Osool Scraper — Scrapling-based, zero LLM tokens
+# Supports two modes: cron (one-shot crawl) and worker (Redis poller)
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# Install system dependencies for Playwright/Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     curl \
     wget \
-    # Chromium dependencies
     libnss3 \
     libnspr4 \
     libdbus-1-3 \
@@ -36,24 +34,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies (minimal set for scraper)
 COPY scraper/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright + Chromium browser
-RUN playwright install chromium
+RUN playwright install chromium && python -m patchright install chromium
 
-# Copy scraper code + data
-COPY nawy_scraper_v2.py .
-COPY nawy_compound_urls.json .
+# Copy scraper package
+COPY scraper/main.py scraper/worker.py scraper/settings.py /app/
+COPY scraper/sites /app/sites
+COPY scraper/extractors /app/extractors
+COPY scraper/adapters /app/adapters
 
-# Create backend directory for .env compatibility
-# (Railway injects env vars directly, so this is just for the load_dotenv fallback)
-RUN mkdir -p backend
+# Copy backend ingestion modules (reused as-is)
+COPY backend/app/__init__.py /app/app/__init__.py
+COPY backend/app/database.py /app/app/database.py
+COPY backend/app/models.py /app/app/models.py
+COPY backend/app/ingestion/__init__.py /app/app/ingestion/__init__.py
+COPY backend/app/ingestion/scraper_schemas.py /app/app/ingestion/scraper_schemas.py
+COPY backend/app/ingestion/deterministic_normalizer.py /app/app/ingestion/deterministic_normalizer.py
+COPY backend/app/ingestion/repository.py /app/app/ingestion/repository.py
+COPY backend/app/ingestion/anomaly_detector.py /app/app/ingestion/anomaly_detector.py
 
-# Create data directory for scrape summary output
-RUN mkdir -p data
+ENV PYTHONPATH=/app
 
-# Run the scraper
-CMD ["python", "nawy_scraper_v2.py"]
+# Persistent storage for Scrapling adaptive selector state
+RUN mkdir -p /app/.selectors
+
+CMD ["python", "main.py", "--mode=cron"]

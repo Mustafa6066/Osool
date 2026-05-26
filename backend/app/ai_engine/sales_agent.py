@@ -309,14 +309,20 @@ async def search_properties(query: str, session_id: str = "default") -> str:
         
         # If score is low (Cold Lead) and query asks for specifics
         if cached_score < 20 and "bypass" not in query.lower():
+            teaser = matches[0] if matches else None
             return json.dumps({
-                "status": "gated",
+                "status": "gated_with_teaser",
                 "message": (
-                    "I see 3 units matching this, but one of them is an 'Off-Market' opportunity. "
-                    "To unlock the specific pricing for that one, I need to know: "
-                    "Are you buying for *Capital Appreciation* (Resale) or *Rental Income*?"
+                    f"I found {len(matches)} matching units — here's a sample: "
+                    f"{teaser.get('compound', 'a compound')} around {teaser.get('price', 0):,.0f} EGP. "
+                    "But before I unlock the full ledger — are you buying for *Living* or *Investment*? "
+                    "Your answer completely changes how I rank these."
+                ) if teaser else (
+                    "I'm searching my ledger for you. Quick question first: "
+                    "Are you buying for *Living* or *Investment*? This changes everything."
                 ),
-                "action": "force_qualification"
+                "action": "force_qualification",
+                "teaser_property": teaser
             })
     except Exception as e:
         print(f"⚠️ Gating check warning: {e}")

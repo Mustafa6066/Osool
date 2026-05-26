@@ -21,6 +21,7 @@ export default function ChartVisualization({
 }: ChartVisualizationProps) {
     // Safeguard: Ensure data is an array of numbers
     const cleanData = Array.isArray(data) ? data : [];
+    const cleanLabels = Array.isArray(labels) ? labels : [];
     const maxValue = cleanData.length > 0 ? Math.max(...cleanData) : 100;
     const trendColor = trend?.includes('+') ? 'text-green-400' : 'text-red-400';
     const TrendIcon = trend?.includes('+') ? TrendingUp : TrendingDown;
@@ -47,7 +48,7 @@ export default function ChartVisualization({
             {type === 'bar' && (
                 <div className="space-y-4">
                     <div className="h-64 flex items-end gap-2">
-                        {data.map((value, idx) => {
+                        {cleanData.map((value, idx) => {
                             const heightPercent = (value / maxValue) * 100;
                             return (
                                 <div key={idx} className="flex-1 flex flex-col items-center gap-2">
@@ -66,7 +67,7 @@ export default function ChartVisualization({
                         })}
                     </div>
                     <div className="flex justify-between text-xs text-[#97b8c3]">
-                        {labels.map((label, idx) => (
+                        {cleanLabels.map((label, idx) => (
                             <span key={idx} className="flex-1 text-center">{label}</span>
                         ))}
                     </div>
@@ -98,8 +99,8 @@ export default function ChartVisualization({
                             ))}
                             {/* Line Path */}
                             <path
-                                d={`M ${data.map((val, idx) => {
-                                    const x = (idx / (data.length - 1)) * 500;
+                                d={`M ${cleanData.map((val, idx) => {
+                                    const x = (idx / (cleanData.length - 1)) * 500;
                                     const y = 200 - (val / maxValue) * 180;
                                     return `${x},${y}`;
                                 }).join(' L ')}`}
@@ -111,16 +112,16 @@ export default function ChartVisualization({
                             />
                             {/* Area Fill */}
                             <path
-                                d={`M ${data.map((val, idx) => {
-                                    const x = (idx / (data.length - 1)) * 500;
+                                d={`M ${cleanData.map((val, idx) => {
+                                    const x = (idx / (cleanData.length - 1)) * 500;
                                     const y = 200 - (val / maxValue) * 180;
                                     return `${x},${y}`;
                                 }).join(' L ')} L 500,200 L 0,200 Z`}
                                 fill="url(#lineGradient)"
                             />
                             {/* Data Points */}
-                            {data.map((val, idx) => {
-                                const x = (idx / (data.length - 1)) * 500;
+                            {cleanData.map((val, idx) => {
+                                const x = (idx / (cleanData.length - 1)) * 500;
                                 const y = 200 - (val / maxValue) * 180;
                                 return (
                                     <circle
@@ -138,7 +139,7 @@ export default function ChartVisualization({
                         </svg>
                     </div>
                     <div className="flex justify-between text-xs text-[#97b8c3]">
-                        {labels.map((label, idx) => (
+                        {cleanLabels.map((label, idx) => (
                             <span key={idx}>{label}</span>
                         ))}
                     </div>
@@ -147,8 +148,8 @@ export default function ChartVisualization({
 
             {type === 'comparison' && (
                 <div className="space-y-3">
-                    {labels.map((label, idx) => {
-                        const value = data[idx];
+                    {cleanLabels.map((label, idx) => {
+                        const value = cleanData[idx];
                         const percent = (value / maxValue) * 100;
                         return (
                             <div key={idx}>

@@ -47,7 +47,13 @@ export async function POST(
       body,
     });
 
-    // Return the Orchestrator's response status (202, 400, etc.)
+    // Webhook delivery is best-effort for UX analytics signals.
+    // Avoid surfacing upstream auth/config failures to the browser console.
+    if (!response.ok) {
+      return NextResponse.json({}, { status: 202 });
+    }
+
+    // Return upstream response on success.
     const responseBody = await response.text();
     return new NextResponse(responseBody, { status: response.status });
   } catch {

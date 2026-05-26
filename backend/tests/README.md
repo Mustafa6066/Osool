@@ -322,17 +322,6 @@ def mock_openai(mocker):
     mocker.patch('openai.ChatCompletion.create', return_value=mock_response)
 ```
 
-### Mock Blockchain Calls
-
-```python
-@pytest.fixture
-def mock_web3(mocker):
-    """Mock Web3 provider"""
-    mock_contract = mocker.Mock()
-    mock_contract.functions.swapTokensForEGP.return_value.transact.return_value = "0xTXHASH"
-    mocker.patch('app.blockchain.get_contract', return_value=mock_contract)
-```
-
 ---
 
 ## Debugging Tests
@@ -488,8 +477,8 @@ def sample_pool():
 
 ### Priority for New Tests
 
-1. **Critical Path**: Auth, payments, blockchain interactions
-2. **Business Logic**: AMM calculations, APY calculations
+1. **Critical Path**: Auth, payments
+2. **Business Logic**: Calculations, AI pipelines
 3. **Edge Cases**: Error handling, validation
 4. **Integration**: API endpoints, database queries
 

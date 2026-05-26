@@ -14,7 +14,7 @@ Data Sources (RSS feeds + free APIs):
 Processing Pipeline:
 1. Fetch raw articles from RSS/API sources
 2. Filter for relevance (keyword + region matching)
-3. LLM summarization: extract impact on Egyptian RE market
+3. Rule-based summarization: extract impact on Egyptian RE market (zero tokens)
 4. Classify impact level (high/medium/low) and tag impact areas
 5. Store in GeopoliticalEvent table
 
@@ -28,15 +28,15 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import GeopoliticalEvent
 from app.services.cache import cache
+from app.services.http_resilience import request_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -45,25 +45,66 @@ logger = logging.getLogger(__name__)
 # RSS FEED SOURCES
 # ═══════════════════════════════════════════════════════════════
 
-RSS_SOURCES: List[Dict[str, str]] = [
+RSS_SOURCES: List[Dict[str, Any]] = [
     {
         "name": "Al Jazeera English - Middle East",
         "url": "https://www.aljazeera.com/xml/rss/all.xml",
+        "fallback_urls": [
+            "https://www.aljazeera.com/xml/rss/all.xml",
+        ],
         "region": "middle_east",
     },
     {
         "name": "Reuters - World",
-        "url": "https://feeds.reuters.com/reuters/worldNews",
+        "url": "https://www.reuters.com/world/rss",
+        "fallback_urls": [
+            "https://feeds.reuters.com/reuters/worldNews",
+            "https://feeds.reuters.com/Reuters/worldNews",
+            "https://news.google.com/rss/search?q=Reuters+world&hl=en-US&gl=US&ceid=US:en",
+        ],
         "region": "global",
     },
     {
         "name": "BBC News - Middle East",
         "url": "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
+        "fallback_urls": [
+            "https://feeds.bbci.co.uk/news/world/rss.xml",
+            "https://feeds.bbci.co.uk/news/business/rss.xml",
+        ],
         "region": "middle_east",
     },
     {
         "name": "World Bank - Egypt",
-        "url": "https://blogs.worldbank.org/en/rss.xml",
+        "url": "https://www.worldbank.org/en/news/all?format=rss",
+        "fallback_urls": [
+            "https://www.worldbank.org/en/news/all?format=atom",
+            "https://news.google.com/rss/search?q=World+Bank+Egypt&hl=en-US&gl=US&ceid=US:en",
+        ],
+        "region": "egypt",
+    },
+    # ── Arabic-language sources ──
+    {
+        "name": "Enterprise Press - Egypt",
+        "url": "https://enterprise.news/feed/",
+        "fallback_urls": [
+            "https://enterpriseam.com/feed/",
+        ],
+        "region": "egypt",
+    },
+    {
+        "name": "Daily News Egypt - Economy",
+        "url": "https://www.dailynewsegypt.com/feed/",
+        "fallback_urls": [
+            "https://www.dailynewsegypt.com/feed/",
+        ],
+        "region": "egypt",
+    },
+    {
+        "name": "Al-Borsa News - Egypt Economy",
+        "url": "https://www.alborsanews.com/feed/",
+        "fallback_urls": [
+            "https://alborsaanews.com/feed/",
+        ],
         "region": "egypt",
     },
 ]
@@ -118,7 +159,10 @@ RELEVANCE_KEYWORDS: Dict[str, List[str]] = {
     "regulation": [
         "real estate law", "property law", "building regulation",
         "urban development", "new capital", "new cities",
+        "registration", "tabu", "licensing",
         "قانون العقارات", "التنظيم العقاري", "المدن الجديدة", "العاصمة الإدارية",
+        "الشهر العقاري", "التراخيص", "هيئة المجتمعات العمرانية",
+        "اشتراطات البناء", "قانون التصالح",
     ],
 }
 
@@ -129,8 +173,7 @@ for kw_list in RELEVANCE_KEYWORDS.values():
 
 
 # ═══════════════════════════════════════════════════════════════
-# IMPACT → REAL ESTATE MAPPING (Rule-based fallback)
-# Used when LLM summarization is unavailable
+# IMPACT → REAL ESTATE MAPPING (Rule-based, zero tokens)
 # ═══════════════════════════════════════════════════════════════
 
 IMPACT_MAPPING: Dict[str, Dict[str, Any]] = {
@@ -221,34 +264,107 @@ IMPACT_MAPPING: Dict[str, Dict[str, Any]] = {
 # RSS FETCH & PARSE
 # ═══════════════════════════════════════════════════════════════
 
-async def _fetch_rss_feed(client: httpx.AsyncClient, source: Dict[str, str]) -> List[Dict[str, str]]:
-    """Fetch and parse a single RSS feed with retry. Returns list of article dicts."""
-    articles: List[Dict[str, str]] = []
-    last_error = None
+def _first_xml_child(item: ET.Element, paths: List[str]) -> Optional[ET.Element]:
+    """Return the first matching XML child element for any of the candidate paths."""
+    for path in paths:
+        el = item.find(path)
+        if el is not None:
+            return el
+    return None
 
-    for attempt in range(3):
+def _candidate_feed_urls(source: Dict[str, Any]) -> List[str]:
+    """Return primary + fallback URLs without duplicates while preserving order."""
+    urls: List[str] = []
+
+    primary = source.get("url")
+    if isinstance(primary, str) and primary.strip():
+        urls.append(primary.strip())
+
+    fallback_urls = source.get("fallback_urls")
+    if isinstance(fallback_urls, list):
+        for value in fallback_urls:
+            if not isinstance(value, str):
+                continue
+            candidate = value.strip()
+            if candidate and candidate not in urls:
+                urls.append(candidate)
+
+    return urls
+
+
+async def _fetch_rss_feed(client: httpx.AsyncClient, source: Dict[str, Any]) -> List[Dict[str, str]]:
+    """Fetch and parse a single RSS feed with retry. Returns list of article dicts."""
+    source_name = source.get("name", "unknown_source")
+
+    for attempt_index, url in enumerate(_candidate_feed_urls(source), start=1):
         try:
-            resp = await client.get(source["url"], timeout=15)
+            resp = await request_with_retry(
+                client,
+                "GET",
+                url,
+                service_name=f"rss_{source_name}_{attempt_index}",
+                timeout=15,
+                max_attempts=3,
+            )
+
             if resp.status_code != 200:
-                logger.warning(f"RSS fetch failed for {source['name']}: HTTP {resp.status_code} (attempt {attempt+1}/3)")
-                if attempt < 2:
-                    await asyncio.sleep(2 ** attempt)
+                logger.warning(
+                    "RSS fetch failed for %s (attempt %s, url=%s): HTTP %s",
+                    source_name,
+                    attempt_index,
+                    url,
+                    resp.status_code,
+                )
+                continue
+
+            content_type = (resp.headers.get("content-type") or "").lower()
+            if "xml" not in content_type and "rss" not in content_type and "atom" not in content_type:
+                logger.warning(
+                    "RSS fetch for %s returned non-XML content-type '%s' (attempt %s, url=%s)",
+                    source_name,
+                    content_type or "unknown",
+                    attempt_index,
+                    url,
+                )
                 continue
 
             root = ET.fromstring(resp.text)
 
-            # Handle both RSS 2.0 (<channel><item>) and Atom (<entry>) formats
-            items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
+            # Handle both RSS 2.0 (<channel><item>) and Atom (<entry>) formats.
+            items = root.findall(".//item")
+            if not items:
+                items = root.findall(".//{*}item")
+            if not items:
+                items = root.findall(".//{http://www.w3.org/2005/Atom}entry")
+            if not items:
+                items = root.findall(".//{*}entry")
 
+            articles: List[Dict[str, str]] = []
             for item in items[:30]:  # Limit to newest 30 per source
-                title_el = item.find("title") or item.find("{http://www.w3.org/2005/Atom}title")
-                desc_el = (
-                    item.find("description")
-                    or item.find("{http://www.w3.org/2005/Atom}summary")
-                    or item.find("{http://www.w3.org/2005/Atom}content")
-                )
-                link_el = item.find("link") or item.find("{http://www.w3.org/2005/Atom}link")
-                pub_el = item.find("pubDate") or item.find("{http://www.w3.org/2005/Atom}published")
+                title_el = _first_xml_child(item, [
+                    "title",
+                    "{*}title",
+                ])
+                desc_el = _first_xml_child(item, [
+                    "description",
+                    "summary",
+                    "content",
+                    "{*}description",
+                    "{*}summary",
+                    "{*}content",
+                ])
+                link_el = _first_xml_child(item, [
+                    "link",
+                    "{*}link",
+                ])
+                pub_el = _first_xml_child(item, [
+                    "pubDate",
+                    "published",
+                    "updated",
+                    "{*}pubDate",
+                    "{*}published",
+                    "{*}updated",
+                ])
 
                 title = title_el.text.strip() if title_el is not None and title_el.text else ""
                 description = desc_el.text.strip() if desc_el is not None and desc_el.text else ""
@@ -263,23 +379,44 @@ async def _fetch_rss_feed(client: httpx.AsyncClient, source: Dict[str, str]) -> 
                         "description": _strip_html(description),
                         "link": link,
                         "pub_date": pub_date,
-                        "source_name": source["name"],
+                        "source_name": source_name,
                         "region": source["region"],
                     })
 
-            return articles  # Success — return immediately
+            if articles:
+                if attempt_index > 1:
+                    logger.info(
+                        "RSS feed recovered via fallback for %s (url=%s, articles=%s)",
+                        source_name,
+                        url,
+                        len(articles),
+                    )
+                return articles
 
-        except ET.ParseError as e:
-            logger.warning(f"XML parse error for {source['name']}: {e}")
-            last_error = e
-            break  # XML parse errors won't be fixed by retrying
-        except Exception as e:
-            logger.warning(f"RSS fetch error for {source['name']} (attempt {attempt+1}/3): {e}")
-            last_error = e
-            if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
+            logger.warning(
+                "RSS parse produced zero articles for %s (attempt %s, url=%s)",
+                source_name,
+                attempt_index,
+                url,
+            )
+        except ET.ParseError as exc:
+            logger.warning(
+                "XML parse error for %s (attempt %s, url=%s): %s",
+                source_name,
+                attempt_index,
+                url,
+                exc,
+            )
+        except Exception as exc:
+            logger.warning(
+                "RSS fetch error for %s (attempt %s, url=%s): %s",
+                source_name,
+                attempt_index,
+                url,
+                exc,
+            )
 
-    return articles
+    return []
 
 
 def _strip_html(text: str) -> str:
@@ -334,65 +471,11 @@ def _assess_impact_level(article: Dict[str, str], category: str, matched_keyword
 
 
 # ═══════════════════════════════════════════════════════════════
-# LLM SUMMARIZATION (Optional Enhancement)
-# Falls back to rule-based mapping if LLM unavailable
+# RULE-BASED SUMMARIZATION (zero tokens)
 # ═══════════════════════════════════════════════════════════════
 
-async def _llm_summarize_impact(title: str, description: str, category: str) -> Optional[Dict[str, str]]:
-    """
-    Use GPT-4o-mini to generate a concise real-estate-impact summary.
-    Returns {"summary": ..., "real_estate_impact": ..., "impact_tags": [...]}
-    Falls back to None if LLM unavailable.
-    """
-    try:
-        import os
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            return None
-
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=api_key)
-
-        prompt = f"""You are a senior Egyptian real estate investment analyst. 
-Analyze this news event and explain its impact on the Egyptian real estate market.
-
-EVENT: {title}
-DETAILS: {description[:500]}
-CATEGORY: {category}
-
-Respond in JSON format:
-{{
-  "summary": "2-3 sentence summary of the event focused on economic/market impact",
-  "real_estate_impact": "2-3 sentence analysis of how this specifically affects Egyptian real estate (prices, construction costs, demand, foreign investment, payment strategies)",
-  "impact_tags": ["tag1", "tag2", "tag3"]
-}}
-
-Valid tags: inflation_hedge, construction_costs, currency_devaluation, supply_chain, 
-interest_rates, mortgage_affordability, foreign_investment, demand_increase, 
-price_appreciation, developer_repricing, off_plan_advantage, rental_yield, 
-shipping_disruption, capital_preservation, infrastructure, regulatory_change"""
-
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=400,
-            response_format={"type": "json_object"},
-        )
-
-        content = response.choices[0].message.content
-        if not content:
-            return None
-        result = json.loads(content)
-        return result
-
-    except Exception as e:
-        logger.warning(f"LLM summarization failed (non-fatal): {e}")
-        return None
-
-
 def _rule_based_summary(article: Dict[str, str], category: str) -> Dict[str, Any]:
-    """Fallback: generate summary from rule-based mapping when LLM is unavailable."""
+    """Generate summary from rule-based mapping — zero token cost."""
     mapping = IMPACT_MAPPING.get(category, IMPACT_MAPPING["inflation"])
     return {
         "summary": f"{article['title']}. {article.get('description', '')[:200]}",
@@ -444,14 +527,11 @@ async def _is_duplicate(db: AsyncSession, title: str, source: str) -> bool:
 # MAIN SCRAPER PIPELINE
 # ═══════════════════════════════════════════════════════════════
 
-async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> Dict[str, Any]:
+async def scrape_geopolitical_events(db: AsyncSession) -> Dict[str, Any]:
     """
     Main pipeline: Fetch → Filter → Summarize → Store.
-    
-    Args:
-        db: Async database session
-        use_llm: Whether to use GPT-4o-mini for summarization (costs ~$0.01/run)
-    
+    Zero token cost — uses rule-based impact summarization only.
+
     Returns:
         {"fetched": int, "relevant": int, "stored": int, "errors": int}
     """
@@ -461,8 +541,13 @@ async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> 
 
     async with httpx.AsyncClient(
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; OsoolBot/1.0; +https://osool.eg)",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
             "Accept": "application/rss+xml, application/xml, text/xml, */*",
+            "Accept-Language": "en-US,en;q=0.9,ar;q=0.8",
         },
         follow_redirects=True,
         timeout=20,
@@ -504,15 +589,8 @@ async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> 
                 # Impact assessment
                 impact_level = _assess_impact_level(article, category, keywords)
 
-                # Summarization (LLM with rule-based fallback)
-                summary_data: Optional[Dict[str, Any]] = None
-                if use_llm:
-                    summary_data = await _llm_summarize_impact(
-                        article["title"], article.get("description", ""), category
-                    )
-
-                if not summary_data:
-                    summary_data = _rule_based_summary(article, category)
+                # Summarization (rule-based, zero tokens)
+                summary_data: Dict[str, Any] = _rule_based_summary(article, category)
 
                 # Parse tags
                 tags = summary_data.get("impact_tags", [])
@@ -526,6 +604,13 @@ async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> 
                 expires_at = datetime.now(timezone.utc) + timedelta(days=expiry_days.get(impact_level, 14))
 
                 # Create and store the event
+                # Parse sentiment from LLM (default 0.0 for rule-based)
+                raw_sentiment = summary_data.get("sentiment_score", 0.0)
+                try:
+                    sentiment = max(-1.0, min(1.0, float(raw_sentiment)))
+                except (TypeError, ValueError):
+                    sentiment = 0.0
+
                 event = GeopoliticalEvent(
                     title=article["title"][:300],
                     summary=summary_data.get("summary", article.get("description", ""))[:2000],
@@ -537,6 +622,7 @@ async def scrape_geopolitical_events(db: AsyncSession, use_llm: bool = True) -> 
                     impact_level=impact_level,
                     impact_tags=tags_json,
                     real_estate_impact=summary_data.get("real_estate_impact", "")[:2000],
+                    sentiment_score=sentiment,
                     is_active=True,
                     expires_at=expires_at,
                 )
@@ -591,5 +677,5 @@ async def run_geopolitical_scraper():
     """Standalone runner for the geopolitical scraper (used by scheduler)."""
     from app.database import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
-        result = await scrape_geopolitical_events(db, use_llm=True)
+        result = await scrape_geopolitical_events(db)
         return result

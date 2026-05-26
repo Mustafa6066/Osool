@@ -95,10 +95,20 @@ interface PropertyMapProps {
     formatPrice: (price: number) => string;
 }
 
+type MapInstance = {
+    remove: () => void;
+    fitBounds: (...args: unknown[]) => unknown;
+};
+
+type MarkerInstance = {
+    remove: () => void;
+    on: (event: 'click', handler: () => void) => void;
+};
+
 export default function PropertyMap({ properties, language, formatPrice }: PropertyMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
-    const mapInstanceRef = useRef<any>(null);
-    const markersRef = useRef<any[]>([]);
+    const mapInstanceRef = useRef<MapInstance | null>(null);
+    const markersRef = useRef<MarkerInstance[]>([]);
     const [selectedProperty, setSelectedProperty] = useState<PropertyItem | null>(null);
     const [mapReady, setMapReady] = useState(false);
 
@@ -108,7 +118,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
         // Dynamic import of Leaflet (client-only)
         import('leaflet').then((L) => {
             // Fix default marker icons for webpack/next
-            delete (L.Icon.Default.prototype as any)._getIconUrl;
+            delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
             L.Icon.Default.mergeOptions({
                 iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
                 iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -131,7 +141,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                 maxZoom: 19,
             }).addTo(map);
 
-            mapInstanceRef.current = map;
+            mapInstanceRef.current = map as unknown as MapInstance;
             setMapReady(true);
         });
 
@@ -148,7 +158,8 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
         if (!mapReady || !mapInstanceRef.current) return;
 
         import('leaflet').then((L) => {
-            const map = mapInstanceRef.current;
+            const map = mapInstanceRef.current as unknown as { fitBounds: (...args: unknown[]) => unknown };
+            const layerTarget = mapInstanceRef.current as unknown as Parameters<ReturnType<typeof L.marker>['addTo']>[0];
 
             // Remove old markers
             markersRef.current.forEach((m) => m.remove());
@@ -167,7 +178,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                 const icon = L.divIcon({
                     className: 'osool-map-marker',
                     html: `<div style="
-                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
                         color: white;
                         font-size: 11px;
                         font-weight: 700;
@@ -183,9 +194,9 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                     iconAnchor: [40, 16],
                 });
 
-                const marker = L.marker([lat, lng], { icon }).addTo(map);
+                const marker = L.marker([lat, lng], { icon }).addTo(layerTarget);
                 marker.on('click', () => setSelectedProperty(prop));
-                markersRef.current.push(marker);
+                markersRef.current.push(marker as unknown as MarkerInstance);
             });
 
             // Fit map to show all pins
@@ -222,7 +233,8 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                         {/* Close button */}
                         <button
                             onClick={() => setSelectedProperty(null)}
-                            className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                            aria-label={language === 'ar' ? 'إغلاق البطاقة' : 'Close property card'}
+                            className="absolute top-3 right-3 z-10 w-11 h-11 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -232,6 +244,8 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                             <img
                                 src={selectedProperty.image}
                                 alt={language === 'ar' ? selectedProperty.titleAr : selectedProperty.title}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = 'none';

@@ -103,3 +103,26 @@ secrets/
 
 # Security Fix L4: Database files
 *.db
+
+# Secrets dump (contains ALL production API keys — NEVER commit)
+tmp_vars.json
+
+# Test/debug scripts (one-off, not part of the codebase)
+test_scraper_local.py
+test_hash_diffing.py
+check_db_state.py
+check_db_live.py
+inspect_nextdata.py
+test_dump_nextdata.py
+next_data_dump.json
+cookies.txt
+csrf_body.json
+headers.txt
+payload.json
+backend/deploy_log.txt
+backend/login.json
+logs.txt
+
+.vercel
+.env*.local
+.gstack/

@@ -23,12 +23,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const direction: Direction = language === 'ar' ? 'rtl' : 'ltr';
 
     useEffect(() => {
-        setMounted(true);
-        // Check localStorage
         const savedLang = localStorage.getItem('osool-language') as Language | null;
         if (savedLang) {
             setLanguageState(savedLang);
         }
+        setMounted(true);
     }, []);
 
     useEffect(() => {

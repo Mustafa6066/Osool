@@ -1,14 +1,15 @@
 """
 Osool Database Models
 ---------------------
-Defines the schema for Users, Properties, Transactions, and Dual-Engine models
+Defines the schema for Users, Properties, Consultations, Transactions (legacy), and Dual-Engine models
 (Developers, Areas, Projects, Intents, Leads, SEO Pages, Campaigns, Email Events).
 Includes pgvector support for AI semantic search (when available).
 """
 
 import enum
+from typing import Optional
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, JSON
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 from app.database import Base
@@ -91,6 +92,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String)
     full_name: Mapped[str] = mapped_column(String)
     role: Mapped[str] = mapped_column(String, default="investor") # investor, admin
+    subscription_tier: Mapped[str] = mapped_column(String(20), default="free")  # free, premium, admin
 
     # Phase 2: KYC Fields (kept for database compatibility, not used in Phase 1)
     national_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
@@ -114,6 +116,7 @@ class User(Base):
     invited_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)  # Who invited this user
 
     transactions = relationship("Transaction", back_populates="user")
+    consultation_bookings = relationship("ConsultationBooking", back_populates="user")
     chat_messages = relationship("ChatMessage", back_populates="user")
     invitations_created = relationship("Invitation", back_populates="created_by_user", foreign_keys="Invitation.created_by_user_id")
 
@@ -127,18 +130,23 @@ class Property(Base):
     title: Mapped[str] = mapped_column(String, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     type: Mapped[str] = mapped_column(String, nullable=True) # Apartment, Villa, Townhouse, etc.
-    location: Mapped[str] = mapped_column(String, index=True)
+    location: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
     compound: Mapped[str] = mapped_column(String, nullable=True)
     developer: Mapped[str] = mapped_column(String, nullable=True)
 
     # Pricing
     price: Mapped[float] = mapped_column(Float, index=True)
     price_per_sqm: Mapped[float] = mapped_column(Float, nullable=True)
+    # Explicit developer-vs-resale split. Backfilled from `price` grouped by `sale_type`
+    # in migration 027. Used by the free-path comparison engine to compute the gap
+    # between primary (developer) and secondary (resale) prices per compound.
+    developer_price: Mapped[float] = mapped_column(Float, nullable=True, index=True)
+    resale_price: Mapped[float] = mapped_column(Float, nullable=True, index=True)
 
     # Size & Layout
-    size_sqm: Mapped[int] = mapped_column(Integer, index=True)
-    bedrooms: Mapped[int] = mapped_column(Integer)
-    bathrooms: Mapped[int] = mapped_column(Integer, nullable=True)
+    size_sqm: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
+    bedrooms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    bathrooms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     finishing: Mapped[str] = mapped_column(String, nullable=True) # e.g., "Fully Finished"
 
     # Payment Plan
@@ -146,6 +154,8 @@ class Property(Base):
     down_payment: Mapped[int] = mapped_column(Integer, nullable=True) # Percentage
     installment_years: Mapped[int] = mapped_column(Integer, nullable=True)
     monthly_installment: Mapped[float] = mapped_column(Float, nullable=True)
+    maintenance_fee_pct: Mapped[int] = mapped_column(Integer, nullable=True)  # Maintenance/wadeea deposit %
+    delivery_payment: Mapped[float] = mapped_column(Float, nullable=True)  # Handover lump-sum payment EGP
 
     # External Links
     image_url: Mapped[str] = mapped_column(Text, nullable=True)
@@ -163,6 +173,9 @@ class Property(Base):
     # Vector Embedding for Semantic Search (1536 dim for OpenAI text-embedding-3-small)
     embedding: Mapped[Vector] = mapped_column(Vector(1536), nullable=True)
 
+    # Full-text search tsvector (generated column — see migration 023)
+    search_tsv = mapped_column(TSVECTOR, nullable=True)
+
     # Availability
     is_available: Mapped[bool] = mapped_column(Boolean, default=True)
     # Zero-Token AI Engine fields
@@ -170,11 +183,42 @@ class Property(Base):
     bargain_percentage: Mapped[float] = mapped_column(Float, nullable=True)
     url: Mapped[str] = mapped_column(String(500), unique=True, nullable=True)
 
+    # Scraper tracking (v2 stale-data cleanup)
+    last_scrape_run_id: Mapped[str] = mapped_column(String(36), nullable=True, index=True)  # UUID of last scrape run
+    mirrored_image_url: Mapped[str] = mapped_column(Text, nullable=True)  # S3/R2 hosted copy
+    price_flag: Mapped[str] = mapped_column(String(50), nullable=True)  # e.g. 'potential_high_roi'
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=True, index=True)  # SHA256 of core attrs for differential upsert
+
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ConsultationBooking(Base):
+    """
+    Consultation booking workflow for the high-ticket brokerage model.
+
+    Replaces checkout-first assumptions with service outcomes:
+    - physical_viewing
+    - developer_meeting
+    """
+    __tablename__ = "consultation_bookings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), nullable=True, index=True)
+
+    booking_type: Mapped[str] = mapped_column(String(30))  # physical_viewing, developer_meeting
+    status: Mapped[str] = mapped_column(String(20), default="scheduled")  # scheduled, completed, cancelled
+    scheduled_time: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    assigned_broker_notes: Mapped[str] = mapped_column(Text, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="consultation_bookings")
+    property = relationship("Property")
+
+
 class Transaction(Base):
-    """Payment transaction tracking"""
+    """Legacy payment transaction tracking (kept for backward compatibility)."""
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -197,7 +241,7 @@ class Transaction(Base):
 
 class PaymentApproval(Base):
     """
-    Phase 2: Manual Bank Transfer Approvals
+    Legacy manual bank transfer approvals.
     Admins must verify these before confirming the transaction.
     """
     __tablename__ = "payment_approvals"
@@ -212,6 +256,37 @@ class PaymentApproval(Base):
 
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     reviewed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Portfolio(Base):
+    """
+    V5: Portfolio Expansion Engine — tracks owned properties + appreciation.
+    Created automatically when a payment is confirmed via paymob webhook.
+    """
+    __tablename__ = "portfolios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"))
+    transaction_id: Mapped[int] = mapped_column(ForeignKey("transactions.id"), nullable=True)
+
+    purchase_price: Mapped[float] = mapped_column(Float)
+    current_estimated_value: Mapped[float] = mapped_column(Float)
+    appreciation_pct: Mapped[float] = mapped_column(Float, default=0.0)  # cumulative %
+
+    equity_paid: Mapped[float] = mapped_column(Float, default=0.0)  # total paid so far
+    monthly_installment: Mapped[float] = mapped_column(Float, nullable=True)
+    installments_remaining: Mapped[int] = mapped_column(Integer, nullable=True)
+
+    status: Mapped[str] = mapped_column(String, default="active")  # active, sold, leverageable
+    location_zone: Mapped[str] = mapped_column(String, nullable=True)  # for AREA_GROWTH lookup
+
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_valuation_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User")
+    property = relationship("Property")
+    transaction = relationship("Transaction")
 
 
 class ChatMessage(Base):
@@ -349,13 +424,16 @@ class UserMemory(Base):
 
     Example: Session 1 user says "wife hates open kitchens" → stored.
              Session 2 user looks at unit with American kitchen → AI warns them.
+
+    SECURITY: memory_json and preferences_text are encrypted at rest via Fernet.
+    Use the encrypt/decrypt properties instead of raw column access.
     """
     __tablename__ = "user_memories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
 
-    # Core memory fields (JSON serialized)
+    # Core memory fields (JSON serialized) — ENCRYPTED AT REST
     memory_json: Mapped[str] = mapped_column(Text, nullable=True)  # Full ConversationMemory dict
 
     # Quick-access fields for common lookups
@@ -364,7 +442,7 @@ class UserMemory(Base):
     preferred_areas: Mapped[str] = mapped_column(String, nullable=True)  # Comma-separated
     investment_vs_living: Mapped[str] = mapped_column(String, nullable=True)
 
-    # Free-text preferences (e.g., "wife hates open kitchens", "needs garden")
+    # Free-text preferences — ENCRYPTED AT REST
     preferences_text: Mapped[str] = mapped_column(Text, nullable=True)
 
     # Timestamps
@@ -372,6 +450,27 @@ class UserMemory(Base):
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
+
+    # ── Encryption helpers ────────────────────────────────────────────────
+    @property
+    def decrypted_memory_json(self) -> str | None:
+        from app.utils.encryption import decrypt_field
+        return decrypt_field(self.memory_json)
+
+    @decrypted_memory_json.setter
+    def decrypted_memory_json(self, value: str | None):
+        from app.utils.encryption import encrypt_field
+        self.memory_json = encrypt_field(value)
+
+    @property
+    def decrypted_preferences_text(self) -> str | None:
+        from app.utils.encryption import decrypt_field
+        return decrypt_field(self.preferences_text)
+
+    @decrypted_preferences_text.setter
+    def decrypted_preferences_text(self, value: str | None):
+        from app.utils.encryption import encrypt_field
+        self.preferences_text = encrypt_field(value)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -573,6 +672,9 @@ class GeopoliticalEvent(Base):
 
     # AI-generated real estate advisory based on this event
     real_estate_impact: Mapped[str] = mapped_column(Text, nullable=True)
+
+    # Sentiment (numeric scalar for SEO tone control)
+    sentiment_score: Mapped[float] = mapped_column(Float, nullable=True)  # -1.0 (very negative) to +1.0 (very positive)
 
     # Metadata
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -868,3 +970,90 @@ class Report(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User")
+
+
+class MarketingMaterial(Base):
+    """Answers generated by AI for admin marketing/social media usage."""
+    __tablename__ = "marketing_materials"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+    question_ar: Mapped[str] = mapped_column(Text, nullable=False)
+    question_en: Mapped[str] = mapped_column(Text, nullable=False)
+    answer_ar: Mapped[str] = mapped_column(Text, nullable=True)
+    answer_en: Mapped[str] = mapped_column(Text, nullable=True)
+    last_updated: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_run_status: Mapped[str] = mapped_column(String(50), nullable=True)
+
+
+class HallucinationFlag(Base):
+    """
+    Claim-level hallucination flags produced by the post-SPEAK verifier
+    (ai_engine/verifier.py). One row per unverified atomic claim.
+
+    Weekly clustering job groups `claim_text` by TF-IDF + KMeans to surface
+    recurring hallucination patterns (e.g. "AI keeps inventing developer X").
+
+    Inspired by Token-Guard's three-stage decoder (token → segment → global
+    clustering), adapted for Anthropic's hosted Claude API.
+    """
+    __tablename__ = "hallucination_flags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    # Which agent produced the response (e.g. 'wolf_brain', 'chat-agent')
+    agent_name: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+
+    # Conversation/user context — both nullable so anonymous sessions still log
+    session_id: Mapped[str] = mapped_column(String(128), index=True, nullable=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=True)
+
+    # What the user asked + what the AI said (truncated in verifier.py)
+    query: Mapped[str] = mapped_column(Text, nullable=True)
+    response_text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # The atomic claim + type — indexed for clustering
+    claim_text: Mapped[str] = mapped_column(String(500), index=True, nullable=False)
+    claim_type: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+
+    # Verification outcome
+    verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    evidence_source: Mapped[str] = mapped_column(String(128), nullable=True)
+    severity: Mapped[str] = mapped_column(String(16), index=True, default="medium", nullable=False)
+
+    # Verifier metadata (useful when model strings change)
+    verifier_model: Mapped[str] = mapped_column(String(128), nullable=True)
+    verifier_reason: Mapped[str] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class FreePathSession(Base):
+    """
+    Per-session state for the free-path compound comparison flow.
+
+    The free-path conversation is a small state machine (AWAITING_NAMES →
+    VALIDATING → MISSING_DATA → COMPARING → DONE). FastAPI is stateless and
+    ChatMessage history is too unstructured to derive the state reliably,
+    so we persist it here keyed by `session_id`.
+    """
+    __tablename__ = "free_path_sessions"
+
+    session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    # AWAITING_NAMES | VALIDATING | MISSING_DATA | COMPARING | DONE
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="AWAITING_NAMES")
+    # JSON list of canonical compound names the user has named so far
+    candidate_names: Mapped[dict] = mapped_column(JSON, nullable=True)
+    # "SINGLE" or "MULTI" once resolved; null while still gathering names
+    mode: Mapped[str] = mapped_column(String(16), nullable=True)
+    property_type_filter: Mapped[str] = mapped_column(String(32), nullable=True)
+    comparison_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Tracks which compound triggered MISSING_DATA so we replace the right one (CQ1 fix)
+    missing_compound: Mapped[str] = mapped_column(String(256), nullable=True)
+    # Set True after deal-submission CTA shown once per session (D9 timing spec)
+    has_shown_deal_cta: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

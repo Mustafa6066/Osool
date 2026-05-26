@@ -180,7 +180,7 @@ export default function AICapabilityShowcase() {
                         The answer quality that changes decisions
                     </h2>
                     <p className="text-[var(--color-text-secondary)] max-w-xl text-[15px] leading-relaxed">
-                        Real questions, real intelligence. See how CoInvestor delivers
+                        Real questions, real intelligence. See how Osool Advisor delivers
                         institutional-grade analysis in seconds.
                     </p>
                 </div>
@@ -220,7 +220,7 @@ export default function AICapabilityShowcase() {
                         <div className="flex-1 flex justify-center">
                             <div className="flex items-center gap-1.5 px-3 py-0.5 bg-[var(--color-surface)] rounded text-[10px] font-mono text-[var(--color-text-muted)] border border-[var(--color-border)]">
                                 <span className={`w-1.5 h-1.5 rounded-full ${colors.dot} animate-pulse`} />
-                                CoInvestor — {demo.category}
+                                Osool Advisor — {demo.category}
                             </div>
                         </div>
                     </div>
@@ -258,7 +258,7 @@ export default function AICapabilityShowcase() {
                                         <Icon size={15} />
                                     </div>
                                     <div>
-                                        <span className="text-xs font-semibold text-[var(--color-text-primary)]">CoInvestor</span>
+                                        <span className="text-xs font-semibold text-[var(--color-text-primary)]">Osool Advisor</span>
                                         <span className="text-[10px] text-[var(--color-text-muted)] ml-2">AI Analysis</span>
                                     </div>
                                 </div>

@@ -97,7 +97,6 @@ histogram_quantile(0.95, rate(osool_database_query_duration_seconds_bucket[5m]))
 ```prometheus
 # Circuit breaker state (0=closed, 1=half_open, 2=open)
 osool_circuit_breaker_state{service="openai"}
-osool_circuit_breaker_state{service="blockchain"}
 osool_circuit_breaker_state{service="paymob"}
 
 # Failure count

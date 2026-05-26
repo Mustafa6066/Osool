@@ -129,9 +129,10 @@ export default function Law114Guardian({
                     <div className="w-full max-w-xs mt-4">
                         <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                             <motion.div
-                                initial={{ width: "0%" }}
-                                animate={{ width: "100%" }}
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: 1 }}
                                 transition={{ duration: 3, ease: "easeInOut" }}
+                                style={{ transformOrigin: 'left' }}
                                 className="h-full bg-blue-500"
                             />
                         </div>

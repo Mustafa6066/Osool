@@ -3,6 +3,11 @@ import { projectJsonLd } from '@/lib/json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import AppShell from '@/components/nav/AppShell';
+import { areaBrief, developerBrief, formatPriceBand, formatRate, projectBrief } from '@/lib/decision-support';
+import { T } from '@/components/T';
+
+export const revalidate = 3600; // ISR: 1 hour
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -45,24 +50,30 @@ export default async function ProjectDetailPage({ params }: Props) {
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-EG').format(Math.round(n));
 
+  const brief = projectBrief(project);
+  const developerSummary = developer ? developerBrief(developer) : null;
+  const areaSummary = area ? areaBrief(area) : null;
+
   return (
-    <main className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-primary)]">
+    <AppShell>
+    <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(projectJsonLd(project)) }}
       />
-      <div className="max-w-4xl mx-auto px-4 py-16">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6 flex items-center gap-1">
-          <Link href="/" className="hover:text-emerald-500">Home</Link>
+          <Link href="/" className="hover:text-emerald-500"><T k="comparePage.home" /></Link>
           <span>/</span>
-          <Link href="/projects" className="hover:text-emerald-500">Projects</Link>
+          <Link href="/projects" className="hover:text-emerald-500"><T k="projPage.badge" /></Link>
           <span>/</span>
           <span className="text-[var(--color-text-primary)]">{project.name}</span>
         </nav>
 
         {/* Header */}
-        <div className="mb-8">
+        <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
+        <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
           <div className="flex items-center gap-2 mb-2">
             {project.project_type && (
               <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/10 text-emerald-600 font-medium">
@@ -81,6 +92,7 @@ export default async function ProjectDetailPage({ params }: Props) {
               {project.name_ar}
             </p>
           )}
+          <p className="mt-5 text-base leading-7 text-[var(--color-text-secondary)]">{brief.thesis}</p>
 
           {/* Developer & Area links */}
           <div className="flex flex-wrap gap-4 mt-3 text-sm text-[var(--color-text-secondary)]">
@@ -97,31 +109,60 @@ export default async function ProjectDetailPage({ params }: Props) {
           </div>
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+          <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="projPage.bestFor" /></div>
+            <div className="mt-2 text-base font-semibold">{brief.bestFor}</div>
+          </div>
+          <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="projPage.mainWatchout" /></div>
+            <div className="mt-2 text-base font-semibold">{brief.risk}</div>
+          </div>
+        </div>
+        </section>
+
         {/* KPI Cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {project.min_price_per_meter && project.max_price_per_meter && (
             <StatCard
-              label="Price/m²"
+              label={<T k="projPage.pricePerSqm" />}
               value={`${fmt(project.min_price_per_meter)} – ${fmt(project.max_price_per_meter)}`}
               unit="EGP"
             />
           )}
           {project.expected_delivery && (
-            <StatCard label="Delivery" value={project.expected_delivery.slice(0, 10)} />
+            <StatCard label={<T k="projPage.delivery" />} value={project.expected_delivery.slice(0, 10)} />
           )}
           {project.down_payment_min != null && (
-            <StatCard label="Down Payment" value={`${project.down_payment_min}%`} />
+            <StatCard label={<T k="projPage.downPayment" />} value={`${project.down_payment_min}%`} />
           )}
           {project.installment_years != null && (
-            <StatCard label="Installments" value={`${project.installment_years} years`} />
+            <StatCard label={<T k="projPage.installments" />} value={`${project.installment_years} years`} />
           )}
           {project.min_unit_size && project.max_unit_size && (
-            <StatCard label="Unit Size" value={`${project.min_unit_size}–${project.max_unit_size} m²`} />
+            <StatCard label={<T k="projPage.unitSize" />} value={`${project.min_unit_size}–${project.max_unit_size} m²`} />
           )}
           {project.construction_progress != null && (
-            <StatCard label="Progress" value={`${project.construction_progress}%`} />
+            <StatCard label={<T k="projPage.progress" />} value={`${project.construction_progress}%`} />
           )}
         </div>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          {developerSummary && (
+            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="projPage.developerContext" /></div>
+              <div className="mt-2 text-lg font-semibold">{developerSummary.verdict}</div>
+              <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{developerSummary.bestFor}</div>
+            </div>
+          )}
+          {areaSummary && (
+            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"><T k="projPage.areaContext" /></div>
+              <div className="mt-2 text-lg font-semibold">{areaSummary.thesis}</div>
+              <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{areaSummary.bestFor}</div>
+            </div>
+          )}
+        </section>
 
         {/* Amenities */}
         {project.amenities && (() => {
@@ -129,7 +170,7 @@ export default async function ProjectDetailPage({ params }: Props) {
           try { items = JSON.parse(project.amenities); } catch { /* ignore */ }
           return items.length > 0 ? (
           <section className="mb-10">
-            <h2 className="text-xl font-semibold mb-4">Amenities</h2>
+            <h2 className="text-xl font-semibold mb-4"><T k="projPage.amenities" /></h2>
             <div className="flex flex-wrap gap-2">
               {items.map((a: string) => (
                 <span
@@ -146,15 +187,18 @@ export default async function ProjectDetailPage({ params }: Props) {
 
         {/* Price History Table */}
         {priceHistory.length > 0 && (
-          <section className="mb-10">
-            <h2 className="text-xl font-semibold mb-4">Price History (EGP/m²)</h2>
+          <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <h2 className="text-xl font-semibold mb-4"><T k="projPage.priceHistory" /></h2>
+            <p className="mb-4 text-sm leading-6 text-[var(--color-text-secondary)]">
+              <T k="projPage.priceHistoryNote" />
+            </p>
             <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
               <table className="w-full text-sm">
                 <thead className="bg-[var(--color-surface)]">
                   <tr>
-                    <th className="p-3 text-left font-medium">Date</th>
-                    <th className="p-3 text-right font-medium">Price/m²</th>
-                    <th className="p-3 text-right font-medium">Source</th>
+                    <th className="p-3 text-left font-medium"><T k="projPage.date" /></th>
+                    <th className="p-3 text-right font-medium"><T k="projPage.priceSqm" /></th>
+                    <th className="p-3 text-right font-medium"><T k="projPage.source" /></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -178,20 +222,21 @@ export default async function ProjectDetailPage({ params }: Props) {
         {/* CTA */}
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
           <h3 className="text-lg font-semibold mb-2">
-            Interested in {project.name}?
+            <T k="projPage.interested" /> {project.name}?
           </h3>
           <p className="text-sm text-[var(--color-text-muted)] mb-4">
-            Ask our AI assistant for personalized pricing, availability, and investment analysis.
+            <T k="projPage.askAdvisor" />
           </p>
           <Link
-            href="/#chat"
+            href="/chat"
             className="inline-block px-6 py-2 bg-emerald-500 text-white rounded-full font-medium hover:bg-emerald-600 transition-colors"
           >
-            Chat with Osool AI
+            <T k="projPage.chatWithAI" />
           </Link>
         </div>
       </div>
     </main>
+    </AppShell>
   );
 }
 
@@ -200,7 +245,7 @@ function StatCard({
   value,
   unit,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: string;
   unit?: string;
 }) {

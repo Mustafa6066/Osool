@@ -236,9 +236,10 @@ export default function PaymentTimeline({ property, payment }: PaymentTimelinePr
                     </div>
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                         <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${down_payment_percent}%` }}
+                            initial={{ scaleX: 0 }}
+                            animate={{ scaleX: down_payment_percent / 100 }}
                             transition={{ duration: 1, delay: 0.7 }}
+                            style={{ transformOrigin: 'left' }}
                             className="h-full bg-gradient-to-r from-blue-500 to-blue-600"
                         />
                     </div>
@@ -252,9 +253,10 @@ export default function PaymentTimeline({ property, payment }: PaymentTimelinePr
                     </div>
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                         <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${100 - down_payment_percent}%` }}
+                            initial={{ scaleX: 0 }}
+                            animate={{ scaleX: (100 - down_payment_percent) / 100 }}
                             transition={{ duration: 1, delay: 0.8 }}
+                            style={{ transformOrigin: 'left' }}
                             className="h-full bg-gradient-to-r from-purple-500 to-purple-600"
                         />
                     </div>
@@ -269,9 +271,10 @@ export default function PaymentTimeline({ property, payment }: PaymentTimelinePr
                         </div>
                         <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                             <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${((total_paid - property.price) / total_paid) * 100}%` }}
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: ((total_paid - property.price) / total_paid) }}
                                 transition={{ duration: 1, delay: 0.9 }}
+                                style={{ transformOrigin: 'left' }}
                                 className="h-full bg-gradient-to-r from-yellow-500 to-orange-600"
                             />
                         </div>
@@ -302,7 +305,7 @@ export default function PaymentTimeline({ property, payment }: PaymentTimelinePr
             <div className="mt-6 pt-4 border-t border-white/10">
                 <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                     <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                    <span>Calculated by CoInvestor using CBE rates</span>
+                    <span>Calculated by Osool Advisor using CBE rates</span>
                 </div>
             </div>
         </motion.div>

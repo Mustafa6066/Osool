@@ -15,19 +15,13 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    # Add columns to properties table
-    op.add_column('properties', sa.Column('osool_score', sa.Float(), nullable=True))
-    op.add_column('properties', sa.Column('bargain_percentage', sa.Float(), nullable=True))
-    op.add_column('properties', sa.Column('url', sa.String(length=500), nullable=True))
-
-    # Create unique constraint for URL if supported or fallback to standard index
-    # We create unique constraint on Postgres usually
-    # op.create_unique_constraint('uq_properties_url', 'properties', ['url'])
-    op.create_index('ix_properties_url', 'properties', ['url'], unique=True)
+    op.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS osool_score FLOAT")
+    op.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS bargain_percentage FLOAT")
+    op.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS url VARCHAR(500)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_properties_url ON properties (url)")
 
 def downgrade() -> None:
-    # Drop columns
-    op.drop_index('ix_properties_url', table_name='properties')
-    op.drop_column('properties', 'url')
-    op.drop_column('properties', 'bargain_percentage')
-    op.drop_column('properties', 'osool_score')
+    op.execute("DROP INDEX IF EXISTS ix_properties_url")
+    op.execute("ALTER TABLE properties DROP COLUMN IF EXISTS url")
+    op.execute("ALTER TABLE properties DROP COLUMN IF EXISTS bargain_percentage")
+    op.execute("ALTER TABLE properties DROP COLUMN IF EXISTS osool_score")

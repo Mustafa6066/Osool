@@ -1,0 +1,28 @@
+diff a/web/components/AgentInterface.tsx b/web/components/AgentInterface.tsx	(rejected hunks)
+@@ -1176,7 +1193,7 @@ export default function AgentInterface() {
+ 
+                 {/* Top bar ΓÇö sticky header with session controls + funnel */}
+                 {hasStarted && (
+-                    <div className="sticky top-0 left-0 right-0 z-30 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]/30">
++                    <div className="sticky top-0 start-0 end-0 z-30 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]/30">
+                         <div className="max-w-[980px] mx-auto px-4 md:px-6">
+                             <div className="flex items-center justify-between py-1.5 md:py-2.5">
+                                 <span className="text-[12px] md:text-[13px] font-semibold text-[var(--color-text-primary)] tracking-tight">
+@@ -1231,7 +1248,7 @@ export default function AgentInterface() {
+                                         {conversationLanguage === 'ar' ? `╪ú┘ç┘ä╪º┘ï╪î ${userName}` : `Hello, ${userName}`}
+                                     </h1>
+                                     <p className="text-[1rem] md:text-[1.15rem] text-[var(--color-text-secondary)] font-normal max-w-xl mx-auto leading-relaxed px-4 md:px-0" dir="auto">
+-                                        {conversationLanguage === 'ar' ? '┘ê┘â┘è┘ä┘â ╪º┘ä╪░┘â┘è ┘ä┘ä╪╣┘é╪º╪▒╪º╪¬ ΓÇö ╪¬╪¡┘ä┘è┘ä ╪º┘ä╪│┘ê┘é╪î ┘ü╪▒╪╡ ╪º┘ä╪º╪│╪¬╪½┘à╪º╪▒╪î ┘ê╪¬╪»┘é┘è┘é ╪º┘ä┘à╪╖┘ê╪▒┘è┘å' : 'Your AI real estate agent ΓÇö market analysis, investment opportunities, and developer audits'}<span className="text-emerald-500 font-bold ml-0.5">.</span>
++                                        {conversationLanguage === 'ar' ? '┘ê┘â┘è┘ä┘â ╪º┘ä╪░┘â┘è ┘ä┘ä╪╣┘é╪º╪▒╪º╪¬ ΓÇö ╪¬╪¡┘ä┘è┘ä ╪º┘ä╪│┘ê┘é╪î ┘ü╪▒╪╡ ╪º┘ä╪º╪│╪¬╪½┘à╪º╪▒╪î ┘ê╪¬╪»┘é┘è┘é ╪º┘ä┘à╪╖┘ê╪▒┘è┘å' : 'Your AI real estate agent ΓÇö market analysis, investment opportunities, and developer audits'}<span className="text-emerald-500 font-bold ms-0.5">.</span>
+                                     </p>
+                                 </div>
+ 
+@@ -1700,7 +1717,7 @@ export default function AgentInterface() {
+                             animate={{ x: 0, opacity: 1 }}
+                             exit={{ x: -320, opacity: 0 }}
+                             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+-                            className="fixed left-0 top-0 bottom-0 w-[320px] bg-[var(--color-surface)] border-r border-[var(--color-border)] z-50 flex flex-col shadow-2xl"
++                            className="fixed start-0 top-0 bottom-0 w-[320px] bg-[var(--color-surface)] border-e border-[var(--color-border)] z-50 flex flex-col shadow-2xl"
+                         >
+                             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+                                 <span className="text-[15px] font-semibold text-[var(--color-text-primary)]">{conversationLanguage === 'ar' ? '╪º┘ä┘à╪¡╪º╪»╪½╪º╪¬ ╪º┘ä╪│╪º╪¿┘é╪⌐' : 'Past Conversations'}</span>

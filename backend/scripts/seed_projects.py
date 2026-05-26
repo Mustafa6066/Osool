@@ -17,6 +17,18 @@ from app.models import SEOProject, Developer, Area, ProjectType, ProjectStatus
 from sqlalchemy import select
 
 
+PROJECT_TYPE_MAP = {
+    "COMPOUND": ProjectType.RESIDENTIAL.value,
+    "RESORT": ProjectType.RESORT.value,
+    "TOWER": ProjectType.RESIDENTIAL.value,
+}
+
+PROJECT_STATUS_MAP = {
+    "SELLING": ProjectStatus.UNDER_CONSTRUCTION.value,
+    "DELIVERED": ProjectStatus.DELIVERED.value,
+}
+
+
 async def get_lookup(session):
     """Build slug→id lookups for developers and areas."""
     devs = (await session.execute(select(Developer))).scalars().all()
@@ -100,14 +112,17 @@ async def seed():
             min_price_per_m = int(row[7] / area_max) if row[7] and area_max else 0
             max_price_per_m = int(row[8] / area_min) if row[8] and area_min else 0
 
+            project_type = PROJECT_TYPE_MAP.get(row[5], ProjectType.RESIDENTIAL.value)
+            project_status = PROJECT_STATUS_MAP.get(row[6], ProjectStatus.UNDER_CONSTRUCTION.value)
+
             project = SEOProject(
                 slug=slug,
                 name=row[1],
                 name_ar=row[2],
                 developer_id=dev_id,
                 area_id=area_id,
-                project_type=ProjectType[row[5]],
-                status=ProjectStatus[row[6]],
+                project_type=project_type,
+                status=project_status,
                 min_price_per_meter=min_price_per_m,
                 max_price_per_meter=max_price_per_m,
                 avg_price_per_meter=(min_price_per_m + max_price_per_m) / 2,

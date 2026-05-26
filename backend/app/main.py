@@ -11,6 +11,7 @@ Features:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import logging
 from dotenv import load_dotenv
 import os
@@ -21,6 +22,8 @@ load_dotenv()
 # Logger
 logger = logging.getLogger("osool")
 logging.basicConfig(level=logging.INFO)
+# Silence SQLAlchemy SQL echo at INFO level (prevents Railway log flood)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 # Phase 5: Sentry Integration for Error Tracking
 SENTRY_DSN = os.getenv("SENTRY_DSN")
@@ -56,9 +59,13 @@ from app.api.ticket_endpoints import router as ticket_router
 from app.api.seo_endpoints import router as seo_router
 from app.api.intent_endpoints import router as intent_router
 from app.api.lead_endpoints import router as lead_router
+from app.api.consultation_endpoints import router as consultation_router
 from app.api.email_endpoints import router as email_router
 from app.api.analytics_endpoints import router as analytics_router
 from app.api.campaign_endpoints import router as campaign_router
+from app.api.health_endpoints import router as health_router
+from app.api.orchestrator_endpoints import router as orchestrator_router
+from app.api.orchestrator_endpoints import user_prefs_router
 from app.services.metrics import metrics_endpoint
 
 # ═══════════════════════════════════════════════════════════════
@@ -67,6 +74,110 @@ from app.services.metrics import metrics_endpoint
 
 # Security: Disable API documentation in production
 _is_production = os.getenv("ENVIRONMENT") == "production"
+
+
+# ═══════════════════════════════════════════════════════════════
+# LIFESPAN (replaces deprecated @app.on_event)
+# Compatible with FastAPI >= 0.93 / Starlette >= 0.20
+# ═══════════════════════════════════════════════════════════════
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup then yield then shutdown."""
+    # ── STARTUP ────────────────────────────────────────────────
+    import os as _os
+    logger.info("🚀 Osool Backend Starting...")
+
+    environment = _os.getenv("ENVIRONMENT", "development")
+    if environment == "production":
+        required_vars = [
+            "JWT_SECRET_KEY",
+            "DATABASE_URL",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+        ]
+        missing_vars = [v for v in required_vars if not _os.getenv(v)]
+        if missing_vars:
+            logger.error(
+                "CRITICAL: Missing required environment variables: %s",
+                ", ".join(missing_vars),
+            )
+
+    try:
+        from app.database import init_db
+        await init_db()
+        logger.info("✅ Database tables: VERIFIED")
+    except Exception as e:
+        logger.warning("⚠️ Database tables: init_db skipped (%s)", e)
+
+    try:
+        from app.ingest_pipeline import create_valuation_tables
+        await create_valuation_tables()
+        logger.info("✅ Valuation Pipeline: valuation_listings table READY")
+    except Exception as e:
+        logger.warning("⚠️ Valuation Pipeline: table init skipped (%s)", e)
+
+    try:
+        from app.intelligence_loop import create_intelligence_tables, start_intelligence_worker
+        await create_intelligence_tables()
+        await start_intelligence_worker()
+        logger.info("✅ Intelligence Loop: telemetry tables READY, drift worker STARTED")
+    except Exception as e:
+        logger.warning("⚠️ Intelligence Loop: startup skipped (%s)", e)
+
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.gamification import gamification_engine
+        async with AsyncSessionLocal() as session:
+            await gamification_engine.seed_achievements(session)
+        logger.info("✅ Gamification Engine: ACHIEVEMENTS SEEDED")
+    except Exception as e:
+        logger.warning("⚠️ Gamification Engine: Seed skipped (%s)", e)
+
+    try:
+        from app.services.scheduler import init_scheduler
+        init_scheduler()
+    except Exception as e:
+        logger.warning("⚠️ APScheduler: Init skipped (%s)", e)
+
+    try:
+        from app.services.cache import cache
+        if cache.redis:
+            cache.redis.ping()
+            logger.info("✅ Redis: CONNECTED (token blacklist active)")
+        elif _os.getenv("ENVIRONMENT") == "production":
+            logger.error("❌ Redis: UNAVAILABLE in production — token blacklist degraded!")
+        else:
+            logger.warning("⚠️ Redis: Not configured (using in-memory fallback)")
+    except Exception as e:
+        if _os.getenv("ENVIRONMENT") == "production":
+            logger.error("❌ Redis: Connection failed in production — %s", e)
+        else:
+            logger.warning("⚠️ Redis: Connection failed (%s)", e)
+
+    logger.info("✅ AI Intelligence Layer: READY")
+    logger.info("✅ CoInvestor Agent (Claude 3.5 Sonnet): READY")
+    logger.info("✅ Hybrid Brain (XGBoost + GPT-4o): READY")
+    logger.info("✅ Gamification Engine: READY")
+    logger.info("✅ Semantic Search (pgvector): READY")
+    logger.info("🎉 Osool Backend is ONLINE (Environment: %s)", environment)
+    logger.info("🐺 Phase 9: AI + Gamification Platform")
+
+    yield  # ── Application runs here ──────────────────────────
+
+    # ── SHUTDOWN ───────────────────────────────────────────────
+    try:
+        from app.services.scheduler import shutdown_scheduler
+        shutdown_scheduler()
+    except Exception:
+        pass
+    try:
+        from app.intelligence_loop import stop_intelligence_worker
+        await stop_intelligence_worker()
+    except Exception:
+        pass
+    logger.info("👋 Osool Backend shutting down")
+
 
 app = FastAPI(
     title="Osool API",
@@ -96,7 +207,8 @@ app = FastAPI(
     """,
     version="1.0.0",
     docs_url=None if _is_production else "/docs",
-    redoc_url=None if _is_production else "/redoc"
+    redoc_url=None if _is_production else "/redoc",
+    lifespan=lifespan,
 )
 
 # ═══════════════════════════════════════════════════════════════
@@ -116,7 +228,7 @@ limiter = Limiter(key_func=get_remote_address)
 # ═══════════════════════════════════════════════════════════════
 
 # Get frontend domain and strip trailing slash AND any path
-frontend_domain = os.getenv("FRONTEND_DOMAIN", "https://osool.com").rstrip("/")
+frontend_domain = os.getenv("FRONTEND_DOMAIN", "https://osool-ten.vercel.app").rstrip("/")
 # Strip any path from the domain (e.g., /login)
 from urllib.parse import urlparse
 parsed = urlparse(frontend_domain)
@@ -132,7 +244,15 @@ origins = [
     "https://osool-one.vercel.app", # Specific Vercel deployment
     "https://osool-ten.vercel.app", # Latest Vercel deployment
     "https://osool.eg",  # Production (Core)
+    "https://osool-production.up.railway.app",  # Railway deployment
 ]
+
+extra_origins = os.getenv("ALLOWED_ORIGINS", "")
+if extra_origins:
+    origins.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
+
+# Keep order stable while removing duplicates
+origins = list(dict.fromkeys(origins))
 
 if os.getenv("ENVIRONMENT") == "production":
     origins = [o for o in origins if not o.startswith("http://localhost")]
@@ -182,7 +302,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
-            "connect-src 'self' https://api.openai.com wss://osool.eg wss://osool.vercel.app"
+            # MEDIUM-10 fix: removed https://api.openai.com (backend only, not browser);
+            # corrected wss domain to osool-ten.vercel.app
+            "connect-src 'self' https://osool-ten.vercel.app wss://osool.eg wss://osool-ten.vercel.app"
         )
 
         # Referrer Policy
@@ -195,22 +317,27 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 # Simple in-memory rate limiter (safety net)
 from app.middleware.simple_rate_limiter import SimpleRateLimiterMiddleware
+from app.middleware.csrf_protection import CSRFProtectionMiddleware
 
 # NOTE: Middleware order matters in FastAPI (LIFO - Last In First Out)
 # Middleware added LAST executes FIRST in the request chain.
-# Order (bottom to top, execution order): Rate Limiter → Security Headers → CORS (must be last!)
+# Order (outer → inner): CORS → Rate Limiter → CSRF → Security Headers
 
-app.add_middleware(SimpleRateLimiterMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CSRFProtectionMiddleware, allowed_origins=origins)  # CRITICAL-3 fix: was defined but never registered
+app.add_middleware(SimpleRateLimiterMiddleware)
 
 # CORS MIDDLEWARE - MUST BE ADDED LAST (executes first in middleware chain)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app",
+    # MEDIUM-9 fix: Anchor regex with ^ and $ so a string like
+    # "https://evil.com/https://osool-abc-mustafas-projects-xyz.vercel.app" doesn't bypass it
+    allow_origin_regex=r"^https://osool-[a-z0-9]+-mustafas-projects-[a-z0-9]+\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Admin-Key", "X-CSRF-Token"],
+    expose_headers=["X-CSRF-Token"],
 )
 
 app.state.limiter = limiter
@@ -253,9 +380,39 @@ app.include_router(ticket_router)
 app.include_router(seo_router)
 app.include_router(intent_router)
 app.include_router(lead_router)
+app.include_router(consultation_router)
 app.include_router(email_router)
 app.include_router(analytics_router)
 app.include_router(campaign_router)
+
+# Simple health endpoint registered FIRST so Railway healthcheck always
+# gets a fast 200 regardless of startup-event completion status.
+@app.get("/health")
+def health():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "osool-backend"}
+
+app.include_router(health_router)
+app.include_router(orchestrator_router)
+app.include_router(user_prefs_router)
+
+try:
+    from app.ingest_pipeline import router as ingest_router
+    app.include_router(ingest_router)
+except Exception as _e:
+    logger.error("Failed to load ingest_pipeline router: %s", _e)
+
+try:
+    from app.intelligence_loop import router as intelligence_router
+    app.include_router(intelligence_router)
+except Exception as _e:
+    logger.error("Failed to load intelligence_loop router: %s", _e)
+
+try:
+    from app.api.freemium_router import router as freemium_router
+    app.include_router(freemium_router)
+except Exception as _e:
+    logger.error("Failed to load freemium_router: %s", _e)
 
 
 @app.get("/")
@@ -264,12 +421,6 @@ def root():
     # SECURITY: Never expose version, phase, or internal feature names.
     # Attackers use version strings to look up known CVEs.
     return {"status": "online", "service": "Osool API"}
-
-
-@app.get("/health")
-def health():
-    """Health check endpoint"""
-    return {"status": "healthy", "service": "osool-backend"}
 
 
 # Security Fix H4: Lazy import of verify_api_key to protect metrics
@@ -297,83 +448,6 @@ def metrics(_key: str = _Depends(_verify_metrics_key)):
     """
     return metrics_endpoint()
 
-
-# ═══════════════════════════════════════════════════════════════
-# STARTUP EVENT
-# ═══════════════════════════════════════════════════════════════
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Startup validation with security checks.
-    Fails fast if critical environment variables are missing.
-    """
-    import os
-
-    logger.info("🚀 Osool Backend Starting...")
-
-    # Phase 1: Security Validation
-    environment = os.getenv("ENVIRONMENT", "development")
-
-    if environment == "production":
-        required_vars = [
-            "JWT_SECRET_KEY",
-            "DATABASE_URL",
-            "OPENAI_API_KEY",
-            "ANTHROPIC_API_KEY"
-        ]
-
-        missing_vars = [var for var in required_vars if not os.getenv(var)]
-
-        if missing_vars:
-            error_msg = f"CRITICAL: Missing required environment variables: {', '.join(missing_vars)}"
-            logger.error(error_msg)
-            # Log but do NOT raise — allows /health to respond so Railway healthcheck passes.
-            # Individual API endpoints will fail with 500 if they require missing vars.
-
-    # Create missing tables (gamification, etc.) if they don't exist
-    try:
-        from app.database import init_db
-        await init_db()
-        logger.info("✅ Database tables: VERIFIED")
-    except Exception as e:
-        logger.warning(f"⚠️ Database tables: init_db skipped ({e})")
-
-    # Phase 9: Seed gamification achievements
-    try:
-        from app.database import AsyncSessionLocal
-        from app.services.gamification import gamification_engine
-        async with AsyncSessionLocal() as session:
-            await gamification_engine.seed_achievements(session)
-        logger.info("✅ Gamification Engine: ACHIEVEMENTS SEEDED")
-    except Exception as e:
-        logger.warning(f"⚠️ Gamification Engine: Seed skipped ({e})")
-
-    # Phase 10: Initialize APScheduler for weekly scraping jobs
-    try:
-        from app.services.scheduler import init_scheduler
-        init_scheduler()
-    except Exception as e:
-        logger.warning(f"⚠️ APScheduler: Init skipped ({e})")
-
-    logger.info("✅ AI Intelligence Layer: READY")
-    logger.info("✅ CoInvestor Agent (Claude 3.5 Sonnet): READY")
-    logger.info("✅ Hybrid Brain (XGBoost + GPT-4o): READY")
-    logger.info("✅ Gamification Engine: READY")
-    logger.info("✅ Semantic Search (pgvector): READY")
-    logger.info(f"🎉 Osool Backend is ONLINE (Environment: {environment})")
-    logger.info(f"🐺 Phase 9: AI + Gamification Platform")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Graceful shutdown: stop scheduled tasks."""
-    try:
-        from app.services.scheduler import shutdown_scheduler
-        shutdown_scheduler()
-    except Exception:
-        pass
-    logger.info("👋 Osool Backend shutting down")
 
 if __name__ == "__main__":
     import uvicorn

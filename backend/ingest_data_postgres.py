@@ -21,11 +21,15 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import select, func
 from app.models import Property
 from app.database import Base
+from app.utils.safe_parsers import clean_int, clean_float, clean_str
 
 load_dotenv()
 
 # Configuration
-PROPERTIES_JSON_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "properties.json")
+# Try local data/ first (Docker context), then parent data/ (local dev)
+_local_path = os.path.join(os.path.dirname(__file__), "data", "properties.json")
+_parent_path = os.path.join(os.path.dirname(__file__), "..", "data", "properties.json")
+PROPERTIES_JSON_PATH = _local_path if os.path.exists(_local_path) else _parent_path
 DATABASE_URL = os.getenv("DATABASE_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -106,7 +110,7 @@ def generate_embedding(text: str) -> list:
         return None
 
 
-async def property_exists(db: AsyncSession, property_id: str) -> bool:
+async def property_exists(db: AsyncSession, property_id: int) -> bool:
     """
     Checks if a property already exists in the database by its ID.
     """
@@ -133,13 +137,20 @@ async def ingest_to_postgres(properties: list):
         inserted = 0
         skipped = 0
         failed = 0
+        batch_pending = 0
 
         print(f"\n📊 Processing {len(properties)} properties...")
 
         for i, prop in enumerate(properties, 1):
             try:
                 # Check if property already exists
-                prop_id = prop.get('id')
+                prop_id_raw = prop.get('id', '')
+                # Convert string ID (e.g., 'NC1240', 'SH3300') to integer
+                prop_id = int(''.join(c for c in prop_id_raw if c.isdigit())) if prop_id_raw else None
+                if not prop_id:
+                    print(f"   ⚠️ Skipping property with invalid ID: {prop_id_raw}")
+                    failed += 1
+                    continue
                 if await property_exists(db, prop_id):
                     skipped += 1
                     if i % 100 == 0:
@@ -164,26 +175,26 @@ async def ingest_to_postgres(properties: list):
                     title=prop.get('title', ''),
                     description=prop.get('description', ''),
                     type=prop.get('type', ''),
-                    location=prop.get('location', ''),
+                    location=clean_str(prop.get('location')),
                     compound=prop.get('compound', ''),
                     developer=prop.get('developer', ''),
                     price=float(prop.get('price', 0)),
-                    price_per_sqm=float(prop.get('pricePerSqm', 0)),
-                    size_sqm=int(prop.get('area', 0)),
-                    bedrooms=int(prop.get('bedrooms', 0)),
-                    bathrooms=int(prop.get('bathrooms', 0)),
+                    price_per_sqm=clean_float(prop.get('pricePerSqm')),
+                    size_sqm=clean_int(prop.get('area')),
+                    bedrooms=clean_int(prop.get('bedrooms')),
+                    bathrooms=clean_int(prop.get('bathrooms')),
                     finishing=prop.get('finishing', 'N/A'),
                     delivery_date=prop.get('deliveryDate', ''),
-                    down_payment=payment.get('downPayment', 0) if payment else 0,
-                    installment_years=payment.get('installmentYears', 0) if payment else 0,
-                    monthly_installment=float(payment.get('monthlyInstallment', 0)) if payment else 0,
+                    down_payment=clean_int(payment.get('downPayment')) if payment else None,
+                    installment_years=clean_int(payment.get('installmentYears')) if payment else None,
+                    monthly_installment=clean_float(payment.get('monthlyInstallment')) if payment else None,
                     image_url=prop.get('image', ''),
                     nawy_url=prop.get('nawyUrl', ''),
                     sale_type=prop.get('saleType', ''),
                     is_delivered=prop.get('isDelivered', False),
                     is_cash_only=prop.get('isCashOnly', False),
-                    land_area=int(prop.get('landArea', 0)) if prop.get('landArea') else None,
-                    nawy_reference=prop.get('nawyReference', ''),
+                    land_area=clean_int(prop.get('landArea')),
+                    nawy_reference=prop.get('nawyReference', '') or prop_id_raw,
                     is_nawy_now=prop.get('isNawyNow', False),
                     embedding=embedding,
                     is_available=True
@@ -191,22 +202,28 @@ async def ingest_to_postgres(properties: list):
 
                 db.add(new_property)
                 inserted += 1
+                batch_pending += 1
 
                 # Progress update every 100 properties
                 if i % 100 == 0:
                     print(f"   [{i}/{len(properties)}] ✅ Inserted: {prop_id}")
 
                 # Commit in batches of 50 for performance
-                if i % 50 == 0:
+                if batch_pending >= 50:
                     await db.commit()
+                    batch_pending = 0
 
             except Exception as e:
                 print(f"   ❌ Error processing {prop.get('id', 'unknown')}: {e}")
                 failed += 1
+                # Rollback the failed transaction so subsequent queries work
+                await db.rollback()
+                batch_pending = 0
                 continue
 
-        # Final commit
-        await db.commit()
+        # Final commit for remaining batch
+        if batch_pending > 0:
+            await db.commit()
 
         # Summary
         print(f"\n📈 INGESTION SUMMARY:")

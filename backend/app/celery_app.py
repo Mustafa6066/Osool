@@ -35,16 +35,6 @@ celery_app.conf.update(
 # PERIODIC TASKS (BEAT)
 # ---------------------------------------------------------------------------
 
-@celery_app.task(name="scrape_nawy")
-def scrape_nawy_task():
-    """
-    Regularly scrapes Nawy website for new listings.
-    Scheduled every 6 hours via Beat.
-    """
-    from app.services.nawy_scraper import ingest_nawy_data
-    return ingest_nawy_data()
-
-
 @celery_app.task(name="scrape_geopolitical", bind=True, max_retries=2, autoretry_for=(Exception,), retry_backoff=True)
 def scrape_geopolitical_task(self):
     """

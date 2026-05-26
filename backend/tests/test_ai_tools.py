@@ -2,7 +2,7 @@
 Unit Tests for AI Tools (Business Logic)
 -----------------------------------------
 Tests business logic for valuation, ROI calculation, payment plans,
-property comparison, and blockchain verification.
+property comparison, and AI verification.
 
 NOTE: The original app.ai_engine.tools.* subpackage was refactored into
 the Wolf Brain V7 architecture. These tests verify the core business
@@ -180,24 +180,6 @@ def test_compare_properties_price_per_sqm():
         p["price_per_sqm"] = p["price"] / p["area_sqm"]
     best = min(properties, key=lambda p: p["price_per_sqm"])
     assert best["id"] == 103
-
-
-# ---------------------------------------------------------------------------
-# TEST: BLOCKCHAIN VERIFICATION (Mocked)
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_blockchain_verification_available():
-    mock_result = {"status": "success", "available": True, "units_left": 3,
-                   "last_verified": datetime.now().isoformat()}
-    assert mock_result["available"] is True
-    assert mock_result["units_left"] == 3
-
-
-@pytest.mark.asyncio
-async def test_blockchain_verification_sold_out():
-    mock_result = {"status": "success", "available": False, "units_left": 0}
-    assert mock_result["available"] is False
 
 
 # ---------------------------------------------------------------------------

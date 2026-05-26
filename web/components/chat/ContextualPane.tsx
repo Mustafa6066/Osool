@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
     BarChart2, TrendingUp, X, Sparkles, MapPin, Home, DollarSign, Target, Zap, Activity,
     PieChart, Building2, Calendar, ArrowUpRight, ArrowDownRight, Layers, Navigation,
@@ -17,7 +17,17 @@ import EmbeddedChart, { generateProjectionData } from '../insights/EmbeddedChart
 export interface UIActionData {
     type: string;
     priority: number;
-    data: any;
+    data: {
+        analysis?: {
+            match_score?: number;
+            roi_projection?: number;
+            area_avg_price_per_sqm?: number;
+            market_trend?: string;
+            price_verdict?: string;
+            risk_level?: string;
+        };
+        [key: string]: unknown;
+    };
     trigger_reason?: string;
     chart_reference?: string;
 }
@@ -64,6 +74,10 @@ interface ContextualPaneProps {
     isModal?: boolean; // When true, renders content only without wrapper
 }
 
+function prefersReducedMotion(): boolean {
+    return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 // Typewriter Hook with anime.js
 function useTypewriter(text: string, speed: number = 20, startDelay: number = 0) {
     const [displayedText, setDisplayedText] = useState('');
@@ -72,6 +86,12 @@ function useTypewriter(text: string, speed: number = 20, startDelay: number = 0)
     useEffect(() => {
         if (!text) {
             setDisplayedText('');
+            setIsComplete(true);
+            return;
+        }
+
+        if (prefersReducedMotion()) {
+            setDisplayedText(text);
             setIsComplete(true);
             return;
         }
@@ -119,6 +139,12 @@ function AnimatedCounter({
 
     useEffect(() => {
         if (counterRef.current && !hasAnimated) {
+            if (prefersReducedMotion()) {
+                counterRef.current.textContent = String(value);
+                setHasAnimated(true);
+                return;
+            }
+
             const timer = setTimeout(() => {
                 anime({
                     targets: counterRef.current,
@@ -155,6 +181,11 @@ function AnimatedProgressBar({
 
     useEffect(() => {
         if (barRef.current) {
+            if (prefersReducedMotion()) {
+                barRef.current.style.width = `${percentage}%`;
+                return;
+            }
+
             anime({
                 targets: barRef.current,
                 width: [`0%`, `${percentage}%`],
@@ -182,6 +213,12 @@ function MapModule({ address, isRTL }: { address: string; isRTL: boolean }) {
     const pinRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        if (prefersReducedMotion()) {
+            if (mapRef.current) mapRef.current.style.opacity = '1';
+            if (pinRef.current) pinRef.current.style.opacity = '1';
+            return;
+        }
+
         if (mapRef.current) {
             anime({
                 targets: mapRef.current,
@@ -370,7 +407,7 @@ function AIRecommendationWidget({
 
             <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-3">
-                    <div className="size-6 rounded bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <div className="size-6 rounded bg-white/20 flex items-center justify-center">
                         <Sparkles size={14} />
                     </div>
                     <h3 className="text-sm font-bold">{isRTL ? 'توصية الذكاء الاصطناعي' : 'AI Recommendation'}</h3>
@@ -384,7 +421,7 @@ function AIRecommendationWidget({
                         {tags.map((tag, i) => (
                             <span
                                 key={tag}
-                                className="px-2 py-1 bg-white/10 backdrop-blur-md rounded text-[10px] font-medium border border-white/20"
+                                className="px-2 py-1 bg-white/10 rounded text-[10px] font-medium border border-white/20"
                             >
                                 {tag}
                             </span>
@@ -571,9 +608,15 @@ export default function ContextualPane({
 
     // Reset animations when property or uiActions change
     useEffect(() => {
-        if (property || uiActions.length > 0) {
-            setAnimationKey(prev => prev + 1);
+        if (!property && uiActions.length === 0) {
+            return;
         }
+
+        const timer = setTimeout(() => {
+            setAnimationKey(prev => prev + 1);
+        }, 0);
+
+        return () => clearTimeout(timer);
     }, [property, uiActions]);
 
     // Entrance animation for the whole pane
@@ -634,15 +677,15 @@ export default function ContextualPane({
     }, [wolfScore, roi, pricePerSqm, areaAvgPrice, isRTL, chatInsight]);
 
     // Determine tags based on analysis
-    const tags = useMemo(() => {
+    const tags = (() => {
         const result: string[] = [];
-        if (wolfScore >= 80) result.push(isRTL ? 'فرصة قوية' : 'High Potential');
+        if ((wolfScore ?? 0) >= 80) result.push(isRTL ? 'فرصة قوية' : 'High Potential');
         if (priceVerdict === 'BARGAIN') result.push(isRTL ? 'صفقة' : 'Bargain');
         if (marketTrend?.includes('Growing') || marketTrend?.includes('Bullish')) result.push(isRTL ? 'سوق صاعد' : 'Growing Market');
         if (riskLevel === 'Low') result.push(isRTL ? 'مخاطر منخفضة' : 'Low Risk');
         if (property?.tags) result.push(...property.tags);
         return result.slice(0, 4);
-    }, [wolfScore, priceVerdict, marketTrend, riskLevel, property?.tags, isRTL]);
+    })();
 
     // Show empty state with quick actions if no data
     const hasData = property || uiActions.length > 0;
@@ -656,7 +699,7 @@ export default function ContextualPane({
             style={{ opacity: hasData ? 0 : 1 }}
         >
             {/* Header */}
-            <div className="px-5 py-4 border-b border-[var(--color-border)] flex justify-between items-center sticky top-0 bg-[var(--color-surface)]/80 backdrop-blur z-10">
+            <div className="px-5 py-4 border-b border-[var(--color-border)] flex justify-between items-center sticky top-0 bg-[var(--color-surface)] z-10">
                 <h2 className="font-bold text-[var(--color-text-primary)] flex items-center gap-2">
                     <BarChart2 size={18} className="text-[var(--color-teal-accent)]" />
                     {isRTL ? 'رؤى العقار' : 'Property Insights'}
@@ -998,7 +1041,7 @@ export default function ContextualPane({
                             animate={{ x: 0 }}
                             exit={{ x: isRTL ? -360 : 360 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 bottom-0 w-[var(--panel-width,360px)] bg-[var(--color-surface)] backdrop-blur-xl flex flex-col z-50 xl:hidden border-l border-[var(--color-border)]`}
+                            className={`fixed ${isRTL ? 'left-0' : 'right-0'} top-0 bottom-0 w-[var(--panel-width,360px)] bg-[var(--color-surface)] flex flex-col z-50 xl:hidden border-l border-[var(--color-border)]`}
                         >
                             {sidebarContent}
                         </motion.aside>

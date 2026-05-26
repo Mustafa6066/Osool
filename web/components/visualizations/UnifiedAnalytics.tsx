@@ -15,13 +15,57 @@ import {
     AlertTriangle,
     ArrowRight,
     Check,
+    type LucideIcon,
 } from "lucide-react";
 
+interface AnalyticsProperty {
+    title?: string;
+    location?: string;
+    price?: number;
+    savings?: number;
+}
+
+interface AnalyticsArea {
+    name?: string;
+    avg_price_per_sqm?: number;
+    yearly_growth?: number;
+    pros?: string[];
+}
+
+interface AnalyticsAlternative {
+    label_ar?: string;
+    label_en?: string;
+}
+
+interface VisualizationData {
+    properties?: AnalyticsProperty[];
+    alternatives?: AnalyticsAlternative[];
+    property?: { title?: string; wolf_score?: number };
+    analysis?: {
+        match_score?: number;
+        factors?: Record<string, number | string>;
+        verdict_ar?: string;
+        verdict_en?: string;
+    };
+    area?: AnalyticsArea;
+    areas?: AnalyticsArea[];
+    developer?: { name?: string; trust_score?: number };
+    developers?: Array<{ name?: string; trust_score?: number }>;
+    projections?: unknown;
+    summary?: unknown;
+    message_ar?: string;
+    message_en?: string;
+    protection_rate?: number;
+    [key: string]: unknown;
+}
+
+interface VisualizationItem {
+    type: string;
+    data?: VisualizationData;
+}
+
 interface UnifiedAnalyticsProps {
-    visualizations: Array<{
-        type: string;
-        data: any;
-    }>;
+    visualizations: VisualizationItem[];
     isRTL?: boolean;
 }
 
@@ -34,7 +78,7 @@ const formatPrice = (price: number): string => {
 };
 
 // Analytics category with icon and color
-const ANALYTICS_CONFIG: Record<string, { icon: any; label: string; labelAr: string; color: string; bgColor: string }> = {
+const ANALYTICS_CONFIG: Record<string, { icon: LucideIcon; label: string; labelAr: string; color: string; bgColor: string }> = {
     investment_scorecard: {
         icon: Target,
         label: "Investment",
@@ -94,27 +138,27 @@ const ANALYTICS_CONFIG: Record<string, { icon: any; label: string; labelAr: stri
 };
 
 // Check if visualization has meaningful content
-const hasContent = (viz: { type: string; data: any }): boolean => {
+const hasContent = (viz: VisualizationItem): boolean => {
     const { type, data } = viz;
     if (!data) return false;
 
     switch (type) {
         case "la2ta_alert":
-            return data.properties?.length > 0;
+                return (data.properties?.length ?? 0) > 0;
         case "reality_check":
-            return data.alternatives?.length > 0 || data.message_ar || data.message_en;
+                return (data.alternatives?.length ?? 0) > 0 || Boolean(data.message_ar) || Boolean(data.message_en);
         case "comparison_matrix":
-            return data.properties?.length > 0;
+                return (data.properties?.length ?? 0) > 0;
         case "investment_scorecard":
-            return data.property || data.analysis;
+                return Boolean(data.property) || Boolean(data.analysis);
         case "area_analysis":
-            return data.area || data.areas?.length > 0;
+                return Boolean(data.area) || (data.areas?.length ?? 0) > 0;
         case "developer_analysis":
-            return data.developer || data.developers?.length > 0;
+                return Boolean(data.developer) || (data.developers?.length ?? 0) > 0;
         case "inflation_killer":
-            return data.projections || data.summary;
+                return Boolean(data.projections) || Boolean(data.summary);
         default:
-            return true;
+                return true;
     }
 };
 
@@ -125,7 +169,7 @@ function InsightCard({
     isExpanded,
     onToggle,
 }: {
-    viz: { type: string; data: any };
+    viz: VisualizationItem;
     isRTL: boolean;
     isExpanded: boolean;
     onToggle: () => void;
@@ -277,7 +321,7 @@ function InsightCard({
 }
 
 // Expanded content for each visualization type
-function ExpandedContent({ viz, isRTL }: { viz: { type: string; data: any }; isRTL: boolean }) {
+function ExpandedContent({ viz, isRTL }: { viz: VisualizationItem; isRTL: boolean }) {
     const { type, data } = viz;
 
     switch (type) {
@@ -292,7 +336,7 @@ function ExpandedContent({ viz, isRTL }: { viz: { type: string; data: any }; isR
                     )}
                     {data?.analysis?.factors && (
                         <div className="grid grid-cols-2 gap-2 mt-2">
-                            {Object.entries(data.analysis.factors).slice(0, 4).map(([key, val]: [string, any]) => (
+                            {Object.entries(data.analysis.factors).slice(0, 4).map(([key, val]) => (
                                 <div key={key} className="bg-white/5 rounded-lg p-2 text-center">
                                     <div className="text-xs text-gray-400 capitalize">{key}</div>
                                     <div className="text-sm font-semibold text-emerald-400">{val}/100</div>
@@ -306,7 +350,7 @@ function ExpandedContent({ viz, isRTL }: { viz: { type: string; data: any }; isR
         case "la2ta_alert":
             return (
                 <div className="space-y-2 pt-2">
-                    {data?.properties?.slice(0, 2).map((prop: any, idx: number) => (
+                    {data?.properties?.slice(0, 2).map((prop, idx: number) => (
                         <div
                             key={idx}
                             className="flex items-center justify-between bg-amber-500/5 rounded-lg p-2 border border-amber-500/20"
@@ -316,10 +360,10 @@ function ExpandedContent({ viz, isRTL }: { viz: { type: string; data: any }; isR
                                 <div className="text-xs text-gray-400">{prop.location}</div>
                             </div>
                             <div className="text-end flex-shrink-0">
-                                <div className="text-sm font-bold text-amber-400">{formatPrice(prop.price)}</div>
-                                {prop.savings > 0 && (
+                                <div className="text-sm font-bold text-amber-400">{formatPrice(prop.price ?? 0)}</div>
+                                {(prop.savings ?? 0) > 0 && (
                                     <div className="text-[10px] text-green-400">
-                                        {isRTL ? "وفّر" : "Save"} {formatPrice(prop.savings)}
+                                        {isRTL ? "وفّر" : "Save"} {formatPrice(prop.savings ?? 0)}
                                     </div>
                                 )}
                             </div>
@@ -331,7 +375,7 @@ function ExpandedContent({ viz, isRTL }: { viz: { type: string; data: any }; isR
         case "comparison_matrix":
             return (
                 <div className="space-y-2 pt-2">
-                    {data?.properties?.slice(0, 3).map((prop: any, idx: number) => (
+                    {data?.properties?.slice(0, 3).map((prop, idx: number) => (
                         <div
                             key={idx}
                             className={`flex items-center justify-between rounded-lg p-2 ${
@@ -342,7 +386,7 @@ function ExpandedContent({ viz, isRTL }: { viz: { type: string; data: any }; isR
                                 {idx === 0 && <Check className="w-3 h-3 text-blue-400 flex-shrink-0" />}
                                 <div className="text-sm text-white truncate">{prop.title}</div>
                             </div>
-                            <div className="text-sm font-semibold text-white">{formatPrice(prop.price)}</div>
+                            <div className="text-sm font-semibold text-white">{formatPrice(prop.price ?? 0)}</div>
                         </div>
                     ))}
                 </div>
@@ -358,19 +402,19 @@ function ExpandedContent({ viz, isRTL }: { viz: { type: string; data: any }; isR
                                 <div className="bg-white/5 rounded-lg p-2">
                                     <div className="text-[10px] text-gray-400">{isRTL ? "سعر المتر" : "Price/sqm"}</div>
                                     <div className="text-sm font-semibold text-cyan-400">
-                                        {formatPrice(area.avg_price_per_sqm)}
+                                        {formatPrice(area.avg_price_per_sqm ?? 0)}
                                     </div>
                                 </div>
                                 <div className="bg-white/5 rounded-lg p-2">
                                     <div className="text-[10px] text-gray-400">{isRTL ? "النمو" : "Growth"}</div>
                                     <div className="text-sm font-semibold text-green-400">
-                                        +{area.yearly_growth || 15}%
+                                        +{area.yearly_growth ?? 15}%
                                     </div>
                                 </div>
                             </div>
-                            {area.pros?.length > 0 && (
+                            {(area.pros?.length ?? 0) > 0 && (
                                 <div className="flex flex-wrap gap-1">
-                                    {area.pros.slice(0, 3).map((pro: string, idx: number) => (
+                                    {area.pros?.slice(0, 3).map((pro: string, idx: number) => (
                                         <span
                                             key={idx}
                                             className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] rounded-full"
@@ -391,9 +435,9 @@ function ExpandedContent({ viz, isRTL }: { viz: { type: string; data: any }; isR
                     <p className="text-xs text-gray-300 leading-relaxed">
                         {isRTL ? data?.message_ar : data?.message_en}
                     </p>
-                    {data?.alternatives?.length > 0 && (
+                    {(data?.alternatives?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {data.alternatives.slice(0, 2).map((alt: any, idx: number) => (
+                            {data?.alternatives?.slice(0, 2).map((alt, idx: number) => (
                                 <button
                                     key={idx}
                                     className="flex items-center gap-1 px-2 py-1 bg-orange-500/10 text-orange-400 text-xs rounded-lg hover:bg-orange-500/20 transition-colors"

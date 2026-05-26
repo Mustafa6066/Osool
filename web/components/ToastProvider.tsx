@@ -67,7 +67,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {children}
 
             {/* Toast Container */}
-            <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+            <div className="fixed top-4 end-4 z-50 flex flex-col gap-2">
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}
@@ -77,7 +77,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                         <span>{toast.message}</span>
                         <button
                             onClick={() => removeToast(toast.id)}
-                            className="ml-2 opacity-70 hover:opacity-100"
+                            className="ms-2 opacity-70 hover:opacity-100"
                         >
                             ✕
                         </button>

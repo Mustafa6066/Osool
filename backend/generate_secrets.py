@@ -10,7 +10,6 @@ Usage:
 
 import secrets
 import string
-from cryptography.fernet import Fernet
 
 
 def generate_jwt_secret(length: int = 64) -> str:
@@ -22,11 +21,6 @@ def generate_jwt_secret(length: int = 64) -> str:
 def generate_admin_api_key(length: int = 32) -> str:
     """Generate a secure admin API key (hex)."""
     return secrets.token_hex(length)
-
-
-def generate_wallet_encryption_key() -> str:
-    """Generate a Fernet encryption key for wallet encryption."""
-    return Fernet.generate_key().decode()
 
 
 def generate_database_url(db_name: str = "osool_dev") -> str:
@@ -45,7 +39,6 @@ def main():
     # Generate all secrets
     jwt_secret = generate_jwt_secret()
     admin_api_key = generate_admin_api_key()
-    wallet_key = generate_wallet_encryption_key()
     db_url = generate_database_url()
 
     # Display results
@@ -56,9 +49,6 @@ def main():
 
     print(f"# Admin API Key (for protected admin endpoints)")
     print(f"ADMIN_API_KEY={admin_api_key}\n")
-
-    print(f"# Wallet Encryption Key (CRITICAL - for encrypting user wallets)")
-    print(f"WALLET_ENCRYPTION_KEY={wallet_key}\n")
 
     print(f"# Database URL (PostgreSQL)")
     print(f"# NOTE: Update username, password, host, port, and db_name as needed")

@@ -24,7 +24,7 @@ if not OPENAI_API_KEY:
 aclient = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # Setup DB
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 async def get_embedding(text: str):
@@ -106,6 +106,9 @@ async def migrate_data():
                     title=title,
                     description=description,
                     location=location,
+                    compound=str(row.get('compound_name', '')),
+                    developer=str(row.get('developer_name', '')),
+                    type=str(row.get('property_type', '')),
                     price=price,
                     size_sqm=size_sqm,
                     bedrooms=bedrooms,

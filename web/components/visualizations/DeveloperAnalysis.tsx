@@ -2,12 +2,12 @@
 
 import { motion } from "framer-motion";
 import { 
-    BuildingOffice2Icon, 
-    StarIcon,
-    TrophyIcon,
-    ClockIcon,
-    CheckBadgeIcon
-} from "@heroicons/react/24/outline";
+    Building2, 
+    Star,
+    Trophy,
+    Clock,
+    BadgeCheck
+} from "lucide-react";
 
 interface DeveloperAnalysisProps {
     developer: {
@@ -57,7 +57,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
             <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 px-6 py-4 border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                        <BuildingOffice2Icon className="w-5 h-5 text-indigo-400" />
+                        <Building2 className="w-5 h-5 text-indigo-400" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">تحليل المطور 🏢</h3>
@@ -74,7 +74,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                 <div className="bg-[var(--color-surface)]/30 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                            <StarIcon className="w-4 h-4 text-amber-400" />
+                            <Star className="w-4 h-4 text-amber-400" />
                             <p className="text-sm font-medium text-white">تقييم السمعة</p>
                         </div>
                         <span className={`text-2xl font-bold ${getScoreColor(developer.reputation_score)}`}>
@@ -83,9 +83,10 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                     </div>
                     <div className="h-3 bg-[var(--color-surface)] rounded-full overflow-hidden">
                         <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${developer.reputation_score}%` }}
+                            initial={{ scaleX: 0 }}
+                            animate={{ scaleX: developer.reputation_score / 100 }}
                             transition={{ duration: 1, ease: "easeOut" }}
+                            style={{ transformOrigin: 'left' }}
                             className={`h-full bg-gradient-to-r ${getScoreBarColor(developer.reputation_score)} rounded-full`}
                         />
                     </div>
@@ -95,14 +96,14 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                 <div className="grid md:grid-cols-2 gap-4">
                     <div className="bg-[var(--color-surface)]/30 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-2">
-                            <TrophyIcon className="w-4 h-4 text-amber-400" />
+                            <Trophy className="w-4 h-4 text-amber-400" />
                             <p className="text-sm text-[var(--color-text-secondary)]">علاوة السعر</p>
                         </div>
                         <p className="text-white font-medium">{developer.avg_price_premium}</p>
                     </div>
                     <div className="bg-[var(--color-surface)]/30 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-2">
-                            <ClockIcon className="w-4 h-4 text-blue-400" />
+                            <Clock className="w-4 h-4 text-blue-400" />
                             <p className="text-sm text-[var(--color-text-secondary)]">تقييم التسليم</p>
                         </div>
                         <p className="text-white font-medium">{developer.delivery_rating}</p>
@@ -112,7 +113,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                 {/* Popular Projects */}
                 <div className="bg-[var(--color-surface)]/30 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-3">
-                        <BuildingOffice2Icon className="w-4 h-4 text-indigo-400" />
+                        <Building2 className="w-4 h-4 text-indigo-400" />
                         <p className="text-sm font-medium text-white">أشهر المشاريع</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -127,7 +128,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                 {/* Strengths */}
                 <div className="bg-gradient-to-r from-emerald-950/30 to-emerald-950/30 rounded-xl p-4 border border-emerald-500/20">
                     <div className="flex items-center gap-2 mb-3">
-                        <CheckBadgeIcon className="w-4 h-4 text-emerald-400" />
+                        <BadgeCheck className="w-4 h-4 text-emerald-400" />
                         <p className="text-sm font-medium text-emerald-400">نقاط القوة</p>
                     </div>
                     <ul className="space-y-2">

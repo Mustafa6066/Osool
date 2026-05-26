@@ -58,6 +58,15 @@ export interface ExtractedContext {
     keywords: string[];
 }
 
+interface AnalyticsRequestContext {
+    detected_intents: string[];
+    visualizations_requested: VisualizationType[];
+    areas: string[];
+    developers: string[];
+    property_types: string[];
+    price_range: ExtractedContext['priceRange'] | null;
+}
+
 // ============================================
 // ANALYTICS RULES DEFINITIONS
 // ============================================
@@ -513,8 +522,8 @@ export class AnalyticsRulesEngine {
     /**
      * Build context data for API request
      */
-    buildAnalyticsContext(matches: AnalyticsMatch[]): Record<string, any> {
-        const context: Record<string, any> = {
+    buildAnalyticsContext(matches: AnalyticsMatch[]): AnalyticsRequestContext {
+        const context: AnalyticsRequestContext = {
             detected_intents: matches.map(m => m.rule.id),
             visualizations_requested: this.getVisualizationsToTrigger(matches),
             areas: [],

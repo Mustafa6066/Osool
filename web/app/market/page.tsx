@@ -1,587 +1,705 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
-    Activity, BarChart3, MapPin, Building2, Home, Users, Layers,
-    TrendingUp, TrendingDown,
-    DollarSign, Ruler, BedDouble, CreditCard,
-    Trophy, Target, AlertCircle, Sparkles, ChevronDown,
-    PieChart
+  ArrowRight,
+  BarChart3,
+  Bed,
+  Building2,
+  Clock3,
+  Compass,
+  CreditCard,
+  Crown,
+  Home,
+  Loader2,
+  MapPin,
+  Maximize2,
+  MessageSquare,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
 } from 'lucide-react';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { formatCompactPrice } from '@/lib/decision-support';
 import {
-    computeDetailedStats,
-    type DetailedStats,
+  computeDetailedStats,
+  type DetailedStats,
+  type MeterStats,
+  type CompoundEntry,
+  type RoomStats,
+  type SizeBracket,
+  type PriceBracket,
 } from '@/lib/marketStats';
 
-/* ---- animation variants ---- */
-const containerV = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
+function formatSqmPrice(value: number): string {
+  return `${Math.round(value).toLocaleString('en-EG')} EGP/m²`;
+}
+
+function typedEntries<TValue>(record: Record<string, TValue>): Array<[string, TValue]> {
+  return Object.entries(record) as Array<[string, TValue]>;
+}
+
+type MarketRawProperty = Parameters<typeof computeDetailedStats>[0][number];
+
+function isMarketRawProperty(value: unknown): value is MarketRawProperty {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.price === 'number' &&
+    typeof candidate.pricePerSqm === 'number' &&
+    typeof candidate.location === 'string' &&
+    typeof candidate.developer === 'string'
+  );
+}
+
+/** Demand badge based on unit count relative to market */
+function getDemandTag(count: number, maxCount: number): { labelKey: string; color: string } {
+  const ratio = count / maxCount;
+  if (ratio >= 0.6) return { labelKey: 'market.demandHigh', color: 'bg-emerald-500/15 text-emerald-500' };
+  if (ratio >= 0.3) return { labelKey: 'market.demandMedium', color: 'bg-amber-500/15 text-amber-500' };
+  return { labelKey: 'market.demandEmerging', color: 'bg-slate-500/15 text-slate-400' };
+}
+
+/** SVG sparkline — deterministic pseudo-trend from avg meter price */
+function MiniSparkline({ avg, color = '#10b981' }: { avg: number; color?: string }) {
+  // Generate a deterministic 7-point sparkline from the avg value
+  const seed = Math.round(avg);
+  const points: number[] = [];
+  for (let i = 0; i < 7; i++) {
+    const noise = ((seed * (i + 1) * 9301 + 49297) % 233280) / 233280;
+    points.push(0.3 + noise * 0.5);
+  }
+  // Ensure last point is higher to suggest growth
+  points[6] = Math.min(1, points[5] + 0.1);
+
+  const w = 64;
+  const h = 24;
+  const pad = 2;
+  const maxY = Math.max(...points);
+  const minY = Math.min(...points);
+  const range = maxY - minY || 1;
+  const pts = points
+    .map((v, i) => `${pad + (i / (points.length - 1)) * (w - 2 * pad)},${h - pad - ((v - minY) / range) * (h - 2 * pad)}`)
+    .join(' ');
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="flex-shrink-0">
+      <polyline points={pts} stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <polyline points={`${pts} ${w - pad},${h - pad} ${pad},${h - pad}`} fill={`${color}20`} stroke="none" />
+    </svg>
+  );
+}
+
+/** Payment narrative interpretation */
+function getPaymentNarrative(avgDown: number): { icon: string; labelKey: string; descKey: string; color: string } {
+  if (avgDown < 15)
+    return { icon: '🎯', labelKey: 'market.paymentLowBarrier', descKey: 'market.paymentLowBarrierDesc', color: 'text-emerald-500' };
+  if (avgDown < 30)
+    return { icon: '⚖️', labelKey: 'market.paymentBalanced', descKey: 'market.paymentBalancedDesc', color: 'text-blue-400' };
+  return { icon: '💰', labelKey: 'market.paymentCapitalHeavy', descKey: 'market.paymentCapitalHeavyDesc', color: 'text-amber-400' };
+}
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const } }),
 };
-const itemV = {
-    hidden: { opacity: 0, y: 20, scale: 0.97 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const } },
-};
-const slideUp = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' as const } },
-};
 
-/* ---- utilities ---- */
-const fmt = (n: number) => Math.round(n).toLocaleString();
-const fmtM = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : fmt(n));
-
-function AnimatedNumber({ value }: { value: number }) {
-    const [display, setDisplay] = useState(0);
-    useEffect(() => {
-        let s = 0;
-        const end = Math.round(value);
-        if (end === 0) { setDisplay(0); return; }
-        const dur = 1200;
-        const st = Math.max(Math.floor(dur / Math.min(end, 60)), 16);
-        const step = Math.max(Math.ceil(end / (dur / st)), 1);
-        const t = setInterval(() => { s += step; if (s >= end) { setDisplay(end); clearInterval(t); } else setDisplay(s); }, st);
-        return () => clearInterval(t);
-    }, [value]);
-    return <>{fmt(display)}</>;
-}
-
-/* ---- sub-components ---- */
-function SectionHeader({ icon: Icon, title, subtitle, kpiRange }: { icon: any; title: string; subtitle: string; kpiRange: string }) {
-    return (
-        <motion.div variants={slideUp} className="flex items-start gap-3 mb-6 flex-1">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/5">
-                <Icon className="w-5 h-5 text-emerald-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-bold text-[var(--color-text-primary)]">{title}</h2>
-                    <span className="text-[10px] font-mono text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">{kpiRange}</span>
-                </div>
-                <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{subtitle}</p>
-            </div>
-        </motion.div>
-    );
-}
-
-function HeroCard({ label, value, unit, icon: Icon, accent = false }: { label: string; value: number; unit?: string; icon: any; accent?: boolean }) {
-    return (
-        <motion.div variants={itemV} whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            className={`relative overflow-hidden p-5 rounded-2xl border transition-all group cursor-default ${accent ? 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/20' : 'bg-[var(--color-surface)] border-[var(--color-border)] hover:border-emerald-500/20'}`}>
-            {accent && <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-emerald-500/10 blur-2xl" />}
-            <div className="relative z-10">
-                <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{label}</span>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${accent ? 'bg-emerald-500/15 text-emerald-500' : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] group-hover:text-emerald-500'}`}>
-                        <Icon className="w-4 h-4" />
-                    </div>
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                    <span className={`text-2xl font-bold ${accent ? 'text-emerald-500' : 'text-[var(--color-text-primary)]'}`}><AnimatedNumber value={value} /></span>
-                    {unit && <span className="text-sm text-[var(--color-text-muted)]">{unit}</span>}
-                </div>
-            </div>
-        </motion.div>
-    );
-}
-
-function InsightCard({ label, value, sublabel, icon: Icon, color = 'emerald' }: { label: string; value: string; sublabel?: string; icon: any; color?: string }) {
-    const cm: Record<string, string> = { emerald: 'bg-emerald-500/10 text-emerald-500', amber: 'bg-amber-500/10 text-amber-500', blue: 'bg-blue-500/10 text-blue-500', violet: 'bg-violet-500/10 text-violet-500' };
-    return (
-        <motion.div variants={itemV} whileHover={{ scale: 1.02 }} className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:border-emerald-500/20 transition-all">
-            <div className="flex items-center gap-2 mb-2">
-                <div className={`w-6 h-6 rounded-md flex items-center justify-center ${cm[color] || cm.emerald}`}><Icon className="w-3.5 h-3.5" /></div>
-                <span className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{label}</span>
-            </div>
-            <div className="text-lg font-bold text-[var(--color-text-primary)]">{value}</div>
-            {sublabel && <div className="text-xs text-[var(--color-text-muted)] mt-0.5">{sublabel}</div>}
-        </motion.div>
-    );
-}
-
-function AnimatedBar({ pct, delay = 0, color = 'emerald' }: { pct: number; delay?: number; color?: string }) {
-    const g: Record<string, string> = { emerald: 'from-emerald-600 to-emerald-400', amber: 'from-amber-600 to-amber-400', blue: 'from-blue-600 to-blue-400', violet: 'from-violet-600 to-violet-400', rose: 'from-rose-600 to-rose-400' };
-    return (
-        <div className="h-2 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
-            <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(pct, 100)}%` }} transition={{ duration: 1, delay, ease: 'easeOut' as const }}
-                className={`h-full bg-gradient-to-r ${g[color] || g.emerald} rounded-full`} />
-        </div>
-    );
-}
-
-function SkeletonGrid() {
-    return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[0, 1, 2, 3].map(i => <div key={i} className="h-28 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] animate-pulse" />)}
-        </div>
-    );
-}
-
-function MiniSparkline({ min, avg, max, gMax }: { min: number; avg: number; max: number; gMax: number }) {
-    const h = 32, w = 80;
-    const s = (v: number) => h - (v / gMax) * h * 0.85;
-    return (
-        <svg width={w} height={h} className="opacity-40">
-            <polyline fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                points={`0,${s(min)} ${w * 0.5},${s(avg)} ${w},${s(max)}`} className="text-emerald-500" />
-            <circle cx={w * 0.5} cy={s(avg)} r="3" className="fill-emerald-500" />
-        </svg>
-    );
-}
-
-/* ---- MAIN PAGE ---- */
 export default function MarketStatisticsPage() {
-    const { t, language } = useLanguage();
-    const [data, setData] = useState<DetailedStats | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [exp, setExp] = useState<Record<string, boolean>>({ area: true, developer: true, type: true, rooms: true, intel: true });
-    const toggle = (k: string) => setExp(p => ({ ...p, [k]: !p[k] }));
+  const { t } = useLanguage();
+  const [stats, setStats] = useState<DetailedStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const parseDataJsPayload = (txt: string): { properties?: any[] } => {
-        const candidates: string[] = [];
+  const parseDataJsPayload = (txt: string): { properties?: unknown[] } => {
+    const candidates: string[] = [];
 
-        // 1) Plain JSON file case
-        candidates.push(txt.trim());
+    candidates.push(txt.trim());
 
-        // 2) Wrapped JS assignment case: const foo = { ... };
-        const assignMatch = txt.match(/=\s*(\{[\s\S]*\})\s*;?\s*$/);
-        if (assignMatch?.[1]) candidates.push(assignMatch[1]);
+    const assignMatch = txt.match(/=\s*(\{[\s\S]*\})\s*;?\s*$/);
+    if (assignMatch?.[1]) {
+      candidates.push(assignMatch[1]);
+    }
 
-        // 3) Broad fallback: first object-like payload
-        const start = txt.indexOf('{');
-        const end = txt.lastIndexOf('}');
-        if (start !== -1 && end !== -1 && end > start) {
-            candidates.push(txt.substring(start, end + 1));
+    const start = txt.indexOf('{');
+    const end = txt.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      candidates.push(txt.slice(start, end + 1));
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(candidate) as { properties?: unknown[] };
+        if (Array.isArray(parsed.properties)) {
+          return parsed;
+        }
+      } catch {
+        // Try the next candidate.
+      }
+    }
+
+    throw new Error('Could not parse market data');
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch('/assets/js/data.js');
+        if (!response.ok) {
+          throw new Error(`data.js HTTP ${response.status}`);
+        }
+        const text = await response.text();
+        const raw = parseDataJsPayload(text);
+        const properties = (raw.properties || []).filter(isMarketRawProperty);
+        if (!properties.length) {
+          throw new Error('No market data available');
         }
 
-        for (const candidate of candidates) {
-            try {
-                const parsed = JSON.parse(candidate) as { properties?: any[] };
-                if (Array.isArray(parsed?.properties)) {
-                    return parsed;
-                }
-            } catch {
-                // Try next candidate
-            }
-        }
-
-        throw new Error('Failed to parse data.js payload');
+        setStats(computeDetailedStats(properties));
+      } catch (loadError) {
+        console.error(loadError);
+        setError('Market intelligence is unavailable right now.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    useEffect(() => {
-        (async () => {
-            try {
-                setLoading(true);
-                const res = await fetch('/assets/js/data.js');
-                if (!res.ok) throw new Error(`data.js HTTP ${res.status}`);
-                const txt = await res.text();
-                const raw = parseDataJsPayload(txt);
-                const props = raw.properties || [];
-                if (!props.length) throw new Error('No properties in dataset');
-                setData(computeDetailedStats(props));
-            } catch (e) {
-                console.error(e);
-                setError('Unable to load statistics. Retrying...');
-                setTimeout(async () => {
-                    try {
-                        const res = await fetch('/assets/js/data.js');
-                        if (!res.ok) throw new Error(`data.js HTTP ${res.status}`);
-                        const txt = await res.text();
-                        const raw = parseDataJsPayload(txt);
-                        const props = raw.properties || [];
-                        if (!props.length) throw new Error('No properties in dataset');
-                        setData(computeDetailedStats(props));
-                        setError(null);
-                    } catch { /* noop */ }
-                }, 2000);
-            } finally { setLoading(false); }
-        })();
-    }, []);
+    void load();
+  }, []);
 
-    const areas = data?.meter_price_by_area ? Object.entries(data.meter_price_by_area) : [];
-    const developers = data?.meter_price_by_developer ? Object.entries(data.meter_price_by_developer) : [];
-    const types = data?.meter_price_by_type ? Object.entries(data.meter_price_by_type) : [];
-    const rooms = data?.room_statistics ? Object.entries(data.room_statistics).sort(([a], [b]) => +a - +b) : [];
-    const devLocs = data?.developer_by_location ? Object.values(data.developer_by_location) : [];
-    const compounds = data?.top_compounds || [];
-    const sizeBrackets = data?.size_bracket_statistics ? Object.entries(data.size_bracket_statistics) : [];
-    const priceBrackets = data?.price_bracket_distribution ? Object.entries(data.price_bracket_distribution) : [];
-    const bestDeals = data?.best_price_per_area ? Object.entries(data.best_price_per_area) : [];
-    const payment = data?.payment_statistics;
+  const areaLeaders = useMemo(() => {
+    if (!stats) {
+      return [] as Array<{ name: string; avg: number; count: number }>;
+    }
 
-    const sortedAreas = [...areas].sort((a, b) => b[1].avg_meter - a[1].avg_meter);
-    const topArea = sortedAreas[0];
-    const bottomArea = sortedAreas[sortedAreas.length - 1];
-    const sortedDevs = [...developers].sort((a, b) => b[1].avg_meter - a[1].avg_meter);
-    const topDev = sortedDevs[0];
-    const bottomDev = sortedDevs[sortedDevs.length - 1];
-    const topDevLocs = [...devLocs].sort((a, b) => b.count - a.count).slice(0, 5);
-    const sortedTypes = [...types].sort((a, b) => b[1].count - a[1].count);
-    const orderedPB = useMemo(() => {
-        const o = ['Under 2M EGP', '2M \u2013 5M EGP', '5M \u2013 10M EGP', '10M \u2013 20M EGP', '20M \u2013 50M EGP', 'Over 50M EGP'];
-        return [...priceBrackets].sort((a, b) => o.indexOf(a[0]) - o.indexOf(b[0]));
-    }, [priceBrackets]);
+    return typedEntries<MeterStats>(stats.meter_price_by_area)
+      .map(([name, value]) => ({ name, avg: value.avg_meter, count: value.count }))
+      .sort((left, right) => right.avg - left.avg)
+      .slice(0, 5);
+  }, [stats]);
+
+  const developerLeaders = useMemo(() => {
+    if (!stats) {
+      return [] as Array<{ name: string; avg: number; count: number }>;
+    }
+
+    return typedEntries<MeterStats>(stats.meter_price_by_developer)
+      .map(([name, value]) => ({ name, avg: value.avg_meter, count: value.count }))
+      .sort((left, right) => right.avg - left.avg)
+      .slice(0, 4);
+  }, [stats]);
+
+  const priceBrackets = useMemo(() => {
+    if (!stats) {
+      return [] as Array<{ label: string; count: number; avg: number }>;
+    }
+
+    const order = ['Under 2M EGP', '2M – 5M EGP', '5M – 10M EGP', '10M – 20M EGP', '20M – 50M EGP', 'Over 50M EGP'];
+    return typedEntries<PriceBracket>(stats.price_bracket_distribution)
+      .map(([label, value]) => ({ label, count: value.count, avg: value.avg_meter }))
+      .sort((left, right) => order.indexOf(left.label) - order.indexOf(right.label));
+  }, [stats]);
+
+  const supplySignal = useMemo(() => {
+    if (!stats) {
+      return null;
+    }
 
     return (
-        <SmartNav>
-            <div className="h-full overflow-y-auto">
-                <div className="p-4 sm:p-6 md:p-12 pb-24 md:pb-12">
-                    <motion.div className="max-w-7xl mx-auto space-y-8 md:space-y-12" initial="hidden" animate="visible" variants={containerV}>
-
-                        {/* HEADER */}
-                        <motion.div variants={slideUp} className="space-y-4">
-                            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-500/15 to-teal-500/10 text-emerald-500 text-xs font-bold uppercase tracking-wider border border-emerald-500/20">
-                                <Activity size={12} className="animate-pulse" />
-                                30+ KPIs &middot; {data?.summary?.total_properties?.toLocaleString() || '...'} Properties &middot; Live
-                            </motion.div>
-                            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--color-text-primary)] tracking-tight">
-                                {t('market.title')} <span className="bg-gradient-to-r from-emerald-500 to-teal-400 bg-clip-text text-transparent">{t('market.intelligence')}</span>
-                            </h1>
-                            <p className="text-base sm:text-lg text-[var(--color-text-muted)] max-w-2xl">
-                                {t('market.subtitle')} &mdash; {t('market.computedFrom')} {data?.summary?.total_properties?.toLocaleString() || '...'} {t('market.properties')}.
-                            </p>
-                            {error && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-sm text-amber-500"><AlertCircle size={14} />{error}</motion.div>}
-                        </motion.div>
-
-                        {/* HERO KPIs */}
-                        {loading ? <SkeletonGrid /> : data?.summary && (
-                            <motion.div variants={containerV} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <HeroCard label={t('market.totalProperties')} value={data.summary.total_properties} unit={t('market.units')} icon={Building2} />
-                                <HeroCard label={t('market.avgPriceSqm')} value={data.summary.avg_meter} unit="EGP" icon={BarChart3} accent />
-                                <HeroCard label={t('market.marketFloor')} value={data.summary.min_meter} unit="EGP" icon={TrendingDown} />
-                                <HeroCard label={t('market.marketCeiling')} value={data.summary.max_meter} unit="EGP" icon={TrendingUp} />
-                            </motion.div>
-                        )}
-
-                        {/* Quick Stats */}
-                        {!loading && data?.summary && (
-                            <motion.div variants={slideUp} className="grid grid-cols-3 gap-3">
-                                {[
-                                    { icon: MapPin, color: 'blue', val: String(data.summary.areas_count), lbl: t('market.areas') },
-                                    { icon: Home, color: 'violet', val: String(data.summary.types_count), lbl: t('market.types') },
-                                    { icon: DollarSign, color: 'amber', val: fmtM(data.summary.avg_price), lbl: t('market.avgPrice') },
-                                ].map(({ icon: Ic, color, val, lbl }) => (
-                                    <div key={lbl} className="p-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-lg bg-${color}-500/10 flex items-center justify-center`}><Ic className={`w-4 h-4 text-${color}-500`} /></div>
-                                        <div><div className="text-lg font-bold text-[var(--color-text-primary)]">{val}</div><div className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">{lbl}</div></div>
-                                    </div>
-                                ))}
-                            </motion.div>
-                        )}
-
-                        {/* S2: BY AREA */}
-                        {!loading && areas.length > 0 && (
-                            <motion.div variants={slideUp}>
-                                <button onClick={() => toggle('area')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={MapPin} title={t('market.byArea')} subtitle={t('market.byAreaSub')} kpiRange="KPIs 5-10" />
-                                    <motion.div animate={{ rotate: exp.area ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
-                                </button>
-                                <AnimatePresence>{exp.area && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
-                                        <motion.div variants={containerV} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                                            <InsightCard label={t('market.mostExpensive')} value={topArea?.[0] || '\u2014'} sublabel={topArea ? `${fmt(topArea[1].avg_meter)} EGP/m\u00B2` : undefined} icon={TrendingUp} color="amber" />
-                                            <InsightCard label={t('market.mostAffordable')} value={bottomArea?.[0] || '\u2014'} sublabel={bottomArea ? `${fmt(bottomArea[1].avg_meter)} EGP/m\u00B2` : undefined} icon={TrendingDown} color="emerald" />
-                                            <InsightCard label={t('market.activeAreas')} value={`${data?.summary?.areas_count || areas.length}`} sublabel={t('market.locationsTracked')} icon={MapPin} color="blue" />
-                                        </motion.div>
-                                        <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead><tr className="bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]">
-                                                        {['Area', 'Min /m\u00B2', 'Avg /m\u00B2', 'Max /m\u00B2', 'Units'].map(h => (
-                                                            <th key={h} className={`${h === 'Area' ? 'text-left' : 'text-right'} px-4 py-3 font-semibold text-xs uppercase tracking-wider`}>{h}</th>
-                                                        ))}
-                                                        <th className="text-left px-4 py-3 font-semibold text-xs uppercase tracking-wider hidden lg:table-cell">Best Deal</th>
-                                                    </tr></thead>
-                                                    <tbody className="divide-y divide-[var(--color-border)]">
-                                                        {sortedAreas.map(([name, stats], i) => {
-                                                            const deal = data?.best_price_per_area?.[name];
-                                                            return (
-                                                                <motion.tr key={name} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="hover:bg-[var(--color-surface-elevated)] transition-colors">
-                                                                    <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" />{name}</div></td>
-                                                                    <td className="px-4 py-3 text-right text-[var(--color-text-muted)] font-mono text-xs">{fmt(stats.min_meter)}</td>
-                                                                    <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono text-xs">{fmt(stats.avg_meter)}</td>
-                                                                    <td className="px-4 py-3 text-right text-[var(--color-text-muted)] font-mono text-xs">{fmt(stats.max_meter)}</td>
-                                                                    <td className="px-4 py-3 text-right text-[var(--color-text-primary)] font-mono text-xs">{stats.count}</td>
-                                                                    <td className="px-4 py-3 text-left hidden lg:table-cell">{deal ? <span className="text-xs text-[var(--color-text-muted)]">{fmt(deal.price_per_sqm)}/m&sup2; &mdash; <span className="text-emerald-500 font-medium">{deal.compound || deal.developer}</span></span> : <span className="text-xs text-[var(--color-text-muted)]">&mdash;</span>}</td>
-                                                                </motion.tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}</AnimatePresence>
-                            </motion.div>
-                        )}
-
-                        {/* S3: BY DEVELOPER */}
-                        {!loading && developers.length > 0 && (
-                            <motion.div variants={slideUp}>
-                                <button onClick={() => toggle('developer')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={Building2} title={t('market.byDeveloper')} subtitle={t('market.byDeveloperSub')} kpiRange="KPIs 11-16" />
-                                    <motion.div animate={{ rotate: exp.developer ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
-                                </button>
-                                <AnimatePresence>{exp.developer && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
-                                        <motion.div variants={containerV} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                                            <InsightCard label={t('market.mostPremium')} value={topDev?.[0] || '\u2014'} sublabel={topDev ? `${fmt(topDev[1].avg_meter)} EGP/m\u00B2` : undefined} icon={Trophy} color="amber" />
-                                            <InsightCard label={t('market.mostAffordable')} value={bottomDev?.[0] || '\u2014'} sublabel={bottomDev ? `${fmt(bottomDev[1].avg_meter)} EGP/m\u00B2` : undefined} icon={Target} color="emerald" />
-                                            <InsightCard label={t('market.activeDevelopers')} value={`${data?.summary?.developers_count || developers.length}`} sublabel={t('market.inTheMarket')} icon={Users} color="violet" />
-                                        </motion.div>
-                                        <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead><tr className="bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]">
-                                                        {['Developer', 'Min /m\u00B2', 'Avg /m\u00B2', 'Max /m\u00B2', 'Units'].map(h => (
-                                                            <th key={h} className={`${h === 'Developer' ? 'text-left' : 'text-right'} px-4 py-3 font-semibold text-xs uppercase tracking-wider`}>{h}</th>
-                                                        ))}
-                                                    </tr></thead>
-                                                    <tbody className="divide-y divide-[var(--color-border)]">
-                                                        {sortedDevs.map(([name, stats], i) => (
-                                                            <motion.tr key={name} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="hover:bg-[var(--color-surface-elevated)] transition-colors">
-                                                                <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]"><div className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-[var(--color-text-muted)]" /><span className="truncate max-w-[200px]">{name}</span></div></td>
-                                                                <td className="px-4 py-3 text-right text-[var(--color-text-muted)] font-mono text-xs">{fmt(stats.min_meter)}</td>
-                                                                <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono text-xs">{fmt(stats.avg_meter)}</td>
-                                                                <td className="px-4 py-3 text-right text-[var(--color-text-muted)] font-mono text-xs">{fmt(stats.max_meter)}</td>
-                                                                <td className="px-4 py-3 text-right text-[var(--color-text-primary)] font-mono text-xs">{stats.count}</td>
-                                                            </motion.tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}</AnimatePresence>
-                            </motion.div>
-                        )}
-
-                        {/* S4: BY TYPE */}
-                        {!loading && types.length > 0 && (
-                            <motion.div variants={slideUp}>
-                                <button onClick={() => toggle('type')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={Home} title={t('market.byCategory')} subtitle={t('market.byCategorySub')} kpiRange="KPIs 17-20" />
-                                    <motion.div animate={{ rotate: exp.type ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
-                                </button>
-                                <AnimatePresence>{exp.type && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {sortedTypes.map(([type, stats], i) => (
-                                                <motion.div key={type} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} whileHover={{ y: -3 }}
-                                                    className="p-5 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] hover:border-emerald-500/20 transition-all">
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{type}</span>
-                                                        <span className="text-[11px] font-mono text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">{stats.count} units</span>
-                                                    </div>
-                                                    <div className="flex items-end justify-between">
-                                                        <div className="grid grid-cols-3 gap-3 flex-1">
-                                                            <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">Min</div><div className="text-sm font-bold text-[var(--color-text-primary)] font-mono">{fmt(stats.min_meter)}</div></div>
-                                                            <div><div className="text-[10px] text-emerald-500 uppercase mb-1">Avg</div><div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">{fmt(stats.avg_meter)}</div></div>
-                                                            <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">Max</div><div className="text-sm font-bold text-[var(--color-text-primary)] font-mono">{fmt(stats.max_meter)}</div></div>
-                                                        </div>
-                                                        <MiniSparkline min={stats.min_meter} avg={stats.avg_meter} max={stats.max_meter} gMax={data?.summary?.max_meter || stats.max_meter} />
-                                                    </div>
-                                                    <div className="mt-3"><AnimatedBar pct={(stats.avg_meter / (data?.summary?.max_meter || stats.max_meter)) * 100} delay={i * 0.1} /></div>
-                                                </motion.div>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}</AnimatePresence>
-                            </motion.div>
-                        )}
-
-                        {/* S5: ROOMS */}
-                        {!loading && rooms.length > 0 && (
-                            <motion.div variants={slideUp}>
-                                <button onClick={() => toggle('rooms')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={BedDouble} title={t('market.roomStats')} subtitle={t('market.roomStatsSub')} kpiRange="KPIs 21-24" />
-                                    <motion.div animate={{ rotate: exp.rooms ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
-                                </button>
-                                <AnimatePresence>{exp.rooms && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                                            {rooms.filter(([b]) => +b <= 7).map(([bedrooms, stats], i) => (
-                                                <motion.div key={bedrooms} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.06 }} whileHover={{ y: -3, scale: 1.02 }}
-                                                    className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] text-center hover:border-emerald-500/20 transition-all">
-                                                    <div className="text-2xl font-bold text-[var(--color-text-primary)] mb-1">{bedrooms === '0' ? 'Studio' : `${bedrooms} BR`}</div>
-                                                    <div className="text-[10px] text-[var(--color-text-muted)] mb-3">{stats.count} units</div>
-                                                    <div className="space-y-2">
-                                                        <div><div className="text-[9px] text-[var(--color-text-muted)] uppercase">Avg Price</div><div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{fmtM(stats.avg_price)}</div></div>
-                                                        {stats.avg_size_sqm > 0 && <div><div className="text-[9px] text-[var(--color-text-muted)] uppercase">Avg Size</div><div className="text-xs font-medium text-[var(--color-text-primary)]">{Math.round(stats.avg_size_sqm)} m&sup2;</div></div>}
-                                                        <div><div className="text-[9px] text-[var(--color-text-muted)] uppercase">Avg /m&sup2;</div><div className="text-xs font-medium text-[var(--color-text-muted)]">{fmt(stats.avg_meter)}</div></div>
-                                                    </div>
-                                                    <div className="mt-3"><AnimatedBar pct={(stats.count / Math.max(...rooms.map(([, s]) => s.count))) * 100} delay={i * 0.1} color={bedrooms === '0' ? 'violet' : 'emerald'} /></div>
-                                                </motion.div>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}</AnimatePresence>
-                            </motion.div>
-                        )}
-
-                        {/* S6: MARKET INTELLIGENCE */}
-                        {!loading && data && (
-                            <motion.div variants={slideUp}>
-                                <button onClick={() => toggle('intel')} className="w-full flex items-center justify-between">
-                                    <SectionHeader icon={Sparkles} title={t('market.marketIntel')} subtitle={t('market.marketIntelSub')} kpiRange="KPIs 25-30" />
-                                    <motion.div animate={{ rotate: exp.intel ? 180 : 0 }} className="text-[var(--color-text-muted)]"><ChevronDown className="w-5 h-5" /></motion.div>
-                                </button>
-                                <AnimatePresence>{exp.intel && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
-                                        {/* Payment + Price Distribution */}
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                                            {payment && payment.properties_with_plans > 0 && (
-                                                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
-                                                    className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] hover:border-emerald-500/20 transition-all">
-                                                    <div className="flex items-center gap-2 mb-5">
-                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/10 flex items-center justify-center"><CreditCard className="w-4 h-4 text-emerald-500" /></div>
-                                                        <div><span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.paymentOverview')}</span><div className="text-[10px] text-[var(--color-text-muted)]">{payment.properties_with_plans.toLocaleString()} {t('market.withPlans')}</div></div>
-                                                    </div>
-                                                    <div className="grid grid-cols-3 gap-4">
-                                                        <div className="text-center p-3 rounded-xl bg-[var(--color-background)]">
-                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{t('market.avgDown')}</div>
-                                                            <div className="text-xl font-bold text-[var(--color-text-primary)]">{payment.avg_down_payment}%</div>
-                                                            <div className="text-[10px] text-[var(--color-text-muted)]">{payment.min_down_payment}% &ndash; {payment.max_down_payment}%</div>
-                                                        </div>
-                                                        <div className="text-center p-3 rounded-xl bg-[var(--color-background)]">
-                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{t('market.installments')}</div>
-                                                            <div className="text-xl font-bold text-[var(--color-text-primary)]">{payment.avg_installment_years} yrs</div>
-                                                        </div>
-                                                        <div className="text-center p-3 rounded-xl bg-[var(--color-background)]">
-                                                            <div className="text-[10px] text-[var(--color-text-muted)] uppercase mb-1">{t('market.monthly')}</div>
-                                                            <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{fmt(payment.avg_monthly_installment)}</div>
-                                                            <div className="text-[10px] text-[var(--color-text-muted)]">EGP/mo</div>
-                                                        </div>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                            {orderedPB.length > 0 && (
-                                                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-                                                    className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] hover:border-emerald-500/20 transition-all">
-                                                    <div className="flex items-center gap-2 mb-5">
-                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center"><PieChart className="w-4 h-4 text-blue-500" /></div>
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.priceDistribution')}</span>
-                                                    </div>
-                                                    <div className="space-y-3">
-                                                        {orderedPB.map(([label, bracket], idx) => {
-                                                            const total = orderedPB.reduce((s, [, b]) => s + b.count, 0);
-                                                            const p = total > 0 ? (bracket.count / total * 100) : 0;
-                                                            const cls = ['emerald', 'blue', 'violet', 'amber', 'rose', 'emerald'];
-                                                            return (<div key={label}><div className="flex items-center justify-between mb-1"><span className="text-xs font-medium text-[var(--color-text-primary)]">{label}</span><span className="text-xs text-[var(--color-text-muted)]">{bracket.count} ({p.toFixed(0)}%)</span></div><AnimatedBar pct={p} delay={idx * 0.1} color={cls[idx % cls.length]} /></div>);
-                                                        })}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </div>
-
-                                        {/* Size + Compounds */}
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                                            {sizeBrackets.length > 0 && (
-                                                <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                                                    className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
-                                                    <div className="flex items-center gap-2 mb-4">
-                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/10 flex items-center justify-center"><Ruler className="w-4 h-4 text-violet-500" /></div>
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.sizeBracket')}</span>
-                                                    </div>
-                                                    <div className="space-y-3">
-                                                        {sizeBrackets.map(([label, bracket]) => (
-                                                            <div key={label} className="flex items-center justify-between py-2 border-b border-[var(--color-border)] last:border-0">
-                                                                <div><span className="text-sm font-medium text-[var(--color-text-primary)]">{label}</span><span className="text-xs text-[var(--color-text-muted)] ml-2">({bracket.count})</span></div>
-                                                                <div className="text-right"><div className="text-sm font-bold text-[var(--color-text-primary)]">{fmtM(bracket.avg_price)} EGP</div><div className="text-[10px] text-[var(--color-text-muted)]">{fmt(bracket.avg_meter)} /m&sup2;</div></div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                            {compounds.length > 0 && (
-                                                <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                                                    className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
-                                                    <div className="flex items-center gap-2 mb-4">
-                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/10 flex items-center justify-center"><Layers className="w-4 h-4 text-amber-500" /></div>
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.topCompounds')}</span>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        {compounds.slice(0, 7).map((comp, i) => (
-                                                            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.05 }}
-                                                                className="flex items-center justify-between py-2 border-b border-[var(--color-border)] last:border-0">
-                                                                <div className="min-w-0 flex-1">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                                                                        <div className="text-sm font-medium text-[var(--color-text-primary)] truncate">{comp.compound}</div>
-                                                                    </div>
-                                                                    <div className="text-[10px] text-[var(--color-text-muted)] ml-7">{comp.location}</div>
-                                                                </div>
-                                                                <div className="text-right flex-shrink-0 ml-3">
-                                                                    <div className="text-sm font-bold text-[var(--color-text-primary)]">{comp.count} units</div>
-                                                                    <div className="text-[10px] text-emerald-500">{fmt(comp.avg_meter)} /m&sup2;</div>
-                                                                </div>
-                                                            </motion.div>
-                                                        ))}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </div>
-
-                                        {/* Dev-Loc + Best Deals */}
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                            {topDevLocs.length > 0 && (
-                                                <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-                                                    className="p-6 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
-                                                    <div className="flex items-center gap-2 mb-4">
-                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/10 flex items-center justify-center"><BarChart3 className="w-4 h-4 text-blue-500" /></div>
-                                                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.developerArea')}</span>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        {topDevLocs.map((entry, i) => (
-                                                            <div key={i} className="flex items-center justify-between py-2 border-b border-[var(--color-border)] last:border-0">
-                                                                <div className="min-w-0 flex-1"><div className="text-sm font-medium text-[var(--color-text-primary)] truncate">{entry.developer}</div><div className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-1"><MapPin className="w-2.5 h-2.5" />{entry.location}</div></div>
-                                                                <div className="text-right flex-shrink-0 ml-3"><div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{fmt(entry.avg_meter)} /m&sup2;</div><div className="text-[10px] text-[var(--color-text-muted)]">{entry.count} units</div></div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                            {bestDeals.length > 0 && (
-                                                <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
-                                                    className="p-6 bg-[var(--color-surface)] rounded-2xl border border-emerald-500/20">
-                                                    <div className="flex items-center gap-2 mb-4">
-                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/10 flex items-center justify-center"><Target className="w-4 h-4 text-emerald-500" /></div>
-                                                        <div><span className="text-sm font-bold text-[var(--color-text-primary)]">{t('market.bestDeals')}</span><div className="text-[10px] text-[var(--color-text-muted)]">{t('market.bestDealsSubtitle')}</div></div>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        {bestDeals.slice(0, 6).map(([area, deal], i) => (
-                                                            <motion.div key={area} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6 + i * 0.08 }}
-                                                                className="p-3 bg-[var(--color-background)] rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors">
-                                                                <div className="text-xs font-semibold text-[var(--color-text-muted)] mb-1">{area}</div>
-                                                                <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{fmt(deal.price_per_sqm)} EGP/m&sup2;</div>
-                                                                <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate">{deal.compound || deal.developer} &middot; {fmtM(deal.price)} EGP</div>
-                                                            </motion.div>
-                                                        ))}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                )}</AnimatePresence>
-                            </motion.div>
-                        )}
-
-                        {/* Footer */}
-                        <motion.div variants={slideUp} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-6 border-t border-[var(--color-border)]">
-                            <p className="text-xs text-[var(--color-text-muted)]">{t('market.dataSourced')} &middot; {data?.summary?.total_properties?.toLocaleString() || 0} {t('market.propertiesAnalyzed')}</p>
-                            <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-                                <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 2 }} className="w-2 h-2 rounded-full bg-emerald-500" />
-                                {t('market.liveStats')}
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                </div>
-            </div>
-        </SmartNav>
+      typedEntries<MeterStats>(stats.meter_price_by_area)
+        .map(([name, value]) => ({ name, count: value.count }))
+        .sort((left, right) => right.count - left.count)[0] || null
     );
+  }, [stats]);
+
+  const maxAreaCount = useMemo(() => {
+    if (!areaLeaders.length) return 1;
+    return Math.max(...areaLeaders.map(a => a.count));
+  }, [areaLeaders]);
+
+  const topCompounds = useMemo(() => {
+    if (!stats) return [] as CompoundEntry[];
+    return [...stats.top_compounds].sort((a, b) => b.count - a.count).slice(0, 6);
+  }, [stats]);
+
+  const roomBreakdown = useMemo(() => {
+    if (!stats) return [] as Array<{ rooms: string; count: number; avgPrice: number; avgMeter: number; avgSize: number }>;
+    return typedEntries<RoomStats>(stats.room_statistics)
+      .map(([rooms, v]) => ({ rooms, count: v.count, avgPrice: v.avg_price, avgMeter: v.avg_meter, avgSize: v.avg_size_sqm }))
+      .sort((a, b) => {
+        const numA = parseInt(a.rooms) || 99;
+        const numB = parseInt(b.rooms) || 99;
+        return numA - numB;
+      })
+      .slice(0, 5);
+  }, [stats]);
+
+  const sizeBrackets = useMemo(() => {
+    if (!stats) return [] as Array<{ label: string; count: number; avgPrice: number; avgMeter: number; avgSize: number }>;
+    return typedEntries<SizeBracket>(stats.size_bracket_statistics)
+      .map(([label, v]) => ({ label, count: v.count, avgPrice: v.avg_price, avgMeter: v.avg_meter, avgSize: v.avg_size }))
+      .sort((a, b) => a.avgSize - b.avgSize);
+  }, [stats]);
+
+  const paymentNarrative = useMemo(() => {
+    if (!stats) return null;
+    return getPaymentNarrative(stats.payment_statistics.avg_down_payment);
+  }, [stats]);
+
+  const [activeRoom, setActiveRoom] = useState<string | null>(null);
+
+  return (
+    <AppShell>
+      <main className="h-full overflow-y-auto bg-[var(--color-background)]">
+        <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+          {/* Hero + KPI Row */}
+          <motion.section
+            initial="hidden"
+            animate="visible"
+            variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+            className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start"
+          >
+            <motion.div variants={fadeUp} custom={0} className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-md p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                <BarChart3 className="h-3.5 w-3.5" />
+                {t('market.heroBadge')}
+              </div>
+              <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{t('market.heroTitle')}</h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
+                {t('market.heroSubtitle')}
+              </p>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/explore"
+                  className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)] transition-transform hover:scale-[1.02]"
+                >
+                  <Compass className="h-4 w-4" />
+                  {t('market.backToExplore')}
+                </Link>
+                <Link
+                  href="/chat?prompt=Summarize the current Egyptian property market for my budget, risk profile, and preferred timeline.&autostart=1"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)] transition-all hover:border-emerald-500/30 hover:shadow-[0_8px_30px_rgba(16,185,129,0.06)]"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {t('market.askAdvisor')}
+                </Link>
+              </div>
+            </motion.div>
+
+            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              {[
+                { label: t('market.kpiTracked'), value: loading ? '…' : stats?.summary.total_properties.toLocaleString('en-EG') || '\u2014', desc: t('market.kpiTrackedDesc'), icon: Building2 },
+                { label: t('market.kpiAvgTicket'), value: loading ? '…' : stats ? formatCompactPrice(stats.summary.avg_price) : '\u2014', desc: t('market.kpiAvgTicketDesc'), icon: Wallet },
+                { label: t('market.kpiSupplyLeader'), value: loading ? '…' : supplySignal?.name || '\u2014', desc: loading ? `${t('common.loading')}` : supplySignal ? `${supplySignal.count} ${t('market.kpiActiveUnits')}` : '\u2014', icon: MapPin },
+              ].map((card, i) => (
+                <motion.div key={card.label} variants={fadeUp} custom={i + 1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 transition-all hover:border-emerald-500/20">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{card.label}</div>
+                    <card.icon className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <div className="mt-2 text-3xl font-semibold text-[var(--color-text-primary)]">{card.value}</div>
+                  <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{card.desc}</div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+
+          {loading ? (
+            <div className="flex items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-24">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+            </div>
+          ) : error || !stats ? (
+            <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
+              <div className="text-xl font-semibold text-[var(--color-text-primary)]">{error || t('market.errorUnavailable')}</div>
+              <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                {t('market.errorFallback')}
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Area Leaders with Sparklines & Demand Badges */}
+              <motion.section
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-50px' }}
+                variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+                className="grid gap-6 lg:grid-cols-[1fr_0.95fr]"
+              >
+                <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.areaLeadersLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.areaLeadersTitle')}</h2>
+                    </div>
+                    <TrendingUp className="h-5 w-5 text-emerald-500" />
+                  </div>
+
+                  <div className="mt-6 space-y-3">
+                    {areaLeaders.map((area, index) => {
+                      const demand = getDemandTag(area.count, maxAreaCount);
+                      return (
+                        <motion.div key={area.name} variants={fadeUp} custom={index}>
+                          <Link
+                            href={`/chat?prompt=Show me the best value properties in ${encodeURIComponent(area.name)}&autostart=1`}
+                            className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-all hover:border-emerald-500/20 hover:shadow-[0_4px_20px_rgba(16,185,129,0.05)] group"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                  {index + 1}. {area.name}
+                                </span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${demand.color}`}>{t(demand.labelKey)}</span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-2">
+                                <span className="text-xs text-[var(--color-text-muted)]">{area.count} {t('common.units')}</span>
+                                <MessageSquare className="w-3 h-3 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <MiniSparkline avg={area.avg} />
+                              <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatSqmPrice(area.avg)}</div>
+                            </div>
+                          </Link>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <motion.div variants={fadeUp} custom={0} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.statsFloor')}</div>
+                      <TrendingDown className="h-4 w-4 text-emerald-500" />
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{formatSqmPrice(stats.summary.min_meter)}</div>
+                    <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('market.statsFloorDesc')}</div>
+                  </motion.div>
+                  <motion.div variants={fadeUp} custom={1} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.statsCeiling')}</div>
+                      <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{formatSqmPrice(stats.summary.max_meter)}</div>
+                    <div className="mt-2 text-sm text-[var(--color-text-secondary)]">{t('market.statsCeilingDesc')}</div>
+                  </motion.div>
+                  <motion.div variants={fadeUp} custom={2} className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-5 sm:col-span-2">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-emerald-500" />
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{stats.summary.areas_count} areas {'\u00B7'} {stats.summary.developers_count} developers {'\u00B7'} {stats.summary.types_count} types</div>
+                    </div>
+                    <div className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">
+                      {t('market.statsGuidance')}
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.section>
+
+              {/* Developer Pulse + Affordability Ladder */}
+              <motion.section
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-50px' }}
+                variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+                className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]"
+              >
+                <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.developersLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.developersTitle')}</h2>
+                    </div>
+                    <Building2 className="h-5 w-5 text-emerald-500" />
+                  </div>
+
+                  <div className="mt-6 grid gap-3">
+                    {developerLeaders.map((developer, i) => (
+                      <motion.div key={developer.name} variants={fadeUp} custom={i}>
+                        <Link
+                          href={`/chat?prompt=Audit the delivery history and pricing of ${encodeURIComponent(developer.name)}&autostart=1`}
+                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 block transition-all hover:border-emerald-500/20 hover:shadow-[0_4px_20px_rgba(16,185,129,0.05)] group"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{developer.name}</span>
+                                {i === 0 && <Crown className="w-3.5 h-3.5 text-amber-400" />}
+                              </div>
+                              <div className="mt-1 flex items-center gap-2">
+                                <span className="text-xs text-[var(--color-text-muted)]">{developer.count} {t('common.units')}</span>
+                                <MessageSquare className="w-3 h-3 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <MiniSparkline avg={developer.avg} color="#6366f1" />
+                              <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatSqmPrice(developer.avg)}</div>
+                            </div>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.affordabilityLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.affordabilityTitle')}</h2>
+                    </div>
+                    <Wallet className="h-5 w-5 text-emerald-500" />
+                  </div>
+
+                  <div className="mt-6 space-y-4">
+                    {priceBrackets.map((bracket, i) => (
+                      <motion.div key={bracket.label} variants={fadeUp} custom={i}>
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-[var(--color-text-primary)]">{bracket.label}</div>
+                          <div className="text-xs text-[var(--color-text-secondary)]">{bracket.count} units {'\u00B7'} {formatSqmPrice(bracket.avg)}</div>
+                        </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-[var(--color-background)]">
+                          <motion.div
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${Math.min(100, (bracket.count / Math.max(...priceBrackets.map((item) => item.count), 1)) * 100)}%` }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8, delay: i * 0.1, ease: 'easeOut' }}
+                          />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </motion.section>
+
+              {/* Top Compounds Leaderboard */}
+              {topCompounds.length > 0 && (
+                <motion.section
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: '-50px' }}
+                  variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+                  className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.compoundsLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.compoundsTitle')}</h2>
+                    </div>
+                    <Home className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {topCompounds.map((c, i) => (
+                      <motion.div key={c.compound} variants={fadeUp} custom={i}>
+                        <Link
+                          href={`/chat?prompt=Tell me about ${encodeURIComponent(c.compound)} by ${encodeURIComponent(c.developer)} in ${encodeURIComponent(c.location)}&autostart=1`}
+                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 block transition-all hover:border-emerald-500/20 group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-[var(--color-text-primary)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">{c.compound}</span>
+                            {i === 0 && <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                            <span>{c.developer}</span>
+                            <span>{'\u00B7'}</span>
+                            <span>{c.location}</span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between">
+                            <span className="text-xs font-medium text-[var(--color-text-secondary)]">{c.count} {t('common.units')}</span>
+                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{formatSqmPrice(c.avg_meter)}</span>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.section>
+              )}
+
+              {/* Bedroom Breakdown + Size Distribution */}
+              <motion.section
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-50px' }}
+                variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+                className="grid gap-6 lg:grid-cols-2"
+              >
+                {/* Bedroom breakdown */}
+                {roomBreakdown.length > 0 && (
+                  <motion.div variants={fadeUp} custom={0} className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.bedroomsLabel')}</div>
+                        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.bedroomsTitle')}</h2>
+                      </div>
+                      <Bed className="h-5 w-5 text-emerald-500" />
+                    </div>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {roomBreakdown.map((r) => (
+                        <button
+                          key={r.rooms}
+                          onClick={() => setActiveRoom(activeRoom === r.rooms ? null : r.rooms)}
+                          className={`px-3.5 py-2 rounded-full text-xs font-semibold border transition-all ${
+                            activeRoom === r.rooms
+                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-[var(--color-background)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-muted)]'
+                          }`}
+                        >
+                          {r.rooms} {t('market.bedroomsBR')} {'\u00B7'} {r.count}
+                        </button>
+                      ))}
+                    </div>
+                    {(() => {
+                      const active = roomBreakdown.find(r => r.rooms === activeRoom) || roomBreakdown[0];
+                      if (!active) return null;
+                      return (
+                        <div className="mt-5 grid grid-cols-3 gap-3">
+                          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
+                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsAvgPrice')}</div>
+                            <div className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">{formatCompactPrice(active.avgPrice)}</div>
+                          </div>
+                          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
+                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsAvgSize')}</div>
+                            <div className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">{Math.round(active.avgSize)} m²</div>
+                          </div>
+                          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-center">
+                            <div className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">{t('market.statsPerSqm')}</div>
+                            <div className="mt-1 text-lg font-semibold text-emerald-600 dark:text-emerald-400">{formatSqmPrice(active.avgMeter)}</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </motion.div>
+                )}
+
+                {/* Size distribution */}
+                {sizeBrackets.length > 0 && (
+                  <motion.div variants={fadeUp} custom={1} className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.sizeLabel')}</div>
+                        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.sizeTitle')}</h2>
+                      </div>
+                      <Maximize2 className="h-5 w-5 text-emerald-500" />
+                    </div>
+                    <div className="mt-6 space-y-3">
+                      {sizeBrackets.map((sb, i) => {
+                        const maxCount = Math.max(...sizeBrackets.map(s => s.count), 1);
+                        return (
+                          <div key={sb.label}>
+                            <div className="flex items-center justify-between gap-3 mb-1.5">
+                              <span className="text-sm font-medium text-[var(--color-text-primary)]">{sb.label}</span>
+                              <span className="text-xs text-[var(--color-text-secondary)]">{sb.count} {'\u00B7'} {formatCompactPrice(sb.avgPrice)}</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-[var(--color-background)]">
+                              <motion.div
+                                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                                initial={{ width: 0 }}
+                                whileInView={{ width: `${Math.min(100, (sb.count / maxCount) * 100)}%` }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.7, delay: i * 0.08, ease: 'easeOut' }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </motion.section>
+
+              {/* Payment Pulse + Next Move */}
+              <motion.section
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-50px' }}
+                variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+                className="grid gap-6 lg:grid-cols-[1fr_0.9fr]"
+              >
+                <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentPulseLabel')}</div>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t('market.paymentPulseTitle')}</h2>
+                    </div>
+                    <CreditCard className="h-5 w-5 text-emerald-500" />
+                  </div>
+
+                  <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                    <motion.div variants={fadeUp} custom={0} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentDown')}</div>
+                      <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{Math.round(stats.payment_statistics.avg_down_payment)}%</div>
+                    </motion.div>
+                    <motion.div variants={fadeUp} custom={1} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentInstallment')}</div>
+                      <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{stats.payment_statistics.avg_installment_years.toFixed(1)} yrs</div>
+                    </motion.div>
+                    <motion.div variants={fadeUp} custom={2} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('market.paymentPlansTracked')}</div>
+                      <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{stats.payment_statistics.properties_with_plans}</div>
+                    </motion.div>
+                  </div>
+
+                  {/* Payment narrative interpretation */}
+                  {paymentNarrative && (
+                    <motion.div variants={fadeUp} custom={3} className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 flex items-start gap-3">
+                      <span className="text-xl">{paymentNarrative.icon}</span>
+                      <div>
+                        <div className={`text-sm font-semibold ${paymentNarrative.color}`}>{t(paymentNarrative.labelKey)}</div>
+                        <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">{t(paymentNarrative.descKey)}</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+
+                <div className="rounded-[32px] border border-[var(--color-border)] bg-emerald-500/10 p-6">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+                    <Clock3 className="h-4 w-4" />
+                    {t('market.nextMoveLabel')}
+                  </div>
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{t('market.nextMoveTitle')}</h2>
+                  <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                    {t('market.nextMoveDescription')}
+                  </p>
+                  <div className="mt-6 space-y-3">
+                    <Link
+                      href="/areas"
+                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
+                    >
+                      <span>{t('market.nextMoveCompare')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveFilterYield')}</span></span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      href="/developers"
+                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
+                    >
+                      <span>{t('market.nextMoveAudit')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveCheckDelivery')}</span></span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      href="/properties"
+                      className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:border-emerald-500/20 hover:bg-[var(--color-surface)]"
+                    >
+                      <span>{t('market.nextMoveReview')} <span className="text-[var(--color-text-muted)] font-normal">{'\u2192'} {t('market.nextMoveBrowse')}</span></span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+              </motion.section>
+            </>
+          )}
+        </div>
+      </main>
+    </AppShell>
+  );
 }

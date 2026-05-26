@@ -17,16 +17,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
-        // Check localStorage first
-        const savedTheme = localStorage.getItem('osool-theme') as Theme | null;
-        if (savedTheme) {
-            setThemeState(savedTheme);
-        } else {
-            // Detect system preference
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setThemeState(prefersDark ? 'dark' : 'light');
-        }
+        const timer = setTimeout(() => {
+            setMounted(true);
+            const savedTheme = localStorage.getItem('osool-theme') as Theme | null;
+            if (savedTheme) {
+                setThemeState(savedTheme);
+            } else {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                setThemeState(prefersDark ? 'dark' : 'light');
+            }
+        }, 0);
+
+        return () => clearTimeout(timer);
     }, []);
 
     useEffect(() => {

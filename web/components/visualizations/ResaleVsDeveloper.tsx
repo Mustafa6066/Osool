@@ -2,12 +2,12 @@
 
 import { motion } from "framer-motion";
 import { 
-    ArrowsRightLeftIcon,
-    BuildingStorefrontIcon,
-    HomeModernIcon,
-    CheckIcon,
-    XMarkIcon
-} from "@heroicons/react/24/outline";
+    ArrowLeftRight,
+    Store,
+    Home,
+    Check,
+    X
+} from "lucide-react";
 
 interface ResaleVsDeveloperProps {
     recommendation: {
@@ -65,7 +65,7 @@ export default function ResaleVsDeveloper({ recommendation, resale_discount, com
             <div className={`bg-gradient-to-r ${getRecommendationColor()} px-6 py-4 border-b border-[var(--color-border)]`}>
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                        <ArrowsRightLeftIcon className="w-5 h-5 text-white" />
+                        <ArrowLeftRight className="w-5 h-5 text-white" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">ريسيل vs من المطور {getRecommendationEmoji()}</h3>
@@ -99,11 +99,11 @@ export default function ResaleVsDeveloper({ recommendation, resale_discount, com
                 <div className="grid grid-cols-3 gap-4 text-center">
                     <div></div>
                     <div className="bg-purple-500/20 rounded-t-xl p-2">
-                        <BuildingStorefrontIcon className="w-5 h-5 text-purple-400 mx-auto mb-1" />
+                        <Store className="w-5 h-5 text-purple-400 mx-auto mb-1" />
                         <p className="text-xs text-purple-400 font-medium">ريسيل</p>
                     </div>
                     <div className="bg-blue-500/20 rounded-t-xl p-2">
-                        <HomeModernIcon className="w-5 h-5 text-blue-400 mx-auto mb-1" />
+                        <Home className="w-5 h-5 text-blue-400 mx-auto mb-1" />
                         <p className="text-xs text-blue-400 font-medium">من المطور</p>
                     </div>
                 </div>
@@ -128,50 +128,50 @@ export default function ResaleVsDeveloper({ recommendation, resale_discount, com
                     <div className="grid grid-cols-3 gap-4 items-center bg-[var(--color-surface)]/30 rounded-xl p-3">
                         <p className="text-sm text-[var(--color-text-secondary)]">جاهز للتسليم</p>
                         <div className="flex justify-center">
-                            <CheckIcon className="w-5 h-5 text-green-400" />
+                            <Check className="w-5 h-5 text-green-400" />
                         </div>
                         <div className="flex justify-center">
-                            <XMarkIcon className="w-5 h-5 text-red-400" />
+                            <X className="w-5 h-5 text-red-400" />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 items-center bg-[var(--color-surface)]/30 rounded-xl p-3">
                         <p className="text-sm text-[var(--color-text-secondary)]">خطة تقسيط طويلة</p>
                         <div className="flex justify-center">
-                            <XMarkIcon className="w-5 h-5 text-red-400" />
+                            <X className="w-5 h-5 text-red-400" />
                         </div>
                         <div className="flex justify-center">
-                            <CheckIcon className="w-5 h-5 text-green-400" />
+                            <Check className="w-5 h-5 text-green-400" />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 items-center bg-[var(--color-surface)]/30 rounded-xl p-3">
                         <p className="text-sm text-[var(--color-text-secondary)]">ضمان المطور</p>
                         <div className="flex justify-center">
-                            <XMarkIcon className="w-5 h-5 text-red-400" />
+                            <X className="w-5 h-5 text-red-400" />
                         </div>
                         <div className="flex justify-center">
-                            <CheckIcon className="w-5 h-5 text-green-400" />
+                            <Check className="w-5 h-5 text-green-400" />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 items-center bg-[var(--color-surface)]/30 rounded-xl p-3">
                         <p className="text-sm text-[var(--color-text-secondary)]">سعر أقل</p>
                         <div className="flex justify-center">
-                            <CheckIcon className="w-5 h-5 text-green-400" />
+                            <Check className="w-5 h-5 text-green-400" />
                         </div>
                         <div className="flex justify-center">
-                            <XMarkIcon className="w-5 h-5 text-red-400" />
+                            <X className="w-5 h-5 text-red-400" />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 items-center bg-[var(--color-surface)]/30 rounded-xl p-3">
                         <p className="text-sm text-[var(--color-text-secondary)]">تفاوض على السعر</p>
                         <div className="flex justify-center">
-                            <CheckIcon className="w-5 h-5 text-green-400" />
+                            <Check className="w-5 h-5 text-green-400" />
                         </div>
                         <div className="flex justify-center">
-                            <XMarkIcon className="w-5 h-5 text-red-400" />
+                            <X className="w-5 h-5 text-red-400" />
                         </div>
                     </div>
                 </div>

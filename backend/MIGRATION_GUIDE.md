@@ -292,7 +292,6 @@ After successful migration:
 3. **Phase 4:** Security hardening (remove hardcoded secrets)
 4. **Phase 5:** Production monitoring setup
 5. **Phase 6:** Write tests
-6. **Phase 7:** Blockchain verification
 
 ---
 

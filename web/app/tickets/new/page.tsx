@@ -1,208 +1,316 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, Send, AlertTriangle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import SmartNav from '@/components/SmartNav';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  Send,
+  Sparkles,
+} from 'lucide-react';
+import AppShell from '@/components/nav/AppShell';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { createTicket } from '@/lib/api';
 
 const CATEGORIES = [
-    { value: 'general', label: 'General Inquiry' },
-    { value: 'payment', label: 'Payment Issue' },
-    { value: 'property', label: 'Property Related' },
-    { value: 'technical', label: 'Technical Problem' },
-    { value: 'account', label: 'Account & Profile' },
-];
+  {
+    value: 'general',
+    labelKey: 'ticketNew.categoryGeneral',
+    descKey: 'ticketNew.categoryGeneralDesc',
+  },
+  {
+    value: 'payment',
+    labelKey: 'ticketNew.categoryPayment',
+    descKey: 'ticketNew.categoryPaymentDesc',
+  },
+  {
+    value: 'property',
+    labelKey: 'ticketNew.categoryProperty',
+    descKey: 'ticketNew.categoryPropertyDesc',
+  },
+  {
+    value: 'technical',
+    labelKey: 'ticketNew.categoryTechnical',
+    descKey: 'ticketNew.categoryTechnicalDesc',
+  },
+  {
+    value: 'account',
+    labelKey: 'ticketNew.categoryAccount',
+    descKey: 'ticketNew.categoryAccountDesc',
+  },
+] as const;
 
 const PRIORITIES = [
-    { value: 'low', label: 'Low', description: 'General question, no rush' },
-    { value: 'medium', label: 'Medium', description: 'Needs attention soon' },
-    { value: 'high', label: 'High', description: 'Important, blocking issue' },
-    { value: 'urgent', label: 'Urgent', description: 'Critical, immediate attention needed' },
-];
+  {
+    value: 'low',
+    labelKey: 'ticketNew.priorityLow',
+    descKey: 'ticketNew.priorityLowDesc',
+  },
+  {
+    value: 'medium',
+    labelKey: 'ticketNew.priorityMedium',
+    descKey: 'ticketNew.priorityMediumDesc',
+  },
+  {
+    value: 'high',
+    labelKey: 'ticketNew.priorityHigh',
+    descKey: 'ticketNew.priorityHighDesc',
+  },
+  {
+    value: 'urgent',
+    labelKey: 'ticketNew.priorityUrgent',
+    descKey: 'ticketNew.priorityUrgentDesc',
+  },
+] as const;
+
+function getApiDetail(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof error.response === 'object' &&
+    error.response !== null &&
+    'data' in error.response &&
+    typeof error.response.data === 'object' &&
+    error.response.data !== null &&
+    'detail' in error.response.data &&
+    typeof error.response.data.detail === 'string'
+  ) {
+    return error.response.data.detail;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function getPriorityTone(priority: string): string {
+  switch (priority) {
+    case 'urgent':
+      return 'border-red-500/30 bg-red-500/10 text-red-500';
+    case 'high':
+      return 'border-orange-500/30 bg-orange-500/10 text-orange-500';
+    case 'medium':
+      return 'border-blue-500/30 bg-blue-500/10 text-blue-500';
+    default:
+      return 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)]';
+  }
+}
 
 export default function NewTicketPage() {
-    const { isAuthenticated, loading: authLoading } = useAuth();
-    const router = useRouter();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
+  const router = useRouter();
 
-    const [subject, setSubject] = useState('');
-    const [description, setDescription] = useState('');
-    const [category, setCategory] = useState('general');
-    const [priority, setPriority] = useState('medium');
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const [subject, setSubject] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('general');
+  const [priority, setPriority] = useState('medium');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (!authLoading && !isAuthenticated) {
-            router.push('/login');
-        }
-    }, [isAuthenticated, authLoading, router]);
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, router]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
+  const selectedCategory = CATEGORIES.find((item) => item.value === category) || CATEGORIES[0];
+  const selectedPriority = PRIORITIES.find((item) => item.value === priority) || PRIORITIES[1];
 
-        if (subject.trim().length < 3) {
-            setError('Subject must be at least 3 characters.');
-            return;
-        }
-        if (description.trim().length < 10) {
-            setError('Description must be at least 10 characters.');
-            return;
-        }
+  const handleSubmit = async (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+    setError(null);
 
-        setSubmitting(true);
-        try {
-            const ticket = await createTicket({
-                subject: subject.trim(),
-                description: description.trim(),
-                category,
-                priority,
-            });
-            router.push(`/tickets/${ticket.id}`);
-        } catch (err: any) {
-            setError(err?.response?.data?.detail || 'Failed to create ticket. Please try again.');
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    if (authLoading) {
-        return (
-            <SmartNav>
-                <div className="flex items-center justify-center h-full">
-                    <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-                </div>
-            </SmartNav>
-        );
+    if (subject.trim().length < 3) {
+      setError(t('ticketNew.errorSubjectShort'));
+      return;
     }
 
+    if (description.trim().length < 10) {
+      setError(t('ticketNew.errorDescriptionShort'));
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const ticket = await createTicket({
+        subject: subject.trim(),
+        description: description.trim(),
+        category,
+        priority,
+      });
+      router.push(`/tickets/${ticket.id}`);
+    } catch (submitError: unknown) {
+      setError(getApiDetail(submitError, t('ticketNew.errorCreateFailed')));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (authLoading) {
     return (
-        <SmartNav>
-            <div className="flex flex-col h-full overflow-hidden">
-                {/* Header */}
-                <div className="px-4 md:px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-background)]">
-                    <div className="max-w-2xl mx-auto flex items-center gap-3">
-                        <Link
-                            href="/tickets"
-                            className="p-1.5 rounded-lg hover:bg-[var(--color-surface)] transition-colors text-[var(--color-text-muted)]"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                        </Link>
-                        <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">New Support Ticket</h1>
-                    </div>
-                </div>
-
-                {/* Form */}
-                <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6">
-                    <motion.form
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        onSubmit={handleSubmit}
-                        className="max-w-2xl mx-auto space-y-5"
-                    >
-                        {/* Error */}
-                        {error && (
-                            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
-                                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                                {error}
-                            </div>
-                        )}
-
-                        {/* Subject */}
-                        <div>
-                            <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                                Subject <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={subject}
-                                onChange={(e) => setSubject(e.target.value)}
-                                maxLength={200}
-                                placeholder="Brief summary of your issue"
-                                className="w-full px-4 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-emerald-500/50 transition-colors"
-                            />
-                        </div>
-
-                        {/* Category & Priority Row */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                                    Category
-                                </label>
-                                <select
-                                    title="Select ticket category"
-                                    value={category}
-                                    onChange={(e) => setCategory(e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
-                                >
-                                    {CATEGORIES.map(c => (
-                                        <option key={c.value} value={c.value}>{c.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                                    Priority
-                                </label>
-                                <select
-                                    title="Select ticket priority"
-                                    value={priority}
-                                    onChange={(e) => setPriority(e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
-                                >
-                                    {PRIORITIES.map(p => (
-                                        <option key={p.value} value={p.value}>{p.label} &mdash; {p.description}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Description */}
-                        <div>
-                            <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
-                                Description <span className="text-red-500">*</span>
-                            </label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                maxLength={5000}
-                                rows={8}
-                                placeholder="Describe your issue in detail. Include any relevant information like order IDs, property names, error messages, etc."
-                                className="w-full px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-emerald-500/50 transition-colors resize-none"
-                            />
-                            <p className="text-xs text-[var(--color-text-muted)] mt-1 text-right">
-                                {description.length}/5000
-                            </p>
-                        </div>
-
-                        {/* Submit */}
-                        <div className="flex items-center justify-end gap-3 pt-2">
-                            <Link
-                                href="/tickets"
-                                className="px-4 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] transition-colors"
-                            >
-                                Cancel
-                            </Link>
-                            <button
-                                type="submit"
-                                disabled={submitting}
-                                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {submitting ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <Send className="w-4 h-4" />
-                                )}
-                                Submit Ticket
-                            </button>
-                        </div>
-                    </motion.form>
-                </div>
-            </div>
-        </SmartNav>
+      <AppShell>
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        </div>
+      </AppShell>
     );
+  }
+
+  return (
+    <AppShell>
+      <main className="h-full overflow-y-auto bg-[var(--color-background)]">
+        <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+          <section className="grid gap-6 lg:grid-cols-[0.94fr_1.06fr]">
+            <div className="space-y-6">
+              <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
+                <Link href="/tickets" className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]">
+                  <ArrowLeft className="h-4 w-4" />
+                  {t('ticketNew.back')}
+                </Link>
+                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {t('ticketNew.badge')}
+                </div>
+                <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{t('ticketNew.title')}</h1>
+                <p className="mt-4 text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
+                  {t('ticketNew.subtitle')}
+                </p>
+              </div>
+
+              <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('ticketNew.checklistLabel')}</div>
+                <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                  <p>{t('ticketNew.checklistItem1')}</p>
+                  <p>{t('ticketNew.checklistItem2')}</p>
+                  <p>{t('ticketNew.checklistItem3')}</p>
+                </div>
+                <div className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
+                    <Sparkles className="h-4 w-4 text-emerald-500" />
+                    {t('ticketNew.routingLabel')}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
+                    {t('ticketNew.formCategory')}: {t(selectedCategory.labelKey)}. {t('ticketNew.formPriority')}: {t(selectedPriority.labelKey)}.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-8">
+              <div className="flex flex-col gap-6">
+                {error && (
+                  <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketNew.formSubject')}</label>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketNew.formSubjectHint')}</p>
+                  <input
+                    type="text"
+                    value={subject}
+                    onChange={(event) => setSubject(event.target.value)}
+                    maxLength={200}
+                    placeholder={t('ticketNew.formSubjectPlaceholder')}
+                    className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus-visible:border-[var(--color-primary)]/40 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketNew.formCategory')}</label>
+                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketNew.formCategoryHint')}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {CATEGORIES.map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => setCategory(item.value)}
+                        className={`rounded-2xl border p-4 text-left transition-colors ${
+                          category === item.value
+                            ? 'border-emerald-500/30 bg-emerald-500/10'
+                            : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-emerald-500/20'
+                        }`}
+                      >
+                        <div className="text-sm font-semibold text-[var(--color-text-primary)]">{t(item.labelKey)}</div>
+                        <div className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">{t(item.descKey)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketNew.formPriority')}</label>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketNew.formPriorityHint')}</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {PRIORITIES.map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => setPriority(item.value)}
+                        className={`rounded-2xl border p-4 text-left transition-colors ${
+                          priority === item.value
+                            ? getPriorityTone(item.value)
+                            : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-emerald-500/20'
+                        }`}
+                      >
+                        <div className="text-sm font-semibold">{t(item.labelKey)}</div>
+                        <div className="mt-2 text-xs leading-5 opacity-90">{t(item.descKey)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)]">{t('ticketNew.formDescription')}</label>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t('ticketNew.formDescriptionHint')}</p>
+                  <textarea
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    rows={10}
+                    maxLength={5000}
+                    placeholder={t('ticketNew.formDescriptionPlaceholder')}
+                    className="mt-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-colors focus-visible:border-[var(--color-primary)]/40 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
+                  />
+                  <div className="mt-2 text-right text-xs text-[var(--color-text-muted)]">{description.length}/5000</div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] pt-6">
+                  <Link
+                    href="/tickets"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
+                  >
+                    {t('ticketNew.formCancel')}
+                  </Link>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {t('ticketNew.formSubmit')}
+                    {!submitting && <ArrowRight className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </section>
+        </div>
+      </main>
+    </AppShell>
+  );
 }

@@ -5,24 +5,28 @@ Handles payment verification with Paymob's API.
 """
 
 import os
+import logging
 import httpx
+from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
+
 
 class PaymobService:
     def __init__(self):
         self.api_key = os.getenv("PAYMOB_API_KEY")
         self.integration_id = os.getenv("PAYMOB_INTEGRATION_ID")
         self.base_url = "https://accept.paymob.com/api"
-        # For production, we would authenticate and get a token.
-        # For this MVP/mock structure, we'll assume we can check status via a simplified flow or mocking if credentials aren't present.
 
-    async def _get_auth_token(self) -> str:
+    async def _get_auth_token(self) -> Optional[str]:
         """Authenticate with Paymob to get an auth token."""
         if not self.api_key:
+            logger.warning("PAYMOB_API_KEY not configured")
             return None
-        
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
@@ -31,29 +35,27 @@ class PaymobService:
                 )
                 response.raise_for_status()
                 return response.json().get("token")
+        except httpx.TimeoutException:
+            logger.error("Paymob auth request timed out")
+            return None
         except Exception as e:
-            print(f"[!] Paymob Auth Failed: {e}")
+            logger.error("Paymob auth failed: %s", e)
             return None
 
     async def verify_transaction(self, transaction_id_or_ref: str) -> bool:
         """
         Verifies if a transaction was successful.
+        Always fails safe — never accepts unverified transactions.
         """
         if not self.api_key:
-            if os.getenv("ENVIRONMENT") == "production":
-                print("[!] PAYMOB_API_KEY must be set in production. Blocking mock verification.")
-                return False
-            print("[IsMock] Paymob API key missing, falling back to mock verification.")
-            return len(str(transaction_id_or_ref)) >= 8
+            logger.error("PAYMOB_API_KEY not set — transaction verification rejected")
+            return False
 
         token = await self._get_auth_token()
         if not token:
-            if os.getenv("ENVIRONMENT") == "production":
-                print("[!] Could not get Paymob token in production. Failing safe.")
-                return False
-            print("[!] Could not get Paymob token. Falling back to mock (dev only).")
-            return len(str(transaction_id_or_ref)) >= 8
-            
+            logger.error("Could not obtain Paymob auth token — verification rejected")
+            return False
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 headers = {"Authorization": f"Bearer {token}"}
@@ -61,44 +63,44 @@ class PaymobService:
                     f"{self.base_url}/acceptance/transactions/{transaction_id_or_ref}",
                     headers=headers
                 )
-                
+
                 if response.status_code == 404:
-                    print(f"Transaction {transaction_id_or_ref} not found.")
-                    return False
-                    
-                response.raise_for_status()
-                data = response.json()
-                
-                is_success = data.get("success", False)
-                is_pending = data.get("pending", False)
-                
-                if is_success and not is_pending:
-                    print(f"[+] Paymob verification successful for {transaction_id_or_ref}")
-                    return True
-                else:
-                    print(f"[-] Paymob transaction {transaction_id_or_ref} status: Success={is_success}, Pending={is_pending}")
+                    logger.warning("Transaction %s not found on Paymob", transaction_id_or_ref)
                     return False
 
+                response.raise_for_status()
+                data = response.json()
+
+                is_success = data.get("success", False)
+                is_pending = data.get("pending", False)
+
+                if is_success and not is_pending:
+                    logger.info("Paymob verification successful for %s", transaction_id_or_ref)
+                    return True
+                else:
+                    logger.warning(
+                        "Paymob transaction %s: success=%s, pending=%s",
+                        transaction_id_or_ref, is_success, is_pending,
+                    )
+                    return False
+
+        except httpx.TimeoutException:
+            logger.error("Paymob verification timed out for %s", transaction_id_or_ref)
+            return False
         except Exception as e:
-            print(f"[!] Paymob Verification Error: {e}")
+            logger.error("Paymob verification error for %s: %s", transaction_id_or_ref, e)
             return False
 
     def verify_hmac(self, data: dict, hmac_signature: str) -> bool:
         """
         Verify Paymob HMAC signature securely.
-        
-        Logic:
-        1. Extract specific keys in alphabetical order.
-        2. Concatenate values.
-        3. Calculate HMAC-SHA512 with Secret Key.
-        4. Compare with received signature.
         """
         import hmac
         import hashlib
-        
+
         secret = os.getenv("PAYMOB_HMAC_SECRET")
         if not secret:
-            print("[!] Paymob HMAC Secret missing. Verification Failed.")
+            logger.error("PAYMOB_HMAC_SECRET not configured — HMAC verification rejected")
             return False
 
         # Paymob Keys sorted alphabetically
@@ -136,10 +138,11 @@ class PaymobService:
         
         return hmac.compare_digest(calculated_hmac.lower(), hmac_signature.lower())
 
-    async def get_payment_key(self, amount_cents: int, order_id: str, billing_data: dict) -> str:
+    async def get_payment_key(self, amount_cents: int, order_id: str, billing_data: dict) -> Optional[str]:
         """Step 3: Request Payment Key"""
         token = await self._get_auth_token()
-        if not token: return None
+        if not token:
+            return None
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -159,7 +162,7 @@ class PaymobService:
                 response.raise_for_status()
                 return response.json().get("token")
         except Exception as e:
-            print(f"[!] Paymob Request Key Failed: {e}")
+            logger.error("Paymob payment key request failed: %s", e)
             return None
 
     async def initiate_payment(self, amount_egp: float, user_email: str, user_phone: str, first_name: str, last_name: str) -> dict:
@@ -169,10 +172,10 @@ class PaymobService:
         """
         token = await self._get_auth_token()
         if not token:
-            return {"error": "Payment Gateway Authentication Failed"}
-            
+            return {"error": "Payment gateway authentication failed"}
+
         amount_cents = int(amount_egp * 100)
-        
+
         # 2. Register Order
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -189,7 +192,7 @@ class PaymobService:
                 order_res.raise_for_status()
                 order_id = order_res.json().get("id")
         except Exception as e:
-            print(f"[!] Paymob Order Reg Failed: {e}")
+            logger.error("Paymob order registration failed: %s", e)
             return {"error": "Failed to create payment order"}
 
         # 3. Get Payment Key

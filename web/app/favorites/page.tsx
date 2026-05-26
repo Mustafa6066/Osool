@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchFavorites, toggleFavorite, FavoriteProperty } from '@/lib/gamification';
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 
 export default function FavoritesPage() {
     const { isAuthenticated, loading: authLoading } = useAuth();
@@ -41,12 +41,15 @@ export default function FavoritesPage() {
     };
 
     const handleRemove = async (propertyId: number) => {
+        if (removing !== null) return; // guard against double-click
         setRemoving(propertyId);
+        const previous = favorites; // snapshot for rollback
+        setFavorites(prev => prev.filter(f => f.property_id !== propertyId)); // optimistic
         try {
             await toggleFavorite(propertyId);
-            setFavorites(prev => prev.filter(f => f.property_id !== propertyId));
         } catch (err) {
             console.error('[Favorites] Failed to remove:', err);
+            setFavorites(previous); // rollback on failure
         } finally {
             setRemoving(null);
         }
@@ -55,18 +58,35 @@ export default function FavoritesPage() {
     if (authLoading) return null;
 
     return (
-        <SmartNav>
+        <AppShell>
             <div className="h-full overflow-y-auto">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <h1 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)] flex items-center gap-3">
-                            <Heart className="w-7 h-7 text-red-400" />
-                            {t('favorites.title')}
-                        </h1>
-                        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                            {t('favorites.subtitle')}
-                        </p>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
+                    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start mb-8">
+                        <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-7">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                                <Heart className="h-3.5 w-3.5" />
+                                {t('favorites.badge')}
+                            </div>
+                            <h1 className="mt-5 text-3xl font-semibold tracking-tight md:text-4xl">{t('favorites.heroTitle')}</h1>
+                            <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">
+                                {t('favorites.heroSubtitle')}
+                            </p>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('favorites.statsSaved')}</div>
+                                <div className="mt-2 text-3xl font-semibold">{favorites.length}</div>
+                            </div>
+                            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('favorites.statsReady')}</div>
+                                <div className="mt-2 text-3xl font-semibold">{favorites.filter((fav) => fav.price_per_sqm > 0).length}</div>
+                            </div>
+                            <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('favorites.statsNextMove')}</div>
+                                <div className="mt-2 text-sm font-semibold">{t('favorites.statsNextMoveDesc')}</div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Loading State */}
@@ -76,34 +96,69 @@ export default function FavoritesPage() {
                         </div>
                     )}
 
-                    {/* Empty State */}
+                    {/* Empty State — teach & motivate */}
                     {!loading && favorites.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-20 text-center">
-                            <div className="w-20 h-20 rounded-2xl bg-[var(--color-surface-elevated)] flex items-center justify-center mb-4">
-                                <Heart className="w-10 h-10 text-[var(--color-text-muted)]" />
+                        <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-12">
+                            <div className="mx-auto max-w-lg text-center">
+                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-500/10">
+                                    <Heart className="h-10 w-10 text-emerald-500" />
+                                </div>
+                                <h2 className="mt-6 text-2xl font-semibold text-[var(--color-text-primary)]">
+                                    {t('favorites.emptyTitle')}
+                                </h2>
+                                <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">
+                                    {t('favorites.emptyDescription')}
+                                </p>
+
+                                {/* Mini-roadmap */}
+                                <div className="mx-auto mt-8 grid max-w-sm gap-3 text-left">
+                                    <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">1</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep1')} <span className="font-medium text-[var(--color-text-primary)]">{t('favorites.emptyStep1Example')}</span></div>
+                                    </div>
+                                    <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">2</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep2Intro')} <Heart className="inline h-3.5 w-3.5 text-emerald-500" /> {t('favorites.emptyStep2Desc')}</div>
+                                    </div>
+                                    <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-600">3</div>
+                                        <div className="text-sm text-[var(--color-text-secondary)]">{t('favorites.emptyStep3')}</div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex flex-wrap justify-center gap-3">
+                                    <Link
+                                        href="/chat"
+                                        className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-6 py-3 text-sm font-semibold text-[var(--color-background)]"
+                                    >
+                                        <Sparkles className="h-4 w-4" />
+                                        {t('favorites.emptyOpenChat')}
+                                    </Link>
+                                    <Link
+                                        href="/explore"
+                                        className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-6 py-3 text-sm font-medium hover:border-emerald-500/40"
+                                    >
+                                        {t('favorites.emptyExploreMarket')}
+                                    </Link>
+                                </div>
                             </div>
-                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
-                                {t('favorites.noSaved')}
-                            </h2>
-                            <p className="text-sm text-[var(--color-text-muted)] max-w-md mb-6">
-                                {t('favorites.browsePrompt')}
-                            </p>
-                            <Link
-                                href="/properties"
-                                className="px-6 py-2.5 bg-[var(--color-primary)] text-white rounded-full text-sm font-medium hover:bg-[var(--color-primary)]/90 transition-colors"
-                            >
-                                {t('favorites.explore')}
-                            </Link>
                         </div>
                     )}
 
                     {/* Favorites Grid */}
                     {!loading && favorites.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-5">
+                            <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-muted)]">
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">{t('favorites.filterPromising')}</span>
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">{t('favorites.filterConviction')}</span>
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">{t('favorites.filterFollowUp')}</span>
+                            </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                             {favorites.map((fav) => (
                                 <div
                                     key={fav.id}
-                                    className="group bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden hover:border-[var(--color-primary)]/30 hover:shadow-lg transition-all duration-300"
+                                    className="group bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[28px] overflow-hidden hover:border-emerald-500/30 hover:shadow-lg transition-all duration-300"
                                 >
                                     {/* Image */}
                                     <div className="relative aspect-[16/10] bg-[var(--color-surface-elevated)] overflow-hidden">
@@ -124,7 +179,7 @@ export default function FavoritesPage() {
                                             onClick={() => handleRemove(fav.property_id)}
                                             disabled={removing === fav.property_id}
                                             className="absolute top-3 right-3 p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-red-500 transition-colors"
-                                            title="Remove from favorites"
+                                            title="{t('favorites.remove')}"
                                         >
                                             {removing === fav.property_id ? (
                                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -137,6 +192,10 @@ export default function FavoritesPage() {
                                         <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-white text-sm font-bold">
                                             {(fav.price / 1000000).toFixed(1)}M EGP
                                         </div>
+
+                                        <div className="absolute top-3 left-3 rounded-full bg-emerald-500/90 px-3 py-1 text-[11px] font-semibold text-white">
+                                            {t('favorites.propertyBadge')}
+                                        </div>
                                     </div>
 
                                     {/* Info */}
@@ -147,10 +206,13 @@ export default function FavoritesPage() {
                                         <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 mb-3" dir="auto">
                                             <MapPin className="w-3 h-3" />
                                             {fav.location}
-                                            {fav.developer && ` · ${fav.developer}`}
+                                            {fav.developer && ` \u00B7 ${fav.developer}`}
                                         </p>
 
-                                        {/* Specs */}
+                                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-xs text-[var(--color-text-secondary)] mb-3">
+                                            {fav.notes ? fav.notes : t('favorites.propertyNote')}
+                                        </div>
+
                                         <div className="flex items-center gap-4 text-xs text-[var(--color-text-secondary)]">
                                             {fav.bedrooms > 0 && (
                                                 <span className="flex items-center gap-1">
@@ -171,28 +233,29 @@ export default function FavoritesPage() {
                                             )}
                                         </div>
 
-                                        {/* Notes */}
-                                        {fav.notes && (
-                                            <div className="mt-3 text-xs text-[var(--color-text-muted)] bg-[var(--color-surface-elevated)] rounded-lg px-3 py-2 italic">
-                                                {fav.notes}
-                                            </div>
-                                        )}
-
-                                        {/* Ask CoInvestor button */}
-                                        <Link
-                                            href={`/chat`}
-                                            className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-all"
-                                        >
-                                            <Sparkles className="w-3.5 h-3.5" />
-                                            {t('favorites.askCoInvestor')}
-                                        </Link>
+                                        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                            <Link
+                                                href={`/chat?property=${encodeURIComponent(fav.title)}`}
+                                                className="flex items-center justify-center gap-2 rounded-xl bg-[var(--color-text-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-background)]"
+                                            >
+                                                <Sparkles className="w-3.5 h-3.5" />
+                                                {t('favorites.askCoInvestor')}
+                                            </Link>
+                                            <Link
+                                                href={`/property/${fav.property_id}`}
+                                                className="flex items-center justify-center rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] hover:border-emerald-500/40"
+                                            >
+                                                {t('favorites.openDetail')}
+                                            </Link>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
+                        </div>
                     )}
                 </div>
             </div>
-        </SmartNav>
+        </AppShell>
     );
 }

@@ -10,14 +10,36 @@
  * - TypeScript support for type safety
  */
 
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
+
+type JsonObject = Record<string, unknown>;
+
+interface JwtPayload extends JsonObject {
+  sub?: string;
+  email?: string;
+  full_name?: string;
+  role?: string;
+  exp?: number;
+}
+
+const TOKEN_EXPIRY_SKEW_MS = 30_000;
+
+type StreamProperty = JsonObject;
+type StreamUiAction = JsonObject;
+type StreamPsychology = JsonObject;
+type FollowUpPayload = JsonObject;
+type SkipAuthRedirectConfig = AxiosRequestConfig & { _skipAuthRedirect?: boolean };
 
 // Base URL from environment or default to localhost (strip trailing slash)
-// Force HTTPS for any non-localhost URL to prevent mixed-content blocks on Vercel
 const envUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const BASE_URL = envUrl
+let BASE_URL = envUrl
   .replace(/\/$/, '')
   .replace(/^http:\/\/(?!localhost)/, 'https://');
+
+// Enforce HTTPS in production to prevent mixed-content errors.
+if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+  BASE_URL = BASE_URL.replace(/^http:/, 'https:');
+}
 
 // Create axios instance
 const api = axios.create({
@@ -57,15 +79,57 @@ api.interceptors.request.use(
  * Uses a lock to prevent parallel refresh calls
  */
 let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
+let refreshSubscribers: Array<{
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
+
+function isInvalidRefreshResponse(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 401 || status === 403 || status === 422;
+}
+
+function clearAuthAndRedirect(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user_full_name');
+  const onAuthPage = ['/login', '/register', '/signup'].some((path) =>
+    window.location.pathname.startsWith(path)
+  );
+  if (!onAuthPage) {
+    window.location.href = '/login';
+  }
+}
 
 function onTokenRefreshed(token: string) {
-  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers.forEach(sub => sub.resolve(token));
   refreshSubscribers = [];
 }
 
-function addRefreshSubscriber(cb: (token: string) => void) {
-  refreshSubscribers.push(cb);
+function onTokenRefreshFailed(error: unknown) {
+  refreshSubscribers.forEach(sub => sub.reject(error));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(
+  resolve: (token: string) => void,
+  reject: (error: unknown) => void
+) {
+  refreshSubscribers.push({ resolve, reject });
+}
+
+function getRefreshUrl(): string {
+  return typeof window !== 'undefined'
+    ? '/api/auth/refresh'
+    : `${BASE_URL}/api/auth/refresh`;
+}
+
+function getStreamUrl(): string {
+  return typeof window !== 'undefined'
+    ? '/api/chat/stream'
+    : `${BASE_URL}/api/chat/stream`;
 }
 
 api.interceptors.response.use(
@@ -83,13 +147,13 @@ api.interceptors.response.use(
 
       // If already refreshing, queue this request to retry after refresh
       if (isRefreshing) {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           addRefreshSubscriber((token: string) => {
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
             resolve(api(originalRequest));
-          });
+          }, reject);
         });
       }
 
@@ -99,18 +163,7 @@ api.interceptors.response.use(
         : null;
 
       if (!refreshToken) {
-        // No refresh token available — clear stale token and redirect to login
-        // Guard: avoid redirect loop if already on login/register page
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          const onAuthPage = ['/login', '/register', '/signup'].some(p =>
-            window.location.pathname.startsWith(p)
-          );
-          if (!onAuthPage) {
-            window.location.href = '/login';
-          }
-        }
+        clearAuthAndRedirect();
         return Promise.reject(error);
       }
 
@@ -118,8 +171,10 @@ api.interceptors.response.use(
 
       try {
         // Call refresh endpoint to get new access token
-        const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {
+        const { data } = await axios.post(getRefreshUrl(), {
           refresh_token: refreshToken,
+        }, {
+          withCredentials: true,
         });
 
         // Store new access token
@@ -143,19 +198,33 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;
-        refreshSubscribers = [];
-        // Refresh failed — clear auth tokens and redirect to login
-        // Guard: avoid redirect loop if already on login/register page
+        onTokenRefreshFailed(refreshError);
+
+        // If another tab/session rotated tokens while this request was in-flight,
+        // retry once with the freshest token instead of force-signing-out.
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          const onAuthPage = ['/login', '/register', '/signup'].some(p =>
-            window.location.pathname.startsWith(p)
-          );
-          if (!onAuthPage) {
-            window.location.href = '/login';
+          const latestRefreshToken = localStorage.getItem('refresh_token');
+          const latestAccessToken = localStorage.getItem('access_token');
+          if (
+            latestRefreshToken &&
+            latestAccessToken &&
+            latestRefreshToken !== refreshToken
+          ) {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${latestAccessToken}`;
+            }
+            return api(originalRequest);
           }
         }
+
+        // Only force logout on invalid/expired refresh token.
+        // Network/server failures should not sign users out abruptly.
+        if (isInvalidRefreshResponse(refreshError)) {
+          clearAuthAndRedirect();
+        } else {
+          console.warn('[Auth] Refresh failed due to transient error; keeping session tokens intact.');
+        }
+
         return Promise.reject(refreshError);
       }
     }
@@ -166,11 +235,66 @@ api.interceptors.response.use(
 );
 
 /**
- * Helper: Check if user is authenticated
+ * Helper: Check if user is authenticated and token is not expired
  */
 export const isAuthenticated = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return !!localStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token');
+  if (!token) return false;
+  try {
+    const payload = token.split('.')[1];
+    const decoded = JSON.parse(atob(payload)) as { exp?: number };
+    if (decoded.exp && decoded.exp * 1000 < (Date.now() - TOKEN_EXPIRY_SKEW_MS)) {
+      return false; // Token is expired
+    }
+  } catch {
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Helper: Silently refresh the access token using the stored refresh token.
+ * Returns true on success, false on failure.
+ */
+let refreshTokenPromise: Promise<boolean> | null = null;
+
+export const refreshAccessToken = async (): Promise<boolean> => {
+  if (typeof window === 'undefined') return false;
+  if (refreshTokenPromise) return refreshTokenPromise;
+
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) return false;
+
+  refreshTokenPromise = (async () => {
+    try {
+      const { data } = await axios.post(getRefreshUrl(), {
+        refresh_token: refreshToken,
+      }, {
+        withCredentials: true,
+      });
+      localStorage.setItem('access_token', data.access_token as string);
+      if (data.refresh_token) {
+        localStorage.setItem('refresh_token', data.refresh_token as string);
+      }
+      return true;
+    } catch (error) {
+      // If tokens changed while request was running (another tab refreshed), keep session alive.
+      const latestRefreshToken = localStorage.getItem('refresh_token');
+      if (latestRefreshToken && latestRefreshToken !== refreshToken) {
+        return true;
+      }
+
+      if (!isInvalidRefreshResponse(error)) {
+        console.warn('[Auth] refreshAccessToken transient failure; session preserved for retry.');
+      }
+      return false;
+    } finally {
+      refreshTokenPromise = null;
+    }
+  })();
+
+  return refreshTokenPromise;
 };
 
 /**
@@ -178,7 +302,7 @@ export const isAuthenticated = (): boolean => {
  * Returns null if the token is missing or expired.
  * WARNING: This is NOT secure validation - backend must verify token
  */
-export const getCurrentUserFromToken = (): any | null => {
+export const getCurrentUserFromToken = (): JwtPayload | null => {
   if (typeof window === 'undefined') return null;
 
   const token = localStorage.getItem('access_token');
@@ -187,9 +311,9 @@ export const getCurrentUserFromToken = (): any | null => {
   try {
     // Decode JWT payload (base64)
     const payload = token.split('.')[1];
-    const decoded = JSON.parse(atob(payload));
+    const decoded = JSON.parse(atob(payload)) as JwtPayload;
 
-    // Discard expired tokens so auth-gated components don't fire for invalid sessions
+    // Discard expired tokens so auth-gated components don't fire for invalid sessions.
     if (decoded.exp && decoded.exp * 1000 < Date.now()) {
       localStorage.removeItem('access_token');
       return null;
@@ -240,16 +364,29 @@ export const storeAuthTokens = (accessToken: string, refreshToken?: string): voi
 /**
  * V6: Streaming Chat Response Types
  */
-export type StreamEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'follow_up' | 'error';
+export type StreamEventType = 'token' | 'tool_start' | 'tool_end' | 'done' | 'follow_up' | 'error' | 'status' | 'correction';
 
 export interface StreamEvent {
   type: StreamEventType;
-  content?: string | Record<string, any>;
+  content?: string | JsonObject;
   tool?: string;
-  properties?: any[];
-  ui_actions?: any[];
-  psychology?: any;
+  properties?: StreamProperty[];
+  ui_actions?: StreamUiAction[];
+  ui_primitive_descriptor?: string;
+  primitive_data?: JsonObject | null;
+  psychology?: StreamPsychology;
   message?: string;
+  suggestions?: string[];
+  lead_score?: number;
+  readiness_score?: number;
+  detected_language?: string;
+  showing_strategy?: string;
+  corrected_text?: string;
+  response_type?: string;
+  show_upsell?: boolean;
+  upsell_reason?: string | null;
+  quota_remaining?: number;
+  cta_actions?: Array<Record<string, unknown>>;
 }
 
 export interface StreamChatCallbacks {
@@ -257,17 +394,26 @@ export interface StreamChatCallbacks {
   onToolStart: (tool: string) => void;
   onToolEnd: (tool: string) => void;
   onComplete: (data: {
-    properties: any[];
-    ui_actions: any[];
-    psychology?: any;
+    properties: StreamProperty[];
+    ui_actions: StreamUiAction[];
+    ui_primitive_descriptor?: string;
+    primitive_data?: JsonObject | null;
+    psychology?: StreamPsychology;
     suggestions?: string[];
     lead_score?: number;
     readiness_score?: number;
     detected_language?: string;
     showing_strategy?: string;
+    response_type?: string;
+    show_upsell?: boolean;
+    upsell_reason?: string | null;
+    quota_remaining?: number;
+    cta_actions?: Array<Record<string, unknown>>;
   }) => void;
-  onFollowUp?: (followUp: any) => void;
+  onFollowUp?: (followUp: FollowUpPayload) => void;
   onError: (error: string) => void;
+  onStatus?: (message: string) => void;
+  onCorrection?: (correctedText: string) => void;
 }
 
 /**
@@ -291,26 +437,54 @@ export const streamChat = async (
   // Auto-timeout after 2 minutes to prevent hung connections
   const timeoutId = setTimeout(() => controller.abort(), 120000);
 
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+
   try {
-    const accessToken = typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
-      : null;
+    const openStream = async (): Promise<Response> => {
+      const accessToken = typeof window !== 'undefined'
+        ? localStorage.getItem('access_token')
+        : null;
 
-    const response = await fetch(`${BASE_URL}/api/chat/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
-      },
-      body: JSON.stringify({ message, session_id: sessionId, language }),
-      signal: controller.signal,
-    });
+      return fetch(getStreamUrl(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ message, session_id: sessionId, language }),
+        credentials: 'include',
+        signal: controller.signal,
+      });
+    };
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    let response = await openStream();
+
+    // If access token is expired, try one silent refresh + one retry.
+    if (response.status === 401) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        response = await openStream();
+      }
     }
 
-    const reader = response.body?.getReader();
+    // Retry once; the same-origin Next proxy refreshes backend CSRF server-side.
+    if (response.status === 403) {
+      response = await openStream();
+    }
+
+    if (!response.ok) {
+      // Try to extract backend error message
+      let errorMsg = `Server error (${response.status})`;
+      try {
+        const errBody = await response.json();
+        if (errBody.detail) errorMsg = errBody.detail;
+        else if (errBody.message) errorMsg = errBody.message;
+        else if (errBody.error) errorMsg = errBody.error;
+      } catch { /* use default */ }
+      throw new Error(errorMsg);
+    }
+
+    reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
     if (!reader) {
@@ -339,21 +513,34 @@ export const streamChat = async (
               callbacks.onComplete({
                 properties: data.properties || [],
                 ui_actions: data.ui_actions || [],
+                ui_primitive_descriptor: data.ui_primitive_descriptor,
+                primitive_data: data.primitive_data || null,
                 psychology: data.psychology,
-                suggestions: (data as any).suggestions || [],
-                lead_score: (data as any).lead_score || 0,
-                readiness_score: (data as any).readiness_score || 0,
-                detected_language: (data as any).detected_language || 'ar',
-                showing_strategy: (data as any).showing_strategy || 'NONE',
+                suggestions: data.suggestions || [],
+                lead_score: data.lead_score || 0,
+                readiness_score: data.readiness_score || 0,
+                detected_language: data.detected_language || 'ar',
+                showing_strategy: data.showing_strategy || 'NONE',
+                response_type: data.response_type,
+                show_upsell: data.show_upsell,
+                upsell_reason: data.upsell_reason,
+                quota_remaining: data.quota_remaining,
+                cta_actions: data.cta_actions || [],
               });
               break;
             case 'follow_up':
               if (callbacks.onFollowUp && data.content) {
-                callbacks.onFollowUp(data.content);
+                callbacks.onFollowUp(typeof data.content === 'string' ? { text: data.content } : data.content);
               }
               break;
             case 'error':
               callbacks.onError(data.message || 'Unknown error');
+              break;
+            case 'status':
+              if (callbacks.onStatus && data.message) callbacks.onStatus(data.message);
+              break;
+            case 'correction':
+              if (callbacks.onCorrection && data.corrected_text) callbacks.onCorrection(data.corrected_text);
               break;
           }
         } catch (e) {
@@ -390,10 +577,12 @@ export const streamChat = async (
     if ((error as Error).name === 'AbortError') {
       console.log('Stream cancelled by user');
     } else {
-      callbacks.onError((error as Error).message);
+      callbacks.onError((error as Error).message || 'Connection lost — please try again.');
     }
   } finally {
     clearTimeout(timeoutId);
+    // Release the reader to prevent connection leaks
+    try { reader?.releaseLock(); } catch { /* already released */ }
   }
 
   return controller;
@@ -412,9 +601,9 @@ export const sendChatMessage = async (
   language: 'ar' | 'en' | 'auto' = 'auto'
 ): Promise<{
   response: string;
-  properties: any[];
-  ui_actions: any[];
-  psychology?: any;
+  properties: StreamProperty[];
+  ui_actions: StreamUiAction[];
+  psychology?: StreamPsychology;
 }> => {
   const { data } = await api.post('/api/chat', { message, session_id: sessionId, language });
   return data;
@@ -540,14 +729,15 @@ export interface AdminMessage {
   role: string;
   content: string;
   created_at: string | null;
-  properties: any[] | null;
+  properties: StreamProperty[] | null;
 }
 
 /** Check if current user is admin */
 export const checkAdmin = async (): Promise<{ is_admin: boolean; email: string; name: string }> => {
   // _skipAuthRedirect: admin check failing (401) should not force a redirect;
   // the admin page handles 401 by setting isAdmin=false and showing access-denied UI.
-  const { data } = await api.get('/api/admin/check', { _skipAuthRedirect: true } as any);
+  const adminCheckConfig: SkipAuthRedirectConfig = { _skipAuthRedirect: true };
+  const { data } = await api.get('/api/admin/check', adminCheckConfig);
   return data;
 };
 
@@ -598,9 +788,15 @@ export const getAdminUserConversations = async (userId: number) => {
   return data;
 };
 
-/** Trigger property scraper (admin) */
+/** Trigger post-scrape processing — stale cleanup + price flagging (admin) */
 export const triggerPropertyScraper = async () => {
   const { data } = await api.post('/api/admin/scraper/properties');
+  return data;
+};
+
+/** Trigger a full Nawy property scrape — httpx NEXT_DATA extraction (super-admin) */
+export const triggerNawyScraper = async () => {
+  const { data } = await api.post('/api/admin/scraper/nawy');
   return data;
 };
 
@@ -610,9 +806,21 @@ export const triggerEconomicScraper = async () => {
   return data;
 };
 
+/** Trigger geopolitical & macro events scraper (admin) */
+export const triggerGeopoliticalScraper = async () => {
+  const { data } = await api.post('/api/admin/scraper/geopolitical');
+  return data;
+};
+
 /** Get market indicators (admin) */
 export const getAdminMarketIndicators = async () => {
   const { data } = await api.get('/api/admin/market-indicators');
+  return data;
+};
+
+/** Update a single market indicator (admin) */
+export const updateAdminMarketIndicator = async (key: string, value: number, source?: string) => {
+  const { data } = await api.patch(`/api/admin/market-indicators/${encodeURIComponent(key)}`, { value, source });
   return data;
 };
 
@@ -763,6 +971,30 @@ export const assignTicket = async (id: number, adminId: number | null): Promise<
 /** Admin: reply to ticket as admin */
 export const addAdminTicketReply = async (ticketId: number, content: string): Promise<TicketReply> => {
   const { data } = await api.post(`/api/admin/tickets/${ticketId}/replies`, { content });
+  return data;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MARKETING MATERIALS API
+// ═══════════════════════════════════════════════════════════════
+export interface MarketingMaterial {
+  id: number;
+  category: string;
+  question_en: string;
+  question_ar: string;
+  answer_en: string | null;
+  answer_ar: string | null;
+  last_updated: string | null;
+  last_run_status: string | null;
+}
+
+export const getMarketingMaterials = async (): Promise<{ total: number; materials: MarketingMaterial[] }> => {
+  const { data } = await api.get('/api/admin/marketing-materials');
+  return data;
+};
+
+export const generateMarketingMaterials = async (): Promise<{ message: string }> => {
+  const { data } = await api.post('/api/admin/marketing-materials/generate');
   return data;
 };
 

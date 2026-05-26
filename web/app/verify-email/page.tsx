@@ -1,155 +1,249 @@
 "use client";
 
-import { useSearchParams } from 'next/navigation';
-import { useState, useEffect, useRef, Suspense } from 'react';
-import { useLanguage } from '@/contexts/LanguageContext';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { CheckCircle2, XCircle, Loader2, Mail, ArrowRight } from 'lucide-react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import {
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  ShieldAlert,
+  Sparkles,
+} from 'lucide-react';
+import AppShell from '@/components/nav/AppShell';
+import { useLanguage } from '@/contexts/LanguageContext';
 import api from '@/lib/api';
 
+function getApiDetail(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof error.response === 'object' &&
+    error.response !== null &&
+    'data' in error.response &&
+    typeof error.response.data === 'object' &&
+    error.response.data !== null &&
+    'detail' in error.response.data &&
+    typeof error.response.data.detail === 'string'
+  ) {
+    return error.response.data.detail;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 function VerifyEmailContent() {
-    const searchParams = useSearchParams();
-    const { language } = useLanguage();
-    const token = searchParams.get('token');
-    const verifiedRef = useRef(false);
+  const searchParams = useSearchParams();
+  const { language } = useLanguage();
+  const token = searchParams.get('token');
+  const verifiedRef = useRef(false);
 
-    const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'no-token'>('loading');
-    const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [message, setMessage] = useState('');
+  const missingTokenMessage =
+    language === 'ar'
+      ? 'Ø±Ø§Ø¨Ø· Ø§Ù„ØªØ­Ù‚Ù‚ ØºÙŠØ± ØµØ§Ù„Ø­ Ø£Ùˆ Ù†Ø§Ù‚Øµ. Ø§Ø³ØªØ®Ø¯Ù… Ø§Ù„Ø±Ø§Ø¨Ø· Ø§Ù„Ø£ØµÙ„ÙŠ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ.'
+      : 'The verification link is missing or invalid. Use the original link from your email.';
 
-    useEffect(() => {
-        if (!token) {
-            setStatus('no-token');
-            setMessage(
-                language === 'ar'
-                    ? 'رابط التحقق غير صالح. تأكد من الرابط الذي تلقيته بالبريد.'
-                    : 'Invalid verification link. Please check the link from your email.'
-            );
-            return;
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    if (verifiedRef.current) {
+      return;
+    }
+    verifiedRef.current = true;
+
+    const verify = async () => {
+      try {
+        const response = await api.get(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+        if (response.data.status === 'verified') {
+          setStatus('success');
+          setMessage(
+            language === 'ar'
+              ? 'ØªÙ… ØªØ£ÙƒÙŠØ¯ Ø¨Ø±ÙŠØ¯Ùƒ Ø¨Ù†Ø¬Ø§Ø­. ÙŠÙ…ÙƒÙ†Ùƒ Ø§Ù„Ø¢Ù† Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø© Ø¯Ø§Ø®Ù„ Ù…Ø³Ø§Ø­Ø© Ø§Ù„Ø¹Ù…Ù„ Ø£Ùˆ Ø§Ù„Ø¹ÙˆØ¯Ø© Ù„Ù„Ø§Ø³ØªÙƒØ´Ø§Ù.'
+              : 'Your email is verified. You can continue into the workspace or go back to exploration.'
+          );
+          return;
         }
 
-        // Prevent duplicate verification calls (React Strict Mode)
-        if (verifiedRef.current) return;
-        verifiedRef.current = true;
-
-        const verify = async () => {
-            try {
-                const res = await api.get(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
-                if (res.data.status === 'verified') {
-                    setStatus('success');
-                    setMessage(
-                        language === 'ar'
-                            ? 'تم تأكيد بريدك الإلكتروني بنجاح! يمكنك الآن الاستمتاع بجميع مميزات أصول.'
-                            : 'Your email has been verified successfully! You can now enjoy all Osool features.'
-                    );
-                } else {
-                    setStatus('error');
-                    setMessage(res.data.message || (language === 'ar' ? 'حدث خطأ' : 'An error occurred'));
-                }
-            } catch (err: any) {
-                setStatus('error');
-                const detail = err?.response?.data?.detail;
-                setMessage(
-                    detail ||
-                    (language === 'ar'
-                        ? 'رابط التحقق غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد.'
-                        : 'Invalid or expired verification token. Please request a new one.')
-                );
-            }
-        };
-
-        verify();
-    }, [token, language]);
-
-    const iconMap = {
-        loading: <Loader2 className="w-16 h-16 text-[var(--color-primary)] animate-spin" />,
-        success: <CheckCircle2 className="w-16 h-16 text-green-500" />,
-        error: <XCircle className="w-16 h-16 text-red-400" />,
-        'no-token': <Mail className="w-16 h-16 text-amber-400" />,
+        setStatus('error');
+        setMessage(response.data.message || (language === 'ar' ? 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯.' : 'Email verification could not be completed.'));
+      } catch (error: unknown) {
+        setStatus('error');
+        setMessage(
+          getApiDetail(error,
+            (language === 'ar'
+              ? 'Ø§Ù†ØªÙ‡Øª ØµÙ„Ø§Ø­ÙŠØ© Ø±Ø§Ø¨Ø· Ø§Ù„ØªØ­Ù‚Ù‚ Ø£Ùˆ Ù„Ù… ÙŠØ¹Ø¯ ØµØ§Ù„Ø­Ù‹Ø§. Ø§Ø·Ù„Ø¨ Ø±Ø§Ø¨Ø·Ù‹Ø§ Ø¬Ø¯ÙŠØ¯Ù‹Ø§ Ù…Ù† Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø¨.'
+              : 'The verification link expired or is no longer valid. Request a new link from account settings.')
+          )
+        );
+      }
     };
 
-    const titleMap = {
-        loading: language === 'ar' ? 'جارٍ التحقق...' : 'Verifying...',
-        success: language === 'ar' ? 'تم التحقق ✓' : 'Email Verified ✓',
-        error: language === 'ar' ? 'فشل التحقق' : 'Verification Failed',
-        'no-token': language === 'ar' ? 'رابط غير صالح' : 'Invalid Link',
-    };
+    void verify();
+  }, [language, token]);
 
-    return (
-        <main className="min-h-screen flex items-center justify-center bg-[var(--color-background)] px-4">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full max-w-md text-center"
-            >
-                {/* Logo */}
-                <div className="mb-8">
-                    <Link href="/">
-                        <span className="text-3xl font-bold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] bg-clip-text text-transparent">
-                            Osool
-                        </span>
-                    </Link>
+  const effectiveStatus = token ? status : 'no-token';
+  const displayMessage = effectiveStatus === 'no-token' ? missingTokenMessage : message;
+
+  const title = useMemo(() => {
+    if (language === 'ar') {
+      switch (effectiveStatus) {
+        case 'loading':
+          return 'Ø¬Ø§Ø±Ù Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯';
+        case 'success':
+          return 'ØªÙ… Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯';
+        case 'error':
+          return 'ØªØ¹Ø°Ø± Ø§Ù„ØªØ­Ù‚Ù‚';
+        default:
+          return 'Ø§Ù„Ø±Ø§Ø¨Ø· ØºÙŠØ± ØµØ§Ù„Ø­';
+      }
+    }
+
+    switch (effectiveStatus) {
+      case 'loading':
+        return 'Verifying your email';
+      case 'success':
+        return 'Email verified';
+      case 'error':
+        return 'Verification failed';
+      default:
+        return 'Invalid link';
+    }
+  }, [effectiveStatus, language]);
+
+  const tone = useMemo(() => {
+    switch (effectiveStatus) {
+      case 'success':
+        return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300';
+      case 'error':
+        return 'border-red-500/20 bg-red-500/10 text-red-500';
+      case 'no-token':
+        return 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300';
+      default:
+        return 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]';
+    }
+  }, [effectiveStatus]);
+
+  const icon = useMemo(() => {
+    switch (effectiveStatus) {
+      case 'success':
+        return <CheckCircle2 className="h-10 w-10" />;
+      case 'error':
+      case 'no-token':
+        return <ShieldAlert className="h-10 w-10" />;
+      default:
+        return <Loader2 className="h-10 w-10 animate-spin" />;
+    }
+  }, [effectiveStatus]);
+
+  return (
+    <AppShell>
+      <main className="bg-[var(--color-background)]">
+        <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col justify-center gap-8 px-4 py-10 sm:px-6 lg:px-8">
+          <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+                <Mail className="h-3.5 w-3.5" />
+                Account continuity
+              </div>
+              <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Stay inside the same journey after verification.</h1>
+              <p className="max-w-2xl text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
+                Verification should feel like a checkpoint, not a dead end. This page confirms the result and gives you the next best move back into Osool.
+              </p>
+              <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+                  <Sparkles className="h-4 w-4" />
+                  What happens next
                 </div>
+                <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                  <p>If verification succeeds, move into your workspace and continue where you left off.</p>
+                  <p>If the link fails, return to sign-in and request a fresh email from the account flow.</p>
+                  <p>If you were still comparing projects or units, you can also jump back into Explore immediately.</p>
+                </div>
+              </div>
+            </div>
 
-                {/* Card */}
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 shadow-xl">
-                    <motion.div
-                        key={status}
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: 'spring', stiffness: 200 }}
-                        className="flex justify-center mb-6"
+            <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
+              <div className={`inline-flex items-center gap-3 rounded-full border px-4 py-2 text-sm font-semibold ${tone}`}>
+                {icon}
+                {title}
+              </div>
+
+              <p className="mt-6 text-base leading-7 text-[var(--color-text-secondary)]">{displayMessage}</p>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                {effectiveStatus === 'success' ? (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]"
                     >
-                        {iconMap[status]}
-                    </motion.div>
+                      Go to workspace
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      href="/explore"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
+                    >
+                      Continue exploring
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)]"
+                    >
+                      Return to sign in
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      href="/explore"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
+                    >
+                      Browse public market views
+                    </Link>
+                  </>
+                )}
+              </div>
 
-                    <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-3">
-                        {titleMap[status]}
-                    </h1>
-
-                    <p className="text-[var(--color-text-secondary)] mb-8 leading-relaxed">
-                        {message}
-                    </p>
-
-                    {status === 'success' && (
-                        <Link
-                            href="/dashboard"
-                            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white font-semibold hover:opacity-90 transition-opacity"
-                        >
-                            {language === 'ar' ? 'إلى لوحة التحكم' : 'Go to Dashboard'}
-                            <ArrowRight className="w-4 h-4" />
-                        </Link>
-                    )}
-
-                    {(status === 'error' || status === 'no-token') && (
-                        <div className="space-y-3">
-                            <Link
-                                href="/dashboard"
-                                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] font-semibold hover:opacity-80 transition-opacity"
-                            >
-                                {language === 'ar' ? 'إلى لوحة التحكم' : 'Go to Dashboard'}
-                            </Link>
-                            <p className="text-xs text-[var(--color-text-muted)]">
-                                {language === 'ar'
-                                    ? 'يمكنك إعادة إرسال رابط التحقق من إعدادات حسابك'
-                                    : 'You can resend the verification link from your account settings'}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </motion.div>
-        </main>
-    );
+              <div className="mt-8 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-background)] p-5">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Recovery note</div>
+                <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                  {language === 'ar'
+                    ? 'Ø¥Ø°Ø§ ÙØ´Ù„ Ø§Ù„Ø±Ø§Ø¨Ø·ØŒ Ø§Ø·Ù„Ø¨ Ø±Ø³Ø§Ù„Ø© Ø¬Ø¯ÙŠØ¯Ø© Ù…Ù† Ø±Ø­Ù„Ø© ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£Ùˆ Ù…Ù† Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø¨ Ø¨Ø¹Ø¯ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„.'
+                    : 'If the link fails, request a fresh email from the sign-in flow or from account settings after login.'}
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </AppShell>
+  );
 }
 
 export default function VerifyEmailPage() {
-    return (
-        <Suspense fallback={
-            <main className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-                <Loader2 className="w-10 h-10 text-[var(--color-primary)] animate-spin" />
-            </main>
-        }>
-            <VerifyEmailContent />
-        </Suspense>
-    );
+  return (
+    <Suspense
+      fallback={
+        <AppShell>
+          <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[var(--color-background)]">
+            <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+          </main>
+        </AppShell>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
+  );
 }

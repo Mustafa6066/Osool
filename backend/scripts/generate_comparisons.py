@@ -51,8 +51,8 @@ async def seed():
                     f"finish quality, pricing, and resale value in Egypt.")
             pages.append(SEOPage(
                 slug=slug,
-                page_type=SEOPageType.COMPARISON,
-                status=PageStatus.DRAFT,
+                page_type=SEOPageType.COMPARISON.value,
+                status=PageStatus.DRAFT.value,
                 title=title,
                 title_ar=title_ar,
                 meta_desc=meta,
@@ -73,8 +73,8 @@ async def seed():
                     f"appreciation rate, rental yield, and lifestyle in Egypt.")
             pages.append(SEOPage(
                 slug=slug,
-                page_type=SEOPageType.COMPARISON,
-                status=PageStatus.DRAFT,
+                page_type=SEOPageType.COMPARISON.value,
+                status=PageStatus.DRAFT.value,
                 title=title,
                 title_ar=title_ar,
                 meta_desc=meta,
@@ -96,8 +96,8 @@ async def seed():
                     f"and expert analysis.")
             pages.append(SEOPage(
                 slug=slug,
-                page_type=SEOPageType.PROJECT,
-                status=PageStatus.DRAFT,
+                page_type=SEOPageType.PROJECT_DEEPDIVE.value,
+                status=PageStatus.DRAFT.value,
                 title=title,
                 title_ar=title_ar,
                 meta_desc=meta,
@@ -117,8 +117,8 @@ async def seed():
                     f"delivery score {dev.avg_delivery_score}/100, all compounds listed.")
             pages.append(SEOPage(
                 slug=slug,
-                page_type=SEOPageType.DEVELOPER,
-                status=PageStatus.DRAFT,
+                page_type=SEOPageType.PILLAR_GUIDE.value,
+                status=PageStatus.DRAFT.value,
                 title=title,
                 title_ar=title_ar,
                 meta_desc=meta,
@@ -138,8 +138,8 @@ async def seed():
                     f"{area.price_growth_ytd}% YoY growth, top projects, and investment tips.")
             pages.append(SEOPage(
                 slug=slug,
-                page_type=SEOPageType.AREA,
-                status=PageStatus.DRAFT,
+                page_type=SEOPageType.ROI_TRACKER.value,
+                status=PageStatus.DRAFT.value,
                 title=title,
                 title_ar=title_ar,
                 meta_desc=meta,

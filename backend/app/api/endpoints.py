@@ -13,16 +13,17 @@ Payment Flow:
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, Any
 
-from app.ai_engine.openai_service import osool_ai
-from app.ai_engine.wolf_orchestrator import wolf_brain as hybrid_brain  # Backward compat alias
 from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
-from app.ai_engine.claude_sales_agent import claude_sales_agent
+from app.ai_engine.cost_tracker import cost_tracker
+from app.ai_engine.company_brain import CompanyBrainKernel
+from app.ai_engine.free_tier_gate import build_best_price_free_payload
+from app.ai_engine.wolf_orchestrator import wolf_brain
 from app.services.paymob_service import paymob_service
-from app.auth import create_access_token, get_current_user, get_password_hash, verify_password, create_refresh_token_async
+from app.auth import create_access_token, get_current_user, get_current_user_optional, get_password_hash, verify_password, create_refresh_token_async, is_forced_free_test_user_email
 from app.database import get_db
-from app.models import User, Property, Transaction, PaymentApproval
+from app.models import User, Property, Transaction
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends, status, Request
@@ -30,6 +31,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -96,11 +98,13 @@ class HybridValuationRequest(BaseModel):
 
 # Phase 1: Payment request model (kept for Paymob integration)
 class PaymentInitiateRequest(BaseModel):
-    """Request model for initiating Paymob payments."""
+    """Request model for initiating Paymob payments.
+    LOW-7/HIGH-6 fix: email, phone_number, and amount_egp are intentionally
+    removed from the client-supplied body.  They now come exclusively from
+    the authenticated current_user and the database property record so that
+    the client cannot manipulate prices or inject arbitrary contact details.
+    """
     property_id: int = Field(..., description="Property ID to reserve")
-    amount_egp: float = Field(..., description="Payment amount in EGP")
-    email: str = Field(..., description="User email")
-    phone_number: str = Field(..., description="User phone number")
     first_name: str = Field(..., description="User first name")
     last_name: str = Field(..., description="User last name")
 
@@ -130,11 +134,23 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return api_key
 
+class BehavioralSignals(BaseModel):
+    """V5: Frontend telemetry signals piped into psychology layer."""
+    scroll_depth_pct: float = Field(default=0.0, ge=0.0, le=100.0, description="How far user scrolled (0-100%)")
+    time_on_page_ms: int = Field(default=0, ge=0, le=600000, description="Time spent on current page (ms, max 10min)")
+    property_hover_ms: int = Field(default=0, ge=0, le=60000, description="Time hovering over a property card (ms)")
+    price_scroll_speed: float = Field(default=0.0, ge=0.0, le=100.0, description="Speed scrolling past price sections (px/ms)")
+    tool_toggles: int = Field(default=0, ge=0, le=50, description="Number of tool panel open/close toggles")
+    cards_expanded: int = Field(default=0, ge=0, le=100, description="Number of property cards expanded")
+    back_navigation_count: int = Field(default=0, ge=0, le=50, description="Times user navigated back")
+
+
 class ChatRequest(BaseModel):
     """Request model for AI chat."""
     message: str = Field(..., min_length=1, max_length=4000, description="User message to the AI agent")  # SECURITY FIX V5 & V7: XSS + Length limit
     session_id: str = Field(default="default", max_length=100, description="Chat session ID for history")  # SECURITY FIX V7: Length limit
     language: str = Field(default="auto", max_length=10, description="User's preferred language: 'ar' (Arabic), 'en' (English), or 'auto' (detect)")  # SECURITY FIX V7: Length limit
+    behavioral_signals: Optional[BehavioralSignals] = Field(default=None, description="Frontend telemetry signals for psychology adjustment")
 
 
 
@@ -150,7 +166,12 @@ class ChatRequest(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     """Request model for profile completion."""
     full_name: str = Field(..., description="User's full name")
-    phone_number: str = Field(..., description="User's phone number")
+    # MEDIUM-5 fix: Validate phone_number to prevent garbage and injection
+    phone_number: str = Field(
+        ...,
+        description="User's phone number",
+        pattern=r'^\+?[0-9\s\-\(\)]{7,20}$'
+    )
     email: Optional[str] = Field(None, description="Email for account binding")
 
 @router.post("/auth/update-profile")
@@ -219,8 +240,11 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     # 2. Redis Cache Check
     try:
         from app.services.cache import cache
-        cache.redis.ping()
-        health_status["checks"]["redis"] = {"status": "healthy", "message": "Connected"}
+        if cache.redis:
+            cache.redis.ping()
+            health_status["checks"]["redis"] = {"status": "healthy", "message": "Connected"}
+        else:
+            health_status["checks"]["redis"] = {"status": "not_configured", "message": "Redis not enabled"}
     except Exception as e:
         logger.error("Health check — redis error: %s", e)
         health_status["checks"]["redis"] = {"status": "degraded", "error": "Cache connection failed"}
@@ -243,6 +267,30 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         if health_status["status"] == "healthy":
             health_status["status"] = "degraded"
 
+    # 4. Orchestrator Dependency Check
+    try:
+        from app.services.orchestrator_client import get_orchestrator_health_status
+
+        orchestrator = get_orchestrator_health_status()
+        if not orchestrator["configured"]:
+            health_status["checks"]["orchestrator"] = {
+                "status": "not_configured",
+                "message": "Orchestrator integration disabled",
+            }
+        else:
+            circuit_state = orchestrator["circuit_breaker"]["state"]
+            health_status["checks"]["orchestrator"] = {
+                "status": "healthy" if circuit_state == "closed" else "degraded",
+                "circuit_breaker": circuit_state,
+                "time_until_retry": orchestrator["circuit_breaker"]["time_until_retry"],
+            }
+            if circuit_state == "open" and health_status["status"] == "healthy":
+                health_status["status"] = "degraded"
+    except Exception as e:
+        health_status["checks"]["orchestrator"] = {"status": "degraded", "error": str(e)}
+        if health_status["status"] == "healthy":
+            health_status["status"] = "degraded"
+
     # Response time
     health_status["response_time_ms"] = round((time.time() - start_time) * 1000, 2)
 
@@ -250,6 +298,71 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     status_code = 200 if health_status["status"] == "healthy" else 503
 
     return JSONResponse(content=health_status, status_code=status_code)
+
+
+@router.get("/ready")
+async def readiness_check(db: AsyncSession = Depends(get_db)):
+    """
+    Strict readiness probe for traffic routing.
+
+    Returns 200 only when critical dependencies are reachable.
+    Returns 503 if any required check fails.
+    """
+    import os
+    import time
+
+    started = time.time()
+    environment = os.getenv("ENVIRONMENT", "development")
+    require_redis_raw = os.getenv("STRICT_READINESS_REDIS")
+    require_redis = (
+        require_redis_raw.lower() == "true"
+        if isinstance(require_redis_raw, str)
+        else environment == "production"
+    )
+
+    checks = {
+        "database": {"status": "healthy"},
+        "redis": {"status": "healthy" if require_redis else "optional"},
+    }
+
+    ready = True
+
+    # Database must always be reachable.
+    try:
+        from sqlalchemy import text
+        await db.execute(text("SELECT 1"))
+    except Exception as e:
+        logger.error("Readiness check — database error: %s", e)
+        checks["database"] = {"status": "down", "error": "Database connection failed"}
+        ready = False
+
+    # Redis can be optional in non-production unless STRICT_READINESS_REDIS=true.
+    try:
+        from app.services.cache import cache
+        if cache.redis:
+            cache.redis.ping()
+            checks["redis"] = {"status": "healthy"}
+        else:
+            checks["redis"] = {"status": "down" if require_redis else "optional", "error": "Redis not configured"}
+            if require_redis:
+                ready = False
+    except Exception as e:
+        logger.error("Readiness check — redis error: %s", e)
+        checks["redis"] = {"status": "down" if require_redis else "degraded", "error": "Redis connection failed"}
+        if require_redis:
+            ready = False
+
+    status_code = 200 if ready else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ready" if ready else "not_ready",
+            "service": "Osool Registry API",
+            "environment": environment,
+            "checks": checks,
+            "response_time_ms": round((time.time() - started) * 1000, 2),
+        },
+    )
 
 
 @router.get("/metrics")
@@ -357,7 +470,7 @@ async def checkout(
     Returns:
         Payment initiation result with iframe URL
     """
-    import jwt
+    from jose import jwt as jose_jwt, JWTError, ExpiredSignatureError
     from datetime import datetime
     from sqlalchemy import select
 
@@ -368,10 +481,10 @@ async def checkout(
             raise HTTPException(status_code=500, detail="JWT secret not configured")
 
         try:
-            payload = jwt.decode(req.token, SECRET_KEY, algorithms=["HS256"])
-        except jwt.ExpiredSignatureError:
+            payload = jose_jwt.decode(req.token, SECRET_KEY, algorithms=["HS256"])
+        except ExpiredSignatureError:
             raise HTTPException(status_code=400, detail="Reservation link expired. Please generate a new one.")
-        except jwt.InvalidTokenError as e:
+        except JWTError as e:
             raise HTTPException(status_code=400, detail="Invalid reservation token")
 
         # 2. Validate token type
@@ -481,11 +594,17 @@ async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: Use
     if not property.is_available:
         raise HTTPException(status_code=400, detail="Property is NOT available associated with this payment request.")
 
+    # HIGH-6/LOW-7 fix: Use server-side price from the property record, NOT from the client request.
+    # This prevents price-manipulation attacks where the client sends amount_egp=1.
+    payment_amount = float(property.price)
+    user_email = current_user.email or ""
+    user_phone = current_user.phone_number or ""
+
     # 2. Initiate Paymob
     paymob_result = await paymob_service.initiate_payment(
-        amount_egp=req.amount_egp,
-        user_email=req.email,
-        user_phone=req.phone_number,
+        amount_egp=payment_amount,
+        user_email=user_email,
+        user_phone=user_phone,
         first_name=req.first_name,
         last_name=req.last_name
     )
@@ -499,7 +618,7 @@ async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: Use
         new_tx = Transaction(
             user_id=current_user.id, 
             property_id=req.property_id,
-            amount=req.amount_egp, 
+            amount=payment_amount, 
             paymob_order_id=str(paymob_result.get("order_id")),
             status="pending"
         )
@@ -507,7 +626,11 @@ async def initiate_paymob_payment(req: PaymentInitiateRequest, current_user: Use
         await db.commit()
     except Exception as e:
         logger.error(f"❌ Failed to save transaction: {e}")
-        # Proceed but warn — payment was already initiated
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Payment initiated but failed to save transaction record. Please contact support with your payment reference."
+        )
     
     return paymob_result
 
@@ -522,7 +645,12 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     from sqlalchemy.orm import selectinload
 
     hmac_value = request.query_params.get("hmac", "")
-    data = await request.json()
+
+    # Parse JSON body safely — malformed payloads must not crash the handler
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     # 1. Verify source is actually Paymob
     if not hmac_value or not paymob_service.verify_hmac(data, hmac_value):
@@ -556,21 +684,45 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         transaction.status = "paid"
 
         # 5. If this is a property reservation, mark the property as unavailable
+        # Use SELECT ... FOR UPDATE to prevent double-booking race condition
         if transaction.property_id:
             prop_result = await db.execute(
-                select(Property).filter(Property.id == transaction.property_id)
+                select(Property)
+                .filter(Property.id == transaction.property_id)
+                .with_for_update()
             )
             property = prop_result.scalar_one_or_none()
             if property:
+                if not property.is_available:
+                    logger.warning(f"Property {property.id} already reserved — possible double-booking attempt")
+                    await db.rollback()
+                    return {"status": "conflict", "reason": "property_already_reserved"}
                 property.is_available = False
                 logger.info(f"Property {property.id} marked as reserved after payment")
+
+                # V5: Create portfolio entry for investor tracking
+                try:
+                    from app.services.portfolio_engine import create_portfolio_entry
+                    await create_portfolio_entry(
+                        session=db,
+                        user_id=transaction.user_id,
+                        property_id=transaction.property_id,
+                        transaction_id=transaction.id,
+                        purchase_price=transaction.amount,
+                        equity_paid=transaction.amount * 0.10,  # assume 10% down payment
+                        location_zone=getattr(property, 'location', None),
+                    )
+                except Exception as pe:
+                    logger.warning(f"Portfolio entry creation failed (non-fatal): {pe}")
 
         await db.commit()
         logger.info(f"Transaction {transaction.id} marked as paid")
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Webhook Error: {e}")
-        # Security: Don't leak internal error details in webhook response
+        await db.rollback()
         raise HTTPException(status_code=500, detail="Internal processing error")
     
     return {"status": "success"}
@@ -605,7 +757,7 @@ async def analyze_contract(
             detail="Contract text too short. Please provide more content."
         )
     
-    result = await osool_ai.analyze_contract_with_egyptian_context(req.text)
+    result = hybrid_brain_prod.audit_contract(req.text)
     
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
@@ -621,18 +773,17 @@ async def smart_valuation(
     """
     📊 AI Property Valuation with Market Reasoning
     
-    Returns:
-    - Price range (min-max) in EGP
-    - Price per sqm
-    - Detailed reasoning based on market trends
-    - Investment verdict
+    Powered by hybrid_brain_prod (XGBoost + GPT-4o).
+    Accepts the simpler ValuationRequest schema and adapts parameters.
     """
-    result = await osool_ai.get_smart_valuation(
+    finishing_map = {
+        "Core & Shell": 0, "Semi Finished": 1,
+        "Fully Finished": 2, "Ultra Lux": 3,
+    }
+    result = hybrid_brain_prod.get_valuation(
         location=req.location,
-        size_sqm=req.size_sqm,
-        finishing=req.finishing,
-        bedrooms=req.bedrooms,
-        property_type=req.property_type
+        size=req.size_sqm,
+        finishing=finishing_map.get(req.finishing, 2),
     )
     
     if "error" in result:
@@ -649,16 +800,17 @@ async def compare_price(
     """
     💰 Compare Asking Price vs. Market Value
     
-    Tells the buyer if the seller's price is:
-    - BARGAIN (unusually low - verify why)
-    - FAIR (within market range)
-    - OVERPRICED (negotiate down)
+    Powered by hybrid_brain_prod (XGBoost + GPT-4o).
     """
-    result = await osool_ai.compare_price_to_market(
+    finishing_map = {
+        "Core & Shell": 0, "Semi Finished": 1,
+        "Fully Finished": 2, "Ultra Lux": 3,
+    }
+    result = hybrid_brain_prod.compare_asking_price(
         asking_price=req.asking_price,
         location=req.location,
-        size_sqm=req.size_sqm,
-        finishing=req.finishing
+        size=req.size_sqm,
+        finishing=finishing_map.get(req.finishing, 2),
     )
     
     if "error" in result:
@@ -671,13 +823,181 @@ async def compare_price(
 # AI CHAT ENDPOINT (RAG)
 # ═══════════════════════════════════════════════════════════════
 
+_ARABIC_TEXT_RE = re.compile(r"[\u0600-\u06FF]")
+_AREA_AR_LABELS = {
+    "new cairo": "القاهرة الجديدة",
+    "sheikh zayed": "الشيخ زايد",
+    "6th of october": "6 أكتوبر",
+    "north coast": "الساحل الشمالي",
+    "new capital": "العاصمة الإدارية",
+}
+
+
+def _resolve_chat_language(requested_language: str, message: str) -> str:
+    if requested_language in {"ar", "en"}:
+        return requested_language
+    return "ar" if _ARABIC_TEXT_RE.search(message or "") else "en"
+
+
+def _serialize_free_property(prop: Property) -> dict:
+    market_price = prop.developer_price or prop.resale_price
+    return {
+        "id": prop.id,
+        "title": prop.title,
+        "location": prop.location or "Unknown",
+        "compound": prop.compound,
+        "developer": prop.developer,
+        "price": float(prop.price or 0),
+        "market_price": float(market_price) if market_price else None,
+        "la2ta_score": float(prop.osool_score) if prop.osool_score is not None else None,
+        "bargain_percentage": float(prop.bargain_percentage) if prop.bargain_percentage is not None else None,
+        "price_per_sqm": float(prop.price_per_sqm) if prop.price_per_sqm is not None else None,
+        "size_sqm": prop.size_sqm,
+        "bedrooms": prop.bedrooms,
+        "image_url": prop.image_url,
+    }
+
+
+def _format_price_label(value: float | int | None) -> str:
+    try:
+        amount = float(value or 0)
+    except (TypeError, ValueError):
+        amount = 0.0
+
+    if amount >= 1_000_000:
+        return f"{amount / 1_000_000:.1f}M EGP"
+    if amount >= 1_000:
+        return f"{amount / 1_000:.0f}K EGP"
+    return f"{amount:.0f} EGP"
+
+
+def _build_free_search_text(
+    language: str,
+    *,
+    properties: list[dict],
+    area: Optional[str],
+    compound: Optional[str],
+) -> str:
+    if language == "ar":
+        area_label = _AREA_AR_LABELS.get((area or "").lower(), area or "")
+        if compound and area_label:
+            target = f"في {area_label} ضمن {compound}"
+        elif compound:
+            target = f"في مشاريع {compound}"
+        elif area_label:
+            target = f"في {area_label}"
+        else:
+            target = ""
+
+        if properties:
+            best = properties[0]
+            suffix = f" {target}" if target else ""
+            return (
+                f"لقيت لك {len(properties)} فرصة متاحة{suffix}. "
+                f"أفضل اختيار حاليًا: {best.get('title') or 'وحدة مناسبة'} "
+                f"بسعر { _format_price_label(best.get('price')) }."
+            )
+
+        return (
+            "فهمت طلبك، لكن ما فيش نتائج مباشرة بنفس الصياغة الحالية. "
+            "جرّب تضيف ميزانية تقريبية أو عدد الغرف وأنا أطلع لك اختيارات أدق."
+        )
+
+    if compound and area:
+        target = f"in {area} for {compound}"
+    elif compound:
+        target = f"for {compound}"
+    elif area:
+        target = f"in {area}"
+    else:
+        target = "for your request"
+
+    if properties:
+        best = properties[0]
+        return (
+            f"I found {len(properties)} available options {target}. "
+            f"Top current match: {best.get('title') or 'a suitable unit'} "
+            f"at {_format_price_label(best.get('price'))}."
+        )
+
+    return (
+        "I understood your request, but no direct matches were found with the current phrasing. "
+        "Try adding an approximate budget or bedroom count and I will narrow options better."
+    )
+
+
+async def _query_free_tier_matches(
+    db: AsyncSession,
+    *,
+    area: Optional[str],
+    compound: Optional[str],
+    limit: int = 3,
+) -> list[dict]:
+    from sqlalchemy import select, or_, func
+
+    seen_ids: set[int] = set()
+    picked: list[Property] = []
+
+    def _build_statement(use_area: bool, use_compound: bool):
+        stmt = select(Property).where(
+            Property.is_available.is_(True),
+            Property.price.is_not(None),
+            Property.price > 0,
+        )
+
+        if use_area and area:
+            stmt = stmt.where(Property.location.ilike(f"%{area}%"))
+
+        if use_compound and compound:
+            pattern = f"%{compound}%"
+            stmt = stmt.where(
+                or_(
+                    Property.compound.ilike(pattern),
+                    Property.developer.ilike(pattern),
+                    Property.title.ilike(pattern),
+                )
+            )
+
+        return stmt.order_by(
+            func.coalesce(Property.osool_score, 0).desc(),
+            func.coalesce(Property.bargain_percentage, -9999).desc(),
+            Property.price.asc(),
+        ).limit(max(limit * 2, 6))
+
+    if area and compound:
+        plan = [(True, True), (False, True), (True, False), (False, False)]
+    elif compound:
+        plan = [(False, True), (False, False)]
+    elif area:
+        plan = [(True, False), (False, False)]
+    else:
+        plan = [(False, False)]
+
+    for use_area, use_compound in plan:
+        rows = (await db.execute(_build_statement(use_area, use_compound))).scalars().all()
+        for row in rows:
+            if row.id in seen_ids:
+                continue
+            seen_ids.add(row.id)
+            picked.append(row)
+            if len(picked) >= limit:
+                return [_serialize_free_property(prop) for prop in picked]
+
+    return [_serialize_free_property(prop) for prop in picked]
+
+
+async def _build_free_tier_payload(db: AsyncSession, message: str, requested_language: str) -> dict[str, Any]:
+    payload = await build_best_price_free_payload(db, message, requested_language)
+    payload["response"] = clean_response_text(payload.get("response", ""))
+    return payload
+
 @router.post("/chat")
 @limiter.limit("20/minute")
 async def chat_with_agent(
     req: ChatRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)  # REQUIRED auth - no anonymous access
+    user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
     💬 Main AI Chat Endpoint (Phase 1: Claude-Powered with Arabic Support)
@@ -693,62 +1013,156 @@ async def chat_with_agent(
 
     Frontend can render property cards from the `properties` array.
     """
-    try:
-        from app.agent.coinvestor import coinvestor_agent  # Wolf Brain V7
-    except Exception as e:
-        logger.critical(f"Failed to load Wolf Brain: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=503,
-            detail="AI Service temporarily unavailable. Please try again shortly."
-        )
     from app.models import ChatMessage
     from sqlalchemy import select
     import json
 
     try:
-        # Phase 3: Load last 60 messages from database for this session
-        chat_history = []
-        result = await db.execute(
-            select(ChatMessage)
-            .filter(ChatMessage.session_id == req.session_id)
-            .filter(ChatMessage.user_id == user.id)  # Security: scope to authenticated user
-            .order_by(ChatMessage.created_at.desc())
-            .limit(60)  # Sufficient for Wolf Brain memory
-        )
-        messages = result.scalars().all()
-        
-        print(f"📜 Loaded {len(messages)} messages from DB for session {req.session_id}")
+        def _viewer_kind(current_user: Optional[User]) -> str:
+            if current_user is None:
+                return "anonymous"
+            if is_forced_free_test_user_email(getattr(current_user, "email", None)):
+                return "free"
+            tier = (getattr(current_user, "subscription_tier", "free") or "free").lower()
+            if getattr(current_user, "role", "").lower() == "admin" or tier in {"premium", "admin"}:
+                return "premium"
+            return "free"
 
-        # Convert to LangChain message format for coinvestor_agent
-        for msg in reversed(messages):
-            if msg.role == "user":
-                from langchain_core.messages import HumanMessage
-                chat_history.append(HumanMessage(content=msg.content))
-            elif msg.role == "assistant":
-                from langchain_core.messages import AIMessage
-                chat_history.append(AIMessage(content=msg.content))
+        viewer_kind = _viewer_kind(user)
 
         # SECURITY FIX V5: Sanitize user message before saving to prevent XSS
         from app.utils.input_sanitization import sanitize_user_message
         sanitized_message = sanitize_user_message(req.message)
 
-        # Save user message to database (linked to authenticated user)
+        # Persist user message for all tiers (anonymous messages stored with user_id=None).
         user_message = ChatMessage(
             session_id=req.session_id,
-            user_id=user.id,  # Link message to authenticated user
+            user_id=user.id if user else None,
             role="user",
-            content=sanitized_message  # SECURITY: Sanitized content
+            content=sanitized_message,
         )
         db.add(user_message)
         await db.commit()
 
-        print(f"📤 Sending {len(chat_history)} history items to Wolf Brain")
+        # Free path: use contextual anomaly hook when available; otherwise return
+        # query-matched properties instead of an empty placeholder.
+        if viewer_kind in {"anonymous", "free"}:
+            free_payload = await _build_free_tier_payload(db, sanitized_message, req.language)
+            response_text = free_payload["response"]
+            free_properties = free_payload["properties"]
+
+            ai_message = ChatMessage(
+                session_id=req.session_id,
+                user_id=user.id if user else None,
+                role="assistant",
+                content=response_text,
+                properties_json=json.dumps(free_properties, ensure_ascii=False) if free_properties else None,
+            )
+            db.add(ai_message)
+            await db.commit()
+
+            return {
+                "response": response_text,
+                "properties": free_properties,
+                "visualizations": {},
+                "ui_actions": free_payload["ui_actions"],
+                "ui_primitive_descriptor": free_payload["ui_primitive_descriptor"],
+                "primitive_data": free_payload["primitive_data"],
+                "session_id": req.session_id,
+                "analytics": {
+                    "customer_segment": "free",
+                    "lead_temperature": "warm",
+                    "lead_score": free_payload["lead_score"],
+                },
+                "cost": cost_tracker.get_cost_summary(),
+                "suggestions": free_payload["suggestions"],
+                "lead_score": free_payload["lead_score"],
+                "readiness_score": free_payload["readiness_score"],
+                "showing_strategy": free_payload["showing_strategy"],
+                "detected_language": free_payload["detected_language"],
+                "response_type": free_payload["response_type"],
+                "show_upsell": free_payload["show_upsell"],
+                "upsell_reason": free_payload["upsell_reason"],
+                "cta_actions": free_payload["cta_actions"],
+                "analytics_context": None,
+            }
+
+        # Phase 3: Load last 60 messages from database for this session
+        chat_history = []
+        result = await db.execute(
+            select(ChatMessage)
+            .filter(ChatMessage.session_id == req.session_id)
+            .filter(ChatMessage.user_id == user.id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(60)
+        )
+        messages = result.scalars().all()
         
-        # V7: Use Wolf Brain via coinvestor_agent.process_message
-        ai_result = await coinvestor_agent.process_message(
-            user_input=sanitized_message,  # SECURITY: Use sanitized message
+        print(f"📜 Loaded {len(messages)} messages from DB for session {req.session_id}")
+
+        # Convert to Wolf Brain history format
+        for msg in reversed(messages):
+            if msg.role in {"user", "assistant"}:
+                chat_history.append({"role": msg.role, "content": msg.content})
+
+        print(f"📤 Sending {len(chat_history)} history items to Wolf Brain")
+
+        # ── Orchestrator Context Injection ─────────────────────────────────────
+        # Fetch enriched user context from the Orchestrator to give Wolf Brain
+        # memory across both systems (SEO/marketing journey + chat sessions).
+        orchestrator_ctx_str = ""
+        try:
+            from app.api.orchestrator_endpoints import _fetch_from_orchestrator
+            import asyncio as _asyncio
+            orch_data, trending_data = await _asyncio.gather(
+                _fetch_from_orchestrator(f"/user-context/{user.id}"),
+                _fetch_from_orchestrator("/trending"),
+                return_exceptions=True,
+            )
+            if isinstance(orch_data, Exception):
+                orch_data = {}
+            if isinstance(trending_data, Exception):
+                trending_data = {}
+            parts = []
+            if isinstance(orch_data, dict) and orch_data.get("signalCount", 0) > 0:
+                if orch_data.get("preferredDevelopers"):
+                    parts.append(f"Preferred developers: {', '.join(orch_data['preferredDevelopers'][:5])}")
+                if orch_data.get("preferredAreas"):
+                    parts.append(f"Preferred areas: {', '.join(orch_data['preferredAreas'][:5])}")
+                if orch_data.get("intentTypes"):
+                    parts.append(f"Recent interests: {', '.join(orch_data['intentTypes'][:5])}")
+                if orch_data.get("leadScore", 0) > 0:
+                    parts.append(f"Engagement level: {orch_data.get('tier', 'new')} (score: {orch_data['leadScore']})")
+                if orch_data.get("suggestedTopics"):
+                    parts.append(f"Suggested topics: {', '.join(orch_data['suggestedTopics'][:3])}")
+            if isinstance(trending_data, dict):
+                top_devs = [d.get("developer") or d.get("name", "") for d in trending_data.get("trendingDevelopers", [])[:3] if d]
+                top_locs = [l.get("location") or l.get("name", "") for l in trending_data.get("trendingLocations", [])[:3] if l]
+                if top_devs:
+                    parts.append(f"Trending developers right now: {', '.join(filter(None, top_devs))}")
+                if top_locs:
+                    parts.append(f"Trending locations right now: {', '.join(filter(None, top_locs))}")
+            if parts:
+                orchestrator_ctx_str = "\n[Cross-Platform Market Intelligence]\n" + "\n".join(parts) + "\n"
+        except Exception as orch_err:
+            logger.debug(f"Orchestrator context unavailable (non-fatal): {orch_err}")
+
+        system_truth = await CompanyBrainKernel.synthesize_definitive_truth(db)
+        history_with_truth = [{"role": "system", "content": system_truth}] + chat_history
+        if orchestrator_ctx_str:
+            history_with_truth.insert(1, {"role": "system", "content": orchestrator_ctx_str})
+
+        ai_result = await wolf_brain.process_turn(
+            query=sanitized_message,
+            history=history_with_truth,
+            profile={
+                "id": user.id,
+                "email": getattr(user, "email", None),
+                "full_name": getattr(user, "full_name", None),
+            },
+            language=req.language,
             session_id=req.session_id,
-            history=chat_history
+            behavioral_signals=req.behavioral_signals.model_dump() if req.behavioral_signals else None,
         )
         
         print(f"📥 Wolf Brain returned response: {len(ai_result.get('response', ''))} chars")
@@ -756,7 +1170,7 @@ async def chat_with_agent(
         # Extract components from result
         response_text = clean_response_text(ai_result.get("response", ""))
         search_results = ai_result.get("properties", [])
-        ui_actions = ai_result.get("charts", [])  # Wolf Brain returns 'charts'
+        ui_actions = ai_result.get("ui_actions") or ai_result.get("charts", [])
         psychology = ai_result.get("psychology")
         agentic_action = ai_result.get("hunt_strategy")  # Reflexion strategy
         suggestions = ai_result.get("suggestions", [])
@@ -940,7 +1354,7 @@ async def chat_with_agent(
             "session_id": req.session_id,
             "analytics": analytics_data,
             "agentic_action": agentic_action,  # V4: Indicates if pivot occurred
-            "cost": claude_sales_agent.get_cost_summary(),
+            "cost": cost_tracker.get_cost_summary(),
             # V5: Frontend-facing intelligence signals
             "suggestions": suggestions,
             "lead_score": card_readiness.get("readiness_score", 0) if card_readiness else 0,
@@ -965,7 +1379,7 @@ async def chat_stream(
     req: ChatRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)  # REQUIRED auth - no anonymous access
+    user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
     🌊 Streaming AI Chat Endpoint (V6: Real-time Token Streaming)
@@ -987,9 +1401,115 @@ async def chat_stream(
 
     async def generate():
         try:
-            from app.ai_engine.claude_sales_agent import claude_sales_agent
             from app.models import ChatMessage
-            from sqlalchemy import select
+            from sqlalchemy import func, select
+
+            def _viewer_kind(current_user: Optional[User]) -> str:
+                if current_user is None:
+                    return "anonymous"
+                if is_forced_free_test_user_email(getattr(current_user, "email", None)):
+                    return "free"
+                tier = (getattr(current_user, "subscription_tier", "free") or "free").lower()
+                if getattr(current_user, "role", "").lower() == "admin" or tier in {"premium", "admin"}:
+                    return "premium"
+                return "free"
+
+            kind = _viewer_kind(user)
+
+            # Count user messages before persisting current one for quota checks.
+            count_stmt = select(func.count(ChatMessage.id)).where(
+                ChatMessage.session_id == req.session_id,
+                ChatMessage.role == "user",
+            )
+            if user:
+                count_stmt = count_stmt.where(ChatMessage.user_id == user.id)
+            else:
+                count_stmt = count_stmt.where(ChatMessage.user_id.is_(None))
+
+            session_count_before = (await db.execute(count_stmt)).scalar() or 0
+            session_count_after = session_count_before + 1
+
+            history_stmt = select(ChatMessage.content).where(
+                ChatMessage.session_id == req.session_id,
+                ChatMessage.role == "user",
+            )
+            if user:
+                history_stmt = history_stmt.where(ChatMessage.user_id == user.id)
+            else:
+                history_stmt = history_stmt.where(ChatMessage.user_id.is_(None))
+            history_stmt = history_stmt.order_by(ChatMessage.created_at.desc()).limit(6)
+            previous_user_messages = [row[0] for row in (await db.execute(history_stmt)).all()]
+
+            # Save user message first so chat history and quotas are consistent.
+            user_message = ChatMessage(
+                session_id=req.session_id,
+                user_id=user.id if user else None,
+                role="user",
+                content=req.message,
+            )
+            db.add(user_message)
+            try:
+                await db.commit()
+            except Exception as commit_err:
+                await db.rollback()
+                logger.error(f"Failed to save user message: {commit_err}", exc_info=True)
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Database error. Please try again.'}, ensure_ascii=False)}\n\n"
+                return
+
+            # Anonymous + free users: contextual free-tier search path.
+            if kind in {"anonymous", "free"}:
+                local_limit = 3 if kind == "anonymous" else 5
+                quota_remaining = max(local_limit - session_count_after, 0)
+
+                free_payload = await _build_free_tier_payload(db, req.message, req.language)
+                response_text = free_payload["response"]
+                free_properties = free_payload["properties"]
+
+                chunks = response_text.split()
+                buffer = ""
+                for word in chunks:
+                    if buffer:
+                        buffer += " "
+                    buffer += word
+                    if len(buffer.split()) >= 3 or word.endswith((".", "!", "?", "،")):
+                        yield f"data: {json.dumps({'type': 'token', 'content': buffer + ' '}, ensure_ascii=False)}\n\n"
+                        buffer = ""
+                if buffer:
+                    yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
+
+                ai_message = ChatMessage(
+                    session_id=req.session_id,
+                    user_id=user.id if user else None,
+                    role="assistant",
+                    content=response_text,
+                    properties_json=json.dumps(free_properties, ensure_ascii=False) if free_properties else None,
+                )
+                db.add(ai_message)
+                try:
+                    await db.commit()
+                except Exception as commit_err:
+                    await db.rollback()
+                    logger.error(f"Failed to save free-tier hook response: {commit_err}", exc_info=True)
+
+                done_payload = {
+                    "type": "done",
+                    "properties": free_properties,
+                    "ui_actions": free_payload["ui_actions"],
+                    "ui_primitive_descriptor": free_payload["ui_primitive_descriptor"],
+                    "primitive_data": free_payload["primitive_data"],
+                    "suggestions": free_payload["suggestions"],
+                    "lead_score": free_payload["lead_score"],
+                    "readiness_score": free_payload["readiness_score"],
+                    "detected_language": free_payload["detected_language"],
+                    "showing_strategy": free_payload["showing_strategy"],
+                    "response_type": free_payload["response_type"],
+                    "show_upsell": free_payload["show_upsell"],
+                    "upsell_reason": free_payload["upsell_reason"],
+                    "quota_remaining": quota_remaining,
+                    "cta_actions": free_payload["cta_actions"],
+                }
+                yield f"data: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
+                return
 
             # Load chat history
             chat_history = []
@@ -1009,22 +1529,6 @@ async def chat_stream(
                 elif msg.role == "assistant":
                     from langchain_core.messages import AIMessage
                     chat_history.append(AIMessage(content=msg.content))
-
-            # Save user message (linked to authenticated user)
-            user_message = ChatMessage(
-                session_id=req.session_id,
-                user_id=user.id,  # Link message to authenticated user
-                role="user",
-                content=req.message
-            )
-            db.add(user_message)
-            try:
-                await db.commit()
-            except Exception as commit_err:
-                await db.rollback()
-                logger.error(f"Failed to save user message: {commit_err}", exc_info=True)
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Database error. Please try again.'}, ensure_ascii=False)}\n\n"
-                return
 
             # Send initial tool indication
             yield f"data: {json.dumps({'type': 'tool_start', 'tool': 'wolf_brain'}, ensure_ascii=False)}\n\n"
@@ -1049,8 +1553,49 @@ async def chat_stream(
                 "full_name": getattr(user, "full_name", None),
             }
 
+            # ── Orchestrator Context Injection ─────────────────────────────
+            # Fetch enriched user context from the Orchestrator to give the
+            # AI advisor memory across both systems (chat + SEO journeys).
+            orchestrator_context = ""
+            try:
+                from app.api.orchestrator_endpoints import _fetch_from_orchestrator
+                orch_data = await _fetch_from_orchestrator(f"/user-context/{user.id}")
+                if orch_data and orch_data.get("signalCount", 0) > 0:
+                    parts = []
+                    if orch_data.get("preferredDevelopers"):
+                        parts.append(f"Preferred developers: {', '.join(orch_data['preferredDevelopers'][:5])}")
+                    if orch_data.get("preferredAreas"):
+                        parts.append(f"Preferred areas: {', '.join(orch_data['preferredAreas'][:5])}")
+                    if orch_data.get("intentTypes"):
+                        parts.append(f"Recent interests: {', '.join(orch_data['intentTypes'][:5])}")
+                    if orch_data.get("leadScore", 0) > 0:
+                        parts.append(f"Engagement level: {orch_data.get('tier', 'new')} (score: {orch_data['leadScore']})")
+                    if orch_data.get("suggestedTopics"):
+                        parts.append(f"Suggested topics: {', '.join(orch_data['suggestedTopics'][:3])}")
+                    if parts:
+                        orchestrator_context = "\n[Cross-Platform User Context]\n" + "\n".join(parts) + "\n"
+            except Exception as orch_err:
+                logger.debug(f"Orchestrator context unavailable: {orch_err}")
+
+            # Inject definitive company truth before route-level context.
+            system_truth = await CompanyBrainKernel.synthesize_definitive_truth(db)
+            history_for_loop.insert(0, {"role": "system", "content": system_truth})
+
+            # Prepend orchestrator context so Wolf Brain has cross-system awareness.
+            if orchestrator_context:
+                history_for_loop.insert(1, {
+                    "role": "system",
+                    "content": orchestrator_context,
+                })
+
             # Run Wolf Brain as a task with keepalive heartbeats
             # Prevents mobile carrier NAT from dropping idle TCP connections
+            # Use a queue to receive granular status updates from the pipeline
+            status_queue = asyncio.Queue()
+
+            async def _status_callback(msg: str):
+                await status_queue.put(msg)
+
             processing_task = asyncio.create_task(wolf_brain.process_turn(
                 query=req.message,
                 history=history_for_loop,
@@ -1058,13 +1603,29 @@ async def chat_stream(
                 language=req.language,
                 session_id=req.session_id,
                 streaming=True,  # Request streaming context
+                status_callback=_status_callback,
             ))
 
-            # Send SSE keepalive comments every 5s while Wolf Brain processes
+            # Drain status queue and send keepalives while Wolf Brain processes
             while not processing_task.done():
-                done_tasks, _ = await asyncio.wait({processing_task}, timeout=5.0)
+                done_tasks, _ = await asyncio.wait({processing_task}, timeout=2.0)
+                # Drain any pending status messages
+                while not status_queue.empty():
+                    try:
+                        status_msg = status_queue.get_nowait()
+                        yield f"data: {json.dumps({'type': 'status', 'message': status_msg}, ensure_ascii=False)}\n\n"
+                    except asyncio.QueueEmpty:
+                        break
                 if not done_tasks:
                     yield ": keepalive\n\n"
+
+            # Drain remaining status messages after task completion
+            while not status_queue.empty():
+                try:
+                    status_msg = status_queue.get_nowait()
+                    yield f"data: {json.dumps({'type': 'status', 'message': status_msg}, ensure_ascii=False)}\n\n"
+                except asyncio.QueueEmpty:
+                    break
 
             ai_result = processing_task.result()
 
@@ -1085,7 +1646,7 @@ async def chat_stream(
             stream_context = ai_result.get("_stream_context")
 
             # ── REAL STREAMING: token-by-token from Claude API ──
-            if stream_context:
+            if stream_context and isinstance(stream_context, dict):
                 accumulated_text = ""
                 async for chunk in wolf_brain.stream_wolf_narrative(
                     system_prompt=stream_context["system_prompt"],
@@ -1111,6 +1672,33 @@ async def chat_stream(
                         await asyncio.sleep(0.015)
                 if buffer:
                     yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
+
+            # ── POST-STREAM VERIFICATION: Anti-Hallucination Interceptor ──
+            # The verifier only ran in the non-streaming path before.
+            # Now we verify the fully-assembled streamed text against DB facts.
+            try:
+                from app.ai_engine.verifier_agent import verifier_agent
+                properties_for_verify = search_results[:5] if search_results else []
+                verification = await verifier_agent.verify_response(
+                    response_text=response_text,
+                    properties_mentioned=properties_for_verify,
+                    session=db,
+                )
+                if verification.get("corrections"):
+                    logger.info(
+                        f"\U0001f50d STREAM VERIFIER: {len(verification['corrections'])} corrections found"
+                    )
+                    corrected_text = await verifier_agent.rewrite_hallucinated_response(
+                        response_text=response_text,
+                        corrections=verification["corrections"],
+                    )
+                    if corrected_text != response_text:
+                        # Emit correction event — frontend replaces the streamed text
+                        yield f"data: {json.dumps({'type': 'correction', 'corrected_text': corrected_text}, ensure_ascii=False)}\n\n"
+                        response_text = corrected_text
+                        logger.info("\u2705 STREAM VERIFIER: Response auto-corrected")
+            except Exception as verify_err:
+                logger.warning(f"Post-stream verification skipped: {verify_err}")
 
             # Generate follow-up suggestions if not already populated
             if not suggestions and response_text:
@@ -1168,102 +1756,8 @@ async def chat_stream(
 
 
 # ═══════════════════════════════════════════════════════════════
-# HYBRID AI ENDPOINTS (XGBoost + GPT-4o)
+# HYBRID AI ENDPOINTS (XGBoost + GPT-4o) — Production
 # ═══════════════════════════════════════════════════════════════
-
-@router.post("/ai/hybrid-valuation")
-async def hybrid_valuation(
-    req: HybridValuationRequest,
-    user: User = Depends(get_current_user)  # Security Fix: Require authentication
-):
-    """
-    🧠 Hybrid AI Valuation (XGBoost + GPT-4o)
-    
-    Combines:
-    - XGBoost: Precise statistical price prediction based on Cairo market data
-    - GPT-4o: Market context and reasoning about WHY the price is what it is
-    
-    Returns:
-    - predicted_price: Exact EGP value from XGBoost
-    - market_status: Hot/Stable/Cool
-    - reasoning_bullets: 3 market insights explaining the price
-    """
-    result = hybrid_brain.get_valuation(
-        location=req.location,
-        size=req.size,
-        finishing=req.finishing,
-        floor=req.floor,
-        is_compound=req.is_compound
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
-    
-    return result
-
-
-@router.post("/ai/audit-contract")
-async def audit_contract(
-    req: ContractAnalysisRequest,
-    user: User = Depends(get_current_user)  # Security Fix: Require authentication
-):
-    """
-    ⚖️ Egyptian Legal Contract Audit
-    
-    Uses the Hybrid Brain's legal analysis with strict Egyptian law context.
-    
-    Returns:
-    - risk_score: 0-100
-    - verdict: Safe/Risky/Scam
-    - red_flags: Specific dangerous clauses
-    - missing_clauses: What should be there
-    """
-    if len(req.text) < 50:
-        raise HTTPException(
-            status_code=400,
-            detail="Contract text too short. Please provide more content."
-        )
-    
-    result = hybrid_brain.audit_contract(req.text)
-    
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
-    
-    return result
-
-
-@router.post("/ai/compare-asking-price")
-async def compare_asking(
-    req: PriceComparisonRequest,
-    user: User = Depends(get_current_user)  # Security Fix: Require authentication
-):
-    """
-    💵 Compare Asking Price (Hybrid Version)
-    
-    Uses XGBoost fair price + GPT-4o context to determine if
-    a seller's asking price is BARGAIN/FAIR/OVERPRICED.
-    """
-    # Convert finishing string to int if needed
-    finishing_map = {
-        "Core & Shell": 0,
-        "Semi Finished": 1,
-        "Fully Finished": 2,
-        "Ultra Lux": 3
-    }
-    finishing_int = finishing_map.get(req.finishing, 2)
-    
-    result = hybrid_brain.compare_asking_price(
-        asking_price=req.asking_price,
-        location=req.location,
-        size=req.size_sqm,
-        finishing=finishing_int
-    )
-    
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
-    
-    return result
-
 
 @router.post("/ai/prod/valuation")
 async def production_valuation(
@@ -1321,14 +1815,20 @@ async def production_audit(
 # ---------------------------------------------------------------------------
 
 @router.post("/ingest")
-def trigger_ingestion(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):
+async def trigger_ingestion(background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)):
     """
-    Manually triggers the Nawy Scraper.
+    Manually triggers post-scrape processing (stale cleanup + price flagging).
+    Actual property scraping runs via Railway Cron (nawy_scraper_v2.py).
     Protected by X-Admin-Key.
     """
-    from app.services.nawy_scraper import ingest_nawy_data
-    background_tasks.add_task(ingest_nawy_data)
-    return {"status": "Ingestion started in background"}
+    from app.services.nawy_scraper import mark_stale_properties, flag_underpriced_properties
+
+    async def _run():
+        await mark_stale_properties()
+        await flag_underpriced_properties()
+
+    background_tasks.add_task(_run)
+    return {"status": "Post-scrape processing started in background"}
 
 @router.post("/admin/update-economic-data")
 async def admin_update_economic_data(

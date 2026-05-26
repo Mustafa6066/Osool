@@ -228,8 +228,8 @@ def consume_verification_token(token: str, purpose: str = "verify"):
         from app.services.cache import cache
         cache_key = f"email_token:{purpose}:{token}"
         cache.delete(cache_key)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("consume_verification_token: Redis cleanup failed for purpose=%s: %s", purpose, e)
 
 
 # Singleton instance

@@ -35,9 +35,11 @@ LOCATION_POPULARITY = {
     "tagamoa": 0.9,
     "sheikh zayed": 0.85,
     "زايد": 0.85,
+    "new zayed": 0.88,
     "6th october": 0.8,
     "أكتوبر": 0.8,
     "new capital": 0.75,
+    "new administrative capital": 0.75,
     "العاصمة": 0.75,
     "maadi": 0.8,
     "المعادي": 0.8,
@@ -45,6 +47,13 @@ LOCATION_POPULARITY = {
     "مدينتي": 0.85,
     "rehab": 0.8,
     "الرحاب": 0.8,
+    "north coast": 0.9,
+    "الساحل": 0.9,
+    "red sea": 0.82,
+    "el gouna": 0.85,
+    "hurghada": 0.75,
+    "ain sokhna": 0.78,
+    "mostakbal city": 0.87,
 }
 
 # Average price per sqm by location (EGP, Mar 2026 Market Snapshot)
@@ -53,9 +62,11 @@ PRICE_PER_SQM = {
     "التجمع": 75000,
     "sheikh zayed": 130000,
     "زايد": 130000,
+    "new zayed": 120000,
     "6th october": 47000,
     "أكتوبر": 47000,
     "new capital": 58000,
+    "new administrative capital": 58000,
     "العاصمة": 58000,
     "maadi": 29000,
     "المعادي": 29000,
@@ -65,6 +76,9 @@ PRICE_PER_SQM = {
     "الساحل": 175000,
     "red sea": 100000,
     "البحر الأحمر": 100000,
+    "el gouna": 140000,
+    "ain sokhna": 91200,
+    "mostakbal city": 50000,
 }
 
 # Finishing multipliers

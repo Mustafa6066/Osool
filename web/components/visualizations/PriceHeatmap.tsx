@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MapIcon } from "@heroicons/react/24/outline";
+import { Map } from "lucide-react";
 
 interface PriceHeatmapProps {
     locations: Array<{
@@ -52,7 +52,7 @@ export default function PriceHeatmap({ locations = [], title = "خريطة ال�
             <div className="bg-gradient-to-r from-rose-600/20 to-pink-600/20 px-6 py-4 border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center">
-                        <MapIcon className="w-5 h-5 text-rose-400" />
+                        <Map className="w-5 h-5 text-rose-400" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">{title} 🗺️</h3>
@@ -101,9 +101,10 @@ export default function PriceHeatmap({ locations = [], title = "خريطة ال�
                                 <span className="text-sm text-white w-32 truncate font-medium">{loc.location}</span>
                                 <div className="flex-1 h-6 bg-[var(--color-surface)] rounded-full overflow-hidden relative">
                                     <motion.div 
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${relativeIntensity}%` }}
+                                        initial={{ scaleX: 0 }}
+                                        animate={{ scaleX: relativeIntensity / 100 }}
                                         transition={{ duration: 0.5, delay: i * 0.1 }}
+                                        style={{ transformOrigin: 'left' }}
                                         className={`h-full bg-gradient-to-r ${getHeatColor(loc.intensity)} rounded-full`}
                                     />
                                     <div className="absolute inset-0 flex items-center justify-center">

@@ -17,10 +17,18 @@ export function ErrorBoundaryProvider({ children }: { children: ReactNode }) {
         // Log to console in development
         console.error('App Error:', error, errorInfo);
         
-        // TODO: Send to monitoring service in production
-        // if (process.env.NODE_ENV === 'production') {
-        //   Sentry.captureException(error, { contexts: { react: errorInfo } });
-        // }
+        // Send to Sentry in production if configured
+        if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN) {
+          import('@sentry/nextjs')
+            .then((Sentry) => {
+              Sentry.captureException(error, {
+                contexts: { react: { componentStack: errorInfo?.componentStack } },
+              });
+            })
+            .catch(() => {
+              // Sentry not installed — silent fallback
+            });
+        }
       }}
     >
       {children}

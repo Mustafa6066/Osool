@@ -14,15 +14,6 @@ PostgreSQL database password. Generate a strong password:
 openssl rand -base64 32 > db_password.txt
 ```
 
-### 2. `blockchain_private_key.txt`
-Ethereum/Polygon private key for the admin wallet (without 0x prefix):
-```bash
-# Generate new key using OpenSSL (for testing only, use hardware wallet for production)
-openssl ecparam -genkey -name secp256k1 -noout -outform DER | tail -c +8 | head -c 32 | xxd -p -c 32 > blockchain_private_key.txt
-```
-
-**CRITICAL**: For production, use a hardware wallet or secure key management system (AWS KMS, HashiCorp Vault).
-
 ## Environment Variables (stored in `.env` file)
 
 Create a `.env` file in the project root with these variables:
@@ -52,12 +43,6 @@ OPENAI_API_KEY=sk-...
 SUPABASE_URL=https://[PROJECT].supabase.co
 SUPABASE_KEY=eyJ...
 
-# Blockchain
-POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/[API_KEY]
-CHAIN_ID=137
-OSOOL_REGISTRY_ADDRESS=0x...
-PRIVATE_KEY=[SAME_AS_blockchain_private_key.txt]
-
 # Payment Gateway (Paymob)
 PAYMOB_API_KEY=...
 PAYMOB_INTEGRATION_ID=...
@@ -80,7 +65,6 @@ FRONTEND_DOMAIN=https://osool.com
 | ADMIN_API_KEY | Every 90 days | TBD |
 | db_password | Every 180 days | TBD |
 | PAYMOB_WEBHOOK_SECRET | On compromise | TBD |
-| blockchain_private_key | Never (or use new wallet) | TBD |
 
 ## Compromised Secret Response Plan
 

@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import SmartNav from '@/components/SmartNav';
+import { useFilterParams } from '@/hooks/useFilterParams';
+import AppShell from '@/components/nav/AppShell';
 import PropertyFilter from '@/components/PropertyFilter';
 import { toggleFavorite, fetchFavorites } from '@/lib/gamification';
+import { buildAdvisorPrompt, formatCompactPrice, propertyBrief } from '@/lib/decision-support';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { MapPin, Bed, Bath, Maximize, Sparkles, Heart, Grid3X3, Map, SlidersHorizontal, Loader2, Building2 } from 'lucide-react';
+import { ArrowRight, Bath, Bed, Building2, Grid3X3, Heart, Loader2, Map, MapPin, Maximize, ShieldCheck, SlidersHorizontal, Sparkles, Wallet } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const PropertyMap = dynamic(() => import('@/components/PropertyMap'), {
@@ -179,6 +181,43 @@ interface PropertyItem {
     type: string;
     dateAdded: string;
     developer: string;
+    pricePerSqm?: number;
+    saleType?: string;
+    paymentPlan?: {
+        downPayment?: number;
+        installmentYears?: number;
+        monthlyInstallment?: number;
+    } | null;
+}
+
+interface RawProperty {
+    id?: string | number;
+    title?: string;
+    name?: string;
+    titleAr?: string;
+    location?: string;
+    locationAr?: string;
+    price?: number;
+    totalPrice?: number;
+    aiValuation?: number;
+    aiEstimate?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    area?: number;
+    size?: number;
+    sqm?: number;
+    bua?: number;
+    size_sqm?: number;
+    image?: string;
+    image_url?: string;
+    type?: string;
+    dateAdded?: string;
+    created_at?: string;
+    developer?: string;
+    pricePerSqm?: number;
+    price_per_sqm?: number;
+    saleType?: string;
+    paymentPlan?: PropertyItem['paymentPlan'];
 }
 
 interface Filters {
@@ -191,23 +230,31 @@ interface Filters {
 
 function PropertyCardSkeleton() {
     return (
-        <div className="rounded-2xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] animate-pulse">
-            <div className="h-52 bg-[var(--color-surface-elevated)]" />
-            <div className="p-5 space-y-3">
-                <div className="h-5 bg-[var(--color-surface-elevated)] rounded w-3/4" />
-                <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-1/2" />
-                <div className="flex gap-4">
-                    <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-12" />
-                    <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-12" />
-                    <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-16" />
+        <div className="flex items-center gap-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-4 animate-pulse">
+            <div className="h-20 w-28 flex-shrink-0 rounded-xl bg-[var(--color-surface-elevated)]" />
+            <div className="flex-1 space-y-2">
+                <div className="h-4 bg-[var(--color-surface-elevated)] rounded w-2/3" />
+                <div className="h-3 bg-[var(--color-surface-elevated)] rounded w-1/3" />
+                <div className="flex gap-3">
+                    <div className="h-3 bg-[var(--color-surface-elevated)] rounded w-10" />
+                    <div className="h-3 bg-[var(--color-surface-elevated)] rounded w-10" />
+                    <div className="h-3 bg-[var(--color-surface-elevated)] rounded w-14" />
                 </div>
-                <div className="h-10 bg-[var(--color-surface-elevated)] rounded-lg" />
             </div>
+            <div className="h-5 w-20 flex-shrink-0 rounded bg-[var(--color-surface-elevated)]" />
         </div>
     );
 }
 
 export default function PropertiesPage() {
+    return (
+        <Suspense>
+            <PropertiesPageInner />
+        </Suspense>
+    );
+}
+
+function PropertiesPageInner() {
     const { t, language } = useLanguage();
     const { isAuthenticated } = useAuth();
     const [properties, setProperties] = useState<PropertyItem[]>([]);
@@ -236,15 +283,7 @@ export default function PropertiesPage() {
             });
         }
     };
-    const [filters, setFilters] = useState<Filters>({
-        location: 'all',
-        type: 'all',
-        minPrice: 0,
-        maxPrice: 50000000,
-        bedrooms: 0,
-    });
-    const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'date'>('date');
-    const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+    const { filters, setFilters, sortBy, setSortBy, viewMode, setViewMode, shareUrl } = useFilterParams();
     const [showFilters, setShowFilters] = useState(false);
     const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
@@ -271,7 +310,7 @@ export default function PropertiesPage() {
     };
 
     // Normalize API property to our internal format
-    const normalizeProperty = useCallback((p: any): PropertyItem => {
+    const normalizeProperty = useCallback((p: RawProperty): PropertyItem => {
         return {
             id: String(p.id),
             title: p.title || p.name || '',
@@ -288,6 +327,9 @@ export default function PropertiesPage() {
             type: (p.type || 'apartment').toLowerCase(),
             dateAdded: p.dateAdded || p.created_at || new Date().toISOString().split('T')[0],
             developer: p.developer || '',
+            pricePerSqm: p.pricePerSqm || p.price_per_sqm || 0,
+            saleType: p.saleType || '',
+            paymentPlan: p.paymentPlan || null,
         };
     }, []);
 
@@ -329,7 +371,7 @@ export default function PropertiesPage() {
             const end = txt.lastIndexOf('}');
             if (start !== -1 && end !== -1) {
                 const raw = JSON.parse(txt.substring(start, end + 1));
-                const props = (raw.properties || []) as any[];
+                const props = (raw.properties || []) as RawProperty[];
                 if (props.length > 0) {
                     const normalized = props.map(normalizeProperty);
                     setProperties(normalized);
@@ -358,7 +400,7 @@ export default function PropertiesPage() {
         if (!isAuthenticated) return;
         fetchFavorites()
             .then(data => {
-                const ids = new Set(data.favorites.map(f => String(f.property_id)));
+                const ids = new Set((data.favorites || []).map(f => String(f.property_id)));
                 setFavoriteIds(ids);
             })
             .catch(() => { /* non-critical */ });
@@ -366,7 +408,7 @@ export default function PropertiesPage() {
 
     // Client-side filtering and sorting
     const filteredProperties = useMemo(() => {
-        let result = properties.filter((p) => {
+        const result = properties.filter((p) => {
             if (filters.location !== 'all' && p.city !== filters.location) return false;
             if (filters.type !== 'all' && p.type !== filters.type) return false;
             if (p.price < filters.minPrice || p.price > filters.maxPrice) return false;
@@ -393,31 +435,100 @@ export default function PropertiesPage() {
         return `EGP ${(price / 1000000).toFixed(1)}M`;
     };
 
+    const boardSummary = useMemo(() => {
+        if (filteredProperties.length === 0) {
+            return {
+                averagePrice: null,
+                planFriendlyCount: 0,
+                signalLabel: 'No active shortlist signal',
+                signalBody: 'Adjust the filters or ask Osool Advisor to narrow the market for you.',
+            };
+        }
+
+        const averagePrice = filteredProperties.reduce((sum, property) => sum + property.price, 0) / filteredProperties.length;
+        const planFriendlyCount = filteredProperties.filter((property) => {
+            const downPayment = property.paymentPlan?.downPayment ?? 100;
+            const installmentYears = property.paymentPlan?.installmentYears ?? 0;
+            return downPayment <= 10 && installmentYears >= 8;
+        }).length;
+
+        const bestSignal = filteredProperties
+            .map((property) => ({ property, brief: propertyBrief(property) }))
+            .sort((left, right) => {
+                const leftRank = left.brief.confidenceLabel === 'Value pocket' ? 3 : left.brief.confidenceLabel === 'Plan-friendly' ? 2 : 1;
+                const rightRank = right.brief.confidenceLabel === 'Value pocket' ? 3 : right.brief.confidenceLabel === 'Plan-friendly' ? 2 : 1;
+                return rightRank - leftRank;
+            })[0];
+
+        return {
+            averagePrice,
+            planFriendlyCount,
+            signalLabel: bestSignal.brief.confidenceLabel,
+            signalBody: `${bestSignal.property.title}: ${bestSignal.brief.thesis}`,
+        };
+    }, [filteredProperties]);
+
     return (
-        <SmartNav>
-        <main className="h-full overflow-y-auto bg-[var(--color-background)] pb-20 md:pb-0">
+        <AppShell>
+        <main className="h-full overflow-y-auto bg-[var(--color-background)]">
+            <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+                <section className="grid gap-6 lg:grid-cols-[1fr_0.95fr] lg:items-start">
+                    <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Property decision board
+                        </div>
+                        <h1 className="mt-5 text-4xl font-semibold tracking-tight">Use live inventory as a shortlist workspace, not a passive catalog.</h1>
+                        <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)]">
+                            Review pricing signal, payment fit, and use-case before deciding which units deserve deeper advisor work.
+                        </p>
+                        <div className="mt-6 flex flex-wrap gap-3 text-sm text-[var(--color-text-muted)]">
+                            <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">
+                                {loading
+                                    ? (language === 'ar' ? '\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...' : 'Loading properties...')
+                                    : `${filteredProperties.length} active matches`}
+                            </span>
+                            <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">
+                                Strategy: value, payment fit, and readiness
+                            </span>
+                            {usingFallback && !loading && (
+                                <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-amber-600 dark:text-amber-300">
+                                    Cached data fallback active
+                                </span>
+                            )}
+                        </div>
+                    </div>
 
-            {/* Page Header */}
-            <div className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <h1 className="text-h1 text-[var(--color-text-primary)] mb-2">
-                        {t('nav.properties')}
-                    </h1>
-                    <p className="text-[var(--color-text-secondary)]">
-                        {loading
-                            ? (language === 'ar' ? '\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...' : 'Loading properties...')
-                            : (language === 'ar'
-                                ? `${filteredProperties.length} \u0639\u0642\u0627\u0631 \u0645\u062a\u0627\u062d`
-                                : `${filteredProperties.length} properties available`)
-                        }
-                        {usingFallback && !loading && (
-                            <span className="text-amber-500 text-sm ml-2">(cached data)</span>
-                        )}
-                    </p>
-                </div>
-            </div>
+                    <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                        <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                            <div className="flex items-center justify-between">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Average ticket</div>
+                                <Wallet className="h-4 w-4 text-emerald-500" />
+                            </div>
+                            <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">
+                                {boardSummary.averagePrice ? formatCompactPrice(boardSummary.averagePrice) : '—'}
+                            </div>
+                            <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Typical price level across the current filtered board.</div>
+                        </div>
+                        <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                            <div className="flex items-center justify-between">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Plan-friendly units</div>
+                                <Sparkles className="h-4 w-4 text-emerald-500" />
+                            </div>
+                            <div className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{boardSummary.planFriendlyCount}</div>
+                            <div className="mt-2 text-sm text-[var(--color-text-secondary)]">Units currently showing lower-entry payment structures.</div>
+                        </div>
+                        <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                            <div className="flex items-center justify-between">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Strongest signal</div>
+                                <Building2 className="h-4 w-4 text-emerald-500" />
+                            </div>
+                            <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)]">{boardSummary.signalLabel}</div>
+                            <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{boardSummary.signalBody}</div>
+                        </div>
+                    </div>
+                </section>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Filters Sidebar - Desktop */}
                     <aside className="hidden lg:block w-72 flex-shrink-0">
@@ -456,120 +567,150 @@ export default function PropertiesPage() {
                                 <option value="price-desc">{language === 'ar' ? '\u0627\u0644\u0633\u0639\u0631: \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649' : 'Price: High to Low'}</option>
                             </select>
 
-                            {/* View Toggle */}
-                            <div className="flex items-center rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
-                                <button
-                                    onClick={() => setViewMode('grid')}
-                                    className={`p-2.5 ${viewMode === 'grid' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-secondary)]'}`}
-                                >
-                                    <Grid3X3 className="w-5 h-5" />
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('map')}
-                                    className={`p-2.5 ${viewMode === 'map' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-secondary)]'}`}
-                                >
-                                    <Map className="w-5 h-5" />
-                                </button>
+                            {/* View Toggle + Share */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
+                                    <button
+                                        onClick={() => setViewMode('grid')}
+                                        className={`p-2.5 ${viewMode === 'grid' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-secondary)]'}`}
+                                    >
+                                        <Grid3X3 className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('map')}
+                                        className={`p-2.5 ${viewMode === 'map' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-secondary)]'}`}
+                                    >
+                                        <Map className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                {shareUrl && (
+                                    <button
+                                        onClick={() => { navigator.clipboard.writeText(shareUrl); }}
+                                        className="px-3 py-2.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors text-sm"
+                                        title={language === 'ar' ? 'نسخ رابط الفلاتر' : 'Copy filter link'}
+                                    >
+                                        {language === 'ar' ? '🔗 نسخ الرابط' : '🔗 Share'}
+                                    </button>
+                                )}
                             </div>
                         </div>
 
                         {/* Loading Skeletons */}
                         {loading && viewMode === 'grid' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="flex flex-col gap-3">
                                 {Array.from({ length: 6 }).map((_, i) => (
                                     <PropertyCardSkeleton key={i} />
                                 ))}
                             </div>
                         )}
 
-                        {/* Properties Grid */}
+                        {/* Properties List */}
                         {!loading && viewMode === 'grid' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="flex flex-col gap-3">
                                 {filteredProperties.map((property, index) => (
-                                    <motion.div
-                                        key={property.id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.4, delay: index * 0.05 }}
-                                        className="group relative rounded-2xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] card-hover"
-                                    >
-                                        {/* Image */}
-                                        <div className="relative h-52 overflow-hidden bg-gradient-to-br from-emerald-900/20 to-[var(--color-surface-elevated)]">
-                                            <img
-                                                src={getPropertyImage(property)}
-                                                alt={language === 'ar' ? property.titleAr : property.title}
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                                onError={() => handleImageError(property.id)}
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                    (() => {
+                                        const brief = propertyBrief(property);
+                                        const advisorPrompt = buildAdvisorPrompt(property);
 
-                                            {property.aiEstimate > 0 && (
-                                            <div className="absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/90 backdrop-blur-sm text-white text-xs font-semibold">
-                                                <Sparkles className="w-3.5 h-3.5" />
-                                                AI Verified
-                                            </div>
-                                            )}
-
-                                            <button
-                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(property.id); }}
-                                                className={`absolute top-4 right-4 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center transition-all duration-300 ${
-                                                    favoriteIds.has(property.id)
-                                                        ? 'bg-red-500 hover:bg-red-600'
-                                                        : 'bg-white/20 hover:bg-white/40'
-                                                }`}
+                                        return (
+                                            <motion.div
+                                                key={property.id}
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.25, delay: index * 0.03 }}
+                                                className="group relative flex items-stretch gap-0 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/30 transition-colors"
                                             >
-                                                <Heart className={`w-5 h-5 transition-colors ${favoriteIds.has(property.id) ? 'text-white fill-white' : 'text-white'}`} />
-                                            </button>
+                                                {/* Thumbnail */}
+                                                <Link href={`/property/${property.id}`} className="relative w-44 flex-shrink-0 overflow-hidden sm:w-52">
+                                                    <img
+                                                        src={getPropertyImage(property)}
+                                                        alt={language === 'ar' ? property.titleAr : property.title}
+                                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                        onError={() => handleImageError(property.id)}
+                                                    />
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10" />
+                                                    {/* Availability dot */}
+                                                    <span className="absolute left-3 top-3 rounded-full bg-emerald-500/90 px-2.5 py-0.5 text-[10px] font-semibold text-white">
+                                                        {brief.confidenceLabel}
+                                                    </span>
+                                                </Link>
 
-                                            <div className="absolute bottom-4 left-4">
-                                                <div className="text-xl font-bold text-white">
-                                                    {formatPrice(property.price)}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Content */}
-                                        <div className="p-5">
-                                            <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-2 line-clamp-1">
-                                                {language === 'ar' ? property.titleAr : property.title}
-                                            </h3>
-
-                                            <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)] text-sm mb-4">
-                                                <MapPin className="w-4 h-4 text-[var(--color-primary)]" />
-                                                {language === 'ar' ? property.locationAr : property.location}
-                                            </div>
-
-                                            {property.developer && (
-                                                <p className="text-xs text-[var(--color-text-muted)] mb-3">
-                                                    {language === 'ar' ? '\u0627\u0644\u0645\u0637\u0648\u0631:' : 'Developer:'} {property.developer}
-                                                </p>
-                                            )}
-
-                                            <div className="flex items-center gap-4 text-sm text-[var(--color-text-muted)]">
-                                                {property.bedrooms > 0 && (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Bed className="w-4 h-4" />
-                                                        {property.bedrooms}
+                                                {/* Info body */}
+                                                <div className="flex flex-1 flex-col justify-center gap-1.5 px-5 py-4 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)] truncate">
+                                                            {language === 'ar' ? property.titleAr : property.title}
+                                                        </h3>
+                                                        {property.saleType && (
+                                                            <span className="flex-shrink-0 rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                                                                {property.saleType}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                )}
-                                                <div className="flex items-center gap-1.5">
-                                                    <Bath className="w-4 h-4" />
-                                                    {property.bathrooms}
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Maximize className="w-4 h-4" />
-                                                    {property.area} {language === 'ar' ? '\u0645\u00B2' : 'sqm'}
-                                                </div>
-                                            </div>
 
-                                            <Link
-                                                href={`/property/${property.id}`}
-                                                className="mt-4 w-full py-2.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-semibold text-sm text-center block hover:bg-[var(--color-primary)] hover:text-white transition-colors"
-                                            >
-                                                {t('property.viewDetails')}
-                                            </Link>
-                                        </div>
-                                    </motion.div>
+                                                    <div className="flex items-center gap-1 text-sm text-[var(--color-text-secondary)]">
+                                                        <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                                                        <span className="truncate">{language === 'ar' ? property.locationAr : property.location}</span>
+                                                        {property.developer && (
+                                                            <>
+                                                                <span className="text-[var(--color-border)]">·</span>
+                                                                <span className="truncate text-[var(--color-text-muted)]">{property.developer}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Specs row */}
+                                                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
+                                                        {property.bedrooms > 0 && (
+                                                            <span className="flex items-center gap-1"><Bed className="h-3.5 w-3.5" />{property.bedrooms} bed</span>
+                                                        )}
+                                                        {property.bathrooms > 0 && (
+                                                            <span className="flex items-center gap-1"><Bath className="h-3.5 w-3.5" />{property.bathrooms} bath</span>
+                                                        )}
+                                                        {property.area > 0 && (
+                                                            <span className="flex items-center gap-1"><Maximize className="h-3.5 w-3.5" />{property.area} {language === 'ar' ? '\u0645\u00B2' : 'sqm'}</span>
+                                                        )}
+                                                        {property.pricePerSqm ? (
+                                                            <span className="text-[var(--color-text-secondary)]">{Math.round(property.pricePerSqm).toLocaleString('en-EG')} EGP/m²</span>
+                                                        ) : null}
+                                                        {property.paymentPlan?.downPayment != null && property.paymentPlan?.installmentYears != null ? (
+                                                            <span className="text-[var(--color-text-secondary)]">{property.paymentPlan.downPayment}% down · {property.paymentPlan.installmentYears}yr</span>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+
+                                                {/* Price + actions column */}
+                                                <div className="flex flex-shrink-0 flex-col items-end justify-center gap-2 border-l border-[var(--color-border)]/50 px-5 py-4">
+                                                    <div className="text-lg font-bold text-[var(--color-text-primary)] whitespace-nowrap">{formatPrice(property.price)}</div>
+                                                    {property.aiEstimate > 0 && (
+                                                        <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">{brief.priceSignal}</span>
+                                                    )}
+                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                        <Link
+                                                            href={`/property/${property.id}`}
+                                                            className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-text-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-background)] hover:opacity-90 transition-opacity"
+                                                        >
+                                                            {t('property.viewDetails')}
+                                                            <ArrowRight className="h-3 w-3" />
+                                                        </Link>
+                                                        <button
+                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(property.id); }}
+                                                            className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${favoriteIds.has(property.id) ? 'border-red-300 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30' : 'border-[var(--color-border)] hover:border-emerald-500/40'}`}
+                                                        >
+                                                            <Heart className={`h-3.5 w-3.5 ${favoriteIds.has(property.id) ? 'fill-red-500 text-red-500' : 'text-[var(--color-text-muted)]'}`} />
+                                                        </button>
+                                                        <Link
+                                                            href={`/chat?prompt=${encodeURIComponent(advisorPrompt)}&autostart=1`}
+                                                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-border)] hover:border-emerald-500/40 transition-colors"
+                                                            title="Ask advisor"
+                                                        >
+                                                            <Sparkles className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
+                                                        </Link>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })()
                                 ))}
                             </div>
                         )}
@@ -588,14 +729,14 @@ export default function PropertiesPage() {
                             <div className="h-[600px] rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
                                 <div className="flex flex-col items-center gap-3 text-[var(--color-text-muted)]">
                                     <Loader2 className="w-8 h-8 animate-spin" />
-                                    <p>{language === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
+                                    <p>{language === 'ar' ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„...' : 'Loading...'}</p>
                                 </div>
                             </div>
                         )}
 
                         {/* Empty State */}
                         {!loading && filteredProperties.length === 0 && (
-                            <div className="text-center py-16">
+                            <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-16 text-center">
                                 <div className="w-20 h-20 bg-[var(--color-surface-elevated)] rounded-full flex items-center justify-center mx-auto mb-4">
                                     <MapPin className="w-8 h-8 text-[var(--color-text-muted)]" />
                                 </div>
@@ -605,6 +746,21 @@ export default function PropertiesPage() {
                                 <p className="text-[var(--color-text-secondary)]">
                                     {language === 'ar' ? '\u062c\u0631\u0628 \u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0641\u0644\u0627\u062a\u0631' : 'Try adjusting your filters'}
                                 </p>
+                                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                                    <button
+                                        onClick={() => setFilters({ location: 'all', type: 'all', minPrice: 0, maxPrice: 50000000, bedrooms: 0 })}
+                                        className="rounded-full border border-[var(--color-border)] px-5 py-2.5 text-sm font-medium text-[var(--color-text-primary)]"
+                                    >
+                                        Reset filters
+                                    </button>
+                                    <Link
+                                        href="/chat?prompt=Help me build a shortlist based on my budget, area preference, and risk tolerance.&autostart=1"
+                                        className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-background)]"
+                                    >
+                                        <Sparkles className="h-4 w-4" />
+                                        Ask Osool to shortlist for me
+                                    </Link>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -612,6 +768,6 @@ export default function PropertiesPage() {
             </div>
 
         </main>
-        </SmartNav>
+        </AppShell>
     );
 }

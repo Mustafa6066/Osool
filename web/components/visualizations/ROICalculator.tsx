@@ -2,12 +2,12 @@
 
 import { motion } from "framer-motion";
 import { 
-    CalculatorIcon,
-    BanknotesIcon,
-    BuildingOffice2Icon,
-    ChartBarIcon,
-    ArrowTrendingUpIcon
-} from "@heroicons/react/24/outline";
+    Calculator,
+    Banknote,
+    Building2,
+    BarChart3,
+    TrendingUp
+} from "lucide-react";
 
 interface ROICalculatorProps {
     roi: {
@@ -71,7 +71,7 @@ export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) 
             <div className="bg-gradient-to-r from-cyan-600/20 to-emerald-600/20 px-6 py-4 border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                        <CalculatorIcon className="w-5 h-5 text-cyan-400" />
+                        <Calculator className="w-5 h-5 text-cyan-400" />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">حاسبة العائد على الاستثمار 📊</h3>
@@ -84,22 +84,22 @@ export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) 
                 {/* Main Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-gradient-to-br from-green-950/40 to-emerald-950/30 rounded-xl p-4 text-center border border-green-500/20">
-                        <BanknotesIcon className="w-5 h-5 text-green-400 mx-auto mb-2" />
+                        <Banknote className="w-5 h-5 text-green-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">العائد السنوي الإجمالي</p>
                         <p className="text-xl font-bold text-green-400">{roi.total_annual_return.toFixed(1)}%</p>
                     </div>
                     <div className="bg-gradient-to-br from-blue-950/40 to-indigo-950/30 rounded-xl p-4 text-center border border-blue-500/20">
-                        <BuildingOffice2Icon className="w-5 h-5 text-blue-400 mx-auto mb-2" />
+                        <Building2 className="w-5 h-5 text-blue-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">عائد الإيجار</p>
                         <p className="text-xl font-bold text-blue-400">{roi.rental_yield_percent}%</p>
                     </div>
                     <div className="bg-gradient-to-br from-purple-950/40 to-violet-950/30 rounded-xl p-4 text-center border border-purple-500/20">
-                        <ArrowTrendingUpIcon className="w-5 h-5 text-purple-400 mx-auto mb-2" />
+                        <TrendingUp className="w-5 h-5 text-purple-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">نمو رأس المال</p>
                         <p className="text-xl font-bold text-purple-400">{roi.capital_appreciation_percent}%</p>
                     </div>
                     <div className="bg-gradient-to-br from-amber-950/40 to-orange-950/30 rounded-xl p-4 text-center border border-amber-500/20">
-                        <ChartBarIcon className="w-5 h-5 text-amber-400 mx-auto mb-2" />
+                        <BarChart3 className="w-5 h-5 text-amber-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">نقطة التعادل</p>
                         <p className="text-xl font-bold text-amber-400">{roi.break_even_years} سنوات</p>
                     </div>

@@ -9,6 +9,7 @@ Phase 4: Security hardening - no hardcoded fallbacks.
 import os
 import httpx
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -45,27 +46,74 @@ REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 Days for refresh tokens
 # In production, Redis is REQUIRED for blacklist integrity (fail closed).
 _token_blacklist_memory = set()
 _IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
+_REDIS_RETRY_INTERVAL_SECONDS = int(os.getenv("REDIS_RETRY_INTERVAL_SECONDS", "30"))
 
 _redis_client_cache = None
-_redis_checked = False
+_redis_last_attempt_at = 0.0
+_redis_unavailable_logged = False
 
 def _get_redis_client():
-    """Get Redis client for token blacklist. Required in production. Cached after first check."""
-    global _redis_client_cache, _redis_checked
-    if _redis_checked:
-        return _redis_client_cache
+    """
+    Get Redis client for token blacklist.
+
+    Uses a cached connection when healthy, and periodically retries when Redis
+    was unavailable at startup so production does not remain permanently degraded.
+    """
+    global _redis_client_cache, _redis_last_attempt_at, _redis_unavailable_logged
+
+    # Fast path: return cached client if still healthy.
+    if _redis_client_cache:
+        try:
+            _redis_client_cache.ping()
+            return _redis_client_cache
+        except Exception:
+            _redis_client_cache = None
+
+    # Throttle reconnect attempts to avoid noisy logs and tight retry loops.
+    now = time.time()
+    if now - _redis_last_attempt_at < _REDIS_RETRY_INTERVAL_SECONDS:
+        return None
+    _redis_last_attempt_at = now
+
+    # First try the shared cache singleton if it has an active Redis client.
     try:
         from app.services.cache import cache
         if cache.redis:
             cache.redis.ping()
             _redis_client_cache = cache.redis
-            _redis_checked = True
+            if _redis_unavailable_logged:
+                logger.info("Redis connection restored for token blacklist")
+            _redis_unavailable_logged = False
             return _redis_client_cache
     except Exception:
         pass
-    if _IS_PRODUCTION:
-        logger.error("Redis unavailable in production — token blacklist degraded")
-    _redis_checked = True
+
+    # Fallback: try creating a direct Redis client so recovery is possible
+    # even if the cache singleton failed once at process startup.
+    try:
+        import redis as redis_lib
+
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            direct_client = redis_lib.from_url(
+                redis_url,
+                decode_responses=True,
+                socket_connect_timeout=3,
+                socket_timeout=3,
+            )
+            direct_client.ping()
+            _redis_client_cache = direct_client
+            if _redis_unavailable_logged:
+                logger.info("Redis connection restored for token blacklist")
+            _redis_unavailable_logged = False
+            return _redis_client_cache
+    except Exception:
+        pass
+
+    if _IS_PRODUCTION and not _redis_unavailable_logged:
+        logger.error("Redis unavailable in production — token blacklist degraded (retrying)")
+        _redis_unavailable_logged = True
+
     return None
 
 # Use direct bcrypt instead of passlib for compatibility
@@ -73,6 +121,22 @@ import bcrypt
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
+
+
+def _load_forced_free_test_emails() -> set[str]:
+    """Load comma-separated forced-free test emails from env."""
+    raw = os.getenv("FORCE_FREE_TEST_EMAILS", "")
+    return {item.strip().lower() for item in raw.split(",") if item.strip()}
+
+
+FORCE_FREE_TEST_EMAILS = _load_forced_free_test_emails()
+
+
+def is_forced_free_test_user_email(email: Optional[str]) -> bool:
+    """Return True when the email is configured as an always-free test account."""
+    if not email:
+        return False
+    return email.strip().lower() in FORCE_FREE_TEST_EMAILS
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password using bcrypt directly. Handles 72-byte limit."""
@@ -389,102 +453,38 @@ from app.models import RefreshToken
 
 def create_refresh_token(db: Session, user_id: int) -> str:
     """
-    Create a new refresh token for a user.
-
-    Args:
-        db: Database session
-        user_id: User ID
-
-    Returns:
-        Raw refresh token (only time it's available unhashed)
+    DEPRECATED — this codebase is fully async.
+    Call create_refresh_token_async() instead.
+    Kept as a tombstone so accidental sync callers fail loudly.
     """
-    # Generate secure random token
-    raw_token = secrets.token_urlsafe(32)
-
-    # Hash token for storage (like passwords)
-    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
-
-    # Calculate expiration
-    expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
-    # Store hashed token in database
-    refresh_token = RefreshToken(
-        user_id=user_id,
-        token=hashed_token,
-        expires_at=expires_at
+    raise RuntimeError(
+        "create_refresh_token() is deprecated. "
+        "Use await create_refresh_token_async(db, user_id) with an AsyncSession."
     )
-    db.add(refresh_token)
-    db.commit()
-
-    logger.info(f"✅ Created refresh token for user {user_id}")
-    return raw_token
 
 
 def verify_refresh_token(db: Session, raw_token: str) -> Optional[int]:
-    """
-    Verify a refresh token and return the user ID if valid.
-
-    Args:
-        db: Database session
-        raw_token: The raw refresh token from client
-
-    Returns:
-        User ID if token is valid, None otherwise
-    """
-    # Hash the provided token
-    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
-
-    # Find token in database
-    token_record = db.query(RefreshToken).filter(
-        RefreshToken.token == hashed_token,
-        RefreshToken.is_revoked == False,
-        RefreshToken.expires_at > datetime.utcnow()
-    ).first()
-
-    if token_record:
-        return token_record.user_id
-    return None
+    """DEPRECATED — use await verify_refresh_token_async() instead."""
+    raise RuntimeError(
+        "verify_refresh_token() is deprecated. "
+        "Use await verify_refresh_token_async(db, raw_token) with an AsyncSession."
+    )
 
 
 def revoke_refresh_token(db: Session, raw_token: str) -> bool:
-    """
-    Revoke a refresh token (logout).
-
-    Args:
-        db: Database session
-        raw_token: The raw refresh token from client
-
-    Returns:
-        True if token was revoked, False if not found
-    """
-    hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
-
-    token_record = db.query(RefreshToken).filter(
-        RefreshToken.token == hashed_token
-    ).first()
-
-    if token_record:
-        token_record.is_revoked = True
-        db.commit()
-        logger.info(f"🔒 Revoked refresh token for user {token_record.user_id}")
-        return True
-    return False
+    """DEPRECATED — use await revoke_refresh_token_async() instead."""
+    raise RuntimeError(
+        "revoke_refresh_token() is deprecated. "
+        "Use await revoke_refresh_token_async(db, raw_token) with an AsyncSession."
+    )
 
 
 def revoke_all_user_tokens(db: Session, user_id: int):
-    """
-    Revoke all refresh tokens for a user (e.g., password change, security incident).
-
-    Args:
-        db: Database session
-        user_id: User ID
-    """
-    db.query(RefreshToken).filter(
-        RefreshToken.user_id == user_id,
-        RefreshToken.is_revoked == False
-    ).update({"is_revoked": True})
-    db.commit()
-    logger.info(f"🔒 Revoked all refresh tokens for user {user_id}")
+    """DEPRECATED — use async ORM in an AsyncSession instead."""
+    raise RuntimeError(
+        "revoke_all_user_tokens() is deprecated. "
+        "Execute the equivalent query with an AsyncSession directly."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -511,7 +511,7 @@ async def create_refresh_token_async(db: AsyncSession, user_id: int) -> str:
     await db.commit()
     await db.refresh(refresh_token)
 
-    logger.info(f"✅ Created refresh token (async) for user {user_id}")
+    logger.debug("Created refresh token (async) for user %s", user_id)
     return raw_token
 
 
@@ -543,7 +543,7 @@ async def revoke_refresh_token_async(db: AsyncSession, raw_token: str) -> bool:
     if token_record:
         token_record.is_revoked = True
         await db.commit()
-        logger.info(f"🔒 Revoked refresh token (async) for user {token_record.user_id}")
+        logger.debug("Revoked refresh token (async) for user %s", token_record.user_id)
         return True
     return False
 

@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     // 1. Get the Python Backend URL from environment variables
     // If running locally, usually http://localhost:8000
     // If deployed, use your Railway/Render URL
-    const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     const API_ENDPOINT = `${BACKEND_URL}/api/chat`; // Ensure this matches your Python route
 
     console.log(`🔀 Proxying chat request to: ${API_ENDPOINT}`);

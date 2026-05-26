@@ -12,15 +12,16 @@ import {
     ResponsiveContainer,
     Legend,
     ReferenceLine,
+    type TooltipProps,
 } from "recharts";
 
 // Color palette for developer lines
 const COLORS = [
-    "#3b82f6", // blue
-    "#10b981", // emerald
-    "#f59e0b", // amber
-    "#ef4444", // red
-    "#8b5cf6", // violet
+    "var(--chart-primary-semantic)",
+    "var(--chart-secondary)",
+    "var(--semantic-warning)",
+    "var(--semantic-danger)",
+    "var(--chart-tertiary)",
 ];
 
 interface DataPoint {
@@ -50,7 +51,35 @@ interface PriceGrowthChartProps {
     current_growth_rate?: number;
 }
 
-const safeNum = (v: any, fallback = 0): number => {
+type ChartRow = Record<string, number | string | null>;
+
+function PriceGrowthTooltip({ active, payload, label }: TooltipProps<number, string>) {
+    if (!active || !payload?.length) return null;
+
+    return (
+        <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 shadow-xl text-xs" dir="rtl">
+            <p className="font-bold text-[var(--color-text-primary)] mb-1.5">{label}</p>
+            {payload.map((entry, i) => {
+                const value = typeof entry.value === "number" ? entry.value : Number(entry.value);
+
+                return (
+                    <div key={i} className="flex items-center gap-2 mb-0.5">
+                        <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: entry.color }}
+                        />
+                        <span className="text-[var(--color-text-muted)]">{entry.name}:</span>
+                        <span className="font-semibold text-[var(--color-text-primary)] tabular-nums">
+                            {fmtPriceFull(value)} EGP/م²
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+const safeNum = (v: unknown, fallback = 0): number => {
     const n = typeof v === "number" ? v : Number(v);
     return isFinite(n) ? n : fallback;
 };
@@ -85,7 +114,7 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
 
     // Build chart data — merge area data + developer lines into one dataset
     const chartData = data_points.map((dp) => {
-        const row: any = {
+        const row: ChartRow = {
             year: dp.year,
             area_price: safeNum(dp.price_sqm),
             yoy: safeNum(dp.yoy_growth),
@@ -103,28 +132,6 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
         current_growth_rate && current_growth_rate < 10
             ? (current_growth_rate * 100).toFixed(0)
             : safeNum(current_growth_rate).toFixed(0);
-
-    // Custom tooltip
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (!active || !payload?.length) return null;
-        return (
-            <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 shadow-xl text-xs" dir="rtl">
-                <p className="font-bold text-[var(--color-text-primary)] mb-1.5">{label}</p>
-                {payload.map((entry: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 mb-0.5">
-                        <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: entry.color }}
-                        />
-                        <span className="text-[var(--color-text-muted)]">{entry.name}:</span>
-                        <span className="font-semibold text-[var(--color-text-primary)] tabular-nums">
-                            {fmtPriceFull(entry.value)} EGP/م²
-                        </span>
-                    </div>
-                ))}
-            </div>
-        );
-    };
 
     return (
         <motion.div
@@ -188,7 +195,7 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
                                 tickFormatter={(v) => fmtPrice(v)}
                                 width={50}
                             />
-                            <Tooltip content={<CustomTooltip />} />
+                            <Tooltip content={<PriceGrowthTooltip />} />
                             <Legend
                                 wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
                                 iconType="circle"
@@ -200,9 +207,9 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
                                 type="monotone"
                                 dataKey="area_price"
                                 name={displayName || "متوسط المنطقة"}
-                                stroke="#3b82f6"
+                                stroke="var(--chart-primary-semantic)"
                                 strokeWidth={3}
-                                dot={{ r: 4, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }}
+                                dot={{ r: 4, fill: "var(--chart-primary-semantic)", stroke: "var(--color-surface)", strokeWidth: 2 }}
                                 activeDot={{ r: 6 }}
                             />
 
@@ -241,12 +248,18 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
                                         <span className={`text-[9px] font-bold tabular-nums ${isPositive ? "text-emerald-500" : "text-red-400"}`}>
                                             {dp.yoy_growth > 0 ? "+" : ""}{dp.yoy_growth.toFixed(0)}%
                                         </span>
-                                        <motion.div
-                                            initial={{ height: 0 }}
-                                            animate={{ height: `${Math.max(barH, 5)}%` }}
-                                            transition={{ duration: 0.6, delay: 0.1 }}
-                                            className={`w-full rounded-t-sm ${isPositive ? "bg-emerald-500/40" : "bg-red-400/40"}`}
-                                        />
+                                        <div className="relative h-6 w-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ scaleY: 0 }}
+                                                animate={{ scaleY: 1 }}
+                                                transition={{ duration: 0.6, delay: 0.1 }}
+                                                style={{
+                                                    height: `${Math.max(barH, 5)}%`,
+                                                    transformOrigin: 'bottom',
+                                                }}
+                                                className={`absolute inset-x-0 bottom-0 rounded-t-sm ${isPositive ? "bg-emerald-500/40" : "bg-red-400/40"}`}
+                                            />
+                                        </div>
                                         <span className="text-[9px] text-[var(--color-text-muted)]">{dp.year}</span>
                                     </div>
                                 );

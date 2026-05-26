@@ -176,20 +176,6 @@ class CostLimitError(OsoolException):
         )
 
 
-class BlockchainError(OsoolException):
-    """Blockchain service error."""
-    def __init__(self, operation: str, reason: str):
-        super().__init__(
-            message=f"Blockchain {operation} failed: {reason}",
-            message_ar=f"فشلت عملية البلوك تشين {operation}: {reason}",
-            user_message="Blockchain verification is temporarily unavailable. Your transaction is safe.",
-            user_message_ar="التحقق من البلوك تشين غير متاح مؤقتاً. معاملتك آمنة.",
-            error_code="BLOCKCHAIN_ERROR",
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            details={"operation": operation, "reason": reason}
-        )
-
-
 class OsoolSystemError(OsoolException):
     """Internal system error (named to avoid shadowing builtin SystemError)."""
     def __init__(self, component: str, reason: str):

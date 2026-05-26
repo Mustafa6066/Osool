@@ -129,9 +129,10 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
                     </div>
                     <div className="mt-2 w-full bg-[var(--color-border)] rounded-full h-2.5 overflow-hidden">
                         <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${match_score}%` }}
+                            initial={{ scaleX: 0 }}
+                            animate={{ scaleX: match_score / 100 }}
                             transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
+                            style={{ transformOrigin: 'left' }}
                             className="bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 h-2.5 rounded-full shadow-[0_0_8px_rgba(56,189,248,0.4)]"
                         />
                     </div>

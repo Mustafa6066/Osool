@@ -12,15 +12,11 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - ENVIRONMENT=production
-      - OSOOL_REGISTRY_ADDRESS=${OSOOL_REGISTRY_ADDRESS}
-      - PRIVATE_KEY=${PRIVATE_KEY}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - ADMIN_API_KEY=${ADMIN_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
-      - POLYGON_RPC_URL=${POLYGON_RPC_URL}
-      - CHAIN_ID=${CHAIN_ID:-137}
       - PAYMOB_API_KEY=${PAYMOB_API_KEY}
       - PAYMOB_INTEGRATION_ID=${PAYMOB_INTEGRATION_ID}
       - PAYMOB_WEBHOOK_SECRET=${PAYMOB_WEBHOOK_SECRET}
@@ -28,7 +24,6 @@ services:
       - FRONTEND_DOMAIN=${FRONTEND_DOMAIN:-https://osool.com}
     secrets:
       - db_password
-      - blockchain_private_key
     ports:
       - "8000:8000"
     depends_on:
@@ -64,14 +59,11 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - ENVIRONMENT=production
-      - OSOOL_REGISTRY_ADDRESS=${OSOOL_REGISTRY_ADDRESS}
-      - PRIVATE_KEY=${PRIVATE_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
     secrets:
       - db_password
-      - blockchain_private_key
     depends_on:
       - db
       - redis
@@ -160,8 +152,6 @@ services:
 secrets:
   db_password:
     file: ./secrets/db_password.txt
-  blockchain_private_key:
-    file: ./secrets/blockchain_private_key.txt
 
 volumes:
   postgres_data:

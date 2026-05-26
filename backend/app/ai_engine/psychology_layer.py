@@ -116,6 +116,72 @@ class CognitiveBias(Enum):
     NONE = "none"
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# V5: OBJECTION PROBABILITY MATRIX — Persona × Stage → Objection Likelihoods
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Keys: (BuyerPersona.value, DecisionStage.value)
+# Values: list of {"type": objection_type, "p": base_probability}
+# Domain knowledge from Egyptian RE market behaviour patterns.
+
+OBJECTION_PROBABILITY_MATRIX: Dict[tuple, list] = {
+    # ── FIRST_TIMER ──
+    ("first_timer", "awareness"):    [{"type": "delivery_risk", "p": 0.7}, {"type": "legal_safety", "p": 0.6}, {"type": "installment_burden", "p": 0.5}],
+    ("first_timer", "research"):     [{"type": "installment_burden", "p": 0.7}, {"type": "delivery_risk", "p": 0.6}, {"type": "wrong_timing", "p": 0.4}],
+    ("first_timer", "consideration"):[{"type": "legal_safety", "p": 0.7}, {"type": "installment_burden", "p": 0.6}, {"type": "delivery_risk", "p": 0.3}],
+    ("first_timer", "decision"):     [{"type": "installment_burden", "p": 0.8}, {"type": "legal_safety", "p": 0.5}],
+    ("first_timer", "action"):       [{"type": "legal_safety", "p": 0.6}, {"type": "installment_burden", "p": 0.4}],
+
+    # ── INVESTOR ──
+    ("investor", "awareness"):       [{"type": "price_will_drop", "p": 0.5}, {"type": "wrong_timing", "p": 0.4}],
+    ("investor", "research"):        [{"type": "price_will_drop", "p": 0.6}, {"type": "wrong_timing", "p": 0.5}, {"type": "delivery_risk", "p": 0.3}],
+    ("investor", "consideration"):   [{"type": "wrong_timing", "p": 0.5}, {"type": "delivery_risk", "p": 0.4}],
+    ("investor", "decision"):        [{"type": "wrong_timing", "p": 0.4}, {"type": "price_will_drop", "p": 0.3}],
+    ("investor", "action"):          [{"type": "legal_safety", "p": 0.3}],
+
+    # ── SPECULATOR ──
+    ("speculator", "awareness"):     [{"type": "price_will_drop", "p": 0.7}, {"type": "wrong_timing", "p": 0.6}],
+    ("speculator", "research"):      [{"type": "price_will_drop", "p": 0.6}, {"type": "wrong_timing", "p": 0.5}],
+    ("speculator", "consideration"): [{"type": "wrong_timing", "p": 0.6}, {"type": "price_will_drop", "p": 0.4}],
+    ("speculator", "decision"):      [{"type": "wrong_timing", "p": 0.5}],
+    ("speculator", "action"):        [{"type": "legal_safety", "p": 0.3}],
+
+    # ── END_USER ──
+    ("end_user", "awareness"):       [{"type": "installment_burden", "p": 0.5}, {"type": "delivery_risk", "p": 0.5}],
+    ("end_user", "research"):        [{"type": "installment_burden", "p": 0.6}, {"type": "delivery_risk", "p": 0.5}, {"type": "legal_safety", "p": 0.3}],
+    ("end_user", "consideration"):   [{"type": "delivery_risk", "p": 0.6}, {"type": "installment_burden", "p": 0.5}],
+    ("end_user", "decision"):        [{"type": "installment_burden", "p": 0.6}, {"type": "delivery_risk", "p": 0.4}],
+    ("end_user", "action"):          [{"type": "legal_safety", "p": 0.5}, {"type": "installment_burden", "p": 0.3}],
+
+    # ── UPGRADER ──
+    ("upgrader", "awareness"):       [{"type": "wrong_timing", "p": 0.5}, {"type": "price_will_drop", "p": 0.4}],
+    ("upgrader", "research"):        [{"type": "price_will_drop", "p": 0.5}, {"type": "wrong_timing", "p": 0.4}],
+    ("upgrader", "consideration"):   [{"type": "installment_burden", "p": 0.5}, {"type": "delivery_risk", "p": 0.4}],
+    ("upgrader", "decision"):        [{"type": "installment_burden", "p": 0.5}],
+    ("upgrader", "action"):          [{"type": "legal_safety", "p": 0.4}],
+
+    # ── PORTFOLIO_BUILDER ──
+    ("portfolio", "awareness"):      [{"type": "wrong_timing", "p": 0.4}, {"type": "price_will_drop", "p": 0.3}],
+    ("portfolio", "research"):       [{"type": "price_will_drop", "p": 0.4}, {"type": "wrong_timing", "p": 0.3}],
+    ("portfolio", "consideration"):  [{"type": "delivery_risk", "p": 0.4}, {"type": "wrong_timing", "p": 0.3}],
+    ("portfolio", "decision"):       [{"type": "wrong_timing", "p": 0.3}],
+    ("portfolio", "action"):         [{"type": "legal_safety", "p": 0.3}],
+
+    # ── IMMEDIATE_MOVER ──
+    ("immediate_mover", "awareness"):     [{"type": "installment_burden", "p": 0.6}, {"type": "legal_safety", "p": 0.5}],
+    ("immediate_mover", "research"):      [{"type": "installment_burden", "p": 0.6}, {"type": "legal_safety", "p": 0.4}],
+    ("immediate_mover", "consideration"): [{"type": "legal_safety", "p": 0.5}, {"type": "installment_burden", "p": 0.4}],
+    ("immediate_mover", "decision"):      [{"type": "legal_safety", "p": 0.5}],
+    ("immediate_mover", "action"):        [{"type": "legal_safety", "p": 0.4}],
+
+    # ── UNKNOWN (fallback — simple stage-based) ──
+    ("unknown", "awareness"):        [{"type": "delivery_risk", "p": 0.4}, {"type": "wrong_timing", "p": 0.3}],
+    ("unknown", "research"):         [{"type": "installment_burden", "p": 0.4}, {"type": "delivery_risk", "p": 0.3}],
+    ("unknown", "consideration"):    [{"type": "installment_burden", "p": 0.4}, {"type": "legal_safety", "p": 0.3}],
+    ("unknown", "decision"):         [{"type": "installment_burden", "p": 0.4}],
+    ("unknown", "action"):           [{"type": "legal_safety", "p": 0.3}],
+}
+
+
 @dataclass
 class PsychologyThought:
     """V3: Single reasoning step in the psychology chain-of-thought."""
@@ -166,6 +232,10 @@ class PsychologyProfile:
     emotional_intensity: float = 0.5  # 0-1: how strong the emotional signal
     state_history: List[str] = field(default_factory=list)  # Last N states for drift detection
 
+    # V5 Behavioral telemetry fields
+    behavioral_confidence_delta: float = 0.0
+    behavioral_urgency_delta: int = 0
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -186,6 +256,9 @@ class PsychologyProfile:
             "thought_chain": [t.to_dict() for t in self.thought_chain],
             "emotional_intensity": round(self.emotional_intensity, 2),
             "state_history": self.state_history,
+            # V5 behavioral fields
+            "behavioral_confidence_delta": round(self.behavioral_confidence_delta, 2),
+            "behavioral_urgency_delta": self.behavioral_urgency_delta,
         }
 
 
@@ -1486,6 +1559,70 @@ def analyze_psychology(
     return profile
 
 
+def apply_behavioral_adjustments(profile: PsychologyProfile, signals: dict) -> PsychologyProfile:
+    """
+    V5: Adjust psychology profile based on frontend behavioral telemetry.
+    
+    Signals are optional — if the frontend doesn't send them, the profile is unchanged.
+    Each adjustment is small (±0.05 to ±0.15) and capped to valid ranges.
+    """
+    if not signals:
+        return profile
+
+    conf_delta = 0.0
+    urgency_delta = 0  # tier step
+
+    scroll_depth = signals.get("scroll_depth_pct", 0)
+    time_on_page = signals.get("time_on_page_ms", 0)
+    hover_ms = signals.get("property_hover_ms", 0)
+    price_speed = signals.get("price_scroll_speed", 0)
+    toggles = signals.get("tool_toggles", 0)
+    cards = signals.get("cards_expanded", 0)
+    back_nav = signals.get("back_navigation_count", 0)
+
+    # Fast-skip: scrolled past price quickly → less confident
+    if price_speed > 5.0 and scroll_depth > 50:
+        conf_delta -= 0.15
+
+    # Deep reader: >30s AND expanded cards → more confident
+    if time_on_page > 30_000 and cards >= 2:
+        conf_delta += 0.1
+
+    # Long hover on property card → engaged
+    if hover_ms > 8000:
+        conf_delta += 0.1
+
+    # Multiple tool toggles → evaluating deeply
+    if toggles >= 3:
+        urgency_delta = max(urgency_delta, 1)  # at least move up one tier
+
+    # Back navigation → comparison anxiety
+    if back_nav >= 2:
+        if PsychologicalState.COMPARISON_ANXIETY.value not in [profile.primary_state.value]:
+            profile.secondary_state = PsychologicalState.COMPARISON_ANXIETY
+        urgency_delta = max(urgency_delta, 1)
+
+    # Re-reading (high time, low scroll) → urgency bump
+    if time_on_page > 60_000 and scroll_depth < 30:
+        urgency_delta = max(urgency_delta, 1)
+
+    # Apply confidence delta
+    profile.confidence_score = max(0.0, min(1.0, profile.confidence_score + conf_delta))
+
+    # Apply urgency bump
+    _URGENCY_ORDER = [UrgencyLevel.BROWSING, UrgencyLevel.EXPLORING, UrgencyLevel.CONSIDERING, UrgencyLevel.READY, UrgencyLevel.URGENT]
+    if urgency_delta > 0:
+        current_idx = _URGENCY_ORDER.index(profile.urgency_level) if profile.urgency_level in _URGENCY_ORDER else 0
+        new_idx = min(current_idx + urgency_delta, len(_URGENCY_ORDER) - 1)
+        profile.urgency_level = _URGENCY_ORDER[new_idx]
+
+    # Store deltas for observability
+    profile.behavioral_confidence_delta = conf_delta
+    profile.behavioral_urgency_delta = urgency_delta
+
+    return profile
+
+
 def persona_name(p: BuyerPersona) -> str:
     """Short display name for logging."""
     return p.value if p else "unknown"
@@ -2134,6 +2271,27 @@ class ObjectionResolutionTracker:
     def __init__(self):
         self._objections: Dict[str, Dict] = {}
         # Maps: objection_type -> {raised_turn, attempts, resolved, effective_tactic}
+        self._preempted: Dict[str, int] = {}  # type -> turn pre-empted
+        self._preempt_hits: int = 0   # pre-empted AND never raised
+        self._preempt_misses: int = 0 # pre-empted BUT later raised
+
+    def record_preemption(self, objection_type: str, turn: int):
+        """Record that we pre-emptively addressed an objection."""
+        self._preempted[objection_type] = turn
+
+    def finalize_preemption_stats(self):
+        """Call at end of conversation to score pre-emption accuracy."""
+        for obj_type in self._preempted:
+            if obj_type in self._objections:
+                self._preempt_misses += 1  # user raised it anyway
+            else:
+                self._preempt_hits += 1    # user never raised it — success
+
+    @property
+    def preemption_hit_rate(self) -> float:
+        """Fraction of pre-empted objections that were NOT subsequently raised."""
+        total = self._preempt_hits + self._preempt_misses
+        return self._preempt_hits / total if total > 0 else 0.0
 
     def raise_objection(self, objection_type: str, turn: int, trigger_text: str = ""):
         """Register a new objection or re-raise an existing one."""
@@ -2208,13 +2366,26 @@ class ObjectionResolutionTracker:
         return "\n".join(lines)
 
     def to_dict(self) -> Dict:
-        return dict(self._objections)
+        return {
+            "objections": dict(self._objections),
+            "preempted": dict(self._preempted),
+            "preempt_hits": self._preempt_hits,
+            "preempt_misses": self._preempt_misses,
+        }
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'ObjectionResolutionTracker':
         tracker = cls()
-        if data:
-            tracker._objections = data
+        if not data:
+            return tracker
+        # Support both old format (flat dict) and new format
+        if "objections" in data:
+            tracker._objections = data["objections"]
+            tracker._preempted = data.get("preempted", {})
+            tracker._preempt_hits = data.get("preempt_hits", 0)
+            tracker._preempt_misses = data.get("preempt_misses", 0)
+        else:
+            tracker._objections = data  # backward compat
         return tracker
 
 
@@ -2239,5 +2410,8 @@ __all__ = [
     # V4 exports
     "ObjectionResolutionTracker",
     "calculate_card_readiness",
+    # V5 exports
+    "OBJECTION_PROBABILITY_MATRIX",
+    "apply_behavioral_adjustments",
 ]
 

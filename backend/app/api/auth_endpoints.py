@@ -13,6 +13,7 @@ Import this in endpoints.py to add all auth routes.
 import os
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,13 +35,22 @@ from app.auth import (
     create_refresh_token_async,
     verify_refresh_token_async,
     revoke_refresh_token_async,
+    oauth2_scheme_optional,
+    is_forced_free_test_user_email,
 )
 from app.services.sms_service import sms_service
 from app.services.email_service import email_service, create_verification_token, is_verification_token_valid, consume_verification_token
+from app.security.account_lockout import AccountLockoutManager
+from app.middleware.csrf_protection import (
+    CSRF_COOKIE_NAME,
+    CSRF_HEADER_NAME,
+    generate_csrf_token,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 limiter = Limiter(key_func=get_remote_address)
+_lockout_manager = AccountLockoutManager()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -151,6 +161,31 @@ class AuthResponse(BaseModel):
     is_new_user: bool
 
 
+@router.get("/csrf-token")
+async def get_csrf_token(request: Request):
+    """
+    Return a CSRF token for SPA bootstrap and recovery flows.
+
+    The middleware also manages CSRF cookies globally, but this dedicated endpoint
+    keeps frontend initialization deterministic across deployments.
+    """
+    csrf_token = request.cookies.get(CSRF_COOKIE_NAME) or generate_csrf_token()
+    is_secure = request.url.scheme == "https" or os.getenv("ENVIRONMENT") == "production"
+
+    response = JSONResponse({"csrf_token": csrf_token})
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=csrf_token,
+        httponly=False,
+        secure=is_secure,
+        samesite="strict",
+        max_age=86400,
+        path="/",
+    )
+    response.headers[CSRF_HEADER_NAME] = csrf_token
+    return response
+
+
 # ═══════════════════════════════════════════════════════════════
 # KYC-COMPLIANT SIGNUP & LOGIN (FRA Egyptian Compliance)
 # ═══════════════════════════════════════════════════════════════
@@ -197,11 +232,25 @@ async def login_with_verification(
     result = await db.execute(select(User).filter(User.email == form_data.username))
     user = result.scalar_one_or_none()
 
+    client_ip = request.client.host if request.client else "unknown"
+
+    # CRITICAL-4 fix: Check account lockout BEFORE password verification
+    if _lockout_manager.is_locked(form_data.username, ip_address=client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Account temporarily locked due to too many failed attempts. Try again later."
+        )
+
     if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
+        # Record failed attempt against the supplied username regardless of whether it exists
+        _lockout_manager.record_failed_attempt(form_data.username, ip_address=client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
+
+    # Successful login — clear any prior failed attempts
+    _lockout_manager.reset(form_data.username)
 
     if getattr(user, 'role', '') == 'blocked':
         raise HTTPException(
@@ -212,12 +261,12 @@ async def login_with_verification(
     # For beta users (pre-verified), skip phone verification check
     # CRITICAL: In production, require phone verification
     if not user.is_verified and not user.email_verified:
+        # HIGH-4 fix: Do NOT include user_id in 403 response — prevents user enumeration
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "error": "account_not_verified",
-                "message": "Please verify your account before logging in",
-                "user_id": user.id
+                "message": "Please verify your account before logging in"
             }
         )
 
@@ -236,7 +285,9 @@ async def login_with_verification(
     except Exception as token_err:
         logger.warning(f"Failed to create refresh token for {user.email}: {token_err}")
 
-    logger.info(f"Login successful: {user.email} (Display: {display_name})")
+    # LOW-2 fix: Mask PII (email) in logs
+    _masked = f"{user.email[:3]}***@***" if user.email else "unknown"
+    logger.info(f"Login successful: {_masked}")
 
     return {
         "access_token": access_token,
@@ -284,10 +335,18 @@ async def refresh_access_token(req: RefreshTokenRequest, db: AsyncSession = Depe
 
 
 @router.post("/logout")
-async def logout(req: LogoutRequest, db: AsyncSession = Depends(get_db)):
+async def logout(req: LogoutRequest, db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme_optional)):
     """
-    Revoke refresh token on logout (best-effort).
+    Revoke refresh token and blacklist the current access token on logout.
     """
+    # LOW-6 fix: Blacklist the access token so it can't be used even within its TTL window
+    if token:
+        try:
+            from app.auth import invalidate_token
+            invalidate_token(token)
+        except Exception as err:
+            logger.warning(f"Failed to blacklist access token on logout: {err}")
+
     if req.refresh_token:
         try:
             await revoke_refresh_token_async(db, req.refresh_token)
@@ -344,7 +403,9 @@ async def google_auth(request: GoogleAuthRequest, db: AsyncSession = Depends(get
         except Exception as token_err:
             logger.warning(f"Failed to create refresh token for Google user {email}: {token_err}")
 
-        logger.info(f"Google OAuth successful for {email}")
+        # LOW-2 fix: Mask PII in logs
+        _masked_email = f"{email[:3]}***@***" if email else "unknown"
+        logger.info(f"Google OAuth successful for {_masked_email}")
 
         return {
             "access_token": access_token,
@@ -392,13 +453,10 @@ async def send_otp(
     try:
         code = sms_service.send_otp(req.phone_number)
 
-        # In development, return code for testing
-        if os.getenv('ENVIRONMENT') == 'development':
-            return {
-                "status": "sent",
-                "dev_code": code,
-                "message": "OTP sent successfully (dev mode shows code)"
-            }
+        # CRITICAL-5 fix: Never return OTP in response body, even in dev.
+        # Log to server stderr instead for debugging.
+        if os.getenv('ENVIRONMENT') != 'production':
+            logger.debug("[DEV-ONLY] OTP for %s: %s", req.phone_number[:6], code)
 
         return {
             "status": "sent",
@@ -488,21 +546,21 @@ async def send_verification(
     user.verification_token = token
     await db.commit()
 
-    try:
-        email_service.send_verification_email(req.email, token)
-        logger.info(f"✅ Verification email sent to {req.email}")
-
-        return {
-            "status": "sent",
-            "message": "Verification email sent. Please check your inbox."
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to send verification email: {e}")
+    success = email_service.send_verification_email(req.email, token)
+    if not success:
+        # Roll back the token so the user can retry cleanly
+        user.verification_token = None
+        await db.commit()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send verification email"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to send verification email. Please try again later."
         )
+
+    logger.info(f"Verification email sent to {req.email[:3]}***")
+    return {
+        "status": "sent",
+        "message": "Verification email sent. Please check your inbox."
+    }
 
 
 @router.get("/verify-email")
@@ -569,21 +627,20 @@ async def request_reset(
     user.verification_token = token
     await db.commit()
 
-    try:
-        email_service.send_reset_email(req.email, token)
-        logger.info(f"✅ Password reset email sent to {req.email}")
-
-        return {
-            "status": "sent",
-            "message": "Password reset link sent. Please check your email."
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to send reset email: {e}")
+    success = email_service.send_reset_email(req.email, token)
+    if not success:
+        logger.error("Failed to send password reset email to %s***", req.email[:3])
+        # Return the same vague message so user enumeration is impossible
         return {
             "status": "sent",
             "message": "If the email exists, password reset link has been sent."
         }
+
+    logger.info("Password reset email sent to %s***", req.email[:3])
+    return {
+        "status": "sent",
+        "message": "Password reset link sent. Please check your email."
+    }
 
 
 @router.post("/reset-password/confirm")
@@ -977,6 +1034,14 @@ class SeedBetaUsersRequest(BaseModel):
     admin_secret: str
 
 
+class EnsureFreeTestUserRequest(BaseModel):
+    """Create or update a dedicated free-plan test user (admin protected)."""
+    admin_secret: str
+    email: EmailStr
+    password: str
+    full_name: str = "Free Plan Tester"
+
+
 # Security Fix C2: Beta accounts loaded from env var instead of hardcoded passwords.
 # Set BETA_ACCOUNTS_JSON env var with base64-encoded JSON array of account objects.
 # Each object: {"full_name": "...", "email": "...", "password": "...", "role": "admin|investor"}
@@ -1078,4 +1143,84 @@ async def seed_beta_users(
         "created": created,
         "updated": updated,
         "total": len(BETA_ACCOUNTS)
+    }
+
+
+@router.post("/admin/ensure-free-test-user")
+async def ensure_free_test_user(
+    req: EnsureFreeTestUserRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create or update a dedicated test user that always stays on free plan.
+
+    - Upserts the account by email
+    - Forces role=investor and subscription_tier=free
+    - Marks the account as verified for quick login in QA
+    - Signals whether email is listed in FORCE_FREE_TEST_EMAILS
+    """
+    from sqlalchemy import select
+
+    admin_key = os.getenv("ADMIN_API_KEY")
+    if not admin_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="ADMIN_API_KEY not configured"
+        )
+    if not _secrets.compare_digest(req.admin_secret, admin_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin secret"
+        )
+
+    if len(req.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long"
+        )
+
+    result = await db.execute(select(User).filter(User.email == req.email))
+    user = result.scalar_one_or_none()
+
+    operation = "updated"
+    if user is None:
+        user = User(
+            full_name=req.full_name,
+            email=req.email,
+            password_hash=get_password_hash(req.password),
+            role="investor",
+            subscription_tier="free",
+            is_verified=True,
+            email_verified=True,
+            kyc_status="approved",
+            invitations_sent=0,
+        )
+        db.add(user)
+        operation = "created"
+    else:
+        user.full_name = req.full_name
+        user.password_hash = get_password_hash(req.password)
+        user.role = "investor"
+        user.subscription_tier = "free"
+        user.is_verified = True
+        user.email_verified = True
+        if (user.kyc_status or "").lower() in {"", "pending"}:
+            user.kyc_status = "approved"
+
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info("[FREE-TEST-USER] %s account %s", operation, req.email)
+
+    return {
+        "status": "success",
+        "operation": operation,
+        "user_id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "subscription_tier": user.subscription_tier,
+        "forced_free_via_env": is_forced_free_test_user_email(user.email),
+        "force_free_env_var": "FORCE_FREE_TEST_EMAILS",
+        "message": "Free-plan test user is ready"
     }

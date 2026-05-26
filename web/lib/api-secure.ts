@@ -17,8 +17,15 @@
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
+type ApiPayload = Record<string, unknown>;
+type ApiPayloadOrNull = ApiPayload | null;
+
 // Base URL from environment
-const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+let BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+// Enforce HTTPS in production to prevent mixed-content errors
+if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+  BASE_URL = BASE_URL.replace(/^http:/, 'https:');
+}
 
 // Create axios instance with credentials
 const api = axios.create({
@@ -37,6 +44,12 @@ const api = axios.create({
  */
 let csrfToken: string | null = null;
 
+function isInvalidRefreshResponse(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 401 || status === 403 || status === 422;
+}
+
 function getCsrfToken(): string | null {
   return csrfToken;
 }
@@ -49,11 +62,24 @@ function setCsrfToken(token: string) {
   }
 }
 
-// Initialize CSRF token from sessionStorage
+function getRefreshUrl(): string {
+  return typeof window !== 'undefined'
+    ? '/api/auth/refresh'
+    : `${BASE_URL}/api/auth/refresh`;
+}
+
+// Initialize CSRF token from sessionStorage, or fetch a fresh one
 if (typeof window !== 'undefined') {
   const storedToken = sessionStorage.getItem('csrf_token');
   if (storedToken) {
     csrfToken = storedToken;
+  } else {
+    // Auto-fetch CSRF token on first load so POST requests don't fail
+    axios.get(`${BASE_URL}/api/auth/csrf-token`, { withCredentials: true })
+      .then(({ data }) => {
+        if (data.csrf_token) setCsrfToken(data.csrf_token);
+      })
+      .catch(() => { /* Non-critical — interceptor will retry on 403 */ });
   }
 }
 
@@ -64,6 +90,14 @@ if (typeof window !== 'undefined') {
  */
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Backward compatibility: also attach bearer token when available.
+    if (typeof window !== 'undefined' && config.headers && !config.headers.Authorization) {
+      const accessToken = localStorage.getItem('access_token');
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+    }
+
     // Add CSRF token to state-changing methods
     const methodsRequiringCsrf = ['POST', 'PUT', 'DELETE', 'PATCH'];
     
@@ -105,12 +139,23 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       
       try {
+        const refreshToken = typeof window !== 'undefined'
+          ? localStorage.getItem('refresh_token')
+          : null;
+
         // Call refresh endpoint (uses refresh token cookie)
         const { data } = await axios.post(
-          `${BASE_URL}/api/auth/refresh`,
-          {},
+          getRefreshUrl(),
+          refreshToken ? { refresh_token: refreshToken } : {},
           { withCredentials: true }
         );
+
+        if (typeof window !== 'undefined' && data?.access_token) {
+          localStorage.setItem('access_token', data.access_token as string);
+          if (data.refresh_token) {
+            localStorage.setItem('refresh_token', data.refresh_token as string);
+          }
+        }
         
         // Extract new CSRF token from refresh response
         const newCsrfToken = data.csrf_token;
@@ -121,8 +166,8 @@ api.interceptors.response.use(
         // Retry original request
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - redirect to login
-        if (typeof window !== 'undefined') {
+        // Only redirect on invalid refresh token scenarios.
+        if (typeof window !== 'undefined' && isInvalidRefreshResponse(refreshError)) {
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
@@ -131,7 +176,7 @@ api.interceptors.response.use(
     
     // Handle 403 CSRF error - fetch new token
     if (error.response?.status === 403) {
-      const errorData = error.response.data as any;
+      const errorData = error.response.data as { error?: string } | undefined;
       
       if (errorData?.error === 'CSRF token missing or invalid' || errorData?.error === 'CSRF token mismatch') {
         // Fetch new CSRF token
@@ -180,7 +225,7 @@ export const isAuthenticated = async (): Promise<boolean> => {
  * ------------------------
  * Fetch user data from API (cookies are automatically sent).
  */
-export const getCurrentUser = async (): Promise<any | null> => {
+export const getCurrentUser = async (): Promise<ApiPayloadOrNull> => {
   try {
     const response = await api.get('/api/auth/me');
     return response.data;
@@ -188,13 +233,25 @@ export const getCurrentUser = async (): Promise<any | null> => {
     return null;
   }
 };
-
+/**
+ * Helper: Get User Context from Orchestrator
+ * ------------------------
+ * Fetch enriched user context (lead score, preferred areas)
+ */
+export const getOrchestratorContext = async (): Promise<any | null> => {
+  try {
+    const response = await api.get('/api/orchestrator/context');
+    return response.data;
+  } catch {
+    return null;
+  }
+};
 /**
  * Helper: Login
  * -------------
  * Server will set httpOnly cookies on successful login.
  */
-export const login = async (email: string, password: string): Promise<any> => {
+export const login = async (email: string, password: string): Promise<ApiPayload> => {
   const formData = new URLSearchParams();
   formData.append('username', email);
   formData.append('password', password);
@@ -244,7 +301,7 @@ export const signup = async (userData: {
   password: string;
   phone_number: string;
   national_id: string;
-}): Promise<any> => {
+}): Promise<ApiPayload> => {
   const response = await api.post('/api/auth/signup', userData);
   
   // Extract CSRF token
@@ -263,7 +320,22 @@ export const signup = async (userData: {
  */
 export const refreshToken = async (): Promise<boolean> => {
   try {
-    const response = await api.post('/api/auth/refresh', {});
+    const localRefreshToken = typeof window !== 'undefined'
+      ? localStorage.getItem('refresh_token')
+      : null;
+
+    const response = await axios.post(getRefreshUrl(), localRefreshToken ? {
+      refresh_token: localRefreshToken,
+    } : {}, {
+      withCredentials: true,
+    });
+
+    if (typeof window !== 'undefined' && response.data?.access_token) {
+      localStorage.setItem('access_token', response.data.access_token as string);
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token as string);
+      }
+    }
     
     // Extract new CSRF token
     const newCsrfToken = response.headers['x-csrf-token'];

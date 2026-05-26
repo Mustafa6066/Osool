@@ -136,9 +136,10 @@ export default function MarketBenchmarkChart({
                                     </div>
                                     <div className="flex-1 h-5 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
                                         <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${widthPct}%` }}
+                                            initial={{ scaleX: 0 }}
+                                            animate={{ scaleX: widthPct / 100 }}
                                             transition={{ duration: 0.8, delay: idx * 0.1, ease: "easeOut" }}
+                                            style={{ transformOrigin: 'left' }}
                                             className={`h-full rounded-full ${isCurrent
                                                 ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
                                                 : "bg-gradient-to-r from-gray-600 to-gray-500"

@@ -128,6 +128,13 @@ class Config:
     # Admin API Key (for admin endpoints)
     ADMIN_API_KEY: Optional[str] = os.getenv("ADMIN_API_KEY")
 
+    # ═══════════════════════════════════════════════════════════════
+    # ORCHESTRATOR INTEGRATION (Optional)
+    # ═══════════════════════════════════════════════════════════════
+
+    ORCHESTRATOR_URL: Optional[str] = os.getenv("ORCHESTRATOR_URL")
+    ORCHESTRATOR_API_KEY: Optional[str] = os.getenv("ORCHESTRATOR_API_KEY")
+
 
 # Validate configuration on module import
 try:

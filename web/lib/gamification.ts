@@ -86,6 +86,12 @@ export interface FavoriteProperty {
     added_at: string;
 }
 
+export type LeaderboardEntry = Record<string, unknown>;
+
+export type FavoriteResponse = Record<string, unknown>;
+
+export type SavedSearchResponse = Record<string, unknown>;
+
 // ═══════════════════════════════════════════════════════════════
 // LEVEL DISPLAY HELPERS
 // ═══════════════════════════════════════════════════════════════
@@ -135,12 +141,12 @@ export async function fetchAchievements(): Promise<{ total: number; unlocked: nu
     return response.data;
 }
 
-export async function fetchLeaderboard(): Promise<{ leaderboard: any[] }> {
+export async function fetchLeaderboard(): Promise<{ leaderboard: LeaderboardEntry[] }> {
     const response = await api.get('/api/gamification/leaderboard');
     return response.data;
 }
 
-export async function toggleFavorite(propertyId: number, notes?: string): Promise<any> {
+export async function toggleFavorite(propertyId: number, notes?: string): Promise<FavoriteResponse> {
     const response = await api.post(`/api/gamification/favorite/${propertyId}`, { notes });
     return response.data;
 }
@@ -157,12 +163,12 @@ export async function createSavedSearch(data: {
     budget_max?: number;
     bedrooms?: number;
     property_type?: string;
-}): Promise<any> {
+}): Promise<SavedSearchResponse> {
     const response = await api.post('/api/gamification/saved-search', data);
     return response.data;
 }
 
-export async function fetchSavedSearches(): Promise<any> {
+export async function fetchSavedSearches(): Promise<SavedSearchResponse> {
     const response = await api.get('/api/gamification/saved-searches');
     return response.data;
 }

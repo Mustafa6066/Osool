@@ -17,8 +17,12 @@ import logging
 limiter = Limiter(key_func=get_remote_address)
 
 from app.auth import get_current_user
-from app.database import get_db
-from app.models import User, ChatMessage, Property, Transaction, MarketIndicator, ConversationAnalytics, Ticket, TicketReply, GeopoliticalEvent
+from app.ai_engine.company_brain import CompanyBrainKernel
+from app.database import get_db, AsyncSessionLocal
+from app.models import (User, ChatMessage, Property, Transaction, ConsultationBooking,
+                        MarketIndicator, ConversationAnalytics,
+                        Ticket, TicketReply, GeopoliticalEvent, MarketingMaterial,
+                        HallucinationFlag, Area, Developer)
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +127,10 @@ async def admin_dashboard(
     txn_count = await db.execute(select(func.count(Transaction.id)))
     total_transactions = txn_count.scalar() or 0
 
+    # Total consultations
+    consultation_count = await db.execute(select(func.count(ConsultationBooking.id)))
+    total_consultations = consultation_count.scalar() or 0
+
     # Unique chat sessions
     session_count = await db.execute(
         select(func.count(func.distinct(ChatMessage.session_id)))
@@ -151,6 +159,7 @@ async def admin_dashboard(
             "total_properties": total_properties,
             "active_properties": active_properties,
             "total_transactions": total_transactions,
+            "total_consultations": total_consultations,
             "total_sessions": total_sessions,
         },
         "recent_activity": {
@@ -162,6 +171,16 @@ async def admin_dashboard(
             "name": admin.full_name,
         },
     }
+
+
+@router.get("/system/brain-truth")
+async def system_brain_truth(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Returns the deterministic company-level brain payload for orchestration traces."""
+    payload = await CompanyBrainKernel.synthesize_definitive_truth(db)
+    return {"payload": payload}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -270,17 +289,15 @@ async def admin_list_users(
 @router.patch("/users/{user_id}/role")
 async def admin_update_user_role(
     user_id: int,
-    body: dict,
+    body: UpdateRoleRequest,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_super_admin),
 ):
     """
     Mustafa only: Change a user's role (investor / agent / analyst / admin).
+    HIGH-2 fix: Uses typed Pydantic model with strict regex enum validation.
     """
-    VALID_ROLES = {"investor", "agent", "analyst", "admin"}
-    new_role = (body.get("role") or "").strip().lower()
-    if new_role not in VALID_ROLES:
-        raise HTTPException(status_code=422, detail=f"Role must be one of: {', '.join(sorted(VALID_ROLES))}")
+    new_role = body.role.strip().lower()
 
     result = await db.execute(select(User).where(User.id == user_id))
     target = result.scalar_one_or_none()
@@ -355,20 +372,38 @@ async def admin_list_conversations(
         .offset(offset)
     )
 
-    sessions = []
-    for row in result.all():
-        # Get first user message as preview
-        preview_result = await db.execute(
-            select(ChatMessage.content)
+    rows = result.all()
+
+    # Batch-fetch first user message preview for all sessions in ONE query (fixes N+1)
+    session_ids = [row.session_id for row in rows]
+    previews = {}
+    if session_ids:
+        from sqlalchemy import literal_column
+        preview_subq = (
+            select(
+                ChatMessage.session_id,
+                ChatMessage.content,
+                func.row_number().over(
+                    partition_by=ChatMessage.session_id,
+                    order_by=ChatMessage.created_at.asc()
+                ).label("rn")
+            )
             .where(
-                ChatMessage.session_id == row.session_id,
+                ChatMessage.session_id.in_(session_ids),
                 ChatMessage.role == "user",
             )
-            .order_by(ChatMessage.created_at.asc())
-            .limit(1)
+            .subquery()
         )
-        preview = preview_result.scalar_one_or_none()
+        preview_result = await db.execute(
+            select(preview_subq.c.session_id, preview_subq.c.content)
+            .where(preview_subq.c.rn == 1)
+        )
+        for sid, content in preview_result.all():
+            previews[sid] = content
 
+    sessions = []
+    for row in rows:
+        preview = previews.get(row.session_id)
         sessions.append({
             "session_id": row.session_id,
             "user_id": row.user_id,
@@ -499,12 +534,83 @@ async def admin_trigger_property_scraper(
     admin: User = Depends(require_admin),
 ):
     """
-    Admin: Manually trigger the Nawy property scraper.
-    Runs in background.
+    Admin: Manually trigger post-scrape processing (stale cleanup + price flagging).
+    The actual property scraping runs via Railway Cron (nawy_scraper_v2.py) or the
+    /scraper/nawy endpoint.
     """
-    from app.services.nawy_scraper import ingest_nawy_data_async
-    background_tasks.add_task(ingest_nawy_data_async)
-    return {"status": "Property scraper triggered", "triggered_by": admin.email}
+    from app.services.nawy_scraper import mark_stale_properties, flag_underpriced_properties
+
+    async def _run_post_processing():
+        await mark_stale_properties()
+        await flag_underpriced_properties()
+
+    background_tasks.add_task(_run_post_processing)
+    return {"status": "Post-scrape processing triggered", "triggered_by": admin.email}
+
+
+@router.post("/scraper/nawy")
+@limiter.limit("1/hour")  # SECURITY: Full scrape is expensive — limit to 1/hour
+async def admin_trigger_nawy_scrape(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_super_admin),
+):
+    """
+    Admin: Trigger a full Nawy property scrape (httpx-based NEXT_DATA extraction).
+    Discovers compound URLs from sitemap, extracts data, normalizes via LLM, upserts to DB.
+    Runs as a background task — may take 30-60 minutes for all compounds.
+    """
+    from app.services.nawy_scraper import run_nawy_scrape
+
+    background_tasks.add_task(run_nawy_scrape)
+    return {"status": "Nawy scrape started in background", "triggered_by": admin.email}
+
+
+@router.get("/scraper/status")
+async def admin_scraper_status(admin: User = Depends(require_super_admin)):
+    """
+    Admin: Get current scraper status and next scheduled run times.
+    Returns last scrape result (if available) + scheduler job details.
+    """
+    import os, json
+    from pathlib import Path
+
+    status_files = [
+        Path("/app/data/scrape_status.json"),
+        Path("data/scrape_status.json"),
+        Path(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "scrape_status.json")),
+    ]
+    last_scrape = None
+    for path in status_files:
+        if path.exists():
+            try:
+                last_scrape = json.loads(path.read_text())
+            except Exception:
+                pass
+            break
+
+    try:
+        from app.services.scheduler import scheduler
+        scraper_jobs = [
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
+            }
+            for job in scheduler.get_jobs()
+            if "scraper" in job.id or "scrape" in job.id
+        ]
+        scheduler_running = scheduler.running
+    except Exception as e:
+        scraper_jobs = []
+        scheduler_running = False
+
+    return {
+        "scheduler_running": scheduler_running,
+        "scraper_jobs": scraper_jobs,
+        "last_scrape": last_scrape,
+    }
 
 
 @router.post("/scraper/economic")
@@ -552,6 +658,185 @@ async def admin_get_market_indicators(
             for ind in indicators
         ],
     }
+
+
+class UpdateMarketIndicatorRequest(BaseModel):
+    """Validated market indicator update (e.g. parallel rate manual override)."""
+    value: float = Field(..., ge=0, le=1_000_000)
+    source: Optional[str] = Field(None, max_length=200)
+
+
+@router.patch("/market-indicators/{key}")
+@limiter.limit("10/minute")
+async def admin_update_market_indicator(
+    key: str,
+    body: UpdateMarketIndicatorRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Admin: Manually update a single market indicator (e.g. usd_egp_parallel).
+    Useful for values that can't be scraped (parallel market rate, etc.).
+    """
+    if not key.replace("_", "").isalnum() or len(key) > 100:
+        raise HTTPException(status_code=400, detail="Invalid indicator key")
+
+    result = await db.execute(
+        select(MarketIndicator).where(MarketIndicator.key == key)
+    )
+    indicator = result.scalar_one_or_none()
+
+    source = body.source or f"Admin Override ({admin.email})"
+
+    if indicator:
+        indicator.value = body.value
+        indicator.source = source
+    else:
+        indicator = MarketIndicator(key=key, value=body.value, source=source)
+        db.add(indicator)
+
+    await db.commit()
+    logger.info(f"Admin {admin.email} updated market indicator {key} = {body.value}")
+
+    return {
+        "key": key,
+        "value": body.value,
+        "source": source,
+        "updated_by": admin.email,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# MARKET DATA (Areas + Developers) — replaces hardcoded constants
+# ═══════════════════════════════════════════════════════════════
+
+
+class UpdateAreaMarketRequest(BaseModel):
+    """Validated update for an area's pricing/growth/yield metrics."""
+    avg_price_per_meter: Optional[float] = Field(None, ge=0, le=10_000_000)
+    price_growth_ytd: Optional[float] = Field(None, ge=-1.0, le=10.0)
+    rental_yield: Optional[float] = Field(None, ge=0, le=1.0)
+    predicted_roi_5y: Optional[float] = Field(None, ge=-1.0, le=10.0)
+
+
+class UpdateDeveloperScoreRequest(BaseModel):
+    """Validated update for a developer's composite score."""
+    overall_score: float = Field(..., ge=0, le=100)
+
+
+@router.get("/market-data/areas")
+async def admin_list_area_market_data(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admin: list every area with its current pricing/growth/yield metrics."""
+    result = await db.execute(select(Area).order_by(Area.name))
+    areas = result.scalars().all()
+    return {
+        "total": len(areas),
+        "areas": [
+            {
+                "id": a.id,
+                "slug": a.slug,
+                "name": a.name,
+                "name_ar": a.name_ar,
+                "avg_price_per_meter": a.avg_price_per_meter,
+                "price_growth_ytd": a.price_growth_ytd,
+                "rental_yield": a.rental_yield,
+                "predicted_roi_5y": a.predicted_roi_5y,
+                "updated_at": a.updated_at.isoformat() if a.updated_at else None,
+            }
+            for a in areas
+        ],
+    }
+
+
+@router.patch("/market-data/areas/{slug}")
+@limiter.limit("20/minute")
+async def admin_update_area_market_data(
+    slug: str,
+    body: UpdateAreaMarketRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admin: update one or more market metrics on an Area row.
+
+    Any field left null in the request is preserved. The in-process market_data
+    cache is cleared so the new value takes effect immediately.
+    """
+    result = await db.execute(select(Area).where(Area.slug == slug))
+    area = result.scalar_one_or_none()
+    if not area:
+        raise HTTPException(status_code=404, detail=f"Area '{slug}' not found")
+
+    updates = body.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(area, field, value)
+
+    await db.commit()
+
+    from app.services.market_data_repository import clear_cache
+    cleared = clear_cache()
+
+    logger.info(
+        f"Admin {admin.email} updated area {slug}: {updates} "
+        f"(cleared {cleared} cached entries)"
+    )
+    return {
+        "slug": slug,
+        "updated_fields": list(updates.keys()),
+        "cache_entries_cleared": cleared,
+        "updated_by": admin.email,
+    }
+
+
+@router.patch("/market-data/developers/{slug}")
+@limiter.limit("20/minute")
+async def admin_update_developer_score(
+    slug: str,
+    body: UpdateDeveloperScoreRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admin: update a developer's composite score (used in property scoring)."""
+    result = await db.execute(select(Developer).where(Developer.slug == slug))
+    dev = result.scalar_one_or_none()
+    if not dev:
+        raise HTTPException(status_code=404, detail=f"Developer '{slug}' not found")
+
+    dev.overall_score = body.overall_score
+    await db.commit()
+
+    from app.services.market_data_repository import clear_cache
+    cleared = clear_cache()
+
+    logger.info(
+        f"Admin {admin.email} set developer {slug} overall_score = {body.overall_score}"
+    )
+    return {
+        "slug": slug,
+        "overall_score": body.overall_score,
+        "cache_entries_cleared": cleared,
+        "updated_by": admin.email,
+    }
+
+
+@router.post("/market-data/refresh-cache")
+async def admin_refresh_market_data_cache(
+    admin: User = Depends(require_admin),
+):
+    """Admin: force-clear the in-process market data cache.
+
+    Use after bulk-importing areas/developers via a script so scoring picks up the
+    new rows without a process restart.
+    """
+    from app.services.market_data_repository import clear_cache
+    cleared = clear_cache()
+    logger.info(f"Admin {admin.email} cleared market data cache ({cleared} entries)")
+    return {"cleared": cleared, "by": admin.email}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -886,7 +1171,7 @@ async def admin_trigger_geopolitical_scraper(
     Runs inline (typically < 30s).
     """
     from app.services.geopolitical_scraper import scrape_geopolitical_events
-    result = await scrape_geopolitical_events(db, use_llm=True)
+    result = await scrape_geopolitical_events(db)
     return {"status": "Geopolitical scraper completed", "triggered_by": admin.email, **result}
 
 
@@ -933,3 +1218,229 @@ async def admin_get_geopolitical_events(
             for e in events
         ],
     }
+
+@router.get("/marketing-materials")
+async def get_marketing_materials(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    from app.services.marketing_generator import ensure_seeded_questions
+    await ensure_seeded_questions(db)
+
+    query = select(MarketingMaterial).order_by(MarketingMaterial.category, MarketingMaterial.id)
+    result = await db.execute(query)
+    materials = result.scalars().all()
+    
+    return {
+        "total": len(materials),
+        "materials": [
+            {
+                "id": m.id,
+                "category": m.category,
+                "question_en": m.question_en,
+                "question_ar": m.question_ar,
+                "answer_en": m.answer_en,
+                "answer_ar": m.answer_ar,
+                "last_updated": m.last_updated.isoformat() if m.last_updated else None,
+                "last_run_status": m.last_run_status
+            }
+            for m in materials
+        ]
+    }
+
+@router.post("/marketing-materials/generate")
+async def generate_marketing_materials_endpoint(
+    background_tasks: BackgroundTasks,
+    admin: User = Depends(require_admin)
+):
+    from app.services.marketing_generator import generate_marketing_answers, ensure_seeded_questions
+    
+    async def run_generation():
+        try:
+            async with AsyncSessionLocal() as db_session:
+                await ensure_seeded_questions(db_session)
+                count = await generate_marketing_answers(db_session)
+                logger.info("Marketing generation background task completed: %d answers", count)
+        except Exception as e:
+            logger.error("Marketing generation background task failed: %s", e)
+    
+    background_tasks.add_task(run_generation)
+    
+    return {"message": "Marketing materials generation started in background. Answers will appear as they are generated — refresh in a few minutes."}
+
+
+# ═══════════════════════════════════════════════════════════════
+# HALLUCINATION GUARDRAIL (Token-Guard inspired)
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/hallucination-flags")
+async def list_hallucination_flags(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    agent_name: Optional[str] = Query(None, description="Filter by agent name (e.g. wolf_brain)"),
+    claim_type: Optional[str] = Query(None, description="Filter by claim_type: price|roi|area|delivery|developer|legal|other"),
+    severity: Optional[str] = Query(None, pattern="^(low|medium|high)$"),
+    since_hours: int = Query(168, ge=1, le=24 * 90, description="Look back window in hours (default 7d)"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """
+    List flagged (unverified) factual claims produced by the post-SPEAK
+    Haiku verifier. Ordered newest-first.
+    """
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.utcnow() - timedelta(hours=since_hours)
+    stmt = select(HallucinationFlag).where(HallucinationFlag.created_at >= cutoff)
+    if agent_name:
+        stmt = stmt.where(HallucinationFlag.agent_name == agent_name)
+    if claim_type:
+        stmt = stmt.where(HallucinationFlag.claim_type == claim_type)
+    if severity:
+        stmt = stmt.where(HallucinationFlag.severity == severity)
+
+    total_q = select(func.count()).select_from(stmt.subquery())
+    total = (await db.execute(total_q)).scalar() or 0
+
+    stmt = stmt.order_by(desc(HallucinationFlag.created_at)).limit(limit).offset(offset)
+    rows = (await db.execute(stmt)).scalars().all()
+
+    return {
+        "total": int(total),
+        "limit": limit,
+        "offset": offset,
+        "since_hours": since_hours,
+        "items": [
+            {
+                "id": r.id,
+                "agent_name": r.agent_name,
+                "session_id": r.session_id,
+                "user_id": r.user_id,
+                "query": r.query,
+                "response_text": r.response_text,
+                "claim_text": r.claim_text,
+                "claim_type": r.claim_type,
+                "severity": r.severity,
+                "evidence_source": r.evidence_source,
+                "verifier_model": r.verifier_model,
+                "verifier_reason": r.verifier_reason,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/hallucination-flags/summary")
+async def hallucination_flags_summary(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    since_hours: int = Query(168, ge=1, le=24 * 90),
+):
+    """
+    Lightweight rollup: counts per (agent_name, claim_type, severity)
+    over the look-back window. Feeds the admin dashboard tile.
+    """
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.utcnow() - timedelta(hours=since_hours)
+
+    total = (
+        await db.execute(
+            select(func.count(HallucinationFlag.id)).where(
+                HallucinationFlag.created_at >= cutoff
+            )
+        )
+    ).scalar() or 0
+
+    by_type_rows = (
+        await db.execute(
+            select(
+                HallucinationFlag.claim_type,
+                func.count(HallucinationFlag.id),
+            )
+            .where(HallucinationFlag.created_at >= cutoff)
+            .group_by(HallucinationFlag.claim_type)
+        )
+    ).all()
+
+    by_severity_rows = (
+        await db.execute(
+            select(
+                HallucinationFlag.severity,
+                func.count(HallucinationFlag.id),
+            )
+            .where(HallucinationFlag.created_at >= cutoff)
+            .group_by(HallucinationFlag.severity)
+        )
+    ).all()
+
+    by_agent_rows = (
+        await db.execute(
+            select(
+                HallucinationFlag.agent_name,
+                func.count(HallucinationFlag.id),
+            )
+            .where(HallucinationFlag.created_at >= cutoff)
+            .group_by(HallucinationFlag.agent_name)
+        )
+    ).all()
+
+    return {
+        "since_hours": since_hours,
+        "total": int(total),
+        "by_claim_type": {row[0]: int(row[1]) for row in by_type_rows},
+        "by_severity": {row[0]: int(row[1]) for row in by_severity_rows},
+        "by_agent": {row[0]: int(row[1]) for row in by_agent_rows},
+    }
+
+
+@router.get("/hallucination-flags/top-claims")
+async def hallucination_top_claims(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+    since_hours: int = Query(168, ge=1, le=24 * 90),
+    limit: int = Query(25, ge=1, le=200),
+):
+    """
+    Exact-string clustering: top repeated `claim_text` values.
+    A weekly BullMQ/cron job can layer TF-IDF + KMeans on top for
+    fuzzy clustering; this endpoint gives immediate admin signal without ML.
+    """
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.utcnow() - timedelta(hours=since_hours)
+
+    stmt = (
+        select(
+            HallucinationFlag.claim_text,
+            HallucinationFlag.claim_type,
+            HallucinationFlag.agent_name,
+            func.count(HallucinationFlag.id).label("occurrences"),
+            func.max(HallucinationFlag.created_at).label("last_seen"),
+        )
+        .where(HallucinationFlag.created_at >= cutoff)
+        .group_by(
+            HallucinationFlag.claim_text,
+            HallucinationFlag.claim_type,
+            HallucinationFlag.agent_name,
+        )
+        .order_by(desc("occurrences"))
+        .limit(limit)
+    )
+    rows = (await db.execute(stmt)).all()
+
+    return {
+        "since_hours": since_hours,
+        "clusters": [
+            {
+                "claim_text": row[0],
+                "claim_type": row[1],
+                "agent_name": row[2],
+                "occurrences": int(row[3]),
+                "last_seen": row[4].isoformat() if row[4] else None,
+            }
+            for row in rows
+        ],
+    }
+

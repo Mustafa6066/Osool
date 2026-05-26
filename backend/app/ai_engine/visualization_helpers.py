@@ -449,6 +449,33 @@ def generate_payment_timeline(
     }
 
 
+def _get_dynamic_quarters(n_historical: int = 4, n_forecast: int = 2):
+    """Return (historical_labels, forecast_labels) based on current date."""
+    now = datetime.now()
+    current_q = (now.month - 1) // 3 + 1
+    current_y = now.year
+
+    historical = []
+    q, y = current_q, current_y
+    for _ in range(n_historical):
+        q -= 1
+        if q == 0:
+            q = 4
+            y -= 1
+        historical.insert(0, f"{y} Q{q}")
+
+    forecast = []
+    q, y = current_q, current_y
+    for _ in range(n_forecast):
+        q += 1
+        if q > 4:
+            q = 1
+            y += 1
+        forecast.append(f"{y} Q{q}")
+
+    return historical, forecast
+
+
 def generate_market_trend_chart(
     location: str,
     current_price_per_sqm: int = 45000
@@ -464,12 +491,12 @@ def generate_market_trend_chart(
         Structured data for MarketTrendChart component
     """
 
-    # Generate historical data (last 4 quarters)
+    # Generate historical data (last 4 quarters) — labels are always relative to now
     historical = []
     base_price = int(current_price_per_sqm * 0.85)  # Start 15% lower
 
-    quarters = ["2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4"]
-    for i, quarter in enumerate(quarters):
+    hist_labels, forecast_labels = _get_dynamic_quarters(4, 2)
+    for i, quarter in enumerate(hist_labels):
         # Simulate growth
         price = int(base_price * (1 + (i * 0.04)))  # 4% growth per quarter
         historical.append({
@@ -480,7 +507,7 @@ def generate_market_trend_chart(
 
     # Generate forecast (next 2 quarters)
     forecast = []
-    forecast_quarters = ["2024 Q1", "2024 Q2"]
+    forecast_quarters = forecast_labels
 
     # Determine trend based on location
     hot_locations = ["New Cairo", "Sheikh Zayed", "New Capital", "Madinaty"]

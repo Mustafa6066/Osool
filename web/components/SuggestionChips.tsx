@@ -2,10 +2,23 @@
 
 import React from 'react';
 
+export interface SuggestionChipItem {
+    icon?: React.ComponentType<{ className?: string }>;
+    label: string;
+    prompt: string;
+    snippet?: string;
+    snippetAr?: string;
+    trend?: 'up' | 'down' | 'neutral';
+}
+
 interface SuggestionChipsProps {
-    suggestions: string[];
+    suggestions: Array<string | SuggestionChipItem>;
     onSelect: (suggestion: string) => void;
     isRTL?: boolean;
+}
+
+function isRichSuggestion(suggestion: string | SuggestionChipItem): suggestion is SuggestionChipItem {
+    return typeof suggestion !== 'string';
 }
 
 /**
@@ -17,21 +30,39 @@ export default function SuggestionChips({ suggestions, onSelect, isRTL = false }
 
     return (
         <div
-            className={`flex flex-wrap gap-2 mt-4 ${isRTL ? 'flex-row-reverse' : ''}`}
+            className={`flex flex-wrap gap-1.5 mt-3 ${isRTL ? 'flex-row-reverse' : ''}`}
             dir={isRTL ? 'rtl' : 'ltr'}
         >
             {suggestions.map((suggestion, i) => (
-                <button
-                    key={i}
-                    onClick={() => onSelect(suggestion)}
-                    className="px-4 py-2 rounded-full text-[13px] font-medium
+                isRichSuggestion(suggestion) ? (
+                    <button
+                        key={`${suggestion.prompt}-${i}`}
+                        onClick={() => onSelect(suggestion.prompt)}
+                        className="group rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-1.5 text-start transition-colors hover:border-[var(--color-border)] hover:bg-[var(--color-surface-elevated)]"
+                    >
+                        <div className="flex items-center gap-1.5">
+                            {suggestion.icon && (
+                                <suggestion.icon className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
+                            )}
+                            <div className="min-w-0">
+                                <span className="block max-w-[180px] truncate whitespace-nowrap text-[12px] font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]" dir="auto">
+                                    {suggestion.label}
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+                ) : (
+                    <button
+                        key={`${suggestion}-${i}`}
+                        onClick={() => onSelect(suggestion)}
+                        className="px-3 py-1.5 rounded-full text-[12px] font-medium
                              text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]
-                             bg-gray-50/50 hover:bg-gray-100 dark:bg-gray-800/30 dark:hover:bg-gray-800/80
-                             border border-[var(--color-border)]/50 hover:border-[var(--color-border)]
-                             hover:shadow-sm transition-all duration-200"
-                >
-                    <span className="truncate max-w-[200px]" dir="auto">{suggestion}</span>
-                </button>
+                             bg-[var(--color-surface)] border border-[var(--color-border)]/60
+                             transition-colors"
+                    >
+                        <span className="inline-block max-w-[180px] truncate whitespace-nowrap" dir="auto">{suggestion}</span>
+                    </button>
+                )
             ))}
         </div>
     );

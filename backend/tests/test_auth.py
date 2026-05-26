@@ -372,76 +372,6 @@ class TestPhoneVerificationFlow:
         assert check_time_expired > otp_expires_at
 
 
-class TestWalletSignatureVerification:
-    """Test Web3 wallet signature verification (EIP-191) (Phase 1)"""
-
-    @pytest.mark.skipif(
-        not __import__("importlib").util.find_spec("eth_account"),
-        reason="eth_account not installed",
-    )
-    def test_wallet_signature_verification_eip191(self, mocker):
-        """Test EIP-191 signature verification for Web3 login"""
-        from eth_account import Account
-        from eth_account.messages import encode_defunct
-        from web3 import Web3
-
-        # Create test wallet
-        account = Account.create()
-        wallet_address = account.address
-        private_key = account.key
-
-        # Message to sign (nonce for preventing replay attacks)
-        nonce = "osool_login_12345"
-        message = f"Sign this message to authenticate with Osool:\n\nNonce: {nonce}"
-
-        # Sign message
-        message_hash = encode_defunct(text=message)
-        signed_message = Account.sign_message(message_hash, private_key)
-
-        # Verify signature
-        recovered_address = Account.recover_message(message_hash, signature=signed_message.signature)
-
-        assert recovered_address.lower() == wallet_address.lower()
-
-    @pytest.mark.skipif(
-        not __import__("importlib").util.find_spec("eth_account"),
-        reason="eth_account not installed",
-    )
-    def test_invalid_signature_rejected(self, mocker):
-        """Test that invalid signatures are rejected"""
-        from eth_account import Account
-        from eth_account.messages import encode_defunct
-
-        # Create two different wallets
-        account1 = Account.create()
-        account2 = Account.create()
-
-        # Sign message with account1
-        message = "Sign this message to authenticate with Osool:\n\nNonce: test_nonce"
-        message_hash = encode_defunct(text=message)
-        signed_message = Account.sign_message(message_hash, account1.key)
-
-        # Try to verify with account2's address
-        recovered_address = Account.recover_message(message_hash, signature=signed_message.signature)
-
-        # Should NOT match account2
-        assert recovered_address.lower() != account2.address.lower()
-        assert recovered_address.lower() == account1.address.lower()
-
-    def test_nonce_prevents_replay_attacks(self, mocker):
-        """Test that nonce prevents signature replay attacks"""
-        import uuid
-
-        # Generate unique nonce
-        nonce1 = str(uuid.uuid4())
-        nonce2 = str(uuid.uuid4())
-
-        assert nonce1 != nonce2
-
-        # Each login should have unique nonce
-        # Reusing a signature should be rejected
-
-
 class TestMultiFactorAuthentication:
     """Test multi-factor authentication flows"""
 
@@ -464,21 +394,6 @@ class TestMultiFactorAuthentication:
 
         # But cannot make payments
         assert user.phone_verified is False
-
-    def test_web3_wallet_plus_email_linking(self, mock_db, mocker):
-        """Test Web3 wallet can be linked to email account"""
-        # User has email account
-        user_email = mocker.Mock()
-        user_email.id = 42
-        user_email.email = "test@osool.com"
-        user_email.wallet_address = None  # No wallet linked yet
-
-        # User links wallet
-        wallet_address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
-        user_email.wallet_address = wallet_address
-
-        # Verify linking succeeded
-        assert user_email.wallet_address == wallet_address
 
     def test_google_oauth_creates_user_account(self, mock_db, mocker):
         """Test Google OAuth creates user account automatically"""

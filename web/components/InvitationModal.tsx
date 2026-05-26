@@ -43,8 +43,8 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
             setInvitation(data);
             // Refresh my invitations
             await loadMyInvitations();
-        } catch (err: any) {
-            const errorMessage = err.response?.data?.detail || err.message || 'Failed to generate invitation';
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to generate invitation';
             setError(errorMessage);
         } finally {
             setIsLoading(false);
@@ -125,6 +125,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                                         type="text"
                                         value={invitation.invitation_link}
                                         readOnly
+                                        aria-label="Invitation link"
                                         className="flex-1 bg-transparent text-sm text-slate-700 dark:text-slate-300 outline-none truncate"
                                     />
                                     <button
@@ -181,7 +182,7 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
 
                             {!canGenerate && (
                                 <p className="text-xs text-center text-amber-600 dark:text-amber-400">
-                                    You've used all your invitations. Contact an admin for more.
+                                    You&apos;ve used all your invitations. Contact an admin for more.
                                 </p>
                             )}
                         </>

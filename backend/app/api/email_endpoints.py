@@ -9,9 +9,12 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from datetime import datetime
 import logging
+import hashlib
+import hmac
+import os
 
 from app.auth import get_current_user
 from app.database import get_db
@@ -131,11 +134,58 @@ async def send_email(
 
 
 @router.post("/webhook")
-async def resend_webhook(payload: WebhookPayload, db: AsyncSession = Depends(get_db)):
+async def resend_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """
     Resend webhook handler for delivery/open/click tracking.
     Configure at: https://resend.com/webhooks
+    HIGH-3 fix: Verify svix HMAC signature before processing any event.
     """
+    # HIGH-3: Verify Resend/Svix HMAC signature
+    webhook_secret = os.getenv("RESEND_WEBHOOK_SECRET", "")
+    if webhook_secret:
+        svix_id = request.headers.get("svix-id", "")
+        svix_ts = request.headers.get("svix-timestamp", "")
+        svix_sig = request.headers.get("svix-signature", "")
+
+        raw_body = await request.body()
+        signed_content = f"{svix_id}.{svix_ts}.".encode() + raw_body
+
+        # Resend signs with the bare secret (without prefix) using SHA-256
+        secret_bytes = webhook_secret.encode() if isinstance(webhook_secret, str) else webhook_secret
+        # Resend/Svix signs with base64-encoded HMAC-SHA256, NOT hex.
+        # Using .hexdigest() here would always fail the comparison.
+        import base64
+        expected_sig = base64.b64encode(
+            hmac.new(secret_bytes, signed_content, hashlib.sha256).digest()
+        ).decode()
+
+        # svix-signature may be prefixed like "v1,<hex>"
+        sigs_valid = any(
+            hmac.compare_digest(expected_sig, part.split(",", 1)[-1])
+            for part in svix_sig.split(" ")
+        )
+        if not sigs_valid:
+            raise HTTPException(status_code=403, detail="Invalid webhook signature")
+
+        import json
+        try:
+            body = json.loads(raw_body)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON")
+    else:
+        # No secret configured — warn in logs but still parse body
+        import logging as _log
+        _log.getLogger(__name__).warning(
+            "RESEND_WEBHOOK_SECRET not set — webhook signature verification DISABLED"
+        )
+        body = await request.json()
+
+    # Parse into the expected shape
+    try:
+        payload = WebhookPayload(**body)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Unexpected webhook body shape")
+
     event_type = payload.type
     data = payload.data
     resend_id = data.get("email_id")

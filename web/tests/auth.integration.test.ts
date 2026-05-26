@@ -195,9 +195,14 @@ describe('Osool Authentication Integration Tests', () => {
    */
   describe('Web3 Wallet Authentication', () => {
     it('should sign message with MetaMask and verify signature', async () => {
+      type WalletRequest = {
+        method: string;
+        params?: string[];
+      };
+
       // Mock MetaMask ethereum provider
       const mockEthereum = {
-        request: jest.fn((params: any) => {
+        request: jest.fn((params: WalletRequest) => {
           if (params.method === 'eth_requestAccounts') {
             return Promise.resolve(['0x742d35Cc6634C0532925a3b844Bc454e4438f44e']);
           }
@@ -208,7 +213,7 @@ describe('Osool Authentication Integration Tests', () => {
         }),
       };
 
-      (global as any).ethereum = mockEthereum;
+      (global as typeof globalThis & { ethereum?: typeof mockEthereum }).ethereum = mockEthereum;
 
       // Mock backend signature verification
       const mockWalletAuthResponse = {
@@ -343,8 +348,9 @@ describe('Osool Authentication Integration Tests', () => {
         await api.post('/auth/refresh', {
           refresh_token: invalidRefreshToken,
         });
-      } catch (error: any) {
-        expect(error.response.status).toBe(401);
+      } catch (error: unknown) {
+        const refreshError = error as { response?: { status?: number } };
+        expect(refreshError.response?.status).toBe(401);
       }
 
       // In real app, interceptor would clear tokens and redirect

@@ -125,9 +125,10 @@ export default function FunnelIndicator({ leadScore, readinessScore, language = 
                     {/* Animated gradient fill */}
                     <motion.div
                         className={`h-full rounded-full bg-gradient-to-r ${stage.gradient}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progressPct}%` }}
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: progressPct / 100 }}
                         transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                        style={{ transformOrigin: 'left' }}
                     />
                     {/* Shimmer overlay on the filled portion */}
                     <motion.div
@@ -248,9 +249,10 @@ export default function FunnelIndicator({ leadScore, readinessScore, language = 
                             </span>
                             <div className="w-20 h-[5px] rounded-full bg-[var(--color-border)] overflow-hidden">
                                 <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${readinessScore}%` }}
+                                    initial={{ scaleX: 0 }}
+                                    animate={{ scaleX: readinessScore / 100 }}
                                     transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
+                                    style={{ transformOrigin: 'left' }}
                                     className={`h-full rounded-full bg-gradient-to-r ${
                                         readinessScore >= 60 ? stage.gradient : 'from-orange-400 to-amber-400'
                                     }`}

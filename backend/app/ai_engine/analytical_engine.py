@@ -51,6 +51,7 @@ AREA_PRICES = {
     "New Cairo": 75000,      # Updated: range 38k-160k across projects; weighted avg ~75k
     "Sheikh Zayed": 130000,  # Updated: range 90k-220k across projects; weighted avg ~130k
     "New Capital": 58000,    # Updated: range 40k-67k across projects; avg ~58k
+    "New Zayed": 120000,     # Ultra-premium (Ora, SODIC)
     "6th October": 47000,    # Research: +153.7%
     "North Coast": 175000,   # Updated: Marassi 150k-250k+, MV Ras El Hekma 70k-95k; avg ~175k
     "Red Sea": 100000,       # Updated: El Gouna 100k-180k, Makadi 32k-46k; blended ~100k
@@ -59,6 +60,7 @@ AREA_PRICES = {
     "Ain Sokhna": 91200,    # Usage-based premium
     "Madinaty": 55000,
     "Rehab": 50000,
+    "Mostakbal City": 50000, # Growth corridor
 }
 
 # Area growth rates (Historical YoY 2025)
@@ -66,6 +68,7 @@ AREA_PRICES = {
 AREA_GROWTH = {
     "New Cairo": 1.57,      # +157%
     "Sheikh Zayed": 1.85,   # +185%
+    "New Zayed": 2.00,      # +200% (ultra-premium corridor)
     "New Capital": 0.25,    # Stabilized
     "6th October": 1.53,    # +153%
     "North Coast": 2.09,    # +209%
@@ -74,6 +77,8 @@ AREA_GROWTH = {
     "Madinaty": 0.20,
     "Rehab": 0.15,       # +15% Stable mature area
     "Zamalek": 0.08,     # +8% Limited supply premium
+    "Red Sea": 1.50,     # +150% (El Gouna-driven)
+    "Mostakbal City": 1.20, # +120% Growth corridor
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -111,6 +116,15 @@ AREA_PRICE_HISTORY = {
     },
     "Rehab": {
         2021: 20000, 2022: 24000, 2023: 29000, 2024: 36000, 2025: 45000, 2026: 50000
+    },
+    "Red Sea": {
+        2021: 18000, 2022: 25000, 2023: 40000, 2024: 70000, 2025: 95000, 2026: 110000
+    },
+    "New Zayed": {
+        2021: 15000, 2022: 20000, 2023: 35000, 2024: 65000, 2025: 100000, 2026: 120000
+    },
+    "Mostakbal City": {
+        2021: 10000, 2022: 14000, 2023: 20000, 2024: 32000, 2025: 42000, 2026: 50000
     },
 }
 
@@ -246,6 +260,46 @@ DEVELOPER_PRICE_HISTORY = {
         "type": "apartment",
         "price_min": 48000, "price_max": 62000,
         2021: 14000, 2022: 20000, 2023: 28000, 2024: 40000, 2025: 52000, 2026: 55000,
+    },
+    "Ora (ZED West)": {
+        "area": "Sheikh Zayed",
+        "type": "apartment",
+        2021: 20000, 2022: 28000, 2023: 52000, 2024: 95000, 2025: 130000, 2026: 140000,
+    },
+    "Emaar (Cairo Gate)": {
+        "area": "Sheikh Zayed",
+        "type": "apartment",
+        2021: 18000, 2022: 25000, 2023: 45000, 2024: 85000, 2025: 125000, 2026: 135000,
+    },
+    "SODIC (The Estates)": {
+        "area": "New Zayed",
+        "type": "villa",
+        2021: 16000, 2022: 22000, 2023: 40000, 2024: 75000, 2025: 105000, 2026: 110000,
+    },
+    "Emaar (Marassi)": {
+        "area": "North Coast",
+        "type": "apartment",
+        2021: 25000, 2022: 38000, 2023: 75000, 2024: 150000, 2025: 200000, 2026: 200000,
+    },
+    "TMG (Celia)": {
+        "area": "New Capital",
+        "type": "apartment",
+        2021: 12000, 2022: 16000, 2023: 22000, 2024: 35000, 2025: 48000, 2026: 57000,
+    },
+    "City Edge (Al Maqsad)": {
+        "area": "New Capital",
+        "type": "apartment",
+        2021: 14000, 2022: 18000, 2023: 25000, 2024: 38000, 2025: 52000, 2026: 60000,
+    },
+    "Orascom (El Gouna)": {
+        "area": "Red Sea",
+        "type": "apartment",
+        2021: 20000, 2022: 30000, 2023: 50000, 2024: 90000, 2025: 120000, 2026: 140000,
+    },
+    "Madinet Masr (Sarai)": {
+        "area": "New Cairo",
+        "type": "apartment",
+        2021: 10000, 2022: 14000, 2023: 20000, 2024: 30000, 2025: 42000, 2026: 46000,
     },
 }
 
@@ -845,6 +899,313 @@ AVERAGE_RENT_BY_AREA = {
 
 
 # ═══════════════════════════════════════════════════════════════
+# DEVALUATION CYCLE INTELLIGENCE (2023-2026)
+# Separates the "spike" from "stabilization" to prevent ML
+# models from wildly overestimating future appreciation.
+# ═══════════════════════════════════════════════════════════════
+
+# YoY appreciation by region & economic regime
+# Source: Institutional transaction data (JLL, Colliers), NOT portal asking prices
+APPRECIATION_BY_REGIME = {
+    "east_cairo": {
+        "label": "East Cairo (New Cairo, Mostakbal City, 6th Settlement)",
+        "developers": ["SODIC", "Emaar", "Marakez", "Palm Hills", "Mountain View", "Madinet Masr"],
+        "devaluation_peak_2023_2024": (0.80, 1.50),     # 80%-150%+
+        "market_correction_2024_2025": (0.185, 0.30),    # 18.5%-30%
+        "stabilized_run_rate_2025_2026": (0.10, 0.15),   # 10%-15%
+    },
+    "west_cairo": {
+        "label": "West Cairo (Sheikh Zayed, New Zayed)",
+        "developers": ["Ora", "SODIC", "Emaar"],
+        "devaluation_peak_2023_2024": (0.90, 1.85),      # 90%-185%+
+        "market_correction_2024_2025": (0.226, 0.35),     # 22.6%-35%
+        "stabilized_run_rate_2025_2026": (0.12, 0.18),    # 12%-18%
+    },
+    "north_coast": {
+        "label": "North Coast (Sahel)",
+        "developers": ["Emaar", "Orascom", "Mountain View"],
+        "devaluation_peak_2023_2024": (1.50, 2.09),      # 150%-209%+
+        "market_correction_2024_2025": (0.40, 0.60),      # 40%-60%
+        "stabilized_run_rate_2025_2026": (0.15, 0.20),    # 15%-20%
+    },
+    "nac": {
+        "label": "New Administrative Capital",
+        "developers": ["TMG", "City Edge", "Sky Capital"],
+        "devaluation_peak_2023_2024": (0.60, 1.00),      # 60%-100%
+        "market_correction_2024_2025": (0.15, 0.25),      # 15%-25%
+        "stabilized_run_rate_2025_2026": (0.10, 0.12),    # 10%-12%
+    },
+    "red_sea": {
+        "label": "Red Sea (El Gouna, Makadi Heights)",
+        "developers": ["Orascom"],
+        "devaluation_peak_2023_2024": (0.70, 1.20),      # 70%-120%
+        "market_correction_2024_2025": (0.20, 0.35),      # 20%-35%
+        "stabilized_run_rate_2025_2026": (0.12, 0.18),    # 12%-18%
+    },
+}
+
+# Developer appreciation behavior taxonomy
+# Used to weight ML features and explain price movements to users
+DEVELOPER_BEHAVIOR_CATEGORIES = {
+    "usd_pegged_giants": {
+        "label": "USD-Pegged Giants",
+        "label_ar": "عمالقة الدولار",
+        "developers": ["emaar", "ora"],
+        "behavior": (
+            "Capture highest market premiums. Resale markets react almost instantly "
+            "to parallel-market USD fluctuations. Emaar North Coast (Marassi, Soul) "
+            "saw YoY jumps exceeding 200% at devaluation peak as buyers treated "
+            "them as dollar safe-havens."
+        ),
+        "volatility": "high",
+        "resilience": "very_high",
+        "devaluation_sensitivity": 1.0,   # Full exposure to FX moves
+        "cash_discount_typical": 0.30,    # 30% cash discounts to secure liquidity
+        "stabilized_premium_over_market": 0.20,  # 20% above area average
+    },
+    "established_blue_chips": {
+        "label": "Established Blue-Chips",
+        "label_ar": "الشركات الراسخة",
+        "developers": ["sodic", "palm hills", "tmg", "talaat moustafa"],
+        "behavior": (
+            "Steady compounding growth via vast phased master plans "
+            "(TMG's Celia, SODIC's Villette). Showed 80%-120% nominal growth "
+            "during inflation peak but quickly normalized to 15%-20% YoY. "
+            "Long payment plans (up to 10-12 years) flood secondary market "
+            "with installment transfers, slightly depressing immediate resale "
+            "appreciation vs Emaar/Ora."
+        ),
+        "volatility": "medium",
+        "resilience": "high",
+        "devaluation_sensitivity": 0.7,
+        "cash_discount_typical": 0.25,
+        "stabilized_premium_over_market": 0.12,
+    },
+    "volume_value_players": {
+        "label": "Volume & Value Players",
+        "label_ar": "مطوري الحجم والقيمة",
+        "developers": ["madinet masr", "mountain view", "hyde park", "tatweer misr"],
+        "behavior": (
+            "Target upper-middle class with competitive entry prices and massive "
+            "plot sizes. Offer highest percentage yield for early primary buyers "
+            "because initial entry price is lower. Mountain View iCity saw massive "
+            "secondary market movement, stabilizing at ~15% YoY heading into 2026."
+        ),
+        "volatility": "low",
+        "resilience": "medium",
+        "devaluation_sensitivity": 0.5,
+        "cash_discount_typical": 0.40,   # Heaviest cash discounts (up to 40%)
+        "stabilized_premium_over_market": 0.05,
+    },
+}
+
+# Asking vs Closing price delta warning
+# Portal data (user listings) often shows 15-30% asking premium over actual closes
+ASKING_VS_CLOSING_DELTA = {
+    "villa_new_cairo": 0.25,    # Asking 25% above actual closing
+    "villa_zayed": 0.30,       # Asking 30% above actual closing
+    "apartment_new_cairo": 0.15,
+    "apartment_nac": 0.10,
+    "coastal_all": 0.20,
+}
+
+# Region key mapping for location → regime lookup
+_REGION_KEY_MAP = {
+    "new cairo": "east_cairo",
+    "mostakbal city": "east_cairo",
+    "mostakbal": "east_cairo",
+    "6th settlement": "east_cairo",
+    "golden square": "east_cairo",
+    "sheikh zayed": "west_cairo",
+    "new zayed": "west_cairo",
+    "north coast": "north_coast",
+    "sahel": "north_coast",
+    "ras el hekma": "north_coast",
+    "new administrative capital": "nac",
+    "new capital": "nac",
+    "nac": "nac",
+    "red sea": "red_sea",
+    "el gouna": "red_sea",
+    "hurghada": "red_sea",
+    "makadi": "red_sea",
+    "ain sokhna": "red_sea",
+}
+
+
+def get_regime_key(location: str) -> str:
+    """Map a location string to an appreciation regime key."""
+    loc = location.lower().strip()
+    for pattern, key in _REGION_KEY_MAP.items():
+        if pattern in loc:
+            return key
+    return "east_cairo"  # Default fallback
+
+
+def get_developer_category(developer: str) -> dict:
+    """Classify a developer into its behavior category."""
+    dev = developer.lower().strip()
+    for cat_key, cat in DEVELOPER_BEHAVIOR_CATEGORIES.items():
+        for d in cat["developers"]:
+            if d in dev or dev in d:
+                return {"category_key": cat_key, **cat}
+    # Unknown developer → treat as volume/value player (conservative)
+    return {"category_key": "volume_value_players", **DEVELOPER_BEHAVIOR_CATEGORIES["volume_value_players"]}
+
+
+def calculate_real_vs_nominal_appreciation(
+    location: str,
+    inflation_rate: float = None,
+) -> dict:
+    """
+    Real vs Nominal Appreciation Index.
+
+    While nominal prices rose ~18% YoY, real (inflation-adjusted)
+    appreciation is closer to 6%. Developers offering heavy cash
+    discounts (up to 40%) further skew primary market pricing data
+    when scrapers pick up the discounted price vs installment price.
+    """
+    if inflation_rate is None:
+        inflation_rate = MARKET_DATA.get("inflation_rate", 0.136)
+
+    regime_key = get_regime_key(location)
+    regime = APPRECIATION_BY_REGIME.get(regime_key, APPRECIATION_BY_REGIME["east_cairo"])
+
+    # Current stabilized rate (midpoint of range)
+    stab_low, stab_high = regime["stabilized_run_rate_2025_2026"]
+    nominal_rate = (stab_low + stab_high) / 2
+
+    # Real = ((1 + nominal) / (1 + inflation)) - 1
+    real_rate = ((1 + nominal_rate) / (1 + inflation_rate)) - 1
+
+    return {
+        "region": regime["label"],
+        "regime_key": regime_key,
+        "nominal_yoy": round(nominal_rate * 100, 1),
+        "inflation_rate": round(inflation_rate * 100, 1),
+        "real_yoy": round(real_rate * 100, 1),
+        "nominal_range": (round(stab_low * 100, 1), round(stab_high * 100, 1)),
+        "devaluation_peak_range": (
+            round(regime["devaluation_peak_2023_2024"][0] * 100, 1),
+            round(regime["devaluation_peak_2023_2024"][1] * 100, 1),
+        ),
+        "correction_range": (
+            round(regime["market_correction_2024_2025"][0] * 100, 1),
+            round(regime["market_correction_2024_2025"][1] * 100, 1),
+        ),
+        "phase": "stabilization",
+        "warning": (
+            "Current nominal rates reflect the 2025-2026 Stabilization Phase. "
+            "Do NOT extrapolate 2023-2024 devaluation-era rates into future projections."
+        ),
+    }
+
+
+def predict_price_forward(
+    current_price_sqm: float,
+    location: str,
+    developer: str = "",
+    years: int = 3,
+    scenario: str = "base",
+) -> dict:
+    """
+    Forward price prediction with regime-aware appreciation rates.
+
+    Scenarios:
+      - conservative: Uses low end of stabilized rate
+      - base: Uses midpoint of stabilized rate
+      - optimistic: Uses high end of stabilized rate
+
+    Developer category adjusts the rate via its premium-over-market factor.
+    """
+    regime_key = get_regime_key(location)
+    regime = APPRECIATION_BY_REGIME.get(regime_key, APPRECIATION_BY_REGIME["east_cairo"])
+    stab_low, stab_high = regime["stabilized_run_rate_2025_2026"]
+
+    if scenario == "conservative":
+        base_rate = stab_low
+    elif scenario == "optimistic":
+        base_rate = stab_high
+    else:
+        base_rate = (stab_low + stab_high) / 2
+
+    # Developer premium adjustment
+    dev_cat = get_developer_category(developer) if developer else None
+    dev_premium = dev_cat["stabilized_premium_over_market"] if dev_cat else 0
+    adjusted_rate = base_rate + (base_rate * dev_premium)
+
+    # Compound over years
+    inflation_rate = MARKET_DATA.get("inflation_rate", 0.136)
+    projections = []
+    price = current_price_sqm
+    for yr in range(1, years + 1):
+        price = price * (1 + adjusted_rate)
+        real_price = price / ((1 + inflation_rate) ** yr) * ((1 + inflation_rate) ** 0)
+        projections.append({
+            "year": 2026 + yr,
+            "nominal_price_sqm": round(price),
+            "real_price_sqm_2026_base": round(current_price_sqm * ((1 + adjusted_rate) / (1 + inflation_rate)) ** yr),
+            "cumulative_nominal_growth": round(((price / current_price_sqm) - 1) * 100, 1),
+        })
+
+    return {
+        "current_price_sqm": round(current_price_sqm),
+        "location": location,
+        "regime": regime["label"],
+        "developer": developer or "Market Average",
+        "developer_category": dev_cat["label"] if dev_cat else "N/A",
+        "scenario": scenario,
+        "annual_rate_nominal": round(adjusted_rate * 100, 1),
+        "annual_rate_real": round(((1 + adjusted_rate) / (1 + inflation_rate) - 1) * 100, 1),
+        "projections": projections,
+    }
+
+
+def format_appreciation_context_for_prompt(location: str, developer: str = "") -> str:
+    """
+    Format the devaluation cycle intelligence as a prompt injection string.
+    Called during _generate_wolf_narrative to give the AI regime-awareness.
+    """
+    rn = calculate_real_vs_nominal_appreciation(location)
+    dev_cat = get_developer_category(developer) if developer else None
+    regime_key = get_regime_key(location)
+    regime = APPRECIATION_BY_REGIME.get(regime_key, APPRECIATION_BY_REGIME["east_cairo"])
+
+    lines = [
+        "\n[PREDICTIVE PRICING INTELLIGENCE — REGIME-AWARE]",
+        f"📍 Region: {rn['region']}",
+        f"📊 Current Phase: STABILIZATION (2025-2026)",
+        f"   Nominal YoY: {rn['nominal_range'][0]}%-{rn['nominal_range'][1]}%",
+        f"   Real YoY (inflation-adjusted): {rn['real_yoy']}%",
+        f"   Inflation: {rn['inflation_rate']}%",
+        "",
+        "⚠️ DEVALUATION CONTEXT (DO NOT EXTRAPOLATE):",
+        f"   2023-2024 (Spike): {rn['devaluation_peak_range'][0]}%-{rn['devaluation_peak_range'][1]}%",
+        f"   2024-2025 (Correction): {rn['correction_range'][0]}%-{rn['correction_range'][1]}%",
+        f"   2025-2026 (Stabilized): {rn['nominal_range'][0]}%-{rn['nominal_range'][1]}%",
+    ]
+
+    if dev_cat:
+        lines += [
+            "",
+            f"🏗️ Developer Category: {dev_cat['label']}",
+            f"   Volatility: {dev_cat['volatility']} | Resilience: {dev_cat['resilience']}",
+            f"   Cash Discount Typical: {int(dev_cat['cash_discount_typical'] * 100)}%",
+            f"   Behavior: {dev_cat['behavior'][:200]}",
+        ]
+
+    lines += [
+        "",
+        "📌 RULES FOR PRICING DISCUSSIONS:",
+        "   - Quote STABILIZED rates (10-20%) for forward projections, never devaluation-era rates",
+        "   - Flag asking-vs-closing price delta: portal prices are 15-30% above actual transactions",
+        "   - Cash discounts can reach 40% — clarify if price is cash or installment",
+        "   - Real appreciation after inflation is ~6%, not the headline 18% nominal",
+    ]
+
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════
 # PAYMENT PLAN ANALYZER — Egyptian-specific installment intelligence
 # 80% of Egyptian purchases are installment-based
 # ═══════════════════════════════════════════════════════════════
@@ -1418,9 +1779,12 @@ class OsoolScore:
     rental_score: int       # V2: Rental yield attractiveness
     location_score: int     # V2: Location premium/demand level
     verdict: str  # BARGAIN, FAIR, PREMIUM, BELOW_COST
+    confidence: str         # HIGH / MEDIUM / LOW — data availability
+    score_range: tuple      # (low, high) — ±band reflecting confidence
 
     def __init__(self, total_score=0, value_score=0, growth_score=0,
-                 developer_score=0, rental_score=0, location_score=0, verdict="FAIR"):
+                 developer_score=0, rental_score=0, location_score=0,
+                 verdict="FAIR", confidence="MEDIUM", score_range=None):
         self.total_score = total_score
         self.value_score = value_score
         self.growth_score = growth_score
@@ -1428,6 +1792,13 @@ class OsoolScore:
         self.rental_score = rental_score
         self.location_score = location_score
         self.verdict = verdict
+        self.confidence = confidence
+        # Default band: ±10 for HIGH, ±15 for MEDIUM, ±25 for LOW
+        if score_range is None:
+            band = {"HIGH": 10, "MEDIUM": 15, "LOW": 25}.get(confidence, 15)
+            self.score_range = (max(0, total_score - band), min(100, total_score + band))
+        else:
+            self.score_range = score_range
 
     def to_dict(self) -> Dict:
         return {
@@ -1440,7 +1811,12 @@ class OsoolScore:
                 "rental": self.rental_score,
                 "location": self.location_score,
             },
-            "verdict": self.verdict
+            "verdict": self.verdict,
+            "confidence": self.confidence,
+            "score_range": {
+                "low": self.score_range[0],
+                "high": self.score_range[1],
+            },
         }
 
 
@@ -1697,11 +2073,17 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
         self,
         location: str,
         include_developers: bool = True,
+        live_current_price_sqm: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
-        Return 5-year (2021→2026) price growth trajectory for an area.
+        Return 5-year (2021→current year) price growth trajectory for an area.
         Optionally includes developer-specific price lines.
         Used by the price_growth_chart UI visualization.
+
+        Args:
+            live_current_price_sqm: If provided, overrides the hardcoded value for
+                the most recent year with the actual average price from the DB,
+                ensuring the chart's "now" data point is accurate.
         """
         try:
             # Normalize location lookup
@@ -1734,6 +2116,13 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
 
             if not history:
                 return {"found": False, "location": location}
+
+            # If the caller supplies a live DB price, override the most recent year
+            # so the chart's rightmost data point reflects actual scraped prices.
+            if live_current_price_sqm and live_current_price_sqm > 0:
+                current_year = max(k for k in history if isinstance(k, int))
+                history = dict(history)  # shallow copy — don't mutate the module-level constant
+                history[current_year] = live_current_price_sqm
 
             # Build data points
             years_list = sorted([y for y in history.keys() if isinstance(y, int)])
@@ -1920,42 +2309,51 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
             developer = (property_data.get("developer", "") or property_data.get("developer_name", "") or "").lower()
 
             # 1. VALUE SCORE (Price/sqm vs market) — 0-100
+            # Recalibrated curve: at-market = 50 (neutral), not 70.
+            # Anchors: ratio 0.70 → 0, 1.00 → 50, 1.30 → 100. Linear between.
             price_per_sqm = price / size_sqm if size_sqm > 0 else 0
             market_avg = await self._get_area_avg_price(location, session)
 
-            if price_per_sqm > 0 and market_avg > 0:
-                # Ratio > 1 means cheap vs market, < 1 means expensive
+            has_market_data = price_per_sqm > 0 and market_avg > 0
+            if has_market_data:
                 value_ratio = market_avg / price_per_sqm
-                # Map: 0.5 ratio -> 0, 1.0 ratio -> 70, 1.5 ratio -> 100
-                value_score = min(100, max(0, int(value_ratio * 70)))
-            elif price == 0:
-                # No price data — give neutral score
-                value_score = 50
+                value_score = int(round((value_ratio - 0.70) * (100 / 0.60)))
+                value_score = max(0, min(100, value_score))
             else:
-                value_score = 50
+                value_score = 50  # neutral when price or market data missing
 
             # 2. GROWTH SCORE (Area appreciation) — 0-100
-            growth_rate = self._get_appreciation_rate(location)
+            # Prefer Area table row (admin-editable); fall back to in-code constants.
+            from app.services import market_data_repository as mkt
+            growth_rate = await mkt.get_area_growth(location, session)
+            if growth_rate is None:
+                growth_rate = self._get_appreciation_rate(location)
             # Map: 0% -> 40, 50% -> 60, 100% -> 75, 200% -> 100
             growth_score = min(100, max(40, int(40 + min(growth_rate, 3.0) * 20)))
 
             # 3. DEVELOPER SCORE — 0-100
-            developer_score = 60  # Default for unknown
-            if developer:
-                if any(d in developer for d in TIER1_DEVELOPERS):
-                    developer_score = 95
-                elif any(d in developer for d in TIER2_DEVELOPERS):
-                    developer_score = 80
-                # Check DEVELOPER_GRAPH for additional matches
-                for dev_key, dev_data in DEVELOPER_GRAPH.items():
-                    dev_names = [dev_key, dev_data.get('name_en', '').lower(), dev_data.get('name_ar', '')]
-                    if any(name and name.lower() in developer for name in dev_names):
-                        tier = dev_data.get('tier', 3)
-                        developer_score = {1: 95, 2: 80}.get(tier, 65)
-                        break
+            # DB first: developers.overall_score is the admin-curated value.
+            db_dev_score = await mkt.get_developer_score(developer, session)
+            if db_dev_score is not None:
+                developer_score = int(round(db_dev_score))
+            else:
+                developer_score = 60  # Default for unknown
+                if developer:
+                    if any(d in developer for d in TIER1_DEVELOPERS):
+                        developer_score = 95
+                    elif any(d in developer for d in TIER2_DEVELOPERS):
+                        developer_score = 80
+                    # Check DEVELOPER_GRAPH for additional matches
+                    for dev_key, dev_data in DEVELOPER_GRAPH.items():
+                        dev_names = [dev_key, dev_data.get('name_en', '').lower(), dev_data.get('name_ar', '')]
+                        if any(name and name.lower() in developer for name in dev_names):
+                            tier = dev_data.get('tier', 3)
+                            developer_score = {1: 95, 2: 80}.get(tier, 65)
+                            break
 
             # 4. RENTAL SCORE (Yield attractiveness) — 0-100
-            rental_yield = self._get_rental_yield(location)
+            db_yield = await mkt.get_area_rental_yield(location, session)
+            rental_yield = db_yield if db_yield is not None else self._get_rental_yield(location)
             # Map: 5% -> 50, 6.5% -> 65, 7.5% -> 75, 10% -> 100
             rental_score = min(100, max(30, int(rental_yield * 1000)))
 
@@ -1986,15 +2384,29 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
             )
             total_score = max(0, min(100, total_score))
 
-            # VERDICT
-            if value_score > 85 and total_score > 80:
+            # VERDICT — recalibrated against the new value_score curve
+            # (at-market = 50, ~12% below = 70, ~25% below = 85+)
+            if value_score >= 85 and total_score >= 80:
                 verdict = "BELOW_COST"  # Buying below replacement cost
-            elif value_score > 75:
-                verdict = "BARGAIN"
-            elif value_score > 55:
-                verdict = "FAIR"
+            elif value_score >= 70:
+                verdict = "BARGAIN"     # ≥12% below market
+            elif value_score >= 40:
+                verdict = "FAIR"        # Within ~18% of market
             else:
-                verdict = "PREMIUM"
+                verdict = "PREMIUM"     # Significantly above market
+
+            # CONFIDENCE — reflects how much real data backed the score
+            # HIGH: have both market avg and a known developer/location
+            # MEDIUM: have market avg OR developer/location data
+            # LOW: missing market avg AND developer unknown
+            known_developer = developer_score != 60  # 60 is the "unknown" default
+            known_location = location_score != 60
+            if has_market_data and (known_developer or known_location):
+                confidence = "HIGH"
+            elif has_market_data or known_developer or known_location:
+                confidence = "MEDIUM"
+            else:
+                confidence = "LOW"
 
             return OsoolScore(
                 total_score=total_score,
@@ -2004,6 +2416,7 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
                 rental_score=rental_score,
                 location_score=location_score,
                 verdict=verdict,
+                confidence=confidence,
             )
         except Exception as e:
             logger.error(f"score_property error: {e}", exc_info=True)
@@ -2011,7 +2424,7 @@ Property real growth of {real_growth:.1f}% means property holders beat inflation
             return OsoolScore(
                 total_score=50, value_score=50, growth_score=50,
                 developer_score=50, rental_score=50, location_score=50,
-                verdict="FAIR"
+                verdict="FAIR", confidence="LOW",
             )
     
     async def score_properties(
@@ -2893,4 +3306,12 @@ __all__ = [
     "DEVELOPER_GRAPH",
     "RESALE_MARKUP_DATA",
     "AVERAGE_RENT_BY_AREA",
+    "APPRECIATION_BY_REGIME",
+    "DEVELOPER_BEHAVIOR_CATEGORIES",
+    "ASKING_VS_CLOSING_DELTA",
+    "get_regime_key",
+    "get_developer_category",
+    "calculate_real_vs_nominal_appreciation",
+    "predict_price_forward",
+    "format_appreciation_context_for_prompt",
 ]

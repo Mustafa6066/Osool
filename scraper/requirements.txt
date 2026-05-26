@@ -1,7 +1,19 @@
-# Nawy Scraper Dependencies
+# Osool Scraper — Zero LLM Tokens
+# Scrapling for adaptive CSS/XPath + stealth. No LLM SDKs.
+
+scrapling>=0.2.9
+curl-cffi>=0.7.0
+patchright>=1.49.0
+msgspec>=0.18.0
+browserforge>=1.1.0
 playwright>=1.40.0
+httpx>=0.26.0
+pydantic>=2.0.0
 python-dotenv>=1.0.0
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
-openai>=1.10.0
+asyncpg>=0.29.0
 pgvector>=0.2.5
+redis>=5.0.0
+tenacity>=8.2.0
+pytest>=8.0.0

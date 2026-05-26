@@ -108,14 +108,18 @@ export default function EmbeddedChart({
     // Anime.js drawing animation
     useEffect(() => {
         if (!enableDrawAnimation || !chartContainerRef.current) {
-            setChartReady(true);
-            return;
+            const readyTimer = setTimeout(() => {
+                setChartReady(true);
+            }, 0);
+
+            return () => clearTimeout(readyTimer);
         }
 
-        setIsDrawing(true);
-        setChartReady(false);
+        const resetTimer = setTimeout(() => {
+            setIsDrawing(true);
+            setChartReady(false);
+        }, 0);
 
-        // Small delay to ensure SVG is rendered
         const initTimer = setTimeout(() => {
             const container = chartContainerRef.current;
             if (!container) return;
@@ -167,7 +171,10 @@ export default function EmbeddedChart({
             setChartReady(true);
         }, 100);
 
-        return () => clearTimeout(initTimer);
+        return () => {
+            clearTimeout(resetTimer);
+            clearTimeout(initTimer);
+        };
     }, [data, enableDrawAnimation]);
 
     // Calculate trend if not provided

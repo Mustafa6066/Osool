@@ -28,7 +28,7 @@ export default function XPToast({ amount, action, onDone }: XPToastProps) {
 
     return (
         <div
-            className={`fixed bottom-24 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5
+            className={`fixed bottom-24 end-6 z-50 flex items-center gap-2.5 px-4 py-2.5
                         bg-[var(--color-surface)] border border-[var(--color-border)]
                         text-[var(--color-text-primary)] rounded-full
                         shadow-xl shadow-black/10 backdrop-blur-xl

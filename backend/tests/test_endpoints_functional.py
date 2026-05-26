@@ -195,50 +195,6 @@ class TestPaymentInitiateEndpoint:
         assert not mock_property.is_available
 
 
-class TestWalletEndpoints:
-    """Test wallet auth endpoints (verify-wallet, link-wallet, update-profile)."""
-
-    @pytest.mark.asyncio
-    async def test_verify_wallet_creates_new_user(self):
-        """New wallet address should create a new user with defaults."""
-        wallet_address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
-
-        # Simulating the endpoint logic
-        email = f"{wallet_address[:8].lower()}@wallet.osool.com"
-        assert email == "0x742d35@wallet.osool.com"
-
-    @pytest.mark.asyncio
-    async def test_verify_wallet_detects_new_user(self):
-        """New user (full_name='Wallet User' or no phone) → is_new_user=True."""
-        full_name = "Wallet User"
-        phone_number = None
-        is_new_user = full_name == "Wallet User" or not phone_number
-        assert is_new_user is True
-
-    @pytest.mark.asyncio
-    async def test_verify_wallet_detects_existing_user(self):
-        """Completed profile → is_new_user=False."""
-        full_name = "Ahmed Hassan"
-        phone_number = "+201234567890"
-        is_new_user = full_name == "Wallet User" or not phone_number
-        assert is_new_user is False
-
-    @pytest.mark.asyncio
-    async def test_link_wallet_checks_already_linked(self):
-        """If user already has this wallet → status='already_linked'."""
-        current_wallet = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
-        requested_wallet = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
-        assert current_wallet == requested_wallet
-
-    @pytest.mark.asyncio
-    async def test_link_wallet_rejects_duplicate(self):
-        """Wallet already linked to another user → 400."""
-        existing_user = MagicMock()
-        existing_user.id = 99  # Different user
-        current_user_id = 42
-        assert existing_user.id != current_user_id
-
-
 class TestUpdateProfileEndpoint:
     """Test update-profile endpoint (async conversion)."""
 

@@ -1,12 +1,17 @@
 """
 Osool Scheduled Tasks
 ---------------------
-APScheduler-based cron jobs for data ingestion.
+APScheduler-based cron jobs for data ingestion and post-processing.
 
 Jobs:
-1. Property Scraper (Nawy) — Sundays at 03:00 UTC
+1. Post-Scrape Processing — Sundays at 04:30 UTC
+   Stale property cleanup + price flagging + orchestrator notification.
+   Runs AFTER the Railway Cron scraper container (which runs at 03:00 UTC).
+   The actual property scraping is handled by nawy_scraper_v2.py via Railway Cron.
+
 2. Economic Indicators — Sundays at 03:30 UTC
 3. Geopolitical Events — Daily at 04:00 UTC
+4. Image Mirror — Sundays at 05:00 UTC
 
 Runs in-process with the FastAPI app. No separate worker needed.
 """
@@ -16,22 +21,128 @@ import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from tenacity import retry, stop_after_attempt, wait_exponential
+import httpx
 
 logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler(timezone="UTC")
 
+_scheduler_lock_fd = None
+_scheduler_lock_owner = False
+_scheduler_lock_path = os.getenv("SCHEDULER_LOCK_FILE", "/tmp/osool_apscheduler.lock")
+
+ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+
+
+def _acquire_scheduler_lock() -> bool:
+    """
+    Ensure only one process starts APScheduler.
+
+    In production, Gunicorn runs multiple worker processes and each worker executes
+    FastAPI startup events. Without an inter-process lock, all workers will start
+    their own scheduler and each cron job runs multiple times.
+    """
+    global _scheduler_lock_fd, _scheduler_lock_owner
+
+    if _scheduler_lock_owner:
+        return True
+
+    # fcntl is available on Linux (Railway) and unavailable on Windows.
+    # Windows local dev usually runs a single process, so we allow startup.
+    try:
+        import fcntl
+    except ImportError:
+        logger.warning("APScheduler lock unavailable on this OS; continuing without inter-process lock")
+        return True
+
+    lock_dir = os.path.dirname(_scheduler_lock_path)
+    if lock_dir:
+        os.makedirs(lock_dir, exist_ok=True)
+
+    fd = os.open(_scheduler_lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        return False
+
+    os.ftruncate(fd, 0)
+    os.write(fd, str(os.getpid()).encode("utf-8"))
+    _scheduler_lock_fd = fd
+    _scheduler_lock_owner = True
+    return True
+
+
+def _release_scheduler_lock() -> None:
+    global _scheduler_lock_fd, _scheduler_lock_owner
+
+    if _scheduler_lock_fd is None:
+        _scheduler_lock_owner = False
+        return
+
+    try:
+        import fcntl
+        fcntl.flock(_scheduler_lock_fd, fcntl.LOCK_UN)
+    except Exception:
+        pass
+
+    try:
+        os.close(_scheduler_lock_fd)
+    except Exception:
+        pass
+
+    _scheduler_lock_fd = None
+    _scheduler_lock_owner = False
+
+
+async def _notify_orchestrator(event_type: str, payload: dict):
+    """Fire-and-forget POST to the Orchestrator scraper-event webhook."""
+    if not ORCHESTRATOR_URL:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(
+                f"{ORCHESTRATOR_URL}/webhooks/scraper-event",
+                json={"eventType": event_type, **payload},
+                headers={"X-Webhook-Secret": WEBHOOK_SECRET, "Content-Type": "application/json"},
+            )
+        logger.info(f"[NOTIFY] Sent {event_type} to Orchestrator")
+    except Exception as e:
+        logger.warning(f"[NOTIFY] Failed to notify Orchestrator: {e}")
+
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=60, max=600), reraise=True)
-async def run_property_scraper():
-    """Weekly property scraper job with retry."""
-    logger.info("[CRON] Starting weekly property scraper...")
+async def run_post_scrape_processing():
+    """
+    Post-scrape processing job — runs after the Railway Cron scraper completes.
+
+    The Railway Cron container runs nawy_scraper_v2.py at Sunday 03:00 UTC and
+    writes directly to the database. This job (04:30 UTC) runs the downstream
+    processing steps that depend on the freshly-scraped data:
+      1. Mark stale properties (not seen in current/previous scrape run)
+      2. Flag under/over-priced properties per location zone
+      3. Notify the Orchestrator to refresh SEO content
+    """
+    logger.info("[CRON] Starting post-scrape processing...")
     try:
-        from app.services.nawy_scraper import ingest_nawy_data_async
-        result = await ingest_nawy_data_async()
-        logger.info(f"[CRON] Property scraper completed: {result}")
+        from app.services.nawy_scraper import mark_stale_properties, flag_underpriced_properties
+
+        # Clean up stale properties not seen in last 2 runs
+        stale_result = await mark_stale_properties()
+        logger.info(f"[CRON] Stale cleanup: {stale_result.get('stale_marked', 0)} marked unavailable")
+
+        # Cross-DB price validation
+        price_result = await flag_underpriced_properties()
+        logger.info(f"[CRON] Price validation: {price_result.get('flagged', 0)} flagged")
+
+        # Notify Orchestrator for SEO content refresh
+        await _notify_orchestrator("property_scrape_complete", {
+            "significantChanges": stale_result.get("stale_marked", 0),
+        })
+        logger.info("[CRON] Post-scrape processing complete")
     except Exception as e:
-        logger.error(f"[CRON] Property scraper failed: {e}")
+        logger.error(f"[CRON] Post-scrape processing failed: {e}")
         raise  # Let tenacity retry
 
 
@@ -46,6 +157,11 @@ async def run_economic_scraper():
         async with AsyncSessionLocal() as db:
             result = await update_market_indicators(db)
             logger.info(f"[CRON] Economic scraper completed: {result.get('updated', 0)} indicators updated")
+
+            # Notify Orchestrator for SEO content refresh
+            await _notify_orchestrator("economic_update", {
+                "indicators": result.get("indicators", {}),
+            })
     except Exception as e:
         logger.error(f"[CRON] Economic scraper failed: {e}")
         raise
@@ -60,13 +176,90 @@ async def run_geopolitical_scraper():
         from app.services.geopolitical_scraper import scrape_geopolitical_events
 
         async with AsyncSessionLocal() as db:
-            result = await scrape_geopolitical_events(db, use_llm=True)
+            result = await scrape_geopolitical_events(db)
             logger.info(
                 f"[CRON] Geopolitical scraper completed: "
                 f"stored={result.get('stored', 0)}, relevant={result.get('relevant', 0)}"
             )
+
+            # Notify Orchestrator if significant events were stored
+            if result.get("stored", 0) > 0:
+                await _notify_orchestrator("geopolitical_shift", {
+                    "significantChanges": result.get("stored", 0),
+                })
     except Exception as e:
         logger.error(f"[CRON] Geopolitical scraper failed: {e}")
+        raise
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
+async def run_image_mirror():
+    """Weekly image mirroring job — mirrors Nawy CDN images to S3."""
+    logger.info("[CRON] Starting image mirror job...")
+    try:
+        from app.services.image_mirror import mirror_property_images
+        result = await mirror_property_images(batch_size=100)
+        logger.info(f"[CRON] Image mirror completed: {result}")
+    except Exception as e:
+        logger.error(f"[CRON] Image mirror failed: {e}")
+        raise
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=600), reraise=True)
+async def run_nawy_scrape_scheduled():
+    """
+    Every-15-days Nawy property scraper job.
+    Runs on the 1st and 15th of each month at 03:00 UTC.
+    Writes directly to the database, then triggers post-scrape processing.
+    """
+    logger.info("[CRON] Starting scheduled 15-day Nawy scrape...")
+    try:
+        from app.services.nawy_scraper import run_nawy_scrape
+        result = await run_nawy_scrape()
+        logger.info(
+            f"[CRON] Nawy scrape completed: "
+            f"scraped={result.get('scraped', 0)}, "
+            f"upserted={result.get('upserted', 0)}, "
+            f"errors={result.get('errors', 0)}"
+        )
+        # Trigger post-scrape cleanup immediately after scraping
+        await run_post_scrape_processing()
+        # Notify Orchestrator
+        await _notify_orchestrator("property_scrape_complete", {
+            "significantChanges": result.get("upserted", 0),
+            "trigger": "scheduled_15day",
+        })
+    except Exception as e:
+        logger.error(f"[CRON] Scheduled Nawy scrape failed: {e}")
+        raise
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
+async def run_marketing_generator():
+    """Bi-weekly marketing material generation AI job."""
+    logger.info("[CRON] Starting marketing materials generation job...")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.marketing_generator import generate_marketing_answers
+        async with AsyncSessionLocal() as db:
+            result = await generate_marketing_answers(db)
+            logger.info(f"[CRON] Marketing materials generation completed: updated={result}")
+    except Exception as e:
+        logger.error(f"[CRON] Marketing materials generation failed: {e}")
+        raise
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
+async def run_portfolio_valuations():
+    """Weekly portfolio valuation update job."""
+    logger.info("[CRON] Starting portfolio valuation updates...")
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.portfolio_engine import update_valuations
+        async with AsyncSessionLocal() as db:
+            result = await update_valuations(db)
+            logger.info(f"[CRON] Portfolio valuations updated: {result.get('updated', 0)} entries")
+    except Exception as e:
+        logger.error(f"[CRON] Portfolio valuations failed: {e}")
         raise
 
 
@@ -75,14 +268,23 @@ def init_scheduler():
     Initialize and start the APScheduler with weekly cron jobs.
     Called once during FastAPI startup.
     """
-    # Property scraper: Every Sunday at 03:00 UTC
+    if scheduler.running:
+        logger.info("APScheduler already running in pid=%s; skipping re-init", os.getpid())
+        return
+
+    if not _acquire_scheduler_lock():
+        logger.info("APScheduler already owned by another worker; skipping init in pid=%s", os.getpid())
+        return
+
+    # Post-scrape processing: Every Sunday at 04:30 UTC
+    # Runs after the Railway Cron scraper container (03:00 UTC) completes.
     scheduler.add_job(
-        run_property_scraper,
-        trigger=CronTrigger(day_of_week="sun", hour=3, minute=0),
-        id="weekly_property_scraper",
-        name="Weekly Nawy Property Scraper",
+        run_post_scrape_processing,
+        trigger=CronTrigger(day_of_week="sun", hour=4, minute=30),
+        id="weekly_post_scrape_processing",
+        name="Weekly Post-Scrape Processing (stale + price flags)",
         replace_existing=True,
-        misfire_grace_time=3600,  # Allow 1 hour grace period
+        misfire_grace_time=3600,
     )
 
     # Economic scraper: Every Sunday at 03:30 UTC
@@ -105,11 +307,55 @@ def init_scheduler():
         misfire_grace_time=3600,
     )
 
+    # Image mirror: Every Sunday at 05:00 UTC (after property scraper)
+    scheduler.add_job(
+        run_image_mirror,
+        trigger=CronTrigger(day_of_week="sun", hour=5, minute=0),
+        id="weekly_image_mirror",
+        name="Weekly Image Mirror to S3",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    # Nawy Property Scraper: Every 15 days (1st and 15th of month) at 03:00 UTC
+    scheduler.add_job(
+        run_nawy_scrape_scheduled,
+        trigger=CronTrigger(day="1,15", hour=3, minute=0),
+        id="biweekly_nawy_scraper",
+        name="Bi-weekly Nawy Property Scraper (every 15 days)",
+        replace_existing=True,
+        misfire_grace_time=7200,  # 2h grace — scrape takes up to 60 min
+    )
+
+    # Marketing Material Generation: Bi-weekly (1st and 15th of the month) at 06:00 UTC
+    scheduler.add_job(
+        run_marketing_generator,
+        trigger=CronTrigger(day="1,15", hour=6, minute=0),
+        id="biweekly_marketing_generator",
+        name="Bi-weekly AI Marketing Answers Generator",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    # V5: Portfolio valuations: Every Sunday at 05:30 UTC (after image mirror)
+    scheduler.add_job(
+        run_portfolio_valuations,
+        trigger=CronTrigger(day_of_week="sun", hour=5, minute=30),
+        id="weekly_portfolio_valuations",
+        name="Weekly Portfolio Valuation Updates",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     scheduler.start()
     logger.info("✅ APScheduler started with cron jobs:")
-    logger.info("   📅 Property Scraper: Sundays 03:00 UTC")
+    logger.info("   📅 Nawy Scraper: 1st/15th of month 03:00 UTC (every 15 days)")
+    logger.info("   📅 Post-Scrape Processing: Sundays 04:30 UTC")
     logger.info("   📅 Economic Scraper: Sundays 03:30 UTC")
     logger.info("   📅 Geopolitical Scraper: Daily 04:00 UTC")
+    logger.info("   📅 Image Mirror: Sundays 05:00 UTC")
+    logger.info("   📅 Portfolio Valuations: Sundays 05:30 UTC")
+    logger.info("   📅 Marketing Generator: 1st/15th 06:00 UTC")
 
     # Log next run times
     for job in scheduler.get_jobs():
@@ -118,6 +364,7 @@ def init_scheduler():
 
 def shutdown_scheduler():
     """Gracefully stop the scheduler."""
-    if scheduler.running:
+    if scheduler.running and _scheduler_lock_owner:
         scheduler.shutdown(wait=False)
         logger.info("⏹️ APScheduler shut down")
+    _release_scheduler_lock()

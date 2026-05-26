@@ -39,12 +39,16 @@ from .psychology_layer import (
     DecisionStage,
     BuyerPersona,
     ObjectionResolutionTracker,
+    OBJECTION_PROBABILITY_MATRIX,
+    apply_behavioral_adjustments,
 )
 from .reasoning_engine import reasoning_engine, ReasoningChain
 from .analytical_engine import (
     analytical_engine, market_intelligence, OsoolScore,
     AREA_BENCHMARKS, MARKET_SEGMENTS, DEVELOPER_GRAPH,
     payment_plan_analyzer, developer_trust_scorer, resale_intelligence, trade_up_advisor,
+    format_appreciation_context_for_prompt,
+    calculate_real_vs_nominal_appreciation,
 )
 from app.config import config
 from .market_analytics_layer import MarketAnalyticsLayer
@@ -56,12 +60,16 @@ from .conversation_memory import ConversationMemory, CrossSessionIntelligence
 from .lead_scoring import score_lead, LeadTemperature, BehaviorSignal
 from .wolf_checklist import validate_checklist, WolfChecklistResult
 from .verifier_agent import verifier_agent
+from .verifier import log_hallucination_flags
 from .suggestion_engine import generate_suggestions_from_turn
 from .proactive_insights import proactive_engine
 
 # V2 Enhancement Imports
 from .social_proof_engine import social_proof_engine, community_sell_engine
 from .fear_clock import fear_clock
+
+# Orchestrator integration
+from app.services.orchestrator_client import fetch_user_context, sync_user_memory
 
 
 # Database
@@ -70,7 +78,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.vector_search import search_properties as db_search_properties
 from app.services.cache import cache
-from app.models import UserMemory
+from app.models import UserMemory, SavedSearch, Ticket, Area
 
 logger = logging.getLogger(__name__)
 
@@ -159,70 +167,155 @@ def _calculate_commitment_from_memory(memory: ConversationMemory, intent: Intent
 
 def _predict_objections(psychology: PsychologyProfile, memory, intent, properties: list) -> list:
     """
-    V3: Objection Pre-Emption Engine.
-    Predicts top 2 likely objections based on psychology + persona + stage + properties.
-    Returns counter-arguments for Claude to weave in naturally BEFORE the user asks.
+    V5: Matrix-Based Objection Pre-Emption with Momentum Weighting.
+    
+    1. Pull base probabilities from OBJECTION_PROBABILITY_MATRIX[persona, stage]
+    2. Apply momentum adjustments from state_history + emotional_momentum
+    3. Filter out already-resolved objections
+    4. Return top-2 with counter-arguments for Claude to weave in naturally
     """
-    predictions = []
-    state = psychology.primary_state
-    persona = getattr(psychology, 'buyer_persona', None)
-    stage = getattr(psychology, 'decision_stage', None)
-    already_resolved = set(memory.objections_resolved.keys()) if memory and hasattr(memory, 'objections_resolved') else set()
+    persona = getattr(psychology, 'buyer_persona', BuyerPersona.UNKNOWN)
+    stage = getattr(psychology, 'decision_stage', DecisionStage.AWARENESS)
+    already_resolved = set()
+    if memory and hasattr(memory, 'objections_resolved'):
+        already_resolved = set(memory.objections_resolved.keys())
 
-    # Prediction rules (order = priority)
-    _PREDICTIONS = [
-        {
-            "type": "delivery_risk",
-            "triggers": lambda: (state in (PsychologicalState.RISK_AVERSE, PsychologicalState.DELIVERY_FEAR, PsychologicalState.FAMILY_SECURITY)
-                                 or (persona and persona.value == "first_timer")),
+    # ── Step 1: Base probabilities from matrix ──
+    key = (persona.value, stage.value)
+    base_probs = OBJECTION_PROBABILITY_MATRIX.get(key, OBJECTION_PROBABILITY_MATRIX.get(("unknown", stage.value), []))
+    
+    # Build mutable probability map
+    prob_map: dict = {}  # type -> probability
+    for entry in base_probs:
+        prob_map[entry["type"]] = entry["p"]
+
+    # ── Step 2: Momentum adjustments ──
+    momentum = getattr(psychology, 'emotional_momentum', 'static')
+    state_history = getattr(psychology, 'state_history', [])
+    state = psychology.primary_state
+
+    # Escalating toward risk-averse states boosts delivery_risk
+    risk_states = {PsychologicalState.RISK_AVERSE.value, PsychologicalState.DELIVERY_FEAR.value, 
+                   PsychologicalState.FAMILY_SECURITY.value}
+    recent_risk_count = sum(1 for s in state_history[-5:] if s in risk_states)
+    if recent_risk_count >= 2:
+        prob_map["delivery_risk"] = min(prob_map.get("delivery_risk", 0.3) + 0.2, 0.95)
+
+    # Financial anxiety states boost installment_burden
+    financial_states = {PsychologicalState.INSTALLMENT_ANXIETY.value, PsychologicalState.ANALYSIS_PARALYSIS.value}
+    if state.value in financial_states or any(s in financial_states for s in state_history[-3:]):
+        prob_map["installment_burden"] = min(prob_map.get("installment_burden", 0.3) + 0.15, 0.95)
+
+    # Negative momentum amplifies all probabilities
+    if momentum == "declining":
+        prob_map = {k: min(v + 0.1, 0.95) for k, v in prob_map.items()}
+
+    # Trust deficit boosts legal_safety
+    trust_states = {PsychologicalState.TRUST_DEFICIT.value, PsychologicalState.LEGAL_ANXIETY.value}
+    if state.value in trust_states:
+        prob_map["legal_safety"] = min(prob_map.get("legal_safety", 0.3) + 0.2, 0.95)
+
+    # Expat anxiety boosts remote_trust (inject if not in base matrix)
+    if state == PsychologicalState.EXPATRIATE_ANXIETY:
+        prob_map["remote_trust"] = min(prob_map.get("remote_trust", 0.5) + 0.3, 0.95)
+
+    # Macro skeptic boosts price_will_drop
+    if state in (PsychologicalState.MACRO_SKEPTIC, PsychologicalState.SKEPTICISM):
+        prob_map["price_will_drop"] = min(prob_map.get("price_will_drop", 0.4) + 0.2, 0.95)
+
+    # ── Step 3: Filter resolved + sort by probability ──
+    candidates = [(t, p) for t, p in prob_map.items() if t not in already_resolved and p >= 0.3]
+    candidates.sort(key=lambda x: x[1], reverse=True)
+
+    # ── Counter-argument bank ──
+    COUNTER_ARGS = {
+        "delivery_risk": {
             "counter_ar": "المطور ده تسليمه 95%+ في الوقت — وعندنا Law 114 بيحمي فلوسك لو حصل أي تأخير.",
             "counter_en": "This developer has 95%+ on-time delivery — and our Law 114 Scanner protects your money against delays.",
         },
-        {
-            "type": "price_will_drop",
-            "triggers": lambda: state in (PsychologicalState.MACRO_SKEPTIC, PsychologicalState.SKEPTICISM, PsychologicalState.ANALYSIS_PARALYSIS),
+        "price_will_drop": {
             "counter_ar": "الأسعار مش هتنزل — تكلفة البناء النهاردة أعلى من سعر البيع. الـ downside risk شبه صفر.",
             "counter_en": "Prices won't drop — today's construction cost exceeds selling price. Downside risk is near zero.",
         },
-        {
-            "type": "installment_burden",
-            "triggers": lambda: (state == PsychologicalState.INSTALLMENT_ANXIETY
-                                 or (memory and memory.budget_range and memory.budget_range.get('max', 0) < 5_000_000)),
+        "installment_burden": {
             "counter_ar": "القسط الشهري أقل من إيجار شقة في نفس المنطقة — ومع التضخم القسط بيخف مع الوقت.",
             "counter_en": "Monthly installment is less than rent in the same area — and inflation makes installments lighter over time.",
         },
-        {
-            "type": "legal_safety",
-            "triggers": lambda: state in (PsychologicalState.LEGAL_ANXIETY, PsychologicalState.TRUST_DEFICIT),
+        "legal_safety": {
             "counter_ar": "كل وحدة بنعرضها بتعدي على Law 114 Scanner — لو الورق مش نضيف بنستبعدها قبل ما توصلك.",
             "counter_en": "Every unit we show passes our Law 114 Scanner — if papers aren't clean, we filter it out before it reaches you.",
         },
-        {
-            "type": "wrong_timing",
-            "triggers": lambda: stage and stage.value in ("awareness", "research"),
+        "wrong_timing": {
             "counter_ar": "أنا مش بقولك اشتري دلوقتي — بس الأرقام بتقول إن كل شهر تأخير بيكلفك فلوس حقيقية.",
             "counter_en": "I'm not saying buy now — but the numbers show every month of delay costs real money.",
         },
-        {
-            "type": "remote_trust",
-            "triggers": lambda: state == PsychologicalState.EXPATRIATE_ANXIETY,
+        "remote_trust": {
             "counter_ar": "كل حاجة ممكن تتعمل عن بُعد — من المعاينة الفيديو للتوكيل الرسمي. عملنا كده مع عملاء كتير في الخليج.",
             "counter_en": "Everything can be done remotely — from video viewing to legal proxy. We've done this with many Gulf-based clients.",
         },
-    ]
+    }
 
-    for pred in _PREDICTIONS:
-        if pred["type"] in already_resolved:
-            continue
-        try:
-            if pred["triggers"]():
-                predictions.append(pred)
-                if len(predictions) >= 2:
-                    break
-        except Exception:
-            continue
+    # ── Step 4: Return top-2 with metadata ──
+    predictions = []
+    for obj_type, probability in candidates[:2]:
+        entry = {"type": obj_type, "probability": round(probability, 2)}
+        entry.update(COUNTER_ARGS.get(obj_type, {}))
+        predictions.append(entry)
 
     return predictions
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# V5: DYNAMIC ANALYTICAL BEHAVIOR DETECTION
+# Detects mid-conversation analytical patterns that earn bonus XP
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import re as _re
+
+_ANALYTICAL_PATTERNS = {
+    "analytical_question": _re.compile(
+        r'(?:roi|عائد|yield|rental yield|إيجار|capitalization|cap rate'
+        r'|price per (?:sqm|meter|متر)|سعر المتر|appreciation|ارتفاع'
+        r'|inflation|تضخم|compound annual|irr|npv)',
+        _re.IGNORECASE
+    ),
+    "smart_comparison": _re.compile(
+        r'(?:مقارنة|compare|versus|vs\.?|ولا|أحسن|better|which is'
+        r'|أفضل|difference between|الفرق بين|option a|option b'
+        r'|pros and cons|مميزات وعيوب)',
+        _re.IGNORECASE
+    ),
+    "risk_assessment": _re.compile(
+        r'(?:risk|مخاطر|خطر|downside|worst case|أسوأ|ضمان|guarantee'
+        r'|safe|آمن|secure|حماية|protection|law 114|قانون)',
+        _re.IGNORECASE
+    ),
+    "negotiation_insight": _re.compile(
+        r'(?:negotiate|تفاوض|discount|خصم|تخفيض|below asking|أقل من'
+        r'|payment plan|خطة دفع|down payment|مقدم|flexible|مرن'
+        r'|counter.offer|عرض مضاد)',
+        _re.IGNORECASE
+    ),
+}
+
+
+def _detect_analytical_behavior(query: str, intent_action: str) -> list:
+    """
+    V5: Detect analytical patterns in the user's message.
+    Returns list of XP action keys that should be awarded.
+    """
+    detected = []
+    for action_key, pattern in _ANALYTICAL_PATTERNS.items():
+        if pattern.search(query):
+            detected.append(action_key)
+
+    # Intent-based bonuses (overlap with regex is fine — one XP per action type)
+    if intent_action in ("compare_properties", "area_analysis", "roi_analysis") and "smart_comparison" not in detected:
+        detected.append("smart_comparison")
+    if intent_action in ("legal_check", "contract_audit") and "risk_assessment" not in detected:
+        detected.append("risk_assessment")
+
+    return detected
 
 
 def _get_response_length_instruction(psychology: PsychologyProfile, memory: ConversationMemory) -> str:
@@ -372,6 +465,30 @@ RULES:
 """
 
 
+def generate_property_teaser_snippet(prop: Any) -> str:
+    """
+    Builds context snippets for properties safely.
+    Handles null residential parameters gracefully when dealing with commercial spaces.
+    """
+    structural_context = ""
+    if prop.beds or prop.baths:
+        beds_txt = f"{prop.beds} غرف" if prop.beds else ""
+        baths_txt = f"{prop.baths} حمام" if prop.baths else ""
+        structural_context = f" ({beds_txt} - {baths_txt})"
+
+    payment_context = "كاش بالكامل"
+    if prop.monthly_installment and prop.installment_years:
+        payment_context = f"قسط شهري: {prop.monthly_installment:,.0f} ج.م على {prop.installment_years} سنة"
+
+    area = getattr(prop, 'area_sqm', None) or getattr(prop, 'size_sqm', None) or 0
+    return (
+        f"- {prop.type} في كمبوند {prop.compound}{structural_context}\n"
+        f"  المساحة: {area} متر مربع\n"
+        f"  السعر المتاح: {prop.price:,.0f} ج.م ({payment_context})\n"
+        f"  رابط المعاينة المباشر: {prop.url}\n"
+    )
+
+
 class WolfBrain:
     """
     The Wolf of Osool - Unified Hybrid Intelligence Engine.
@@ -407,10 +524,13 @@ class WolfBrain:
         language: str = "auto",
         session_id: Optional[str] = None,
         streaming: bool = False,
+        behavioral_signals: Optional[Dict] = None,
+        status_callback: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         The Main Thinking Loop - Wrapper for Session Management.
         When streaming=True, returns _stream_context for real SSE streaming.
+        status_callback: async callable(str) to emit pipeline status messages for SSE.
         """
         async with AsyncSessionLocal() as session:
             return await self._process_turn_logic(
@@ -421,6 +541,8 @@ class WolfBrain:
                 language=language,
                 session_id=session_id,
                 streaming=streaming,
+                behavioral_signals=behavioral_signals,
+                status_callback=status_callback,
             )
 
     async def _process_turn_logic(
@@ -432,6 +554,8 @@ class WolfBrain:
         language: str = "auto",
         session_id: Optional[str] = None,
         streaming: bool = False,
+        behavioral_signals: Optional[Dict] = None,
+        status_callback: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         The Core Thinking Loop.
@@ -465,16 +589,25 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 1: FAST ROUTE (Regex Gate - 0ms Latency)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # Check for price asks without context EARLY to save tokens & time
-            if self._needs_screening(query, history):
-                 logger.info("🛡️ FAST GATE: Intercepted vague price query")
-                 return self._get_screening_script(language)
+            # Fast gate disabled — teaser hook handles cold price queries now
+            # Queries flow through the normal pipeline where TEASER strategy
+            # shows 1 sample property before qualifying.
+            # if self._needs_screening(query, history):
+            #      logger.info("🛡️ FAST GATE: Intercepted vague price query")
+            #      return self._get_screening_script(language)
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 2: PARALLEL COGNITION (The Brain - Speed Upgrade)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # Run Intent (LLM), Psychology (Regex), and Lead Scoring (Logic) in parallel
             
+            # Emit status for streaming clients
+            if status_callback:
+                try:
+                    await status_callback("🐺 Understanding your question..." if language != "ar" else "🐺 بفهم سؤالك...")
+                except Exception:
+                    pass
+
             # wrapper for async psychology
             async def run_psychology():
                 # We pass None for intent initially to run in parallel
@@ -508,11 +641,19 @@ class WolfBrain:
             # The user's plan showed "Fast Route (Regex)" then "Parallel Perception".
             
             # Wait for all results
-            intent, psychology, lead_data = await asyncio.gather(
+            _gather_results = await asyncio.gather(
                 perception_task, 
                 psychology_task, 
-                lead_score_task
+                lead_score_task,
+                return_exceptions=True,
             )
+            # Unpack with fallbacks — one task failure must not kill the turn
+            intent = _gather_results[0] if not isinstance(_gather_results[0], BaseException) else Intent(action="general", raw_query=query)
+            psychology = _gather_results[1] if not isinstance(_gather_results[1], BaseException) else PsychologyProfile(primary_state=PsychologicalState.NEUTRAL)
+            lead_data = _gather_results[2] if not isinstance(_gather_results[2], BaseException) else {"score": 30, "temperature": "cold", "signals": []}
+            for _i, _r in enumerate(_gather_results):
+                if isinstance(_r, BaseException):
+                    logger.error(f"Parallel task {_i} failed: {_r}")
             
             self.stats["gpt_calls"] += 1 # Perception used GPT
             logger.info(f"🎯 Intent: {intent.action}, Filters: {intent.filters}")
@@ -520,6 +661,17 @@ class WolfBrain:
             
             lead_score = lead_data["score"]
             logger.info(f"📊 Lead Score: {lead_score} ({lead_data['temperature']})")
+
+            # V5: Detect analytical behavior for dynamic XP
+            dynamic_xp_actions = _detect_analytical_behavior(query, intent.action)
+            if dynamic_xp_actions:
+                logger.info(f"🧪 Analytical behavior detected: {dynamic_xp_actions}")
+
+            # V5: Apply behavioral telemetry adjustments to psychology
+            if behavioral_signals:
+                psychology = apply_behavioral_adjustments(psychology, behavioral_signals)
+                if psychology.behavioral_confidence_delta or psychology.behavioral_urgency_delta:
+                    logger.info(f"📡 Behavioral adjustments: conf={psychology.behavioral_confidence_delta:+.2f}, urgency={psychology.behavioral_urgency_delta:+d}")
 
             # Persist score
             if session_id:
@@ -544,6 +696,29 @@ class WolfBrain:
             if db_memory:
                 memory.merge(db_memory)
                 logger.info("🧠 Cross-session memory loaded and merged")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # ORCHESTRATOR INTELLIGENCE: Enrich with cross-platform signals
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            orchestrator_context = None
+            if user_id:
+                try:
+                    orchestrator_context = await fetch_user_context(user_id)
+                    if orchestrator_context:
+                        # Enrich memory with orchestrator signals
+                        orch_areas = orchestrator_context.get("preferredAreas", [])
+                        orch_devs = orchestrator_context.get("preferredDevelopers", [])
+                        if orch_areas and not memory.preferred_areas:
+                            memory.preferred_areas = orch_areas
+                        if orch_devs and not memory.preferred_developers:
+                            memory.preferred_developers = orch_devs
+                        logger.info(
+                            f"🌐 Orchestrator context: tier={orchestrator_context.get('tier')}, "
+                            f"leadScore={orchestrator_context.get('leadScore')}, "
+                            f"signals={orchestrator_context.get('signalCount', 0)}"
+                        )
+                except Exception as e:
+                    logger.debug(f"Orchestrator context fetch skipped: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # V3 ENHANCEMENT: CROSS-SESSION INTELLIGENCE
@@ -653,7 +828,7 @@ class WolfBrain:
                     "detected_language": language,
                     "lead_score": lead_score,
                     "card_readiness": card_readiness,
-                    "intent": intent.intent if hasattr(intent, 'intent') else "loop_detected"
+                    "intent": intent.action if hasattr(intent, 'action') else "loop_detected"
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -692,7 +867,7 @@ class WolfBrain:
                     "detected_language": language,
                     "lead_score": lead_score,
                     "card_readiness": card_readiness,
-                    "intent": intent.intent if hasattr(intent, 'intent') else "trust_building"
+                    "intent": intent.action if hasattr(intent, 'action') else "trust_building"
                 }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -703,6 +878,11 @@ class WolfBrain:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 4A: ANALYTICS ENRICHMENT (Always-On Market Intelligence)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if status_callback:
+                try:
+                    await status_callback("📊 Analyzing market data..." if language != "ar" else "📊 بحلل بيانات السوق...")
+                except Exception:
+                    pass
             analytics_context = await self._build_analytics_context(intent, session, market_layer)
             if analytics_context.get("has_analytics"):
                 logger.info(f"📊 ANALYTICS ENRICHMENT: Built context for {analytics_context.get('location', 'N/A')}")
@@ -849,7 +1029,7 @@ class WolfBrain:
                         "lead_score": lead_score,
                         "card_readiness": card_readiness,
                         "analytics_context": analytics_context,
-                        "intent": intent.intent if hasattr(intent, 'intent') else "market_education"
+                        "intent": intent.action if hasattr(intent, 'action') else "market_education"
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -966,16 +1146,22 @@ class WolfBrain:
                         "detected_language": language,
                         "lead_score": lead_score,
                         "card_readiness": card_readiness,
-                        "intent": intent.intent if hasattr(intent, 'intent') else "feasibility"
+                        "intent": intent.action if hasattr(intent, 'action') else "feasibility"
                     }
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 6: THE SMART HUNT (Agentic Search with Reflexion)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if status_callback:
+                try:
+                    await status_callback("🔍 Searching properties..." if language != "ar" else "🔍 بدور على عقارات...")
+                except Exception:
+                    pass
             properties = []
             scored_properties = []
             hunt_strategy = "none"
             pivot_message = None
+            sourcing_data = None
             
             # Determine "Smart Display" Strategy (Psychology-Driven Card Gate v4 — Readiness-First)
             showing_strategy = self._psychology_card_gate(intent, psychology, is_discovery_complete, lead_score=lead_score, memory=memory, history=history, card_readiness=card_readiness)
@@ -1001,20 +1187,20 @@ class WolfBrain:
                     showing_strategy = 'TEASER'
                     logger.info(f"🔓 Budget override → TEASER (depth={engagement_turns}, readiness={cr_score})")
                 else:
-                    showing_strategy = 'ANALYTICS_ONLY'
-                    logger.info(f"📊 Budget present but gated: ANALYTICS_ONLY (depth={engagement_turns}, readiness={cr_score})")
+                    showing_strategy = 'TEASER'
+                    logger.info(f"🎣 Budget present → TEASER hook (depth={engagement_turns}, readiness={cr_score})")
 
-            # Safety net: readiness < 20 → always cap at ANALYTICS_ONLY
-            if card_readiness and card_readiness.get("readiness_score", 0) < 20 and showing_strategy in ['TEASER', 'FULL_LIST']:
-                showing_strategy = 'ANALYTICS_ONLY'
-                logger.info(f"🛡️ Psychology safety net: readiness={card_readiness.get('readiness_score', 0)}, forced ANALYTICS_ONLY")
+            # Safety net: readiness < 20 → cap at TEASER (allow hook), block FULL_LIST
+            if card_readiness and card_readiness.get("readiness_score", 0) < 20 and showing_strategy == 'FULL_LIST':
+                showing_strategy = 'TEASER'
+                logger.info(f"🛡️ Psychology safety net: readiness={card_readiness.get('readiness_score', 0)}, capped to TEASER (hook allowed)")
             logger.info(f"👁️ Visual Strategy: {showing_strategy} (readiness={card_readiness.get('readiness_score', 0) if card_readiness else 0})")
 
             # Only search if strategy is TEASER or FULL_LIST
             if showing_strategy in ['TEASER', 'FULL_LIST']:
                 # Use SMART HUNT with Reflexion (auto-pivot on failure)
-                properties, hunt_strategy, pivot_message = await self._smart_hunt(
-                    intent, session, language
+                properties, hunt_strategy, pivot_message, sourcing_data = await self._smart_hunt(
+                    intent, session, language, user_id=user_id
                 )
                 self.stats["searches"] += 1
                 
@@ -1027,10 +1213,28 @@ class WolfBrain:
                     logger.info(f"🎯 TEASER: Showing 1 anchor property at index {mid_index}")
             
             logger.info(f"🎯 Hunt Strategy: {hunt_strategy}, Pivot: {pivot_message is not None}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # MEMORY: Persist wanted compound for sourcing pivot / failed hunts
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if hunt_strategy in ('sourcing_pivot', 'failed'):
+                wanted_compound = intent.filters.get("keywords", "") or intent.filters.get("compound", "") or intent.filters.get("location", "")
+                if wanted_compound and hasattr(memory, 'preferences'):
+                    pref_entry = f"Wanted compound: {wanted_compound} (not in DB)"
+                    if pref_entry not in (memory.preferences or []):
+                        if memory.preferences is None:
+                            memory.preferences = []
+                        memory.preferences.append(pref_entry)
+                        logger.info(f"🧠 MEMORY: Stored wanted compound '{wanted_compound}' for future sessions")
         
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # STEP 7: BENCHMARKING & SCORING (Async with DB)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if status_callback:
+                try:
+                    await status_callback("🧠 Preparing recommendations..." if language != "ar" else "🧠 بجهز التوصيات...")
+                except Exception:
+                    pass
             # Pass session for real-time benchmarking
             if properties:
                 scored_properties = await analytical_engine.score_properties(properties, session=session)
@@ -1061,12 +1265,13 @@ class WolfBrain:
             
             # 2. Determine UI Actions (Charts must back up the strategy)
             ui_actions = await self._determine_ui_actions(
-                psychology, 
-                scored_properties, 
-                intent, 
+                psychology,
+                scored_properties,
+                intent,
                 query,
                 showing_strategy,
-                wolf_strategy=strategy # Pass the strategy to force matching charts
+                wolf_strategy=strategy, # Pass the strategy to force matching charts
+                analytics_context=analytics_context,
             )# PRICE DEFENSE (The "Wolf" Logic)
             no_discount_mode = False
             top_wolf_analysis = "FAIR_VALUE"
@@ -1128,6 +1333,7 @@ class WolfBrain:
                 reasoning_chain=reasoning_chain,
                 db_session=session,
                 geopolitical_context=geopolitical_context,
+                sourcing_data=sourcing_data,
             )
 
             # ── STREAMING MODE: return context for real SSE streaming ──
@@ -1164,7 +1370,7 @@ class WolfBrain:
             self.stats["claude_calls"] += 1
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # POST-SPEAK: Verification (Anti-Hallucination Layer)
+            # POST-SPEAK: Verification + Auto-Rewrite (Anti-Hallucination Interceptor)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             verification = {}
             try:
@@ -1176,8 +1382,42 @@ class WolfBrain:
                 )
                 if verification.get("corrections"):
                     logger.info(f"🔍 VERIFIER: Found {len(verification['corrections'])} corrections (confidence: {verification.get('confidence', 'N/A')})")
+                    # Auto-rewrite: fix hallucinated numbers before user sees them
+                    original_response = response_text
+                    response_text = await verifier_agent.rewrite_hallucinated_response(
+                        response_text=response_text,
+                        corrections=verification["corrections"],
+                    )
+                    verification["rewritten"] = (response_text != original_response)
+                    verification["original_response"] = original_response if verification["rewritten"] else None
+                    if verification["rewritten"]:
+                        logger.info(f"✅ VERIFIER INTERCEPTOR: Response auto-corrected ({len(verification['corrections'])} fixes)")
             except Exception as e:
                 logger.warning(f"Verifier agent skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # POST-SPEAK: Hallucination Guardrail (Token-Guard inspired, async)
+            # Fire-and-forget Haiku verifier that extracts atomic claims and
+            # logs unverified ones to `hallucination_flags` for admin review.
+            # Zero user-latency impact: runs in background.
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                properties_for_guardrail = (
+                    scored_properties[:5] if showing_strategy == 'FULL_LIST'
+                    else (scored_properties[:1] if showing_strategy == 'TEASER' else [])
+                )
+                asyncio.create_task(
+                    log_hallucination_flags(
+                        response_text=response_text,
+                        properties_mentioned=properties_for_guardrail,
+                        agent_name="wolf_brain",
+                        session_id=session_id,
+                        user_id=user_id,
+                        query=query,
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Hallucination guardrail enqueue failed: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # POST-SPEAK: Smart Follow-Up Suggestions
@@ -1219,9 +1459,10 @@ class WolfBrain:
                 logger.warning(f"Proactive insights skipped: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # POST-SPEAK: Gamification XP Award
+            # POST-SPEAK: Gamification XP Award (V5: includes dynamic analytical XP)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             xp_awarded = 0
+            dynamic_xp_detail = []
             try:
                 if user_id:
                     from app.services.gamification import GamificationEngine
@@ -1238,11 +1479,19 @@ class WolfBrain:
                         result = await gam_engine.award_xp(user_id, "use_analysis_tool", session)
                         xp_awarded += result.get("xp_awarded", 0)
 
+                    # V5: Dynamic analytical XP — award each detected behavior
+                    for dyn_action in dynamic_xp_actions:
+                        result = await gam_engine.award_xp(user_id, dyn_action, session)
+                        awarded = result.get("xp_awarded", 0)
+                        if awarded > 0:
+                            xp_awarded += awarded
+                            dynamic_xp_detail.append({"action": dyn_action, "xp": awarded})
+
                     # Check achievements
                     await gam_engine.check_achievements(user_id, session)
 
                     if xp_awarded > 0:
-                        logger.info(f"🎮 GAMIFICATION: Awarded {xp_awarded} XP to user {user_id}")
+                        logger.info(f"🎮 GAMIFICATION: Awarded {xp_awarded} XP to user {user_id} (dynamic: {dynamic_xp_detail})")
             except Exception as e:
                 logger.warning(f"Gamification XP skipped: {e}")
 
@@ -1357,6 +1606,19 @@ class WolfBrain:
             
             await session.commit()
             logger.info(f"💾 User memory saved for user {user_id}")
+            
+            # Sync preferences to orchestrator (fire-and-forget)
+            try:
+                await sync_user_memory(
+                    user_id=user_id,
+                    budget_min=memory.budget_range.get('min') if memory.budget_range else None,
+                    budget_max=memory.budget_range.get('max') if memory.budget_range else None,
+                    preferred_areas=memory.preferred_areas or [],
+                    preferred_developers=memory.preferred_developers or [],
+                    preferences_text='; '.join(memory.preferences) if memory.preferences else None,
+                )
+            except Exception:
+                pass  # fire-and-forget, never block
         except Exception as e:
             logger.warning(f"Failed to save user memory for user {user_id}: {e}")
             try:
@@ -1481,9 +1743,10 @@ class WolfBrain:
             query_parts.append(filters['property_type'])
         if 'keywords' in filters:
             query_parts.append(filters['keywords'])
-        if 'budget_max' in filters and filters['budget_max']:
-            budget_mil = filters['budget_max'] / 1_000_000
-            query_parts.append(f"under {budget_mil} million")
+        # NOTE: budget_max/min deliberately excluded from query_text —
+        # numeric budget text ("under 7.5 million") pollutes the semantic
+        # embedding and hurts similarity scores. Budget is applied as a
+        # structured DB filter in search_properties() instead.
         # Include sale_type in query text for semantic search
         if 'sale_type' in filters and filters['sale_type']:
             sale_type_map = {"resale": "Resale", "developer": "Developer", "nawy_now": "Nawy Now"}
@@ -1507,6 +1770,13 @@ class WolfBrain:
                        "core": "Core & Shell", "unfinished": "Core & Shell", "lux": "Finished", "ready": "Finished"}
             finishing_db = fin_map.get(filters['finishing'].lower(), filters['finishing'])
 
+        # Extract compound name from keywords for structured DB filter
+        compound_name = filters.get('keywords') or filters.get('compound')
+
+        # Extract location and developer for structured DB filters
+        location_name = filters.get('location')
+        developer_name = filters.get('developer')
+
         # Vector search with full filter support
         results = await db_search_properties(
             db=db,
@@ -1519,6 +1789,9 @@ class WolfBrain:
             is_delivered=filters.get('is_delivered'),
             finishing=finishing_db,
             is_nawy_now=filters.get('is_nawy_now'),
+            compound=compound_name,
+            location=location_name,
+            developer=developer_name,
         )
         
         # Apply additional filters (belt & suspenders post-filter)
@@ -1535,24 +1808,37 @@ class WolfBrain:
             ptype = filters['property_type'].lower()
             results = [r for r in results if ptype in r.get('type', '').lower()]
         
+        # Compound post-filter: prioritize exact compound matches when a compound was requested
+        if compound_name and results:
+            compound_lower = compound_name.lower()
+            compound_matches = [r for r in results if compound_lower in (r.get('compound') or '').lower()]
+            if compound_matches:
+                results = compound_matches
+        
         return results[:10]  # Top 10
 
     async def _smart_hunt(
         self, 
         intent: Intent, 
         session: AsyncSession,
-        language: str = "ar"
-    ) -> tuple[List[Dict], str, Optional[str]]:
+        language: str = "ar",
+        user_id: Optional[int] = None,
+    ) -> tuple[List[Dict], str, Optional[str], Optional[Dict]]:
         """
         SOTA: Agentic Search with Reflexion (Fallback Strategies)
         
         Instead of returning empty results, this method automatically pivots:
         1. Location Pivot: Zayed → 6th October (cheaper neighbor)
         2. Type Pivot: Villa → Townhouse (downgrade type)
+        3. Budget Pivot: Increase budget by 25%
+        4. Relaxed Search: Keep only location
+        5. Any-Area Search: Keep only budget
+        6. Sourcing Pivot: Area analytics + lead capture (NEW)
         
-        Returns: (properties, strategy_used, pivot_message)
-        - strategy_used: 'direct_match', 'location_pivot', 'type_pivot', 'budget_pivot', 'failed'
+        Returns: (properties, strategy_used, pivot_message, sourcing_data)
+        - strategy_used: 'direct_match', 'location_pivot', 'type_pivot', 'budget_pivot', 'sourcing_pivot', 'failed'
         - pivot_message: Explanation for the user about the pivot (None if direct match)
+        - sourcing_data: Dict with area analytics + lead capture info (None unless sourcing_pivot)
         """
         filters = intent.filters
         
@@ -1560,7 +1846,7 @@ class WolfBrain:
         results = await self._search_database(filters, db_session=session)
         if results:
             logger.info(f"🎯 SMART HUNT: Direct match found ({len(results)} results)")
-            return results, "direct_match", None
+            return results, "direct_match", None, None
 
         logger.info("🔄 SMART HUNT: No direct match, entering Reflexion mode...")
         
@@ -1591,7 +1877,7 @@ class WolfBrain:
                         pivot_msg = f"مفيش نتائج في {old_loc_ar}، بس لقيت فرص في {new_loc_ar} بنفس الميزانية."
                     else:
                         pivot_msg = f"No exact match in {loc_key.title()}, but I found options in {new_loc} within your budget."
-                    return alternatives, "location_pivot", pivot_msg
+                    return alternatives, "location_pivot", pivot_msg, None
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # REFLEXION: Type Pivot (Keep location, downgrade property type)
@@ -1618,7 +1904,7 @@ class WolfBrain:
                         pivot_msg = f"الـ{old_type_ar} بالميزانية دي صعب، بس لقيت {new_type_ar} ممتاز في نفس المنطقة."
                     else:
                         pivot_msg = f"A {type_key} at this budget is tough, but I found an excellent {new_type} in the same area."
-                    return alternatives, "type_pivot", pivot_msg
+                    return alternatives, "type_pivot", pivot_msg, None
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # REFLEXION: Budget Pivot (Increase budget by 20% if too low)
@@ -1637,13 +1923,27 @@ class WolfBrain:
                     pivot_msg = f"بزيادة بسيطة ({budget_diff:.1f} مليون)، لقيت خيارات ممتازة."
                 else:
                     pivot_msg = f"With a small stretch (+{budget_diff:.1f}M), I found excellent options."
-                return alternatives, "budget_pivot", pivot_msg
+                return alternatives, "budget_pivot", pivot_msg, None
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        # REFLEXION: Relaxed Search (Keep only location, drop all other filters)
+        # REFLEXION: Relaxed Search (Keep location + compound if present, drop other filters)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         location = filters.get("location", "")
+        compound_kw = filters.get("keywords") or filters.get("compound")
         if location:
+            # Try location + compound first (preserves user's compound intent)
+            if compound_kw:
+                relaxed_filters = {"location": location, "keywords": compound_kw}
+                alternatives = await self._search_database(relaxed_filters, db_session=session)
+                if alternatives:
+                    logger.info(f"🔄 SMART HUNT: Relaxed search success (location+compound: {location}/{compound_kw}, {len(alternatives)} results)")
+                    if language == "ar":
+                        pivot_msg = f"المواصفات المحددة مش متاحة دلوقتي، بس دي أفضل الخيارات المتاحة في {compound_kw}."
+                    else:
+                        pivot_msg = f"Those exact specs aren't available, but here are the best options in {compound_kw}."
+                    return alternatives, "relaxed_search", pivot_msg, None
+
+            # Fall back to location only
             relaxed_filters = {"location": location}
             alternatives = await self._search_database(relaxed_filters, db_session=session)
             if alternatives:
@@ -1652,7 +1952,7 @@ class WolfBrain:
                     pivot_msg = f"المواصفات المحددة مش متاحة دلوقتي، بس دي أفضل الخيارات المتاحة في {location}."
                 else:
                     pivot_msg = f"Those exact specs aren't available, but here are the best options in {location}."
-                return alternatives, "relaxed_search", pivot_msg
+                return alternatives, "relaxed_search", pivot_msg, None
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # REFLEXION: Any Area Search (Keep only budget, drop everything)
@@ -1672,18 +1972,82 @@ class WolfBrain:
                     pivot_msg = "مفيش في المنطقة دي بالميزانية دي، بس لقيت فرص في مناطق تانية تستاهل تشوفها."
                 else:
                     pivot_msg = "Nothing in that area at this budget, but I found opportunities in other areas worth checking."
-                return alternatives, "any_area_search", pivot_msg
+                return alternatives, "any_area_search", pivot_msg, None
 
-        # All strategies failed — graceful message with suggestions
-        logger.info("❌ SMART HUNT: All reflexion strategies failed")
-        filter_desc_parts = []
-        if filters.get("location"):
-            filter_desc_parts.append(filters["location"])
-        if filters.get("property_type"):
-            filter_desc_parts.append(filters["property_type"])
-        if filters.get("budget_max"):
-            filter_desc_parts.append(f"{filters['budget_max']/1e6:.1f}M budget")
-            
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # REFLEXION: Compound Direct Search (drop ALL filters except compound name)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        compound_name = filters.get("keywords") or filters.get("compound")
+        if compound_name:
+            compound_filters = {"keywords": compound_name}
+            alternatives = await self._search_database(compound_filters, db_session=session)
+            if alternatives:
+                logger.info(f"🔄 SMART HUNT: Compound direct search success ({compound_name}, {len(alternatives)} results)")
+                if language == "ar":
+                    pivot_msg = f"المواصفات المحددة مش متاحة دلوقتي في {compound_name}، بس دي الوحدات المتاحة في الكمباوند."
+                else:
+                    pivot_msg = f"Those exact specs aren't available in {compound_name}, but here are the available units in the compound."
+                return alternatives, "compound_direct", pivot_msg, None
+
+        # All strategies failed — execute Sourcing Pivot before giving up
+        logger.info("🔄 SMART HUNT: All reflexion strategies failed → trying Sourcing Pivot")
+        sourcing_data = await self._sourcing_pivot(intent, session, language, user_id)
+        area_data = sourcing_data.get("area_data")
+        compound = sourcing_data.get("compound_name", "")
+
+        # If we have area data OR alternatives, use sourcing_pivot strategy
+        if area_data or sourcing_data.get("alternatives"):
+            alternatives = sourcing_data.get("alternatives", [])
+            alert_msg = ""
+            if sourcing_data.get("saved_search_id"):
+                if language == "ar":
+                    alert_msg = "\n\n✅ فعّلت لك **تنبيه بحث** — أول ما يظهر وحدات جديدة في الكمباوند ده هبلغك فوراً."
+                else:
+                    alert_msg = "\n\n✅ I've activated a **Property Alert** for you — the moment new units appear in this compound, you'll be the first to know."
+            elif sourcing_data.get("ticket_id"):
+                if language == "ar":
+                    alert_msg = "\n\n✅ فتحت لك **طلب بحث خاص** — فريقنا هيدور على وحدات في الكمباوند ده ويرجعلك."
+                else:
+                    alert_msg = "\n\n✅ I've opened a **Priority Sourcing Request** — our team will search for units in this compound and get back to you."
+
+            if language == "ar":
+                growth_pct = int((area_data.get("price_growth_ytd", 0) or 0) * 100) if area_data else 0
+                roi_5y = int((area_data.get("predicted_roi_5y", 0) or 0) * 100) if area_data else 0
+                area_name_ar = area_data.get("name_ar", "") if area_data else ""
+                pivot_msg = (
+                    f"الكمباوند ده ({compound}) حالياً **مش متاح / مباع بالكامل** — وده في حد ذاته مؤشر على قوة المشروع.\n"
+                )
+                if area_data:
+                    pivot_msg += (
+                        f"\n📊 **تحليل المنطقة ({area_name_ar}):**\n"
+                        f"• نمو الأسعار السنوي: **+{growth_pct}%**\n"
+                        f"• العائد المتوقع خلال 5 سنوات: **+{roi_5y}%**\n"
+                    )
+                if alternatives:
+                    pivot_msg += f"\nبس لقيتلك **{len(alternatives)} فرص** في نفس المنطقة تستاهل تشوفها."
+                pivot_msg += alert_msg
+            else:
+                growth_pct = int((area_data.get("price_growth_ytd", 0) or 0) * 100) if area_data else 0
+                roi_5y = int((area_data.get("predicted_roi_5y", 0) or 0) * 100) if area_data else 0
+                area_name = area_data.get("name", "") if area_data else ""
+                pivot_msg = (
+                    f"This compound ({compound}) is currently **off-market / fully sold** — which itself signals strong demand.\n"
+                )
+                if area_data:
+                    pivot_msg += (
+                        f"\n📊 **Area Analysis ({area_name}):**\n"
+                        f"• YTD Price Growth: **+{growth_pct}%**\n"
+                        f"• Projected 5-Year ROI: **+{roi_5y}%**\n"
+                    )
+                if alternatives:
+                    pivot_msg += f"\nI found **{len(alternatives)} opportunities** in the same area worth exploring."
+                pivot_msg += alert_msg
+
+            logger.info(f"📊 SOURCING PIVOT: Success — area_data={area_data is not None}, alternatives={len(alternatives)}, saved_search={sourcing_data.get('saved_search_id')}, ticket={sourcing_data.get('ticket_id')}")
+            return alternatives, "sourcing_pivot", pivot_msg, sourcing_data
+
+        # True failure — no area data, no alternatives
+        logger.info("❌ SMART HUNT: All strategies + sourcing pivot failed")
         if language == "ar":
             pivot_msg = (
                 "للأسف مفيش وحدات متاحة بالمواصفات دي حالياً.\n\n"
@@ -1702,9 +2066,150 @@ class WolfBrain:
                 "• A different property type\n\n"
                 "Tell me what you'd like to adjust and I'll search again."
             )
-        return [], "failed", pivot_msg
+        return [], "failed", pivot_msg, None
 
-                    
+    async def _sourcing_pivot(
+        self,
+        intent: Intent,
+        session: AsyncSession,
+        language: str = "ar",
+        user_id: Optional[int] = None,
+    ) -> Dict:
+        """
+        Consultative Sourcing Pivot — executed when ALL _smart_hunt strategies fail.
+
+        Instead of a dead-end "no units match" message, this:
+        1. Queries the Area model for ROI / growth data to establish authority
+        2. Fetches the top 2 available properties in that area (relaxed)
+        3. Creates a SavedSearch (or Ticket if 5-limit hit) to capture the lead
+        4. Returns data dict for narrative injection
+
+        Returns: {"area_data": dict|None, "alternatives": list, "saved_search_id": int|None, "ticket_id": int|None, "compound_name": str}
+        """
+        filters = intent.filters
+        location = filters.get("location", "")
+        compound = filters.get("keywords", "") or filters.get("compound", "") or location
+        result: Dict = {
+            "area_data": None,
+            "alternatives": [],
+            "saved_search_id": None,
+            "ticket_id": None,
+            "compound_name": compound,
+        }
+
+        # ── 1. Query Area model for analytics ──
+        try:
+            if location:
+                area_q = await session.execute(
+                    select(Area).where(
+                        Area.name.ilike(f"%{location}%")
+                    )
+                )
+                area = area_q.scalar_one_or_none()
+
+                if not area:
+                    # Try Arabic name
+                    area_q = await session.execute(
+                        select(Area).where(
+                            Area.name_ar.ilike(f"%{location}%")
+                        )
+                    )
+                    area = area_q.scalar_one_or_none()
+
+                if area:
+                    result["area_data"] = {
+                        "name": area.name,
+                        "name_ar": area.name_ar,
+                        "price_growth_ytd": area.price_growth_ytd,
+                        "predicted_roi_5y": area.predicted_roi_5y,
+                        "rental_yield": area.rental_yield,
+                        "avg_price_per_meter": area.avg_price_per_meter,
+                        "demand_score": area.demand_score,
+                        "liquidity_score": area.liquidity_score,
+                    }
+                    logger.info(f"📊 SOURCING PIVOT: Area data found for {area.name}")
+                else:
+                    # Fallback to hardcoded AREA_BENCHMARKS
+                    from .analytical_engine import AREA_PRICES, AREA_GROWTH
+                    for area_name, avg_price in AREA_PRICES.items():
+                        if area_name.lower() in location.lower() or location.lower() in area_name.lower():
+                            growth = AREA_GROWTH.get(area_name, 0.12)
+                            result["area_data"] = {
+                                "name": area_name,
+                                "name_ar": location,
+                                "price_growth_ytd": growth,
+                                "predicted_roi_5y": growth * 5,
+                                "rental_yield": 0.04,
+                                "avg_price_per_meter": avg_price,
+                                "demand_score": 70,
+                                "liquidity_score": 65,
+                            }
+                            logger.info(f"📊 SOURCING PIVOT: Using fallback analytics for {area_name}")
+                            break
+        except Exception as e:
+            logger.warning(f"SOURCING PIVOT area query failed: {e}")
+            try:
+                await session.rollback()
+            except Exception:
+                pass
+
+        # ── 2. Fetch top 2 available alternatives in the area ──
+        if location:
+            try:
+                alternatives = await self._search_database({"location": location}, db_session=session)
+                result["alternatives"] = alternatives[:2]
+                if alternatives:
+                    logger.info(f"📊 SOURCING PIVOT: Found {len(alternatives)} alternatives in {location}")
+            except Exception as e:
+                logger.warning(f"SOURCING PIVOT alternatives search failed: {e}")
+
+        # ── 3. Create SavedSearch or Ticket for lead capture ──
+        if user_id and compound:
+            try:
+                # Check existing saved search count
+                count_q = await session.execute(
+                    select(SavedSearch).where(
+                        SavedSearch.user_id == user_id,
+                        SavedSearch.is_active == True,
+                    )
+                )
+                existing = count_q.scalars().all()
+
+                if len(existing) < 5:
+                    # Create SavedSearch
+                    filters_for_save = {k: v for k, v in filters.items() if v}
+                    saved = SavedSearch(
+                        user_id=user_id,
+                        name=f"Sourcing: {compound[:80]}",
+                        filters_json=json.dumps(filters_for_save, ensure_ascii=False),
+                    )
+                    session.add(saved)
+                    await session.flush()
+                    result["saved_search_id"] = saved.id
+                    logger.info(f"📊 SOURCING PIVOT: Created SavedSearch #{saved.id} for user {user_id}")
+                else:
+                    # Fallback: create a Ticket
+                    ticket = Ticket(
+                        user_id=user_id,
+                        subject=f"Property Sourcing: {compound[:150]}",
+                        description=f"User requested {compound} but no matching properties found. Filters: {json.dumps(filters, ensure_ascii=False)}",
+                        category="property",
+                        priority="high",
+                        status="open",
+                    )
+                    session.add(ticket)
+                    await session.flush()
+                    result["ticket_id"] = ticket.id
+                    logger.info(f"📊 SOURCING PIVOT: Created Ticket #{ticket.id} (SavedSearch limit reached)")
+            except Exception as e:
+                logger.warning(f"SOURCING PIVOT lead capture failed: {e}")
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
+
+        return result
+
     def _is_discovery_complete(self, filters: Dict, history: List[Dict], query: str = "") -> bool:
         """
         Check if discovery phase is complete.
@@ -1824,8 +2329,8 @@ class WolfBrain:
         def apply_ceiling(proposed: str) -> str:
             """Cap proposed strategy by readiness score AND engagement depth."""
             # Max by engagement depth
-            if engagement_depth < 3:
-                depth_max = 'ANALYTICS_ONLY'
+            if engagement_depth < 2:
+                depth_max = 'TEASER'   # Allow teaser hook from turn 2+
             elif engagement_depth < 4:
                 depth_max = 'TEASER'
             else:
@@ -1833,7 +2338,7 @@ class WolfBrain:
 
             # Max by readiness score
             if readiness_score < 20:
-                readiness_max = 'ANALYTICS_ONLY'
+                readiness_max = 'TEASER'  # Allow teaser hook for cold leads
             elif readiness_score < 45:
                 readiness_max = 'TEASER'
             else:
@@ -1924,8 +2429,13 @@ class WolfBrain:
             logger.info(f"👁️ Gate: {result} (Explicit show request, ceiling-adjusted)")
             return result
 
-        # ── Discovery complete → upgrade ONE level from readiness base ──
+        # ── Discovery complete + search intent → teaser hook ──
         if is_discovery_complete:
+            # For search intents with location, propose TEASER to show 1 sample
+            if intent.action in ['search', 'price_check'] and has_location:
+                result = apply_ceiling('TEASER')
+                logger.info(f"👁️ Gate: {result} (Discovery complete + search + location → teaser hook)")
+                return result
             base_idx = tier_order.index(readiness_rec) if readiness_rec in tier_order else 0
             upgraded = tier_order[min(base_idx + 1, len(tier_order) - 1)]
             result = apply_ceiling(upgraded)
@@ -1938,14 +2448,15 @@ class WolfBrain:
             logger.info(f"👁️ Gate: {result} (Hot lead upgrade: {lead_score})")
             return result
 
-        # ── Has location but no budget → analytics then teaser ──
+        # ── Has location but no budget → teaser hook (give a little, ask a lot) ──
         if has_location and not has_budget:
             if engagement_depth >= 3:
                 result = apply_ceiling('TEASER')
                 logger.info(f"👁️ Gate: {result} (Location + engagement ≥ 3)")
                 return result
-            result = apply_ceiling('ANALYTICS_ONLY')
-            logger.info(f"👁️ Gate: {result} (Location only, early conversation)")
+            # Early conversation with location → show 1 sample to hook them
+            result = apply_ceiling('TEASER')
+            logger.info(f"👁️ Gate: {result} (Location only → teaser hook, early conversation)")
             return result
 
         # ── Default: analytics if location, else none ──
@@ -2010,6 +2521,10 @@ class WolfBrain:
             # Format economic context for prompt injection
             economic_brief = analytical_engine.format_economic_context(econ) if econ else ""
 
+            # Regime-aware appreciation data
+            from .analytical_engine import calculate_real_vs_nominal_appreciation
+            appreciation_index = calculate_real_vs_nominal_appreciation(location)
+
             context = {
                 "has_analytics": True,
                 "location": location,
@@ -2021,6 +2536,7 @@ class WolfBrain:
                 "avg_price_sqm": area_ctx.get("avg_price_sqm", 0),
                 "growth_rate": area_ctx.get("growth_rate", 0),
                 "rental_yield": area_ctx.get("rental_yield", 0),
+                "appreciation_index": appreciation_index,
             }
         except Exception as e:
             logger.warning(f"Analytics context build failed: {e}")
@@ -2035,7 +2551,8 @@ class WolfBrain:
         intent: Intent,
         query: str,
         showing_strategy: str = 'NONE',
-        wolf_strategy: Optional[Dict] = None
+        wolf_strategy: Optional[Dict] = None,
+        analytics_context: Optional[Dict] = None,
     ) -> List[Dict]:
         """
         Determine which UI visualizations to trigger.
@@ -2055,6 +2572,16 @@ class WolfBrain:
                 ui_actions.append(action)
 
         location = intent.filters.get('location', '')
+
+        # Extract live DB price from analytics_context (from market_pulse).
+        # This overrides the hardcoded AREA_PRICE_HISTORY value for the current year
+        # so price_growth_chart reflects actual scraped property prices.
+        live_price_sqm: Optional[int] = None
+        if analytics_context:
+            _pulse = analytics_context.get("market_pulse") or {}
+            _live = _pulse.get("avg_price_sqm", 0)
+            if _live and _live > 0:
+                live_price_sqm = int(_live)
         
         # ═══════════════════════════════════════════════════════════════
         # ANALYTICS_ONLY: Show area_analysis (text-rich) instead of market_benchmark
@@ -2133,7 +2660,9 @@ class WolfBrain:
 
             # ALWAYS inject price growth chart with area analysis (line chart)
             # The user explicitly requested: "make the AI show a line chart about growth with analysis"
-            growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
+            growth_data = analytical_engine.calculate_price_growth_history(
+                location, include_developers=True, live_current_price_sqm=live_price_sqm
+            )
             if growth_data.get('found') and growth_data.get('data_points'):
                 add_action({
                     "type": "price_growth_chart",
@@ -2293,7 +2822,9 @@ class WolfBrain:
         # Growth chart: ALWAYS inject when a location exists — the price
         # history chart is minimal and always adds value to the conversation.
         if location:
-            growth_data = analytical_engine.calculate_price_growth_history(location, include_developers=True)
+            growth_data = analytical_engine.calculate_price_growth_history(
+                location, include_developers=True, live_current_price_sqm=live_price_sqm
+            )
             if growth_data.get('found') and growth_data.get('data_points'):
                 add_action({
                     "type": "price_growth_chart",
@@ -2335,12 +2866,14 @@ class WolfBrain:
         db_session: Optional[Any] = None,
         geopolitical_context: Optional[str] = None,
         _return_context: bool = False,
+        sourcing_data: Optional[Dict] = None,
     ):
         """
         STEP 8: SPEAK (Claude 3.5 Sonnet)
         Generate the Wolf's response using ONLY verified data.
         Now with psychology-aware context injection and Smart Display strategy.
         """
+        orchestrator_context = None
         try:
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # INSIGHT INJECTION (The "Wolf" Edge)
@@ -2373,11 +2906,42 @@ Frame it as insider market intelligence: "My data shows..."
                     'budget_pivot': 'Budget Stretch',
                     'relaxed_search': 'Relaxed Criteria Match',
                     'any_area_search': 'Cross-Area Match',
+                    'sourcing_pivot': 'Off-Market / VIP Sourcing',
                     'failed': 'No Match Found'
                 }
                 pivot_type = pivot_type_names.get(hunt_strategy, 'Alternative')
                 
-                wolf_insight_instruction += f"""
+                if hunt_strategy == 'sourcing_pivot' and sourcing_data:
+                    # Rich sourcing pivot context — Protocol G
+                    area = sourcing_data.get("area_data", {}) or {}
+                    compound = sourcing_data.get("compound_name", "")
+                    alts_count = len(sourcing_data.get("alternatives", []))
+                    alert_type = "Property Alert" if sourcing_data.get("saved_search_id") else ("Sourcing Request" if sourcing_data.get("ticket_id") else "None")
+                    wolf_insight_instruction += f"""
+[SOURCING_PIVOT]
+The user asked for compound "{compound}" which is NOT in our database — treat as FULLY SOLD / OFF-MARKET.
+DO NOT say "I don't have it" or "not available". Use Protocol G (Sourcing Pivot).
+
+AREA ANALYTICS (VERIFIED DATA — use these exact numbers):
+- Area: {area.get('name', 'Unknown')} ({area.get('name_ar', '')})
+- YTD Price Growth: +{int((area.get('price_growth_ytd', 0) or 0) * 100)}%
+- Predicted 5-Year ROI: +{int((area.get('predicted_roi_5y', 0) or 0) * 100)}%
+- Rental Yield: {round((area.get('rental_yield', 0) or 0) * 100, 1)}%
+- Avg Price/m²: {int(area.get('avg_price_per_meter', 0) or 0):,} EGP
+- Demand Score: {int(area.get('demand_score', 0) or 0)}/100
+
+ALTERNATIVES FOUND: {alts_count} properties in the same area
+LEAD CAPTURED: {alert_type} activated for user
+
+INSTRUCTIONS:
+1. START by framing "{compound}" as sold-out/off-market (a positive demand signal)
+2. Present the area analytics above to establish market authority
+3. Introduce the {alts_count} alternatives as "comparable opportunities"
+4. Confirm the {alert_type} is active — "you'll be first to know when new units appear"
+5. Close with a forward question about exploring the alternatives
+"""
+                else:
+                    wolf_insight_instruction += f"""
 [REFLEXION: {pivot_type.upper()}]
 IMPORTANT: The user's EXACT criteria returned zero results.
 I used intelligent reasoning to find alternatives.
@@ -2457,18 +3021,18 @@ You are in DATA CONSULTANT mode — embed these numbers DIRECTLY in your text:
                 if language == 'ar':
                     wolf_insight_instruction += f"""
 [STRATEGY: TEASER_ANCHOR]
-أنت بتعرض وحدة واحدة بس كـ "مثال من السوق" لاختبار الميزانية.
-لا تبيع الوحدة دي دلوقتي. استخدمها لتثبيت السعر.
-قول: "مثلاً، ده متوسط سعر الوحدات في {anchor_location} ({anchor_price:,.0f} جنيه). ده في نطاق ميزانيتك؟"
-بعد كده اسأل عن الميزانية المحددة عشان تقدر ترشح بدقة.
+أنت لقيت وحدات متطابقة وبتعرض **وحدة واحدة** كـ عينة عشان تثبت إنك فعلاً عندك بضاعة.
+لا تبيع الوحدة دي دلوقتي — استخدمها كـ طُعم ذكي.
+قول: "لقيت [X] وحدات مطابقة — خليني أوريك عينة: ده في {anchor_location} بحوالي {anchor_price:,.0f} جنيه.
+بس قبل ما أفتحلك السجل كامل—حضرتك بتشتري للـ**سكن** ولا **استثمار**؟ الإجابة دي هتغير ترتيب الوحدات خالص."
 """
                 else:
                     wolf_insight_instruction += f"""
 [STRATEGY: TEASER_ANCHOR]
-You are showing ONLY ONE property as a "Market Example" to test their budget.
-DO NOT sell this specific unit yet. Use it to anchor the price.
-Say: "For example, this is what the average unit in {anchor_location} costs ({anchor_price:,.0f} EGP). Is this within your comfort zone?"
-Then ask for their specific budget so you can recommend precisely.
+You found matching units and are showing **ONE sample** to prove you have real inventory.
+DO NOT sell this specific unit yet — use it as a smart hook.
+Say: "I found [X] matching units — here's a sample: this one in {anchor_location} is around {anchor_price:,.0f} EGP.
+But before I unlock the full ledger — are you buying for **Living** or **Investment**? Your answer completely changes how I rank these."
 """
             elif properties and showing_strategy == 'FULL_LIST':
                 # FULL MODE: Group properties and show them intelligently
@@ -2551,6 +3115,17 @@ End with: "Do you prefer a specific area, or shall I pick the best value?"
             # 0.5 Inject Geopolitical Intelligence (Always-On Macro Awareness)
             if geopolitical_context:
                 wolf_insight_instruction += geopolitical_context
+
+            # 0.75 Inject Predictive Pricing Intelligence (Regime-Aware)
+            try:
+                _loc = analytics_context.get("location", "") if analytics_context else ""
+                _dev = ""
+                if properties and len(properties) > 0:
+                    _dev = properties[0].get("developer", "")
+                if _loc:
+                    wolf_insight_instruction += format_appreciation_context_for_prompt(_loc, _dev)
+            except Exception:
+                pass  # Non-fatal: degrade gracefully
 
             # 1. Inject Live Market Pulse (Real-Time DB Data)
             # This overrides hardcoded assumptions with fresh data
@@ -2785,6 +3360,10 @@ YOUR APPROACH:
             # Property context with wolf benchmarking (only when not in discovery)
             if properties:
                 context_parts.append(self._format_property_context(properties))
+                # Pre-computed analytics — payment plans, appreciation, trust scores
+                computed_analytics = self._precompute_analytics(properties)
+                if computed_analytics:
+                    context_parts.append(computed_analytics)
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # DATABASE STATISTICS INJECTION (Phase 5C)
@@ -2796,7 +3375,10 @@ YOUR APPROACH:
                     qa_stats = await compute_detailed_qa_statistics(db_session)
                     qa_stats_text = format_qa_stats_for_ai(qa_stats)
                     if qa_stats_text:
-                        context_parts.append(f"\n[LIVE_DATABASE_STATISTICS]\n{qa_stats_text}\nUse ONLY these numbers. Never invent statistics.\n")
+                        context_parts.append(
+                            f"\n<MARKET_STATISTICS>\n{qa_stats_text}\n</MARKET_STATISTICS>\n"
+                            f"Use ONLY the numbers inside <MARKET_STATISTICS>. Never invent statistics.\n"
+                        )
             except Exception as e:
                 logger.warning(f"Could not inject QA stats: {e}")
 
@@ -3123,20 +3705,53 @@ Client is ready — push towards a specific viewing:
             try:
                 _pre_empt = _predict_objections(psychology, memory, intent, properties if 'properties' in dir() else [])
                 if _pre_empt:
+                    # Record pre-emptions for hit-rate tracking
+                    _turn_num = len(history) + 1
+                    for obj in _pre_empt:
+                        objection_tracker.record_preemption(obj['type'], _turn_num)
+
                     if language == "ar":
                         pe_lines = ["[PRE_EMPT_OBJECTIONS — اعتراضات متوقعة: عالجها قبل ما العميل يسأل]"]
                         for obj in _pre_empt:
-                            pe_lines.append(f"• {obj['type']}: {obj['counter_ar']}")
+                            pe_lines.append(f"• {obj['type']} (P={obj.get('probability', '?')}): {obj.get('counter_ar', '')}")
                         pe_lines.append("STRATEGY: أدخل الرد بشكل طبيعي — 'أنا عارف ممكن يكون في بالك...'")
                     else:
                         pe_lines = ["[PRE_EMPT_OBJECTIONS — Predicted objections: address before user asks]"]
                         for obj in _pre_empt:
-                            pe_lines.append(f"• {obj['type']}: {obj['counter_en']}")
+                            pe_lines.append(f"• {obj['type']} (P={obj.get('probability', '?')}): {obj.get('counter_en', '')}")
                         pe_lines.append("STRATEGY: Weave naturally — 'I know you might be thinking...'")
                     context_parts.append("\n".join(pe_lines))
-                    logger.info(f"🛡️ Pre-emption: {[o['type'] for o in _pre_empt]}")
+                    _pre_empt_log = [f"{o['type']}(P={o.get('probability','?')})" for o in _pre_empt]
+                    logger.info(f"🛡️ Pre-emption: {_pre_empt_log}")
             except Exception as e:
                 logger.debug(f"Objection pre-emption skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V5: DYNAMIC XP AWARD CONTEXT — Claude acknowledges mid-response
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                if dynamic_xp_actions:
+                    from app.services.gamification import XP_ACTIONS as _XP_TABLE
+                    _xp_lines = []
+                    for act in dynamic_xp_actions:
+                        _xp_lines.append(f"  • {act}: +{_XP_TABLE.get(act, 0)} XP")
+                    _xp_block = "\n".join(_xp_lines)
+                    if language == "ar":
+                        context_parts.append(f"""[DYNAMIC_XP_AWARD — مكافأة تحليلية]
+العميل سأل سؤال تحليلي ذكي. اعترف بذلك بشكل طبيعي في ردك:
+{_xp_block}
+مثال: "سؤال ممتاز عن العائد! +15 XP 🎯" أو "تحليل ذكي! ده يستاهل +20 XP 📊"
+اذكره مرة واحدة بشكل طبيعي — لا تكرر ولا تبالغ.""")
+                    else:
+                        context_parts.append(f"""[DYNAMIC_XP_AWARD — Analytical Bonus]
+User asked a smart analytical question. Acknowledge naturally in your response:
+{_xp_block}
+Example: "Great ROI question! +15 XP 🎯" or "Smart comparison! That earns +20 XP 📊"
+Mention once naturally — don't repeat or overdo it.""")
+                    logger.info(f"💎 Dynamic XP context injected: {dynamic_xp_actions}")
+            except Exception as e:
+                logger.debug(f"Dynamic XP context injection skipped: {e}")
+
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             try:
                 if cross_session_context and len(history) <= 1:
@@ -3159,6 +3774,43 @@ Strategy Hint: {ret_hint}
                     logger.info(f"🔄 Return visitor context injected: {ret_type}")
             except Exception as e:
                 logger.debug(f"Return visitor context skipped: {e}")
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # V5: PORTFOLIO CONTEXT for PORTFOLIO_BUILDER persona
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            try:
+                _persona = getattr(psychology, 'buyer_persona', None)
+                if user_id and _persona and _persona.value == "portfolio":
+                    from app.services.portfolio_engine import get_portfolio_summary, generate_expansion_alert
+                    _portfolio = await get_portfolio_summary(session, user_id)
+                    if _portfolio.get("count", 0) > 0:
+                        if language == "ar":
+                            _p_ctx = f"""[PORTFOLIO_CONTEXT — عميل لديه محفظة عقارية]
+عدد العقارات: {_portfolio['count']}
+إجمالي الاستثمار: {_portfolio['total_invested']:,.0f} جنيه
+القيمة الحالية: {_portfolio['total_current_value']:,.0f} جنيه
+العائد الإجمالي: {_portfolio['portfolio_roi_pct']}%
+- هذا عميل مستثمر — تعامل معه على أنه خبير
+- ركّز على فرص التوسع وليس التعليم
+- لو في عقار leverageable: اقترح استخدام الإيكويتي كمقدم"""
+                        else:
+                            _p_ctx = f"""[PORTFOLIO_CONTEXT — Investor with existing portfolio]
+Properties: {_portfolio['count']}
+Total Invested: EGP {_portfolio['total_invested']:,.0f}
+Current Value: EGP {_portfolio['total_current_value']:,.0f}
+Portfolio ROI: {_portfolio['portfolio_roi_pct']}%
+- Treat as experienced investor, not first-timer
+- Focus on expansion opportunities, not education
+- If leverageable: suggest using equity as down payment"""
+                        context_parts.append(_p_ctx)
+
+                        _alert = await generate_expansion_alert(session, user_id)
+                        if _alert:
+                            _alert_msg = _alert.get(f"message_{language}", _alert.get("message_en", ""))
+                            context_parts.append(f"\n[EXPANSION_OPPORTUNITY] {_alert_msg}")
+                        logger.info(f"📦 Portfolio context injected: {_portfolio['count']} properties, ROI={_portfolio['portfolio_roi_pct']}%")
+            except Exception as e:
+                logger.debug(f"Portfolio context injection skipped: {e}")
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # V3 ENHANCEMENT: WAITING COST (Fear Clock Extension)
@@ -3336,6 +3988,26 @@ RULE 4: Anchor the price to the ROI: "You are not spending X, you are securing a
                     psy_cot += f"\nDECISION STAGE: {psychology.decision_stage.value}"
                 context_parts.append(psy_cot)
 
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # ORCHESTRATOR INTELLIGENCE INJECTION
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if orchestrator_context:
+                orch_parts = ["[ORCHESTRATOR_INTELLIGENCE]"]
+                tier = orchestrator_context.get("tier", "unknown")
+                lead_score = orchestrator_context.get("leadScore", 0)
+                orch_parts.append(f"Lead Tier: {tier} (score: {lead_score}/100)")
+                suggested = orchestrator_context.get("suggestedTopics", [])
+                if suggested:
+                    orch_parts.append(f"Suggested Topics: {', '.join(suggested)}")
+                intent_types = orchestrator_context.get("intentTypes", [])
+                if intent_types:
+                    orch_parts.append(f"Browsing Intent Signals: {', '.join(intent_types)}")
+                if tier == "hot":
+                    orch_parts.append("STRATEGY: This is a HOT lead — prioritize closing. Offer direct scheduling.")
+                elif tier == "warm":
+                    orch_parts.append("STRATEGY: WARM lead — build urgency, present best-fit options.")
+                context_parts.append("\n".join(orch_parts))
+
             # Build system prompt
             system_prompt = get_wolf_system_prompt() + "\n\n" + "\n".join(context_parts)
             
@@ -3418,7 +4090,8 @@ DO NOT mention any prices outside this range.
                 response = await self._call_claude_with_retry(
                     model=claude_model,
                     max_tokens=min(4096, max_tok),
-                    temperature=0.7,
+                    temperature=0.2,
+                    top_p=0.9,
                     system=system_payload,
                     messages=messages,
                 )
@@ -3549,30 +4222,127 @@ DO NOT mention any prices outside this range.
             logger.error(f"Streaming narrative failed: {e}", exc_info=True)
             yield "عذراً، حصل مشكلة فنية. جرب تاني. (Sorry, technical issue.)"
     
+    def _precompute_analytics(self, properties: List[Dict]) -> str:
+        """Pre-compute analytics for top properties using Python math.
+
+        Returns a <COMPUTED_ANALYTICS> XML block with payment plans,
+        appreciation projections, and trust scores. The LLM must quote
+        these numbers verbatim — never self-calculate.
+        """
+        if not properties:
+            return ""
+
+        analytics = []
+        for prop in properties[:5]:
+            entry: Dict = {"property_id": prop.get("id"), "title": prop.get("title", "N/A")}
+
+            # 1. Payment plan
+            price = prop.get("price", 0)
+            dp_pct = prop.get("down_payment", 10) / 100 if prop.get("down_payment", 0) > 1 else prop.get("down_payment", 0.10)
+            years = prop.get("installment_years") or 8
+            location = prop.get("location", "")
+            if price > 0:
+                try:
+                    plan = payment_plan_analyzer.calculate_installment_plan(
+                        total_price=price, down_payment_pct=dp_pct, years=years, location=location,
+                    )
+                    entry["payment_plan"] = {
+                        "down_payment_egp": plan.get("down_payment", 0),
+                        "monthly_equivalent_egp": plan.get("monthly_equivalent", 0),
+                        "quarterly_installment_egp": plan.get("installment_amount", 0),
+                        "total_payments": plan.get("total_payments", 0),
+                        "plan_years": plan.get("plan_years", years),
+                    }
+                except Exception:
+                    pass
+
+            # 2. Appreciation projection
+            if location:
+                try:
+                    appreciation = calculate_real_vs_nominal_appreciation(location)
+                    entry["appreciation"] = {
+                        "nominal_yoy_pct": appreciation.get("nominal_yoy", 0),
+                        "real_yoy_pct": appreciation.get("real_yoy", 0),
+                        "inflation_rate_pct": appreciation.get("inflation_rate", 0),
+                    }
+                except Exception:
+                    pass
+
+            # 3. Developer trust score
+            developer = prop.get("developer", "")
+            if developer:
+                try:
+                    trust = developer_trust_scorer.calculate_trust_score(developer)
+                    entry["developer_trust"] = {
+                        "score": trust.get("trust_score", 0),
+                        "tier": trust.get("tier", "Unknown"),
+                        "delivery_reliability": trust.get("delivery_reliability", "N/A"),
+                    }
+                except Exception:
+                    pass
+
+            analytics.append(entry)
+
+        if not analytics:
+            return ""
+
+        json_str = json.dumps(analytics, ensure_ascii=False, indent=2)
+        return (
+            f"<COMPUTED_ANALYTICS>\n{json_str}\n</COMPUTED_ANALYTICS>\n"
+            f"RULE: When quoting payment plans, ROI, or trust scores, use ONLY the numbers "
+            f"from <COMPUTED_ANALYTICS>. Never perform arithmetic yourself.\n"
+        )
+
     def _format_property_context(self, properties: List[Dict]) -> str:
-        """Format properties for Claude context."""
+        """Format properties as structured JSON in <DATABASE_CONTEXT> tags.
+        
+        Strict JSON format reduces LLM hallucination vs loose text.
+        All numerical values are exact DB values — no rounding.
+        """
         if not properties:
             return "[NO_PROPERTIES_FOUND]"
         
-        lines = ["[PROPERTIES_DATA]"]
-        lines.append(f"Found {len(properties)} matching properties:\n")
+        # Build clean JSON array from DB data
+        json_properties = []
+        for prop in properties[:5]:
+            json_prop = {
+                "id": prop.get("id"),
+                "title": prop.get("title", "N/A"),
+                "compound": prop.get("compound", "N/A"),
+                "location": prop.get("location", "N/A"),
+                "type": prop.get("type", "N/A"),
+                "developer": prop.get("developer", "N/A"),
+                "price_egp": prop.get("price", 0),
+                "price_per_sqm": prop.get("price_per_sqm", 0),
+                "size_sqm": prop.get("size_sqm", 0),
+                "bedrooms": prop.get("bedrooms", 0),
+                "bathrooms": prop.get("bathrooms", 0),
+                "finishing": prop.get("finishing", "N/A"),
+                "delivery_date": prop.get("delivery_date", "N/A"),
+                "down_payment_pct": prop.get("down_payment", 0),
+                "monthly_installment": prop.get("monthly_installment", 0),
+                "installment_years": prop.get("installment_years", 0),
+                "maintenance_fee_pct": prop.get("maintenance_fee_pct", 0),
+                "delivery_payment": prop.get("delivery_payment", 0),
+                "sale_type": prop.get("sale_type", "N/A"),
+                "is_delivered": prop.get("is_delivered", False),
+                "land_area": prop.get("land_area", 0),
+                "osool_score": prop.get("osool_score", 0),
+                "wolf_analysis": prop.get("wolf_analysis", "N/A"),
+            }
+            json_properties.append(json_prop)
         
-        for i, prop in enumerate(properties[:5], 1):
-            price = prop.get('price', 0)
-            price_formatted = f"{price/1_000_000:.1f}M" if price >= 1_000_000 else f"{price:,}"
-            
-            lines.append(f"""
-Property {i}: {prop.get('title', 'N/A')}
-- Location: {prop.get('location', 'N/A')}
-- Price: {price_formatted} EGP
-- Size: {prop.get('size_sqm', 'N/A')} sqm
-- Bedrooms: {prop.get('bedrooms', 'N/A')}
-- Developer: {prop.get('developer', 'N/A')}
-- Osool Score: {prop.get('osool_score', 'N/A')}/100
-- Verdict: {prop.get('verdict', 'N/A')}
-""")
+        json_str = json.dumps(json_properties, ensure_ascii=False, indent=2)
         
-        return "\n".join(lines)
+        return (
+            f"<DATABASE_CONTEXT>\n"
+            f"{json_str}\n"
+            f"</DATABASE_CONTEXT>\n\n"
+            f"GROUNDING RULE: Answer based ONLY on the <DATABASE_CONTEXT> above. "
+            f"Every price, date, area, compound name, and payment detail MUST come from this JSON. "
+            f"If a data point is missing (null or 0), say 'أحتاج أتأكد من المعلومة دي مع الفريق' / "
+            f"'I need to confirm that with my team' — NEVER guess or use training data."
+        )
     
     def get_stats(self) -> Dict:
         """Get brain statistics."""
