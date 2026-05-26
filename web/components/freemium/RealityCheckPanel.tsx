@@ -16,6 +16,7 @@ import {
 import { useRouter } from 'next/navigation';
 
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getCsrfToken } from '@/lib/api-secure';
 
 import GlassPanel from './atoms/GlassPanel';
 import InputAtom from './atoms/InputAtom';
@@ -547,8 +548,6 @@ export default function RealityCheckPanel() {
     setIsSubmitting(true);
 
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-
       const payload = {
         compound_id: form.compoundName.trim(),
         stated_total_price: parseNumber(form.statedTotalPrice),
@@ -558,12 +557,20 @@ export default function RealityCheckPanel() {
         space_sqm: parseNumber(form.areaSqm),
       };
 
+      // Fetch a fresh CSRF token if not already cached, then include it.
+      let csrfToken = getCsrfToken();
+      if (!csrfToken) {
+        const csrfRes = await fetch(`${API_BASE}/api/auth/csrf-token`, { credentials: 'include' });
+        const csrfData = await csrfRes.json().catch(() => ({}));
+        csrfToken = csrfData.csrf_token ?? null;
+      }
+
       const response = await fetch(`${API_BASE}/api/evaluate/reality-check`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         },
         body: JSON.stringify(payload),
       });
