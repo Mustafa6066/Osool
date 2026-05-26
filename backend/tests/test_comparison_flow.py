@@ -95,11 +95,43 @@ def test_is_comparison_intent_false_for_unrelated_query():
 
 
 def _mock_db_with_count(count: int) -> AsyncMock:
-    """Build an AsyncSession mock whose `execute` returns the given scalar count."""
+    """Build an AsyncSession mock whose execute().all() returns stocked rows.
+
+    count > 0  → every candidate compound is considered stocked (≥5 rows).
+    count == 0 → no compounds are stocked (empty result set).
+    The old scalar_one() interface is gone; resolve_to_compound now uses a
+    single GROUP BY query returning (compound, cnt) pairs via .all().
+    """
+    from types import SimpleNamespace
+
     db = AsyncMock()
-    result = MagicMock()
-    result.scalar_one.return_value = count
-    db.execute.return_value = result
+
+    def _make_result(stmt, *args, **kwargs):
+        if count > 0:
+            # Return all compounds that the IN clause would have included.
+            # We can't inspect the exact IN list here, so we mock it lazily:
+            # resolve_to_compound iterates result.all() and picks the first
+            # candidate in DEVELOPER_TO_COMPOUNDS order whose compound is in
+            # {r.compound for r in rows}.  Returning a sentinel that matches
+            # ALL compounds satisfies every "stocked" scenario.
+            import re
+            in_match = re.search(r"in_\(\[(.+?)\]\)", str(stmt), re.DOTALL)
+            # Fallback: return a universal row that resolves via the loop.
+            # Provide rows for every key in DEVELOPER_TO_COMPOUNDS so any
+            # developer lookup finds a match.
+            from app.ai_engine.flagship_compounds import DEVELOPER_TO_COMPOUNDS
+            rows = [
+                SimpleNamespace(compound=c, cnt=count)
+                for compounds in DEVELOPER_TO_COMPOUNDS.values()
+                for c in compounds
+            ]
+        else:
+            rows = []
+        result = MagicMock()
+        result.all.return_value = rows
+        return result
+
+    db.execute = AsyncMock(side_effect=_make_result)
     return db
 
 
@@ -142,12 +174,12 @@ def _stub_grouped_rows(rows: list[tuple]) -> MagicMock:
 def test_compare_compounds_picks_largest_gap_winner():
     """Three compounds; the one with the biggest dev−resale gap wins."""
     db = AsyncMock()
-    # (compound, ptype, dev_avg, dev_n, res_avg, res_n)
+    # (compound, ptype, dev_avg, dev_n, res_avg, res_n, latest_scraped)
     rows = [
-        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=10, res_avg=4_500_000, res_n=10),
-        SimpleNamespace(compound="A", ptype="villa",     dev_avg=12_000_000, dev_n=5, res_avg=11_000_000, res_n=5),
-        SimpleNamespace(compound="B", ptype="apartment", dev_avg=6_000_000, dev_n=8, res_avg=4_000_000, res_n=8),  # gap 2M — winner
-        SimpleNamespace(compound="C", ptype="apartment", dev_avg=4_000_000, dev_n=4, res_avg=3_900_000, res_n=4),
+        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=10, res_avg=4_500_000, res_n=10, latest_scraped=None),
+        SimpleNamespace(compound="A", ptype="villa",     dev_avg=12_000_000, dev_n=5, res_avg=11_000_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="B", ptype="apartment", dev_avg=6_000_000, dev_n=8, res_avg=4_000_000, res_n=8, latest_scraped=None),  # gap 2M — winner
+        SimpleNamespace(compound="C", ptype="apartment", dev_avg=4_000_000, dev_n=4, res_avg=3_900_000, res_n=4, latest_scraped=None),
     ]
     db.execute.return_value = _stub_grouped_rows(rows)
 
@@ -162,9 +194,9 @@ def test_compare_compounds_flags_compound_with_no_resale():
     """Compound D has no resale rows at all → missing_compound is set, no winner."""
     db = AsyncMock()
     rows = [
-        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=4_000_000, res_n=5),
+        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=4_000_000, res_n=5, latest_scraped=None),
         # B has zero rows — absent from the grouped result entirely
-        SimpleNamespace(compound="C", ptype="apartment", dev_avg=4_000_000, dev_n=5, res_avg=3_500_000, res_n=5),
+        SimpleNamespace(compound="C", ptype="apartment", dev_avg=4_000_000, dev_n=5, res_avg=3_500_000, res_n=5, latest_scraped=None),
     ]
     db.execute.return_value = _stub_grouped_rows(rows)
 
@@ -178,10 +210,10 @@ def test_compare_compounds_drops_low_sample_buckets():
     db = AsyncMock()
     rows = [
         # A apartment has only 2 dev rows — too few to count.
-        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=2, res_avg=4_000_000, res_n=5),
+        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=2, res_avg=4_000_000, res_n=5, latest_scraped=None),
         # A villa is fully stocked.
-        SimpleNamespace(compound="A", ptype="villa",     dev_avg=12_000_000, dev_n=5, res_avg=10_000_000, res_n=5),
-        SimpleNamespace(compound="B", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=5_500_000, res_n=5),
+        SimpleNamespace(compound="A", ptype="villa",     dev_avg=12_000_000, dev_n=5, res_avg=10_000_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="B", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=5_500_000, res_n=5, latest_scraped=None),
     ]
     db.execute.return_value = _stub_grouped_rows(rows)
 
@@ -198,9 +230,9 @@ def test_compare_compounds_ignores_non_positive_gaps_for_winner():
     """Only a positive developer−resale gap can win the free-path comparison."""
     db = AsyncMock()
     rows = [
-        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_500_000, res_n=5),
-        SimpleNamespace(compound="B", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_000_000, res_n=5),
-        SimpleNamespace(compound="C", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=5_200_000, res_n=5),
+        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_500_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="B", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_000_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="C", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=5_200_000, res_n=5, latest_scraped=None),
     ]
     db.execute.return_value = _stub_grouped_rows(rows)
 
@@ -215,8 +247,8 @@ def test_compare_compounds_ignores_non_positive_gaps_for_winner():
 def test_compare_compounds_returns_no_winner_when_all_gaps_non_positive():
     db = AsyncMock()
     rows = [
-        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_500_000, res_n=5),
-        SimpleNamespace(compound="B", ptype="apartment", dev_avg=4_000_000, dev_n=5, res_avg=4_000_000, res_n=5),
+        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=5_500_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="B", ptype="apartment", dev_avg=4_000_000, dev_n=5, res_avg=4_000_000, res_n=5, latest_scraped=None),
     ]
     db.execute.return_value = _stub_grouped_rows(rows)
 
@@ -472,8 +504,8 @@ def test_dialog_multi_compound_runs_comparison_and_blurs_losers():
     session = _fresh_session()
     db = AsyncMock()
     rows = [
-        SimpleNamespace(compound="Sarai", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=4_000_000, res_n=5),
-        SimpleNamespace(compound="Hyde Park", ptype="apartment", dev_avg=7_000_000, dev_n=5, res_avg=6_500_000, res_n=5),
+        SimpleNamespace(compound="Sarai", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=4_000_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="Hyde Park", ptype="apartment", dev_avg=7_000_000, dev_n=5, res_avg=6_500_000, res_n=5, latest_scraped=None),
     ]
     db.execute.return_value = _stub_grouped_rows(rows)
 
@@ -499,11 +531,15 @@ def test_dialog_named_developers_resolve_to_concrete_compounds():
     db = AsyncMock()
 
     stocked = MagicMock()
-    stocked.scalar_one.return_value = 10
+    stocked.all.return_value = [
+        SimpleNamespace(compound="La Vista City"),
+        SimpleNamespace(compound="Swan Lake"),
+        SimpleNamespace(compound="Sodic East"),
+    ]
     rows = [
-        SimpleNamespace(compound="La Vista City", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=5_300_000, res_n=5),
-        SimpleNamespace(compound="Swan Lake", ptype="apartment", dev_avg=7_000_000, dev_n=5, res_avg=6_000_000, res_n=5),
-        SimpleNamespace(compound="Sodic East", ptype="apartment", dev_avg=8_000_000, dev_n=5, res_avg=6_500_000, res_n=5),
+        SimpleNamespace(compound="La Vista City", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=5_300_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="Swan Lake", ptype="apartment", dev_avg=7_000_000, dev_n=5, res_avg=6_000_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="Sodic East", ptype="apartment", dev_avg=8_000_000, dev_n=5, res_avg=6_500_000, res_n=5, latest_scraped=None),
     ]
     db.execute.side_effect = [stocked, stocked, stocked, _stub_grouped_rows(rows)]
 
@@ -524,8 +560,8 @@ def test_dialog_multi_compound_no_positive_gap_keeps_session_open():
     session = _fresh_session()
     db = AsyncMock()
     rows = [
-        SimpleNamespace(compound="Sarai", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=6_100_000, res_n=5),
-        SimpleNamespace(compound="Hyde Park", ptype="apartment", dev_avg=7_000_000, dev_n=5, res_avg=7_000_000, res_n=5),
+        SimpleNamespace(compound="Sarai", ptype="apartment", dev_avg=6_000_000, dev_n=5, res_avg=6_100_000, res_n=5, latest_scraped=None),
+        SimpleNamespace(compound="Hyde Park", ptype="apartment", dev_avg=7_000_000, dev_n=5, res_avg=7_000_000, res_n=5, latest_scraped=None),
     ]
     db.execute.return_value = _stub_grouped_rows(rows)
 
@@ -559,7 +595,7 @@ def test_dialog_missing_resale_moves_to_missing_data_state():
     db = AsyncMock()
     # Two compounds: B has zero rows entirely.
     rows = [
-        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=4_000_000, res_n=5),
+        SimpleNamespace(compound="A", ptype="apartment", dev_avg=5_000_000, dev_n=5, res_avg=4_000_000, res_n=5, latest_scraped=None),
     ]
     db.execute.return_value = _stub_grouped_rows(rows)
     response = asyncio.run(
