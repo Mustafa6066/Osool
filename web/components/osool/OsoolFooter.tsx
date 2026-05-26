@@ -44,7 +44,9 @@ export default function OsoolFooter() {
           <div>
             <h5>Resources</h5>
             <div className="osool-footer-links">
-              <Link href="/buying-guide">Buyer&apos;s guide</Link>
+              {/* /buying-guide is dynamic-only (/buying-guide/[slug]); point at /areas
+                  which serves the same intent — a buyer-facing area overview. */}
+              <Link href="/areas">Buyer&apos;s guide</Link>
               <Link href="/market">Market reports</Link>
               <Link href="/contact">API for developers</Link>
               <Link href="/contact">Contact</Link>
