@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import axios from 'axios';
 
 import { useAuth } from '@/contexts/AuthContext';
+import api, { sendChatMessage, getUserChatSessions, type ChatSession } from '@/lib/api';
+import { getOrCreateSessionId, STORAGE_KEYS } from '@/lib/chat-utils';
 import OsoolAvatar from '@/components/osool/OsoolAvatar';
 import {
   IconCalc,
@@ -27,25 +30,57 @@ import {
 import './chat.css';
 
 /**
- * Osool Chat — visual prototype, now live at /chat.
- * Port of Osool Chat.html from the claude.ai/design handoff.
+ * Osool Chat — editorial surface from the claude.ai/design handoff,
+ * now wired to the real backend.
  *
- * Demo tiers:
- *   - "paid"  → full reply: thinking + summary strip + property carousel + levers
- *   - "free"  → fair-range teaser + one masked comp + upgrade CTA
+ *   Send       → POST /api/chat        (sendChatMessage)
+ *   Sessions   → GET  /api/chat/history (getUserChatSessions)
+ *   Resume     → GET  /api/chat/history/{session_id}
  *
- * Admins see a topbar segmented toggle to flip between the two for live demos.
- * The chosen tier is persisted in localStorage under "osool.demoTier".
- * Non-admin users see the paid demo by default (legacy behaviour preserved).
+ * No mock data: every message comes from the API, every conversation in
+ * the sidebar is real, session ID persists via getOrCreateSessionId.
  *
- * The production AgentInterface lives at /chat-legacy until backend wiring
- * for this new surface lands.
+ * The legacy AgentInterface lives at /chat-legacy for reference until
+ * we're confident this surface covers every flow.
  */
 
 type Lang = 'en' | 'ar';
 type Theme = 'light' | 'dark';
-type DemoTier = 'free' | 'paid';
-const DEMO_TIER_KEY = 'osool.demoTier';
+
+interface UserMessage {
+  role: 'user';
+  content: string;
+}
+
+interface PropertyCard {
+  id?: string | number;
+  name: string;
+  loc: string;
+  price: string;
+  score: number | null;
+  beds: number | null;
+  size: string;
+  imageUrl?: string | null;
+}
+
+interface AiMessage {
+  role: 'ai';
+  text: string;
+  properties?: PropertyCard[];
+  pending?: boolean;
+  error?: string;
+}
+
+type Message = UserMessage | AiMessage;
+
+interface HistoryMessage {
+  role: string;
+  content: string;
+  properties_json?: string | null;
+  created_at?: string;
+}
+
+/* ─── Translations ──────────────────────────────────────────────── */
 
 type Translations = {
   newConv: string;
@@ -56,10 +91,14 @@ type Translations = {
   attach: string;
   voice: string;
   yourPlan: string;
+  guest: string;
   disclaimer: string;
   talkAdvisor: string;
   stopGen: string;
   conv1Title: string;
+  noConvs: string;
+  errorSend: string;
+  thinkingLabel: string;
 };
 
 const T_EN: Translations = {
@@ -71,11 +110,15 @@ const T_EN: Translations = {
     'Ask anything about the Egyptian property market — listings, valuation, contracts. Arabic or English.',
   attach: 'Attach a file',
   voice: 'Voice input',
-  yourPlan: 'mustafa@osool.eg',
+  yourPlan: 'Free plan',
+  guest: 'Guest',
   disclaimer: 'Osool can be wrong about prices. Verify against the registry.',
   talkAdvisor: 'Talk to a licensed advisor instead',
   stopGen: 'Stop generating',
-  conv1Title: 'Villas in New Cairo under 10M',
+  conv1Title: 'New conversation',
+  noConvs: 'No conversations yet',
+  errorSend: 'Could not reach Osool. Check your connection and try again.',
+  thinkingLabel: 'Thinking…',
 };
 
 const T_AR: Translations = {
@@ -86,263 +129,91 @@ const T_AR: Translations = {
   greetingSub: 'اسأل عن السوق المصري — وحدات، تقييم، عقود. بالعربية أو الإنجليزية.',
   attach: 'إرفاق ملف',
   voice: 'إدخال صوتي',
-  yourPlan: 'mustafa@osool.eg',
+  yourPlan: 'الباقة المجانية',
+  guest: 'ضيف',
   disclaimer: 'قد يخطئ أصول في الأسعار. تحقق من السجل العقاري.',
-  talkAdvisor: 'أو تحدث إلى مستشار مرخص',
+  talkAdvisor: 'تحدث إلى مستشار مرخص',
   stopGen: 'إيقاف التوليد',
-  conv1Title: 'فيلات في القاهرة الجديدة بأقل من ١٠ مليون',
+  conv1Title: 'محادثة جديدة',
+  noConvs: 'لا توجد محادثات بعد',
+  errorSend: 'تعذر الوصول إلى أصول. تحقق من الاتصال وحاول مرة أخرى.',
+  thinkingLabel: 'يفكر…',
 };
 
-type Conversation = {
-  group: 'Today' | 'Yesterday' | 'Last 7 days';
-  items: Array<{ id: string; title: string; active?: boolean }>;
-};
+/* ─── Mapping helpers ───────────────────────────────────────────── */
 
-const CONVERSATIONS: Conversation[] = [
-  {
-    group: 'Today',
-    items: [
-      { id: 'c1', title: 'Villas in New Cairo under 10M', active: true },
-      { id: 'c2', title: 'Hyde Park vs Mivida — ROI?' },
-      { id: 'c3', title: 'Fair value: 8.4M Mountain View villa' },
-    ],
-  },
-  {
-    group: 'Yesterday',
-    items: [
-      { id: 'c4', title: 'Mountain View iCity clause 14' },
-      { id: 'c5', title: 'Fawry escrow for 8M unit' },
-    ],
-  },
-  {
-    group: 'Last 7 days',
-    items: [
-      { id: 'c6', title: 'Madinaty resale trend 2026' },
-      { id: 'c7', title: 'North Coast — Marassi vs Hacienda' },
-      { id: 'c8', title: 'CBE rate impact on installments' },
-    ],
-  },
-];
+type Json = Record<string, unknown>;
 
-/* ─── Message data shapes ───────────────────────────────────────── */
-
-interface UserMessage {
-  role: 'user';
-  content: string;
+function readNum(o: Json, ...keys: string[]): number | null {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
 }
 
-interface SummaryCell {
-  label: string;
-  value: string;
-  trend?: string;
-  direction?: 'up' | 'down';
+function readStr(o: Json, ...keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return undefined;
 }
 
-interface PropertyCard {
-  name: string;
-  loc: string;
-  price: string;
-  score: number | '—';
-  beds: number;
-  size: string;
-  badges?: Array<{ label: string; tone?: 'accent' | 'default' }>;
-  /** When true, the closing price renders as a masked italic placeholder. */
-  priceMasked?: boolean;
+function formatEgp(amount: number, lang: Lang): string {
+  if (amount >= 1_000_000) {
+    const m = amount / 1_000_000;
+    const rounded = m.toFixed(m >= 10 ? 1 : 2).replace(/\.?0+$/, '');
+    return lang === 'ar' ? `${rounded} مليون جنيه` : `${rounded}M EGP`;
+  }
+  if (amount >= 1_000) {
+    const k = Math.round(amount / 1_000);
+    return lang === 'ar' ? `${k} ألف جنيه` : `${k.toLocaleString('en-US')} EGP`;
+  }
+  return lang === 'ar' ? `${Math.round(amount).toLocaleString('ar-EG')} جنيه` : `${Math.round(amount).toLocaleString('en-US')} EGP`;
 }
 
-interface ThinkingStep {
-  title: string;
-  meta: string;
-}
-
-interface UpgradeCTA {
-  eyebrow: string;
-  headline: string;
-  body: string;
-  skus: Array<{ price: string; label: string }>;
-}
-
-interface AiMessage {
-  role: 'ai';
-  thinking?: ThinkingStep[];
-  thinkingHeader?: string;
-  body?: React.ReactNode;
-  summary?: SummaryCell[];
-  properties?: PropertyCard[];
-  /** Free-tier ammunition card. Render at the end of the AI bubble. */
-  upgradeCTA?: UpgradeCTA;
-  pending?: boolean;
-}
-
-type Message = UserMessage | AiMessage;
-
-/* ─── Sample seed conversations ─────────────────────────────────── */
-
-/** Paid demo — full AI reply with thinking, summary strip, lever-rich carousel. */
-const PAID_SEED_MESSAGES: Message[] = [
-  {
-    role: 'user',
-    content:
-      "I'm looking at apartments in New Cairo around 8M EGP — 3+ bedrooms. What's the smart pick right now?",
-  },
-  {
-    role: 'ai',
-    thinkingHeader: 'Reasoning · 4 steps · 1.8s',
-    thinking: [
-      { title: 'Pull registry-verified listings in New Cairo, 7-9M EGP band', meta: '412 candidates' },
-      { title: 'Filter to 3+ BR, delivered or off-plan with ≤2y delivery', meta: '38 candidates' },
-      { title: 'Score against compound dev/resale gap + delivery track record', meta: '12 final' },
-      { title: 'Cross-check CBE FX, inflation deflator, comparable closings (90d)', meta: 'high confidence' },
-    ],
-    body: (
-      <>
-        <p>
-          Here&apos;s a snapshot of the <strong>New Cairo</strong> submarket in your budget. The
-          market is up <strong>6.4% YoY</strong> in EGP terms, but inflation-adjusted real growth is
-          closer to <strong>2.1%</strong>.
-        </p>
-        <p>
-          Three units lead on a registry + price-gap basis. <em>Mivida Lake Residence</em> stands out
-          on developer track record (Emaar Misr, 92% on-time delivery), while{' '}
-          <em>Mountain View iCity</em> wins on resale liquidity in the last 90 days.
-        </p>
-      </>
-    ),
-    summary: [
-      { label: 'Median /m²', value: '54.2K', trend: '↑ 6.4%', direction: 'up' },
-      { label: 'Avg yield', value: '5.8%', trend: '↑ 0.3pp', direction: 'up' },
-      { label: 'Time on market', value: '62d', trend: '↓ 9d', direction: 'down' },
-    ],
-    properties: [
-      {
-        name: 'Mivida — Lake Residence',
-        loc: 'EMAAR Misr · New Cairo',
-        price: '9.2M EGP',
-        score: 91,
-        beds: 3,
-        size: '188m²',
-        badges: [{ label: 'Registry verified', tone: 'accent' }],
-      },
-      {
-        name: 'Hyde Park — Garden',
-        loc: 'Hyde Park · 5th Settlement',
-        price: '6.9M EGP',
-        score: 82,
-        beds: 3,
-        size: '162m²',
-        badges: [{ label: 'Below market', tone: 'accent' }],
-      },
-      {
-        name: 'Mountain View iCity',
-        loc: 'Mountain View · New Cairo',
-        price: '8.4M EGP',
-        score: 87,
-        beds: 4,
-        size: '195m²',
-      },
-    ],
-  },
-];
-
-/** Free demo — fair-range teaser, ONE masked comp, upgrade CTA. */
-const FREE_SEED_MESSAGES: Message[] = [
-  {
-    role: 'user',
-    content:
-      "I'm looking at apartments in New Cairo around 8M EGP — 3+ bedrooms. What's the smart pick right now?",
-  },
-  {
-    role: 'ai',
-    thinkingHeader: 'Quick scan · 1.1s',
-    thinking: [
-      { title: 'Pull registry-verified listings in New Cairo, 7-9M EGP band', meta: '412 candidates' },
-      { title: 'Filter to 3+ BR + compute fair-value range', meta: '12 final' },
-    ],
-    body: (
-      <>
-        <p>
-          The honest answer for <strong>New Cairo, 3BR, ~8M EGP</strong>: the fair range is{' '}
-          <strong>6.9M – 9.2M EGP</strong>, median <strong>8.1M</strong>. You&apos;re inside the
-          band, but the picks worth offering on differ by 200-400K once you account for delivery
-          track record and resale liquidity.
-        </p>
-        <p>
-          One reference comp closed in April near the median. <em>Free path shows the headline.</em>
-          {' '}Unlock the comp table, lever breakdown, and the bilingual haggle script to act on it.
-        </p>
-      </>
-    ),
-    summary: [
-      { label: 'Fair range', value: '6.9M – 9.2M EGP', trend: 'Median 8.1M', direction: 'up' },
-    ],
-    properties: [
-      {
-        name: 'Comparable closing · April 2026',
-        loc: 'New Cairo · 3 BR · 188 m²',
-        price: 'Locked',
-        score: '—',
-        beds: 3,
-        size: '188m²',
-        priceMasked: true,
-        badges: [{ label: 'Premium unlocks 9 more', tone: 'accent' }],
-      },
-    ],
-    upgradeCTA: {
-      eyebrow: 'Unlock the full answer',
-      headline: 'See every comp, every lever, every script.',
-      body:
-        'Premium opens the full 10-comp table, negotiation-lever breakdown (cash discount, broker commission, payment-plan markup), a bilingual haggle script you can read straight to the seller, and the interactive coach.',
-      skus: [
-        { price: 'EGP 99', label: 'This compound · 30 days' },
-        { price: 'EGP 299/mo', label: 'All compounds · unlimited' },
-      ],
-    },
-  },
-];
-
-function seedFor(tier: DemoTier): Message[] {
-  return tier === 'free' ? FREE_SEED_MESSAGES : PAID_SEED_MESSAGES;
+function toPropertyCard(raw: unknown, lang: Lang): PropertyCard | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const p = raw as Json;
+  const name = readStr(p, 'title', 'name', 'compound') ?? 'Property';
+  const compound = readStr(p, 'compound');
+  const area = readStr(p, 'location', 'area', 'city');
+  const loc = [compound, area].filter(Boolean).join(' · ') || (lang === 'ar' ? 'الموقع غير محدد' : 'Location unspecified');
+  const priceNum = readNum(p, 'price', 'resale_price', 'developer_price', 'amount');
+  const price = priceNum !== null ? formatEgp(priceNum, lang) : (readStr(p, 'price_label', 'price_str') ?? '—');
+  const score = readNum(p, 'score', 'investment_score', 'osool_score');
+  const beds = readNum(p, 'bedrooms', 'beds', 'rooms');
+  const sizeNum = readNum(p, 'size_sqm', 'size', 'area_sqm', 'bua');
+  const size = sizeNum !== null ? `${Math.round(sizeNum)}m²` : (readStr(p, 'size_str') ?? '');
+  const id = (typeof p.id === 'string' || typeof p.id === 'number') ? p.id : (readStr(p, 'property_id', 'listing_id') ?? `${name}-${loc}`);
+  const imageUrl = readStr(p, 'image_url', 'imageUrl', 'thumbnail', 'mirrored_image_url') ?? null;
+  return { id, name, loc, price, score, beds, size, imageUrl };
 }
 
 /* ─── Top-level page ────────────────────────────────────────────── */
 
-export default function ChatPreviewPage() {
-  const { user } = useAuth();
-  const isAdmin = (user?.role ?? '').toLowerCase() === 'admin';
+export default function ChatPage() {
+  const { user, isAuthenticated } = useAuth();
 
   const [lang, setLang] = useState<Lang>('en');
   const [theme, setTheme] = useState<Theme>('light');
   const [collapsed, setCollapsed] = useState(false);
-  const [tier, setTier] = useState<DemoTier>('paid');
-  const [messages, setMessages] = useState<Message[]>(() => seedFor('paid'));
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const threadRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const T = lang === 'ar' ? T_AR : T_EN;
-
-  // Restore admin's demo-tier choice from localStorage on first mount.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const saved = window.localStorage.getItem(DEMO_TIER_KEY);
-    if (saved === 'free' || saved === 'paid') {
-      setTier(saved);
-      setMessages(seedFor(saved));
-    }
-  }, []);
-
-  // Persist tier changes and re-seed the thread so the demo reflects the choice.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(DEMO_TIER_KEY, tier);
-  }, [tier]);
-
-  const switchTier = (next: DemoTier) => {
-    if (next === tier) return;
-    setTier(next);
-    setMessages(seedFor(next));
-  };
 
   // Apply theme/dir at the document level so reveals + ambient pick it up.
   useEffect(() => {
@@ -350,13 +221,80 @@ export default function ChatPreviewPage() {
     document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', lang);
     return () => {
-      // Restore defaults when leaving the preview
       document.documentElement.removeAttribute('data-theme');
       document.documentElement.setAttribute('dir', 'ltr');
       document.documentElement.setAttribute('lang', 'en');
     };
   }, [theme, lang]);
 
+  // Resolve session id on mount, then load history for it.
+  useEffect(() => {
+    const sid = getOrCreateSessionId();
+    setSessionId(sid);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get(`/api/chat/history/${sid}`);
+        if (cancelled) return;
+        const history: HistoryMessage[] = Array.isArray(res.data)
+          ? res.data
+          : (res.data?.messages ?? []);
+        const mapped = history
+          .map((m): Message | null => {
+            if (m.role === 'user') return { role: 'user', content: m.content };
+            if (m.role === 'assistant' || m.role === 'ai') {
+              let properties: PropertyCard[] | undefined;
+              if (m.properties_json) {
+                try {
+                  const arr = JSON.parse(m.properties_json) as unknown;
+                  if (Array.isArray(arr)) {
+                    properties = arr
+                      .map((p) => toPropertyCard(p, lang))
+                      .filter((p): p is PropertyCard => p !== null);
+                    if (properties.length === 0) properties = undefined;
+                  }
+                } catch {
+                  /* ignore malformed history payload */
+                }
+              }
+              return { role: 'ai', text: m.content, properties };
+            }
+            return null;
+          })
+          .filter((m): m is Message => m !== null);
+        setMessages(mapped);
+      } catch {
+        /* Anonymous users get a 404 here — that's fine, we just start fresh. */
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch user's session list for the sidebar (auth only).
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSessions([]);
+      return;
+    }
+    let cancelled = false;
+    getUserChatSessions()
+      .then((list) => {
+        if (!cancelled) setSessions(list);
+      })
+      .catch(() => {
+        /* Surface silently — sidebar just shows the current session. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, sessionId]);
+
+  // Auto-scroll on new messages.
   useEffect(() => {
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -372,53 +310,148 @@ export default function ChatPreviewPage() {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: 'smooth' });
   };
 
-  const send = (text: string) => {
-    if (!text.trim() || streaming) return;
-    const userMsg: UserMessage = { role: 'user', content: text };
-    const pending: AiMessage = { role: 'ai', pending: true };
-    setMessages((m) => [...m, userMsg, pending]);
-    setStreaming(true);
+  // ── Real send → backend ────────────────────────────────────────
+  const send = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || streaming || !sessionId) return;
 
-    setTimeout(() => {
-      // Reply mirrors the current demo tier — admins flipping the toggle
-      // change what future replies look like too, not just the seed thread.
-      const seed = seedFor(tier);
-      const aiSeed = seed.find((m): m is AiMessage => m.role === 'ai');
-      if (!aiSeed) {
-        setStreaming(false);
-        return;
-      }
-      setMessages((m) => {
-        const copy = [...m];
-        copy[copy.length - 1] = { ...aiSeed, role: 'ai' };
-        return copy;
-      });
-      setStreaming(false);
-    }, 1600);
+      const userMsg: UserMessage = { role: 'user', content: trimmed };
+      const pending: AiMessage = { role: 'ai', text: '', pending: true };
+      setMessages((m) => [...m, userMsg, pending]);
+      setStreaming(true);
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      (async () => {
+        try {
+          const data = await sendChatMessage(trimmed, sessionId, lang === 'ar' ? 'ar' : lang === 'en' ? 'en' : 'auto');
+          if (controller.signal.aborted) return;
+
+          const properties = Array.isArray(data.properties)
+            ? data.properties
+                .map((p) => toPropertyCard(p, lang))
+                .filter((p): p is PropertyCard => p !== null)
+            : undefined;
+
+          const reply: AiMessage = {
+            role: 'ai',
+            text: data.response ?? '',
+            properties: properties && properties.length > 0 ? properties : undefined,
+          };
+
+          setMessages((m) => {
+            const copy = [...m];
+            copy[copy.length - 1] = reply;
+            return copy;
+          });
+        } catch (err: unknown) {
+          if (controller.signal.aborted) return;
+          if (axios.isCancel?.(err)) return;
+          const fallback: AiMessage = { role: 'ai', text: '', error: T.errorSend };
+          setMessages((m) => {
+            const copy = [...m];
+            copy[copy.length - 1] = fallback;
+            return copy;
+          });
+        } finally {
+          if (!controller.signal.aborted) setStreaming(false);
+          if (abortRef.current === controller) abortRef.current = null;
+        }
+      })();
+    },
+    [lang, sessionId, streaming, T.errorSend],
+  );
+
+  const onStop = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStreaming(false);
+    // Remove the dangling pending bubble.
+    setMessages((m) => (m.length && (m[m.length - 1] as AiMessage).pending ? m.slice(0, -1) : m));
   };
+
+  const startNewConversation = () => {
+    const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, newId);
+    sessionStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    setSessionId(newId);
+    setMessages([]);
+  };
+
+  const selectSession = useCallback(
+    async (sid: string) => {
+      if (sid === sessionId) return;
+      setHistoryLoading(true);
+      try {
+        const res = await api.get(`/api/chat/history/${sid}`);
+        const history: HistoryMessage[] = Array.isArray(res.data)
+          ? res.data
+          : (res.data?.messages ?? []);
+        const mapped = history
+          .map((m): Message | null => {
+            if (m.role === 'user') return { role: 'user', content: m.content };
+            if (m.role === 'assistant' || m.role === 'ai') {
+              let properties: PropertyCard[] | undefined;
+              if (m.properties_json) {
+                try {
+                  const arr = JSON.parse(m.properties_json) as unknown;
+                  if (Array.isArray(arr)) {
+                    properties = arr
+                      .map((p) => toPropertyCard(p, lang))
+                      .filter((p): p is PropertyCard => p !== null);
+                    if (properties.length === 0) properties = undefined;
+                  }
+                } catch {
+                  /* ignore */
+                }
+              }
+              return { role: 'ai', text: m.content, properties };
+            }
+            return null;
+          })
+          .filter((m): m is Message => m !== null);
+        sessionStorage.setItem(STORAGE_KEYS.SESSION_ID, sid);
+        setSessionId(sid);
+        setMessages(mapped);
+      } catch {
+        /* leave UI unchanged on failure */
+      } finally {
+        setHistoryLoading(false);
+      }
+    },
+    [lang, sessionId],
+  );
 
   return (
     <div className="osool-chat-root">
       <div className="ambient" />
       <div className="shell" data-sidebar={collapsed ? 'collapsed' : 'expanded'}>
-        <Sidebar T={T} collapsed={collapsed} lang={lang} />
+        <Sidebar
+          T={T}
+          collapsed={collapsed}
+          lang={lang}
+          sessions={sessions}
+          currentSessionId={sessionId}
+          onSelectSession={selectSession}
+          onNewConversation={startNewConversation}
+          user={user ? { name: user.full_name ?? user.email ?? T.guest, email: user.email ?? '' } : null}
+        />
         <main className="main">
           <Topbar
             T={T}
             theme={theme}
             lang={lang}
-            tier={tier}
-            showDemoToggle={isAdmin}
-            onSwitchTier={switchTier}
             onToggleSidebar={() => setCollapsed((v) => !v)}
             onToggleLang={() => setLang((l) => (l === 'ar' ? 'en' : 'ar'))}
             onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
           />
 
-          {messages.length === 0 ? (
+          {messages.length === 0 && !historyLoading ? (
             <>
               <EmptyState T={T} lang={lang} onPick={send} />
-              <Composer T={T} isStreaming={streaming} onSend={send} onStop={() => setStreaming(false)} />
+              <Composer T={T} isStreaming={streaming} onSend={send} onStop={onStop} />
             </>
           ) : (
             <>
@@ -428,7 +461,7 @@ export default function ChatPreviewPage() {
                     m.role === 'user' ? (
                       <UserBubble key={i} content={m.content} />
                     ) : m.pending ? (
-                      <Typing key={i} />
+                      <Typing key={i} T={T} />
                     ) : (
                       <AiBubble key={i} msg={m} />
                     ),
@@ -443,7 +476,7 @@ export default function ChatPreviewPage() {
               >
                 <IconChevDown size={16} />
               </button>
-              <Composer T={T} isStreaming={streaming} onSend={send} onStop={() => setStreaming(false)} />
+              <Composer T={T} isStreaming={streaming} onSend={send} onStop={onStop} />
             </>
           )}
         </main>
@@ -454,16 +487,42 @@ export default function ChatPreviewPage() {
 
 /* ─── Sidebar ───────────────────────────────────────────────────── */
 
-function Sidebar({ T, collapsed, lang }: { T: Translations; collapsed: boolean; lang: Lang }) {
+interface SidebarProps {
+  T: Translations;
+  collapsed: boolean;
+  lang: Lang;
+  sessions: ChatSession[];
+  currentSessionId: string;
+  onSelectSession: (sid: string) => void;
+  onNewConversation: () => void;
+  user: { name: string; email: string } | null;
+}
+
+function Sidebar({
+  T,
+  collapsed,
+  lang,
+  sessions,
+  currentSessionId,
+  onSelectSession,
+  onNewConversation,
+  user,
+}: SidebarProps) {
   const [q, setQ] = useState('');
-  const groupLabel = (g: Conversation['group']) =>
-    lang === 'ar'
-      ? g === 'Today'
-        ? 'اليوم'
-        : g === 'Yesterday'
-          ? 'أمس'
-          : 'آخر ٧ أيام'
-      : g;
+
+  const grouped = useMemo(() => groupSessions(sessions, lang), [sessions, lang]);
+  const filtered = useMemo(() => {
+    if (!q.trim()) return grouped;
+    const needle = q.trim().toLowerCase();
+    return grouped
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((s) => (s.preview ?? '').toLowerCase().includes(needle)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [grouped, q]);
+
+  const initial = user?.name?.[0]?.toUpperCase() ?? 'G';
 
   return (
     <aside className="sidebar">
@@ -474,7 +533,7 @@ function Sidebar({ T, collapsed, lang }: { T: Translations; collapsed: boolean; 
         {!collapsed && <div className="brand-name">Osool</div>}
       </div>
 
-      <button type="button" className="new-conv">
+      <button type="button" className="new-conv" onClick={onNewConversation}>
         <IconPlus size={15} />
         {!collapsed && <span className="new-conv-text">{T.newConv}</span>}
       </button>
@@ -492,18 +551,25 @@ function Sidebar({ T, collapsed, lang }: { T: Translations; collapsed: boolean; 
       )}
 
       <div className="sb-scroll">
+        {!collapsed && filtered.length === 0 && (
+          <div className="sb-group-label" style={{ opacity: 0.7 }}>
+            {T.noConvs}
+          </div>
+        )}
         {!collapsed &&
-          CONVERSATIONS.map((group) => (
-            <div key={group.group}>
-              <div className="sb-group-label">{groupLabel(group.group)}</div>
-              {group.items.map((c) => (
+          filtered.map((group) => (
+            <div key={group.label}>
+              <div className="sb-group-label">{group.label}</div>
+              {group.items.map((s) => (
                 <button
                   type="button"
-                  key={c.id}
-                  className={'sb-item' + (c.active ? ' active' : '')}
+                  key={s.session_id}
+                  className={'sb-item' + (s.session_id === currentSessionId ? ' active' : '')}
+                  onClick={() => onSelectSession(s.session_id)}
+                  title={s.preview ?? undefined}
                 >
                   <span className="sb-item-text">
-                    {c.active && lang === 'ar' ? T.conv1Title : c.title}
+                    {s.preview?.trim() || T.conv1Title}
                   </span>
                 </button>
               ))}
@@ -512,16 +578,55 @@ function Sidebar({ T, collapsed, lang }: { T: Translations; collapsed: boolean; 
       </div>
 
       <div className="profile">
-        <div className="avatar-circle">M</div>
+        <div className="avatar-circle">{initial}</div>
         {!collapsed && (
           <div className="profile-text">
-            <div className="profile-name">{lang === 'ar' ? 'مصطفى' : 'Mustafa A.'}</div>
-            <div className="profile-mail">{T.yourPlan}</div>
+            <div className="profile-name">{user?.name ?? T.guest}</div>
+            <div className="profile-mail">{user?.email || T.yourPlan}</div>
           </div>
         )}
       </div>
     </aside>
   );
+}
+
+/* ─── Session grouping ──────────────────────────────────────────── */
+
+interface SidebarGroup {
+  label: string;
+  items: ChatSession[];
+}
+
+function groupSessions(sessions: ChatSession[], lang: Lang): SidebarGroup[] {
+  if (sessions.length === 0) return [];
+  const now = Date.now();
+  const todayCut = now - 86_400_000;
+  const yesterdayCut = now - 2 * 86_400_000;
+  const weekCut = now - 7 * 86_400_000;
+
+  const buckets: Record<string, ChatSession[]> = {
+    today: [],
+    yesterday: [],
+    week: [],
+    older: [],
+  };
+
+  for (const s of sessions) {
+    const ts = s.last_message_at ? Date.parse(s.last_message_at) : 0;
+    if (ts >= todayCut) buckets.today.push(s);
+    else if (ts >= yesterdayCut) buckets.yesterday.push(s);
+    else if (ts >= weekCut) buckets.week.push(s);
+    else buckets.older.push(s);
+  }
+
+  const labels =
+    lang === 'ar'
+      ? { today: 'اليوم', yesterday: 'أمس', week: 'آخر ٧ أيام', older: 'سابقًا' }
+      : { today: 'Today', yesterday: 'Yesterday', week: 'Last 7 days', older: 'Older' };
+
+  return (['today', 'yesterday', 'week', 'older'] as const)
+    .filter((k) => buckets[k].length > 0)
+    .map((k) => ({ label: labels[k], items: buckets[k] }));
 }
 
 /* ─── Topbar ────────────────────────────────────────────────────── */
@@ -530,9 +635,6 @@ function Topbar({
   T,
   theme,
   lang,
-  tier,
-  showDemoToggle,
-  onSwitchTier,
   onToggleSidebar,
   onToggleLang,
   onToggleTheme,
@@ -540,50 +642,18 @@ function Topbar({
   T: Translations;
   theme: Theme;
   lang: Lang;
-  tier: DemoTier;
-  showDemoToggle: boolean;
-  onSwitchTier: (next: DemoTier) => void;
   onToggleSidebar: () => void;
   onToggleLang: () => void;
   onToggleTheme: () => void;
 }) {
-  const labelFree = lang === 'ar' ? 'مجاني' : 'Free';
-  const labelPaid = lang === 'ar' ? 'مدفوع' : 'Paid';
-  const labelTag = lang === 'ar' ? 'وضع العرض' : 'Demo';
-
   return (
     <header className="topbar">
       <button type="button" className="icon-btn" onClick={onToggleSidebar} aria-label="Toggle sidebar">
         <IconPanelLeft size={16} />
       </button>
       <div className="topbar-title">
-        <b>{lang === 'ar' ? T.conv1Title : 'Villas in New Cairo under 10M'}</b>
+        <b>{lang === 'ar' ? T.conv1Title : 'Osool'}</b>
       </div>
-      {showDemoToggle && (
-        <div
-          className="demo-toggle"
-          role="group"
-          aria-label={lang === 'ar' ? 'تبديل وضع العرض' : 'Demo path toggle'}
-        >
-          <span className="demo-toggle-label">{labelTag}</span>
-          <button
-            type="button"
-            className={tier === 'free' ? 'active' : ''}
-            onClick={() => onSwitchTier('free')}
-            aria-pressed={tier === 'free'}
-          >
-            {labelFree}
-          </button>
-          <button
-            type="button"
-            className={tier === 'paid' ? 'active' : ''}
-            onClick={() => onSwitchTier('paid')}
-            aria-pressed={tier === 'paid'}
-          >
-            {labelPaid}
-          </button>
-        </div>
-      )}
       <button type="button" className="icon-btn" onClick={onToggleLang} aria-label="Language">
         <IconGlobe size={16} />
       </button>
@@ -606,8 +676,6 @@ function UserBubble({ content }: { content: string }) {
 /* ─── AI bubble ─────────────────────────────────────────────────── */
 
 function AiBubble({ msg }: { msg: AiMessage }) {
-  const [thinkingOpen, setThinkingOpen] = useState(false);
-
   return (
     <div className="msg-ai">
       <div className="ai-label">
@@ -617,83 +685,48 @@ function AiBubble({ msg }: { msg: AiMessage }) {
         <b>Osool</b>
       </div>
 
-      {msg.thinking && msg.thinkingHeader && (
-        <div>
-          <button
-            type="button"
-            className="thinking-head"
-            aria-expanded={thinkingOpen}
-            onClick={() => setThinkingOpen((v) => !v)}
-          >
-            {msg.thinkingHeader}
-            <IconChevDown size={12} className="chev" />
-          </button>
-          {thinkingOpen && (
-            <div className="thinking-body">
-              {msg.thinking.map((s, i) => (
-                <div key={i} className="thinking-step">
-                  <span>{s.title}</span>
-                  <span className="meta">{s.meta}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="ai-body">
-        {msg.body}
-
-        {msg.summary && (
-          <div className="summary-strip">
-            {msg.summary.map((cell, i) => (
-              <div key={i} className="summary-cell">
-                <div className="summary-label">{cell.label}</div>
-                <div className="summary-row">
-                  <span className="summary-value">{cell.value}</span>
-                  {cell.trend && (
-                    <span className={'summary-trend ' + (cell.direction ?? '')}>{cell.trend}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+        {msg.error ? (
+          <p style={{ color: 'var(--osool-accent)' }}>{msg.error}</p>
+        ) : (
+          <AiText text={msg.text} />
         )}
 
-        {msg.properties && (
+        {msg.properties && msg.properties.length > 0 && (
           <>
             <div className="section-label">
-              {msg.properties.length === 1 ? 'Reference comp' : 'Top 3 picks'}
+              {msg.properties.length === 1 ? 'Reference comp' : `Top ${msg.properties.length} picks`}
             </div>
             <div className="carousel-shell">
               <div className="carousel">
-                {msg.properties.map((p) => (
-                  <article key={p.name} className="prop-card">
-                    <div className="prop-img">
-                      <div className="prop-badges">
-                        {(p.badges ?? []).map((b) => (
-                          <span key={b.label} className={'badge ' + (b.tone ?? '')}>
-                            {b.label}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                {msg.properties.map((p, i) => (
+                  <article key={`${p.id ?? i}`} className="prop-card">
+                    <div
+                      className="prop-img"
+                      style={
+                        p.imageUrl
+                          ? { backgroundImage: `url(${p.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          : undefined
+                      }
+                    />
                     <div className="prop-body">
                       <h5 className="prop-name">{p.name}</h5>
                       <div className="prop-loc">{p.loc}</div>
                       <div className="prop-row1">
-                        <span className={'prop-price' + (p.priceMasked ? ' masked' : '')}>
-                          {p.priceMasked ? '— locked —' : p.price}
-                        </span>
-                        <span className="prop-score-num">
-                          {p.score === '—' ? <b>—</b> : <b>{p.score}</b>}
-                        </span>
+                        <span className="prop-price">{p.price}</span>
+                        {p.score !== null && (
+                          <span className="prop-score-num">
+                            <b>{Math.round(p.score)}</b>
+                          </span>
+                        )}
                       </div>
-                      <div className="prop-specs">
-                        <span>{p.beds} BR</span>
-                        <span>·</span>
-                        <span>{p.size}</span>
-                      </div>
+                      {(p.beds !== null || p.size) && (
+                        <div className="prop-specs">
+                          {p.beds !== null && <span>{p.beds} BR</span>}
+                          {p.beds !== null && p.size && <span>·</span>}
+                          {p.size && <span>{p.size}</span>}
+                        </div>
+                      )}
                     </div>
                   </article>
                 ))}
@@ -701,30 +734,27 @@ function AiBubble({ msg }: { msg: AiMessage }) {
             </div>
           </>
         )}
-
-        {msg.upgradeCTA && (
-          <div className="upgrade-cta">
-            <div className="upgrade-cta-head">
-              <span className="upgrade-cta-eyebrow">{msg.upgradeCTA.eyebrow}</span>
-            </div>
-            <h4>{msg.upgradeCTA.headline}</h4>
-            <p>{msg.upgradeCTA.body}</p>
-            <div className="upgrade-cta-skus">
-              {msg.upgradeCTA.skus.map((sku) => (
-                <button key={sku.price} type="button" className="upgrade-sku">
-                  <span className="upgrade-sku-price">{sku.price}</span>
-                  <span className="upgrade-sku-label">{sku.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
-function Typing() {
+/** Render plain text with paragraph breaks preserved. */
+function AiText({ text }: { text: string }) {
+  if (!text) return null;
+  const paragraphs = text.split(/\n\s*\n/);
+  return (
+    <>
+      {paragraphs.map((p, i) => (
+        <p key={i} style={{ whiteSpace: 'pre-wrap' }}>
+          {p}
+        </p>
+      ))}
+    </>
+  );
+}
+
+function Typing({ T }: { T: Translations }) {
   return (
     <div className="msg-ai">
       <div className="ai-label">
@@ -732,6 +762,7 @@ function Typing() {
           <OsoolAvatar size={20} animated state="thinking" />
         </span>
         <b>Osool</b>
+        <span style={{ color: 'var(--muted)', marginInlineStart: 8 }}>{T.thinkingLabel}</span>
       </div>
       <div className="ai-body">
         <div className="typing">
