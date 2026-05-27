@@ -483,14 +483,16 @@ async def retrieve(req: RetrievalRequest, db: AsyncSession) -> RetrievalResponse
 
     Pipeline:
         L1 (extract_query)
+        L5 cache lookup — bail with cached response on hit
         L2 (parallel SQL: structured + BM25 + trigram + more-like-this)
         L3 (RRF fuse + boosts)
         L4 (NPV / La2ta / payment-fit / why_matched augmentation on top-K)
+        L5 cache set — write result for next caller
 
     Returns RetrievalResponse with diagnostics.
     """
     t0 = time.perf_counter()
-    diagnostics: dict = {"layer_ms": {}}
+    diagnostics: dict = {"layer_ms": {}, "cache_hit": False}
 
     # L1
     q = extract_query(
@@ -505,6 +507,20 @@ async def retrieve(req: RetrievalRequest, db: AsyncSession) -> RetrievalResponse
         return RetrievalResponse(
             structured_query=q, hits=[], reserve=[], diagnostics=diagnostics,
         )
+
+    # L5 — cache lookup. Imported lazily to avoid circular import at module load.
+    try:
+        from app.services.retrieval_cache import get_cached_response, set_cached_response
+        cached = get_cached_response(q, req.ref_property_id)
+        if cached is not None:
+            cached.diagnostics["layer_ms"] = {"cache_lookup_ms": round((time.perf_counter() - t0) * 1000, 2)}
+            cached.diagnostics["cache_hit"] = True
+            # Honor cap_results in case the cached entry had a different cap
+            cached.hits = cached.hits[: max(1, min(req.cap_results, len(cached.hits) or 1))]
+            return cached
+    except Exception as exc:
+        logger.debug("[retrieval] cache lookup failed: %s", exc)
+        set_cached_response = None  # so the post-write block is a no-op
 
     # L2 — parallel sub-queries
     t1 = time.perf_counter()
@@ -569,9 +585,18 @@ async def retrieve(req: RetrievalRequest, db: AsyncSession) -> RetrievalResponse
     diagnostics["layer_ms"]["total"] = round((time.perf_counter() - t0) * 1000, 2)
     diagnostics["query_hash"] = canonical_query_hash(q, req.ref_property_id)
 
-    return RetrievalResponse(
+    response = RetrievalResponse(
         structured_query=q,
         hits=hits,
         reserve=reserve,
         diagnostics=diagnostics,
     )
+
+    # L5 — write through to cache for next caller. Best-effort, never raises.
+    if set_cached_response is not None and hits:
+        try:
+            set_cached_response(q, response, req.ref_property_id)
+        except Exception as exc:
+            logger.debug("[retrieval] cache set failed: %s", exc)
+
+    return response

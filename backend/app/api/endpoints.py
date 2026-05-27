@@ -417,7 +417,7 @@ async def list_properties(db: AsyncSession = Depends(get_db)):
     from sqlalchemy import select
     result = await db.execute(select(Property).filter(Property.is_available == True))
     props = result.scalars().all()
-    
+
     results = []
     for p in props:
         results.append({
@@ -430,8 +430,98 @@ async def list_properties(db: AsyncSession = Depends(get_db)):
             "description": p.description,
             "image_url": p.image_url,
         })
-        
+
     return results
+
+
+# ═══════════════════════════════════════════════════════════════
+# ZERO-TOKEN PROPERTY RETRIEVAL
+# ═══════════════════════════════════════════════════════════════
+
+class RetrieveRequest(BaseModel):
+    prompt: str = Field(..., description="Buyer prompt; parsed locally, no LLM")
+    session_id: Optional[str] = Field(default="", description="For per-session cache scoping")
+    locale: Optional[str] = Field(default="en", description="en | ar (advisory only)")
+    ref_property_id: Optional[int] = Field(
+        default=None,
+        description="If set, runs L2d 'more like this' against the property's stored embedding (no new embedding generated).",
+    )
+    cap_results: Optional[int] = Field(default=5, ge=1, le=10)
+
+
+@router.post("/retrieve")
+async def retrieve_properties_endpoint(
+    req: RetrieveRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Zero-token property retrieval.
+
+    Pipeline: regex intent extraction → 4-way parallel SQL → RRF fuse +
+    boost → decision-support augmentation. No OpenAI / Anthropic call
+    per request. See backend/app/services/property_retrieval.py.
+
+    Response shape:
+        {
+            "structured_query": {...},     // what the regex extracted
+            "hits": [{                      // ≤ cap_results, augmented
+                "property_id": int,
+                "boosted_score": float,
+                "matched_sets": [...],
+                "npv_egp": float,
+                "la2ta_flag": str | null,
+                "payment_fit_score": float | null,
+                "delivery_fit": bool | null,
+                "why_matched": str,
+                "row": {title, compound, price, ...}
+            }],
+            "reserve": [...],               // held for follow-up turns
+            "diagnostics": {
+                "layer_ms": {...},
+                "cache_hit": bool,
+                "set_sizes": {...},
+                "query_hash": str
+            },
+            "used_zero_token_path": true    // invariant guard
+        }
+    """
+    from app.services.property_retrieval import (
+        retrieve,
+        RetrievalRequest,
+    )
+
+    # Pull buyer context from the LeadProfile if the user is authenticated.
+    lead_profile: dict = {}
+    if current_user is not None and getattr(current_user, "lead_profile", None):
+        lp = current_user.lead_profile
+        lead_profile = {
+            "budget_max": getattr(lp, "budget_max", None),
+            "persona": getattr(lp, "persona", None),
+        }
+
+    response = await retrieve(
+        RetrievalRequest(
+            prompt=req.prompt,
+            session_id=req.session_id or "",
+            user_id=current_user.id if current_user else None,
+            lead_profile=lead_profile or None,
+            locale=req.locale or "en",
+            ref_property_id=req.ref_property_id,
+            cap_results=req.cap_results or 5,
+        ),
+        db=db,
+    )
+
+    # Serialize for JSON
+    from dataclasses import asdict
+    return {
+        "structured_query": asdict(response.structured_query),
+        "hits": [asdict(h) for h in response.hits],
+        "reserve": [asdict(r) for r in response.reserve],
+        "diagnostics": response.diagnostics,
+        "used_zero_token_path": response.used_zero_token_path,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════

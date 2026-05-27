@@ -234,6 +234,22 @@ async def upsert_properties(
                 else:
                     result.updated += 1
                     logger.debug("[repo] UPDATE (hash changed) %s", prop.nawy_url)
+                    # Freshness invalidation — drop any cached search results
+                    # that included this property so the next chat turn sees
+                    # the new price. Best-effort; never raises.
+                    try:
+                        from app.services.retrieval_cache import on_property_changed
+                        # We don't have the row id here; the cache index is by
+                        # property_id which we don't know yet for inserts.
+                        # For updates, look it up via nawy_url:
+                        pid_row = (await db.execute(
+                            text("SELECT id FROM properties WHERE nawy_url = :url"),
+                            {"url": prop.nawy_url},
+                        )).first()
+                        if pid_row:
+                            on_property_changed(pid_row.id, old_hash, new_hash)
+                    except Exception:
+                        pass  # never break the upsert over a cache nicety
 
                 # Flush batch every N rows to bound memory
                 if len(batch_buffer) >= _BATCH_COMMIT_SIZE:
