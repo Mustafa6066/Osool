@@ -9,6 +9,7 @@ import OsoolNav from '@/components/osool/OsoolNav';
 import OsoolFooter from '@/components/osool/OsoolFooter';
 import ArchFrame from '@/components/osool/ArchFrame';
 import Mashrabiya from '@/components/osool/Mashrabiya';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   IconHome,
   IconPaperclip,
@@ -69,10 +70,26 @@ function useReveal() {
 /* ─── HERO ───────────────────────────────────────────────────────── */
 function Hero() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [q, setQ] = useState('');
 
   const go = () => {
-    const url = '/chat' + (q ? `?q=${encodeURIComponent(q)}` : '');
+    const prompt = q.trim();
+    // Logged-in users go straight to the chat with the prompt in the URL.
+    // Logged-out users get their prompt stashed in localStorage and are
+    // sent to signup. /chat re-submits the prompt after auth succeeds.
+    if (!isAuthenticated) {
+      if (prompt && typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem('osool:pending_chat_prompt', prompt);
+        } catch {
+          // localStorage may be unavailable (private mode); fall through.
+        }
+      }
+      router.push('/signup?next=' + encodeURIComponent('/chat' + (prompt ? `?q=${encodeURIComponent(prompt)}` : '')));
+      return;
+    }
+    const url = '/chat' + (prompt ? `?q=${encodeURIComponent(prompt)}` : '');
     router.push(url);
   };
 

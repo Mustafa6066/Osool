@@ -26,13 +26,16 @@ function LoginContent() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const continueTo = searchParams.get('next') || '/dashboard';
+
     useEffect(() => {
         if (isAuthenticated) {
-            router.replace('/dashboard');
+            // Honor ?next=/chat from the landing-page composer so a user who
+            // is ALREADY signed in goes straight to their pending chat rather
+            // than the dashboard.
+            router.replace(continueTo);
         }
-    }, [isAuthenticated, router]);
-
-    const continueTo = searchParams.get('next') || '/dashboard';
+    }, [isAuthenticated, router, continueTo]);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();

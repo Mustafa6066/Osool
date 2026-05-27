@@ -26,12 +26,17 @@ function SignupContent() {
     const { t, language } = useLanguage();
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Honor ?next= so a user arriving from the landing-page composer with
+    // a pending chat prompt is sent to /chat (with their prompt replayed
+    // from localStorage), not the dashboard.
+    const continueTo = searchParams.get('next') || '/chat';
+
     // Redirect if already authenticated
     useEffect(() => {
         if (isAuthenticated) {
-            router.replace('/dashboard');
+            router.replace(continueTo);
         }
-    }, [isAuthenticated, router]);
+    }, [isAuthenticated, router, continueTo]);
 
     // Form state
     const [fullName, setFullName] = useState('');
@@ -145,8 +150,9 @@ function SignupContent() {
                 anonymousId: getAnonymousId(),
             });
 
-            // Redirect to chat
-            router.push('/chat');
+            // Redirect — honor ?next= so the landing-page composer's
+            // pending prompt gets replayed in /chat.
+            router.push(continueTo);
         } catch (err: any) {
             setError(err.message);
         } finally {

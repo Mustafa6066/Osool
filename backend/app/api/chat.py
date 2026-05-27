@@ -86,27 +86,38 @@ async def process_chat(
     user: Optional[User] = Depends(get_current_user_optional),
 ) -> JSONResponse:
     """
-    Main endpoint for the Chat Interface.
-    Routes free users through the Zero-Token Local Path; premium users
-    through the Wolf orchestrator (with Anthropic spend).
+    Main endpoint for the Chat Interface — authentication required.
+
+    Anonymous callers get a 401 with `requires_auth=true` so the
+    frontend can redirect them to /signup. The landing-page composer
+    persists the user's prompt in localStorage before redirecting; the
+    chat page re-submits it after sign-in.
 
     Query params:
         simulate_tier: "free" → admin-only override forcing the free
-            routing path. Useful for end-to-end demos of the free flow
-            without burning Anthropic credits. Ignored when caller is
-            not admin. See _viewer_kind() docstring.
+            routing path. Useful for end-to-end demos without burning
+            Anthropic credits. Ignored when caller is not admin.
 
-    Rate limit: CHAT_RATE_LIMIT (30/minute) keyed by user_id when authed,
-    by IP otherwise — see middleware/rate_limiting.py.
+    Rate limit: CHAT_RATE_LIMIT (30/minute) keyed by user_id when authed.
 
     Returns JSONResponse explicitly (not a Pydantic model via
-    response_model) because the slowapi limiter at /middleware/rate_limiting.py
-    has headers_enabled=True and tries to inject X-RateLimit-* headers
-    onto the return value. That hook only accepts a starlette.Response
-    instance, so we must return JSONResponse rather than letting FastAPI
-    serialise a ChatResponse model. The ChatResponse model is still used
-    for schema documentation + payload shaping via .model_dump().
+    response_model) because the slowapi limiter has headers_enabled=True
+    and only accepts a starlette.Response instance.
     """
+    # Auth gate — anonymous chat is not available. Customers must sign
+    # in / sign up first; the frontend persists their prompt and replays
+    # it after auth.
+    if user is None:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "type": "error",
+                "error": "authentication_required",
+                "detail": "Sign in to chat with Osool.",
+                "requires_auth": True,
+                "next": "/chat",
+            },
+        )
 
     # Track session count for gate logic.
     session_count_stmt = select(func.count()).where(

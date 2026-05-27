@@ -452,6 +452,22 @@ function ChatPageBody() {
         } catch (err: unknown) {
           if (controller.signal.aborted) return;
           if (axios.isCancel?.(err)) return;
+          // Auth gate: backend returns 401 with requires_auth=true when
+          // an anonymous user hits /api/v1/chat. Stash the prompt and
+          // redirect to signup so the landing→auth→chat replay loop
+          // works for users who reload mid-session.
+          const status = (err as { response?: { status?: number; data?: { requires_auth?: boolean } } })?.response?.status;
+          const data = (err as { response?: { data?: { requires_auth?: boolean } } })?.response?.data;
+          if (status === 401 && data?.requires_auth && typeof window !== 'undefined') {
+            try {
+              window.localStorage.setItem('osool:pending_chat_prompt', trimmed);
+            } catch {
+              /* private mode etc. — fall through */
+            }
+            const next = encodeURIComponent('/chat');
+            window.location.assign(`/signup?next=${next}`);
+            return;
+          }
           const fallback: AiMessage = { role: 'ai', text: '', error: T.errorSend };
           setMessages((m) => {
             const copy = [...m];
@@ -496,6 +512,32 @@ function ChatPageBody() {
     setIncomingQueryFired(true);
     send(incomingQuery);
   }, [incomingQuery, incomingQueryFired, sessionId, historyLoading, messages.length, send]);
+
+  // After login/signup, the landing-page composer's stashed prompt lives in
+  // localStorage. Replay it once on mount as soon as the user is
+  // authenticated, the session is ready, and the thread is empty. We
+  // intentionally clear the storage key BEFORE sending so a transient send
+  // failure doesn't loop the user through signup→chat→signup.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!sessionId || historyLoading) return;
+    if (messages.length > 0) return;
+    if (incomingQuery) return; // ?q= path wins to avoid double-send
+    if (typeof window === 'undefined') return;
+    let pending: string | null = null;
+    try {
+      pending = window.localStorage.getItem('osool:pending_chat_prompt');
+    } catch {
+      pending = null;
+    }
+    if (!pending || !pending.trim()) return;
+    try {
+      window.localStorage.removeItem('osool:pending_chat_prompt');
+    } catch {
+      /* ignore */
+    }
+    send(pending);
+  }, [isAuthenticated, sessionId, historyLoading, messages.length, incomingQuery, send]);
 
   const startNewConversation = () => {
     const newId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

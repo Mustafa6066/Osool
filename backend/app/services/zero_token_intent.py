@@ -381,6 +381,85 @@ def extract_finishing(prompt: str, q: StructuredQuery) -> StructuredQuery:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Extractor 4b — compound + developer name dictionaries
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# These can't be hard-coded: compounds and developers grow as the scraper
+# ingests new inventory. The caller (property_retrieval.retrieve) is async
+# and loads the lists from property_dictionaries.{get_compounds, get_developers}
+# (Redis-cached), then passes them into extract_query as kwargs. Keeps this
+# module sync + I/O-free.
+
+def _match_named_entities(prompt_norm: str, prompt_lower: str, names: list[str]) -> list[str]:
+    """
+    Longest-match-first scan of `names` against the prompt. Returns the
+    canonical names that matched (preserves case from the input list).
+
+    Match rules:
+      - Latin names: case-insensitive, word-boundary match (so 'Mountain View'
+        doesn't get caught by 'Mountain View Hyde Park' partial).
+      - Arabic / non-Latin: case-insensitive substring (word boundaries are
+        unreliable for Arabic). Longest first wins.
+    """
+    if not names:
+        return []
+    found: list[str] = []
+    consumed_spans: list[tuple[int, int]] = []
+
+    def overlaps_consumed(start: int, end: int) -> bool:
+        for s, e in consumed_spans:
+            if start < e and end > s:
+                return True
+        return False
+
+    # names list is already sorted longest-first by the loader
+    for name in names:
+        if not name:
+            continue
+        name_low = name.lower()
+        if _has_arabic(name):
+            idx = prompt_lower.find(name_low)
+            if idx >= 0 and not overlaps_consumed(idx, idx + len(name_low)):
+                consumed_spans.append((idx, idx + len(name_low)))
+                if name not in found:
+                    found.append(name)
+        else:
+            # Word-boundary Latin match (re.escape handles regex meta chars in names)
+            for m in re.finditer(rf"\b{re.escape(name_low)}\b", prompt_lower):
+                if not overlaps_consumed(m.start(), m.end()):
+                    consumed_spans.append((m.start(), m.end()))
+                    if name not in found:
+                        found.append(name)
+                    break  # only need to record the name once
+    return found
+
+
+def extract_compounds(prompt: str, q: StructuredQuery, compound_names: Optional[list[str]] = None) -> StructuredQuery:
+    """Populates q.compounds from the prompt against a known list."""
+    if not compound_names:
+        return q
+    text = _normalize(prompt)
+    matched = _match_named_entities(text, text, compound_names)
+    # Preserve order: longest-first from matcher, dedup
+    for c in matched:
+        if c not in q.compounds:
+            q.compounds.append(c)
+    return q
+
+
+def extract_developers(prompt: str, q: StructuredQuery, developer_names: Optional[list[str]] = None) -> StructuredQuery:
+    """Populates q.developers from the prompt against a known list."""
+    if not developer_names:
+        return q
+    text = _normalize(prompt)
+    matched = _match_named_entities(text, text, developer_names)
+    for d in matched:
+        if d not in q.developers:
+            q.developers.append(d)
+    return q
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Extractor 5 — payment & delivery intent flags
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -502,12 +581,19 @@ def extract_query(
     prompt: str,
     buyer_budget_cap: Optional[int] = None,
     buyer_persona: Optional[str] = None,
+    compound_names: Optional[list[str]] = None,
+    developer_names: Optional[list[str]] = None,
 ) -> StructuredQuery:
     """
     Pure-Python intent extraction. No LLM, no API calls, no awaits.
 
     Order matters: extract structured signals first, then derive semantic
     remainder from what's left, then add intent tags + buyer context.
+
+    `compound_names` and `developer_names` are pre-loaded lists (typically
+    Redis-cached by property_dictionaries.{get_compounds, get_developers})
+    passed in by the async caller so this function stays I/O-free.
+    Both default to None; when absent, those extractors are skipped.
 
     Returns a fresh StructuredQuery; never raises (logs on bad input).
     """
@@ -522,6 +608,8 @@ def extract_query(
         q = extract_locations(prompt, q)
         q = extract_property_types(prompt, q)
         q = extract_finishing(prompt, q)
+        q = extract_compounds(prompt, q, compound_names)
+        q = extract_developers(prompt, q, developer_names)
         q = extract_payment_intent(prompt, q)
         q = extract_intent_tags(prompt, q)
         q = extract_semantic_text(prompt, q)

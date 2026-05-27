@@ -494,11 +494,26 @@ async def retrieve(req: RetrievalRequest, db: AsyncSession) -> RetrievalResponse
     t0 = time.perf_counter()
     diagnostics: dict = {"layer_ms": {}, "cache_hit": False}
 
-    # L1
+    # L1 — pre-load compound + developer dictionaries from Redis (or DB fallback).
+    # Both lookups are cached in-process for 30s, so a hot path is sub-ms.
+    from app.services.property_dictionaries import get_compounds, get_developers
+    compound_names: list[str] = []
+    developer_names: list[str] = []
+    try:
+        compound_names = await get_compounds(db)
+    except Exception as exc:
+        logger.debug("[retrieval] compound dict load failed (non-fatal): %s", exc)
+    try:
+        developer_names = await get_developers(db)
+    except Exception as exc:
+        logger.debug("[retrieval] developer dict load failed (non-fatal): %s", exc)
+
     q = extract_query(
         req.prompt,
         buyer_budget_cap=(req.lead_profile or {}).get("budget_max"),
         buyer_persona=(req.lead_profile or {}).get("persona"),
+        compound_names=compound_names,
+        developer_names=developer_names,
     )
     diagnostics["layer_ms"]["l1_intent"] = round((time.perf_counter() - t0) * 1000, 2)
 
