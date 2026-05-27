@@ -68,6 +68,31 @@ async def _release_source_lock(site: str) -> None:
         pass
 
 
+async def _register_scrape_run_id(run_id: str) -> None:
+    """
+    Push a successful scrape's run_id into the 2-slot Redis window read by
+    app.services.nawy_scraper.mark_stale_properties (current + previous).
+
+    Keys live for 7 days; previous is moved off before current is overwritten,
+    matching the cache.set() pattern in app/services/nawy_scraper.py:252.
+    Failures are non-fatal — stale cleanup is a best-effort safety net.
+    """
+    try:
+        import redis.asyncio as aioredis
+
+        from settings import REDIS_URL
+
+        client = aioredis.from_url(REDIS_URL, decode_responses=True)
+        async with client:
+            existing = await client.get("scraper:run_id:current")
+            if existing and existing != run_id:
+                await client.set("scraper:run_id:previous", existing, ex=604800)
+            await client.set("scraper:run_id:current", run_id, ex=604800)
+        logger.info("[scraper] registered run_id=%s in Redis (current; previous archived)", run_id[:8])
+    except Exception as exc:
+        logger.warning("[scraper] failed to register run_id in Redis: %s", exc)
+
+
 async def run_nawy_now(dry_run: bool, max_pages: int) -> int:
     """
     Scrape /nawy-now (instant-delivery feed).
@@ -129,6 +154,10 @@ async def run_nawy_now(dry_run: bool, max_pages: int) -> int:
             "[nawy] nawy-now upsert: ins=%d upd=%d skip=%d err=%d",
             upsert.inserted, upsert.updated, upsert.skipped, upsert.errors,
         )
+        # Register the run so mark_stale_properties() can use it as the
+        # "safe" run when flagging sold/withdrawn listings.
+        if upsert.total > 0:
+            await _register_scrape_run_id(run_id)
     except Exception as exc:
         logger.exception("[nawy] nawy-now crawl failed: %s", exc)
         rc = 1
@@ -196,6 +225,10 @@ async def run_cron(
                         flush_res.upserted.errors,
                         flush_res.alert_sent,
                     )
+                    # Register the run so mark_stale_properties() can mark
+                    # withdrawn listings unavailable.
+                    if flush_res.upserted.total > 0:
+                        await _register_scrape_run_id(flush_res.run_id)
 
                 await asyncio.sleep(REQUEST_DELAY_SECONDS)
 
