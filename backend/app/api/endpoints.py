@@ -1858,6 +1858,73 @@ async def delete_chat_session(
 
 
 # ═══════════════════════════════════════════════════════════════
+# CHAT MESSAGE FLAGGING (user reports a bad AI answer)
+# ═══════════════════════════════════════════════════════════════
+
+class FlagMessageRequest(BaseModel):
+    """User-supplied flag payload."""
+    # Free-form is allowed but the UI offers these buckets:
+    #   wrong_price | bad_advice | hallucination | offensive | other
+    category: str = Field(..., min_length=1, max_length=50)
+    reason: Optional[str] = Field(None, max_length=2000)
+
+
+@router.post("/chat/messages/{message_id}/flag")
+@limiter.limit("20/minute")
+async def flag_chat_message(
+    request: Request,
+    message_id: int,
+    payload: FlagMessageRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Flag an AI answer the user thinks is wrong, harmful, or misleading.
+
+    Only the user who owns the session can flag messages in that session
+    (or an admin can flag anything via the admin endpoint). Only assistant
+    messages can be flagged — flagging the user's own message is a no-op
+    that returns 400 since it would be self-incrimination, not a report.
+
+    Idempotent for the same user: re-flagging just updates the reason and
+    timestamp. Never resets a previously-escalated ticket pointer.
+    """
+    from sqlalchemy import select
+    from app.models import ChatMessage
+
+    msg = (
+        await db.execute(select(ChatMessage).where(ChatMessage.id == message_id))
+    ).scalar_one_or_none()
+    if msg is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+    if msg.role != "assistant":
+        raise HTTPException(status_code=400, detail="Only AI answers can be flagged")
+    # Ownership: caller must have authored a message in this session, OR be admin.
+    is_admin = (getattr(user, "role", "") or "").lower() == "admin"
+    if not is_admin:
+        own = (
+            await db.execute(
+                select(ChatMessage.id)
+                .where(
+                    ChatMessage.session_id == msg.session_id,
+                    ChatMessage.user_id == user.id,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if own is None:
+            raise HTTPException(status_code=403, detail="You can only flag messages in your own sessions")
+
+    msg.flagged = True
+    msg.flag_category = payload.category[:50]
+    msg.flag_reason = payload.reason
+    msg.flagged_by_user_id = user.id
+    msg.flagged_at = func.now()
+    await db.commit()
+    return {"flagged": True, "message_id": message_id}
+
+
+# ═══════════════════════════════════════════════════════════════
 # MARKET ANALYTICS ENDPOINTS (V5: Real-time Dashboard Data)
 # ═══════════════════════════════════════════════════════════════
 

@@ -8,6 +8,7 @@ Provides full system control: user management, conversation monitoring, scraper 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, text
+from sqlalchemy.orm import aliased
 from typing import Optional
 from pydantic import BaseModel, Field
 from slowapi import Limiter
@@ -51,6 +52,14 @@ class UpdateTicketStatusRequest(BaseModel):
 class AssignTicketRequest(BaseModel):
     """Assign ticket to an admin user."""
     admin_id: Optional[int] = None
+
+
+class EscalateMessageRequest(BaseModel):
+    """Admin escalation of a flagged chat message into a support ticket."""
+    subject: str = Field(..., min_length=3, max_length=200)
+    category: str = Field("technical", pattern="^(general|payment|property|technical|account)$")
+    priority: str = Field("high", pattern="^(low|medium|high|urgent)$")
+    note: Optional[str] = Field(None, max_length=2000)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1442,5 +1451,154 @@ async def hallucination_top_claims(
             }
             for row in rows
         ],
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# FLAGGED CHAT MESSAGES (user reports → admin review → ticket)
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/flagged-messages")
+async def list_flagged_messages(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    status: str = Query("open", pattern="^(open|escalated|all)$"),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Admin view of flagged AI answers.
+
+    status:
+      open       — flagged but not yet escalated to a ticket (default)
+      escalated  — already converted into a ticket
+      all        — both
+    """
+    User_flagger = aliased(User)
+    User_sessioner = aliased(User)
+
+    stmt = (
+        select(
+            ChatMessage.id,
+            ChatMessage.session_id,
+            ChatMessage.content,
+            ChatMessage.flag_category,
+            ChatMessage.flag_reason,
+            ChatMessage.flagged_at,
+            ChatMessage.escalated_ticket_id,
+            User_flagger.email.label("flagger_email"),
+            User_flagger.full_name.label("flagger_name"),
+            User_sessioner.email.label("session_user_email"),
+        )
+        .join(User_flagger, User_flagger.id == ChatMessage.flagged_by_user_id, isouter=True)
+        .join(User_sessioner, User_sessioner.id == ChatMessage.user_id, isouter=True)
+        .where(ChatMessage.flagged.is_(True))
+        .order_by(desc(ChatMessage.flagged_at))
+        .limit(limit)
+        .offset(offset)
+    )
+    if status == "open":
+        stmt = stmt.where(ChatMessage.escalated_ticket_id.is_(None))
+    elif status == "escalated":
+        stmt = stmt.where(ChatMessage.escalated_ticket_id.is_not(None))
+
+    rows = (await db.execute(stmt)).all()
+
+    total_stmt = select(func.count(ChatMessage.id)).where(ChatMessage.flagged.is_(True))
+    if status == "open":
+        total_stmt = total_stmt.where(ChatMessage.escalated_ticket_id.is_(None))
+    elif status == "escalated":
+        total_stmt = total_stmt.where(ChatMessage.escalated_ticket_id.is_not(None))
+    total = (await db.execute(total_stmt)).scalar_one()
+
+    return {
+        "total": int(total or 0),
+        "items": [
+            {
+                "id": r.id,
+                "session_id": r.session_id,
+                "content_preview": (r.content or "")[:400],
+                "flag_category": r.flag_category,
+                "flag_reason": r.flag_reason,
+                "flagged_at": r.flagged_at.isoformat() if r.flagged_at else None,
+                "escalated_ticket_id": r.escalated_ticket_id,
+                "flagger_email": r.flagger_email,
+                "flagger_name": r.flagger_name,
+                "session_user_email": r.session_user_email,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.post("/flagged-messages/{message_id}/escalate")
+async def escalate_flagged_message(
+    message_id: int,
+    payload: EscalateMessageRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """
+    Convert a flagged AI answer into a real support ticket so it gets tracked
+    through resolution like any other ticket. The new ticket's `user_id` is
+    the user who flagged it (so they can see it under "My tickets"); the
+    chat message records the ticket id back so the admin can jump between
+    the two views.
+
+    Idempotent — re-running on an already-escalated message returns the
+    existing ticket instead of creating a duplicate.
+    """
+    msg = (
+        await db.execute(select(ChatMessage).where(ChatMessage.id == message_id))
+    ).scalar_one_or_none()
+    if msg is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+    if not msg.flagged:
+        raise HTTPException(status_code=400, detail="Message is not flagged")
+
+    if msg.escalated_ticket_id:
+        existing = (
+            await db.execute(
+                select(Ticket).where(Ticket.id == msg.escalated_ticket_id)
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return {
+                "ticket_id": existing.id,
+                "already_escalated": True,
+            }
+
+    owner_id = msg.flagged_by_user_id or msg.user_id or admin.id
+    description_parts = [
+        f"Escalated from flagged chat message #{msg.id}.",
+        f"Session: {msg.session_id}",
+        f"Flag category: {msg.flag_category or 'n/a'}",
+    ]
+    if msg.flag_reason:
+        description_parts.append(f"User reason: {msg.flag_reason}")
+    if payload.note:
+        description_parts.append(f"Admin note: {payload.note}")
+    description_parts.append("")
+    description_parts.append("--- Original AI answer ---")
+    description_parts.append((msg.content or "")[:4000])
+
+    ticket = Ticket(
+        user_id=owner_id,
+        subject=payload.subject,
+        description="\n".join(description_parts),
+        category=payload.category,
+        priority=payload.priority,
+        status="open",
+        assigned_to=admin.id,
+    )
+    db.add(ticket)
+    await db.flush()  # populate ticket.id
+
+    msg.escalated_ticket_id = ticket.id
+    await db.commit()
+
+    return {
+        "ticket_id": ticket.id,
+        "already_escalated": False,
     }
 

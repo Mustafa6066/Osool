@@ -33,6 +33,10 @@ class ChatResponse(BaseModel):
     ui_actions: List[Dict[str, Any]] = []
     ui_primitive_descriptor: Optional[str] = None
     primitive_data: Optional[Dict[str, Any]] = None
+    # DB id of the just-saved assistant ChatMessage row, so the frontend
+    # can offer a "flag this answer" affordance. None for the error/auth
+    # branches that never reach the persistence step.
+    message_id: Optional[int] = None
 
 
 # Admin email allowlist — mirrors the frontend's check in app/chat/page.tsx
@@ -182,6 +186,7 @@ async def process_chat(
             )
             db.add(ai_msg)
             await db.commit()
+            await db.refresh(ai_msg)
 
             return JSONResponse(
                 content=ChatResponse(
@@ -192,6 +197,7 @@ async def process_chat(
                     ui_actions=ui_actions,
                     ui_primitive_descriptor=ui_primitive_descriptor,
                     primitive_data=primitive_data,
+                    message_id=ai_msg.id,
                 ).model_dump()
             )
 
@@ -223,6 +229,7 @@ async def process_chat(
         )
         db.add(ai_msg)
         await db.commit()
+        await db.refresh(ai_msg)
 
         return JSONResponse(
             content=ChatResponse(
@@ -231,6 +238,7 @@ async def process_chat(
                 properties=properties,
                 show_upsell=False,
                 ui_actions=ui_actions,
+                message_id=ai_msg.id,
             ).model_dump()
         )
 

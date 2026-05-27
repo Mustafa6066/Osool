@@ -9,6 +9,7 @@ import {
   Building2,
   ChevronRight,
   Database,
+  Flag,
   Loader2,
   MessageSquare,
   RefreshCw,
@@ -27,6 +28,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   addAdminTicketReply,
   blockUser,
+  escalateFlaggedMessage,
   getAdminConversation,
   getAdminConversations,
   getAdminDashboard,
@@ -34,6 +36,7 @@ import {
   getAdminTicketDetail,
   getAdminTickets,
   getAdminUsers,
+  getFlaggedMessages,
   getTicketStats,
   triggerEconomicScraper,
   triggerGeopoliticalScraper,
@@ -44,6 +47,8 @@ import {
   updateUserRole,
   getMarketingMaterials,
   generateMarketingMaterials,
+  type FlaggedMessage,
+  type FlaggedMessageStatus,
   type MarketingMaterial,
   type AdminConversation,
   type AdminDashboardData,
@@ -54,7 +59,7 @@ import {
   type TicketStats,
 } from '@/lib/api';
 
-type Tab = 'overview' | 'conversations' | 'users' | 'tickets' | 'scrapers' | 'marketing';
+type Tab = 'overview' | 'conversations' | 'users' | 'tickets' | 'flagged' | 'scrapers' | 'marketing';
 
 type ConversationDetail = {
   session_id: string;
@@ -75,6 +80,7 @@ const TABS: Array<{ key: Tab; label: string; icon: typeof Shield; tier: 'primary
   { key: 'conversations', label: 'Conversations', icon: MessageSquare, tier: 'primary' },
   { key: 'users', label: 'Users', icon: Users, tier: 'primary' },
   { key: 'tickets', label: 'Tickets', icon: TicketIcon, tier: 'primary' },
+  { key: 'flagged', label: 'Flagged answers', icon: Flag, tier: 'primary' },
   { key: 'scrapers', label: 'Scrapers and data', icon: Database, tier: 'secondary' },
   { key: 'marketing', label: 'Marketing content', icon: FileText, tier: 'secondary' },
 ];
@@ -115,6 +121,11 @@ export default function AdminPage() {
   const [ticketReplying, setTicketReplying] = useState(false);
   const [marketingGenerating, setMarketingGenerating] = useState(false);
   const [showAdvancedTabs, setShowAdvancedTabs] = useState(false);
+
+  // Flagged AI answers — admin review + escalate-to-ticket.
+  const [flagged, setFlagged] = useState<FlaggedMessage[]>([]);
+  const [flaggedStatus, setFlaggedStatus] = useState<FlaggedMessageStatus>('open');
+  const [escalatingId, setEscalatingId] = useState<number | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [roleUpdating, setRoleUpdating] = useState<number | null>(null);
@@ -155,6 +166,11 @@ export default function AdminPage() {
           setAdminTickets(list.tickets);
           break;
         }
+        case 'flagged': {
+          const data = await getFlaggedMessages(flaggedStatus);
+          setFlagged(data.items);
+          break;
+        }
         case 'scrapers': {
           const data = await getAdminMarketIndicators();
           setIndicators((data.indicators || []) as MarketIndicator[]);
@@ -172,7 +188,7 @@ export default function AdminPage() {
     } finally {
       setLoadingData(false);
     }
-  }, [activeTab, authLoading, isAuthenticated, ticketStatusFilter]);
+  }, [activeTab, authLoading, isAuthenticated, ticketStatusFilter, flaggedStatus]);
 
   useEffect(() => {
     void loadTabData();
@@ -860,6 +876,133 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+        </section>
+      ) : null}
+
+      {activeTab === 'flagged' ? (
+        <section className="space-y-4">
+          <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                  Flagged AI answers
+                </h2>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                  Users tap the flag on a reply when the AI is wrong, misleading, or harmful.
+                  Convert genuine issues into support tickets so they get tracked through resolution.
+                </p>
+              </div>
+              <div className="flex gap-2 text-xs">
+                {(['open', 'escalated', 'all'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setFlaggedStatus(s)}
+                    className={
+                      'rounded-full border px-3 py-1.5 font-semibold ' +
+                      (flaggedStatus === s
+                        ? 'border-transparent bg-[var(--color-text-primary)] text-[var(--color-background)]'
+                        : 'border-[var(--color-border)] text-[var(--color-text-secondary)]')
+                    }
+                  >
+                    {s === 'open' ? 'Open' : s === 'escalated' ? 'Escalated' : 'All'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+            {flagged.length === 0 && !loadingData ? (
+              <div className="px-4 py-10 text-center text-sm text-[var(--color-text-secondary)]">
+                No flagged answers in this view.
+              </div>
+            ) : (
+              <ul className="divide-y divide-[var(--color-border)]">
+                {flagged.map((f) => (
+                  <li key={f.id} className="px-4 py-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                          <span className="rounded-full bg-[var(--color-background)] px-2.5 py-1 font-semibold text-[var(--color-text-primary)]">
+                            #{f.id}
+                          </span>
+                          {f.flag_category && (
+                            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-semibold text-amber-700">
+                              {f.flag_category.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                          <span>session {f.session_id.slice(0, 12)}…</span>
+                          <span>
+                            flagged by{' '}
+                            <span className="text-[var(--color-text-secondary)]">
+                              {f.flagger_email || 'unknown'}
+                            </span>
+                          </span>
+                          {f.flagged_at && (
+                            <span>{new Date(f.flagged_at).toLocaleString()}</span>
+                          )}
+                        </div>
+                        <p className="mt-2 line-clamp-3 text-sm text-[var(--color-text-primary)]">
+                          {f.content_preview}
+                        </p>
+                        {f.flag_reason && (
+                          <p className="mt-1 text-xs italic text-[var(--color-text-secondary)]">
+                            “{f.flag_reason}”
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {f.escalated_ticket_id ? (
+                          <a
+                            href={`#ticket-${f.escalated_ticket_id}`}
+                            onClick={() => setActiveTab('tickets')}
+                            className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]"
+                          >
+                            Ticket #{f.escalated_ticket_id} ↗
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={escalatingId === f.id}
+                            onClick={async () => {
+                              const subject = window.prompt(
+                                'Ticket subject (will be visible to the user):',
+                                `[Flagged answer #${f.id}] ${f.flag_category || 'review'}`,
+                              );
+                              if (!subject) return;
+                              setEscalatingId(f.id);
+                              try {
+                                const res = await escalateFlaggedMessage(f.id, {
+                                  subject,
+                                  category: 'technical',
+                                  priority: 'high',
+                                });
+                                setFlagged((prev) =>
+                                  prev.map((x) =>
+                                    x.id === f.id
+                                      ? { ...x, escalated_ticket_id: res.ticket_id }
+                                      : x,
+                                  ),
+                                );
+                              } catch {
+                                window.alert('Could not escalate. Try again.');
+                              } finally {
+                                setEscalatingId(null);
+                              }
+                            }}
+                            className="rounded-full bg-[var(--color-text-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-background)] disabled:opacity-60"
+                          >
+                            {escalatingId === f.id ? 'Escalating…' : 'Escalate to ticket'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
       ) : null}
 

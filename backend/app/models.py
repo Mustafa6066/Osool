@@ -375,18 +375,36 @@ class ChatMessage(Base):
     """
     Phase 3: Persistent Chat History
     Stores all user-AI conversations for session continuity and cross-device sync.
+    Migration 035 added flag columns so users can report bad AI answers and
+    admins can escalate flagged messages into support tickets.
     """
     __tablename__ = "chat_messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    session_id: Mapped[str] = mapped_column(String, index=True) # UUID for session tracking
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True) # Null for anonymous users
-    role: Mapped[str] = mapped_column(String) # 'user' or 'assistant'
-    content: Mapped[str] = mapped_column(Text) # Message content
-    properties_json: Mapped[str] = mapped_column(Text, nullable=True) # JSON array of recommended properties
+    session_id: Mapped[str] = mapped_column(String, index=True)  # UUID for session tracking
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)  # Null for anonymous users
+    role: Mapped[str] = mapped_column(String)  # 'user' or 'assistant'
+    content: Mapped[str] = mapped_column(Text)
+    properties_json: Mapped[str] = mapped_column(Text, nullable=True)  # JSON array of recommended properties
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    user = relationship("User", back_populates="chat_messages")
+    # Migration 035 — user flag + admin escalation.
+    flagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    flag_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Free-form is fine but UI offers these buckets:
+    # wrong_price | bad_advice | hallucination | offensive | other
+    flag_category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    flagged_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    flagged_by_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    escalated_ticket_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("tickets.id", ondelete="SET NULL"), nullable=True
+    )
+
+    user = relationship("User", foreign_keys=[user_id], back_populates="chat_messages")
+    flagged_by = relationship("User", foreign_keys=[flagged_by_user_id])
+    escalated_ticket = relationship("Ticket", foreign_keys=[escalated_ticket_id])
 
 
 class RefreshToken(Base):

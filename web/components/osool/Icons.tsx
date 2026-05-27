@@ -107,6 +107,10 @@ export const IconShare = makeIcon([
   'M12 2v13',
 ]);
 export const IconStop = makeIcon(['M5 5h14v14H5z'], { fill: 'currentColor', stroke: 'none' });
+export const IconFlag = makeIcon([
+  'M4 21V4',
+  'M4 5h11l-1.5 4L15 13H4',
+]);
 export const IconTrending = makeIcon(['M3 17l6-6 4 4 8-8', 'M14 7h7v7']);
 export const IconMessageSquare = makeIcon([
   'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z',

@@ -21,7 +21,7 @@ export default function TermsPage() {
               {isRTL ? 'شروط الخدمة' : 'Terms of Service'}
             </h1>
             <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-              {isRTL ? 'آخر تحديث: يوليو ٢٠٢٥' : 'Last updated: July 2025'}
+              {isRTL ? 'آخر تحديث: مايو ٢٠٢٦' : 'Last updated: May 2026'}
             </p>
 
             <div className="mt-8 space-y-8 text-[var(--color-text-secondary)] leading-relaxed">

@@ -826,6 +826,50 @@ export const updateAdminMarketIndicator = async (key: string, value: number, sou
 
 
 // ═══════════════════════════════════════════════════════════════
+// FLAGGED CHAT MESSAGES (admin review → escalate to ticket)
+// ═══════════════════════════════════════════════════════════════
+
+export interface FlaggedMessage {
+  id: number;
+  session_id: string;
+  content_preview: string;
+  flag_category: string | null;
+  flag_reason: string | null;
+  flagged_at: string | null;
+  escalated_ticket_id: number | null;
+  flagger_email: string | null;
+  flagger_name: string | null;
+  session_user_email: string | null;
+}
+
+export type FlaggedMessageStatus = 'open' | 'escalated' | 'all';
+
+/** Admin: list flagged AI answers */
+export const getFlaggedMessages = async (
+  status: FlaggedMessageStatus = 'open',
+  limit = 50,
+  offset = 0,
+): Promise<{ total: number; items: FlaggedMessage[] }> => {
+  const params = new URLSearchParams({
+    status,
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const { data } = await api.get(`/api/admin/flagged-messages?${params.toString()}`);
+  return data;
+};
+
+/** Admin: convert a flagged message into a support ticket */
+export const escalateFlaggedMessage = async (
+  messageId: number,
+  payload: { subject: string; category?: string; priority?: string; note?: string },
+): Promise<{ ticket_id: number; already_escalated: boolean }> => {
+  const { data } = await api.post(`/api/admin/flagged-messages/${messageId}/escalate`, payload);
+  return data;
+};
+
+
+// ═══════════════════════════════════════════════════════════════
 // TICKET SYSTEM API
 // ═══════════════════════════════════════════════════════════════
 

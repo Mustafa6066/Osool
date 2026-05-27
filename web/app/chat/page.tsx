@@ -17,6 +17,7 @@ import OsoolAvatar from '@/components/osool/OsoolAvatar';
 import {
   IconCalc,
   IconChevDown,
+  IconFlag,
   IconGlobe,
   IconHome,
   IconMessageSquare,
@@ -109,14 +110,23 @@ interface AiMessage {
   properties?: PropertyCard[];
   pending?: boolean;
   error?: string;
+  // DB id of the saved ChatMessage row. Set by /api/v1/chat in the
+  // success path; set by /api/chat/history/{sid} when resuming a thread.
+  // Drives the "flag this answer" affordance.
+  messageId?: number;
+  // Tracks local flag state so the UI can show "Reported" after submit
+  // without round-tripping.
+  flagged?: boolean;
 }
 
 type Message = UserMessage | AiMessage;
 
 interface HistoryMessage {
+  id?: number;
   role: string;
   content: string;
   properties_json?: string | null;
+  properties?: unknown[] | null;
   created_at?: string;
 }
 
@@ -192,6 +202,14 @@ const T_AR: Translations = {
 /* ─── Mapping helpers ───────────────────────────────────────────── */
 
 type Json = Record<string, unknown>;
+
+function safeJsonParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 function readNum(o: Json, ...keys: string[]): number | null {
   for (const k of keys) {
@@ -445,12 +463,15 @@ function ChatPageBody() {
                 .filter((p: PropertyCard | null): p is PropertyCard => p !== null)
             : undefined;
 
-          // /api/v1/chat returns { type, text, properties, show_upsell, ... }
-          // (note: `text`, not `response` — different shape from legacy /api/chat)
+          // /api/v1/chat returns { type, text, properties, show_upsell,
+          // message_id, ... } (note: `text`, not `response` — different shape
+          // from legacy /api/chat). message_id is the DB row's id for the
+          // saved assistant ChatMessage, used by the flag button.
           const reply: AiMessage = {
             role: 'ai',
             text: typeof data.text === 'string' ? data.text : '',
             properties: properties && properties.length > 0 ? properties : undefined,
+            messageId: typeof data.message_id === 'number' ? data.message_id : undefined,
           };
 
           setMessages((m) => {
@@ -515,6 +536,39 @@ function ChatPageBody() {
     // Remove the dangling pending bubble.
     setMessages((m) => (m.length && (m[m.length - 1] as AiMessage).pending ? m.slice(0, -1) : m));
   };
+
+  // ── Flag an AI answer ──────────────────────────────────────────
+  // Optimistically marks the message as `flagged` so the user sees instant
+  // feedback. On API failure we roll back so they can try again.
+  const flagMessage = useCallback(
+    async (msgIndex: number, messageId: number, category: string, reason: string) => {
+      setMessages((m) => {
+        const copy = [...m];
+        const target = copy[msgIndex];
+        if (target && target.role === 'ai') {
+          copy[msgIndex] = { ...target, flagged: true };
+        }
+        return copy;
+      });
+      try {
+        await api.post(`/api/chat/messages/${messageId}/flag`, {
+          category,
+          reason: reason || null,
+        });
+      } catch {
+        // Roll back the optimistic flag so the user can retry.
+        setMessages((m) => {
+          const copy = [...m];
+          const target = copy[msgIndex];
+          if (target && target.role === 'ai') {
+            copy[msgIndex] = { ...target, flagged: false };
+          }
+          return copy;
+        });
+      }
+    },
+    [],
+  );
 
   // Auto-send a prompt that arrived via ?q= (from the landing hero composer).
   // Waits until the session is resolved, the user hasn't already typed
@@ -587,20 +641,18 @@ function ChatPageBody() {
             if (m.role === 'user') return { role: 'user', content: m.content };
             if (m.role === 'assistant' || m.role === 'ai') {
               let properties: PropertyCard[] | undefined;
-              if (m.properties_json) {
-                try {
-                  const arr = JSON.parse(m.properties_json) as unknown;
-                  if (Array.isArray(arr)) {
-                    properties = arr
-                      .map((p) => toPropertyCard(p, lang))
-                      .filter((p): p is PropertyCard => p !== null);
-                    if (properties.length === 0) properties = undefined;
-                  }
-                } catch {
-                  /* ignore */
-                }
+              // History payload supports two shapes: `properties_json` (raw
+              // text from older endpoint) and `properties` (array, from the
+              // newer admin endpoint). Try whichever the server gave us.
+              const rawProps: unknown =
+                (m.properties_json ? safeJsonParse(m.properties_json) : null) ?? m.properties;
+              if (Array.isArray(rawProps)) {
+                properties = rawProps
+                  .map((p) => toPropertyCard(p, lang))
+                  .filter((p): p is PropertyCard => p !== null);
+                if (properties.length === 0) properties = undefined;
               }
-              return { role: 'ai', text: m.content, properties };
+              return { role: 'ai', text: m.content, properties, messageId: m.id };
             }
             return null;
           })
@@ -676,7 +728,17 @@ function ChatPageBody() {
                     ) : m.pending ? (
                       <Typing key={i} T={T} />
                     ) : (
-                      <AiBubble key={i} msg={m} tier={tier} lang={lang} />
+                      <AiBubble
+                        key={i}
+                        msg={m}
+                        tier={tier}
+                        lang={lang}
+                        onFlag={(category, reason) =>
+                          m.messageId
+                            ? flagMessage(i, m.messageId, category, reason)
+                            : Promise.resolve()
+                        }
+                      />
                     ),
                   )}
                 </div>
@@ -964,12 +1026,15 @@ function AiBubble({
   msg,
   tier,
   lang,
+  onFlag,
 }: {
   msg: AiMessage;
   tier: DemoTier;
   lang: Lang;
+  onFlag: (category: string, reason: string) => Promise<void>;
 }) {
   const isFree = tier === 'free';
+  const canFlag = !msg.error && !msg.pending && typeof msg.messageId === 'number';
 
   return (
     <div className="msg-ai">
@@ -978,6 +1043,9 @@ function AiBubble({
           <OsoolAvatar size={20} animated />
         </span>
         <b>Osool</b>
+        {canFlag && (
+          <FlagAffordance lang={lang} flagged={!!msg.flagged} onFlag={onFlag} />
+        )}
       </div>
 
       <div className="ai-body">
@@ -1077,6 +1145,186 @@ function AiBubble({
         )}
       </div>
     </div>
+  );
+}
+
+/* ─── Flag affordance ───────────────────────────────────────────── */
+
+type FlagCategory = 'wrong_price' | 'bad_advice' | 'hallucination' | 'offensive' | 'other';
+
+function FlagAffordance({
+  lang,
+  flagged,
+  onFlag,
+}: {
+  lang: Lang;
+  flagged: boolean;
+  onFlag: (category: string, reason: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<FlagCategory>('bad_advice');
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const labels = lang === 'ar'
+    ? {
+        report: 'إبلاغ',
+        reported: 'تم الإبلاغ',
+        title: 'ما المشكلة في هذا الرد؟',
+        wrong_price: 'سعر خاطئ',
+        bad_advice: 'نصيحة سيئة',
+        hallucination: 'معلومات مختلقة',
+        offensive: 'محتوى مسيء',
+        other: 'أخرى',
+        reasonPlaceholder: 'اشرح المشكلة (اختياري)',
+        submit: 'إرسال',
+        cancel: 'إلغاء',
+      }
+    : {
+        report: 'Report',
+        reported: 'Reported',
+        title: "What's wrong with this answer?",
+        wrong_price: 'Wrong price',
+        bad_advice: 'Bad advice',
+        hallucination: 'Made-up info',
+        offensive: 'Offensive content',
+        other: 'Other',
+        reasonPlaceholder: 'Optional details',
+        submit: 'Submit',
+        cancel: 'Cancel',
+      };
+
+  if (flagged) {
+    return (
+      <span
+        style={{
+          fontSize: 11,
+          color: 'var(--color-text-muted, #94a3b8)',
+          marginInlineStart: 8,
+        }}
+      >
+        ✓ {labels.reported}
+      </span>
+    );
+  }
+
+  return (
+    <span style={{ marginInlineStart: 8, position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={labels.report}
+        aria-label={labels.report}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          fontSize: 11,
+          padding: '2px 6px',
+          borderRadius: 6,
+          border: '1px solid var(--color-border, rgba(0,0,0,0.1))',
+          background: 'transparent',
+          color: 'var(--color-text-muted, #94a3b8)',
+          cursor: 'pointer',
+        }}
+      >
+        <IconFlag size={12} />
+        {labels.report}
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label={labels.title}
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            insetInlineStart: 0,
+            zIndex: 50,
+            width: 260,
+            padding: 12,
+            borderRadius: 12,
+            border: '1px solid var(--color-border, rgba(0,0,0,0.1))',
+            background: 'var(--color-surface, white)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+            {labels.title}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+            {(['wrong_price', 'bad_advice', 'hallucination', 'offensive', 'other'] as const).map(
+              (k) => (
+                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                  <input
+                    type="radio"
+                    name="flag-category"
+                    value={k}
+                    checked={category === k}
+                    onChange={() => setCategory(k)}
+                  />
+                  <span>{labels[k]}</span>
+                </label>
+              ),
+            )}
+          </div>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={labels.reasonPlaceholder}
+            maxLength={1000}
+            rows={2}
+            style={{
+              width: '100%',
+              fontSize: 12,
+              padding: 6,
+              borderRadius: 6,
+              border: '1px solid var(--color-border, rgba(0,0,0,0.1))',
+              resize: 'vertical',
+              marginBottom: 8,
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              disabled={submitting}
+              style={{
+                fontSize: 12,
+                padding: '4px 10px',
+                borderRadius: 6,
+                border: '1px solid var(--color-border, rgba(0,0,0,0.1))',
+                background: 'transparent',
+                cursor: 'pointer',
+              }}
+            >
+              {labels.cancel}
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setSubmitting(true);
+                await onFlag(category, reason);
+                setSubmitting(false);
+                setOpen(false);
+              }}
+              disabled={submitting}
+              style={{
+                fontSize: 12,
+                padding: '4px 10px',
+                borderRadius: 6,
+                border: 'none',
+                background: 'var(--color-text-primary, #111)',
+                color: 'var(--color-background, #fff)',
+                cursor: 'pointer',
+              }}
+            >
+              {labels.submit}
+            </button>
+          </div>
+        </div>
+      )}
+    </span>
   );
 }
 
