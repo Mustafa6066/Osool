@@ -347,6 +347,20 @@ def init_scheduler():
         misfire_grace_time=3600,
     )
 
+    # A5: Email drip — daily at 09:00 UTC (~11 Cairo). Single pass per day
+    # is plenty given our 24h / 3d / 14d cadence; running more often just
+    # burns DB cycles for no extra reach. Hard-capped to 50 sends/run inside
+    # email_drip.send_due_drips so this can't flood SendGrid.
+    from app.services.email_drip import send_due_drips
+    scheduler.add_job(
+        send_due_drips,
+        trigger=CronTrigger(hour=9, minute=0),
+        id="daily_email_drip",
+        name="Daily Email Drip (welcome/primer/final-nudge)",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
     scheduler.start()
     logger.info("✅ APScheduler started with cron jobs:")
     logger.info("   📅 Nawy Scraper: 1st/15th of month 03:00 UTC (every 15 days)")
@@ -356,6 +370,7 @@ def init_scheduler():
     logger.info("   📅 Image Mirror: Sundays 05:00 UTC")
     logger.info("   📅 Portfolio Valuations: Sundays 05:30 UTC")
     logger.info("   📅 Marketing Generator: 1st/15th 06:00 UTC")
+    logger.info("   📅 Email Drip: Daily 09:00 UTC (welcome/primer/final-nudge)")
 
     # Log next run times
     for job in scheduler.get_jobs():

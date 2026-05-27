@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useCurrency, type Currency } from '@/contexts/CurrencyContext';
 import api, { getUserChatSessions, type ChatSession } from '@/lib/api';
 import {
   getOrCreateSessionId,
@@ -97,7 +98,10 @@ interface PropertyCard {
   id?: string | number;
   name: string;
   loc: string;
-  price: string;
+  // Raw EGP price kept alongside the rendered string so the currency
+  // toggle (EGP <-> USD) can reformat live without re-fetching.
+  priceEgp: number | null;
+  priceLabel: string | null;
   score: number | null;
   beds: number | null;
   size: string;
@@ -237,19 +241,6 @@ function readStr(o: Json, ...keys: string[]): string | undefined {
   return undefined;
 }
 
-function formatEgp(amount: number, lang: Lang): string {
-  if (amount >= 1_000_000) {
-    const m = amount / 1_000_000;
-    const rounded = m.toFixed(m >= 10 ? 1 : 2).replace(/\.?0+$/, '');
-    return lang === 'ar' ? `${rounded} مليون جنيه` : `${rounded}M EGP`;
-  }
-  if (amount >= 1_000) {
-    const k = Math.round(amount / 1_000);
-    return lang === 'ar' ? `${k} ألف جنيه` : `${k.toLocaleString('en-US')} EGP`;
-  }
-  return lang === 'ar' ? `${Math.round(amount).toLocaleString('ar-EG')} جنيه` : `${Math.round(amount).toLocaleString('en-US')} EGP`;
-}
-
 function toPropertyCard(raw: unknown, lang: Lang): PropertyCard | null {
   if (!raw || typeof raw !== 'object') return null;
   const p = raw as Json;
@@ -257,15 +248,18 @@ function toPropertyCard(raw: unknown, lang: Lang): PropertyCard | null {
   const compound = readStr(p, 'compound');
   const area = readStr(p, 'location', 'area', 'city');
   const loc = [compound, area].filter(Boolean).join(' · ') || (lang === 'ar' ? 'الموقع غير محدد' : 'Location unspecified');
-  const priceNum = readNum(p, 'price', 'resale_price', 'developer_price', 'amount');
-  const price = priceNum !== null ? formatEgp(priceNum, lang) : (readStr(p, 'price_label', 'price_str') ?? '—');
+  // Keep the raw EGP number so the price renders LIVE through the
+  // currency context (EGP / USD toggle). When the backend only gives us
+  // a pre-formatted string, fall back to that as a static label.
+  const priceEgp = readNum(p, 'price', 'resale_price', 'developer_price', 'amount');
+  const priceLabel = readStr(p, 'price_label', 'price_str') ?? null;
   const score = readNum(p, 'score', 'investment_score', 'osool_score');
   const beds = readNum(p, 'bedrooms', 'beds', 'rooms');
   const sizeNum = readNum(p, 'size_sqm', 'size', 'area_sqm', 'bua');
   const size = sizeNum !== null ? `${Math.round(sizeNum)}m²` : (readStr(p, 'size_str') ?? '');
   const id = (typeof p.id === 'string' || typeof p.id === 'number') ? p.id : (readStr(p, 'property_id', 'listing_id') ?? `${name}-${loc}`);
   const imageUrl = readStr(p, 'image_url', 'imageUrl', 'thumbnail', 'mirrored_image_url') ?? null;
-  return { id, name, loc, price, score, beds, size, imageUrl };
+  return { id, name, loc, priceEgp, priceLabel, score, beds, size, imageUrl };
 }
 
 /* ─── Top-level page ────────────────────────────────────────────── */
@@ -971,6 +965,8 @@ function Topbar({
   onToggleLang: () => void;
   onToggleTheme: () => void;
 }) {
+  const { currency, setCurrency } = useCurrency();
+  const cycleCurrency = () => setCurrency((currency === 'EGP' ? 'USD' : 'EGP') as Currency);
   const labelFree = lang === 'ar' ? 'مجاني' : 'Free';
   const labelPaid = lang === 'ar' ? 'مدفوع' : 'Paid';
   const labelTag = lang === 'ar' ? 'وضع العرض' : 'Demo';
@@ -1008,6 +1004,16 @@ function Topbar({
           </button>
         </div>
       )}
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={cycleCurrency}
+        aria-label={lang === 'ar' ? 'تبديل العملة' : 'Toggle currency'}
+        title={lang === 'ar' ? 'تبديل العملة' : 'Toggle currency'}
+        style={{ fontSize: 11, fontWeight: 600, width: 'auto', padding: '0 8px' }}
+      >
+        {currency}
+      </button>
       <button type="button" className="icon-btn" onClick={onToggleLang} aria-label="Language">
         <IconGlobe size={16} />
       </button>
@@ -1042,6 +1048,7 @@ function AiBubble({
 }) {
   const isFree = tier === 'free';
   const canFlag = !msg.error && !msg.pending && typeof msg.messageId === 'number';
+  const { format: formatPrice } = useCurrency();
 
   return (
     <div className="msg-ai">
@@ -1119,7 +1126,11 @@ function AiBubble({
                       <div className="prop-loc">{p.loc}</div>
                       <div className="prop-row1">
                         <span className={'prop-price' + (isFree ? ' masked' : '')}>
-                          {isFree ? (lang === 'ar' ? '— مغلق —' : '— locked —') : p.price}
+                          {isFree
+                            ? (lang === 'ar' ? '— مغلق —' : '— locked —')
+                            : (p.priceEgp !== null
+                                ? formatPrice(p.priceEgp, { lang })
+                                : (p.priceLabel ?? '—'))}
                         </span>
                         {p.score !== null && !isFree && (
                           <span className="prop-score-num">

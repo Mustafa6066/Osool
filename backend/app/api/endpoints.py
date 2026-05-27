@@ -1858,6 +1858,49 @@ async def delete_chat_session(
 
 
 # ═══════════════════════════════════════════════════════════════
+# FX RATE — public endpoint for diaspora USD display (A4)
+# ═══════════════════════════════════════════════════════════════
+
+# Sensible 2026 default — Egyptian pound has hovered around 49-51 per
+# USD all year. Admin can override via PATCH /api/admin/market-indicators/egp_per_usd.
+# Source of truth at runtime: MarketIndicator row keyed `egp_per_usd`.
+_FX_FALLBACK_EGP_PER_USD = 49.0
+
+
+@router.get("/fx/egp-usd")
+async def get_egp_usd_rate(db: AsyncSession = Depends(get_db)):
+    """
+    Returns the EGP-per-USD conversion rate the frontend should use when
+    the diaspora-friendly USD toggle is on. Same MarketIndicator pattern
+    as the CBE rate — admin updates it through the admin dashboard, no
+    third-party API call at runtime.
+
+    Falls back to a 2026 baseline if the row is missing so the UI can
+    still render USD instead of blanking out.
+    """
+    from sqlalchemy import select
+    from app.models import MarketIndicator
+
+    row = (
+        await db.execute(
+            select(MarketIndicator).where(MarketIndicator.key == "egp_per_usd")
+        )
+    ).scalar_one_or_none()
+
+    if row and row.value and row.value > 0:
+        return {
+            "egp_per_usd": float(row.value),
+            "source": row.source or "admin",
+            "last_updated": row.last_updated.isoformat() if row.last_updated else None,
+        }
+    return {
+        "egp_per_usd": _FX_FALLBACK_EGP_PER_USD,
+        "source": "fallback",
+        "last_updated": None,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
 # CHAT MESSAGE FLAGGING (user reports a bad AI answer)
 # ═══════════════════════════════════════════════════════════════
 

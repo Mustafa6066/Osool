@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { GamificationProvider } from '@/contexts/GamificationContext';
 import GamificationOverlay from '@/components/GamificationOverlay';
 import CommandPalette from '@/components/CommandPalette';
@@ -68,6 +69,7 @@ export default function RootLayout({
         <ErrorBoundaryProvider>
           <ThemeProvider>
             <LanguageProvider>
+              <CurrencyProvider>
               <FluentAppProvider>
                 <AuthProvider>
                   <GamificationProvider>
@@ -105,6 +107,7 @@ export default function RootLayout({
                   </GamificationProvider>
                 </AuthProvider>
               </FluentAppProvider>
+              </CurrencyProvider>
             </LanguageProvider>
           </ThemeProvider>
         </ErrorBoundaryProvider>
