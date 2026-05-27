@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, func
@@ -6,6 +8,8 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
 from app.auth import get_current_user_optional, is_forced_free_test_user_email
+
+logger = logging.getLogger(__name__)
 from app.ai_engine.company_brain import CompanyBrainKernel
 from app.ai_engine.free_tier_gate import build_best_price_free_payload
 from app.ai_engine.wolf_orchestrator import wolf_brain
@@ -232,4 +236,11 @@ async def process_chat(
 
     except Exception as e:
         await db.rollback()
+        logger.exception(
+            "process_chat failed for session=%s viewer=%s tier=%s: %s",
+            chat_request.session_id,
+            getattr(user, "email", "anon"),
+            simulate_tier,
+            e,
+        )
         raise HTTPException(status_code=500, detail=str(e))
