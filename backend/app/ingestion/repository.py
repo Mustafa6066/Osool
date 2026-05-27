@@ -329,10 +329,17 @@ async def _flush_batch(db, rows: list[dict]) -> None:
         and col.key not in _GENERATED_COLS
     }
 
-    nawy_url_col = Property.__table__.c.nawy_url
+    # IMPORTANT: Postgres only validates the ON CONFLICT predicate against
+    # the partial index when a conflict actually occurs (i.e. an existing
+    # row matches). It then requires an EXACT canonicalized match against
+    # the index's stored predicate, which is:
+    #     ((nawy_url IS NOT NULL) AND (nawy_url <> ''::text))
+    # SQLAlchemy expression `col != ""` parameterizes the literal as $param,
+    # which Postgres won't match against the stored `<> ''::text`. Emit raw
+    # text so the predicate is byte-for-byte equivalent at canonicalization.
     upsert_stmt = stmt.on_conflict_do_update(
         index_elements=["nawy_url"],
-        index_where=(nawy_url_col.isnot(None)) & (nawy_url_col != ""),
+        index_where=text("nawy_url IS NOT NULL AND nawy_url <> ''"),
         set_=update_cols,
     )
 
