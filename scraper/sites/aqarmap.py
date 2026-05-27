@@ -19,7 +19,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from extractors.aqarmap_selectors import extract_detail_page, extract_listing_links
-from settings import MAX_PAGES_PER_AREA, REQUEST_DELAY_SECONDS
+from settings import MAX_PAGES_PER_AREA, REQUEST_DELAY_SECONDS, SCRAPER_PROXY_URL
 from sites.base import SiteSpider, SpiderResult
 
 logger = logging.getLogger(__name__)
@@ -50,15 +50,20 @@ class AqarmapSpider(SiteSpider):
     name = "aqarmap"
 
     def __init__(self) -> None:
-        self._http = httpx.AsyncClient(
-            headers={
+        http_kwargs: dict = {
+            "headers": {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                               "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                 "Accept-Language": "en-US,en;q=0.9,ar;q=0.8",
             },
-            timeout=30.0,
-            follow_redirects=True,
-        )
+            "timeout": 30.0,
+            "follow_redirects": True,
+        }
+        if SCRAPER_PROXY_URL:
+            # httpx auto-routes both http:// and https:// through this URL.
+            http_kwargs["proxy"] = SCRAPER_PROXY_URL
+            logger.info("[aqarmap] httpx routed through SCRAPER_PROXY_URL")
+        self._http = httpx.AsyncClient(**http_kwargs)
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -114,11 +119,13 @@ class AqarmapSpider(SiteSpider):
         """
         if _STEALTH_OK:
             try:
+                fetch_kwargs = {"headless": True, "network_idle": True}
+                if SCRAPER_PROXY_URL:
+                    # Scrapling StealthyFetcher accepts a `proxy` arg that it
+                    # forwards to Playwright/patchright's launch context.
+                    fetch_kwargs["proxy"] = SCRAPER_PROXY_URL
                 page = await asyncio.to_thread(
-                    StealthyFetcher.fetch,
-                    url,
-                    headless=True,
-                    network_idle=True,
+                    StealthyFetcher.fetch, url, **fetch_kwargs,
                 )
                 body = page.body if hasattr(page, "body") else str(page)
                 # StealthyFetcher returns bytes — decode for downstream str-pattern regex.
