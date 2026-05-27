@@ -110,6 +110,7 @@ _BATCH_COMMIT_SIZE = 50  # Commit every N properties to bound memory usage
 async def upsert_properties(
     properties: Sequence[NormalizedProperty],
     run_id: str,
+    skip_anomaly_check: bool = False,
 ) -> UpsertResult:
     """
     Differential hash upsert for a batch of normalized properties.
@@ -126,6 +127,12 @@ async def upsert_properties(
     Args:
         properties: Sequence of NormalizedProperty from llm_normalizer.
         run_id:     UUID string for this scrape run (stale detection).
+        skip_anomaly_check: True for curated feeds (Nawy Now etc.) whose
+            per-area medians legitimately diverge from the broad-market
+            baseline. The anomaly detector compares incoming median price
+            against historical median for that area; for niche segments
+            (instant-delivery, ultra-luxury) that comparison is structurally
+            inflated/deflated and will halt an otherwise-valid scrape.
 
     Returns:
         UpsertResult with counts for inserted, updated, skipped, errors.
@@ -134,7 +141,13 @@ async def upsert_properties(
     now = datetime.now(timezone.utc)
 
     # ── Anomaly Detection: halt upsert if price data looks corrupted ──
+    if skip_anomaly_check:
+        logger.info(
+            "[repo] Anomaly detector bypassed for run=%s (curated feed)", run_id
+        )
     try:
+        if skip_anomaly_check:
+            raise ImportError("skip_anomaly_check=True")  # short-circuit the block below
         from app.ingestion.anomaly_detector import anomaly_detector, send_alert
         async with AsyncSessionLocal() as anomaly_db:
             prop_dicts = [

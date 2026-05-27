@@ -119,7 +119,12 @@ async def run_nawy_now(dry_run: bool, max_pages: int) -> int:
         if not norm.properties:
             return rc
 
-        upsert = await upsert_properties(norm.properties, run_id=run_id)
+        # Skip anomaly detector — Nawy Now is a curated instant-delivery slice
+        # whose per-area medians diverge from the broad-market baseline by
+        # design (premium segment, ready-to-move bias, etc.).
+        upsert = await upsert_properties(
+            norm.properties, run_id=run_id, skip_anomaly_check=True
+        )
         logger.info(
             "[nawy] nawy-now upsert: ins=%d upd=%d skip=%d err=%d",
             upsert.inserted, upsert.updated, upsert.skipped, upsert.errors,
