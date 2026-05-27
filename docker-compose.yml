@@ -1,0 +1,48 @@
+# Local dev infrastructure for Osool.
+#
+# Brings up Postgres + Redis on host ports so the backend (run from your
+# venv via `make backend` or `uvicorn`) can connect with the defaults
+# baked into .env.example.
+#
+# For production, see docker-compose.prod.yml.
+#
+# Usage:
+#   docker compose up -d       # start postgres + redis in the background
+#   docker compose ps          # check status
+#   docker compose down        # stop and remove containers (data persists)
+#   docker compose down -v     # nuke containers AND data volumes
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: osool-postgres-dev
+    environment:
+      POSTGRES_USER: osool
+      POSTGRES_PASSWORD: osool
+      POSTGRES_DB: osool
+    ports:
+      - "5432:5432"
+    volumes:
+      - osool_pg_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osool -d osool"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: osool-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - osool_redis_dev:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  osool_pg_dev:
+  osool_redis_dev:

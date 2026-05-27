@@ -130,3 +130,11 @@ logs.txt
 # Coverage and logs (catch-all)
 .coverage
 *.log
+
+# Scratch / one-shot diagnostics.
+# `scripts/scratch/data/` holds local debris that was previously littering the
+# repo root: sqlite dev DBs, captured curl payloads, cookies, scraped JSON,
+# old log files. The code under `scripts/scratch/` IS tracked so the team
+# keeps a record of one-off scripts, but the data dumps are never committed.
+scripts/scratch/data/
+*.xlsx

@@ -138,6 +138,9 @@ type Translations = {
   conv1Title: string;
   noConvs: string;
   errorSend: string;
+  errorTimeout: string;
+  errorServer: string;
+  errorNetwork: string;
   thinkingLabel: string;
 };
 
@@ -157,7 +160,10 @@ const T_EN: Translations = {
   stopGen: 'Stop generating',
   conv1Title: 'New conversation',
   noConvs: 'No conversations yet',
-  errorSend: 'Could not reach Osool. Check your connection and try again.',
+  errorSend: "Couldn't reach Osool. Check your connection and try again.",
+  errorTimeout: 'Osool is taking longer than usual. Tap retry, or try a shorter question.',
+  errorServer: 'Osool hit an internal error. We were notified — please try again in a moment.',
+  errorNetwork: "You appear to be offline. Reconnect and we'll keep your question.",
   thinkingLabel: 'Thinking…',
 };
 
@@ -177,6 +183,9 @@ const T_AR: Translations = {
   conv1Title: 'محادثة جديدة',
   noConvs: 'لا توجد محادثات بعد',
   errorSend: 'تعذر الوصول إلى أصول. تحقق من الاتصال وحاول مرة أخرى.',
+  errorTimeout: 'أصول يستغرق وقتًا أطول من المعتاد. أعد المحاولة أو جرب سؤالًا أقصر.',
+  errorServer: 'حدث خطأ داخلي في أصول. تم إبلاغ الفريق — يرجى المحاولة بعد لحظات.',
+  errorNetwork: 'يبدو أنك غير متصل بالإنترنت. أعد الاتصال وسنحتفظ بسؤالك.',
   thinkingLabel: 'يفكر…',
 };
 
@@ -468,7 +477,23 @@ function ChatPageBody() {
             window.location.assign(`/signup?next=${next}`);
             return;
           }
-          const fallback: AiMessage = { role: 'ai', text: '', error: T.errorSend };
+          // Pick the most specific error copy we can. The catch can fire
+          // for: axios timeout (code='ECONNABORTED' from the 30s ceiling),
+          // network failure (no `response` field at all), 5xx server error,
+          // or anything else. Generic errorSend is the floor.
+          const code = (err as { code?: string })?.code;
+          const hasResponse = !!(err as { response?: unknown })?.response;
+          let errorCopy = T.errorSend;
+          if (code === 'ECONNABORTED') {
+            errorCopy = T.errorTimeout;
+          } else if (!hasResponse) {
+            errorCopy = typeof navigator !== 'undefined' && navigator.onLine === false
+              ? T.errorNetwork
+              : T.errorSend;
+          } else if (status && status >= 500) {
+            errorCopy = T.errorServer;
+          }
+          const fallback: AiMessage = { role: 'ai', text: '', error: errorCopy };
           setMessages((m) => {
             const copy = [...m];
             copy[copy.length - 1] = fallback;
@@ -480,7 +505,7 @@ function ChatPageBody() {
         }
       })();
     },
-    [sessionId, streaming, T.errorSend, isAdmin, isAuthenticated, tier, lang],
+    [sessionId, streaming, T, isAdmin, isAuthenticated, tier, lang],
   );
 
   const onStop = () => {

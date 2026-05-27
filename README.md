@@ -68,7 +68,15 @@ Osool/
 
 ## 🛠️ Quick Start
 
-### 1. Python Backend
+### 1. Infrastructure (Postgres + Redis)
+
+Backend needs both running locally before it can boot.
+
+```bash
+docker compose up -d postgres redis
+```
+
+### 2. Python Backend
 
 ```bash
 cd backend
@@ -81,54 +89,67 @@ venv\Scripts\activate  # Windows
 # Install dependencies
 pip install -r requirements.txt
 
-# Run server
+# Copy env template and fill in keys (OPENAI_API_KEY, ANTHROPIC_API_KEY,
+# JWT_SECRET_KEY, ADMIN_API_KEY are the minimum needed to boot)
+copy ..\.env.example .env
+
+# Apply migrations
+alembic upgrade head
+
+# Run server (port 8000)
 uvicorn app.main:app --reload
 ```
 
-### 2. Data Ingestion (CRITICAL - AI Brain)
+### 3. Next.js Frontend
 
-The AI Sales Agent cannot function without property data in the vector store.
+In a second terminal:
+
+```bash
+cd web
+npm install
+npm run dev          # port 3000
+```
+
+Open http://localhost:3000.
+
+### 4. Seed Property Data (optional, for AI chat to return real listings)
 
 ```bash
 cd backend
-
-# 1. Ensure .env has these variables:
-#    SUPABASE_URL=your_supabase_url
-#    SUPABASE_KEY=your_supabase_key
-#    OPENAI_API_KEY=your_openai_key
-
-# 2. Run data ingestion (parses property data into Supabase)
-python ingest_data.py
-
-# 3. Verify the vector store is working
-python verify_vector_store.py
+python ingest_data.py            # pulls scraped properties into pgvector
+python verify_vector_store.py    # sanity-check embeddings
 ```
 
-### 3. Verify Health
+### 5. Verify Health
 
 ```bash
-# Check API is running
 curl http://localhost:8000/api/health
 # Expected: {"status": "healthy", ...}
-
-# Test AI Chat (after data ingestion)
-curl -X POST http://localhost:8000/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Show me villas in New Cairo", "session_id": "test123"}'
 ```
 
-### 4. API Endpoints
+### 6. API Endpoints (verified 2026-05-26)
+
+Public:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/chat` | POST | AI Sales Agent chat |
-| `/api/reserve` | POST | Reserve property (after EGP payment) |
-| `/api/finalize-sale` | POST | Complete sale (after bank transfer) |
-| `/api/ai/analyze-contract` | POST | AI legal contract analysis |
-| `/api/ai/valuation` | POST | AI property valuation |
-| `/api/ai/compare-price` | POST | Compare asking price vs. market |
-| `/api/fractional/invest` | POST | Fractional property investment |
+| `/api/health`, `/api/ready`, `/api/liveness` | GET | Health probes |
+| `/api/v1/chat`, `/api/v1/chat/stream` | POST | AI chat (authenticated) |
+| `/api/valuation/npv` | POST | NPV flattening of payment plans |
+| `/api/valuation/normalize` | POST | Price/sqm normalization |
+| `/api/valuation/la2ta` | POST | Underpriced-resale detector |
+| `/api/auth/register`, `/login`, `/refresh`, `/google` | POST | Auth flows |
+| `/webhook/paymob` | POST | Paymob payment webhook (HMAC-signed) |
+
+Admin (requires `X-API-Key` matching `ADMIN_API_KEY`):
+
+| Endpoint | Description |
+|----------|-------------|
+| `/admin/*` (55 endpoints) | Users, leads, tickets, analytics, SEO |
+| `/api/ingest` | Trigger property ingestion |
+| `/metrics` | Prometheus metrics |
+
+See `CLAUDE.md` for the full architecture map and `backend/app/api/` for source.
 
 ---
 
@@ -273,13 +294,8 @@ cd web && npm run build
 
 ## 👥 Contributing
 
-Contributions welcome. See `CONTRIBUTING.md` for guidelines.
+This is a closed-source product. Internal contributors follow conventional commits
+(`feat:`, `fix:`, `chore:`, etc.) and target the `main` branch via PR.
 
-**Lead Engineer:** Mustafa  
+**Lead Engineer:** Mustafa
 **Mission:** Building the future of Egyptian Asset Management
-
----
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) for details.
