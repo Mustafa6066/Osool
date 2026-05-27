@@ -166,6 +166,17 @@ async def process_chat(
     db.add(user_msg)
     await db.commit()
 
+    # A6 — lead scoring runs INLINE (cheap, deterministic, swallows its
+    # own exceptions). Doing it inline keeps the DB session simple — the
+    # alternative (asyncio.create_task) would race with the chat path's
+    # later commits on the same session. Cost: ~1-3ms per turn.
+    if user is not None:
+        try:
+            from app.services.lead_scoring import update_lead_score_for_turn
+            await update_lead_score_for_turn(db, user, chat_request.message)
+        except Exception:
+            logger.exception("Lead scoring threw; chat path continues unaffected")
+
     try:
         kind = _viewer_kind(user, simulate_tier=simulate_tier)
 
