@@ -65,6 +65,27 @@ circuit_breaker_failures = Counter(
     ['service']
 )
 
+# Auth & cache reliability (closes audit A2 — Redis blacklist observability)
+redis_blacklist_state = Gauge(
+    'osool_redis_blacklist_state',
+    'Token blacklist Redis state — 1 healthy, 0 degraded'
+)
+
+redis_blacklist_degradations_total = Counter(
+    'osool_redis_blacklist_degradations_total',
+    'Number of times the token blacklist entered degraded mode (Redis down)'
+)
+
+redis_blacklist_recoveries_total = Counter(
+    'osool_redis_blacklist_recoveries_total',
+    'Number of times the token blacklist recovered from degraded mode'
+)
+
+redis_blacklist_failclosed_total = Counter(
+    'osool_redis_blacklist_failclosed_total',
+    'Number of requests refused (503) because the blacklist was unavailable'
+)
+
 # Business Metrics
 chat_sessions_total = Counter(
     'osool_chat_sessions_total',
