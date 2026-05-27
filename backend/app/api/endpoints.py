@@ -1881,13 +1881,19 @@ async def get_egp_usd_rate(db: AsyncSession = Depends(get_db)):
     from sqlalchemy import select
     from app.models import MarketIndicator
 
-    row = (
-        await db.execute(
-            select(MarketIndicator).where(MarketIndicator.key == "egp_per_usd")
-        )
-    ).scalar_one_or_none()
+    try:
+        row = (
+            await db.execute(
+                select(MarketIndicator).where(MarketIndicator.key == "egp_per_usd")
+            )
+        ).scalar_one_or_none()
+    except Exception as e:
+        # Don't 500 the diaspora UI just because the row is missing or the
+        # query fails — degrade gracefully to the baseline.
+        logger.warning("FX rate lookup failed: %s; falling back to baseline", e)
+        row = None
 
-    if row and row.value and row.value > 0:
+    if row is not None and row.value and row.value > 0:
         return {
             "egp_per_usd": float(row.value),
             "source": row.source or "admin",
