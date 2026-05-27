@@ -43,7 +43,11 @@ class FlushResult:
     alert_sent: bool
 
 
-async def flush(raw_properties: list[dict], site: str) -> FlushResult:
+async def flush(
+    raw_properties: list[dict],
+    site: str,
+    skip_anomaly_check: bool = False,
+) -> FlushResult:
     """
     Validate → normalize → upsert one batch of raw spider output.
 
@@ -51,6 +55,12 @@ async def flush(raw_properties: list[dict], site: str) -> FlushResult:
       - For nawy: list of envelope dicts where each envelope is a __NEXT_DATA__
         blob marked with _nawy_compound_envelope=True.
       - For aqarmap: list of flat unit dicts.
+
+    skip_anomaly_check: pass True for narrow per-area scrapes where the
+        incoming batch's median price legitimately diverges from the
+        broad-market baseline (per-compound new-developer pricing, niche
+        property segments). The anomaly detector compares against the
+        whole-market historical median and otherwise halts the upsert.
     """
     run_id = str(uuid.uuid4())
 
@@ -94,7 +104,9 @@ async def flush(raw_properties: list[dict], site: str) -> FlushResult:
             alert_sent=False,
         )
 
-    upsert_result = await upsert_properties(normalized, run_id=run_id)
+    upsert_result = await upsert_properties(
+        normalized, run_id=run_id, skip_anomaly_check=skip_anomaly_check
+    )
 
     alert_sent = False
     if report and report.needs_alert:

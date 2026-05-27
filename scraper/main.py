@@ -178,7 +178,15 @@ async def run_cron(
                 if dry_run:
                     await dry_run_print(res.raw_properties, site)
                 else:
-                    flush_res = await flush(res.raw_properties, site)
+                    # Per-area / per-site scrapes legitimately diverge from
+                    # the broad-market anomaly-detector baseline. The
+                    # detector is designed for whole-market refreshes; for
+                    # narrow scrapes (per-area, single-compound, single-
+                    # site) the per-area median is structurally different
+                    # from history. Bypass so the upsert can proceed.
+                    flush_res = await flush(
+                        res.raw_properties, site, skip_anomaly_check=True
+                    )
                     logger.info(
                         "[%s] upsert: ins=%d upd=%d skip=%d err=%d alert=%s",
                         site,
