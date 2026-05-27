@@ -263,6 +263,17 @@ def extract_detail_page(html: str, url: str) -> Optional[dict]:
         "areaName": location_clean,
         "developerName": None,  # aqarmap = classifieds, sellers are individuals
         "compoundName": compound_name,
+        # Flat-string aliases for the input validator in
+        # app/ingestion/scraper_schemas.py — it doesn't read the camelCase
+        # variants and would reject every row on the
+        # "at_least_location_or_compound" rule otherwise.
+        "location": location_clean or None,
+        "compound": compound_name or None,
+        "developer": None,
+        "area": float(size_sqm) if size_sqm else None,  # validator expects sqm as float
+        "type": (prop_type or "Other"),
+        "bedrooms": _parse_int(item_offered.get("numberOfRooms")) or None,
+        "bathrooms": _parse_int(item_offered.get("numberOfBathroomsTotal")) or None,
         "imageUrl": first_image,
         "propertyType": prop_type or "Other",
         # nawy_url is the unique upsert key — column is misnamed historically.
