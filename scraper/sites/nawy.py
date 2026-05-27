@@ -79,30 +79,54 @@ class NawySpider(SiteSpider):
         return result
 
     async def crawl_nawy_now(self, max_pages: int = MAX_PAGES_PER_AREA, dry_run: bool = False) -> SpiderResult:
+        """Scrape only the Nawy Now (instant-delivery) slice via the listing API."""
+        return await self.crawl_via_listing_api(
+            max_pages=max_pages, filters={"isNawyNow": "true"}, label="nawy-now",
+        )
+
+    async def crawl_all_units(self, max_pages: int = MAX_PAGES_PER_AREA, dry_run: bool = False) -> SpiderResult:
         """
-        Scrape Nawy's instant-delivery (Nawy Now) inventory via the listing
-        API: https://listing-api.nawy.com/v1/search/properties?isNawyNow=true.
+        Walk Nawy's complete unit-level inventory via the listing API:
+            https://listing-api.nawy.com/v1/search/properties?page=N&pageSize=12
 
-        The earlier path (/nawy-now?page=N HTML SSR) is broken — the page param
-        is ignored and every page returns page 1's 12 units. The XHR endpoint
-        used by Nawy's own frontend respects pagination correctly.
+        No filters → all 19,055+ units across every area and every compound.
+        Each unit carries the full schema (paymentPlan, readyBy,
+        compound{name,slug}, area{name}, developer{name}, finishing,
+        unitArea, bedrooms, bathrooms, saleType). The HTML SSR path
+        through /compound/<slug> is much slower (Playwright per compound)
+        and yields the same data — we bypass it entirely.
+        """
+        return await self.crawl_via_listing_api(
+            max_pages=max_pages, filters=None, label="nawy-all",
+        )
 
-        Each result entry is a *unit-level* record with the full schema:
-        paymentPlan, readyBy, compound{name, slug}, area{name},
-        developer{name}, finishing, unitArea, numberOfBedrooms, etc. — the
-        same shape the deterministic normalizer was designed around.
+    async def crawl_via_listing_api(
+        self,
+        max_pages: int,
+        filters: Optional[dict] = None,
+        label: str = "nawy-api",
+    ) -> SpiderResult:
+        """
+        Generic paginated walk of /v1/search/properties on listing-api.
 
         Stops early when:
-          - page returns 0 results
-          - cumulative seen ids >= total declared by the API
+          - the page returns 0 results
+          - cumulative seen ids >= declared total
           - we exhaust `max_pages`
+
+        `filters` is a dict of extra query-string params (e.g.
+        {"isNawyNow": "true"} for the Nawy Now slice or
+        {"areaId": "2"} for a single area).
         """
         result = SpiderResult()
         seen_ids: set[int] = set()
+
+        extra_qs = ""
+        if filters:
+            extra_qs = "".join(f"&{k}={v}" for k, v in filters.items())
+
         for page_no in range(1, max_pages + 1):
-            url = (
-                f"{NAWY_LISTING_API}?page={page_no}&pageSize=12&isNawyNow=true"
-            )
+            url = f"{NAWY_LISTING_API}?page={page_no}&pageSize=12{extra_qs}"
             payload = await self._fetch_json(url)
             if not payload:
                 result.pages_failed += 1
@@ -110,7 +134,7 @@ class NawySpider(SiteSpider):
 
             units, total = self._extract_listing_api_page(payload, url)
             if not units:
-                logger.info("[nawy] nawy-now page %d empty — stopping pagination", page_no)
+                logger.info("[nawy] %s page %d empty — stopping pagination", label, page_no)
                 break
 
             fresh = [u for u in units if u.get("id") not in seen_ids]
@@ -121,12 +145,12 @@ class NawySpider(SiteSpider):
             result.raw_properties.extend(fresh)
             result.pages_fetched += 1
             logger.info(
-                "[nawy] nawy-now page %d: +%d units (cumulative %d / total %d)",
-                page_no, len(fresh), len(seen_ids), total or -1,
+                "[nawy] %s page %d: +%d units (cumulative %d / total %d)",
+                label, page_no, len(fresh), len(seen_ids), total or -1,
             )
 
             if total and len(seen_ids) >= total:
-                logger.info("[nawy] nawy-now reached declared total %d — done", total)
+                logger.info("[nawy] %s reached declared total %d — done", label, total)
                 break
 
             await asyncio.sleep(REQUEST_DELAY_SECONDS)

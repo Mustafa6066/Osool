@@ -94,15 +94,32 @@ async def _register_scrape_run_id(run_id: str) -> None:
 
 
 async def run_nawy_now(dry_run: bool, max_pages: int) -> int:
-    """
-    Scrape /nawy-now (instant-delivery feed).
+    """Scrape only the Nawy Now (instant-delivery) slice."""
+    return await _run_listing_api_mode(
+        crawl_method="crawl_nawy_now", label="nawy-now",
+        dry_run=dry_run, max_pages=max_pages,
+    )
 
-    The units come back from Nawy's __NEXT_DATA__ already shaped with nested
-    `compound`, `area`, `developer` *dicts* + a `paymentPlan` dict. The
-    deterministic_normalizer handles that shape natively, but the input-side
-    validator in app.ingestion.scraper_schemas expects flat strings — so we
-    bypass that validator here and feed the units straight into
-    normalize_unit_list → upsert_properties.
+
+async def run_nawy_all(dry_run: bool, max_pages: int) -> int:
+    """Scrape Nawy's full unit-level inventory via the public listing API."""
+    return await _run_listing_api_mode(
+        crawl_method="crawl_all_units", label="nawy-all",
+        dry_run=dry_run, max_pages=max_pages,
+    )
+
+
+async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, max_pages: int) -> int:
+    """
+    Shared runner for any listing-api-backed Nawy crawl.
+
+    Units come from the API already shaped with nested `compound`, `area`,
+    `developer` *dicts* + `paymentPlan` dict. The deterministic_normalizer
+    handles that shape natively, but the input-side validator expects flat
+    strings — so we bypass the validator and feed units straight into
+    normalize_unit_list → upsert_properties. Anomaly detector is bypassed
+    for the same reason it is for Nawy Now (per-area medians legitimately
+    diverge from broad-market baseline in narrow slices).
     """
     spider_cls = SPIDERS.get("nawy")
     if not spider_cls:
@@ -117,10 +134,11 @@ async def run_nawy_now(dry_run: bool, max_pages: int) -> int:
     spider = spider_cls()
     rc = 0
     try:
-        res = await spider.crawl_nawy_now(max_pages=max_pages, dry_run=dry_run)
+        crawl_fn = getattr(spider, crawl_method)
+        res = await crawl_fn(max_pages=max_pages, dry_run=dry_run)
         logger.info(
-            "[nawy] nawy-now pages=%d/%d raw=%d",
-            res.pages_fetched, res.pages_fetched + res.pages_failed, len(res.raw_properties),
+            "[nawy] %s pages=%d/%d raw=%d",
+            label, res.pages_fetched, res.pages_fetched + res.pages_failed, len(res.raw_properties),
         )
         if not res.raw_properties:
             return rc
@@ -136,30 +154,29 @@ async def run_nawy_now(dry_run: bool, max_pages: int) -> int:
         from app.ingestion.repository import upsert_properties
 
         run_id = str(uuid.uuid4())
-        norm = normalize_unit_list(res.raw_properties, source_url="nawy-now")
+        norm = normalize_unit_list(res.raw_properties, source_url=label)
         logger.info(
-            "[nawy] nawy-now normalized=%d skipped=%d (run_id=%s)",
-            len(norm.properties), norm.skipped_count, run_id[:8],
+            "[nawy] %s normalized=%d skipped=%d (run_id=%s)",
+            label, len(norm.properties), norm.skipped_count, run_id[:8],
         )
         if not norm.properties:
             return rc
 
-        # Skip anomaly detector — Nawy Now is a curated instant-delivery slice
-        # whose per-area medians diverge from the broad-market baseline by
-        # design (premium segment, ready-to-move bias, etc.).
+        # Skip anomaly detector — narrow slices legitimately diverge from
+        # the broad-market baseline (curated feeds, per-area, etc).
         upsert = await upsert_properties(
             norm.properties, run_id=run_id, skip_anomaly_check=True
         )
         logger.info(
-            "[nawy] nawy-now upsert: ins=%d upd=%d skip=%d err=%d",
-            upsert.inserted, upsert.updated, upsert.skipped, upsert.errors,
+            "[nawy] %s upsert: ins=%d upd=%d skip=%d err=%d",
+            label, upsert.inserted, upsert.updated, upsert.skipped, upsert.errors,
         )
         # Register the run so mark_stale_properties() can use it as the
         # "safe" run when flagging sold/withdrawn listings.
         if upsert.total > 0:
             await _register_scrape_run_id(run_id)
     except Exception as exc:
-        logger.exception("[nawy] nawy-now crawl failed: %s", exc)
+        logger.exception("[nawy] %s crawl failed: %s", label, exc)
         rc = 1
     finally:
         if hasattr(spider, "aclose"):
@@ -247,8 +264,10 @@ async def run_cron(
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
-    p.add_argument("--mode", choices=["cron", "worker", "nawynow"], default="cron",
-                   help="cron = full crawl; worker = Redis poller; nawynow = paginate /nawy-now feed")
+    p.add_argument("--mode", choices=["cron", "worker", "nawynow", "nawy-all"], default="cron",
+                   help="cron = HTML-SSR/Playwright crawl; worker = Redis poller; "
+                        "nawynow = listing-api isNawyNow slice; "
+                        "nawy-all = listing-api full unit-level walk (19k+ units, no Playwright)")
     p.add_argument("--site", choices=list(SPIDERS.keys()), default=None,
                    help="Restrict to one site (default: all)")
     p.add_argument("--area", default=None, help="Restrict to one Egyptian zone slug")
@@ -275,6 +294,13 @@ def main() -> int:
         from settings import MAX_PAGES_PER_AREA
         max_pages = args.max_pages if args.max_pages is not None else MAX_PAGES_PER_AREA
         return asyncio.run(run_nawy_now(args.dry_run, max_pages=max_pages))
+
+    if args.mode == "nawy-all":
+        # No legacy cap — caller supplies --max-pages explicitly; default is
+        # large enough to walk every page of /v1/search/properties at
+        # pageSize=12 (≈1,588 pages for ~19k units).
+        max_pages = args.max_pages if args.max_pages is not None else 2000
+        return asyncio.run(run_nawy_all(args.dry_run, max_pages=max_pages))
 
     sites = [args.site] if args.site else list(SPIDERS.keys())
     areas = [args.area] if args.area else DEFAULT_AREAS
