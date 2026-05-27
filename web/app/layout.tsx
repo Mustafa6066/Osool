@@ -16,6 +16,7 @@ import HapticFeedback from '@/components/HapticFeedback';
 import { WebVitalsReporter } from '@/components/WebVitalsReporter';
 import ServiceStatusBanner from '@/components/ServiceStatusBanner';
 import FluentAppProvider from '@/components/FluentAppProvider';
+import CookieConsent from '@/components/CookieConsent';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -99,6 +100,7 @@ export default function RootLayout({
                         <OrchestratorTracker />
                       </Suspense>
                       <WebVitalsReporter />
+                      <CookieConsent />
                     </LeadScoreProvider>
                   </GamificationProvider>
                 </AuthProvider>

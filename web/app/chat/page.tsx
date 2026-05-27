@@ -117,6 +117,12 @@ interface AiMessage {
   // Tracks local flag state so the UI can show "Reported" after submit
   // without round-tripping.
   flagged?: boolean;
+  // Verifier disclosure from /api/v1/chat. Present only when the Wolf
+  // verifier caught a hallucination and auto-rewrote the response.
+  verification?: {
+    auto_corrected?: boolean;
+    fix_count?: number;
+  };
 }
 
 type Message = UserMessage | AiMessage;
@@ -472,6 +478,7 @@ function ChatPageBody() {
             text: typeof data.text === 'string' ? data.text : '',
             properties: properties && properties.length > 0 ? properties : undefined,
             messageId: typeof data.message_id === 'number' ? data.message_id : undefined,
+            verification: data.verification ?? undefined,
           };
 
           setMessages((m) => {
@@ -1052,7 +1059,32 @@ function AiBubble({
         {msg.error ? (
           <p style={{ color: 'var(--osool-accent)' }}>{msg.error}</p>
         ) : (
-          <AiText text={msg.text} />
+          <>
+            {msg.verification?.auto_corrected && (
+              <div
+                role="note"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  marginBottom: 8,
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  color: 'rgb(180, 83, 9)',
+                  width: 'fit-content',
+                }}
+              >
+                <span aria-hidden>⚠</span>
+                {lang === 'ar'
+                  ? `صحّحنا ${msg.verification.fix_count ?? 0} رقمًا تلقائيًا`
+                  : `Auto-corrected ${msg.verification.fix_count ?? 0} number${(msg.verification.fix_count ?? 0) === 1 ? '' : 's'}`}
+              </div>
+            )}
+            <AiText text={msg.text} />
+          </>
         )}
 
         {msg.properties && msg.properties.length > 0 && (

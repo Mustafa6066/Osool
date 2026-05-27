@@ -37,6 +37,12 @@ class ChatResponse(BaseModel):
     # can offer a "flag this answer" affordance. None for the error/auth
     # branches that never reach the persistence step.
     message_id: Optional[int] = None
+    # Verifier disclosure — when the Wolf path's claim verifier flagged
+    # an issue and auto-rewrote the response, surface that so the user
+    # knows there was a correction. Empty dict for the free path (which
+    # doesn't run the verifier).
+    #   { "auto_corrected": bool, "fix_count": int }
+    verification: Optional[Dict[str, Any]] = None
 
 
 # Admin email allowlist — mirrors the frontend's check in app/chat/page.tsx
@@ -232,6 +238,20 @@ async def process_chat(
         properties = result.get("properties", [])
         ui_actions = result.get("ui_actions") or result.get("charts", [])
 
+        # Surface verifier disclosure to the frontend so the user can see
+        # when the AI's first draft was auto-corrected. Slim payload: never
+        # leak the original (hallucinated) text, just the fact that we
+        # caught something. Full audit lives in HallucinationFlag.
+        verif_raw = result.get("verification") or {}
+        verification_out: Optional[Dict[str, Any]] = None
+        if verif_raw:
+            corrections = verif_raw.get("corrections") or []
+            if verif_raw.get("rewritten") or corrections:
+                verification_out = {
+                    "auto_corrected": bool(verif_raw.get("rewritten")),
+                    "fix_count": len(corrections),
+                }
+
         ai_msg = ChatMessage(
             session_id=chat_request.session_id,
             user_id=user.id if user else None,
@@ -250,6 +270,7 @@ async def process_chat(
                 show_upsell=False,
                 ui_actions=ui_actions,
                 message_id=ai_msg.id,
+                verification=verification_out,
             ).model_dump()
         )
 
