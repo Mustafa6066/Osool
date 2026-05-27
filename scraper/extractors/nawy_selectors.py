@@ -34,7 +34,11 @@ _NEXT_DATA_RE = re.compile(
 )
 
 
-def _parse_next_data(html: str) -> Optional[dict]:
+def _parse_next_data(html) -> Optional[dict]:
+    # StealthyFetcher returns page.body as bytes; httpx returns text as str.
+    # Normalize so the regex (compiled as a str pattern) always gets a str.
+    if isinstance(html, (bytes, bytearray)):
+        html = html.decode("utf-8", errors="replace")
     m = _NEXT_DATA_RE.search(html)
     if not m:
         return None

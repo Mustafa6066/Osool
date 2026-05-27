@@ -244,7 +244,11 @@ class NawySpider(SiteSpider):
                     headless=True,
                     network_idle=True,
                 )
-                return page.body if hasattr(page, "body") else str(page)
+                body = page.body if hasattr(page, "body") else str(page)
+                # StealthyFetcher returns bytes — decode for downstream str-pattern regex.
+                if isinstance(body, (bytes, bytearray)):
+                    body = body.decode("utf-8", errors="replace")
+                return body
             except Exception as exc:
                 logger.warning("[nawy] StealthyFetcher failed for %s: %s — falling back to httpx", url, exc)
 
