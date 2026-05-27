@@ -1,30 +1,34 @@
-"""Convert properties.embedding to pgvector + add HNSW index
+"""Convert properties.embedding TEXT -> vector(1536)
 
 Revision ID: 034_add_hnsw_embedding_index
 Revises: 033_add_delivery_year
 Create Date: 2026-05-27
 
-The properties.embedding column was originally created as TEXT (the
-models.py fallback for environments where pgvector wasn't yet installed).
-On Railway prod the pgvector extension IS installed (0.8.2) and 444
-rows already contain JSON-stringified 1536-dim vectors in the TEXT
-column. We need to:
+The properties.embedding column was originally TEXT (models.py fallback
+for environments without pgvector). pgvector IS installed on Railway
+(0.8.2) and 444 rows already contain JSON-stringified 1536-dim vectors.
 
-  1. Convert the column type to vector(1536) — the cast 'embedding::vector'
-     works because pgvector accepts the text form '[v1,v2,...]'.
-  2. Build an HNSW index for fast cosine similarity (≤5ms p99 vs ~150ms
-     sequential scan).
+This migration converts the column to vector(1536) so the L2d
+'more like this' path in property_retrieval.py can do cosine similarity
+on it (and so future HNSW indexing has the right type to index).
 
-The cast is in-place and preserves existing data. The HNSW build runs
-on whatever is currently populated (currently 444 vectors; will grow
-as scripts/embed_backfill.py runs).
+Note: the HNSW index that was originally bundled with this migration
+has been SPLIT OUT into a separate manual step. Railway's Postgres
+container hits 'No space left on device' on the shared memory segment
+during CREATE INDEX ... USING hnsw, regardless of row count. The index
+is a performance optimization (sequential cosine scan at 22K rows is
+~150ms p99); it's not load-bearing for correctness. Add it later via:
 
-Note: not using CONCURRENTLY — Alembic's transactional DDL doesn't
-play nicely with it on SQLAlchemy 2.x. With ~444 rows the build takes
-seconds; lock is acceptable. After backfill grows the row count to
-~22K the index will still rebuild fine in ~60 sec lock.
+  railway ssh --service Postgres -- "psql \$DATABASE_URL -c \"
+    SET maintenance_work_mem = '512MB';
+    CREATE INDEX ix_properties_embedding_hnsw
+    ON properties USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);\""
 
-Idempotent: IF NOT EXISTS guards make re-runs safe.
+Or, on a larger Postgres plan with bigger /dev/shm, add a follow-up
+migration that does the same CREATE INDEX.
+
+Idempotent: DO-block no-ops when the column is already vector(1536).
 """
 from alembic import op
 
@@ -36,13 +40,12 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # 1) Make sure the extension is enabled (idempotent).
+    # Make sure the extension is enabled.
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
-    # 2) Convert the TEXT column to vector(1536). Existing TEXT values are
-    #    JSON-stringified [v1,v2,...] arrays, which pgvector accepts as a
-    #    text-form vector. NULL stays NULL. Wrap in DO block so we don't
-    #    error on re-run if the column is already vector(1536).
+    # Convert TEXT -> vector(1536) only if it's currently TEXT.
+    # The existing TEXT values are JSON-array form '[v1,v2,...]' which
+    # pgvector accepts as a text-form vector. NULL stays NULL.
     op.execute(
         """
         DO $$
@@ -63,19 +66,8 @@ def upgrade() -> None:
         """
     )
 
-    # 3) HNSW index (idempotent via IF NOT EXISTS).
-    op.execute(
-        """
-        CREATE INDEX IF NOT EXISTS ix_properties_embedding_hnsw
-        ON properties USING hnsw (embedding vector_cosine_ops)
-        WITH (m = 16, ef_construction = 64)
-        """
-    )
-
 
 def downgrade() -> None:
-    op.execute("DROP INDEX IF EXISTS ix_properties_embedding_hnsw")
-    # Revert the column back to TEXT, casting the vector to its text form.
     op.execute(
         """
         DO $$
