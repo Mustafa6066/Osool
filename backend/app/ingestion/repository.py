@@ -295,8 +295,10 @@ async def _flush_batch(db, rows: list[dict]) -> None:
     """
     Executes PostgreSQL INSERT ON CONFLICT (nawy_url) DO UPDATE for a batch.
 
-    The partial unique index uq_properties_nawy_url (WHERE nawy_url IS NOT NULL)
-    created by migration 019 powers this conflict target.
+    The partial unique index uq_properties_nawy_url has predicate
+        (nawy_url IS NOT NULL AND nawy_url <> '')
+    Postgres requires the ON CONFLICT predicate to match the index
+    predicate exactly, or it raises InvalidColumnReferenceError.
     """
     if not rows:
         return
@@ -314,9 +316,10 @@ async def _flush_batch(db, rows: list[dict]) -> None:
         and col.key not in _GENERATED_COLS
     }
 
+    nawy_url_col = Property.__table__.c.nawy_url
     upsert_stmt = stmt.on_conflict_do_update(
         index_elements=["nawy_url"],
-        index_where=Property.__table__.c.nawy_url.isnot(None),
+        index_where=(nawy_url_col.isnot(None)) & (nawy_url_col != ""),
         set_=update_cols,
     )
 
