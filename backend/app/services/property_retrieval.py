@@ -522,15 +522,26 @@ async def retrieve(req: RetrievalRequest, db: AsyncSession) -> RetrievalResponse
         logger.debug("[retrieval] cache lookup failed: %s", exc)
         set_cached_response = None  # so the post-write block is a no-op
 
-    # L2 — parallel sub-queries
+    # L2 — parallel sub-queries. SQLAlchemy AsyncSession is NOT concurrency
+    # safe (only one operation in flight per session). To get real parallelism
+    # we open one fresh AsyncSession per sub-query via AsyncSessionLocal(), so
+    # they can run on independent connections from the pool.
+    from app.database import AsyncSessionLocal
+
+    async def _run_with_own_session(coro_factory):
+        async with AsyncSessionLocal() as sub_db:
+            return await coro_factory(sub_db)
+
     t1 = time.perf_counter()
     tasks = [
-        _retrieve_structured(db, q),
-        _retrieve_bm25(db, q),
-        _retrieve_trigram(db, q),
+        _run_with_own_session(lambda d: _retrieve_structured(d, q)),
+        _run_with_own_session(lambda d: _retrieve_bm25(d, q)),
+        _run_with_own_session(lambda d: _retrieve_trigram(d, q)),
     ]
     if req.ref_property_id is not None:
-        tasks.append(_retrieve_more_like_this(db, q, req.ref_property_id))
+        tasks.append(
+            _run_with_own_session(lambda d: _retrieve_more_like_this(d, q, req.ref_property_id))
+        )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     sets: dict[str, list[tuple[int, float]]] = {}
