@@ -68,6 +68,72 @@ async def _release_source_lock(site: str) -> None:
         pass
 
 
+async def run_nawy_now(dry_run: bool, max_pages: int) -> int:
+    """
+    Scrape /nawy-now (instant-delivery feed).
+
+    The units come back from Nawy's __NEXT_DATA__ already shaped with nested
+    `compound`, `area`, `developer` *dicts* + a `paymentPlan` dict. The
+    deterministic_normalizer handles that shape natively, but the input-side
+    validator in app.ingestion.scraper_schemas expects flat strings — so we
+    bypass that validator here and feed the units straight into
+    normalize_unit_list → upsert_properties.
+    """
+    spider_cls = SPIDERS.get("nawy")
+    if not spider_cls:
+        logger.error("nawy spider not registered")
+        return 1
+
+    got_lock = await _acquire_source_lock("nawy")
+    if not got_lock:
+        logger.warning("[nawy] another run holds the source lock — skipping")
+        return 0
+
+    spider = spider_cls()
+    rc = 0
+    try:
+        res = await spider.crawl_nawy_now(max_pages=max_pages, dry_run=dry_run)
+        logger.info(
+            "[nawy] nawy-now pages=%d/%d raw=%d",
+            res.pages_fetched, res.pages_fetched + res.pages_failed, len(res.raw_properties),
+        )
+        if not res.raw_properties:
+            return rc
+
+        if dry_run:
+            await dry_run_print(res.raw_properties, "nawy")
+            return rc
+
+        # Live path: normalize + upsert, skip the flat-string validator.
+        import uuid
+
+        from app.ingestion.deterministic_normalizer import normalize_unit_list
+        from app.ingestion.repository import upsert_properties
+
+        run_id = str(uuid.uuid4())
+        norm = normalize_unit_list(res.raw_properties, source_url="nawy-now")
+        logger.info(
+            "[nawy] nawy-now normalized=%d skipped=%d (run_id=%s)",
+            len(norm.properties), norm.skipped_count, run_id[:8],
+        )
+        if not norm.properties:
+            return rc
+
+        upsert = await upsert_properties(norm.properties, run_id=run_id)
+        logger.info(
+            "[nawy] nawy-now upsert: ins=%d upd=%d skip=%d err=%d",
+            upsert.inserted, upsert.updated, upsert.skipped, upsert.errors,
+        )
+    except Exception as exc:
+        logger.exception("[nawy] nawy-now crawl failed: %s", exc)
+        rc = 1
+    finally:
+        if hasattr(spider, "aclose"):
+            await spider.aclose()
+        await _release_source_lock("nawy")
+    return rc
+
+
 async def run_cron(
     sites: list[str],
     areas: list[str],
@@ -135,7 +201,8 @@ async def run_cron(
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
-    p.add_argument("--mode", choices=["cron", "worker"], default="cron")
+    p.add_argument("--mode", choices=["cron", "worker", "nawynow"], default="cron",
+                   help="cron = full crawl; worker = Redis poller; nawynow = paginate /nawy-now feed")
     p.add_argument("--site", choices=list(SPIDERS.keys()), default=None,
                    help="Restrict to one site (default: all)")
     p.add_argument("--area", default=None, help="Restrict to one Egyptian zone slug")
@@ -143,6 +210,8 @@ def parse_args() -> argparse.Namespace:
                    help="Single compound/area slug (used by on-demand worker)")
     p.add_argument("--dry-run", action="store_true",
                    help="Print extracted properties without DB writes")
+    p.add_argument("--max-pages", type=int, default=None,
+                   help="Override SCRAPER_MAX_PAGES for nawynow pagination")
     return p.parse_args()
 
 
@@ -155,6 +224,11 @@ def main() -> int:
 
         asyncio.run(run_worker())
         return 0
+
+    if args.mode == "nawynow":
+        from settings import MAX_PAGES_PER_AREA
+        max_pages = args.max_pages if args.max_pages is not None else MAX_PAGES_PER_AREA
+        return asyncio.run(run_nawy_now(args.dry_run, max_pages=max_pages))
 
     sites = [args.site] if args.site else list(SPIDERS.keys())
     areas = [args.area] if args.area else DEFAULT_AREAS
