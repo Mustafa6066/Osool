@@ -128,7 +128,16 @@ class User(Base):
 
     transactions = relationship("Transaction", back_populates="user")
     consultation_bookings = relationship("ConsultationBooking", back_populates="user")
-    chat_messages = relationship("ChatMessage", back_populates="user")
+    # ChatMessage now has TWO FKs to users (user_id + flagged_by_user_id since
+    # migration 035), so SQLAlchemy can no longer auto-infer the join column.
+    # Pin this relationship to ChatMessage.user_id explicitly — without this,
+    # the first query against User or ChatMessage raises AmbiguousForeignKeysError
+    # at mapper configuration time and 500s the login + refresh paths.
+    chat_messages = relationship(
+        "ChatMessage",
+        back_populates="user",
+        foreign_keys="ChatMessage.user_id",
+    )
     invitations_created = relationship("Invitation", back_populates="created_by_user", foreign_keys="Invitation.created_by_user_id")
 
 
