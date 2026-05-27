@@ -303,11 +303,15 @@ async def _flush_batch(db, rows: list[dict]) -> None:
 
     stmt = pg_insert(Property).values(rows)
 
-    # All updatable columns (skip primary key, nawy_url conflict target, created_at)
+    # All updatable columns (skip primary key, nawy_url conflict target, created_at,
+    # and any GENERATED ALWAYS columns — Postgres rejects assigning to them).
+    # search_tsv is a stored tsvector generated from title/description/etc.
+    _GENERATED_COLS = {"search_tsv"}
     update_cols = {
         col.key: stmt.excluded[col.key]
         for col in Property.__table__.columns
         if col.key not in ("id", "nawy_url", "created_at")
+        and col.key not in _GENERATED_COLS
     }
 
     upsert_stmt = stmt.on_conflict_do_update(
