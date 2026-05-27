@@ -52,43 +52,6 @@ _redis_client_cache = None
 _redis_last_attempt_at = 0.0
 _redis_unavailable_logged = False
 
-def _record_blacklist_state(healthy: bool) -> None:
-    """
-    Update Prometheus state gauge + degradation/recovery counters whenever
-    the token blacklist transitions in or out of degraded mode. Closes audit
-    A2 — until now Redis outages were a silent log line that nobody read.
-
-    Best-effort: a missing prometheus_client or Sentry must never break auth.
-    """
-    global _redis_unavailable_logged
-    try:
-        from app.services.metrics import (
-            redis_blacklist_state,
-            redis_blacklist_degradations_total,
-            redis_blacklist_recoveries_total,
-        )
-        redis_blacklist_state.set(1 if healthy else 0)
-        if not healthy and not _redis_unavailable_logged:
-            redis_blacklist_degradations_total.inc()
-        elif healthy and _redis_unavailable_logged:
-            redis_blacklist_recoveries_total.inc()
-    except Exception:
-        pass
-
-    if not healthy:
-        # Sentry alert — only on transition into degraded so we don't
-        # spam the project every 30s while Redis is down.
-        if not _redis_unavailable_logged and os.getenv("SENTRY_DSN"):
-            try:
-                import sentry_sdk
-                sentry_sdk.capture_message(
-                    "Token blacklist degraded: Redis unavailable",
-                    level="error",
-                )
-            except Exception:
-                pass
-
-
 def _get_redis_client():
     """
     Get Redis client for token blacklist.
@@ -120,9 +83,6 @@ def _get_redis_client():
             _redis_client_cache = cache.redis
             if _redis_unavailable_logged:
                 logger.info("Redis connection restored for token blacklist")
-                _record_blacklist_state(healthy=True)
-            else:
-                _record_blacklist_state(healthy=True)
             _redis_unavailable_logged = False
             return _redis_client_cache
     except Exception:
@@ -145,17 +105,11 @@ def _get_redis_client():
             _redis_client_cache = direct_client
             if _redis_unavailable_logged:
                 logger.info("Redis connection restored for token blacklist")
-                _record_blacklist_state(healthy=True)
-            else:
-                _record_blacklist_state(healthy=True)
             _redis_unavailable_logged = False
             return _redis_client_cache
     except Exception:
         pass
 
-    # Degraded. Capture into Sentry + metrics on the TRANSITION, then mark
-    # the flag so we don't re-alert every 30s while Redis stays down.
-    _record_blacklist_state(healthy=False)
     if _IS_PRODUCTION and not _redis_unavailable_logged:
         logger.error("Redis unavailable in production — token blacklist degraded (retrying)")
         _redis_unavailable_logged = True
@@ -305,11 +259,6 @@ def invalidate_token(token: str):
                 redis.setex(f"blacklist:{jti}", 86400, "1")
             elif _IS_PRODUCTION:
                 logger.error("Token blacklist unavailable (Redis down) — refusing logout")
-                try:
-                    from app.services.metrics import redis_blacklist_failclosed_total
-                    redis_blacklist_failclosed_total.inc()
-                except Exception:
-                    pass
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
@@ -342,11 +291,6 @@ def is_token_blacklisted(jti: str) -> bool:
     if _IS_PRODUCTION:
         # Fail closed — better to force re-login than to honor a stolen JWT.
         logger.error("Token blacklist check failed (Redis down) — refusing request")
-        try:
-            from app.services.metrics import redis_blacklist_failclosed_total
-            redis_blacklist_failclosed_total.inc()
-        except Exception:
-            pass
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={

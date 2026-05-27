@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 import redis
@@ -7,24 +6,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
-
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-_IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
 
 # Max entries in memory fallback before eviction
 _MAX_MEMORY_ENTRIES = 500
-
-
-def _capture_sentry(msg: str, level: str = "warning") -> None:
-    """Forward cache-layer errors to Sentry if configured. Never raises."""
-    if not os.getenv("SENTRY_DSN"):
-        return
-    try:
-        import sentry_sdk
-        sentry_sdk.capture_message(msg, level=level)
-    except Exception:
-        pass
 
 
 class RedisClient:
@@ -38,20 +23,9 @@ class RedisClient:
                 socket_timeout=3,
             )
             self.redis.ping()
-            logger.info("✅ [Cache] Redis Connected")
+            print("✅ [Cache] Redis Connected")
         except Exception as e:
-            # In production this is a meaningful SRE signal — alert,
-            # don't just print to a stream that might not be tailed.
-            level = "error" if _IS_PRODUCTION else "warning"
-            getattr(logger, level)(
-                "⚠️ [Cache] Redis connect failed (%s); using in-process memory fallback. "
-                "Token blacklist and session cache are now best-effort until Redis returns.",
-                e,
-            )
-            _capture_sentry(
-                f"[Cache] Redis connect failed at startup: {e}",
-                level=level,
-            )
+            print(f"⚠️ [Cache] Redis Connection Failed: {e}. using Memory Fallback.")
             self.redis = None
 
     def set_json(self, key: str, value: dict, ttl: int = 3600):
@@ -69,7 +43,7 @@ class RedisClient:
                 if len(self._memory_fallback) > _MAX_MEMORY_ENTRIES:
                     self._evict_expired()
         except Exception as e:
-            logger.error("Redis SET failed for key %s: %s", key, e)
+            print(f"❌ Redis Set Error: {e}")
 
     def get_json(self, key: str) -> dict:
         """Retrieves and parses JSON string."""
@@ -87,7 +61,7 @@ class RedisClient:
                     return None
                 return entry.get("value")
         except Exception as e:
-            logger.error("Redis GET failed for key %s: %s", key, e)
+            print(f"❌ Redis Get Error: {e}")
             return None
 
     def _evict_expired(self):
@@ -153,7 +127,7 @@ class RedisClient:
             else:
                 self._memory_fallback.pop(key, None)
         except Exception as e:
-            logger.error("Redis DELETE failed for key %s: %s", key, e)
+            print(f"❌ Redis Delete Error: {e}")
 
 
 # Singleton
