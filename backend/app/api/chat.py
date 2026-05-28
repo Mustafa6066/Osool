@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -10,6 +12,49 @@ from typing import List, Dict, Any, Optional
 from app.auth import get_current_user_optional, is_forced_free_test_user_email
 
 logger = logging.getLogger(__name__)
+
+# Hard ceiling for the Free-tier "best price" path. The frontend axios
+# timeout is 30s; we leave ourselves 10s of slack so a graceful in-language
+# fallback always lands before the browser gives up and shows the generic
+# "Could not reach Osool" error.
+_FREE_PATH_TIMEOUT_S = 20.0
+_ARABIC_RANGE = re.compile(r"[؀-ۿ]")
+
+
+def _detect_language(message: str) -> str:
+    """Return 'ar' if the message contains any Arabic codepoint, else 'en'.
+    Matches the heuristic the Wolf orchestrator already uses."""
+    return "ar" if _ARABIC_RANGE.search(message or "") else "en"
+
+
+def _free_path_timeout_payload(message: str) -> Dict[str, Any]:
+    """
+    Build a graceful "couldn't find the best price in time" response in the
+    user's language. Free-tier policy: ONE best price, no extra features.
+    When the search runs over budget (slow correlated subqueries on a niche
+    criterion that has no matches), we still send a useful answer — not a
+    generic timeout error.
+    """
+    lang = _detect_language(message)
+    if lang == "ar":
+        text = (
+            "ما لقيتش وحدة بأقل سعر تطابق طلبك في الوقت المحدد. "
+            "جرب تكبّر الميزانية شوية، أو غيّر المنطقة، أو نوع الوحدة، وابعتلي تاني."
+        )
+    else:
+        text = (
+            "Couldn't find a best-price match for your request in time. "
+            "Try raising the budget a little, or change the area or unit type, and send again."
+        )
+    return {
+        "response": text,
+        "properties": [],
+        "ui_actions": [],
+        "show_upsell": False,
+        "ui_primitive_descriptor": "free_best_price_timeout",
+        "primitive_data": {"reason": "search_timeout", "language": lang},
+        "detected_language": lang,
+    }
 from app.ai_engine.company_brain import CompanyBrainKernel
 from app.ai_engine.free_tier_gate import build_best_price_free_payload
 from app.ai_engine.wolf_orchestrator import wolf_brain
@@ -187,7 +232,32 @@ async def process_chat(
         kind = _viewer_kind(user, simulate_tier=simulate_tier)
 
         if kind in {"anonymous", "free"}:
-            payload = await build_best_price_free_payload(db, chat_request.message, chat_request.language)
+            # Free-tier policy: ONE best price in the user's language. If the
+            # underlying scoped SQL (correlated devloper-avg subqueries) blows
+            # past 20s on a niche criterion with no matches, abort and return
+            # a graceful in-language fallback so the user gets a real answer
+            # instead of the browser-side "Could not reach Osool" timeout.
+            try:
+                payload = await asyncio.wait_for(
+                    build_best_price_free_payload(
+                        db, chat_request.message, chat_request.language
+                    ),
+                    timeout=_FREE_PATH_TIMEOUT_S,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "Free-tier best-price search exceeded %ss for session=%s msg=%r — returning fallback",
+                    _FREE_PATH_TIMEOUT_S,
+                    chat_request.session_id,
+                    (chat_request.message or "")[:80],
+                )
+                # Roll back any partial state from the cancelled query so the
+                # remaining commits in this handler (the assistant message) succeed.
+                try:
+                    await db.rollback()
+                except Exception:
+                    pass
+                payload = _free_path_timeout_payload(chat_request.message)
             response_text = payload.get("response", "")
             properties = payload.get("properties", [])
             ui_actions = payload.get("ui_actions", [])
