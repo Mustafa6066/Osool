@@ -679,7 +679,12 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         if not transaction:
              logger.warning(f"Webhook: Unknown Order ID {order_id}. Manual check required.")
              return {"status": "accepted_but_unknown_order"}
-             
+
+        # Idempotency guard: Paymob retries webhooks; never re-process a paid transaction
+        if transaction.status == "paid":
+            logger.info(f"Webhook: Transaction {transaction.id} already processed (order {order_id})")
+            return {"status": "already_processed"}
+
         # 4. Update transaction status to paid
         transaction.status = "paid"
 

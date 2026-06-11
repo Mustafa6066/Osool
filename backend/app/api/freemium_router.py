@@ -515,8 +515,11 @@ async def _enforce_rate_limit(
     try:
         from app.services.cache import cache
         redis_client = cache.redis
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "Redis cache unavailable for freemium rate limit (%s); "
+            "using in-memory fallback (does not survive restarts).", exc
+        )
 
     if redis_client is not None:
         try:

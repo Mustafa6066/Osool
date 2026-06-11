@@ -73,6 +73,8 @@ class Config:
     # ═══════════════════════════════════════════════════════════════
 
     PAYMOB_API_KEY: Optional[str] = os.getenv("PAYMOB_API_KEY")
+    PAYMOB_HMAC_SECRET: Optional[str] = os.getenv("PAYMOB_HMAC_SECRET")
+    PAYMOB_IFRAME_ID: Optional[str] = os.getenv("PAYMOB_IFRAME_ID")
 
     # Feature flag: Enable payment processing (Phase 2+)
     PAYMENTS_ENABLED: bool = os.getenv("ENABLE_PAYMENTS", "false").lower() == "true"
@@ -80,6 +82,10 @@ class Config:
     if ENVIRONMENT == "production" and PAYMENTS_ENABLED:
         if not PAYMOB_API_KEY:
             raise ValueError("❌ PAYMOB_API_KEY required when payments are enabled")
+        if not PAYMOB_HMAC_SECRET:
+            raise ValueError("❌ PAYMOB_HMAC_SECRET required when payments are enabled (webhook verification)")
+        if not PAYMOB_IFRAME_ID:
+            raise ValueError("❌ PAYMOB_IFRAME_ID required when payments are enabled (checkout iframe)")
 
     # ═══════════════════════════════════════════════════════════════
     # SMS (OPTIONAL - Phase 2+)

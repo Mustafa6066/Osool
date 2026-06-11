@@ -126,3 +126,13 @@ logs.txt
 .vercel
 .env*.local
 .gstack/
+
+# Local artifacts
+*.db
+*.log
+tmpclaude-*
+*.rej
+debug_output.txt
+firebase-debug.log
+.coverage
+htmlcov/
