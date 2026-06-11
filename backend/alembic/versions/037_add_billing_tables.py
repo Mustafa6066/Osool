@@ -1,7 +1,7 @@
 """Add subscriptions + paid_reports tables; type non-property transactions
 
-Revision ID: 031_add_billing_tables
-Revises: 030_add_property_price_events
+Revision ID: 037_add_billing_tables
+Revises: 036_add_property_price_events
 Create Date: 2026-06-11
 
 Monetization wiring:
@@ -14,8 +14,8 @@ Monetization wiring:
 from alembic import op
 
 
-revision = "031_add_billing_tables"
-down_revision = "030_add_property_price_events"
+revision = "037_add_billing_tables"
+down_revision = "036_add_property_price_events"
 branch_labels = None
 depends_on = None
 

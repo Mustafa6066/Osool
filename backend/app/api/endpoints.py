@@ -806,16 +806,22 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         # 5a. Subscription purchase → activate Osool Pro
         tx_type = getattr(transaction, "transaction_type", None) or "property"
         if tx_type == "subscription":
-            from datetime import datetime, timedelta, timezone as dt_timezone
-            from app.config import config as app_config
+            from datetime import datetime, timezone as dt_timezone
             from app.models import Subscription
+            from app.services.subscription_engine import grant_premium_monthly
 
             sub_result = await db.execute(
                 select(Subscription).filter(Subscription.paymob_order_id == order_id)
             )
             subscription = sub_result.scalar_one_or_none()
             now_utc = datetime.now(dt_timezone.utc)
-            period_end = now_utc + timedelta(days=app_config.SUBSCRIPTION_PERIOD_DAYS)
+
+            # Canonical grant: sets tier=premium_monthly + stacks expires_at
+            period_end = now_utc
+            if transaction.user:
+                await grant_premium_monthly(db, transaction.user)
+                period_end = transaction.user.subscription_expires_at
+                logger.info(f"User {transaction.user_id} granted premium_monthly until {period_end}")
 
             if subscription:
                 subscription.status = "active"
@@ -823,10 +829,6 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 subscription.current_period_end = period_end
             else:
                 logger.warning(f"Webhook: paid subscription order {order_id} has no Subscription row")
-
-            if transaction.user:
-                transaction.user.subscription_tier = "premium"
-                logger.info(f"User {transaction.user_id} upgraded to premium until {period_end.date()}")
 
             await db.commit()
 

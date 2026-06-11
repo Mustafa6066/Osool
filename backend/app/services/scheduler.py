@@ -262,6 +262,7 @@ async def run_subscription_expiry():
             )
         ).scalars().all()
 
+        now_utc = datetime.now(dt_timezone.utc)
         for sub in subs:
             sub.status = "expired"
             user = (
@@ -278,7 +279,13 @@ async def run_subscription_expiry():
                         ).limit(1)
                     )
                 ).scalar_one_or_none()
-                if not other:
+                # Renewals stack expiry on the User row (subscription_engine
+                # grant_premium_monthly) — never downgrade while it's still live
+                user_expiry = getattr(user, "subscription_expires_at", None)
+                if user_expiry is not None and user_expiry.tzinfo is None:
+                    user_expiry = user_expiry.replace(tzinfo=dt_timezone.utc)
+                still_live = user_expiry is not None and user_expiry > now_utc
+                if not other and not still_live:
                     user.subscription_tier = "free"
                     expired_count += 1
                     try:

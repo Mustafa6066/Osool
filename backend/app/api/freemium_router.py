@@ -111,7 +111,31 @@ _RATE_WINDOW_SECONDS: Final[int] = 86_400
 _RL_KEY_PREFIX: Final[str] = "freemium:rl:"
 
 #: Subscription tier values treated as full premium access.
-_PREMIUM_TIERS: Final[frozenset[str]] = frozenset({"premium", "admin"})
+#: 'premium' is the legacy no-expiry value; 'premium_monthly' is the v1 SKU
+#: whose expiry is checked at resolution time (see _tier_is_premium).
+_PREMIUM_TIERS: Final[frozenset[str]] = frozenset({"premium", "admin", "premium_monthly"})
+
+
+def _tier_is_premium(user: "User") -> bool:
+    """
+    Blanket premium check for the freemium gate.
+
+    premium_monthly honours subscription_expires_at; legacy 'premium' and
+    'admin' never expire. single_compound is compound-scoped and therefore
+    NOT blanket-premium here (its access is resolved per-compound by
+    app.services.subscription_engine.resolve_access).
+    """
+    tier = (getattr(user, "subscription_tier", "free") or "free").lower().strip()
+    if tier in ("premium", "admin"):
+        return True
+    if tier == "premium_monthly":
+        expires_at = getattr(user, "subscription_expires_at", None)
+        if expires_at is None:
+            return False
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return expires_at > datetime.now(timezone.utc)
+    return False
 
 #: Sentinel string applied to every gated field in the free-tier response.
 _GATED_SENTINEL: Final[str] = "[GATED_PREMIUM_ACCESS]"
@@ -661,10 +685,7 @@ async def verify_tier_clearance(
                     user: Optional[User] = result.scalar_one_or_none()
                     if user:
                         user_id = user.id
-                        tier = (
-                            getattr(user, "subscription_tier", "free") or "free"
-                        ).lower().strip()
-                        is_premium = tier in _PREMIUM_TIERS
+                        is_premium = _tier_is_premium(user)
         except Exception as exc:
             # Log at DEBUG: invalid/expired tokens are routine for freemium
             # probes and must not produce 500 errors.
@@ -1062,8 +1083,7 @@ async def free_tier_hook(
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
-    user_tier = (getattr(current_user, "subscription_tier", "free") or "free").lower() if current_user else "anonymous"
-    is_premium = user_tier in _PREMIUM_TIERS
+    is_premium = _tier_is_premium(current_user) if current_user else False
 
     if is_premium:
         raise HTTPException(

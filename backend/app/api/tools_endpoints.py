@@ -38,7 +38,7 @@ limiter = Limiter(key_func=get_remote_address)
 _CBE_RATE = float(os.getenv("CBE_BASE_RATE", str(DEFAULT_CBE_RATE)))
 _valuation_engine = ValuationEngine(cbe_rate=_CBE_RATE)
 
-_PREMIUM_TIERS = {"premium", "admin"}
+from app.api.freemium_router import _tier_is_premium  # expiry-aware premium check
 
 
 # ---------------------------------------------------------------------------
@@ -141,11 +141,7 @@ async def mortgage_calculator(
     }
 
     # Pro extension: affordability verdict (banks cap installments ~40% of income)
-    is_premium = (
-        current_user is not None
-        and (getattr(current_user, "subscription_tier", "free") or "free").lower()
-        in _PREMIUM_TIERS
-    )
+    is_premium = current_user is not None and _tier_is_premium(current_user)
     if is_premium and income is not None and best_tier_id:
         best = next(t for t in tiers_out if t["id"] == best_tier_id)
         ceiling = income * 0.40

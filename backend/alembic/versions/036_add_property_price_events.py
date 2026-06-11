@@ -1,7 +1,7 @@
 """Add property_price_events table for per-property price change tracking
 
-Revision ID: 030_add_property_price_events
-Revises: 029_add_missing_compound_and_deal_cta
+Revision ID: 036_add_property_price_events
+Revises: 035_add_chat_message_flags
 Create Date: 2026-06-11
 
 Captures price movements detected by the differential upsert during scrape
@@ -10,8 +10,8 @@ ingestion. Feeds price-drop alerts (saved searches) and market trend pages.
 from alembic import op
 
 
-revision = "030_add_property_price_events"
-down_revision = "029_add_missing_compound_and_deal_cta"
+revision = "036_add_property_price_events"
+down_revision = "035_add_chat_message_flags"
 branch_labels = None
 depends_on = None
 

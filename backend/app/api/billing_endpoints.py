@@ -174,8 +174,8 @@ async def subscribe(
     """Start an Osool Pro purchase: Paymob order + pending Subscription."""
     _payments_enabled_or_503()
 
-    tier = (getattr(current_user, "subscription_tier", "free") or "free").lower()
-    if tier in ("premium", "admin"):
+    from app.api.freemium_router import _tier_is_premium
+    if _tier_is_premium(current_user):
         raise HTTPException(status_code=409, detail="You already have an active Osool Pro subscription.")
     if await _active_subscription(db, current_user.id):
         raise HTTPException(status_code=409, detail="You already have an active Osool Pro subscription.")
