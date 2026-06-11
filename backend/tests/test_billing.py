@@ -192,7 +192,9 @@ class TestSubscriptionWebhook:
         assert tx.status == "paid"
         assert subscription.status == "active"
         assert subscription.current_period_end is not None
-        assert user.subscription_tier == "premium"
+        # Canonical v1 grant: tier=premium_monthly with a future expiry
+        assert user.subscription_tier == "premium_monthly"
+        assert user.subscription_expires_at is not None
         db.commit.assert_awaited()
 
     @pytest.mark.asyncio
