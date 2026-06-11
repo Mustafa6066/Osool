@@ -40,6 +40,7 @@ export default function OsoolNav({ active: _active }: OsoolNavProps = {}) {
           <Link href="#trust">Trust</Link>
           <Link href="#how">How it works</Link>
           <Link href="#developers">Developers</Link>
+          <Link href="/pricing">Pricing</Link>
         </nav>
         <Link href="/login" className="osool-btn osool-btn-sm">
           Sign in

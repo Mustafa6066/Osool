@@ -12,11 +12,13 @@ The scheduled scraping pipeline uses:
   - ADVANCED: backend/app/ingestion/worker.py (ARQ async worker, optional)
 """
 
+import asyncio
 import json
 import logging
 import re
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 import httpx
 
@@ -31,6 +33,52 @@ _COMPOUND_RE = re.compile(r"https://www\.nawy\.com/compounds?/[^/\s]+$")
 _NEXT_DATA_RE = re.compile(
     r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>', re.DOTALL
 )
+
+# Politeness / resilience knobs
+_FETCH_DELAY_SECONDS = 1.0          # pause between compound fetches
+_MAX_CONSECUTIVE_429 = 5            # abort the run if Nawy keeps throttling
+_RETRY_AFTER_FALLBACK_SECONDS = 30  # backoff when 429 has no Retry-After header
+
+
+def _extract_next_data(html: str) -> Optional[dict]:
+    """
+    Extract and parse the __NEXT_DATA__ SSR payload from page HTML.
+
+    Prefers a real HTML parse (robust to attribute reordering / formatting
+    changes) and falls back to the legacy regex. Validates the parsed JSON
+    has the expected Next.js shape so structure drift fails loudly here
+    instead of producing empty batches downstream.
+    """
+    raw: Optional[str] = None
+    try:
+        from bs4 import BeautifulSoup
+
+        tag = BeautifulSoup(html, "html.parser").find("script", id="__NEXT_DATA__")
+        if tag and tag.string:
+            raw = tag.string
+    except Exception as exc:
+        logger.debug("[scrape] bs4 NEXT_DATA parse failed (%s); trying regex", exc)
+
+    if raw is None:
+        m = _NEXT_DATA_RE.search(html)
+        if not m:
+            return None
+        raw = m.group(1)
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.warning("[scrape] __NEXT_DATA__ is not valid JSON: %s", exc)
+        return None
+
+    # Schema sanity check: Next.js always nests page data under props.pageProps
+    if not isinstance(data, dict) or "props" not in data:
+        logger.warning(
+            "[scrape] __NEXT_DATA__ shape changed (missing 'props' key) — "
+            "Nawy may have restructured their build; extraction needs review."
+        )
+        return None
+    return data
 
 _REQUEST_HEADERS = {
     "User-Agent": (
@@ -92,10 +140,9 @@ async def _discover_compound_urls_httpx(client: httpx.AsyncClient) -> list[str]:
                 )
                 if resp.status_code == 404:
                     break
-                m = _NEXT_DATA_RE.search(resp.text)
-                if not m:
+                page_data = _extract_next_data(resp.text)
+                if not page_data:
                     break
-                page_data = json.loads(m.group(1))
                 raw_text = json.dumps(page_data.get("props", {}).get("pageProps", {}))
                 found = [
                     f"{_NAWY_BASE}/{slug.lstrip('/')}"
@@ -150,19 +197,45 @@ async def run_nawy_scrape() -> dict:
         compound_urls = await _discover_compound_urls_httpx(client)
         stats["compounds_found"] = len(compound_urls)
 
+        consecutive_429 = 0
         for i, url in enumerate(compound_urls):
+            await asyncio.sleep(_FETCH_DELAY_SECONDS)
             try:
                 resp = await client.get(url)
+
+                # Honor throttling: back off on 429 instead of hammering on
+                if resp.status_code == 429:
+                    consecutive_429 += 1
+                    if consecutive_429 >= _MAX_CONSECUTIVE_429:
+                        logger.error(
+                            "[scrape] %d consecutive 429s — aborting run to avoid IP block",
+                            consecutive_429,
+                        )
+                        stats["errors"] += len(compound_urls) - i
+                        break
+                    retry_after = resp.headers.get("Retry-After")
+                    wait = (
+                        int(retry_after)
+                        if retry_after and retry_after.isdigit()
+                        else _RETRY_AFTER_FALLBACK_SECONDS * consecutive_429
+                    )
+                    logger.warning(
+                        "[scrape] 429 from Nawy (streak=%d) — backing off %ds",
+                        consecutive_429, wait,
+                    )
+                    await asyncio.sleep(wait)
+                    stats["errors"] += 1
+                    continue
+                consecutive_429 = 0
+
                 if resp.status_code != 200:
                     stats["errors"] += 1
                     continue
 
-                m = _NEXT_DATA_RE.search(resp.text)
-                if not m:
+                raw_json = _extract_next_data(resp.text)
+                if not raw_json:
                     stats["errors"] += 1
                     continue
-
-                raw_json = json.loads(m.group(1))
                 raw_json["_meta"] = {
                     "source_url": url,
                     "strategy": "httpx_next_data",
@@ -199,6 +272,27 @@ async def run_nawy_scrape() -> dict:
     stats["finished_at"] = datetime.now(timezone.utc).isoformat()
 
     logger.info("[scrape] Scrape complete: %s", stats)
+
+    # Alert operators when the run looks unhealthy (high failure share means
+    # Nawy structure drift or throttling — needs a human before data goes stale)
+    attempted = stats["compounds_found"]
+    if attempted and stats["errors"] / attempted > 0.5:
+        try:
+            from app.ingestion.anomaly_detector import send_alert
+            await send_alert(
+                title=f"Nawy Scrape Unhealthy (run {run_id[:8]})",
+                message=(
+                    f"{stats['errors']}/{attempted} compounds failed "
+                    f"({stats['errors'] / attempted:.0%}). "
+                    f"Scraped={stats['compounds_scraped']}, "
+                    f"upserted={stats['upserted']}. Check for Nawy structure "
+                    f"changes or IP throttling."
+                ),
+                severity="warning",
+            )
+        except Exception as alert_err:
+            logger.warning("[scrape] Health alert failed (non-fatal): %s", alert_err)
+
     return stats
 
 

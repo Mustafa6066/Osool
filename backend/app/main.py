@@ -412,6 +412,15 @@ app.include_router(email_router)
 app.include_router(analytics_router)
 app.include_router(campaign_router)
 
+# Billing: always registered — GET /plans powers /pricing even when payments
+# are disabled; pay endpoints themselves return 503 in that case.
+from app.api.billing_endpoints import router as billing_router
+app.include_router(billing_router)
+
+# Buyer tools: mortgage (تمويل عقاري) + installment-vs-cash calculators
+from app.api.tools_endpoints import router as tools_router
+app.include_router(tools_router)
+
 # Simple health endpoint registered FIRST so Railway healthcheck always
 # gets a fast 200 regardless of startup-event completion status.
 @app.get("/health")

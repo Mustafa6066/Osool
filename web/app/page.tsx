@@ -511,7 +511,7 @@ function ClosingCTA() {
           Open Osool <IconUp size={14} style={{ transform: 'rotate(45deg)' }} />
         </Link>
         <div className="osool-cta-secondary">
-          Or <Link href="/contact">talk to a licensed advisor</Link> · Available 9 AM–11 PM Cairo time
+          Or <Link href="/pricing">see Osool Pro plans</Link> · <Link href="/contact">talk to a licensed advisor</Link> · Available 9 AM–11 PM Cairo time
         </div>
       </div>
     </section>

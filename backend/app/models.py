@@ -238,22 +238,26 @@ class ConsultationBooking(Base):
 
 
 class Transaction(Base):
-    """Legacy payment transaction tracking (kept for backward compatibility)."""
+    """Payment transaction tracking for property, subscription, and report payments."""
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"))
-    
+    # Nullable: subscription/report purchases are not tied to a property
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), nullable=True)
+
     amount: Mapped[float] = mapped_column(Float)
     currency: Mapped[str] = mapped_column(String, default="EGP")
-    
+
+    # What was purchased: property | subscription | report
+    transaction_type: Mapped[str] = mapped_column(String(20), default="property", server_default="property")
+
     # Status
     status: Mapped[str] = mapped_column(String, default="pending") # pending, paid, confirmed, failed
-    
+
     # External References
     paymob_order_id: Mapped[str] = mapped_column(String, nullable=True)
-    
+
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="transactions")
@@ -329,6 +333,53 @@ class PaymobWebhookEvent(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
+
+class Subscription(Base):
+    """
+    Osool Pro subscription purchased via Paymob.
+    `User.subscription_tier` stays the fast denormalized access check;
+    this table is the billing source of truth (history, periods, renewals).
+    """
+    __tablename__ = "subscriptions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    plan: Mapped[str] = mapped_column(String(30), default="pro_monthly")
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending, active, expired, cancelled
+    amount_egp: Mapped[float] = mapped_column(Float, nullable=False)
+    current_period_start: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+    current_period_end: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    paymob_order_id: Mapped[str] = mapped_column(String, nullable=True, index=True)
+    transaction_id: Mapped[int] = mapped_column(ForeignKey("transactions.id"), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+    transaction = relationship("Transaction")
+
+
+class PaidReport(Base):
+    """
+    One-time purchased AI deliverable (e.g. bilingual valuation report).
+    Generated asynchronously after the Paymob webhook confirms payment.
+    """
+    __tablename__ = "paid_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    report_type: Mapped[str] = mapped_column(String(30), default="valuation")
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending, paid, generating, delivered, failed
+    input_params_json: Mapped[str] = mapped_column(Text, nullable=True)
+    content_json: Mapped[str] = mapped_column(Text, nullable=True)  # generated bilingual report payload
+    pdf_url: Mapped[str] = mapped_column(Text, nullable=True)
+    amount_egp: Mapped[float] = mapped_column(Float, nullable=False)
+    paymob_order_id: Mapped[str] = mapped_column(String, nullable=True, index=True)
+    transaction_id: Mapped[int] = mapped_column(ForeignKey("transactions.id"), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    delivered_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User")
+    transaction = relationship("Transaction")
 
 class PaymentApproval(Base):
     """
@@ -912,6 +963,26 @@ class PriceHistory(Base):
 
     project = relationship("SEOProject", back_populates="price_history")
     area = relationship("Area", back_populates="price_history")
+
+
+class PropertyPriceEvent(Base):
+    """
+    Per-property price change captured during scrape ingestion.
+    Written by the differential upsert when a listing's price moves;
+    consumed by price-drop alerts and market trend analytics.
+    """
+    __tablename__ = "property_price_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), nullable=True, index=True)
+    nawy_url: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    old_price: Mapped[float] = mapped_column(Float, nullable=False)
+    new_price: Mapped[float] = mapped_column(Float, nullable=False)
+    pct_change: Mapped[float] = mapped_column(Float, nullable=False)  # (new-old)/old
+    scrape_run_id: Mapped[str] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    property = relationship("Property")
 
 
 class ChatIntent(Base):

@@ -207,11 +207,11 @@ async def run_image_mirror():
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=600), reraise=True)
 async def run_nawy_scrape_scheduled():
     """
-    Every-15-days Nawy property scraper job.
-    Runs on the 1st and 15th of each month at 03:00 UTC.
+    Weekly Nawy property scraper job.
+    Runs every Sunday at 03:00 UTC (post-scrape processing follows at 04:30).
     Writes directly to the database, then triggers post-scrape processing.
     """
-    logger.info("[CRON] Starting scheduled 15-day Nawy scrape...")
+    logger.info("[CRON] Starting scheduled weekly Nawy scrape...")
     try:
         from app.services.nawy_scraper import run_nawy_scrape
         result = await run_nawy_scrape()
@@ -226,10 +226,102 @@ async def run_nawy_scrape_scheduled():
         # Notify Orchestrator
         await _notify_orchestrator("property_scrape_complete", {
             "significantChanges": result.get("upserted", 0),
-            "trigger": "scheduled_15day",
+            "trigger": "scheduled_weekly",
         })
     except Exception as e:
         logger.error(f"[CRON] Scheduled Nawy scrape failed: {e}")
+        raise
+
+
+async def run_subscription_expiry():
+    """
+    Daily downgrade of expired Osool Pro subscriptions.
+    Active subscriptions past current_period_end + grace are expired and the
+    user's denormalized subscription_tier reverts to 'free' (admins exempt).
+    """
+    from datetime import datetime, timedelta, timezone as dt_timezone
+
+    from sqlalchemy import select
+
+    from app.config import config
+    from app.database import AsyncSessionLocal
+    from app.models import Subscription, User
+
+    logger.info("[CRON] Starting subscription expiry sweep...")
+    cutoff = datetime.now(dt_timezone.utc) - timedelta(days=config.SUBSCRIPTION_GRACE_DAYS)
+    expired_count = 0
+
+    async with AsyncSessionLocal() as db:
+        subs = (
+            await db.execute(
+                select(Subscription).where(
+                    Subscription.status == "active",
+                    Subscription.current_period_end.isnot(None),
+                    Subscription.current_period_end < cutoff,
+                )
+            )
+        ).scalars().all()
+
+        for sub in subs:
+            sub.status = "expired"
+            user = (
+                await db.execute(select(User).where(User.id == sub.user_id))
+            ).scalar_one_or_none()
+            if user and (user.subscription_tier or "free").lower() != "admin":
+                # Keep premium if the user has another still-active subscription
+                other = (
+                    await db.execute(
+                        select(Subscription.id).where(
+                            Subscription.user_id == sub.user_id,
+                            Subscription.status == "active",
+                            Subscription.id != sub.id,
+                        ).limit(1)
+                    )
+                ).scalar_one_or_none()
+                if not other:
+                    user.subscription_tier = "free"
+                    expired_count += 1
+                    try:
+                        from app.services.email_service import email_service
+                        frontend = os.getenv("FRONTEND_URL", "https://osool-ten.vercel.app")
+                        email_service.send_subscription_expired(
+                            user.email, pricing_url=f"{frontend}/pricing"
+                        )
+                    except Exception as mail_err:
+                        logger.warning("[CRON] Expiry email failed (non-fatal): %s", mail_err)
+
+        await db.commit()
+
+    logger.info("[CRON] Subscription expiry sweep done: %d downgraded", expired_count)
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
+async def run_saved_search_alerts_scheduled():
+    """Daily Pro-only saved-search alert sweep (new matches + price drops)."""
+    logger.info("[CRON] Starting saved-search alerts sweep...")
+    try:
+        from app.services.saved_search_alerts import run_saved_search_alerts
+        result = await run_saved_search_alerts()
+        logger.info(f"[CRON] Saved-search alerts completed: {result}")
+    except Exception as e:
+        logger.error(f"[CRON] Saved-search alerts failed: {e}")
+        raise
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
+async def run_embedding_backfill_scheduled():
+    """
+    Nightly embedding backfill: the zero-token scraper leaves new/changed
+    properties with embedding=NULL (invisible to vector search) — this job
+    sweeps and re-embeds them so retrieval blind spots self-heal within a day.
+    """
+    logger.info("[CRON] Starting nightly embedding backfill...")
+    try:
+        from app.services.embedding_backfill import run_embedding_backfill
+        result = await run_embedding_backfill()
+        logger.info(f"[CRON] Embedding backfill completed: {result}")
+    except Exception as e:
+        logger.error(f"[CRON] Embedding backfill failed: {e}")
         raise
 
 
@@ -317,14 +409,44 @@ def init_scheduler():
         misfire_grace_time=3600,
     )
 
-    # Nawy Property Scraper: Every 15 days (1st and 15th of month) at 03:00 UTC
+    # Nawy Property Scraper: Weekly, Sundays at 03:00 UTC
     scheduler.add_job(
         run_nawy_scrape_scheduled,
-        trigger=CronTrigger(day="1,15", hour=3, minute=0),
-        id="biweekly_nawy_scraper",
-        name="Bi-weekly Nawy Property Scraper (every 15 days)",
+        trigger=CronTrigger(day_of_week="sun", hour=3, minute=0),
+        id="weekly_nawy_scraper",
+        name="Weekly Nawy Property Scraper (Sundays 03:00 UTC)",
         replace_existing=True,
         misfire_grace_time=7200,  # 2h grace — scrape takes up to 60 min
+    )
+
+    # Subscription expiry: Daily at 02:00 UTC
+    scheduler.add_job(
+        run_subscription_expiry,
+        trigger=CronTrigger(hour=2, minute=0),
+        id="daily_subscription_expiry",
+        name="Daily Osool Pro Subscription Expiry Sweep",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    # Saved-search alerts (Pro): Daily at 06:00 UTC (after scrape + backfill)
+    scheduler.add_job(
+        run_saved_search_alerts_scheduled,
+        trigger=CronTrigger(hour=6, minute=0),
+        id="daily_saved_search_alerts",
+        name="Daily Saved-Search Alerts (price drops + new matches)",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    # Embedding backfill: Daily at 05:15 UTC (after scrapers/post-processing)
+    scheduler.add_job(
+        run_embedding_backfill_scheduled,
+        trigger=CronTrigger(hour=5, minute=15),
+        id="daily_embedding_backfill",
+        name="Daily Embedding Backfill (NULL-embedding properties)",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
 
     # Marketing Material Generation: Bi-weekly (1st and 15th of the month) at 06:00 UTC
@@ -363,7 +485,7 @@ def init_scheduler():
 
     scheduler.start()
     logger.info("✅ APScheduler started with cron jobs:")
-    logger.info("   📅 Nawy Scraper: 1st/15th of month 03:00 UTC (every 15 days)")
+    logger.info("   📅 Nawy Scraper: Sundays 03:00 UTC (weekly)")
     logger.info("   📅 Post-Scrape Processing: Sundays 04:30 UTC")
     logger.info("   📅 Economic Scraper: Sundays 03:30 UTC")
     logger.info("   📅 Geopolitical Scraper: Daily 04:00 UTC")

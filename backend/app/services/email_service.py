@@ -135,6 +135,89 @@ class EmailService:
             html_content=html_content
         )
 
+    def send_subscription_confirmation(self, email: str, period_end, amount_egp: float) -> bool:
+        """Osool Pro activation receipt (bilingual)."""
+        end_str = period_end.strftime("%Y-%m-%d") if hasattr(period_end, "strftime") else str(period_end)
+        html_content = f"""
+        <html dir="rtl">
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: #064e3b; padding: 24px; border-radius: 12px; color: #ffffff;">
+                <h2 style="margin-top: 0;">🎉 أهلاً بك في أصول برو!</h2>
+                <p>تم تفعيل اشتراكك بنجاح. تقدر دلوقتي تستخدم كل مزايا أصول برو:
+                فحوصات بلا حدود، بيانات السماسرة كاملة، وتنبيهات اللقطات.</p>
+                <p><strong>قيمة الاشتراك:</strong> {amount_egp:,.0f} جنيه</p>
+                <p><strong>صالح حتى:</strong> {end_str}</p>
+                <hr style="border-color: #10b981;">
+                <p dir="ltr" style="color: #d1fae5;">
+                    Welcome to Osool Pro! Your subscription is active until {end_str}.
+                    Enjoy unlimited Reality Checks, unmasked deal contacts, and La2ta alerts.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        return self._send_email(
+            to_email=email,
+            subject="✅ اشتراك أصول برو مُفعّل | Osool Pro Activated",
+            html_content=html_content,
+        )
+
+    def send_report_ready(self, email: str, report_title: str, dashboard_url: str) -> bool:
+        """Notify the buyer that their purchased AI report is ready."""
+        html_content = f"""
+        <html dir="rtl">
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: #1e293b; padding: 24px; border-radius: 12px; color: #ffffff;">
+                <h2 style="margin-top: 0;">📊 تقريرك جاهز!</h2>
+                <p>تقرير "{report_title}" اتجهز وتقدر تحمله من لوحة التحكم.</p>
+                <p style="text-align: center; margin: 24px 0;">
+                    <a href="{dashboard_url}" style="background: #10b981; color: #fff;
+                       padding: 12px 28px; border-radius: 8px; text-decoration: none;">
+                        تحميل التقرير | Download Report
+                    </a>
+                </p>
+                <p dir="ltr" style="color: #cbd5e1;">
+                    Your report "{report_title}" is ready in your Osool dashboard.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        return self._send_email(
+            to_email=email,
+            subject="📊 تقرير أصول جاهز للتحميل | Your Osool Report is Ready",
+            html_content=html_content,
+        )
+
+    def send_subscription_expired(self, email: str, pricing_url: str) -> bool:
+        """Renewal nudge after Osool Pro expiry."""
+        html_content = f"""
+        <html dir="rtl">
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: #1e293b; padding: 24px; border-radius: 12px; color: #ffffff;">
+                <h2 style="margin-top: 0;">انتهى اشتراكك في أصول برو</h2>
+                <p>رجعت للباقة المجانية. جدد اشتراكك عشان ترجع للفحوصات غير المحدودة
+                وبيانات السماسرة الكاملة وتنبيهات اللقطات.</p>
+                <p style="text-align: center; margin: 24px 0;">
+                    <a href="{pricing_url}" style="background: #10b981; color: #fff;
+                       padding: 12px 28px; border-radius: 8px; text-decoration: none;">
+                        جدد الآن | Renew Now
+                    </a>
+                </p>
+                <p dir="ltr" style="color: #cbd5e1;">
+                    Your Osool Pro subscription has expired. Renew to restore unlimited
+                    access and deal alerts.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        return self._send_email(
+            to_email=email,
+            subject="اشتراك أصول برو انتهى — جدد الآن | Osool Pro Expired",
+            html_content=html_content,
+        )
+
     def _send_email(self, to_email: str, subject: str, html_content: str) -> bool:
         """
         Internal method to send email via SendGrid.

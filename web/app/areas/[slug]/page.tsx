@@ -2,7 +2,7 @@ import { getArea, getAreaProjects, getAreaPriceHistory } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -35,7 +35,7 @@ export default async function AreaPage({ params }: Props) {
   }
 
   return (
-    <SmartNav>
+    <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)] pb-20 md:pb-0">
       <div className="max-w-5xl mx-auto px-4 py-10">
         <nav className="text-sm text-[var(--color-text-muted)] mb-6">
@@ -133,6 +133,6 @@ export default async function AreaPage({ params }: Props) {
         </div>
       </div>
     </main>
-    </SmartNav>
+    </AppShell>
   );
 }

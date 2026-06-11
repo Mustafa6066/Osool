@@ -10,6 +10,7 @@ import { useGamification } from '@/contexts/GamificationContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AppShell from '@/components/nav/AppShell';
 import InvestorProfileCard from '@/components/InvestorProfileCard';
+import SubscriptionCard from '@/components/billing/SubscriptionCard';
 import { TIER_COLORS, fetchFavorites, FavoriteProperty } from '@/lib/gamification';
 
 const QUICK_ACTIONS = [
@@ -227,6 +228,11 @@ export default function DashboardPage() {
                                 );
                             })}
                         </div>
+                    </section>
+
+                    {/* Subscription & purchased reports */}
+                    <section>
+                        <SubscriptionCard />
                     </section>
 
                     {/* Row 3: Bento grid — Shortlist + Market Snapshot */}

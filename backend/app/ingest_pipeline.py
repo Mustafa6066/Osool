@@ -25,6 +25,7 @@ Isolation contract
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -312,16 +313,28 @@ async def _embed_text(profile_text: str) -> Optional[list[float]]:
         )
         return None
 
-    try:
-        response = await _openai_client.embeddings.create(
-            model=_EMBEDDING_MODEL,
-            input=profile_text,
-            dimensions=_EMBEDDING_DIM,
-        )
-        return response.data[0].embedding
-    except openai.OpenAIError as exc:
-        logger.error("OpenAI embedding call failed: %s", exc, exc_info=False)
-        return None
+    # Retry transient failures with exponential backoff; a single blip must
+    # not leave the listing permanently blind to vector retrieval.
+    last_exc: Optional[Exception] = None
+    for attempt, delay in enumerate((0.0, 2.0, 5.0)):
+        if delay:
+            await asyncio.sleep(delay)
+        try:
+            response = await _openai_client.embeddings.create(
+                model=_EMBEDDING_MODEL,
+                input=profile_text,
+                dimensions=_EMBEDDING_DIM,
+            )
+            return response.data[0].embedding
+        except openai.OpenAIError as exc:
+            last_exc = exc
+            logger.warning(
+                "OpenAI embedding call failed (attempt %d/3): %s", attempt + 1, exc,
+                exc_info=False,
+            )
+
+    logger.error("OpenAI embedding failed after retries: %s", last_exc, exc_info=False)
+    return None
 
 
 async def _classify_la2ta(

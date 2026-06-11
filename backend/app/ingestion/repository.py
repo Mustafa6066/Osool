@@ -140,6 +140,34 @@ async def upsert_properties(
     result = UpsertResult()
     now = datetime.now(timezone.utc)
 
+    # ── Validation gate: reject obviously broken records up front ──
+    # The anomaly detector below skips rows without a positive price, so
+    # without this gate zero-price / location-less records would be silently
+    # upserted and poison valuations and search.
+    valid_props: list[NormalizedProperty] = []
+    for prop in properties:
+        reasons = []
+        if not prop.price or prop.price <= 0:
+            reasons.append("non-positive price")
+        if not (prop.location or "").strip():
+            reasons.append("missing location")
+        if reasons:
+            result.errors += 1
+            result.error_details.append(
+                f"REJECTED {prop.nawy_url or prop.title}: {', '.join(reasons)}"
+            )
+        else:
+            valid_props.append(prop)
+
+    if result.errors:
+        logger.warning(
+            "[repo] Validation gate rejected %d/%d records (run=%s). First rejects: %s",
+            result.errors, len(properties), run_id, result.error_details[:5],
+        )
+    properties = valid_props
+    if not properties:
+        return result
+
     # ── Anomaly Detection: halt upsert if price data looks corrupted ──
     if skip_anomaly_check:
         logger.info(
@@ -183,19 +211,26 @@ async def upsert_properties(
         logger.warning(f"Anomaly detection skipped (non-fatal): {anomaly_err}")
 
     async with AsyncSessionLocal() as db:
-        # Prefetch existing hashes for all URLs in this batch (one round trip)
+        # Prefetch existing hash/id/price for all URLs in this batch (one round trip)
         urls = [p.nawy_url for p in properties if p.nawy_url]
         existing_hashes: dict[str, str] = {}
+        existing_meta: dict[str, tuple[int, Optional[float]]] = {}
 
         if urls:
             rows = await db.execute(
-                select(Property.nawy_url, Property.content_hash).where(
-                    Property.nawy_url.in_(urls)
-                )
+                select(
+                    Property.nawy_url,
+                    Property.content_hash,
+                    Property.id,
+                    Property.price,
+                ).where(Property.nawy_url.in_(urls))
             )
-            existing_hashes = {row.nawy_url: row.content_hash for row in rows}
+            for row in rows:
+                existing_hashes[row.nawy_url] = row.content_hash
+                existing_meta[row.nawy_url] = (row.id, row.price)
 
         batch_buffer: list[dict] = []
+        price_events: list[dict] = []
 
         for prop in properties:
             if not prop.nawy_url:
@@ -251,6 +286,22 @@ async def upsert_properties(
                     except Exception:
                         pass  # never break the upsert over a cache nicety
 
+                    # Capture price movement for alerts/trend analytics
+                    prop_id, old_price = existing_meta.get(prop.nawy_url, (None, None))
+                    if (
+                        old_price is not None
+                        and prop.price
+                        and float(prop.price) != float(old_price)
+                    ):
+                        price_events.append({
+                            "property_id": prop_id,
+                            "nawy_url": prop.nawy_url,
+                            "old_price": float(old_price),
+                            "new_price": float(prop.price),
+                            "pct_change": (float(prop.price) - float(old_price)) / float(old_price),
+                            "scrape_run_id": run_id,
+                        })
+
                 # Flush batch every N rows to bound memory
                 if len(batch_buffer) >= _BATCH_COMMIT_SIZE:
                     await _flush_batch(db, batch_buffer)
@@ -264,6 +315,17 @@ async def upsert_properties(
         # Flush remaining rows
         if batch_buffer:
             await _flush_batch(db, batch_buffer)
+
+        if price_events:
+            try:
+                from app.models import PropertyPriceEvent
+                await db.execute(pg_insert(PropertyPriceEvent).values(price_events))
+                logger.info(
+                    "[repo] Recorded %d price events (run=%s)", len(price_events), run_id
+                )
+            except Exception as pe_err:
+                # Price history is best-effort — never block the upsert
+                logger.warning("[repo] Price event capture failed (non-fatal): %s", pe_err)
 
         await db.commit()
 

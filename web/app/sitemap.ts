@@ -12,6 +12,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE}/developers`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${SITE}/areas`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${SITE}/projects`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${SITE}/pricing`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${SITE}/guides/shahr-el-aqary`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${SITE}/tools/mortgage`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${SITE}/tools/installments`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
   ];
 
   // Dynamic pages

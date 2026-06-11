@@ -1,0 +1,867 @@
+[
+  {
+    "compound_id": "1077-solana-east",
+    "clean_name": "Solana East",
+    "developer": "Ora Developers"
+  },
+  {
+    "compound_id": "11-the-waterway-new-cairo",
+    "clean_name": "The Waterway New Cairo",
+    "developer": "The Waterway Developments"
+  },
+  {
+    "compound_id": "12-lake-view-residence",
+    "clean_name": "Lake View Residence",
+    "developer": "Lake View Development"
+  },
+  {
+    "compound_id": "1214-the-grey",
+    "clean_name": "The Grey",
+    "developer": "Housing and Development Properties HDP"
+  },
+  {
+    "compound_id": "1247-rock-white",
+    "clean_name": "Rock White",
+    "developer": "Rock developments"
+  },
+  {
+    "compound_id": "1299-hazel",
+    "clean_name": "Hazel",
+    "developer": "SODIC"
+  },
+  {
+    "compound_id": "1301-new-kairo",
+    "clean_name": "New Kairo",
+    "developer": "G Developments"
+  },
+  {
+    "compound_id": "1312-park-central",
+    "clean_name": "Park Central",
+    "developer": "Hassan Allam Properties"
+  },
+  {
+    "compound_id": "1333-crescent-walk",
+    "clean_name": "Crescent Walk",
+    "developer": "Marakez"
+  },
+  {
+    "compound_id": "1391-scenes",
+    "clean_name": "Scenes",
+    "developer": "Tatweer Misr"
+  },
+  {
+    "compound_id": "14-el-patio-7",
+    "clean_name": "El Patio 7",
+    "developer": "La Vista Developments"
+  },
+  {
+    "compound_id": "1426-glen",
+    "clean_name": "Glen",
+    "developer": "IL Cazar Developments"
+  },
+  {
+    "compound_id": "1427-patio-vida",
+    "clean_name": "Patio Vida",
+    "developer": "La Vista Developments"
+  },
+  {
+    "compound_id": "143-les-rois-new-cairo",
+    "clean_name": "Les Rois New Cairo",
+    "developer": "Housing and Development Properties HDP"
+  },
+  {
+    "compound_id": "1468-rivette-amwaj",
+    "clean_name": "Rivette Amwaj",
+    "developer": "Melee Development"
+  },
+  {
+    "compound_id": "147-sarai",
+    "clean_name": "Sarai",
+    "developer": "Madinet Masr"
+  },
+  {
+    "compound_id": "148-palm-hills-new-cairo",
+    "clean_name": "Palm Hills New Cairo",
+    "developer": "Palm Hills Developments"
+  },
+  {
+    "compound_id": "1480-linwood",
+    "clean_name": "Linwood",
+    "developer": "Emaar Rezk Group Developments"
+  },
+  {
+    "compound_id": "1495-hyde-park-central",
+    "clean_name": "Hyde Park Central",
+    "developer": "Hyde Park"
+  },
+  {
+    "compound_id": "1496-point-90-mall",
+    "clean_name": "Point 90 Mall",
+    "developer": "PRE Developments"
+  },
+  {
+    "compound_id": "1498-azzar-legacy",
+    "clean_name": "Azzar Legacy",
+    "developer": "Reedy Group"
+  },
+  {
+    "compound_id": "1500-acasa",
+    "clean_name": "Acasa",
+    "developer": "Dar Al Alamia Developments"
+  },
+  {
+    "compound_id": "1517-marquette-mostakbal-city",
+    "clean_name": "Marquette Mostakbal City",
+    "developer": "The Marq Communities"
+  },
+  {
+    "compound_id": "1526-the-mornings",
+    "clean_name": "The Mornings",
+    "developer": "Al Ahly Sabbour Developments"
+  },
+  {
+    "compound_id": "1528-mist",
+    "clean_name": "Mist",
+    "developer": "M Squared"
+  },
+  {
+    "compound_id": "1532-el-patio-hills",
+    "clean_name": "El Patio Hills",
+    "developer": "La Vista Developments"
+  },
+  {
+    "compound_id": "1572-fcc",
+    "clean_name": "Fcc",
+    "developer": "Al - Borouj Misr Developments Group (ABM)"
+  },
+  {
+    "compound_id": "1578-saada-boutique",
+    "clean_name": "Saada Boutique",
+    "developer": "Horizon Egypt Development"
+  },
+  {
+    "compound_id": "1585-jade-blue",
+    "clean_name": "Jade Blue",
+    "developer": "Aspect Development"
+  },
+  {
+    "compound_id": "1607-the-gryd",
+    "clean_name": "The Gryd",
+    "developer": "Upwyde Developments"
+  },
+  {
+    "compound_id": "167-capital-gardens",
+    "clean_name": "Capital Gardens",
+    "developer": "Palm Hills Developments"
+  },
+  {
+    "compound_id": "168-mountain-view-one",
+    "clean_name": "Mountain View One",
+    "developer": "Mountain View"
+  },
+  {
+    "compound_id": "1726-riverton",
+    "clean_name": "Riverton",
+    "developer": "Mercon Developments"
+  },
+  {
+    "compound_id": "176-sodic-east",
+    "clean_name": "Sodic East",
+    "developer": "SODIC"
+  },
+  {
+    "compound_id": "1761-el-patio-riva",
+    "clean_name": "El Patio Riva",
+    "developer": "La Vista Developments"
+  },
+  {
+    "compound_id": "1772-mivida-gardens",
+    "clean_name": "Mivida Gardens",
+    "developer": "Emaar Misr"
+  },
+  {
+    "compound_id": "1774-reedy-city",
+    "clean_name": "Reedy City",
+    "developer": "Reedy Group"
+  },
+  {
+    "compound_id": "1782-acasa-alma",
+    "clean_name": "Acasa Alma",
+    "developer": "Dar Al Alamia Developments"
+  },
+  {
+    "compound_id": "1787-hubwalk",
+    "clean_name": "Hubwalk",
+    "developer": "Arabco Developments"
+  },
+  {
+    "compound_id": "1792-jiwar",
+    "clean_name": "Jiwar",
+    "developer": "Concrete Development"
+  },
+  {
+    "compound_id": "1809-do",
+    "clean_name": "Do",
+    "developer": "One Development"
+  },
+  {
+    "compound_id": "1826-life-wise",
+    "clean_name": "Life Wise",
+    "developer": "EONS developments"
+  },
+  {
+    "compound_id": "1834-tierra",
+    "clean_name": "Tierra",
+    "developer": "Saudi Egyptian Developers (SED)"
+  },
+  {
+    "compound_id": "184-fountain-park",
+    "clean_name": "Fountain Park",
+    "developer": "Orientals for Urban Development"
+  },
+  {
+    "compound_id": "1841-97-hills",
+    "clean_name": "97 Hills",
+    "developer": "Palm Hills Developments"
+  },
+  {
+    "compound_id": "1845-branded-residences",
+    "clean_name": "Branded Residences",
+    "developer": "Al - Borouj Misr Developments Group (ABM)"
+  },
+  {
+    "compound_id": "1846-sodic-mostakbal-city",
+    "clean_name": "Sodic Mostakbal City",
+    "developer": "SODIC"
+  },
+  {
+    "compound_id": "1851-royal-new-project",
+    "clean_name": "Royal New Project",
+    "developer": "Royal Development"
+  },
+  {
+    "compound_id": "186-taj-city",
+    "clean_name": "Taj City",
+    "developer": "Madinet Masr"
+  },
+  {
+    "compound_id": "187-cairo-festival-city",
+    "clean_name": "Cairo Festival City",
+    "developer": "Al-Futtaim Group Real Estate"
+  },
+  {
+    "compound_id": "188-la-rose-new-cairo",
+    "clean_name": "La Rose New Cairo",
+    "developer": "La Rose"
+  },
+  {
+    "compound_id": "1883-brackets",
+    "clean_name": "Brackets",
+    "developer": "Modad Properties"
+  },
+  {
+    "compound_id": "1884-patterns",
+    "clean_name": "Patterns",
+    "developer": "Kulture Developments"
+  },
+  {
+    "compound_id": "189-zizinia-gardens",
+    "clean_name": "Zizinia Gardens",
+    "developer": "ARDIC For Real Estate Development"
+  },
+  {
+    "compound_id": "192-fifth-square-al-marasem",
+    "clean_name": "Fifth Square Al Marasem",
+    "developer": "Al Marasem Development"
+  },
+  {
+    "compound_id": "195-mountain-view-icity-new-cairo",
+    "clean_name": "Mountain View Icity New Cairo",
+    "developer": "Mountain View"
+  },
+  {
+    "compound_id": "196-haptown",
+    "clean_name": "Haptown",
+    "developer": "Hassan Allam Properties"
+  },
+  {
+    "compound_id": "202-bloomfields",
+    "clean_name": "Bloomfields",
+    "developer": "Tatweer Misr"
+  },
+  {
+    "compound_id": "204-trio",
+    "clean_name": "Trio",
+    "developer": "M Squared"
+  },
+  {
+    "compound_id": "205-azad",
+    "clean_name": "Azad",
+    "developer": "Tameer"
+  },
+  {
+    "compound_id": "207-el-patio-oro",
+    "clean_name": "El Patio Oro",
+    "developer": "La Vista Developments"
+  },
+  {
+    "compound_id": "209-galleria",
+    "clean_name": "Galleria",
+    "developer": "Arabia Holding"
+  },
+  {
+    "compound_id": "217-the-city-of-odyssia",
+    "clean_name": "The City Of Odyssia",
+    "developer": "Al Ahly Sabbour Developments"
+  },
+  {
+    "compound_id": "218-aria",
+    "clean_name": "Aria",
+    "developer": "LMD"
+  },
+  {
+    "compound_id": "222-district-5",
+    "clean_name": "District 5",
+    "developer": "Marakez"
+  },
+  {
+    "compound_id": "227-address-east",
+    "clean_name": "Address East",
+    "developer": "Dorra Group"
+  },
+  {
+    "compound_id": "23-villette",
+    "clean_name": "Villette",
+    "developer": "SODIC"
+  },
+  {
+    "compound_id": "242-vida-marassi-marina",
+    "clean_name": "Vida Marassi Marina",
+    "developer": "Emaar Misr"
+  },
+  {
+    "compound_id": "249-layan",
+    "clean_name": "Layan",
+    "developer": "Manazel Developments"
+  },
+  {
+    "compound_id": "255-la-fontaine-province",
+    "clean_name": "La Fontaine Province",
+    "developer": "ARCO"
+  },
+  {
+    "compound_id": "278-swanlake-residences",
+    "clean_name": "Swanlake Residences",
+    "developer": "Hassan Allam Properties"
+  },
+  {
+    "compound_id": "283-jayd",
+    "clean_name": "Jayd",
+    "developer": "Saudi Egyptian Developers (SED)"
+  },
+  {
+    "compound_id": "299-madinaty",
+    "clean_name": "Madinaty",
+    "developer": "Talaat Moustafa Group (TMG) Holding"
+  },
+  {
+    "compound_id": "300-maxim-country-clubhouse",
+    "clean_name": "Maxim Country Clubhouse",
+    "developer": "Maxim Developments"
+  },
+  {
+    "compound_id": "303-5a--administrative",
+    "clean_name": "5A  Administrative",
+    "developer": "The Waterway Developments"
+  },
+  {
+    "compound_id": "329-three-sixty",
+    "clean_name": "Three Sixty",
+    "developer": "LMD"
+  },
+  {
+    "compound_id": "344-one-ninety",
+    "clean_name": "One Ninety",
+    "developer": "LMD"
+  },
+  {
+    "compound_id": "345-zed-east",
+    "clean_name": "Zed East",
+    "developer": "Ora Developers"
+  },
+  {
+    "compound_id": "347-green-square",
+    "clean_name": "Green Square",
+    "developer": "Al Ahly Sabbour Developments"
+  },
+  {
+    "compound_id": "361-katameya-creeks",
+    "clean_name": "Katameya Creeks",
+    "developer": "Starlight Developments"
+  },
+  {
+    "compound_id": "367-cairo-business-park",
+    "clean_name": "Cairo Business Park",
+    "developer": "Misr Italia Properties"
+  },
+  {
+    "compound_id": "377-the-hub--waterway-new-cairo",
+    "clean_name": "The Hub  Waterway New Cairo",
+    "developer": "The Waterway Developments"
+  },
+  {
+    "compound_id": "378-the-waterway-villas",
+    "clean_name": "The Waterway Villas",
+    "developer": "The Waterway Developments"
+  },
+  {
+    "compound_id": "38-hyde-park",
+    "clean_name": "Hyde Park",
+    "developer": "Hyde Park"
+  },
+  {
+    "compound_id": "393-al-jazi-first-marriott-residences",
+    "clean_name": "Al Jazi First Marriott Residences",
+    "developer": "Al Jazi Egypt"
+  },
+  {
+    "compound_id": "394-azzar-new-cairo",
+    "clean_name": "Azzar New Cairo",
+    "developer": "Reedy Group"
+  },
+  {
+    "compound_id": "399-kinda",
+    "clean_name": "Kinda",
+    "developer": "Madinet Masr"
+  },
+  {
+    "compound_id": "405-marseilia-beach-3",
+    "clean_name": "Marseilia Beach 3",
+    "developer": "Marseilia Real Estate Investment S.A.E"
+  },
+  {
+    "compound_id": "410-stone-residence",
+    "clean_name": "Stone Residence",
+    "developer": "PRE Developments"
+  },
+  {
+    "compound_id": "412-la-nuova-vista",
+    "clean_name": "La Nuova Vista",
+    "developer": "Misr Italia Properties"
+  },
+  {
+    "compound_id": "42-lake-view",
+    "clean_name": "Lake View",
+    "developer": "Lake View Development"
+  },
+  {
+    "compound_id": "446-midtown-new-cairo",
+    "clean_name": "Midtown New Cairo",
+    "developer": "Better Home"
+  },
+  {
+    "compound_id": "459-the-view-waterway",
+    "clean_name": "The View Waterway",
+    "developer": "The Waterway Developments"
+  },
+  {
+    "compound_id": "46-village-garden-katameya",
+    "clean_name": "Village Garden Katameya",
+    "developer": "Premium Developer"
+  },
+  {
+    "compound_id": "462-creektown",
+    "clean_name": "Creektown",
+    "developer": "IL Cazar Developments"
+  },
+  {
+    "compound_id": "469-chess-field",
+    "clean_name": "Chess Field",
+    "developer": "Al Jazi Egypt"
+  },
+  {
+    "compound_id": "47-the-square",
+    "clean_name": "The Square",
+    "developer": "Al Ahly Sabbour Developments"
+  },
+  {
+    "compound_id": "477-stone-park",
+    "clean_name": "Stone Park",
+    "developer": "Roya Developments"
+  },
+  {
+    "compound_id": "486-dyar-park",
+    "clean_name": "Dyar Park",
+    "developer": "ARCO"
+  },
+  {
+    "compound_id": "49-katameya-heights",
+    "clean_name": "Katameya Heights",
+    "developer": "Starlight Developments"
+  },
+  {
+    "compound_id": "490-il-bosco-city",
+    "clean_name": "Il Bosco City",
+    "developer": "Misr Italia Properties"
+  },
+  {
+    "compound_id": "50-katameya-dunes",
+    "clean_name": "Katameya Dunes",
+    "developer": "Starlight Developments"
+  },
+  {
+    "compound_id": "506-urbn-k",
+    "clean_name": "Urbn K",
+    "developer": "Starlight Developments"
+  },
+  {
+    "compound_id": "51-mirage-city",
+    "clean_name": "Mirage City",
+    "developer": "Mirage City"
+  },
+  {
+    "compound_id": "511-granoy",
+    "clean_name": "Granoy",
+    "developer": "Upwyde Developments"
+  },
+  {
+    "compound_id": "53-katameya-residence",
+    "clean_name": "Katameya Residence",
+    "developer": "Al Ahly Sabbour Developments"
+  },
+  {
+    "compound_id": "535-montenapoleone",
+    "clean_name": "Montenapoleone",
+    "developer": "Reportage Properties"
+  },
+  {
+    "compound_id": "543-the-brooks",
+    "clean_name": "The Brooks",
+    "developer": "PRE Developments"
+  },
+  {
+    "compound_id": "549-the-median-residences",
+    "clean_name": "The Median Residences",
+    "developer": "EGYGAB"
+  },
+  {
+    "compound_id": "55-palm-hills-katameya-(pk1)",
+    "clean_name": "Palm Hills Katameya (Pk1)",
+    "developer": "Palm Hills Developments"
+  },
+  {
+    "compound_id": "554-grand-residence",
+    "clean_name": "Grand Residence",
+    "developer": "Al Ahly Sabbour Developments"
+  },
+  {
+    "compound_id": "556-bellagio",
+    "clean_name": "Bellagio",
+    "developer": "ARCO"
+  },
+  {
+    "compound_id": "56-palm-hills-katameya-extension-(pk2)",
+    "clean_name": "Palm Hills Katameya Extension (Pk2)",
+    "developer": "Palm Hills Developments"
+  },
+  {
+    "compound_id": "565-dyar-mokhabarat",
+    "clean_name": "Dyar Mokhabarat",
+    "developer": "Miscellaneous"
+  },
+  {
+    "compound_id": "57-the-village-gate",
+    "clean_name": "The Village Gate",
+    "developer": "Palm Hills Developments"
+  },
+  {
+    "compound_id": "58-village-avenue",
+    "clean_name": "Village Avenue",
+    "developer": "Palm Hills Developments"
+  },
+  {
+    "compound_id": "586-west-elgolf",
+    "clean_name": "West Elgolf",
+    "developer": "Miscellaneous"
+  },
+  {
+    "compound_id": "588-dyar",
+    "clean_name": "Dyar",
+    "developer": "ARCO"
+  },
+  {
+    "compound_id": "6-mivida",
+    "clean_name": "Mivida",
+    "developer": "Emaar Misr"
+  },
+  {
+    "compound_id": "60-the-village",
+    "clean_name": "The Village",
+    "developer": "Palm Hills Developments"
+  },
+  {
+    "compound_id": "624-privado",
+    "clean_name": "Privado",
+    "developer": "Talaat Moustafa Group (TMG) Holding"
+  },
+  {
+    "compound_id": "632-katameya-gardens",
+    "clean_name": "Katameya Gardens",
+    "developer": "North Africa For Real Estate Investment"
+  },
+  {
+    "compound_id": "636-eastmain-new-cairo",
+    "clean_name": "Eastmain New Cairo",
+    "developer": "Mobco Group"
+  },
+  {
+    "compound_id": "639-diar-ii",
+    "clean_name": "Diar Ii",
+    "developer": "Tameer"
+  },
+  {
+    "compound_id": "642-katameya-hills",
+    "clean_name": "Katameya Hills",
+    "developer": "Al Ahly Sabbour Developments"
+  },
+  {
+    "compound_id": "645-el-rehab",
+    "clean_name": "El Rehab",
+    "developer": "Talaat Moustafa Group (TMG) Holding"
+  },
+  {
+    "compound_id": "648-azad-views",
+    "clean_name": "Azad Views",
+    "developer": "Tameer"
+  },
+  {
+    "compound_id": "655-mountain-view-1.1",
+    "clean_name": "Mountain View 1.1",
+    "developer": "Mountain View"
+  },
+  {
+    "compound_id": "658-golden-gate",
+    "clean_name": "Golden Gate",
+    "developer": "Redcon for Offices and Commercial Centers"
+  },
+  {
+    "compound_id": "665-moon-valley-i",
+    "clean_name": "Moon Valley I",
+    "developer": "Arabia Holding"
+  },
+  {
+    "compound_id": "669-aster-residence",
+    "clean_name": "Aster Residence",
+    "developer": "Times Developments"
+  },
+  {
+    "compound_id": "679-gravity-7",
+    "clean_name": "Gravity 7",
+    "developer": "Mercon Developments"
+  },
+  {
+    "compound_id": "680-villino",
+    "clean_name": "Villino",
+    "developer": "Raslan Group"
+  },
+  {
+    "compound_id": "7-mountain-view-hyde-park",
+    "clean_name": "Mountain View Hyde Park",
+    "developer": "Mountain View"
+  },
+  {
+    "compound_id": "711-green-5",
+    "clean_name": "Green 5",
+    "developer": "Mabany Edris"
+  },
+  {
+    "compound_id": "724-la-mirada",
+    "clean_name": "La Mirada",
+    "developer": "Grand Plaza For Real estate and Touristic Development"
+  },
+  {
+    "compound_id": "742-stei8ht",
+    "clean_name": "Stei8Ht",
+    "developer": "LMD"
+  },
+  {
+    "compound_id": "745-eastshire",
+    "clean_name": "Eastshire",
+    "developer": "Al Qamzi Developments"
+  },
+  {
+    "compound_id": "746-central-new-cairo",
+    "clean_name": "Central New Cairo",
+    "developer": "Saudi Egyptian Developers (SED)"
+  },
+  {
+    "compound_id": "751-the-ark",
+    "clean_name": "The Ark",
+    "developer": "The Ark Development"
+  },
+  {
+    "compound_id": "754-ninety-avenue",
+    "clean_name": "Ninety Avenue",
+    "developer": "TBK Developments"
+  },
+  {
+    "compound_id": "764-city-gate",
+    "clean_name": "City Gate",
+    "developer": "Qatari Diar"
+  },
+  {
+    "compound_id": "776-marina-1",
+    "clean_name": "Marina 1",
+    "developer": "The New Urban Communities Authority"
+  },
+  {
+    "compound_id": "782-eastlane",
+    "clean_name": "Eastlane",
+    "developer": "Urbnlanes Development"
+  },
+  {
+    "compound_id": "804-regents-park",
+    "clean_name": "Regents Park",
+    "developer": "Al Dawlia Developments"
+  },
+  {
+    "compound_id": "806-the-crest",
+    "clean_name": "The Crest",
+    "developer": "IL Cazar Developments"
+  },
+  {
+    "compound_id": "811-arabella",
+    "clean_name": "Arabella",
+    "developer": "Azmeel Group Real Estate"
+  },
+  {
+    "compound_id": "816-nyom-new-cairo",
+    "clean_name": "Nyom New Cairo",
+    "developer": "Arab Developers Holding"
+  },
+  {
+    "compound_id": "818-prk-vie",
+    "clean_name": "Prk Vie",
+    "developer": "Upwyde Developments"
+  },
+  {
+    "compound_id": "824-the-marq-ville",
+    "clean_name": "The Marq Ville",
+    "developer": "The Marq Communities"
+  },
+  {
+    "compound_id": "826-wingate-north-90st.",
+    "clean_name": "Wingate North 90St.",
+    "developer": "Wealth Development"
+  },
+  {
+    "compound_id": "828-promenade-new-cairo",
+    "clean_name": "Promenade New Cairo",
+    "developer": "Wadi Degla Developments"
+  },
+  {
+    "compound_id": "838-city-hall",
+    "clean_name": "City Hall",
+    "developer": "SERAC Developments"
+  },
+  {
+    "compound_id": "843-radium",
+    "clean_name": "Radium",
+    "developer": "Make Place Developments"
+  },
+  {
+    "compound_id": "856-hayah-residence",
+    "clean_name": "Hayah Residence",
+    "developer": "Haya for urban developments"
+  },
+  {
+    "compound_id": "857-the-marq",
+    "clean_name": "The Marq",
+    "developer": "The Marq Communities"
+  },
+  {
+    "compound_id": "868-bluetree",
+    "clean_name": "Bluetree",
+    "developer": "Sky AD Developments"
+  },
+  {
+    "compound_id": "870-revolve-mall",
+    "clean_name": "Revolve Mall",
+    "developer": "Town Writers"
+  },
+  {
+    "compound_id": "875-la-mirada-new-cairo",
+    "clean_name": "La Mirada New Cairo",
+    "developer": "Grand Plaza For Real estate and Touristic Development"
+  },
+  {
+    "compound_id": "882-zizinia-al-mostakbal",
+    "clean_name": "Zizinia Al Mostakbal",
+    "developer": "ARDIC For Real Estate Development"
+  },
+  {
+    "compound_id": "887-leena-springs",
+    "clean_name": "Leena Springs",
+    "developer": "Leena Real Estate"
+  },
+  {
+    "compound_id": "892-nyoum-mostaqbal-city",
+    "clean_name": "Nyoum Mostaqbal City",
+    "developer": "Arab Developers Holding"
+  },
+  {
+    "compound_id": "904-noir",
+    "clean_name": "Noir",
+    "developer": "Living Yards Developments"
+  },
+  {
+    "compound_id": "925-eastown",
+    "clean_name": "Eastown",
+    "developer": "SODIC"
+  },
+  {
+    "compound_id": "926-neopolis",
+    "clean_name": "Neopolis",
+    "developer": "Wadi Degla Developments"
+  },
+  {
+    "compound_id": "937-lavida-9",
+    "clean_name": "Lavida 9",
+    "developer": "MG Developments"
+  },
+  {
+    "compound_id": "939-telal-east",
+    "clean_name": "Telal East",
+    "developer": "Roya Developments"
+  },
+  {
+    "compound_id": "972-the-wonder-marq",
+    "clean_name": "The Wonder Marq",
+    "developer": "The Marq Communities"
+  },
+  {
+    "compound_id": "974-saada",
+    "clean_name": "Saada",
+    "developer": "Horizon Egypt Development"
+  },
+  {
+    "compound_id": "976-infinity-tower",
+    "clean_name": "Infinity Tower",
+    "developer": "Infinity Towers For Urban Developments"
+  },
+  {
+    "compound_id": "981-lavida-9",
+    "clean_name": "Lavida 9",
+    "developer": "MG Developments"
+  },
+  {
+    "compound_id": "99-l%E2%80%99avenir",
+    "clean_name": "L%E2%80%99Avenir",
+    "developer": "Al Ahly Sabbour Developments"
+  },
+  {
+    "compound_id": "996-aliva-mountain-view-mostakbal-city",
+    "clean_name": "Aliva Mountain View Mostakbal City",
+    "developer": "Mountain View"
+  }
+]

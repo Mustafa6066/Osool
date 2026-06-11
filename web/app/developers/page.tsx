@@ -1,7 +1,7 @@
 import { getDevelopers } from '@/lib/seo-api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import SmartNav from '@/components/SmartNav';
+import AppShell from '@/components/nav/AppShell';
 
 export const metadata: Metadata = {
   title: 'Top Egyptian Real Estate Developers — Ranked & Scored | Osool',
@@ -32,7 +32,7 @@ export default async function DevelopersPage() {
   }
 
   return (
-    <SmartNav>
+    <AppShell>
     <main className="h-full overflow-y-auto bg-[var(--color-background)] text-[var(--color-text-primary)] pb-20 md:pb-0">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-bold mb-2">
@@ -84,6 +84,6 @@ export default async function DevelopersPage() {
         </div>
       </div>
     </main>
-    </SmartNav>
+    </AppShell>
   );
 }

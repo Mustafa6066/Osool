@@ -18,6 +18,10 @@ os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://test:test@localhost:5432/osool_test",
 )
+# AI clients are constructed at import time in some modules (e.g. hybrid_brain_prod);
+# dummy keys let the import succeed — tests never call the providers.
+os.environ.setdefault("OPENAI_API_KEY", "sk-test-dummy-key-for-pytest")
+os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-dummy-key-for-pytest")
 
 
 @pytest.fixture

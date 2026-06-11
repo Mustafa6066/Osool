@@ -7,6 +7,7 @@ Supports three modes: vector-only, text-only, and hybrid (vector + FTS with RRF)
 
 import os
 import logging
+import time
 from typing import List, Optional
 from sqlalchemy import select, or_, text, func as sa_func, literal_column
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,41 @@ _async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # RRF constant (standard value from the original paper)
 RRF_K = 60
+
+# Prometheus retrieval metrics: which path served the query, how fast, and
+# whether it came back empty (zero-result rate is the key quality signal).
+try:
+    from prometheus_client import Counter, Histogram
+
+    _search_results_total = Counter(
+        'osool_search_results_total',
+        'Property searches by retrieval path and result presence',
+        ['path', 'outcome'],
+    )
+    _search_duration = Histogram(
+        'osool_search_duration_seconds',
+        'Property search latency by retrieval path',
+        ['path'],
+    )
+except Exception:  # prometheus_client unavailable (minimal envs)
+    _search_results_total = None
+    _search_duration = None
+
+
+def _record_search_metrics(path: str, result_count: int, duration_s: float, threshold) -> None:
+    """Best-effort metrics; never let observability break search."""
+    try:
+        if _search_results_total is not None:
+            outcome = "hit" if result_count > 0 else "zero"
+            _search_results_total.labels(path=path, outcome=outcome).inc()
+            _search_duration.labels(path=path).observe(duration_s)
+        if result_count == 0:
+            logger.info(
+                "[search-metrics] path=%s results=0 duration=%.3fs threshold=%s",
+                path, duration_s, threshold,
+            )
+    except Exception:
+        pass
 
 async def get_embedding(text: str) -> Optional[List[float]]:
     """
@@ -85,8 +121,11 @@ async def search_properties(
 
     Fallback chain: hybrid → vector-only → text search → keyword split → empty
     """
+    started_at = time.monotonic()
     try:
-        VECTOR_SEARCH_ENABLED = os.getenv("ENABLE_VECTOR_SEARCH", "0") == "1"
+        # Vector search is on by default; set ENABLE_VECTOR_SEARCH=0 to force
+        # the pure text/FTS path (e.g. while embeddings are backfilling).
+        VECTOR_SEARCH_ENABLED = os.getenv("ENABLE_VECTOR_SEARCH", "1") != "0"
 
         def _build_filters():
             """Build common SQLAlchemy filter conditions."""
@@ -207,13 +246,24 @@ async def search_properties(
                 embedding = await get_embedding(query_text)
 
                 if embedding:
-                    # Try strict threshold first
-                    vector_results = await _vector_search(embedding, similarity_threshold)
-
-                    # Relax threshold if no results
-                    if not vector_results and similarity_threshold > 0.5:
-                        logger.warning(f"⚠️ No matches at {similarity_threshold}, relaxing to 0.50")
-                        vector_results = await _vector_search(embedding, 0.50)
+                    # Multi-level threshold relaxation: strict → progressively
+                    # looser until something matches (or we exhaust the ladder).
+                    relaxation_ladder = [similarity_threshold] + [
+                        t for t in (0.6, 0.5) if t < similarity_threshold
+                    ]
+                    vector_results: List[tuple] = []
+                    used_threshold = similarity_threshold
+                    for tier, threshold in enumerate(relaxation_ladder):
+                        vector_results = await _vector_search(embedding, threshold)
+                        if vector_results:
+                            used_threshold = threshold
+                            if tier > 0:
+                                logger.info(
+                                    "🔎 Vector matches found at relaxed threshold %.2f (tier %d)",
+                                    threshold, tier,
+                                )
+                            break
+                        logger.warning("⚠️ No vector matches at threshold %.2f", threshold)
 
                     if search_mode == "hybrid":
                         # Run FTS in parallel with already-fetched vector results
@@ -224,11 +274,17 @@ async def search_properties(
                             logger.info(
                                 f"🔀 Hybrid search: {len(vector_results)} vector + {len(fts_results)} FTS → {len(merged)} merged"
                             )
+                            _record_search_metrics(
+                                "hybrid", len(merged), time.monotonic() - started_at, used_threshold
+                            )
                             return merged
 
                     elif vector_results:
                         # Vector-only mode
                         logger.info(f"🔎 Vector search: {len(vector_results)} results (best: {vector_results[0][1]:.2f})")
+                        _record_search_metrics(
+                            "vector", len(vector_results), time.monotonic() - started_at, used_threshold
+                        )
                         return [
                             _prop_to_dict(prop, similarity_score=score, source="vector")
                             for prop, score in vector_results[:limit]
@@ -241,10 +297,13 @@ async def search_properties(
                 logger.warning(f"Vector search failed, falling back to text search: {vector_error}")
 
         # TEXT SEARCH FALLBACK
-        return await _text_search_fallback(db, query_text, limit, _build_filters)
+        results = await _text_search_fallback(db, query_text, limit, _build_filters)
+        _record_search_metrics("text_fallback", len(results), time.monotonic() - started_at, None)
+        return results
 
     except Exception as e:
         logger.error(f"Property search failed: {e}")
+        _record_search_metrics("error", 0, time.monotonic() - started_at, None)
         return []
 
 
