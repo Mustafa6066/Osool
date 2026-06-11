@@ -14,24 +14,30 @@ const COPY = {
   en: {
     product: 'Osool',
     strapline: 'AI-native real estate intelligence for Egypt',
-    heroTitle: 'From rigid listings to fluid decision intelligence.',
+    heroTitle: 'Buy right. With numbers, not promises.',
     heroSubtitle:
-      'Osool now starts with a conversational diagnostic surface: audit broker proposals, expose hidden financing premiums, and pivot into verified alternatives without breaking focus.',
+      'Osool audits broker proposals, exposes hidden financing premiums, and pivots you into verified alternatives at fairer prices — in one conversation.',
     openChat: 'Open Intelligence Chat',
     signIn: 'Sign In',
-    primaryKicker: 'Acquisition Hook',
+    primaryKicker: 'Your AI property advisor',
     workspaceHint: 'Live diagnostic workspace with NPV and La2ta intelligence',
+    ctaChat: 'Ask the advisor — free',
+    ctaCheck: 'Check your offer — free',
+    ctaPricing: 'See Osool Pro',
   },
   ar: {
-    product: 'اوصول',
-    strapline: 'ذكاء عقاري مصري اصيل مدعوم بالذكاء الاصطناعي',
-    heroTitle: 'من صفحات عرض جامدة الى مساحة ذكاء قرار مرنة.',
+    product: 'أصول',
+    strapline: 'ذكاء عقاري مصري مدعوم بالذكاء الاصطناعي',
+    heroTitle: 'اشتري صح. بالأرقام، مش بالكلام.',
     heroSubtitle:
-      'اوصول يبدأ الان بتشخيص محادثي مباشر: راجع عروض البروكر، اكشف تكلفة التمويل الخفية، وتحول فوراً لبدائل موثقة بدون فقدان السياق.',
+      'أصول بيراجع عروض السماسرة، يكشف تكلفة التمويل المخفية، ويوريك بدائل موثقة بأسعار أعدل — في محادثة واحدة.',
     openChat: 'افتح محادثة الذكاء',
     signIn: 'تسجيل الدخول',
-    primaryKicker: 'واجهة الاستحواذ',
-    workspaceHint: 'مساحة تشخيص حية تتضمن NPV وذكاء اللقطة',
+    primaryKicker: 'مستشارك العقاري الذكي',
+    workspaceHint: 'مساحة تشخيص حية تتضمن صافي القيمة الحالية وذكاء اللقطة',
+    ctaChat: 'اسأل المستشار مجانًا',
+    ctaCheck: 'افحص عرضك مجانًا',
+    ctaPricing: 'شوف باقة أصول برو',
   },
 } as const;
 
@@ -98,6 +104,22 @@ export default function HomePage() {
             <p className="mt-4 max-w-2xl text-sm leading-relaxed text-zinc-400 sm:text-base">
               {copy.heroSubtitle}
             </p>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link
+                href="/chat"
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+              >
+                {copy.ctaChat}
+                <ArrowRight className={`h-4 w-4 ${isArabic ? 'rotate-180' : ''}`} aria-hidden="true" />
+              </Link>
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-2 rounded-2xl border border-zinc-700/80 bg-zinc-900/70 px-5 py-3 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800"
+              >
+                {copy.ctaPricing}
+              </Link>
+            </div>
           </motion.div>
 
           <motion.div

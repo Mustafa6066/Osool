@@ -8,6 +8,7 @@ import {
   Building2,
   MapPin,
   Layers,
+  Crown,
 } from 'lucide-react';
 import type { ElementType } from 'react';
 
@@ -21,18 +22,19 @@ export interface NavItem {
 
 /** Authenticated users — primary navigation items */
 export const AUTH_NAV_PRIMARY: NavItem[] = [
-  { key: 'chat',       label: 'Chat',       labelAr: 'المحادثة',  icon: MessageSquare,   href: '/chat' },
-  { key: 'explore',    label: 'Explore',    labelAr: 'استكشف',    icon: Compass,         href: '/explore' },
-  { key: 'areas',      label: 'Areas',      labelAr: 'المناطق',   icon: MapPin,          href: '/areas' },
-  { key: 'developers', label: 'Developers', labelAr: 'المطورون',  icon: Building2,       href: '/developers' },
-  { key: 'projects',   label: 'Projects',   labelAr: 'المشاريع',  icon: Layers,          href: '/projects' },
+  { key: 'chat',      label: 'Chat',      labelAr: 'المستشار',     icon: MessageSquare,   href: '/chat' },
+  { key: 'explore',   label: 'Explore',   labelAr: 'استكشف',       icon: Compass,         href: '/explore' },
+  { key: 'market',    label: 'Market',    labelAr: 'السوق',        icon: TrendingUp,      href: '/market' },
+  { key: 'pricing',   label: 'Pricing',   labelAr: 'الباقات',      icon: Crown,           href: '/pricing' },
+  { key: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم',  icon: LayoutDashboard, href: '/dashboard' },
 ];
 
-/** Authenticated users — secondary navigation items */
+/** Authenticated users — secondary navigation items (More sheet / side nav) */
 export const AUTH_NAV_SECONDARY: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', labelAr: 'الرئيسية',  icon: LayoutDashboard, href: '/dashboard' },
-  { key: 'saved',     label: 'Saved',     labelAr: 'المحفوظات', icon: Heart,           href: '/favorites' },
-  { key: 'market',    label: 'Market',    labelAr: 'السوق',     icon: TrendingUp,      href: '/market' },
+  { key: 'areas',      label: 'Areas',      labelAr: 'المناطق',   icon: MapPin,    href: '/areas' },
+  { key: 'developers', label: 'Developers', labelAr: 'المطورون',  icon: Building2, href: '/developers' },
+  { key: 'projects',   label: 'Projects',   labelAr: 'المشاريع',  icon: Layers,    href: '/projects' },
+  { key: 'saved',      label: 'Saved',      labelAr: 'المحفوظات', icon: Heart,     href: '/favorites' },
 ];
 
 /** Authenticated users — all items combined (backward compat) */
@@ -40,11 +42,11 @@ export const AUTH_NAV: NavItem[] = [...AUTH_NAV_PRIMARY, ...AUTH_NAV_SECONDARY];
 
 /** Public visitors — first 4 items appear in mobile bottom bar */
 export const PUBLIC_NAV: NavItem[] = [
-  { key: 'home',       label: 'Home',       labelAr: 'الرئيسية',  icon: Home,     href: '/' },
-  { key: 'explore',    label: 'Explore',    labelAr: 'استكشف',    icon: Compass,  href: '/explore' },
-  { key: 'developers', label: 'Developers', labelAr: 'المطورون',  icon: Building2, href: '/developers' },
-  { key: 'areas',      label: 'Areas',      labelAr: 'المناطق',   icon: MapPin,   href: '/areas' },
-  { key: 'projects',   label: 'Projects',   labelAr: 'المشاريع',  icon: Layers,   href: '/projects' },
+  { key: 'home',    label: 'Home',    labelAr: 'الرئيسية', icon: Home,          href: '/' },
+  { key: 'chat',    label: 'Chat',    labelAr: 'المستشار', icon: MessageSquare, href: '/chat' },
+  { key: 'explore', label: 'Explore', labelAr: 'استكشف',   icon: Compass,       href: '/explore' },
+  { key: 'market',  label: 'Market',  labelAr: 'السوق',    icon: TrendingUp,    href: '/market' },
+  { key: 'pricing', label: 'Pricing', labelAr: 'الباقات',  icon: Crown,         href: '/pricing' },
 ];
 
 /** Resolve pathname → nav key for active-state highlighting */
@@ -54,6 +56,8 @@ export function getActiveKey(pathname: string): string {
   if (pathname === '/dashboard') return 'dashboard';
   if (pathname === '/favorites') return 'saved';
   if (pathname === '/market') return 'market';
+  if (pathname.startsWith('/pricing') || pathname.startsWith('/billing') || pathname.startsWith('/upgrade'))
+    return 'pricing';
   if (pathname.startsWith('/admin')) return 'admin';
   if (pathname.startsWith('/tickets')) return 'tickets';
   if (
