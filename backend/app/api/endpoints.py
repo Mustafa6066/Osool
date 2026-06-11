@@ -688,7 +688,69 @@ async def paymob_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         # 4. Update transaction status to paid
         transaction.status = "paid"
 
-        # 5. If this is a property reservation, mark the property as unavailable
+        # 5a. Subscription purchase → activate Osool Pro
+        tx_type = getattr(transaction, "transaction_type", None) or "property"
+        if tx_type == "subscription":
+            from datetime import datetime, timedelta, timezone as dt_timezone
+            from app.config import config as app_config
+            from app.models import Subscription
+
+            sub_result = await db.execute(
+                select(Subscription).filter(Subscription.paymob_order_id == order_id)
+            )
+            subscription = sub_result.scalar_one_or_none()
+            now_utc = datetime.now(dt_timezone.utc)
+            period_end = now_utc + timedelta(days=app_config.SUBSCRIPTION_PERIOD_DAYS)
+
+            if subscription:
+                subscription.status = "active"
+                subscription.current_period_start = now_utc
+                subscription.current_period_end = period_end
+            else:
+                logger.warning(f"Webhook: paid subscription order {order_id} has no Subscription row")
+
+            if transaction.user:
+                transaction.user.subscription_tier = "premium"
+                logger.info(f"User {transaction.user_id} upgraded to premium until {period_end.date()}")
+
+            await db.commit()
+
+            # Best-effort confirmation email — never fail the webhook over it
+            try:
+                from app.services.email_service import email_service
+                email_service.send_subscription_confirmation(
+                    transaction.user.email,
+                    period_end=period_end,
+                    amount_egp=transaction.amount,
+                )
+            except Exception as mail_err:
+                logger.warning(f"Subscription confirmation email failed (non-fatal): {mail_err}")
+
+            return {"status": "success", "type": "subscription"}
+
+        # 5b. Report purchase → mark paid and generate asynchronously
+        if tx_type == "report":
+            from app.models import PaidReport
+
+            rep_result = await db.execute(
+                select(PaidReport).filter(PaidReport.paymob_order_id == order_id)
+            )
+            paid_report = rep_result.scalar_one_or_none()
+            if paid_report:
+                paid_report.status = "paid"
+                await db.commit()
+
+                import asyncio as _asyncio
+                from app.services.paid_report_service import generate_and_deliver_report
+                _asyncio.create_task(generate_and_deliver_report(paid_report.id))
+                logger.info(f"Report {paid_report.id} queued for generation (order {order_id})")
+            else:
+                await db.commit()
+                logger.warning(f"Webhook: paid report order {order_id} has no PaidReport row")
+
+            return {"status": "success", "type": "report"}
+
+        # 5c. If this is a property reservation, mark the property as unavailable
         # Use SELECT ... FOR UPDATE to prevent double-booking race condition
         if transaction.property_id:
             prop_result = await db.execute(

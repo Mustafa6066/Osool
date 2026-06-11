@@ -233,6 +233,68 @@ async def run_nawy_scrape_scheduled():
         raise
 
 
+async def run_subscription_expiry():
+    """
+    Daily downgrade of expired Osool Pro subscriptions.
+    Active subscriptions past current_period_end + grace are expired and the
+    user's denormalized subscription_tier reverts to 'free' (admins exempt).
+    """
+    from datetime import datetime, timedelta, timezone as dt_timezone
+
+    from sqlalchemy import select
+
+    from app.config import config
+    from app.database import AsyncSessionLocal
+    from app.models import Subscription, User
+
+    logger.info("[CRON] Starting subscription expiry sweep...")
+    cutoff = datetime.now(dt_timezone.utc) - timedelta(days=config.SUBSCRIPTION_GRACE_DAYS)
+    expired_count = 0
+
+    async with AsyncSessionLocal() as db:
+        subs = (
+            await db.execute(
+                select(Subscription).where(
+                    Subscription.status == "active",
+                    Subscription.current_period_end.isnot(None),
+                    Subscription.current_period_end < cutoff,
+                )
+            )
+        ).scalars().all()
+
+        for sub in subs:
+            sub.status = "expired"
+            user = (
+                await db.execute(select(User).where(User.id == sub.user_id))
+            ).scalar_one_or_none()
+            if user and (user.subscription_tier or "free").lower() != "admin":
+                # Keep premium if the user has another still-active subscription
+                other = (
+                    await db.execute(
+                        select(Subscription.id).where(
+                            Subscription.user_id == sub.user_id,
+                            Subscription.status == "active",
+                            Subscription.id != sub.id,
+                        ).limit(1)
+                    )
+                ).scalar_one_or_none()
+                if not other:
+                    user.subscription_tier = "free"
+                    expired_count += 1
+                    try:
+                        from app.services.email_service import email_service
+                        frontend = os.getenv("FRONTEND_URL", "https://osool-ten.vercel.app")
+                        email_service.send_subscription_expired(
+                            user.email, pricing_url=f"{frontend}/pricing"
+                        )
+                    except Exception as mail_err:
+                        logger.warning("[CRON] Expiry email failed (non-fatal): %s", mail_err)
+
+        await db.commit()
+
+    logger.info("[CRON] Subscription expiry sweep done: %d downgraded", expired_count)
+
+
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
 async def run_embedding_backfill_scheduled():
     """
@@ -342,6 +404,16 @@ def init_scheduler():
         name="Bi-weekly Nawy Property Scraper (every 15 days)",
         replace_existing=True,
         misfire_grace_time=7200,  # 2h grace — scrape takes up to 60 min
+    )
+
+    # Subscription expiry: Daily at 02:00 UTC
+    scheduler.add_job(
+        run_subscription_expiry,
+        trigger=CronTrigger(hour=2, minute=0),
+        id="daily_subscription_expiry",
+        name="Daily Osool Pro Subscription Expiry Sweep",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
 
     # Embedding backfill: Daily at 05:15 UTC (after scrapers/post-processing)

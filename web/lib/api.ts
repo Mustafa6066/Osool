@@ -998,4 +998,105 @@ export const generateMarketingMaterials = async (): Promise<{ message: string }>
   return data;
 };
 
+// ═══════════════════════════════════════════════════════════════
+// BILLING API — Osool Pro subscription & one-time reports
+// ═══════════════════════════════════════════════════════════════
+
+export interface BillingPlan {
+  id: string;
+  price_egp: number;
+  period: 'forever' | 'month' | 'one_time';
+  name: { en: string; ar: string };
+  features: { en: string[]; ar: string[] };
+}
+
+export interface BillingPlansResponse {
+  currency: string;
+  payments_enabled: boolean;
+  plans: BillingPlan[];
+}
+
+export interface BillingSubscription {
+  plan: string;
+  status: string;
+  current_period_end: string | null;
+  amount_egp: number;
+}
+
+export interface BillingReport {
+  id: number;
+  report_type: string;
+  status: string;
+  created_at: string | null;
+  delivered_at: string | null;
+  pdf_url: string | null;
+}
+
+export interface BillingStatus {
+  tier: string;
+  subscription: BillingSubscription | null;
+  reports: BillingReport[];
+}
+
+export interface PaymentInitiation {
+  order_id: string;
+  iframe_url: string;
+  amount_egp: number;
+}
+
+export const getBillingPlans = async (): Promise<BillingPlansResponse> => {
+  const { data } = await api.get('/api/billing/plans');
+  return data;
+};
+
+export const subscribeToPro = async (): Promise<PaymentInitiation> => {
+  const { data } = await api.post('/api/billing/subscribe');
+  return data;
+};
+
+export const purchaseReport = async (params?: {
+  property_id?: number;
+  budget_min?: number;
+  budget_max?: number;
+  areas?: string[];
+}): Promise<PaymentInitiation> => {
+  const { data } = await api.post('/api/billing/purchase-report', {
+    report_type: 'valuation',
+    property_id: params?.property_id,
+    params,
+  });
+  return data;
+};
+
+export const getBillingStatus = async (): Promise<BillingStatus> => {
+  const { data } = await api.get('/api/billing/status');
+  return data;
+};
+
+export interface ReportContentSection {
+  title: string;
+  summary: string;
+  market_overview: string;
+  recommendations: Array<{
+    project: string;
+    why: string;
+    roi_estimate: string;
+    risk_level: string;
+    best_for: string;
+  }>;
+  area_insights: Array<{ area: string; trend: string; outlook: string }>;
+  action_plan: string;
+}
+
+export const downloadBillingReport = async (reportId: number): Promise<{
+  id: number;
+  report_type: string;
+  pdf_url: string | null;
+  content: { en: ReportContentSection; ar: ReportContentSection } | null;
+  delivered_at: string | null;
+}> => {
+  const { data } = await api.get(`/api/billing/reports/${reportId}/download`);
+  return data;
+};
+
 export default api;

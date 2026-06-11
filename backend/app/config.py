@@ -88,6 +88,15 @@ class Config:
             raise ValueError("❌ PAYMOB_IFRAME_ID required when payments are enabled (checkout iframe)")
 
     # ═══════════════════════════════════════════════════════════════
+    # BILLING — Osool Pro subscription & one-time reports (EGP)
+    # ═══════════════════════════════════════════════════════════════
+
+    OSOOL_PRO_MONTHLY_EGP: float = float(os.getenv("OSOOL_PRO_MONTHLY_EGP", "299"))
+    VALUATION_REPORT_EGP: float = float(os.getenv("VALUATION_REPORT_EGP", "199"))
+    SUBSCRIPTION_PERIOD_DAYS: int = int(os.getenv("SUBSCRIPTION_PERIOD_DAYS", "30"))
+    SUBSCRIPTION_GRACE_DAYS: int = int(os.getenv("SUBSCRIPTION_GRACE_DAYS", "3"))
+
+    # ═══════════════════════════════════════════════════════════════
     # SMS (OPTIONAL - Phase 2+)
     # ═══════════════════════════════════════════════════════════════
 
