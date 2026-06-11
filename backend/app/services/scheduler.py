@@ -296,6 +296,19 @@ async def run_subscription_expiry():
 
 
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
+async def run_saved_search_alerts_scheduled():
+    """Daily Pro-only saved-search alert sweep (new matches + price drops)."""
+    logger.info("[CRON] Starting saved-search alerts sweep...")
+    try:
+        from app.services.saved_search_alerts import run_saved_search_alerts
+        result = await run_saved_search_alerts()
+        logger.info(f"[CRON] Saved-search alerts completed: {result}")
+    except Exception as e:
+        logger.error(f"[CRON] Saved-search alerts failed: {e}")
+        raise
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
 async def run_embedding_backfill_scheduled():
     """
     Nightly embedding backfill: the zero-token scraper leaves new/changed
@@ -412,6 +425,16 @@ def init_scheduler():
         trigger=CronTrigger(hour=2, minute=0),
         id="daily_subscription_expiry",
         name="Daily Osool Pro Subscription Expiry Sweep",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    # Saved-search alerts (Pro): Daily at 06:00 UTC (after scrape + backfill)
+    scheduler.add_job(
+        run_saved_search_alerts_scheduled,
+        trigger=CronTrigger(hour=6, minute=0),
+        id="daily_saved_search_alerts",
+        name="Daily Saved-Search Alerts (price drops + new matches)",
         replace_existing=True,
         misfire_grace_time=3600,
     )

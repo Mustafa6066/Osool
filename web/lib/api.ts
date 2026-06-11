@@ -1099,4 +1099,68 @@ export const downloadBillingReport = async (reportId: number): Promise<{
   return data;
 };
 
+// ═══════════════════════════════════════════════════════════════
+// BUYER TOOLS API — mortgage & installment-vs-cash calculators
+// ═══════════════════════════════════════════════════════════════
+
+export interface MortgageTier {
+  id: string;
+  name: { en: string; ar: string };
+  annual_rate_pct: number;
+  eligible: boolean;
+  monthly_payment_egp: number;
+  total_paid_egp: number;
+  total_interest_egp: number;
+}
+
+export interface MortgageResult {
+  principal_egp: number;
+  years: number;
+  tiers: MortgageTier[];
+  best_eligible_tier: string | null;
+  rates_last_updated: string;
+  affordability?: {
+    income_ceiling_egp: number;
+    payment_egp: number;
+    affordable: boolean;
+    utilization_pct: number | null;
+    max_affordable_unit_price_egp: number;
+  };
+  affordability_gated?: boolean;
+}
+
+export const calculateMortgage = async (params: {
+  unit_price_egp: number;
+  down_payment_egp: number;
+  years: number;
+  monthly_income_egp?: number;
+}): Promise<MortgageResult> => {
+  const { data } = await api.post('/api/tools/mortgage', params);
+  return data;
+};
+
+export interface InstallmentVsCashResult {
+  nominal_price_egp: number;
+  cash_equivalent_npv_egp: number;
+  time_value_discount_egp: number;
+  time_value_discount_pct: number;
+  per_installment_egp: number;
+  installments_count: number;
+  cbe_rate_pct: number;
+  cash_price_egp: number | null;
+  savings_if_cash_egp: number | null;
+  verdict: 'cash' | 'installments' | null;
+}
+
+export const compareInstallmentVsCash = async (params: {
+  total_price_egp: number;
+  down_payment_egp: number;
+  installment_years: number;
+  installments_per_year?: number;
+  cash_price_egp?: number;
+}): Promise<InstallmentVsCashResult> => {
+  const { data } = await api.post('/api/tools/installment-vs-cash', params);
+  return data;
+};
+
 export default api;
