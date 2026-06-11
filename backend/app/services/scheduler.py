@@ -207,11 +207,11 @@ async def run_image_mirror():
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=600), reraise=True)
 async def run_nawy_scrape_scheduled():
     """
-    Every-15-days Nawy property scraper job.
-    Runs on the 1st and 15th of each month at 03:00 UTC.
+    Weekly Nawy property scraper job.
+    Runs every Sunday at 03:00 UTC (post-scrape processing follows at 04:30).
     Writes directly to the database, then triggers post-scrape processing.
     """
-    logger.info("[CRON] Starting scheduled 15-day Nawy scrape...")
+    logger.info("[CRON] Starting scheduled weekly Nawy scrape...")
     try:
         from app.services.nawy_scraper import run_nawy_scrape
         result = await run_nawy_scrape()
@@ -226,7 +226,7 @@ async def run_nawy_scrape_scheduled():
         # Notify Orchestrator
         await _notify_orchestrator("property_scrape_complete", {
             "significantChanges": result.get("upserted", 0),
-            "trigger": "scheduled_15day",
+            "trigger": "scheduled_weekly",
         })
     except Exception as e:
         logger.error(f"[CRON] Scheduled Nawy scrape failed: {e}")
@@ -409,12 +409,12 @@ def init_scheduler():
         misfire_grace_time=3600,
     )
 
-    # Nawy Property Scraper: Every 15 days (1st and 15th of month) at 03:00 UTC
+    # Nawy Property Scraper: Weekly, Sundays at 03:00 UTC
     scheduler.add_job(
         run_nawy_scrape_scheduled,
-        trigger=CronTrigger(day="1,15", hour=3, minute=0),
-        id="biweekly_nawy_scraper",
-        name="Bi-weekly Nawy Property Scraper (every 15 days)",
+        trigger=CronTrigger(day_of_week="sun", hour=3, minute=0),
+        id="weekly_nawy_scraper",
+        name="Weekly Nawy Property Scraper (Sundays 03:00 UTC)",
         replace_existing=True,
         misfire_grace_time=7200,  # 2h grace — scrape takes up to 60 min
     )
@@ -471,7 +471,7 @@ def init_scheduler():
 
     scheduler.start()
     logger.info("✅ APScheduler started with cron jobs:")
-    logger.info("   📅 Nawy Scraper: 1st/15th of month 03:00 UTC (every 15 days)")
+    logger.info("   📅 Nawy Scraper: Sundays 03:00 UTC (weekly)")
     logger.info("   📅 Post-Scrape Processing: Sundays 04:30 UTC")
     logger.info("   📅 Economic Scraper: Sundays 03:30 UTC")
     logger.info("   📅 Geopolitical Scraper: Daily 04:00 UTC")
