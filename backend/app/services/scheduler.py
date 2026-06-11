@@ -234,6 +234,23 @@ async def run_nawy_scrape_scheduled():
 
 
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
+async def run_embedding_backfill_scheduled():
+    """
+    Nightly embedding backfill: the zero-token scraper leaves new/changed
+    properties with embedding=NULL (invisible to vector search) — this job
+    sweeps and re-embeds them so retrieval blind spots self-heal within a day.
+    """
+    logger.info("[CRON] Starting nightly embedding backfill...")
+    try:
+        from app.services.embedding_backfill import run_embedding_backfill
+        result = await run_embedding_backfill()
+        logger.info(f"[CRON] Embedding backfill completed: {result}")
+    except Exception as e:
+        logger.error(f"[CRON] Embedding backfill failed: {e}")
+        raise
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=60, max=300), reraise=True)
 async def run_marketing_generator():
     """Bi-weekly marketing material generation AI job."""
     logger.info("[CRON] Starting marketing materials generation job...")
@@ -325,6 +342,16 @@ def init_scheduler():
         name="Bi-weekly Nawy Property Scraper (every 15 days)",
         replace_existing=True,
         misfire_grace_time=7200,  # 2h grace — scrape takes up to 60 min
+    )
+
+    # Embedding backfill: Daily at 05:15 UTC (after scrapers/post-processing)
+    scheduler.add_job(
+        run_embedding_backfill_scheduled,
+        trigger=CronTrigger(hour=5, minute=15),
+        id="daily_embedding_backfill",
+        name="Daily Embedding Backfill (NULL-embedding properties)",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
 
     # Marketing Material Generation: Bi-weekly (1st and 15th of the month) at 06:00 UTC

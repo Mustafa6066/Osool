@@ -805,6 +805,26 @@ class PriceHistory(Base):
     area = relationship("Area", back_populates="price_history")
 
 
+class PropertyPriceEvent(Base):
+    """
+    Per-property price change captured during scrape ingestion.
+    Written by the differential upsert when a listing's price moves;
+    consumed by price-drop alerts and market trend analytics.
+    """
+    __tablename__ = "property_price_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), nullable=True, index=True)
+    nawy_url: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    old_price: Mapped[float] = mapped_column(Float, nullable=False)
+    new_price: Mapped[float] = mapped_column(Float, nullable=False)
+    pct_change: Mapped[float] = mapped_column(Float, nullable=False)  # (new-old)/old
+    scrape_run_id: Mapped[str] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    property = relationship("Property")
+
+
 class ChatIntent(Base):
     """
     Structured intent extracted from chat messages.
