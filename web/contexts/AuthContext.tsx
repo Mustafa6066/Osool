@@ -22,6 +22,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const REFRESH_AHEAD_MS = 2 * 60 * 1000; // refresh 2 minutes before expiry
+// Hard ceiling for the initial auth resolution. Guarantees `loading` flips to
+// false even if refreshUser's silent refresh wedges, so the dashboard's
+// `loading || !isAuthenticated` gate can never spin forever (fixes infinite
+// loading on /dashboard with a stale session). Kept above api.ts's
+// REFRESH_TIMEOUT_MS (8s) so a slow-but-valid refresh still wins first.
+const AUTH_LOADING_CEILING_MS = 12 * 1000;
 
 function getTokenExpiryMs(token: string): number | null {
   try {
@@ -98,7 +104,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUser();
     }, 0);
 
-    return () => clearTimeout(timer);
+    // Safety net: never sit on the loading gate forever. If refreshUser stalls
+    // (e.g. a wedged silent token refresh), force loading=false so route guards
+    // redirect unauthenticated users to /login instead of an infinite spinner.
+    const loadingCeiling = setTimeout(() => setLoading(false), AUTH_LOADING_CEILING_MS);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(loadingCeiling);
+    };
   }, [refreshUser]);
 
   useEffect(() => {
