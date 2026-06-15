@@ -339,6 +339,31 @@ async def upsert_properties(
     return result
 
 
+def _split_developer_resale(
+    sale_type: Optional[str], price: Optional[float]
+) -> tuple[Optional[float], Optional[float]]:
+    """Derive the (developer_price, resale_price) split from sale_type + price.
+
+    Mirrors migration 027's backfill semantics, but applied at write time so
+    LIVE scrapes keep the split fresh (the migration only touched rows that
+    existed in 2026-05). A property is either developer-priced or resale-priced,
+    never both — matching how the free-path comparison engine reads the columns.
+
+      sale_type ∈ {Developer, Nawy Now} → developer_price = price
+      sale_type == Resale               → resale_price   = price
+      unknown / NULL                    → leave both NULL (query-time fallback
+                                          still coalesces from sale_type+price)
+    """
+    st = (sale_type or "").strip().lower()
+    if not st or price is None:
+        return None, None
+    if "resale" in st:
+        return None, float(price)
+    if "developer" in st or "nawy now" in st or "nawy_now" in st:
+        return float(price), None
+    return None, None
+
+
 def _build_row(
     prop: NormalizedProperty,
     run_id: str,
@@ -347,6 +372,7 @@ def _build_row(
     embedding: Optional[List[float]],
 ) -> dict:
     """Maps NormalizedProperty fields to Property table column names."""
+    developer_price, resale_price = _split_developer_resale(prop.sale_type, prop.price)
     return {
         "title": prop.title,
         "description": prop.description,
@@ -355,6 +381,8 @@ def _build_row(
         "compound": prop.compound,
         "developer": prop.developer,
         "price": prop.price,
+        "developer_price": developer_price,
+        "resale_price": resale_price,
         "price_per_sqm": prop.price_per_sqm,
         "size_sqm": prop.size_sqm,
         "bedrooms": prop.bedrooms or 0,

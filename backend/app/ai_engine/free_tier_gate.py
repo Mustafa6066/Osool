@@ -494,6 +494,42 @@ async def build_best_price_free_payload(
     requested_language: str,
 ) -> dict[str, Any]:
     """
+    Zero-token free-path dispatcher.
+
+    Classifies the user's message and routes it to the right deterministic
+    handler so a free user gets the correct *shape* of answer:
+
+      * appreciation / growth-over-time  → price-trend handler (CAGR + total %)
+      * 2-3 named developers/compounds   → cross-entity developer-price comparison
+      * everything else                  → single best resale-vs-developer match
+
+    Both /api/v1/chat and /api/chat/stream call this function, so both inherit
+    the routing. Lazy import of the router avoids any import-time cycle.
+    """
+    # Lazy import: free_pricing_router pulls in analytical_engine; importing it
+    # at module scope risks a cycle through free_tier_gate's many importers.
+    from app.ai_engine import free_pricing_router
+
+    kind = free_pricing_router.classify_free_intent(message or "")
+    if kind == "appreciation":
+        return free_pricing_router.build_appreciation_payload(message or "", requested_language)
+    if kind == "compare":
+        comparison = await free_pricing_router.build_comparison_payload(
+            db, message or "", requested_language
+        )
+        if comparison is not None:
+            return comparison
+        # Fewer than two entities actually resolved — fall through to best price.
+
+    return await _build_best_price_match_payload(db, message, requested_language)
+
+
+async def _build_best_price_match_payload(
+    db: AsyncSession,
+    message: str,
+    requested_language: str,
+) -> dict[str, Any]:
+    """
     Build a strict free-tier payload that returns one best (lowest) resale offer
     matching the user's criteria, plus developer-vs-resale comparison.
     """
