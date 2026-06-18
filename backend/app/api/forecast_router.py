@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -195,7 +195,7 @@ def _slice_for_tier(bundle: dict, access: TierResolution) -> dict:
 @router.get("/developer/{slug}")
 @limiter.limit(FORECAST_RATE_LIMIT)
 async def get_developer_forecast(
-    slug: str, request: Request,
+    slug: str, request: Request, response: Response,
     db: AsyncSession = Depends(get_db),
     user: Optional[User] = Depends(get_current_user_optional),
 ):
@@ -208,7 +208,7 @@ async def get_developer_forecast(
 @router.get("/area/{slug}")
 @limiter.limit(FORECAST_RATE_LIMIT)
 async def get_area_forecast(
-    slug: str, request: Request,
+    slug: str, request: Request, response: Response,
     db: AsyncSession = Depends(get_db),
     user: Optional[User] = Depends(get_current_user_optional),
 ):
@@ -221,7 +221,7 @@ async def get_area_forecast(
 @router.get("/compound/{name:path}")
 @limiter.limit(FORECAST_RATE_LIMIT)
 async def get_compound_forecast(
-    name: str, request: Request,
+    name: str, request: Request, response: Response,
     db: AsyncSession = Depends(get_db),
     user: Optional[User] = Depends(get_current_user_optional),
 ):
