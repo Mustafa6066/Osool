@@ -14,7 +14,6 @@ import {
   IconHome,
   IconPaperclip,
   IconMic,
-  IconShield,
   IconSpark,
   IconUp,
 } from '@/components/osool/Icons';
@@ -26,6 +25,12 @@ import {
  * dossier-block proof sections instead of icon-grid pillars, Mashrabiya
  * watermark on the chat-preview section, Eastern-Arabic-numeral stat
  * accent in the hero, terracotta + Nile + ochre on warm paper.
+ *
+ * Copy rule (2026-06-19 honesty pass): every claim maps to a shipping
+ * capability or a clearly-labelled beta statement. No deal counts, no
+ * verified registry, no escrow, no contract feature, no accuracy figure,
+ * no developer partnerships — none of those exist yet. Where Osool compares
+ * prices it compares against what similar units are *listed* at.
  */
 export default function LandingPage() {
   useReveal();
@@ -94,9 +99,9 @@ function Hero() {
   };
 
   const chips: Array<{ t: string; Icon: typeof IconHome }> = [
-    { t: 'Show villas in New Cairo under 10M', Icon: IconHome },
-    { t: 'Is 8.4M EGP fair for a Mountain View villa?', Icon: IconSpark },
-    { t: 'Review the standard Mivida contract', Icon: IconShield },
+    { t: 'Show apartments in New Cairo under 8M', Icon: IconHome },
+    { t: 'Is 8.4M fair for a 3-bedroom in Sheikh Zayed?', Icon: IconSpark },
+    { t: 'What are similar units in 5th Settlement listed at?', Icon: IconHome },
   ];
 
   return (
@@ -106,13 +111,13 @@ function Hero() {
           <OsoolAvatar size={88} animated />
         </div>
 
-        {/* Operator-energy eyebrow stat — Eastern Arabic numerals as the
-            page's single deliberate cultural marker. The Latin gloss
-            keeps non-Arabic readers oriented. */}
+        {/* Eyebrow — Eastern Arabic numerals as the page's single deliberate
+            cultural marker. The number is true: Osool is in private beta in
+            two neighbourhoods. */}
         <span className="osool-hero-eyebrow">
           <span className="osool-hero-eyebrow-dot" />
-          <span className="osool-numeral-ar" aria-label="412 deals closed">٤١٢</span>
-          <span style={{ marginInlineStart: 8 }}>deals closed · live in Cairo</span>
+          <span className="osool-numeral-ar" aria-label="Two neighbourhoods">٢</span>
+          <span style={{ marginInlineStart: 8 }}>neighbourhoods · private beta in Cairo</span>
         </span>
 
         {/* Bilingual stacked headline — Latin on top (sells to global
@@ -122,12 +127,14 @@ function Hero() {
           <h1>
             The honest way to <em>buy property</em> in Egypt.
           </h1>
-          <p className="osool-display-ar" lang="ar">الطريقة الصادقة لشراء العقار في مصر.</p>
+          <p className="osool-display-ar" lang="ar">الطريقة الصادقة عشان تشتري عقار في مصر.</p>
         </div>
 
         <p>
-          Verified listings, AI valuation, and contract checks grounded in Egyptian
-          property law. All in one conversation.
+          Ask about any property in Egypt, in Arabic or English. Osool compares the
+          asking price against what similar units in the area are listed at, and tells
+          you plainly whether it makes sense. No inflated promises, no numbers we
+          can&apos;t stand behind.
         </p>
 
         {/* Signature shape: the composer sits inside an arch-top frame,
@@ -153,7 +160,7 @@ function Hero() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && go()}
-              placeholder="Ask Osool anything about real estate in Egypt…"
+              placeholder="Ask Osool about any property in Egypt…"
             />
             <span className="osool-ico">
               <IconMic size={16} />
@@ -173,10 +180,10 @@ function Hero() {
         </div>
 
         <div className="osool-hero-trust">
-          <span className="osool-nile-pill">CBE Law 194 compliant</span>
-          <span className="osool-nile-pill">Civil Code 131</span>
-          <span className="osool-nile-pill">FRA 125-ready</span>
-          <span className="osool-nile-pill">InstaPay · Fawry escrow</span>
+          <span className="osool-nile-pill">Prices in EGP</span>
+          <span className="osool-nile-pill">Arabic &amp; English</span>
+          <span className="osool-nile-pill">Built in Cairo, for Egypt</span>
+          <span className="osool-nile-pill">Private beta</span>
         </div>
       </div>
     </section>
@@ -192,16 +199,22 @@ function Pillars() {
     numberLabel: string;
   }> = [
     {
-      title: 'Verified registry',
-      body: 'Every listing is checked against the title registry. Reserved units lock instantly. No double-sells, no surprises at closing.',
-      number: '0',
-      numberLabel: 'Double-sells, since launch',
+      title: 'An honest read on price',
+      body: 'Tell Osool the unit and the asking price. It compares against what similar units in the area are listed at, and tells you where this one sits — high, fair, or worth a second look. When the data is thin, it says so instead of inventing confidence.',
+      number: 'Ranges',
+      numberLabel: 'not false decimals',
     },
     {
-      title: 'AI valuation',
-      body: 'Fair-price model trained on 412 verified Egyptian transactions, CBE corridor rates, and inflation-adjusted real growth. The number AND the why.',
-      number: '±2.4%',
-      numberLabel: 'Median accuracy',
+      title: 'Speaks Egyptian',
+      body: 'Ask in Egyptian Arabic or English — switch mid-sentence if you like. Prices are in EGP, the areas are the ones you actually search, and the market it knows is the Egyptian one. Not a foreign tool with Cairo bolted on.',
+      number: 'EGP',
+      numberLabel: 'native, not translated',
+    },
+    {
+      title: 'Refuses to oversell',
+      body: "Osool won't call a unit a once-in-a-lifetime deal, and it won't quote a number it can't trace. If it doesn't know, it tells you it doesn't know. That restraint is the product.",
+      number: '0',
+      numberLabel: 'made-up numbers',
     },
   ];
 
@@ -210,14 +223,15 @@ function Pillars() {
       <div className="osool-container">
         <div className="osool-section-head osool-reveal">
           <div>
-            <div className="osool-eyebrow">The product</div>
+            <div className="osool-eyebrow">What Osool actually does</div>
             <h2 className="osool-section-title">
-              Three reasons Egyptian buyers <em>finally</em> trust a listings site.
+              Three <em>honest</em> reasons to ask Osool first.
             </h2>
           </div>
           <p className="osool-section-lead">
-            The Egyptian market loses billions a year to unclear titles, contract traps,
-            and price inflation. Osool fixes all three — out in the open.
+            Property listings in Egypt are written to sell, not to inform. Osool gives
+            you the other side of the conversation — straight, in your language, before
+            you put money down.
           </p>
         </div>
 
@@ -255,14 +269,14 @@ function ChatPreview() {
       <div className="osool-container" style={{ position: 'relative', zIndex: 1 }}>
         <div className="osool-section-head osool-reveal">
           <div>
-            <div className="osool-eyebrow">Watch it work</div>
+            <div className="osool-eyebrow">See how it answers</div>
             <h2 className="osool-section-title">
-              <em>Investor-grade</em> answers, in the time it takes to ask.
+              A <em>straight</em> answer, in the time it takes to ask.
             </h2>
           </div>
           <p className="osool-section-lead">
-            Real questions, real data. Every number Osool gives you traces back to the
-            registry, the developer&apos;s disclosure, or the central bank.
+            Real questions in plain language. When Osool gives you a number it tells you
+            where it came from — and when the data is thin, it says that too.
           </p>
         </div>
 
@@ -271,66 +285,65 @@ function ChatPreview() {
             <i />
             <i />
             <i />
-            <span className="osool-preview-url">osool.eg/chat/villas-new-cairo</span>
+            <span className="osool-preview-url">osool.eg/chat</span>
           </div>
           <div className="osool-preview-body">
             <aside className="osool-preview-side">
               <div className="osool-preview-label">Today</div>
-              <div className="osool-preview-item active">Villas in New Cairo under 10M</div>
-              <div className="osool-preview-item">Hyde Park vs Mivida — ROI?</div>
-              <div className="osool-preview-label">Yesterday</div>
-              <div className="osool-preview-item">Mountain View clause 14</div>
-              <div className="osool-preview-item">Fawry escrow for 8M unit</div>
+              <div className="osool-preview-item active">Apartments in New Cairo under 8M</div>
+              <div className="osool-preview-item">Sheikh Zayed vs New Cairo — price/m²</div>
+              <div className="osool-preview-label">Earlier</div>
+              <div className="osool-preview-item">Is this asking price fair?</div>
+              <div className="osool-preview-item">3-bed near 90th Street</div>
             </aside>
             <div className="osool-preview-main">
               <div className="osool-preview-thread">
                 <div className="osool-pv-user">
-                  I&apos;m looking at apartments in New Cairo around 8M EGP — 3+ bedrooms.
-                  What&apos;s the smart pick right now?
+                  Looking at 3-bedroom apartments in New Cairo around 8M EGP. Where
+                  should I be looking, and is 8M reasonable?
                 </div>
                 <div className="osool-pv-ai">
                   <div className="osool-pv-ai-label">
                     <OsoolAvatar size={20} animated />
                     <b>Osool</b>
                   </div>
-                  <div className="osool-pv-ai-think">Reasoning · 4 steps · 1.8s ▾</div>
+                  <div className="osool-pv-ai-think">Comparing similar listings ▾</div>
                   <p>
-                    Here&apos;s a snapshot of the <strong>New Cairo</strong> submarket in
-                    your budget. The market is up <strong>6.4% YoY</strong> in EGP terms,
-                    but inflation-adjusted real growth is closer to{' '}
-                    <strong>2.1%</strong>.
+                    Around <strong>8M</strong> in <strong>New Cairo</strong>, three-bedroom
+                    apartments are realistic in several of the larger compounds, though
+                    finished, ready-to-move units sit at the top of that budget. Asking
+                    prices vary a lot by compound, finish, and delivery stage — so 8M is
+                    reasonable for some and a stretch for others. Tell me the specific unit
+                    and I&apos;ll give you a sharper read.
                   </p>
                   <div className="osool-pv-summary">
                     <div>
-                      <div className="lbl">Median /m²</div>
-                      <div className="val">
-                        54.2K <span className="trend">↑ 6.4%</span>
-                      </div>
+                      <div className="lbl">Budget</div>
+                      <div className="val">~8M EGP</div>
                     </div>
                     <div>
-                      <div className="lbl">Avg yield</div>
-                      <div className="val">
-                        5.8% <span className="trend">↑ 0.3pp</span>
-                      </div>
+                      <div className="lbl">Area</div>
+                      <div className="val">New Cairo</div>
                     </div>
                     <div>
-                      <div className="lbl">Time on market</div>
-                      <div className="val">
-                        62d <span className="trend">↓ 9d</span>
-                      </div>
+                      <div className="lbl">Read</div>
+                      <div className="val">Reasonable, unit-dependent</div>
                     </div>
                   </div>
                   <div className="osool-pv-cards">
-                    <PreviewCard title="Mivida — Lake Residence" loc="EMAAR Misr · New Cairo" price="9.2M EGP" score="91" />
-                    <PreviewCard title="Hyde Park — Garden" loc="Hyde Park · 5th Settlement" price="6.9M EGP" score="82" />
-                    <PreviewCard title="Mountain View iCity" loc="Mountain View · NC" price="8.4M EGP" score="87" />
+                    <PreviewCard title="Compound A" loc="New Cairo" price="from ~9M" note="Above your budget — finished units" />
+                    <PreviewCard title="Compound B" loc="5th Settlement" price="~7M" note="Within budget, varies by phase" />
+                    <PreviewCard title="Compound C" loc="New Cairo" price="~8M" note="Right at your number" />
                   </div>
+                  <p style={{ fontSize: 11.5, color: 'var(--osool-muted)', marginTop: 10 }}>
+                    Illustrative example — not live listings or quoted prices.
+                  </p>
                 </div>
               </div>
               <div className="osool-preview-composer">
                 <div className="osool-preview-composer-box">
                   <span style={{ color: 'var(--osool-muted)', fontSize: 13.5, flex: 1 }}>
-                    Ask about properties, market trends, contracts…
+                    Ask about an area, a price, or a specific unit…
                   </span>
                   <button type="button" className="osool-send" style={{ width: 28, height: 28 }} aria-label="Send">
                     <IconUp size={13} />
@@ -349,12 +362,12 @@ function PreviewCard({
   title,
   loc,
   price,
-  score,
+  note,
 }: {
   title: string;
   loc: string;
   price: string;
-  score: string;
+  note: string;
 }) {
   return (
     <div className="osool-pv-card">
@@ -364,10 +377,14 @@ function PreviewCard({
         <div className="osool-pv-card-loc">{loc}</div>
         <div className="osool-pv-card-row">
           <span className="osool-pv-card-price">{price}</span>
-          <span className="osool-pv-card-score">
-            <b>{score}</b>/100
+          <span
+            className="osool-pv-card-score"
+            style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+          >
+            Illustrative
           </span>
         </div>
+        <div className="osool-pv-card-loc" style={{ marginTop: 4 }}>{note}</div>
       </div>
     </div>
   );
@@ -378,18 +395,18 @@ function HowItWorks() {
   const steps = [
     {
       n: '01',
-      t: 'Tell Osool what you need',
-      b: 'Budget, neighborhood, bedrooms — or just paste a listing link. Speak or type, in Arabic or English.',
+      t: 'Ask in your own words',
+      b: "Budget, area, bedrooms — or paste a listing you're looking at. Type it in Arabic or English, whichever's easier.",
     },
     {
       n: '02',
-      t: 'Get verified picks + the math',
-      b: 'Osool returns registry-checked units with fair-price valuations and 5-year ROI grounded in actual transactions.',
+      t: 'Get a straight read',
+      b: 'Osool tells you where the asking price sits against similar units nearby, and what to watch for — in plain language, with the reasoning shown, not hidden.',
     },
     {
       n: '03',
-      t: 'Reserve safely in EGP',
-      b: "When you're ready, reserve via InstaPay or Fawry escrow under CBE Law 194. Funds release on closing — never before.",
+      t: 'Decide with your eyes open',
+      b: "Take the read into your own negotiation. Osool's job is to make sure you walk in knowing what's fair — the deal stays yours to make.",
     },
   ];
 
@@ -400,7 +417,7 @@ function HowItWorks() {
           <div>
             <div className="osool-eyebrow">How it works</div>
             <h2 className="osool-section-title">
-              From <em>&ldquo;what&apos;s worth buying&rdquo;</em> to keys in hand.
+              From <em>&ldquo;is this worth it&rdquo;</em> to a clear answer.
             </h2>
           </div>
         </div>
@@ -425,13 +442,13 @@ function HowItWorks() {
   );
 }
 
-/* ─── NUMBERS BAND ───────────────────────────────────────────────── */
+/* ─── NUMBERS BAND → anti-numbers statement of principle ─────────── */
 function Numbers() {
   const stats = [
-    { val: '412', lbl: 'Verified units across New Cairo & North Coast' },
-    { val: '0', lbl: 'Double-sells, ever' },
-    { val: '1.8s', lbl: 'Average AI valuation time' },
-    { val: 'EGP', lbl: 'Every transaction · CBE Law 194 compliant' },
+    { val: 'EGP', lbl: 'Every price, in pounds' },
+    { val: 'AR/EN', lbl: 'Every question, either language' },
+    { val: '2', lbl: 'Neighbourhoods — New Cairo & Sheikh Zayed, to start' },
+    { val: '0', lbl: 'Fake numbers — ever' },
   ];
 
   return (
@@ -439,12 +456,16 @@ function Numbers() {
       <div className="osool-container">
         <div className="osool-section-head osool-reveal" style={{ marginBottom: 32 }}>
           <div>
-            <div className="osool-eyebrow">The numbers</div>
-            <h2 className="osool-section-title">Built for trust. Measured in receipts.</h2>
+            <div className="osool-eyebrow">Why we don&apos;t show a wall of numbers</div>
+            <h2 className="osool-section-title">
+              Most property sites lead with numbers. We won&apos;t show you ones we made up.
+            </h2>
           </div>
           <p className="osool-section-lead">
-            We publish what most platforms hide. Verification counts, fraud counts, and
-            our own valuation accuracy — updated every day.
+            We&apos;re a private beta. We haven&apos;t closed deals, so we won&apos;t claim a
+            deal count. We don&apos;t run a verified registry, so we won&apos;t pretend to.
+            When Osool gives you a number, it&apos;s because the data is real — and when it
+            isn&apos;t, we say nothing.
           </p>
         </div>
         <div className="osool-numbers osool-reveal">
@@ -474,7 +495,10 @@ function Developers() {
   return (
     <section className="osool-devs-band" id="developers">
       <div className="osool-container">
-        <div className="osool-devs-label">Trusted listings from Egypt&apos;s leading developers</div>
+        <div className="osool-devs-label">Osool reads public listings across Egypt&apos;s major compounds</div>
+        <div style={{ fontSize: 11.5, color: 'var(--osool-muted)', marginTop: 6 }}>
+          Public data, not partnerships.
+        </div>
         <div className="osool-devs osool-reveal">
           {devs.map((d) => (
             <span key={d} className="osool-dev">
@@ -495,17 +519,20 @@ function ClosingCTA() {
         <div className="osool-hero-mark" style={{ width: 64, height: 64, marginBottom: 18 }}>
           <OsoolAvatar size={56} animated />
         </div>
-        <h2>Start your search tonight.</h2>
-        <p>Three free questions. No account needed. Speak Arabic or English.</p>
+        <h2>Start with one honest question.</h2>
+        <p>
+          Ask about any property in Egypt, in Arabic or English. Osool is in private beta
+          in New Cairo and Sheikh Zayed — invite-only for now.
+        </p>
         <Link
-          href="/chat"
+          href="/signup"
           className="osool-btn osool-btn-primary"
           style={{ padding: '12px 24px', fontSize: 14.5 }}
         >
-          Open Osool <IconUp size={14} style={{ transform: 'rotate(45deg)' }} />
+          Request an invite <IconUp size={14} style={{ transform: 'rotate(45deg)' }} />
         </Link>
         <div className="osool-cta-secondary">
-          Or <Link href="/pricing">see Osool Pro plans</Link> · <Link href="/contact">talk to a licensed advisor</Link> · Available 9 AM–11 PM Cairo time
+          Or <Link href="/pricing">see where Osool is headed</Link>
         </div>
       </div>
     </section>

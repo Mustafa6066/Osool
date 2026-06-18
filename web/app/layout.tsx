@@ -31,13 +31,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Osool | AI Real Estate Advisor for Egypt",
-  description: "Chat with Osool Advisor, your AI-powered real estate guide. Get instant property matches, price analysis, and investment insights for Egyptian properties.",
-  keywords: ["real estate", "Egypt", "AI", "property", "Osool Advisor", "investment", "New Cairo", "Sheikh Zayed", "عقارات", "مصر"],
+  title: "Osool — The honest way to buy property in Egypt",
+  description: "An AI property advisor built for Egypt. Ask in Arabic or English and get a straight read on whether an asking price is fair against similar listed units. Private beta in New Cairo & Sheikh Zayed.",
+  keywords: ["real estate", "Egypt", "AI property advisor", "price fairness", "New Cairo", "Sheikh Zayed", "عقارات", "مصر", "تطبيق عقارات"],
   authors: [{ name: "Osool" }],
   openGraph: {
-    title: "Osool | AI Real Estate Advisor for Egypt",
-    description: "AI-powered property recommendations, price valuations, and investment analysis for Egypt.",
+    title: "Osool — The honest way to buy property in Egypt",
+    description: "Ask about any Egyptian property in Arabic or English. An honest read on price — no hype, no fake numbers. Private beta.",
     type: "website",
   },
 };
