@@ -53,6 +53,7 @@ CHAT_RATE_LIMIT = "30/minute"  # 30 chat messages per minute
 SEARCH_RATE_LIMIT = "60/minute"  # 60 searches per minute
 AUTH_RATE_LIMIT = "10/minute"  # 10 login attempts per minute
 PROPERTY_RATE_LIMIT = "120/minute"  # 120 property views per minute
+FORECAST_RATE_LIMIT = "120/day"  # price forecasts (teaser-free + paid); per user_id_or_ip
 
 
 # ---------------------------------------------------------------------------

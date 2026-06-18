@@ -83,6 +83,25 @@ class VerifierAgent:
         r'(\d[\d,]*)\s*(?:sqm|م²|متر مربع|square meter)',
     ]
 
+    # ── Legal / regulatory risk ───────────────────────────────────────────
+    # A legal claim is only DANGEROUS when a legal/regulatory term co-occurs
+    # with certainty/guarantee language in the SAME sentence. Plain references
+    # to a law as context (the master prompt does this intentionally) are fine
+    # and must NOT be blocked. We block fabricated legal *guarantees* only.
+    LEGAL_TERM_PATTERNS = [
+        r'civil code|القانون المدني|المادة\s*\d+|article\s*\d+',
+        r'\bFRA\b|الهيئة العامة للرقابة المالية|decision\s*125|قرار\s*125',
+        r'\bCBE\b|البنك المركزي|law\s*\d+/\d{4}|قانون\s*\d+',
+        r'registration|الشهر العقاري|تسجيل|green contract|عقد أخضر',
+        r'tax[-\s]?free|معفى من الضرائب|refund|استرداد|residency|إقامة',
+    ]
+    GUARANTEE_PATTERNS = [
+        r'guarantee\w*|مضمون|نضمن|اضمن|ضمان',
+        r'\b100\s*%|legally entitled|حق قانوني|بالقانون',
+        r'ensure\w*|guaranteed return|عائد مضمون|تأكيد قانوني',
+        r'definitely|بالتأكيد قانونيا|لازم قانونا|مكفول',
+    ]
+
     def __init__(self):
         self.verification_results: List[Dict] = []
 
@@ -137,7 +156,16 @@ class VerifierAgent:
             )
             corrections.extend(payment_corrections)
 
-            # 6. Calculate overall confidence
+            # 6. Verify legal / regulatory guarantee claims (uncorrectable → block)
+            legal_corrections = self._verify_legal_claims(response_text)
+            corrections.extend(legal_corrections)
+
+            # 6b. Future-price CERTAINTY → caveat-only (kept OUT of `corrections` so
+            #     it never triggers the blocked-handoff or flips the policy; the
+            #     orchestrator redacts these to a 'forecast, not a guarantee' caveat).
+            caveat_corrections = self._verify_forecast_claims(response_text)
+
+            # 7. Calculate overall confidence
             total_claims = len(self.verification_results)
             verified_claims = sum(1 for r in self.verification_results if r["verified"])
 
@@ -150,12 +178,38 @@ class VerifierAgent:
             else:
                 confidence = "low"
 
+            # 8. Decide policy. Blocked corrections are high-risk AND uncorrectable
+            #    (we have no trustworthy replacement): fabricated legal guarantees
+            #    and invented compound names. Everything else is a number we CAN
+            #    swap for the DB truth → correctable.
+            blocked_corrections = [
+                c for c in corrections if c["type"] in ("legal_claim", "compound_name")
+            ]
+            correctable = [c for c in corrections if c not in blocked_corrections]
+
+            if blocked_corrections:
+                policy = "blocked"
+            elif correctable:
+                policy = "corrected"
+            else:
+                policy = "serve"
+
             return {
                 "verified": len(corrections) == 0,
                 "confidence": confidence,
                 "total_claims_checked": total_claims,
                 "verified_claims": verified_claims,
                 "corrections": corrections,
+                "correctable_corrections": correctable,
+                "blocked_corrections": blocked_corrections,
+                "policy": policy,
+                "blocked": policy == "blocked",
+                "caveat_corrections": caveat_corrections,
+                # Normalized contract for the frontend chip. The orchestrator may
+                # flip `auto_corrected` to True after a rewrite actually lands.
+                "auto_corrected": False,
+                "fix_count": len(correctable),
+                "caveat": None,
                 "badges": {
                     r["claim"]: "verified" if r["verified"] else "estimated"
                     for r in self.verification_results
@@ -176,6 +230,14 @@ class VerifierAgent:
                 "total_claims_checked": 0,
                 "verified_claims": 0,
                 "corrections": [],
+                "correctable_corrections": [],
+                "blocked_corrections": [],
+                "policy": "serve",
+                "blocked": False,
+                "caveat_corrections": [],
+                "auto_corrected": False,
+                "fix_count": 0,
+                "caveat": None,
                 "badges": {},
                 "rewritten": False,
                 "original_response": None,
@@ -294,6 +356,144 @@ class VerifierAgent:
                 claimed_str = f"{c['claimed']}%"
                 actual_str = f"{c['actual']}%"
                 result = result.replace(claimed_str, actual_str)
+        return result
+
+    # Bilingual caveat used when a high-risk claim is blocked instead of invented.
+    BLOCKED_CAVEAT_AR = "أحتاج أتأكد من المعلومة دي مع الفريق قبل ما أأكدها لك."
+    BLOCKED_CAVEAT_EN = "Let me confirm this with the team before I quote it."
+
+    # ── Forecast honesty ──────────────────────────────────────────────────
+    # A price forecast is a PREDICTION with an uncertainty band, never a fact.
+    # Stating a specific FUTURE price/return as a CERTAINTY is redacted to a
+    # caveat (caveat-only — no human handoff). Properly HEDGED forecast prose
+    # ("indicative", "projected", "estimate", "توقّع", "تقديري") is left intact.
+    FORECAST_CAVEAT_EN = "That's an indicative forecast, not a guarantee — actual prices can differ."
+    FORECAST_CAVEAT_AR = "ده توقّع استرشادي مش ضمان — الأسعار الفعلية ممكن تختلف."
+
+    FUTURE_PRICE_PATTERNS = [
+        r'will\b|going to|by\s*20\d{2}|next\s*year|in\s*\d+\s*(?:months?|years?)',
+        r'هيوصل|هيبقى|هيزيد|هترتفع|السنة الجاية|العام القادم|خلال\s*\d+\s*(?:شهر|سنة|سنوات)|بعد\s*\d+\s*(?:شهر|سنة)',
+    ]
+    FUTURE_CERTAINTY_PATTERNS = [
+        r'guarantee\w*|guaranteed|definitely|certainly|for sure|no doubt|'
+        r'will\s*(?:reach|hit|be worth|double|rise to|grow to)',
+        r'مضمون|أكيد|بالتأكيد|حتمًا|لازم يوصل|مفيش شك|هيتضاعف',
+    ]
+    FORECAST_HEDGE_PATTERNS = [
+        r'indicative|projected|estimat\w*|forecast\w*|approximate|roughly|'
+        r'\bmay\b|\bmight\b|\bcould\b|\baround\b|\babout\b|expected|likely',
+        r'توقّ?ع|تقدير\w*|استرشاد\w*|تقريب\w*|حوالي|ممكن|قد\s|متوقّ?ع|مرجّ?ح',
+    ]
+
+    # Cheap pre-check for the streaming path: which turns warrant buffer-then-
+    # verify BEFORE flushing tokens? Price/ROI/payment/legal questions, plus any
+    # turn that quotes specific listings (handled via has_properties below).
+    HIGH_RISK_QUERY_PATTERNS = [
+        r'price|سعر|بكام|تكلفة|cost|مقدم|down\s*payment|installment|قسط|تقسيط',
+        r'roi|عائد|return|نمو|appreciation|أرباح|profit',
+        r'law|قانون|legal|قانوني|civil\s*code|مدني|registration|تسجيل|'
+        r'الشهر العقاري|\bFRA\b|guarantee|مضمون|ضمان|tax|ضريبة',
+    ]
+
+    def is_high_risk_turn(self, query: str, has_properties: bool) -> bool:
+        """Cheap regex pre-check for streaming. True when the reply will quote
+        listings, or the user asked about price / ROI / legal matters — those
+        turns are buffered and verified before any token is shown."""
+        if has_properties:
+            return True
+        q = query or ""
+        return any(re.search(p, q, re.IGNORECASE) for p in self.HIGH_RISK_QUERY_PATTERNS)
+
+    @staticmethod
+    def _split_sentences(text: str) -> List[str]:
+        """Split on Arabic + Latin sentence boundaries, keeping order."""
+        parts = re.split(r'(?<=[\.\!\?؟،\n])\s+', text or "")
+        return [p for p in parts if p.strip()]
+
+    def _verify_legal_claims(self, response_text: str) -> List[Dict]:
+        """Flag fabricated legal GUARANTEES — a legal/regulatory term co-occurring
+        with certainty/guarantee language in the same sentence. Plain legal
+        references (no guarantee word) are intentionally NOT flagged: the master
+        prompt cites Egyptian law as context and that's fine. These claims are
+        uncorrectable (we have no DB ground truth for legal promises) → block.
+        """
+        corrections: List[Dict] = []
+        for sentence in self._split_sentences(response_text):
+            has_legal = any(
+                re.search(p, sentence, re.IGNORECASE) for p in self.LEGAL_TERM_PATTERNS
+            )
+            if not has_legal:
+                continue
+            has_guarantee = any(
+                re.search(p, sentence, re.IGNORECASE) for p in self.GUARANTEE_PATTERNS
+            )
+            if not has_guarantee:
+                continue
+            self.verification_results.append({
+                "claim": f"Legal guarantee: {sentence.strip()[:80]}",
+                "mentioned": sentence.strip(),
+                "verified": False,
+            })
+            corrections.append({
+                "type": "legal_claim",
+                "sentence": sentence.strip(),
+                "mentioned": sentence.strip(),
+            })
+        return corrections
+
+    def _verify_forecast_claims(self, response_text: str) -> List[Dict]:
+        """Flag FUTURE-PRICE CERTAINTY: a sentence stating a specific future
+        price/return as a guarantee (future phrase + certainty word + a number),
+        UNLESS already hedged. Returned as caveat-only corrections — redacted to a
+        'forecast, not a guarantee' caveat without opening a human-handoff ticket
+        (a phrasing fix, not a fabricated fact)."""
+        corrections: List[Dict] = []
+        for sentence in self._split_sentences(response_text):
+            # Properly hedged forecast prose is legitimate — never flag it.
+            if any(re.search(p, sentence, re.IGNORECASE) for p in self.FORECAST_HEDGE_PATTERNS):
+                continue
+            has_future = any(re.search(p, sentence, re.IGNORECASE) for p in self.FUTURE_PRICE_PATTERNS)
+            has_certainty = any(re.search(p, sentence, re.IGNORECASE) for p in self.FUTURE_CERTAINTY_PATTERNS)
+            has_number = bool(re.search(r'\d', sentence))
+            if has_future and has_certainty and has_number:
+                self.verification_results.append({
+                    "claim": f"Future-price certainty: {sentence.strip()[:80]}",
+                    "mentioned": sentence.strip(),
+                    "verified": False,
+                })
+                corrections.append({
+                    "type": "forecast_certainty",
+                    "sentence": sentence.strip(),
+                    "mentioned": sentence.strip(),
+                    "caveat_en": self.FORECAST_CAVEAT_EN,
+                    "caveat_ar": self.FORECAST_CAVEAT_AR,
+                })
+        return corrections
+
+    def redact_blocked_claims(
+        self,
+        response_text: str,
+        blocked_corrections: List[Dict],
+    ) -> str:
+        """Replace blocked high-risk sentences with a neutral caveat instead of
+        inventing a number/fact. Used for fabricated legal guarantees and
+        invented compound names. Bilingual: picks the caveat by script of the
+        offending sentence.
+        """
+        if not blocked_corrections:
+            return response_text
+
+        result = response_text
+        for c in blocked_corrections:
+            target = (c.get("sentence") or c.get("mentioned") or "").strip()
+            if not target or target not in result:
+                continue
+            is_arabic = bool(re.search(r'[؀-ۿ]', target))
+            # Prefer a correction-specific caveat (e.g. forecast) over the generic one.
+            caveat = c.get("caveat_ar" if is_arabic else "caveat_en") or (
+                self.BLOCKED_CAVEAT_AR if is_arabic else self.BLOCKED_CAVEAT_EN
+            )
+            result = result.replace(target, caveat)
         return result
 
     def _verify_compound_names(

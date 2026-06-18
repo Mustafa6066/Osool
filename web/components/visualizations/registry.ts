@@ -167,6 +167,20 @@ registerVisualization(['payment_plan_comparison', 'payment_plan_analysis'], {
   },
 });
 
+// Fix 3: installment-first comparison of multiple listings by NPV-today.
+// Distinct from `payment_plan_comparison` above (per-property down-payment
+// options). Keyed on `data.rows`.
+registerVisualization('npv_plan_comparison', {
+  component: dynamic(() => import('./NpvPlanComparison'), { ssr: false }),
+  validate: (data) => Array.isArray(data.rows) && data.rows.length >= 2,
+  transformProps: (data, isRTL) => ({
+    rows: data.rows || [],
+    cheapestListingId: data.cheapest_listing_id,
+    cbeRate: data.cbe_rate_applied,
+    isRTL,
+  }),
+});
+
 registerVisualization('resale_vs_developer', {
   component: dynamic(() => import('./ResaleVsDeveloper'), { ssr: false }),
   validate: () => true, // always renders if type matches

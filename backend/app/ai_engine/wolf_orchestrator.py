@@ -1272,7 +1272,26 @@ class WolfBrain:
                 showing_strategy,
                 wolf_strategy=strategy, # Pass the strategy to force matching charts
                 analytics_context=analytics_context,
-            )# PRICE DEFENSE (The "Wolf" Logic)
+            )
+
+            # Comparison/installment turn where the NPV card didn't render
+            # (fewer than 2 unit listings in context — e.g. the user named
+            # compounds). Fill it from representative DB units so the comparison
+            # still appears. Best-effort; never blocks the response.
+            if not any(a.get("type") == "npv_plan_comparison" for a in ui_actions):
+                _act = (getattr(intent, "action", "") or "").lower()
+                if _act in ("comparison", "installment_inquiry"):
+                    try:
+                        _rep_units = await self._fetch_representative_units(
+                            session, intent, scored_properties
+                        )
+                        if _rep_units and len(_rep_units) >= 2:
+                            _card = self._build_payment_plan_comparison(_rep_units)
+                            if _card:
+                                ui_actions.append(_card)
+                    except Exception as _e:
+                        logger.warning(f"NPV card fallback skipped: {_e}")
+            # PRICE DEFENSE (The "Wolf" Logic)
             no_discount_mode = False
             top_wolf_analysis = "FAIR_VALUE"
             if is_discount_request(query):
@@ -1380,18 +1399,79 @@ class WolfBrain:
                     properties_mentioned=properties_for_verify,
                     session=session,
                 )
-                if verification.get("corrections"):
-                    logger.info(f"🔍 VERIFIER: Found {len(verification['corrections'])} corrections (confidence: {verification.get('confidence', 'N/A')})")
-                    # Auto-rewrite: fix hallucinated numbers before user sees them
-                    original_response = response_text
-                    response_text = await verifier_agent.rewrite_hallucinated_response(
-                        response_text=response_text,
-                        corrections=verification["corrections"],
+
+                policy = verification.get("policy", "serve")
+                correctable = verification.get("correctable_corrections", [])
+                blocked = verification.get("blocked_corrections", [])
+
+                if policy != "serve":
+                    logger.info(
+                        f"🔍 VERIFIER: policy={policy} "
+                        f"({len(correctable)} correctable, {len(blocked)} blocked, "
+                        f"confidence={verification.get('confidence', 'N/A')})"
                     )
+                    original_response = response_text
+
+                    # Correctable: swap hallucinated numbers for the DB truth.
+                    if correctable:
+                        response_text = await verifier_agent.rewrite_hallucinated_response(
+                            response_text=response_text,
+                            corrections=correctable,
+                        )
+
+                    # Blocked: high-risk + uncorrectable (fabricated legal
+                    # guarantees, invented compounds). Redact + caveat instead of
+                    # inventing, then log + open a human-handoff ticket.
+                    if blocked:
+                        response_text = verifier_agent.redact_blocked_claims(
+                            response_text=response_text,
+                            blocked_corrections=blocked,
+                        )
+                        verification["caveat"] = (
+                            verifier_agent.BLOCKED_CAVEAT_AR if language == "ar"
+                            else verifier_agent.BLOCKED_CAVEAT_EN
+                        )
+                        await self._handle_blocked_handoff(
+                            session=session,
+                            user_id=user_id,
+                            session_id=session_id,
+                            query=query,
+                            original_response=original_response,
+                            blocked_corrections=blocked,
+                        )
+
                     verification["rewritten"] = (response_text != original_response)
+                    verification["auto_corrected"] = verification["rewritten"]
+                    verification["fix_count"] = len(correctable)
                     verification["original_response"] = original_response if verification["rewritten"] else None
                     if verification["rewritten"]:
-                        logger.info(f"✅ VERIFIER INTERCEPTOR: Response auto-corrected ({len(verification['corrections'])} fixes)")
+                        logger.info(
+                            f"✅ VERIFIER INTERCEPTOR: response modified "
+                            f"(corrected={len(correctable)}, blocked={len(blocked)})"
+                        )
+
+                # Forecast honesty: redact any future-price CERTAINTY phrasing to a
+                # "forecast, not a guarantee" caveat. Caveat-only — runs regardless of
+                # policy and does NOT open a human-handoff ticket (it's a phrasing fix,
+                # not a fabricated fact). Hedged forecast prose is left untouched.
+                caveat_corr = verification.get("caveat_corrections", [])
+                if caveat_corr:
+                    before_caveat = response_text
+                    response_text = verifier_agent.redact_blocked_claims(
+                        response_text=response_text,
+                        blocked_corrections=caveat_corr,
+                    )
+                    if response_text != before_caveat:
+                        verification["rewritten"] = True
+                        verification["auto_corrected"] = True
+                        if not verification.get("caveat"):
+                            verification["caveat"] = (
+                                verifier_agent.FORECAST_CAVEAT_AR if language == "ar"
+                                else verifier_agent.FORECAST_CAVEAT_EN
+                            )
+                        logger.info(
+                            f"🔮 VERIFIER: redacted {len(caveat_corr)} future-price certainty claim(s)"
+                        )
             except Exception as e:
                 logger.warning(f"Verifier agent skipped: {e}")
 
@@ -1572,6 +1652,75 @@ class WolfBrain:
             except Exception:
                 pass
         return None
+
+    async def _handle_blocked_handoff(
+        self,
+        *,
+        session: AsyncSession,
+        user_id: Optional[int],
+        session_id: Optional[str],
+        query: Optional[str],
+        original_response: str,
+        blocked_corrections: List[Dict],
+    ) -> None:
+        """A high-risk claim was blocked (fabricated legal guarantee / invented
+        compound). Log it at high severity and, when we know who the user is,
+        open a human-handoff ticket so a person follows up. Best-effort: never
+        breaks chat. Uses its own DB session so it cannot corrupt the request
+        transaction.
+        """
+        try:
+            from app.database import AsyncSessionLocal
+            from app.models import HallucinationFlag, Ticket
+
+            legal_hits = [c for c in blocked_corrections if c.get("type") == "legal_claim"]
+            claim_summary = "; ".join(
+                (c.get("sentence") or c.get("mentioned") or "")[:200]
+                for c in blocked_corrections
+            )[:1000]
+
+            async with AsyncSessionLocal() as bg:
+                # 1. Always log the blocked claims at HIGH severity for review.
+                for c in blocked_corrections:
+                    bg.add(HallucinationFlag(
+                        agent_name="wolf_brain_verifier",
+                        session_id=(session_id[:128] if session_id else None),
+                        user_id=user_id,
+                        query=((query or "")[:2000] or None),
+                        response_text=(original_response or "")[:8000],
+                        claim_text=(c.get("sentence") or c.get("mentioned") or "")[:500],
+                        claim_type=("legal" if c.get("type") == "legal_claim" else "developer"),
+                        verified=False,
+                        evidence_source="verifier_agent.block",
+                        severity="high",
+                        verifier_reason="blocked: fabricated legal guarantee or invented compound",
+                    ))
+
+                # 2. Open a handoff ticket — only when we have a user to follow up with.
+                if user_id:
+                    bg.add(Ticket(
+                        user_id=user_id,
+                        subject="AI response held for review (high-risk claim)",
+                        description=(
+                            "The Osool verifier blocked a high-risk claim before it reached "
+                            "the buyer and substituted a 'let me confirm with the team' caveat.\n\n"
+                            f"Blocked claim(s): {claim_summary}\n\n"
+                            f"User asked: {(query or '')[:500]}\n\n"
+                            f"Original AI draft (pre-redaction):\n{(original_response or '')[:2000]}"
+                        ),
+                        category=("legal" if legal_hits else "property"),
+                        priority="high",
+                        status="open",
+                    ))
+
+                await bg.commit()
+
+            logger.info(
+                f"🚧 VERIFIER BLOCK: {len(blocked_corrections)} claim(s) blocked + logged"
+                + (f"; ticket opened for user {user_id}" if user_id else "; anonymous (no ticket)")
+            )
+        except Exception as e:
+            logger.warning(f"Blocked-claim handoff failed (non-fatal): {e}")
 
     async def _save_user_memory(self, session: AsyncSession, user_id: int, memory: ConversationMemory):
         """Save/update cross-session memory to DB for a logged-in user."""
@@ -2834,12 +2983,224 @@ class WolfBrain:
                     "data": growth_data
                 })
 
+        # Installment-first comparison (Fix 3): surface true cash-equivalent
+        # (NPV) cost + rent-vs-buy so the buyer compares real money, not sticker.
+        # Fires when a full list is shown OR the turn is explicitly about
+        # comparing / installments — whenever 2+ priced listings are in play.
+        intent_action = (getattr(intent, 'action', '') or '').lower()
+        is_comparison_turn = intent_action in ('comparison', 'installment_inquiry')
+        if (properties and len(properties) >= 2
+                and (showing_strategy == 'FULL_LIST' or is_comparison_turn)):
+            plan_cmp = self._build_payment_plan_comparison(properties)
+            if plan_cmp:
+                add_action(plan_cmp)
+
         # Sort by priority
         priority_order = {"high": 0, "medium": 1, "low": 2}
         ui_actions.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 3))
 
         return ui_actions
-    
+
+    def _build_payment_plan_comparison(self, properties: List[Dict]) -> Optional[Dict]:
+        """Structured installment-first comparison (Fix 3): NPV-today + rent-vs-buy
+        for the shown listings, sorted cheapest-in-real-money first. Reuses the
+        valuation engine + rent comparator (same math as /valuation/compare-plans).
+        Returns a ui_action dict, or None when fewer than 2 priced listings."""
+        try:
+            from app import valuation_engine as _ve
+            from app.valuation_engine import PaymentTimeline
+            from app.valuation_engine import normalize_down_payment_to_egp as _down_payment_to_egp
+            from .analytical_engine import PaymentPlanAnalyzer
+        except Exception:
+            return None
+
+        engine = _ve._engine
+        analyzer = PaymentPlanAnalyzer()
+        rows: List[Dict] = []
+
+        for p in properties[:5]:
+            try:
+                price = float(p.get("price") or p.get("total_price") or 0)
+            except (TypeError, ValueError):
+                price = 0.0
+            if price <= 0:
+                continue
+
+            dp_raw, yr_raw, mo_raw = p.get("down_payment"), p.get("installment_years"), p.get("monthly_installment")
+            try:
+                dpf = float(dp_raw) if dp_raw not in (None, "") else 0.0
+            except (TypeError, ValueError):
+                dpf = 0.0
+            try:
+                yrs = int(yr_raw) if yr_raw not in (None, "") else 0
+            except (TypeError, ValueError):
+                yrs = 0
+            try:
+                mof = float(mo_raw) if mo_raw not in (None, "") else 0.0
+            except (TypeError, ValueError):
+                mof = 0.0
+
+            location = p.get("location") or p.get("area") or ""
+            label = p.get("compound") or p.get("title") or p.get("developer") or f"#{p.get('id', '')}"
+
+            # Property.down_payment is stored as a PERCENTAGE (e.g. 10 = 10%);
+            # some feeds use a fraction (0.10) or an absolute EGP figure.
+            # Normalize to an EGP amount for the NPV engine.
+            dp_egp = _down_payment_to_egp(dpf, price)
+
+            plan = None
+            if dp_egp > 0 and 0 < yrs <= 30 and mof > 0 and dp_egp < price:
+                try:
+                    plan = PaymentTimeline(
+                        down_payment=dp_egp, installments_per_year=12,
+                        total_years=yrs, periodic_installment_amount=mof,
+                    )
+                except Exception:
+                    plan = None
+            try:
+                npv = engine.calculate_effective_cash_npv(price, plan)
+            except (ValueError, AssertionError):
+                npv = price
+                plan = None
+
+            monthly_equiv = (
+                int(mof) if mof > 0
+                else (int((price - dp_egp) / (yrs * 12)) if yrs > 0 else 0)
+            )
+            rent = analyzer._compare_to_rent(monthly_equiv, location) if monthly_equiv > 0 else {}
+
+            rows.append({
+                "listing_id": str(p.get("id", "")),
+                "label": label,
+                "sticker_price": round(price, 2),
+                "down_payment": round(dp_egp, 2) if dp_egp > 0 else None,
+                "down_payment_pct": round(dp_egp / price * 100, 1) if dp_egp > 0 else None,
+                "monthly_installment": round(mof, 2) if mof > 0 else None,
+                "years": yrs if yrs > 0 else None,
+                "npv_today": round(npv, 2),
+                "npv_discount_pct": round((price - npv) / price * 100, 1),
+                "is_cash": plan is None,
+                "rent_ratio": rent.get("ratio"),
+                "avg_rent": rent.get("avg_rent"),
+                "verdict_ar": rent.get("verdict_ar"),
+                "verdict_en": rent.get("verdict_en"),
+            })
+
+        if len(rows) < 2:
+            return None
+
+        rows.sort(key=lambda r: r["npv_today"])
+        return {
+            # Distinct from the existing per-property `payment_plan_comparison`
+            # (down-payment options); this compares listings by NPV-today.
+            "type": "npv_plan_comparison",
+            "priority": "high",
+            "title": "مقارنة الأقساط بالقيمة الحالية",
+            "title_en": "Installment comparison (today's money)",
+            "data": {
+                "rows": rows,
+                "cheapest_listing_id": rows[0]["listing_id"],
+                "cbe_rate_applied": engine.cbe_rate,
+            },
+        }
+
+    async def _fetch_representative_units(
+        self,
+        session: AsyncSession,
+        intent: Intent,
+        existing: List[Dict],
+    ) -> List[Dict]:
+        """Comparison/installment turns that name compounds (or return < 2 unit
+        listings) leave the NPV card with nothing to compare. Pull one
+        representative (cheapest priced) listing per distinct compound from the
+        DB — scoped to the location / property type in play — so the card can
+        still render. Best-effort: returns [] on any error."""
+        try:
+            from app.models import Property
+            from sqlalchemy import select, func
+
+            def _row_to_unit(p) -> Dict:
+                return {
+                    "id": p.id,
+                    "price": float(p.price or 0),
+                    "compound": p.compound,
+                    "developer": p.developer,
+                    "location": p.location,
+                    "title": p.title,
+                    "size_sqm": p.size_sqm,
+                    "down_payment": p.down_payment,
+                    "installment_years": p.installment_years,
+                    "monthly_installment": p.monthly_installment,
+                }
+
+            filters = getattr(intent, "filters", {}) or {}
+            named = filters.get("compounds") or []
+            location = filters.get("location")
+            ptype = filters.get("property_type")
+
+            seen: set = set()
+            units: List[Dict] = []
+            for e in (existing or []):
+                c = (e.get("compound") or "").strip().lower()
+                if c:
+                    seen.add(c)
+            units.extend(existing or [])
+
+            # Preferred path: the user named specific compounds. Pull the cheapest
+            # priced listing for each (case-insensitive contains match), so the
+            # card compares exactly the compounds asked about.
+            if named:
+                for name in named:
+                    if len(units) >= 4:
+                        break
+                    key = str(name).strip().lower()
+                    if not key or key in seen:
+                        continue
+                    stmt = (
+                        select(Property)
+                        .where(Property.price > 0)
+                        .where(Property.compound.ilike(f"%{name}%"))
+                        .order_by(Property.price.asc())
+                        .limit(1)
+                    )
+                    r = await session.execute(stmt)
+                    p = r.scalars().first()
+                    if p:
+                        seen.add(key)
+                        units.append(_row_to_unit(p))
+                if len(units) >= 2:
+                    return units
+                # else fall through to the area-scoped fallback below
+
+            # Fallback: one cheapest listing per distinct compound, scoped to the
+            # location / property type in play.
+            stmt = select(Property).where(Property.price > 0)
+            if location:
+                stmt = stmt.where(Property.location == location)
+            if ptype:
+                stmt = stmt.where(func.lower(Property.type) == str(ptype).lower())
+            stmt = stmt.order_by(Property.price.asc()).limit(40)
+
+            result = await session.execute(stmt)
+            props = result.scalars().all()
+
+            for p in props:
+                c = (p.compound or "").strip().lower()
+                if not c or c in seen:
+                    continue
+                seen.add(c)
+                units.append(_row_to_unit(p))
+                if len(units) >= 4:
+                    break
+            return units
+        except Exception as e:
+            logger.warning(f"Representative-unit fetch failed: {e}")
+            try:
+                await session.rollback()
+            except Exception:
+                pass
+            return []
+
     async def _generate_wolf_narrative(
         self,
         query: str,

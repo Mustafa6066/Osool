@@ -362,6 +362,14 @@ async def update_market_indicators(db_session) -> Dict[str, any]:
         except Exception as e:
             logger.warning(f"Failed to upsert {key}: {e}")
 
+    # 3b. Append dated observations into market_indicator_history so the forecast
+    #     engine has a growing real-vs-nominal deflator series (MarketIndicator is
+    #     latest-only). Reuses this existing weekly writer — no separate cron.
+    try:
+        await _append_indicator_history(db_session, final_data)
+    except Exception as e:
+        logger.warning(f"Indicator history append failed (non-fatal): {e}")
+
     await db_session.commit()
     logger.info(f"Economic scraper: updated {updated_count}/{len(final_data)} market indicators")
 
@@ -372,3 +380,51 @@ async def update_market_indicators(db_session) -> Dict[str, any]:
         "fallback": len(final_data) - len(scraped_data),
         "indicators": {k: v["value"] for k, v in final_data.items()},
     }
+
+
+async def _append_indicator_history(db_session, final_data: Dict[str, any]) -> None:
+    """
+    Append a dated observation per macro key into market_indicator_history.
+
+    Powers the forecast engine's CPI-index deflator (real = nominal * cpi(base)/cpi(t)).
+    Directly observed keys (inflation_rate, egp_per_usd) are appended as-is; the
+    cpi_index LEVEL is advanced by compounding the latest seeded/known index at the
+    current annual inflation rate over the elapsed interval — so the deflator series
+    keeps growing weekly without a dedicated FRED index fetch.
+    """
+    from app.models import MarketIndicatorHistory
+    from sqlalchemy import select
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+
+    direct = {}
+    if "inflation_rate" in final_data:
+        direct["inflation_rate"] = (float(final_data["inflation_rate"]["value"]),
+                                    final_data["inflation_rate"].get("source", "economic_scraper"))
+    if "usd_egp_rate" in final_data:
+        direct["egp_per_usd"] = (float(final_data["usd_egp_rate"]["value"]),
+                                 final_data["usd_egp_rate"].get("source", "economic_scraper"))
+
+    for key, (value, src) in direct.items():
+        db_session.add(MarketIndicatorHistory(key=key, value=value, observed_at=now, source=src))
+
+    infl = direct.get("inflation_rate", (None, None))[0]
+    if infl is not None:
+        last = (await db_session.execute(
+            select(MarketIndicatorHistory.value, MarketIndicatorHistory.observed_at)
+            .where(MarketIndicatorHistory.key == "cpi_index")
+            .order_by(MarketIndicatorHistory.observed_at.desc()).limit(1)
+        )).first()
+        if last:
+            last_level, last_dt = float(last[0]), last[1]
+            try:
+                dt_years = max((now - last_dt).days / 365.25, 0.0)
+            except TypeError:  # naive vs aware guard
+                dt_years = 0.0
+            if dt_years > 0:
+                new_level = last_level * ((1 + infl) ** dt_years)
+                db_session.add(MarketIndicatorHistory(
+                    key="cpi_index", value=round(new_level, 4), observed_at=now,
+                    source="economic_scraper (compounded)",
+                ))

@@ -27,7 +27,7 @@ from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import AsyncSessionLocal
-from app.models import Property
+from app.models import Property, PropertyPriceSnapshot
 from app.ingestion.deterministic_normalizer import NormalizedProperty
 
 logger = logging.getLogger(__name__)
@@ -111,6 +111,7 @@ async def upsert_properties(
     properties: Sequence[NormalizedProperty],
     run_id: str,
     skip_anomaly_check: bool = False,
+    source: str = "nawy",
 ) -> UpsertResult:
     """
     Differential hash upsert for a batch of normalized properties.
@@ -305,6 +306,7 @@ async def upsert_properties(
                 # Flush batch every N rows to bound memory
                 if len(batch_buffer) >= _BATCH_COMMIT_SIZE:
                     await _flush_batch(db, batch_buffer)
+                    await _flush_snapshots(db, batch_buffer, now, source)
                     batch_buffer = []
 
             except Exception as exc:
@@ -315,6 +317,7 @@ async def upsert_properties(
         # Flush remaining rows
         if batch_buffer:
             await _flush_batch(db, batch_buffer)
+            await _flush_snapshots(db, batch_buffer, now, source)
 
         if price_events:
             try:
@@ -339,6 +342,31 @@ async def upsert_properties(
     return result
 
 
+def _split_developer_resale(
+    sale_type: Optional[str], price: Optional[float]
+) -> tuple[Optional[float], Optional[float]]:
+    """Derive the (developer_price, resale_price) split from sale_type + price.
+
+    Mirrors migration 027's backfill semantics, but applied at write time so
+    LIVE scrapes keep the split fresh (the migration only touched rows that
+    existed in 2026-05). A property is either developer-priced or resale-priced,
+    never both — matching how the free-path comparison engine reads the columns.
+
+      sale_type ∈ {Developer, Nawy Now} → developer_price = price
+      sale_type == Resale               → resale_price   = price
+      unknown / NULL                    → leave both NULL (query-time fallback
+                                          still coalesces from sale_type+price)
+    """
+    st = (sale_type or "").strip().lower()
+    if not st or price is None:
+        return None, None
+    if "resale" in st:
+        return None, float(price)
+    if "developer" in st or "nawy now" in st or "nawy_now" in st:
+        return float(price), None
+    return None, None
+
+
 def _build_row(
     prop: NormalizedProperty,
     run_id: str,
@@ -347,6 +375,7 @@ def _build_row(
     embedding: Optional[List[float]],
 ) -> dict:
     """Maps NormalizedProperty fields to Property table column names."""
+    developer_price, resale_price = _split_developer_resale(prop.sale_type, prop.price)
     return {
         "title": prop.title,
         "description": prop.description,
@@ -355,6 +384,8 @@ def _build_row(
         "compound": prop.compound,
         "developer": prop.developer,
         "price": prop.price,
+        "developer_price": developer_price,
+        "resale_price": resale_price,
         "price_per_sqm": prop.price_per_sqm,
         "size_sqm": prop.size_sqm,
         "bedrooms": prop.bedrooms or 0,
@@ -422,3 +453,48 @@ async def _flush_batch(db, rows: list[dict]) -> None:
     )
 
     await db.execute(upsert_stmt)
+
+
+async def _flush_snapshots(db, rows: list[dict], now: datetime, source: str) -> None:
+    """
+    Record a unit-level price observation for each new/changed property.
+
+    This is the ACCUMULATE pillar of the forecasting feature: property_price_snapshot
+    (migration 031) was never written before, so the forecaster had no real history.
+    Only the expensive path (insert / hash-changed) reaches here, so we capture a
+    point precisely when a property is first seen or its core attributes (incl. price)
+    move — exactly the signal a price trend needs. Best-effort: never breaks the upsert.
+
+    Property ids are resolved via the same nawy_url lookup the cache-invalidation path
+    already uses (the upsert above has just persisted them).
+    """
+    if not rows:
+        return
+    urls = [r["nawy_url"] for r in rows if r.get("nawy_url")]
+    if not urls:
+        return
+    try:
+        id_rows = (await db.execute(
+            select(Property.id, Property.nawy_url).where(Property.nawy_url.in_(urls))
+        )).all()
+        url_to_id = {url: pid for pid, url in id_rows}
+        snaps: list[dict] = []
+        for r in rows:
+            pid = url_to_id.get(r.get("nawy_url"))
+            if pid is None or r.get("price") is None:
+                continue
+            run_id = r.get("last_scrape_run_id")
+            snaps.append({
+                "property_id": pid,
+                "observed_at": now,
+                "price_egp": r["price"],
+                "price_per_sqm": r.get("price_per_sqm"),
+                "developer_price": r.get("developer_price"),
+                "resale_price": r.get("resale_price"),
+                "source": source,
+                "scrape_run_id": (run_id[:64] if run_id else None),
+            })
+        if snaps:
+            await db.execute(pg_insert(PropertyPriceSnapshot).values(snaps))
+    except Exception:
+        logger.warning("[repo] snapshot capture failed (non-fatal)", exc_info=True)
