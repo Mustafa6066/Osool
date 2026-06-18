@@ -89,11 +89,6 @@ registerVisualization(['la2ta_alert', 'لقطة'], {
   transformProps: (data, isRTL) => ({ ...data, isRTL }),
 });
 
-registerVisualization('law_114_guardian', {
-  component: dynamic(() => import('./Law114Guardian'), { ssr: false }),
-  validate: (data) => hasContent(data, ['capabilities', 'result', 'trust_badges', 'status', 'cta']),
-});
-
 registerVisualization('reality_check', {
   component: dynamic(() => import('./RealityCheck'), { ssr: false }),
   validate: (data) => hasContent(data, ['alternatives', 'message_ar', 'message_en']),

@@ -4,7 +4,6 @@ Osool Backend - Main FastAPI Application
 State-of-the-art Real Estate Platform for Egyptian Market
 
 Features:
-- AI-powered contract analysis (Egyptian Real Estate Law)
 - Smart property valuation with market reasoning
 - EGP payment verification (InstaPay/Fawry)
 """

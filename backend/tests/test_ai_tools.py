@@ -196,12 +196,6 @@ def test_xgboost_gpt4o_valuation_concept():
     assert 5_000_000 < final < 6_000_000
 
 
-def test_contract_audit_egyptian_law():
-    compliance = {"law_114_compliant": True, "red_flags": []}
-    assert compliance["law_114_compliant"] is True
-    assert len(compliance["red_flags"]) == 0
-
-
 # ---------------------------------------------------------------------------
 # TEST: VIEWING SCHEDULER
 # ---------------------------------------------------------------------------
@@ -212,22 +206,6 @@ def test_viewing_phone_validation():
         assert re.match(pattern, phone)
     for phone in ["invalid", "1234", "+201"]:
         assert not re.match(pattern, phone)
-
-
-# ---------------------------------------------------------------------------
-# TEST: RESERVATION JWT
-# ---------------------------------------------------------------------------
-
-def test_reservation_jwt_generation():
-    import jwt as pyjwt
-    import os
-    secret = os.environ.get("JWT_SECRET_KEY", "test-secret-key-for-pytest-minimum-32-chars-long")
-    payload = {"type": "reservation", "property_id": 123, "user_id": 789,
-               "exp": datetime.utcnow() + timedelta(hours=1)}
-    token = pyjwt.encode(payload, secret, algorithm="HS256")
-    decoded = pyjwt.decode(token, secret, algorithms=["HS256"])
-    assert decoded["type"] == "reservation"
-    assert decoded["property_id"] == 123
 
 
 # ---------------------------------------------------------------------------

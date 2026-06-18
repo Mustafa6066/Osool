@@ -230,8 +230,8 @@ def _predict_objections(psychology: PsychologyProfile, memory, intent, propertie
     # ── Counter-argument bank ──
     COUNTER_ARGS = {
         "delivery_risk": {
-            "counter_ar": "المطور ده تسليمه 95%+ في الوقت — وعندنا Law 114 بيحمي فلوسك لو حصل أي تأخير.",
-            "counter_en": "This developer has 95%+ on-time delivery — and our Law 114 Scanner protects your money against delays.",
+            "counter_ar": "المطور ده تسليمه 95%+ في الوقت — سجل تسليم موثق بيحمي فلوسك.",
+            "counter_en": "This developer has 95%+ on-time delivery — a verified track record that protects your money.",
         },
         "price_will_drop": {
             "counter_ar": "الأسعار مش هتنزل — تكلفة البناء النهاردة أعلى من سعر البيع. الـ downside risk شبه صفر.",
@@ -242,8 +242,8 @@ def _predict_objections(psychology: PsychologyProfile, memory, intent, propertie
             "counter_en": "Monthly installment is less than rent in the same area — and inflation makes installments lighter over time.",
         },
         "legal_safety": {
-            "counter_ar": "كل وحدة بنعرضها بتعدي على Law 114 Scanner — لو الورق مش نضيف بنستبعدها قبل ما توصلك.",
-            "counter_en": "Every unit we show passes our Law 114 Scanner — if papers aren't clean, we filter it out before it reaches you.",
+            "counter_ar": "كل وحدة بنعرضها من مطورين موثقين بسجل تسليم نضيف — بنركز على السمعة والبيانات الموثقة.",
+            "counter_en": "Every unit we show is from vetted developers with a clean delivery record — we focus on reputation and verified data.",
         },
         "wrong_timing": {
             "counter_ar": "أنا مش بقولك اشتري دلوقتي — بس الأرقام بتقول إن كل شهر تأخير بيكلفك فلوس حقيقية.",
@@ -835,21 +835,21 @@ class WolfBrain:
             # STEP 4: CONFIDENCE CHECK (The "No-Sell" Zone)
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             if psychology.primary_state == PsychologicalState.TRUST_DEFICIT:
-                logger.info("🛑 TRUST DEFICIT: Halting sales to run Law 114 Scan")
+                logger.info("🛑 TRUST DEFICIT: Halting sales to build trust with verified data")
                 
                 if language == "ar":
                     resp = (
                         "أنا حاسس إنك قلقان من وضع السوق، وعندك حق. مشاريع كتير بتتأخر في التسليم.\n\n"
                         "عشان كدة أنا مش هرشحلك أي حاجة دلوقتي.\n"
-                        "أنا هشغل **فحص قانوني (Law 114)** على أي مطور بتفكر فيه عشان نضمن تسلسل الملكية.\n\n"
+                        "خليني أوريك سجل التسليم الموثق لأي مطور بتفكر فيه — تاريخ التسليم والسمعة وثبات الأسعار.\n\n"
                         "قولي، مين المطور اللي قلقان منه؟"
                     )
                 else:
                     resp = (
                         "I sense you are worried about the market risks, and you are right. "
                         "Many projects are delayed. Forget about buying for a moment.\n\n"
-                        "I want to run a **Legal Scan** on any developer you are considering. "
-                        "I use a Law 114 Checklist to ensure ownership chains are clean. "
+                        "Let me show you the verified track record of any developer you are considering — "
+                        "delivery history, reputation, and how their prices have held up over time. "
                         "What developer are you worried about?"
                     )
 
@@ -857,10 +857,7 @@ class WolfBrain:
                 trust_suggestions_en = ["Which developer?", "Tell me about a project", "What worries you most?"]
                 return {
                     "response": resp,
-                    "ui_actions": [{
-                        "type": "law_114_guardian",
-                        "status": "active"
-                    }],
+                    "ui_actions": [],
                     "strategy": {"strategy": "confidence_building", "route": "legal"},
                     "psychology": psychology.to_dict(),
                     "suggestions": trust_suggestions_ar if language == "ar" else trust_suggestions_en,
@@ -2859,26 +2856,6 @@ class WolfBrain:
                     }
                 })
 
-        # LEGAL_ANXIETY -> Always show Law 114 Guardian
-        if psychology.primary_state == PsychologicalState.LEGAL_ANXIETY:
-            add_action({
-                "type": "law_114_guardian",
-                "priority": 9,
-                "status": "active",
-                "title": "فحص قانون 114",
-                "title_en": "Law 114 Legal Scan",
-                "data": {
-                    "status": "active",
-                    "capabilities": [
-                        "فحص تسلسل الملكية",
-                        "التحقق من رخص البناء",
-                        "مراجعة شروط العقد",
-                        "كشف البنود المخفية"
-                    ],
-                    "cta": "ارفع العقد وأنا أفحصه مجاناً"
-                }
-            })
-
         # ═══════════════════════════════════════════════════════════════
         # STRATEGY-DRIVEN CHARTS (Must match script)
         # ═══════════════════════════════════════════════════════════════
@@ -3543,12 +3520,12 @@ You MUST start your response with this EXACT sentence:
                  if language == 'ar':
                      wolf_insight_instruction += f"""
 [MANDATORY OPENER]
-Start with: "أنا عملت فحص (Law 114) على المطور ده. معندوش أي تأخيرات في التسليم آخر 5 سنين."
+Start with: "راجعت سجل المطور ده. معندوش أي تأخيرات في التسليم آخر 5 سنين."
 """
                  else:
                      wolf_insight_instruction += f"""
 [MANDATORY OPENER]
-Start with: "I've run the Law 114 check on this developer. They have 0 recorded delivery delays in the last 5 years."
+Start with: "I've reviewed this developer's track record. They have 0 recorded delivery delays in the last 5 years."
 """
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3768,7 +3745,7 @@ User is looking for family housing. Apply these rules:
 [CAPITAL_PRESERVATION_PSYCHOLOGY]
 User cares about SAFETY of their capital. Apply:
 - Lead with Tier 1 developers (delivery guarantee, resale premium)
-- Mention Law 114 protection immediately
+- Mention developer delivery guarantees immediately
 - Use replacement cost argument: "سعر الوحدة أقل من تكلفة بناءها"
 - Frame property as inflation hedge, not speculation
 - Highlight compound security features

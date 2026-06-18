@@ -19,7 +19,7 @@ export default function OsoolFooter() {
               <b>Osool</b>
             </div>
             <p className="osool-footer-tag">
-              أصول — the verified registry, AI valuation, and contract review for
+              أصول — the verified registry and AI valuation for
               Egyptian real estate. Made in Cairo.
             </p>
           </div>

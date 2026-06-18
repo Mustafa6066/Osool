@@ -6,7 +6,7 @@ Osool is an Egypt-focused real estate intelligence platform built to help users 
 
 The platform combines:
 - A user-facing property and advisory experience.
-- AI-assisted valuation and legal analysis workflows.
+- AI-assisted valuation workflows.
 - An autonomous marketing and SEO orchestration backend.
 - Admin and analytics tooling for operations and growth.
 
@@ -34,8 +34,6 @@ Main stack:
 Main capabilities:
 - AI chat for property discovery
 - Property valuation and price comparison
-- Contract/legal risk analysis
-- Reservation and sale finalization flows
 - Fractional investment endpoints
 
 ### B) Osool-orchestrator (Autonomous Growth Engine)
@@ -87,7 +85,6 @@ The chat layer should:
 Evaluation workflows include:
 - AI valuation: estimated fair value and confidence.
 - Price comparison: asking price vs market context.
-- Legal analysis: contract risk flags aligned with local legal context.
 
 ### 4.3 Decision and Conversion
 
@@ -114,8 +111,7 @@ Retention is supported by proactive insights and follow-up orchestration.
 Key endpoint families include:
 - Health: service liveness/readiness checks
 - Chat: AI advisory interaction
-- Reservation/transaction: reserve and finalize-sale
-- AI analysis: valuation, compare-price, contract analysis
+- AI analysis: valuation, compare-price
 - Fractional: investment-related flows
 
 ### Service Responsibilities
@@ -170,7 +166,6 @@ Typical AI responsibilities:
 - Natural language understanding for user intent
 - Retrieval-augmented property guidance
 - Valuation explanation generation
-- Contract clause risk summarization
 - Growth automation content and recommendations
 
 Design principles for AI outputs:
@@ -246,7 +241,7 @@ Typical setup in this repository:
 Each release should verify:
 - Health endpoints
 - Critical chat and analysis paths
-- Reservation and conversion path integrity
+- Conversion path integrity
 - Worker/queue liveness for async tasks
 
 ---

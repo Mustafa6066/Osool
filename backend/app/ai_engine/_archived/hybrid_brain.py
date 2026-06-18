@@ -51,7 +51,6 @@ class UIActionType(Enum):
     PAYMENT_TIMELINE = "payment_timeline"
     MARKET_TREND_CHART = "market_trend_chart"
     LA2TA_ALERT = "la2ta_alert"
-    LAW_114_GUARDIAN = "law_114_guardian"
     REALITY_CHECK = "reality_check"
     
     # V6: Advanced Analytics for Buyers & Investors
@@ -162,13 +161,12 @@ If purpose = "living" OR user mentions "سكن عائلي" / "family home" / "ch
 → DISCARD high-ROI units with poor developer reputation.
 → PRIORITIZE: Gated communities, schools nearby, established neighborhoods.
 → STRATEGY: "Family Safety Pitch" over "ROI Pitch".
-→ TRIGGER: Suggest "Law 114 Guardian" for legal protection.
 
 OUTPUT format:
 1. OBSERVATION: (e.g., "User asking for family home - LIFE DECISION MODE")
 2. DIAGNOSIS: (e.g., "Risk profile = Family Security, not Investor")
 3. STRATEGY: (e.g., "Family Safety Pitch - prioritize developer reputation")
-4. TACTIC: (e.g., "Trigger Law 114 Guardian, highlight community quality")
+4. TACTIC: (e.g., "Highlight community quality and developer reputation")
 
 Keep it concise (max 4 lines)."""
             
@@ -774,32 +772,6 @@ Produce ONLY valid JSON (no markdown, no code fences). Response MUST be in the S
                         la2ta_bargains[0].get('la2ta_score', 10)
                     )
                 })
-
-        # ═══════════════════════════════════════════════════════════════
-        # RULE 6: Law 114 Guardian - Risk-averse OR legal keywords
-        # ═══════════════════════════════════════════════════════════════
-        legal_keywords = ['عقد', 'contract', 'قانون', 'legal', 'ضمان', 'guarantee', 'أمان', 'safe', 'مخاطر', 'risk']
-        if (psychology.primary_state == PsychologicalState.RISK_AVERSE or
-            any(kw in query_lower for kw in legal_keywords)):
-            ui_actions.append({
-                "type": UIActionType.LAW_114_GUARDIAN.value,
-                "priority": 5,
-                "data": {
-                    "status": "ready",
-                    "capabilities": [
-                        "كشف البنود المخفية (Red Flag Detection)",
-                        "التحقق من بنود العقد الناقصة",
-                        "مراجعة شروط المطور",
-                        "التوافق مع قانون 114"
-                    ],
-                    "cta": {
-                        "text_ar": "ارفع العقد وأنا أفحصه",
-                        "text_en": "Upload contract for AI scan"
-                    }
-                },
-                "trigger_reason": "Legal safety visualization",
-                "chart_reference": "عايز تطمن على العقد؟ ارفعه وأنا أفحصه"
-            })
 
         # ═══════════════════════════════════════════════════════════════
         # V6: ADVANCED ANALYTICS - Context-Aware Triggers

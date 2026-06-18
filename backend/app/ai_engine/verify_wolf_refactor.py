@@ -94,12 +94,7 @@ async def run_simulation():
                 profile={"first_name": "Skeptic"}
             )
             
-            # Assert
-            ui_actions = [a['type'] for a in result.get("ui_actions", [])]
-            if "upload_contract_trigger" in ui_actions:
-                print("✅ PASS: Correctly triggered 'upload_contract_trigger'.")
-            else:
-                print(f"❌ FAIL: Expected 'upload_contract_trigger', got {ui_actions}")
+            # (Contract-upload trigger scenario removed — contract-review feature retired.)
 
         # ==================================================================================
         # SCENARIO 3: THE NEGOTIATOR (Price Defense Test)

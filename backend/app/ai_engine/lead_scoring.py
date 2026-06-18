@@ -227,7 +227,7 @@ def score_lead(
     tools_used = session_metadata.get("tools_used", [])
     high_intent_tools = [
         "run_valuation_ai", "calculate_mortgage", "calculate_investment_roi",
-        "generate_reservation_link", "check_real_time_status"
+        "check_real_time_status"
     ]
     if any(tool in tools_used for tool in high_intent_tools):
         score += 15
@@ -444,7 +444,7 @@ if __name__ == "__main__":
 
     hot_session = {
         "properties_viewed": 5,
-        "tools_used": ["search_properties", "calculate_mortgage", "generate_reservation_link"],
+        "tools_used": ["search_properties", "calculate_mortgage"],
         "session_start_time": datetime.now() - timedelta(minutes=15),
         "duration_minutes": 15
     }

@@ -250,72 +250,7 @@ class OsoolHybridBrainProd:
                 "error": str(e)
             }
 
-    def audit_contract(self, contract_text: str) -> Dict[str, Any]:
-        """
-        Scans specifically for Egyptian Real Estate Scams using Legal Context (GPT-4o).
-        
-        Returns:
-            dict with risk_score, verdict, red_flags, missing_clauses, recommendations
-        """
-        system_prompt = """
-        You are a Senior Egyptian Real Estate Lawyer. Your job is to PROTECT THE BUYER.
-        Analyze the contract text based on Egyptian Civil Code No. 131 of 1948 and Law 114 of 1946.
-
-        CRITICAL CHECKS (You MUST look for these):
-        1. "Tawkil" (Power of Attorney / توكيل رسمي): Is a Tawkil Rasmy Aam or Khass explicitly mentioned?
-        2. "Delivery Date & Penalty" (تاريخ التسليم وغرامة التأخير): Is there a specific penalty for late delivery?
-        3. "Withdrawal/Cancellation" (حق الإلغاء): Can the SELLER cancel the contract arbitrarily?
-        4. "Taslsol Malekeya" (تسلسل الملكية): Is the ownership chain documented?
-        5. "Area Variance" (فرق المساحة): Does the contract allow +/- 10% area change without compensation?
-
-        Return STRICT JSON:
-        {
-            "risk_score": int (0-100, where 100 is extreme danger),
-            "verdict": "Safe to Sign" or "Proceed with Caution" or "DO NOT SIGN",
-            "red_flags": ["Specific dangerous clause with explanation"],
-            "missing_clauses": ["What should be there but is missing"],
-            "recommendations": ["What the buyer should demand before signing"],
-            "legal_summary_arabic": "ملخص قانوني بالعربية للمستخدم"
-        }
-        """
-
-        try:
-            from app.services.circuit_breaker import openai_breaker
-            from app.services.cost_monitor import cost_monitor
-
-            # Phase 4: Wrap OpenAI call with circuit breaker
-            def _gpt_audit():
-                response = self.openai_client.chat.completions.create(
-                    model=GPT_MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Analyze this contract:\n\n{contract_text[:15000]}"}
-                    ],
-                    response_format={"type": "json_object"},
-                    temperature=0.1
-                )
-
-                # Phase 4: Track cost
-                usage = response.usage
-                cost_monitor.log_usage(
-                    model="gpt-4o",
-                    input_tokens=usage.prompt_tokens,
-                    output_tokens=usage.completion_tokens,
-                    context="contract_audit"
-                )
-
-                return json.loads(response.choices[0].message.content)
-
-            return openai_breaker.call(_gpt_audit)
-
-        except Exception as e:
-            return {
-                "error": f"Legal analysis failed: {str(e)}",
-                "risk_score": -1,
-                "verdict": "Analysis Failed"
-            }
-
-    def compare_asking_price(self, asking_price: int, location: str, 
+    def compare_asking_price(self, asking_price: int, location: str,
                               size: int, finishing: int) -> Dict[str, Any]:
         """
         Compare a seller's asking price against AI valuation.
@@ -359,10 +294,6 @@ class OsoolHybridBrainProd:
                                    floor: int = 3, is_compound: int = 1) -> Dict[str, Any]:
         """Async wrapper for get_valuation — runs in a thread to avoid blocking the event loop."""
         return await asyncio.to_thread(self.get_valuation, location, size, finishing, floor, is_compound)
-
-    async def audit_contract_async(self, contract_text: str) -> Dict[str, Any]:
-        """Async wrapper for audit_contract — runs in a thread to avoid blocking the event loop."""
-        return await asyncio.to_thread(self.audit_contract, contract_text)
 
     async def compare_asking_price_async(self, asking_price: int, location: str,
                                          size: int, finishing: int) -> Dict[str, Any]:
