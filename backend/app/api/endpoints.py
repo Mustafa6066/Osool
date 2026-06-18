@@ -1175,6 +1175,194 @@ async def _build_free_tier_payload(db: AsyncSession, message: str, requested_lan
     payload["response"] = clean_response_text(payload.get("response", ""))
     return payload
 
+# ═══════════════════════════════════════════════════════════════
+# INSTALLMENT-FIRST PLAN COMPARISON (Fix 3)
+# Egyptians shop by down payment + monthly installment, not sticker.
+# This surfaces the NPV "true cash-equivalent cost" + rent-vs-buy read
+# as a structured payload, reusing the valuation engine + rent comparator.
+# ═══════════════════════════════════════════════════════════════
+
+class PlanComparisonItem(BaseModel):
+    """One listing/plan to compare. Down payment + monthly + years define the
+    installment schedule; omit them (or send 0) for a full-cash listing."""
+    listing_id: str = Field(..., min_length=1)
+    label: Optional[str] = Field(default=None, description="Display name (compound/title).")
+    total_price: float = Field(..., gt=0, description="Sticker price in EGP.")
+    location: Optional[str] = Field(default="", description="Area label for rent comparison.")
+    down_payment: Optional[float] = Field(
+        default=None, ge=0,
+        description="Down payment as EGP (>100), percentage (1-100), or fraction (<=1). Normalized to EGP.",
+    )
+    installment_years: Optional[int] = Field(default=None, ge=0, le=30)
+    monthly_installment: Optional[float] = Field(default=None, ge=0, description="EGP per month.")
+    upfront_cash_discount_pct: float = Field(default=0.0, ge=0.0, lt=1.0)
+
+
+class ComparePlansRequest(BaseModel):
+    items: list[PlanComparisonItem] = Field(..., min_length=1, max_length=10)
+    language: str = Field(default="en")
+
+
+class PlanComparisonRow(BaseModel):
+    listing_id: str
+    label: Optional[str] = None
+    sticker_price: float
+    down_payment: Optional[float] = None
+    down_payment_pct: Optional[float] = None
+    monthly_installment: Optional[float] = None
+    years: Optional[int] = None
+    npv_today: float = Field(description="Cash-equivalent cost in today's EGP.")
+    npv_discount_pct: float = Field(
+        description="(sticker - npv)/sticker * 100. Positive = financing saves in PV terms."
+    )
+    is_cash: bool
+    rent_ratio: Optional[float] = None
+    rent_verdict: Optional[str] = None
+    avg_rent: Optional[float] = None
+
+
+class ComparePlansResponse(BaseModel):
+    rows: list[PlanComparisonRow] = Field(description="Sorted by npv_today ascending.")
+    cheapest_listing_id: Optional[str] = None
+    cbe_rate_applied: float
+
+
+@router.post("/valuation/compare-plans", tags=["valuation"])
+async def compare_payment_plans(body: ComparePlansRequest) -> ComparePlansResponse:
+    """Compare listings/plans by cash-equivalent NPV — the "cheapest in real
+    money, not sticker" view — plus a rent-vs-installment read for each.
+
+    Reuses ValuationEngine.calculate_effective_cash_npv (CBE-discounted) and
+    PaymentPlanAnalyzer._compare_to_rent. No new financial math lives here.
+    """
+    from app import valuation_engine as _ve
+    from app.valuation_engine import PaymentTimeline, normalize_down_payment_to_egp
+    from app.ai_engine.analytical_engine import PaymentPlanAnalyzer
+
+    engine = _ve._engine
+    analyzer = PaymentPlanAnalyzer()
+    rows: list[PlanComparisonRow] = []
+
+    for it in body.items:
+        # down_payment may arrive as EGP, a percentage, or a fraction — normalize.
+        dp_egp = normalize_down_payment_to_egp(it.down_payment, it.total_price)
+        plan = None
+        if (dp_egp > 0 and it.installment_years and it.monthly_installment
+                and 0 < it.installment_years <= 30
+                and it.monthly_installment > 0 and dp_egp < it.total_price):
+            try:
+                plan = PaymentTimeline(
+                    down_payment=dp_egp,
+                    installments_per_year=12,
+                    total_years=it.installment_years,
+                    periodic_installment_amount=it.monthly_installment,
+                    upfront_cash_discount_pct=it.upfront_cash_discount_pct or 0.0,
+                )
+            except Exception:
+                plan = None
+
+        try:
+            npv = engine.calculate_effective_cash_npv(it.total_price, plan)
+        except (ValueError, AssertionError):
+            # Inconsistent plan (e.g. plan total >> sticker): fall back to sticker.
+            npv = it.total_price
+            plan = None
+
+        monthly_equiv = (
+            int(it.monthly_installment) if it.monthly_installment
+            else (int((it.total_price - dp_egp) / (it.installment_years * 12))
+                  if it.installment_years else 0)
+        )
+        rent = analyzer._compare_to_rent(monthly_equiv, it.location or "") if monthly_equiv > 0 else None
+
+        rows.append(PlanComparisonRow(
+            listing_id=it.listing_id,
+            label=it.label,
+            sticker_price=round(it.total_price, 2),
+            down_payment=round(dp_egp, 2) if dp_egp > 0 else None,
+            down_payment_pct=round(dp_egp / it.total_price * 100, 1) if dp_egp > 0 else None,
+            monthly_installment=round(it.monthly_installment, 2) if it.monthly_installment else None,
+            years=it.installment_years,
+            npv_today=round(npv, 2),
+            npv_discount_pct=round((it.total_price - npv) / it.total_price * 100, 1),
+            is_cash=plan is None,
+            rent_ratio=(rent or {}).get("ratio"),
+            rent_verdict=((rent or {}).get("verdict_ar") if body.language == "ar"
+                          else (rent or {}).get("verdict_en")),
+            avg_rent=(rent or {}).get("avg_rent"),
+        ))
+
+    rows.sort(key=lambda r: r.npv_today)
+    return ComparePlansResponse(
+        rows=rows,
+        cheapest_listing_id=rows[0].listing_id if rows else None,
+        cbe_rate_applied=engine.cbe_rate,
+    )
+
+
+async def _apply_verifier_policy(
+    *,
+    response_text: str,
+    properties_mentioned: list,
+    db: AsyncSession,
+    query: str,
+    session_id: Optional[str],
+    user: Optional[User],
+    language: str,
+):
+    """Run the verifier and apply the SAME policy as the non-streaming path:
+    correct low-risk numbers, block high-risk claims (fabricated legal
+    guarantees / invented compounds) with a caveat + human-handoff ticket.
+
+    Returns (possibly-modified text, verification dict). Reused by both the
+    pre-verify-then-stream path and the post-stream defense-in-depth check so
+    streaming and non-streaming stay at parity.
+    """
+    from app.ai_engine.verifier_agent import verifier_agent
+
+    verification = await verifier_agent.verify_response(
+        response_text=response_text,
+        properties_mentioned=properties_mentioned,
+        session=db,
+    )
+    policy = verification.get("policy", "serve")
+    correctable = verification.get("correctable_corrections", [])
+    blocked = verification.get("blocked_corrections", [])
+    if policy == "serve":
+        return response_text, verification
+
+    original = response_text
+    if correctable:
+        response_text = await verifier_agent.rewrite_hallucinated_response(
+            response_text=response_text, corrections=correctable,
+        )
+    if blocked:
+        response_text = verifier_agent.redact_blocked_claims(
+            response_text=response_text, blocked_corrections=blocked,
+        )
+        verification["caveat"] = (
+            verifier_agent.BLOCKED_CAVEAT_AR if language == "ar"
+            else verifier_agent.BLOCKED_CAVEAT_EN
+        )
+        try:
+            await wolf_brain._handle_blocked_handoff(
+                session=db,
+                user_id=(user.id if user else None),
+                session_id=session_id,
+                query=query,
+                original_response=original,
+                blocked_corrections=blocked,
+            )
+        except Exception as e:
+            logger.warning(f"Stream blocked-handoff failed (non-fatal): {e}")
+
+    verification["rewritten"] = (response_text != original)
+    verification["auto_corrected"] = verification["rewritten"]
+    verification["fix_count"] = len(correctable)
+    verification["original_response"] = original if verification["rewritten"] else None
+    return response_text, verification
+
+
 @router.post("/chat/stream")
 @limiter.limit("20/minute")
 async def chat_stream(
@@ -1447,8 +1635,45 @@ async def chat_stream(
 
             stream_context = ai_result.get("_stream_context")
 
-            # ── REAL STREAMING: token-by-token from Claude API ──
-            if stream_context and isinstance(stream_context, dict):
+            from app.ai_engine.verifier_agent import verifier_agent
+            properties_for_verify = search_results[:5] if search_results else []
+            # Pre-check: high-risk turns (price/ROI/legal, or any listing quote)
+            # are buffered + verified BEFORE the first token. Streaming can't
+            # un-send tokens, so we never flush unverified high-risk text.
+            high_risk = verifier_agent.is_high_risk_turn(req.message, bool(properties_for_verify))
+            verified_already = False
+
+            if stream_context and isinstance(stream_context, dict) and high_risk:
+                # PRE-VERIFY-THEN-STREAM (high-risk): buffer full generation,
+                # verify + apply policy, then simulate-stream the SAFE text.
+                accumulated_text = ""
+                async for chunk in wolf_brain.stream_wolf_narrative(
+                    system_prompt=stream_context["system_prompt"],
+                    messages=stream_context["messages"],
+                    prefill=stream_context.get("prefill", ""),
+                ):
+                    accumulated_text += chunk
+                response_text = clean_response_text(accumulated_text)
+                response_text, verification = await _apply_verifier_policy(
+                    response_text=response_text,
+                    properties_mentioned=properties_for_verify,
+                    db=db, query=req.message, session_id=req.session_id,
+                    user=user, language=detected_language,
+                )
+                verified_already = True
+                import re as re_module
+                buffer = ""
+                for chunk in re_module.findall(r'[^\s]+(?:\s+|$)', response_text):
+                    buffer += chunk
+                    if len(buffer.split()) >= 3 or chunk.endswith(('.', '!', '?', '\n')):
+                        yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
+                        buffer = ""
+                        await asyncio.sleep(0.012)
+                if buffer:
+                    yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
+
+            # REAL STREAMING: token-by-token from Claude API (low-risk)
+            elif stream_context and isinstance(stream_context, dict):
                 accumulated_text = ""
                 async for chunk in wolf_brain.stream_wolf_narrative(
                     system_prompt=stream_context["system_prompt"],
@@ -1475,29 +1700,50 @@ async def chat_stream(
                 if buffer:
                     yield f"data: {json.dumps({'type': 'token', 'content': buffer}, ensure_ascii=False)}\n\n"
 
-            # ── POST-STREAM VERIFICATION: Anti-Hallucination Interceptor ──
+            # POST-STREAM VERIFICATION: Anti-Hallucination Interceptor
             # The verifier only ran in the non-streaming path before.
             # Now we verify the fully-assembled streamed text against DB facts.
             try:
                 from app.ai_engine.verifier_agent import verifier_agent
                 properties_for_verify = search_results[:5] if search_results else []
-                verification = await verifier_agent.verify_response(
+                # High-risk turns were already verified (with block-aware policy)
+                # before streaming — don't re-verify or we'd clobber that result.
+                fresh_v = {} if verified_already else await verifier_agent.verify_response(
                     response_text=response_text,
                     properties_mentioned=properties_for_verify,
                     session=db,
                 )
-                if verification.get("corrections"):
+                if not verified_already:
+                    verification = fresh_v
+                # Low-risk post-stream path: block-path claims are vanishingly
+                # rare here (no price/ROI/legal triggers), so a rewrite-only
+                # correction is sufficient defense-in-depth.
+                if fresh_v.get("blocked_corrections"):
+                    new_safe = verifier_agent.redact_blocked_claims(
+                        response_text=response_text,
+                        blocked_corrections=fresh_v["blocked_corrections"],
+                    )
+                    if new_safe != response_text:
+                        yield f"data: {json.dumps({'type': 'correction', 'corrected_text': new_safe}, ensure_ascii=False)}\n\n"
+                        response_text = new_safe
+                        verification["caveat"] = (
+                            verifier_agent.BLOCKED_CAVEAT_AR if detected_language == "ar"
+                            else verifier_agent.BLOCKED_CAVEAT_EN
+                        )
+                if fresh_v.get("correctable_corrections"):
                     logger.info(
                         f"\U0001f50d STREAM VERIFIER: {len(verification['corrections'])} corrections found"
                     )
                     corrected_text = await verifier_agent.rewrite_hallucinated_response(
                         response_text=response_text,
-                        corrections=verification["corrections"],
+                        corrections=fresh_v["correctable_corrections"],
                     )
                     if corrected_text != response_text:
-                        # Emit correction event — frontend replaces the streamed text
+                        # Emit correction event: frontend replaces the streamed text
                         yield f"data: {json.dumps({'type': 'correction', 'corrected_text': corrected_text}, ensure_ascii=False)}\n\n"
                         response_text = corrected_text
+                        verification["auto_corrected"] = True
+                        verification["fix_count"] = len(fresh_v.get("correctable_corrections", []))
                         logger.info("\u2705 STREAM VERIFIER: Response auto-corrected")
             except Exception as verify_err:
                 logger.warning(f"Post-stream verification skipped: {verify_err}")

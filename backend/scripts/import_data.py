@@ -38,12 +38,13 @@ async def import_properties():
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy import text
     
-    # Get DATABASE_URL from environment
-    database_url = os.environ.get('DATABASE_URL')
+    # Get DATABASE_URL from environment (never hardcode credentials — see SECURITY note below)
+    database_url = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
     if not database_url:
-        # Use the Railway public URL for local import
-        database_url = "postgresql://postgres:BeQqFYfalLZejuHJrakJGShPGoiUZoIx@tramway.proxy.rlwy.net:44789/railway"
-    
+        raise SystemExit(
+            "DATABASE_URL not set. Export it before running, e.g. via `railway run python -m scripts.import_data`."
+        )
+
     # Convert to async URL
     if database_url.startswith('postgresql://'):
         database_url = database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)

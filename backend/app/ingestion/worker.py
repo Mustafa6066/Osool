@@ -321,6 +321,32 @@ async def master_discovery_job(ctx: dict) -> dict:
     logger.info("[master] Starting discovery job — run_id=%s", run_id)
 
     all_urls = await discover_compound_urls(http)
+
+    # STRUCTURAL HEALTH GATE (Bottleneck #1): if discovery returns nothing — or
+    # far too little — the scraper is broken or Cloudflare-blocked. Do NOT
+    # register this as the latest run: an empty run would make mark_stale_job
+    # flag the ENTIRE catalog as unavailable. Abort early and alert instead.
+    import os as _os
+    from app.ingestion.scraper_health import assess_batch, record_and_alert
+    _floor = int(_os.getenv("SCRAPER_MIN_DISCOVERY", "5"))
+    health = assess_batch("nawy_discovery", all_urls, min_count=_floor)
+    await record_and_alert(health)
+    if health.should_block_downstream:
+        logger.error(
+            "[master] Discovery health=%s (%d urls) — aborting run, NOT "
+            "registering run_id so stale-marking cannot wipe the catalog. "
+            "reasons=%s",
+            health.status, len(all_urls), health.reasons,
+        )
+        return {
+            "discovered": len(all_urls),
+            "queued": 0,
+            "run_id": None,
+            "aborted": True,
+            "health": health.to_dict(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
     urls_to_scrape = await filter_new_urls(all_urls)
 
     # Register run_id before queuing (stale cleanup uses this)
@@ -417,6 +443,23 @@ async def scrape_compound_task(
             "errors": norm_result.skipped_count,
             "error": "; ".join(norm_result.errors[:3]),
         }
+
+    # Schema-drift signal (Bottleneck #1): if the parsed units are mostly
+    # missing required fields, the page structure likely changed (selectors no
+    # longer match). Alert per-compound (warning); still upsert what parsed.
+    try:
+        from app.ingestion.scraper_health import (
+            assess_batch, record_and_alert, DEFAULT_REQUIRED_FIELDS,
+        )
+        _drift = assess_batch(
+            "nawy_compound",
+            [p.model_dump() for p in norm_result.properties],
+            required_fields=DEFAULT_REQUIRED_FIELDS,
+        )
+        if _drift.should_block_downstream:
+            await record_and_alert(_drift)
+    except Exception as _e:
+        logger.debug("[task] drift check skipped: %s", _e)
 
     # Step 3: Upsert with differential hash
     upsert_result = await upsert_properties(norm_result.properties, run_id)

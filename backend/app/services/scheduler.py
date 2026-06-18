@@ -136,6 +136,15 @@ async def run_post_scrape_processing():
         price_result = await flag_underpriced_properties()
         logger.info(f"[CRON] Price validation: {price_result.get('flagged', 0)} flagged")
 
+        # Invalidate cached price forecasts so the next request recomputes against
+        # the freshly-scraped PropertyPriceSnapshot rows (bumps a cache version key).
+        try:
+            from app.api.forecast_router import invalidate_forecast_cache
+            invalidate_forecast_cache()
+            logger.info("[CRON] Forecast cache invalidated")
+        except Exception as e:
+            logger.warning(f"[CRON] Forecast cache invalidation skipped: {e}")
+
         # Notify Orchestrator for SEO content refresh
         await _notify_orchestrator("property_scrape_complete", {
             "significantChanges": stale_result.get("stale_marked", 0),

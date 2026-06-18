@@ -23,6 +23,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import AppShell from '@/components/nav/AppShell';
+import AreaForecastSection from '@/components/visualizations/AreaForecastSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatCompactPrice } from '@/lib/decision-support';
 import {
@@ -406,6 +407,22 @@ export default function MarketStatisticsPage() {
                   </motion.div>
                 </div>
               </motion.section>
+
+              {/* Price forecast (per area) — scientific Theil-Sen + shrinkage forecast.
+                  Free users see a teaser + upsell; paid users see the full curve. */}
+              {areaLeaders.length > 0 && (
+                <motion.section
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: '-50px' }}
+                  variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+                  className="grid gap-6 sm:grid-cols-2"
+                >
+                  {areaLeaders.slice(0, 2).map((area) => (
+                    <AreaForecastSection key={area.name} areaName={area.name} />
+                  ))}
+                </motion.section>
+              )}
 
               {/* Developer Pulse + Affordability Ladder */}
               <motion.section

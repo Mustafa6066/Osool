@@ -25,8 +25,11 @@ so a missing key would KeyError the SSE stream.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -395,6 +398,59 @@ def build_appreciation_payload(message: str, requested_language: str) -> dict[st
             },
         }
     ]
+
+    # Forward-looking teaser (zero-token): run the scientific forecast engine on the
+    # SAME resolved series (pure-compute, no DB). Free users see direction + a single
+    # 12-month % + a confidence label; the full curve is premium. Never breaks the
+    # backward-looking answer if the engine errors.
+    try:
+        from datetime import date as _date
+        from app.ai_engine.price_forecast_engine import compute_forecast, SeriesPoint
+
+        _loc = resolved["label_en"] if resolved["basis"] == "area" else ""
+        _pts = [SeriesPoint(_date(int(y), 1, 1), float(series[y]), "analytical_engine_seed_2026")
+                for y in years_sorted]
+        _fc = compute_forecast(
+            entity=resolved["label_en"], level=resolved["basis"],
+            own_points=_pts, location=_loc, horizons=(12,),
+        )
+        if _fc.get("headline_12mo_pct") is not None:
+            _hp = _fc["headline_12mo_pct"]
+            if language == "ar":
+                response += (
+                    f"\n\n🔮 توقع تقريبي للـ 12 شهر القادمة: "
+                    f"{'+' if _hp > 0 else ''}{_hp}% (استرشادي). "
+                    f"المنحنى الكامل (6/12/24 شهر) متاح في الباقة المدفوعة."
+                )
+            else:
+                response += (
+                    f"\n\n🔮 Indicative 12-month outlook: "
+                    f"{'+' if _hp > 0 else ''}{_hp}%. "
+                    f"The full 6/12/24-month curve is available on premium."
+                )
+            payload["response"] = response
+        payload["ui_actions"].append({
+            "type": "forecast_teaser",
+            "data": {
+                "entity": _fc["entity"],
+                "level": _fc["level"],
+                "trend_direction": _fc.get("trend_direction"),
+                "headline_12mo_pct": _fc.get("headline_12mo_pct"),
+                "confidence_label": _fc.get("confidence_tier"),
+                "base_price_per_m2": _fc.get("base_price_per_m2"),
+                "disclaimer": _fc.get("disclaimer"),
+                "locked": True,
+                "upsell": {
+                    "sku_options": [
+                        {"sku": "single_compound", "price_egp": 99},
+                        {"sku": "premium_monthly", "price_egp": 299},
+                    ],
+                },
+            },
+        })
+    except Exception:
+        logger.warning("forecast teaser skipped (non-fatal)", exc_info=True)
+
     payload["lead_score"] = 28
     payload["readiness_score"] = 28
     return payload
