@@ -117,9 +117,9 @@ AREA_PRICE_HISTORY = {
     "Rehab": {
         2021: 20000, 2022: 24000, 2023: 29000, 2024: 36000, 2025: 45000, 2026: 50000
     },
-    "Red Sea": {
-        2021: 18000, 2022: 25000, 2023: 40000, 2024: 70000, 2025: 95000, 2026: 110000
-    },
+    # NOTE (2026-06-18): a duplicate "Red Sea" key sat here and silently overrode
+    # the canonical coastal-grouped entry above (Python keeps the last duplicate).
+    # Removed so the canonical Red Sea series (grouped with North Coast) stands.
     "New Zayed": {
         2021: 15000, 2022: 20000, 2023: 35000, 2024: 65000, 2025: 100000, 2026: 120000
     },
@@ -255,21 +255,17 @@ DEVELOPER_PRICE_HISTORY = {
         2021: 8000, 2022: 12000, 2023: 20000, 2024: 28000, 2025: 36000, 2026: 39000,
     },
     # ── Legacy entries (kept for historical chart continuity) ────
+    # NOTE (2026-06-18): four keys here previously duplicated curated entries
+    # above ("Ora (ZED West)", "Emaar (Cairo Gate)", "TMG (Celia)",
+    # "Orascom (El Gouna)"). Python keeps the LAST duplicate, so the legacy
+    # (metadata-poor) versions silently overrode the curated ones. They were
+    # removed so the dict has no duplicate keys and the curated versions above
+    # are the canonical series. seed_price_history.py asserts no duplicates.
     "Hyde Park": {
         "area": "New Cairo",
         "type": "apartment",
         "price_min": 48000, "price_max": 62000,
         2021: 14000, 2022: 20000, 2023: 28000, 2024: 40000, 2025: 52000, 2026: 55000,
-    },
-    "Ora (ZED West)": {
-        "area": "Sheikh Zayed",
-        "type": "apartment",
-        2021: 20000, 2022: 28000, 2023: 52000, 2024: 95000, 2025: 130000, 2026: 140000,
-    },
-    "Emaar (Cairo Gate)": {
-        "area": "Sheikh Zayed",
-        "type": "apartment",
-        2021: 18000, 2022: 25000, 2023: 45000, 2024: 85000, 2025: 125000, 2026: 135000,
     },
     "SODIC (The Estates)": {
         "area": "New Zayed",
@@ -281,20 +277,10 @@ DEVELOPER_PRICE_HISTORY = {
         "type": "apartment",
         2021: 25000, 2022: 38000, 2023: 75000, 2024: 150000, 2025: 200000, 2026: 200000,
     },
-    "TMG (Celia)": {
-        "area": "New Capital",
-        "type": "apartment",
-        2021: 12000, 2022: 16000, 2023: 22000, 2024: 35000, 2025: 48000, 2026: 57000,
-    },
     "City Edge (Al Maqsad)": {
         "area": "New Capital",
         "type": "apartment",
         2021: 14000, 2022: 18000, 2023: 25000, 2024: 38000, 2025: 52000, 2026: 60000,
-    },
-    "Orascom (El Gouna)": {
-        "area": "Red Sea",
-        "type": "apartment",
-        2021: 20000, 2022: 30000, 2023: 50000, 2024: 90000, 2025: 120000, 2026: 140000,
     },
     "Madinet Masr (Sarai)": {
         "area": "New Cairo",

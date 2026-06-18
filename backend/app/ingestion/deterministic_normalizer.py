@@ -168,6 +168,21 @@ class NormalizedProperty(BaseModel):
     def apply_zone_mapping(cls, v: str) -> str:
         return LOCATION_ZONE_MAP.get(v.strip(), v.strip())
 
+    @field_validator("compound", mode="after")
+    @classmethod
+    def apply_compound_canonicalization(cls, v: Optional[str]) -> Optional[str]:
+        """Collapse compound-name variants (AR/EN, spelling, casing) to one
+        canonical name so the DB, market layer, and vector store don't store the
+        same compound several ways. Lazy import keeps ingestion import-light and
+        avoids any circular dependency. Never blocks on failure."""
+        if not v:
+            return v
+        try:
+            from app.ingestion.compound_canonicalizer import canonicalize_compound
+            return canonicalize_compound(v) or v
+        except Exception:
+            return v
+
     @model_validator(mode="after")
     def derive_price_per_sqm(self) -> "NormalizedProperty":
         if self.price_per_sqm is None and self.price > 0 and self.size_sqm > 0:

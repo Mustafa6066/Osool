@@ -8,7 +8,7 @@ Includes pgvector support for AI semantic search (when available).
 
 import enum
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, JSON, Numeric, BigInteger
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, JSON, Numeric, BigInteger, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -983,6 +983,63 @@ class PropertyPriceEvent(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     property = relationship("Property")
+
+
+class DeveloperPriceHistory(Base):
+    """
+    Developer-level historical price/m² series.
+
+    Fills the gap that PriceHistory keys only project_id/area_id — never the
+    free-text Property.developer string the forecast engine pivots on. Seeded
+    from analytical_engine's curated 2021–2026 dicts (source='analytical_engine_seed_2026')
+    and accumulated forward from monthly aggregates of PropertyPriceSnapshot.
+    Powers price_forecast_engine.forecast_developer().
+    """
+    __tablename__ = "developer_price_history"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    developer_name: Mapped[str] = mapped_column(String(200), index=True, nullable=False)
+    area: Mapped[str] = mapped_column(String(120), nullable=True)
+    unit_type: Mapped[str] = mapped_column(String(40), nullable=True)  # apartment | villa | chalet | mixed | ...
+    price_per_m2: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    observed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
+    # Provenance: 'analytical_engine_seed_2026' (curated estimate) | 'nawy' | 'aqarmap' | 'manual'.
+    # The forecast engine caps confidence on seed-dominated series — see price_forecast_engine.
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    citation_url: Mapped[str] = mapped_column(Text, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("developer_name", "observed_at", "unit_type", "source",
+                         name="uq_developer_price_history_key"),
+    )
+
+
+class MarketIndicatorHistory(Base):
+    """
+    Time-series companion to MarketIndicator (which is latest-value-only).
+
+    Stores dated economic-indicator observations — chiefly a CPI INDEX LEVEL
+    ('cpi_index') plus 'inflation_rate' and 'egp_per_usd' — so the forecast engine
+    can deflate nominal EGP/m² to real terms: real(t) = nominal(t) * cpi(base)/cpi(t).
+    A single latest scalar (MarketIndicator) cannot deflate 2021 vs 2024 points
+    differently, which is the whole point around the 2022/2024 devaluations.
+    Appended from economic_scraper.update_market_indicators (weekly) and seeded
+    for 2021–2026 by scripts/seed_price_history.py.
+    """
+    __tablename__ = "market_indicator_history"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    key: Mapped[str] = mapped_column(String(100), index=True, nullable=False)  # cpi_index | inflation_rate | egp_per_usd | ...
+    value: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    observed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
+    source: Mapped[str] = mapped_column(String(200), nullable=True)
+    citation_url: Mapped[str] = mapped_column(Text, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("key", "observed_at", name="uq_market_indicator_history_key_observed"),
+    )
 
 
 class ChatIntent(Base):

@@ -67,6 +67,7 @@ from app.api.health_endpoints import router as health_router
 from app.api.orchestrator_endpoints import router as orchestrator_router
 from app.api.orchestrator_endpoints import user_prefs_router
 from app.api.pricing_router import router as pricing_router
+from app.api.forecast_router import router as forecast_router
 from app.services.metrics import metrics_endpoint
 
 # ═══════════════════════════════════════════════════════════════
@@ -432,6 +433,7 @@ app.include_router(health_router)
 app.include_router(orchestrator_router)
 app.include_router(user_prefs_router)
 app.include_router(pricing_router)
+app.include_router(forecast_router)
 
 try:
     from app.ingest_pipeline import router as ingest_router

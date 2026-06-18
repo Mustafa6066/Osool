@@ -1207,4 +1207,64 @@ export const compareInstallmentVsCash = async (params: {
   return data;
 };
 
+// ───────────────────────────────────────────────────────────────────────────
+// Price forecasting (per developer / compound / area)
+// Public-by-teaser: works with or without a JWT. Free callers get the teaser
+// shape, paid callers get the full multi-horizon bundle. The axios interceptor
+// attaches the token automatically, so the backend resolves the tier.
+// ───────────────────────────────────────────────────────────────────────────
+export interface ForecastHorizon {
+  horizon_months: number;
+  point: number;
+  lower: number;
+  upper: number;
+  real_cagr: number;
+  nominal_cagr: number;
+}
+
+export interface ForecastUpsellSku {
+  sku: 'single_compound' | 'premium_monthly';
+  price_egp: number;
+  label_en: string;
+  label_ar: string;
+}
+
+export interface PriceForecast {
+  tier: 'free' | 'premium';
+  entity: string;
+  level: 'compound' | 'developer' | 'area' | 'national';
+  as_of?: string | null;
+  base_price_per_m2?: number | null;
+  trend_direction?: 'up' | 'flat' | 'down';
+  headline_12mo_pct?: number | null;
+  confidence_label?: string;          // free shape
+  confidence_tier?: string;           // paid shape
+  seed_dominated?: boolean;
+  disclaimer?: { en: string; ar: string };
+  // paid-only:
+  horizons?: ForecastHorizon[];
+  real_vs_nominal?: Record<string, unknown>;
+  model_type?: string;
+  sample_size?: number;
+  // free-only:
+  locked?: Record<string, boolean>;
+  upsell?: { headline_en: string; headline_ar: string; sku_options: ForecastUpsellSku[] };
+  access?: { tier: string; reason: string; expires_at?: string | null };
+}
+
+export const getAreaForecast = async (slug: string): Promise<PriceForecast> => {
+  const { data } = await api.get(`/api/forecast/area/${encodeURIComponent(slug)}`);
+  return data;
+};
+
+export const getDeveloperForecast = async (slug: string): Promise<PriceForecast> => {
+  const { data } = await api.get(`/api/forecast/developer/${encodeURIComponent(slug)}`);
+  return data;
+};
+
+export const getCompoundForecast = async (name: string): Promise<PriceForecast> => {
+  const { data } = await api.get(`/api/forecast/compound/${encodeURIComponent(name)}`);
+  return data;
+};
+
 export default api;

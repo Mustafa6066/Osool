@@ -710,6 +710,35 @@ def get_cbe_rate() -> float:
 
 
 # ---------------------------------------------------------------------------
+# Down-payment normalization
+# ---------------------------------------------------------------------------
+
+
+def normalize_down_payment_to_egp(down_payment: object, total_price: float) -> float:
+    """Coerce a down-payment value to an absolute EGP amount.
+
+    Listings store the down payment inconsistently:
+      * a fraction (``0.10`` = 10 %),
+      * a percentage (``10`` = 10 %), or
+      * an absolute EGP figure (``500000``).
+
+    Real EGP down payments are always > 100 and percentages are <= 100, so the
+    magnitude disambiguates safely. Returns 0.0 on bad/non-positive input.
+    """
+    try:
+        dp = float(down_payment)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0.0
+    if dp <= 0 or total_price <= 0:
+        return 0.0
+    if dp <= 1.0:
+        return total_price * dp
+    if dp <= 100.0:
+        return total_price * (dp / 100.0)
+    return dp
+
+
+# ---------------------------------------------------------------------------
 # Request bodies for composite endpoints
 # ---------------------------------------------------------------------------
 

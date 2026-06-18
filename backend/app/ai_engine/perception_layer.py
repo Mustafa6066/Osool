@@ -423,8 +423,9 @@ class PerceptionLayer:
             intent_data = await self._extract_with_llm(query, history)
             self.stats["llm_extractions"] += 1
             
-            # Normalize extracted data
-            intent_data = self._normalize_filters(intent_data)
+            # Normalize extracted data (pass the query so multi-compound
+            # comparison turns can be captured on the LLM path too)
+            intent_data = self._normalize_filters(intent_data, query)
             
             intent = Intent(
                 action=intent_data.get("action", "search"),
@@ -646,16 +647,25 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
                 filters["location"] = normalized
                 break
         
-        # Extract compound name (check COMPOUND_ALIASES — longer aliases first)
+        # Extract compound name(s). Collect ALL distinct canonical compounds so a
+        # comparison turn ("compare X and Y") captures both, not just the first.
+        # Longest aliases first, and consume each matched span so a substring
+        # alias (e.g. "hyde park" inside "mv hyde park") can't double-count.
         sorted_compound_aliases = sorted(COMPOUND_ALIASES.keys(), key=len, reverse=True)
+        found_compounds: list = []
+        working = query_lower
         for alias in sorted_compound_aliases:
-            if alias in query_lower:
+            if alias in working:
                 canonical, area = COMPOUND_ALIASES[alias]
-                filters["keywords"] = canonical
-                # Set area as location if not already set
-                if "location" not in filters and area:
-                    filters["location"] = area
-                break
+                if canonical not in found_compounds:
+                    found_compounds.append(canonical)
+                    if "location" not in filters and area:
+                        filters["location"] = area
+                working = working.replace(alias, " ")  # consume the matched span
+        if found_compounds:
+            filters["keywords"] = found_compounds[0]  # back-compat (single value)
+            if len(found_compounds) >= 2:
+                filters["compounds"] = found_compounds[:3]  # comparison targets
 
         # Extract property type (check multi-word aliases first)
         sorted_aliases = sorted(PROPERTY_TYPE_ALIASES.keys(), key=len, reverse=True)
@@ -732,7 +742,7 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
             
         return {"action": action, "filters": filters, "intent_bucket": intent_bucket}
     
-    def _normalize_filters(self, intent_data: Dict) -> Dict:
+    def _normalize_filters(self, intent_data: Dict, query: str = "") -> Dict:
         """Normalize extracted filters to standard format."""
         filters = intent_data.get("filters", {})
         
@@ -778,7 +788,26 @@ IMPORTANT: Convert Arabic numbers to integers. Convert "مليون" to actual nu
             filters["budget_min"] = int(filters["budget_min"])
         if "budget_max" in filters:
             filters["budget_max"] = int(filters["budget_max"])
-        
+
+        # Multi-compound capture: scan the raw query for ALL distinct canonical
+        # compounds so a comparison turn ("compare X and Y") yields both, not
+        # just the single one the LLM put in location/keywords. Consume matched
+        # spans so a substring alias can't double-count.
+        if query:
+            ql = query.lower()
+            found_compounds: list = []
+            working = ql
+            for alias in sorted(COMPOUND_ALIASES.keys(), key=len, reverse=True):
+                if alias in working:
+                    canonical = COMPOUND_ALIASES[alias][0]
+                    if canonical not in found_compounds:
+                        found_compounds.append(canonical)
+                    working = working.replace(alias, " ")
+            if len(found_compounds) >= 2:
+                filters["compounds"] = found_compounds[:3]
+                if not filters.get("keywords"):
+                    filters["keywords"] = found_compounds[0]
+
         intent_data["filters"] = filters
         return intent_data
     

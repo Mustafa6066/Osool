@@ -121,11 +121,16 @@ interface AiMessage {
   // Tracks local flag state so the UI can show "Reported" after submit
   // without round-tripping.
   flagged?: boolean;
-  // Verifier disclosure from /api/v1/chat. Present only when the Wolf
-  // verifier caught a hallucination and auto-rewrote the response.
+  // Verifier disclosure from /api/v1/chat. Present when the Wolf verifier
+  // corrected numbers (auto_corrected) or BLOCKED a high-risk claim (blocked):
+  // a fabricated legal guarantee / invented compound is replaced with a
+  // "let me confirm with the team" caveat and a handoff ticket is opened.
   verification?: {
     auto_corrected?: boolean;
     fix_count?: number;
+    blocked?: boolean;
+    caveat?: string | null;
+    policy?: 'serve' | 'corrected' | 'blocked';
   };
 }
 
@@ -1067,7 +1072,29 @@ function AiBubble({
           <p style={{ color: 'var(--osool-accent)' }}>{msg.error}</p>
         ) : (
           <>
-            {msg.verification?.auto_corrected && (
+            {msg.verification?.blocked ? (
+              <div
+                role="note"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  marginBottom: 8,
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                  border: '1px solid var(--osool-accent)',
+                  background: 'color-mix(in srgb, var(--osool-accent) 10%, transparent)',
+                  color: 'var(--osool-accent)',
+                  width: 'fit-content',
+                }}
+              >
+                <span aria-hidden>🛡</span>
+                {lang === 'ar'
+                  ? 'بنأكد المعلومة دي مع الفريق قبل ما نأكدها'
+                  : 'Held for review — confirming this with the team'}
+              </div>
+            ) : msg.verification?.auto_corrected && (
               <div
                 role="note"
                 style={{
