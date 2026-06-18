@@ -539,7 +539,6 @@ function VisualizationSection({
             'market_trend_chart': { en: 'Market Trends', ar: 'اتجاهات السوق' },
             'inflation_killer': { en: 'Inflation Protection', ar: 'حماية من التضخم' },
             'la2ta_alert': { en: 'Bargain Alert', ar: 'تنبيه فرصة' },
-            'law_114_guardian': { en: 'Legal Check', ar: 'فحص قانوني' },
             'comparison_matrix': { en: 'Comparison', ar: 'مقارنة' },
             'payment_timeline': { en: 'Payment Timeline', ar: 'جدول الدفع' },
             'price_heatmap': { en: 'Price Heatmap', ar: 'خريطة الأسعار' },

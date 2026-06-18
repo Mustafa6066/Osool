@@ -15,11 +15,9 @@ Frontend (Next.js)
 ├── POST /chat          ──►  CoInvestorAgent  ──►  WolfBrain.process_turn()
 │
 ├── POST /ai/valuation       ──►  hybrid_brain_prod.get_valuation()
-├── POST /ai/analyze-contract──►  hybrid_brain_prod.audit_contract()
 ├── POST /ai/compare-price   ──►  hybrid_brain_prod.compare_asking_price()
 │
-├── POST /ai/prod/valuation      ──►  hybrid_brain_prod.get_valuation()
-└── POST /ai/prod/audit-contract ──►  hybrid_brain_prod.audit_contract()
+└── POST /ai/prod/valuation      ──►  hybrid_brain_prod.get_valuation()
 ```
 
 ## Active AI Components
@@ -42,7 +40,6 @@ Entry point: `wolf_brain.process_turn(message, session_id, ...)`
 Specialist tool for structured valuations. XGBoost (via MLOps endpoint) + GPT-4o:
 
 - `get_valuation(area, property_type, bedrooms, ...)` — XGBoost price prediction + GPT-4o analysis
-- `audit_contract(contract_text)` — Legal clause verification with Egyptian real estate rules
 - `compare_asking_price(area, asking_price, ...)` — Market comparison with XGBoost baseline
 
 ### CoInvestorAgent (`app/agent/coinvestor.py`)

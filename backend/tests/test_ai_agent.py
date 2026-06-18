@@ -416,96 +416,6 @@ class TestRAGEnforcement:
         assert result_dict["source"] == "osool_database"
 
 
-class TestJWTReservationFlow:
-    """Test JWT reservation link generation and checkout integration (Phase 3)"""
-
-    def test_generate_reservation_link_creates_valid_jwt(self, mocker):
-        """Test that generate_reservation_link creates valid JWT token"""
-        import jwt
-        from datetime import datetime, timedelta
-        import os
-
-        # Mock environment variable
-        os.environ["JWT_SECRET_KEY"] = "test_secret_key_12345"
-
-        property_id = 42
-        user_id = 100
-
-        # Simulate AI tool execution
-        token_payload = {
-            "type": "reservation",
-            "property_id": property_id,
-            "user_id": user_id,
-            "exp": datetime.utcnow() + timedelta(hours=1)
-        }
-
-        token = jwt.encode(token_payload, os.getenv("JWT_SECRET_KEY"), algorithm="HS256")
-
-        # Verify token can be decoded
-        decoded = jwt.decode(token, os.getenv("JWT_SECRET_KEY"), algorithms=["HS256"])
-
-        assert decoded["type"] == "reservation"
-        assert decoded["property_id"] == property_id
-        assert decoded["user_id"] == user_id
-
-    def test_jwt_token_expires_after_one_hour(self, mocker):
-        """Test that reservation JWT token expires after 1 hour"""
-        import jwt
-        import os
-
-        os.environ["JWT_SECRET_KEY"] = "test_secret_key_12345"
-
-        # Create token with 1-hour expiration
-        token_payload = {
-            "type": "reservation",
-            "property_id": 42,
-            "user_id": 100,
-            "exp": datetime.utcnow() + timedelta(hours=1)
-        }
-
-        token = jwt.encode(token_payload, os.getenv("JWT_SECRET_KEY"), algorithm="HS256")
-        decoded = jwt.decode(token, os.getenv("JWT_SECRET_KEY"), algorithms=["HS256"])
-
-        exp_time = datetime.utcfromtimestamp(decoded["exp"])
-        expected_exp = datetime.utcnow() + timedelta(hours=1)
-
-        # Allow 5 second tolerance
-        assert abs((exp_time - expected_exp).total_seconds()) < 5
-
-    def test_checkout_endpoint_validates_jwt_token(self, mocker):
-        """Test that /api/checkout endpoint validates JWT token type"""
-        import jwt
-        import os
-
-        os.environ["JWT_SECRET_KEY"] = "test_secret_key_12345"
-
-        # Create valid reservation token
-        valid_token_payload = {
-            "type": "reservation",
-            "property_id": 42,
-            "user_id": 100,
-            "exp": datetime.utcnow() + timedelta(hours=1),
-        }
-        valid_token = jwt.encode(valid_token_payload, os.getenv("JWT_SECRET_KEY"), algorithm="HS256")
-
-        # Create invalid token (wrong type)
-        invalid_token_payload = {
-            "type": "access",  # Wrong type
-            "property_id": 42,
-            "user_id": 100,
-            "exp": datetime.utcnow() + timedelta(hours=1),
-        }
-        invalid_token = jwt.encode(invalid_token_payload, os.getenv("JWT_SECRET_KEY"), algorithm="HS256")
-
-        # Test valid token
-        decoded_valid = jwt.decode(valid_token, os.getenv("JWT_SECRET_KEY"), algorithms=["HS256"])
-        assert decoded_valid["type"] == "reservation"
-
-        # Test invalid token
-        decoded_invalid = jwt.decode(invalid_token, os.getenv("JWT_SECRET_KEY"), algorithms=["HS256"])
-        assert decoded_invalid["type"] != "reservation"  # Should be rejected by /api/checkout
-
-
 class TestPropertyValidationStrict:
     """Test strict property validation prevents hallucinations (Phase 2.1)"""
 
@@ -606,26 +516,6 @@ class TestAIToolIntegration:
 
         assert final_valuation > 5_000_000
         assert final_valuation < 6_000_000
-
-    def test_contract_audit_tool_egyptian_law_compliance(self):
-        """Test contract audit checks Egyptian Law 114 compliance"""
-        contract_clauses = [
-            "Property transfer follows Law 114/1946",
-            "Buyer pays 2.5% registration tax",
-            "Seller responsible for property title verification",
-            "Escrow period: 30 days"
-        ]
-
-        # Mock audit result
-        compliance_check = {
-            "law_114_compliant": True,
-            "civil_code_131_compliant": True,
-            "missing_clauses": [],
-            "red_flags": []
-        }
-
-        assert compliance_check["law_114_compliant"] is True
-        assert len(compliance_check["red_flags"]) == 0
 
 
 class TestZeroHallucinationGuarantee:

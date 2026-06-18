@@ -7,8 +7,7 @@ Triggers:
 1. User viewed 3+ properties in same area → area market brief
 2. User compared 2+ developers → developer showdown
 3. User mentioned budget but hasn't used inflation calc → suggest it
-4. User is HOT lead but hasn't asked about legal → offer Law 114 audit
-5. User browsed 3+ sessions → show investment readiness score
+4. User browsed 3+ sessions → show investment readiness score
 """
 
 import json
@@ -79,17 +78,12 @@ class ProactiveInsightsEngine:
         if inflation_insight:
             insights.append(inflation_insight)
 
-        # 3. Hot lead without legal check
-        legal_insight = self._check_legal_gap(lead_score, tools_used)
-        if legal_insight:
-            insights.append(legal_insight)
-
-        # 4. Multi-session user without readiness score
+        # 3. Multi-session user without readiness score
         readiness_insight = self._check_readiness_prompt(session_count, tools_used)
         if readiness_insight:
             insights.append(readiness_insight)
 
-        # 5. Developer comparison opportunity
+        # 4. Developer comparison opportunity
         dev_insight = self._check_developer_opportunity(properties_viewed, tools_used)
         if dev_insight:
             insights.append(dev_insight)
@@ -154,21 +148,6 @@ class ProactiveInsightsEngine:
                 action="inflation_killer",
             )
         return None
-
-    def _check_legal_gap(self, lead_score: int, tools_used: List[str]) -> Optional[ProactiveInsight]:
-        """Hot lead without legal check → suggest Law 114."""
-        if lead_score < 65:
-            return None
-        if "law_114_guardian" in tools_used or "audit_contract" in tools_used:
-            return None
-
-        return ProactiveInsight(
-            insight_type="legal_gap",
-            message_ar="حضرتك قريب من قرار الشراء - أنصحك تعمل مراجعة قانونية (قانون 114) قبل ما توقع. عايزني أبدأ؟",
-            message_en="You're close to a buying decision — I recommend a legal review (Law 114) before signing. Should I start?",
-            priority=90,
-            action="law_114_guardian",
-        )
 
     def _check_readiness_prompt(self, session_count: int, tools_used: List[str]) -> Optional[ProactiveInsight]:
         """Multi-session user → show readiness score."""

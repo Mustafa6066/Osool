@@ -9,7 +9,6 @@ export { default as FinancialComparisonTable, BankVsPropertyComparisonTable } fr
 export { default as VisualizationRenderer } from './VisualizationRenderer';
 export { default as InflationKillerChart } from './InflationKillerChart';
 export { default as La2taAlert } from './La2taAlert';
-export { default as Law114Guardian } from './Law114Guardian';
 export { default as RealityCheck } from './RealityCheck';
 export { default as CertificatesVsProperty } from './CertificatesVsProperty';
 export { default as AreaAnalysis } from './AreaAnalysis';

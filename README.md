@@ -18,7 +18,6 @@ graph TD
 
     subgraph "Backend (Intelligence Layer)"
         API[FastAPI Server]
-        LegalAI[AI Contract Analyzer]
         PriceAI[AI Valuator]
     end
 
@@ -29,7 +28,6 @@ graph TD
 
     User --> UI
     UI -->|Query| API
-    API --> LegalAI
     API --> PriceAI
     User -->|Pay EGP| InstaPay
     API -->|Verify Payment| InstaPay
@@ -43,8 +41,6 @@ graph TD
 |---------|-----------|----------------|
 | **Trust** | Handshakes & Cash → Fraud | **Verified Registry** - Immutable status records |
 | **Pricing** | Random seller prices | **AI Valuation** - Fair price with reasoning |
-| **Legal Safety** | Hidden contract traps | **AI Legal Check** - Scans for Egyptian law risks |
-| **Double Selling** | Same unit sold twice | **Status Tracking** - Reserved = Locked |
 
 ---
 
@@ -276,7 +272,6 @@ cd web && npm run build
 
 ## 📋 Roadmap
 
-- [x] AI contract analysis (Egyptian law)
 - [x] AI property valuation
 - [x] CI/CD pipeline
 - [ ] Mobile app (React Native)
@@ -288,7 +283,6 @@ cd web && npm run build
 
 - **CBE Law 194/2020**: No cryptocurrency trading — EGP payments only
 - **FRA Decision 125/2025**: Ready for digital real estate funds
-- **Civil Code 131**: AI trained on Egyptian contract law
 
 ---
 

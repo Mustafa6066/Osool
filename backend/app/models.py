@@ -528,8 +528,7 @@ class ConversationAnalytics(Base):
     objections_raised: Mapped[dict] = mapped_column(String, nullable=True)  # JSON list of objections
 
     # Outcome Metrics
-    conversion_status: Mapped[str] = mapped_column(String, default="browsing")  # browsing, reserved, abandoned, viewing_scheduled
-    reservation_generated: Mapped[bool] = mapped_column(Boolean, default=False)
+    conversion_status: Mapped[str] = mapped_column(String, default="browsing")  # browsing, abandoned, viewing_scheduled
     viewing_scheduled: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Engagement Metrics

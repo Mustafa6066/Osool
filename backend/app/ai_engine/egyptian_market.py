@@ -345,13 +345,6 @@ EGYPTIAN_SALES_OBJECTIONS = {
         "english_response": "Very important question! The developer is {developer}, they have an excellent track record. Let me show you their previous projects and customer reviews.",
         "action": "show_developer_portfolio",
         "reframing": "Developer reputation is data-driven, not opinion"
-    },
-
-    "contract_legal_concerns": {
-        "arabic_response": "حقك تماماً تتأكد! العقد بيتبع القانون المصري 114. ممكن تاخد العقد تراجعه مع محامي، أو أنا ممكن أشرحلك كل بند فيه.",
-        "english_response": "Absolutely right to verify! The contract follows Egyptian Law 114. You can take the contract to review with a lawyer, or I can explain every clause to you.",
-        "action": "explain_contract_clause_by_clause",
-        "reframing": "Legal concerns are resolved with transparency and lawyer option"
     }
 }
 

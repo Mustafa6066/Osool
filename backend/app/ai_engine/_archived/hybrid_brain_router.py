@@ -38,9 +38,9 @@ class HybridBrain:
     Osool's Hybrid AI Brain - Combines Claude + GPT intelligently.
     
     Routing Logic:
-    - CLAUDE: Property search, valuation, Arabic, complex analysis, legal
+    - CLAUDE: Property search, valuation, Arabic, complex analysis
     - GPT: Simple greetings, general chat, quick questions
-    - HYBRID: High-stakes decisions (reservation, contracts)
+    - HYBRID: High-stakes decisions (payments, deposits)
     """
     
     def __init__(self):
@@ -68,7 +68,7 @@ class HybridBrain:
             "أريد", "ابحث", "شقة", "فيلا", "عقار", "سعر", "تحليل",
             # Complex tasks
             "analyze", "valuation", "roi", "investment", "compare",
-            "contract", "legal", "mortgage", "calculate", "search",
+            "mortgage", "calculate", "search",
             "property", "compound", "developer", "payment plan"
         ]
         
@@ -100,7 +100,7 @@ class HybridBrain:
             claude_score += 2
         
         # High-stakes keywords trigger Hybrid mode
-        high_stakes = ["reserve", "book", "contract", "sign", "payment", "deposit"]
+        high_stakes = ["payment", "deposit"]
         if any(kw in prompt_lower for kw in high_stakes):
             return ModelRoute.HYBRID
         

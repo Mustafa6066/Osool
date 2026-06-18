@@ -448,7 +448,7 @@ PSYCHOLOGY_PATTERNS = {
             "lawyer", "ownership", "title", "legal", "preliminary contract"
         ],
         "signals": ["asking_for_legal_docs", "fear_of_scams", "mentioning_lawyer"],
-        "recommended_tactics": ["law_114_guardian", "legal_audit", "transparency"],
+        "recommended_tactics": ["developer_track_record", "transparency"],
         "weight": 1.4 # Critical trust blocker
     },
     # === LIQUIDITY SHIFT: The "Bank Exodous" Investor ===
@@ -513,7 +513,7 @@ PSYCHOLOGY_PATTERNS = {
             "asking_about_developer_track_record",
             "expressing_delivery_skepticism"
         ],
-        "recommended_tactics": ["developer_track_record", "delivery_timeline_show", "escrow_protection", "law_114_guardian"],
+        "recommended_tactics": ["developer_track_record", "delivery_timeline_show", "escrow_protection"],
         "weight": 1.4  # High weight - major Egyptian market trauma
     },
 
@@ -1716,9 +1716,9 @@ def get_psychology_context_for_prompt(profile: PsychologyProfile) -> str:
     elif state == PsychologicalState.RISK_AVERSE:
         context_parts.append("""
 - User needs reassurance and safety. Lead with protection.
-- Mention: Developer reputation, delivery track record, Law 114 compliance
+- Mention: Developer reputation, delivery track record, verified data
 - Use: "على مسؤوليتي", "أنا بحميك", "العقد سليم"
-- Offer: Contract review, legal verification, testimonials
+- Offer: Developer track record, verified data, testimonials
 """)
 
     elif state == PsychologicalState.GREED_DRIVEN:
@@ -1782,14 +1782,13 @@ def get_psychology_context_for_prompt(profile: PsychologyProfile) -> str:
 
     elif state == PsychologicalState.LEGAL_ANXIETY:
         context_parts.append("""
-[⚖️ LEGAL ANXIETY MODE - THE GUARDIAN]
+[⚖️ LEGAL ANXIETY MODE]
 - User is afraid of "Urfi Contracts" and scams.
 - IGNORE ROI/Price for now. Focus 100% on SAFETY.
-- TRIGGER: "Law 114 Guardian" protocol.
 - EXPLAIN: "Primary Contract" vs "Final Registration" (Shahra El Akari).
-- OFFER: "I will not let you sign until I see the land license myself."
+- REASSURE: recommend verifying the land license and registration with a lawyer before signing.
 - SCRIPT:
-  "حقك تقلق. السوق مليان عقود مضروبة. خليني أشغل 'Law 114 Guardian' على الورق قبل ما تدفع جنيه."
+  "حقك تقلق. السوق مليان عقود مضروبة. خد وقتك وراجع الورق والتسجيل مع محامٍ قبل ما تدفع جنيه."
 """)
 
     elif state == PsychologicalState.LIQUIDITY_SHIFT:
@@ -1868,7 +1867,7 @@ def get_psychology_analyzer():
 
 class Strategy(Enum):
     """Sales strategy based on psychological state."""
-    TRUST_BUILDING = "trust_building"    # Focus on Law 114, Developer Reputation
+    TRUST_BUILDING = "trust_building"    # Focus on Developer Reputation, verified data
     ROI_FOCUSED = "roi_focused"          # Focus on 25% annual gain, inflation hedge
     SCARCITY_PITCH = "scarcity_pitch"    # Focus on "Last unit", "Price increase tomorrow"
     CONSULTATIVE = "consultative"        # Educational, guiding approach
@@ -1879,7 +1878,7 @@ class Strategy(Enum):
     MARKET_ANCHORING = "market_anchoring"            # Inflation data, market proof
     LOCATION_EDUCATION = "location_education"        # Area value, development plans
     # V3 Family-Focused Strategy
-    FAMILY_SAFETY_PITCH = "family_safety_pitch"      # Developer reputation, community, law 114
+    FAMILY_SAFETY_PITCH = "family_safety_pitch"      # Developer reputation, community, verified data
     # V4 Macro-Fear Counter Strategy
     REPLACEMENT_COST_PITCH = "replacement_cost_pitch"  # Construction cost logic, wealth preservation
 
@@ -1928,10 +1927,10 @@ def determine_strategy(
             strategy = Strategy.TRUST_BUILDING
             angle = "legal_protection"
             talking_points = [
-                "سؤال ممتاز. ابعتلي كود الوحدة أو العقد، وأنا هشغل عليه فحص قانون 114.",
-                "بتأكد من: تسلسل الملكية، رخصة البناء، وشروط التسليم.",
-                "مش بنمضي حاجة غير لما الورق يطلع نضيف 100%.",
-                "Law 114 Scanner بيكشف 47 نوع مشكلة قانونية - مجاناً ليك."
+                "سؤال ممتاز. خد وقتك في مراجعة الورق مع محامٍ قبل أي خطوة.",
+                "الحاجات المهمة: تسلسل الملكية، رخصة البناء، وشروط التسليم.",
+                "متمضيش حاجة غير لما تتأكد إن الورق نضيف 100%.",
+                "بنشتغل مع مطورين موثقين بسجل تسليم واضح."
             ]
         elif objection == ObjectionType.TRUST:
             strategy = Strategy.TRUST_BUILDING
@@ -1947,8 +1946,8 @@ def determine_strategy(
             strategy = Strategy.TRUST_BUILDING
             angle = "trust"
             talking_points = [
-                "Don't sign anything yet. Send me the contract first; I'll run my Legal Scanner on it.",
-                "I utilize a Law 114 Legal Scanner to detect contract loopholes.",
+                "Take your time — review any paperwork with a lawyer before you sign.",
+                "Focus on what's verifiable: ownership chain, building permit, delivery terms.",
                 "This developer has a 95% on-time delivery record. Zero legal violations.",
                 "My protocol requires full verification before I recommend this.",
             ]
@@ -2032,7 +2031,7 @@ def determine_strategy(
         talking_points = [
             "Before we talk prices, I want to show you the transaction history.",
             "I don't want you to trust me. I want you to trust the data. Here is the verification report for the last unit we sold...",
-            "Send me any contract you have—I'll run my Law 114 Scanner on it for free."
+            "Take your time to review any paperwork with a lawyer before you commit."
         ]
         
     elif state == PsychologicalState.SKEPTICISM:
@@ -2047,14 +2046,14 @@ def determine_strategy(
         ]
         
     elif state == PsychologicalState.LEGAL_ANXIETY:
-        # V3: Legal Anxiety - "Law 114 Guardian"
+        # V3: Legal Anxiety - reassurance & due diligence
         strategy = Strategy.TRUST_BUILDING
-        angle = "legal_guardian"
+        angle = "legal_reassurance"
         talking_points = [
             "حقك تقلق، السوق فيه عقود كتير 'عرفي' مش بتحميك.",
-            "أنا مش بس ببيعلك، أنا 'بفلتر' المخاطر ليك.",
-            "أي وحدة بنرشحها لازم تكون عدت على Law 114 Check: رخصة، أرض، تسلسل ملكية.",
-            "لو الورق مش سليم 100%، أنا اللي هقولك 'ماتشتريش'."
+            "أنا بنبهك للمخاطر وبنصحك تراجع الورق مع محامٍ.",
+            "المهم تتأكد من: رخصة، أرض، تسلسل ملكية، وتسجيل في الشهر العقاري.",
+            "لو الورق مش سليم 100%، خد وقتك وماتمضيش."
         ]
 
     elif state == PsychologicalState.LIQUIDITY_SHIFT:
@@ -2077,7 +2076,7 @@ def determine_strategy(
             "لو كمباوند، أنا بفلتر العروض على أساس 'الجيران' و'وسمعة المطور' قبل العائد.",
             "مشاريعنا كلها فيها سيكيوريتي 24 ساعة ومجتمعات مقفولة.",
             "المطور ده سلم 100% من مشاريعه - ده اللي يهمنا عشان العيلة.",
-            "خليني أشغل Law 114 Guardian - نتأكد من الورق قبل أي خطوة."
+            "خد وقتك وراجع الورق والتسجيل قبل أي خطوة."
         ]
         
     elif state == PsychologicalState.MACRO_SKEPTIC:

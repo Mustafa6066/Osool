@@ -4,7 +4,7 @@ Gamification Engine - Professional Investor Progression System
 Bloomberg Terminal meets Duolingo: rewards analysis, not speculation.
 
 Levels: Curious (0) → Informed (100) → Analyst (500) → Strategist (2000) → Mogul (5000)
-XP Actions: Ask questions, use tools, compare properties, audit contracts, streaks
+XP Actions: Ask questions, use tools, compare properties, streaks
 """
 
 import json
@@ -39,7 +39,6 @@ XP_ACTIONS = {
     "ask_question":         5,
     "use_analysis_tool":    15,
     "compare_properties":   20,
-    "audit_contract":       25,
     "area_research":        30,
     "first_favorite":       10,
     "streak_7":             50,
@@ -67,13 +66,6 @@ ACHIEVEMENT_SEEDS = [
         "description_en": "Viewed 10+ market analyses", "description_ar": "شاف أكتر من 10 تحليلات سوقية",
         "icon": "eye", "category": "analysis", "xp_reward": 75,
         "requirement_type": "count", "requirement_value": 10, "tier": "silver",
-    },
-    {
-        "key": "due_diligence_master",
-        "title_en": "Due Diligence Master", "title_ar": "سيد العناية الواجبة",
-        "description_en": "Audited 5+ contracts", "description_ar": "راجع أكتر من 5 عقود",
-        "icon": "shield-check", "category": "analysis", "xp_reward": 100,
-        "requirement_type": "count", "requirement_value": 5, "tier": "gold",
     },
     {
         "key": "inflation_fighter",
@@ -385,9 +377,6 @@ class GamificationEngine:
                     "use_analysis_tool", "area_research", "use_inflation_calc"
                 ])
                 qualified = total_analyses >= achievement.requirement_value
-
-            elif achievement.key == "due_diligence_master":
-                qualified = tools.get("audit_contract", 0) >= achievement.requirement_value
 
             elif achievement.key == "inflation_fighter":
                 qualified = tools.get("use_inflation_calc", 0) >= achievement.requirement_value
