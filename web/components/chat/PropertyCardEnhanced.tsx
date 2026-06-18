@@ -48,7 +48,7 @@ export default function PropertyCardEnhanced({
 }: PropertyCardEnhancedProps) {
     const isTopPick = property.isTopPick || (property.wolfScore && property.wolfScore >= 85);
     const scoreColor = property.wolfScore
-        ? property.wolfScore >= 80 ? 'from-emerald-500 to-emerald-400'
+        ? property.wolfScore >= 80 ? 'from-[var(--osool-accent)] to-[var(--osool-accent-dark)]'
             : property.wolfScore >= 60 ? 'from-amber-500 to-yellow-400'
                 : 'from-gray-500 to-gray-400'
         : 'from-gray-500 to-gray-400';
@@ -82,7 +82,7 @@ export default function PropertyCardEnhanced({
                 role="button"
                 tabIndex={0}
                 aria-label={isRTL ? `عرض العقار ${property.title}` : `View property ${property.title}`}
-                className="group flex gap-3 p-3 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/30 bg-[var(--color-surface)] cursor-pointer transition-all duration-200 hover:shadow-md"
+                className="group flex gap-3 p-3 rounded-xl border border-[var(--color-border)] hover:border-[var(--osool-accent-mid)] bg-[var(--color-surface)] cursor-pointer transition-all duration-200 hover:shadow-md"
                 dir={isRTL ? 'rtl' : 'ltr'}
             >
                 {/* Thumbnail */}
@@ -101,12 +101,12 @@ export default function PropertyCardEnhanced({
                     <div className="flex items-center gap-2 mt-1">
                         <span className="text-sm font-semibold text-[var(--color-text-primary)]">{property.price}</span>
                         {property.wolfScore && (
-                            <span className="text-[9px] font-bold text-emerald-400">{property.wolfScore}/100</span>
+                            <span className="text-[9px] font-bold text-[var(--osool-accent)]">{property.wolfScore}/100</span>
                         )}
                     </div>
                 </div>
 
-                <ArrowUpRight className="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-emerald-400 transition-colors flex-shrink-0 self-center" />
+                <ArrowUpRight className="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-[var(--osool-accent)] transition-colors flex-shrink-0 self-center" />
             </motion.div>
         );
     }
@@ -153,12 +153,12 @@ export default function PropertyCardEnhanced({
                         </span>
                     )}
                     {property.badge && !isTopPick && (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--osool-accent)] text-white text-[10px] font-bold">
                             {property.badge}
                         </span>
                     )}
                     {property.growthBadge && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-bold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--osool-accent)] text-white text-[10px] font-bold">
                             <TrendingUp size={9} />
                             {property.growthBadge}
                         </span>
@@ -197,7 +197,7 @@ export default function PropertyCardEnhanced({
                                         style={{ width: `${Math.min(property.wolfScore, 100)}%` }}
                                     />
                                 </div>
-                                <span className="text-xs font-bold text-emerald-400">{property.wolfScore}</span>
+                                <span className="text-xs font-bold text-[var(--osool-accent)]">{property.wolfScore}</span>
                             </div>
                         </div>
                     )}

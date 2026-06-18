@@ -52,7 +52,7 @@ function CollapsibleVisualization({ viz, isRTL }: { viz: UIAction; isRTL: boolea
                 aria-expanded={isOpen}
             >
                 <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <BarChart3 size={16} className="text-emerald-600" />
+                    <BarChart3 size={16} className="text-[var(--osool-accent)]" />
                     <span>{viz.chart_reference || (isRTL ? 'عرض التحليل' : 'View Analysis')}</span>
                 </div>
                 <ChevronDown size={16} className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -144,7 +144,7 @@ function AIMessage({
     return (
         <div className={`flex w-full mb-8 px-4 gap-4 ${messageIsArabic ? 'flex-row-reverse' : 'flex-row'}`}>
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] mt-1">
-                <Sparkles size={16} className="text-emerald-600" />
+                <Sparkles size={16} className="text-[var(--osool-accent)]" />
             </div>
             <div className="flex-1 min-w-0" dir={messageIsArabic ? 'rtl' : 'ltr'}>
                 <div className={`text-[15px] leading-relaxed text-[var(--color-text-primary)] prose prose-sm dark:prose-invert max-w-none prose-p:mt-0 prose-p:mb-4 prose-headings:mt-5 prose-headings:mb-2 prose-blockquote:border-s-2 prose-blockquote:ps-3 prose-blockquote:italic prose-blockquote:text-inherit prose-blockquote:bg-transparent prose-blockquote:rounded-none prose-strong:text-inherit ${messageIsArabic ? 'text-end prose-rtl' : 'text-start'}`}>
@@ -157,7 +157,7 @@ function AIMessage({
                             h1: ({ node, ...props }) => <h1 className={`text-xl font-semibold ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
                             h2: ({ node, ...props }) => <h2 className={`text-lg font-semibold ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
                             h3: ({ node, ...props }) => <h3 className={`text-base font-semibold ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />,
-                            a: ({ node, ...props }) => <a className="text-emerald-600 hover:underline dark:text-emerald-400" target="_blank" rel="noopener noreferrer" {...props} />,
+                            a: ({ node, ...props }) => <a className="text-[var(--osool-accent)] hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                             table: ({ node, ...props }) => (
                                 <div className="my-4 overflow-x-auto rounded-xl border border-[var(--color-border)]/40">
                                     <table className={`w-full border-collapse text-sm ${messageIsArabic ? 'text-end' : 'text-start'}`} {...props} />
@@ -174,7 +174,7 @@ function AIMessage({
                     >
                         {cleanMessageContent(content)}
                     </ReactMarkdown>
-                    {isStreaming && <span className={`inline-block w-2 h-4 bg-emerald-500 animate-pulse align-middle ${messageIsArabic ? 'mr-1' : 'ml-1'}`} />}
+                    {isStreaming && <span className={`inline-block w-2 h-4 bg-[var(--osool-accent)] animate-pulse align-middle ${messageIsArabic ? 'mr-1' : 'ml-1'}`} />}
                 </div>
 
                 {/* Visualizations - Collapsible cards for mobile focus */}
@@ -334,7 +334,7 @@ function ChatInput({
                         rows={1}
                         dir="auto"
                         aria-label={isRTL ? 'رسالتك' : 'Your message'}
-                        className={transcriptHighlight ? 'transition-colors duration-300 ring-2 ring-[var(--osool-deep-teal)]/40 rounded' : ''}
+                        className={transcriptHighlight ? 'transition-colors duration-300 ring-2 ring-[var(--osool-accent-mid)] rounded' : ''}
                     />
                     <VoiceOrb
                         status={voiceStatus}
@@ -492,7 +492,7 @@ export default function ChatMain({ onNewConversation, onPropertySelect, onChatCo
                         {/* WhatsApp handoff CTA */}
                         <motion.button
                             onClick={() => setShowWhatsApp(true)}
-                            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-5 py-2.5 text-sm font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+                            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-5 py-2.5 text-sm font-semibold text-[var(--osool-accent)] transition-colors hover:bg-[var(--osool-accent-mid)]"
                             initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.34, delay: 0.34, ease: [0.16, 1, 0.3, 1] }}

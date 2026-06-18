@@ -123,7 +123,7 @@ function VerifyEmailContent() {
   const tone = useMemo(() => {
     switch (effectiveStatus) {
       case 'success':
-        return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300';
+        return 'border-[var(--osool-nile-mid)] bg-[var(--osool-nile-soft)] text-[var(--osool-nile)]';
       case 'error':
         return 'border-red-500/20 bg-red-500/10 text-red-500';
       case 'no-token':
@@ -151,7 +151,7 @@ function VerifyEmailContent() {
         <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col justify-center gap-8 px-4 py-10 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
                 <Mail className="h-3.5 w-3.5" />
                 Account continuity
               </div>
@@ -238,7 +238,7 @@ export default function VerifyEmailPage() {
       fallback={
         <AppShell>
           <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[var(--color-background)]">
-            <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+            <Loader2 className="h-10 w-10 animate-spin text-[var(--osool-accent)]" />
           </main>
         </AppShell>
       }

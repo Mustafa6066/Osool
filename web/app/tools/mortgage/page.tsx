@@ -46,7 +46,7 @@ export default function MortgageCalculatorPage() {
     <AppShell>
       <div className="h-full overflow-y-auto bg-[var(--color-background)]" dir={direction}>
         <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+          <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]" style={{ borderColor: 'var(--osool-accent-mid)', backgroundColor: 'var(--osool-accent-soft)', color: 'var(--osool-accent)' }}>
             <Landmark className="h-3.5 w-3.5" />
             {isRTL ? 'التمويل العقاري' : 'Mortgage'}
           </div>
@@ -70,7 +70,7 @@ export default function MortgageCalculatorPage() {
                 min={100_000}
                 value={price}
                 onChange={(e) => setPrice(Number(e.target.value))}
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-emerald-500"
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-[var(--osool-accent)]"
               />
             </label>
             <label className="block">
@@ -82,7 +82,7 @@ export default function MortgageCalculatorPage() {
                 min={0}
                 value={downPayment}
                 onChange={(e) => setDownPayment(Number(e.target.value))}
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-emerald-500"
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-[var(--osool-accent)]"
               />
             </label>
             <label className="block">
@@ -96,7 +96,8 @@ export default function MortgageCalculatorPage() {
                 step={1}
                 value={years}
                 onChange={(e) => setYears(Number(e.target.value))}
-                className="mt-3 w-full accent-emerald-500"
+                className="mt-3 w-full"
+                style={{ accentColor: 'var(--osool-accent)' }}
               />
             </label>
             <label className="block">
@@ -109,13 +110,14 @@ export default function MortgageCalculatorPage() {
                 value={income}
                 placeholder={isRTL ? 'لتحديد أهلية المبادرة' : 'For initiative eligibility'}
                 onChange={(e) => setIncome(e.target.value === '' ? '' : Number(e.target.value))}
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-emerald-500"
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-[var(--osool-accent)]"
               />
             </label>
             <button
               onClick={calculate}
               disabled={loading || price <= 0 || downPayment >= price}
-              className="sm:col-span-2 flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="sm:col-span-2 flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ backgroundColor: 'var(--osool-accent)' }}
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
               {isRTL ? 'احسب القسط' : 'Calculate'}
@@ -139,14 +141,15 @@ export default function MortgageCalculatorPage() {
                       key={tier.id}
                       className={`rounded-[24px] border p-5 ${
                         isBest
-                          ? 'border-emerald-500/60 bg-emerald-500/[0.06]'
+                          ? 'bg-[var(--osool-accent-soft)]'
                           : tier.eligible
                             ? 'border-[var(--color-border)] bg-[var(--color-surface)]'
                             : 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-50'
                       }`}
+                      style={isBest ? { borderColor: 'var(--osool-accent-mid)' } : undefined}
                     >
                       {isBest && (
-                        <span className="rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                        <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: 'var(--osool-accent)' }}>
                           {isRTL ? 'أفضل خيار ليك' : 'Best for you'}
                         </span>
                       )}
@@ -175,12 +178,17 @@ export default function MortgageCalculatorPage() {
                 <div
                   className={`rounded-[24px] border p-5 ${
                     result.affordability.affordable
-                      ? 'border-emerald-500/40 bg-emerald-500/[0.06]'
+                      ? ''
                       : 'border-amber-500/40 bg-amber-500/[0.06]'
                   }`}
+                  style={
+                    result.affordability.affordable
+                      ? { borderColor: 'var(--osool-accent-mid)', backgroundColor: 'var(--osool-accent-soft)' }
+                      : undefined
+                  }
                 >
                   <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-                    <Crown className="h-4 w-4 text-emerald-500" />
+                    <Crown className="h-4 w-4" style={{ color: 'var(--osool-accent)' }} />
                     {isRTL ? 'تحليل القدرة الشرائية (برو)' : 'Affordability analysis (Pro)'}
                   </h3>
                   <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
@@ -198,10 +206,11 @@ export default function MortgageCalculatorPage() {
               {result.affordability_gated && (
                 <button
                   onClick={() => setUpgradeOpen(true)}
-                  className="w-full rounded-[24px] border border-dashed border-emerald-500/40 bg-emerald-500/[0.04] p-5 text-start transition hover:bg-emerald-500/[0.08]"
+                  className="w-full rounded-[24px] border border-dashed p-5 text-start transition hover:bg-[var(--osool-accent-mid)]"
+                  style={{ borderColor: 'var(--osool-accent-mid)', backgroundColor: 'var(--osool-accent-soft)' }}
                 >
                   <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-                    <Crown className="h-4 w-4 text-emerald-500" />
+                    <Crown className="h-4 w-4" style={{ color: 'var(--osool-accent)' }} />
                     {isRTL ? 'هل تقدر على القسط ده فعلاً؟' : 'Can you actually afford this payment?'}
                   </h3>
                   <p className="mt-1 text-sm text-[var(--color-text-secondary)]">

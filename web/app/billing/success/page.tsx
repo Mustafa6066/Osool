@@ -65,7 +65,7 @@ export default function BillingSuccessPage() {
       <div className="w-full max-w-md rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
         {phase === 'confirming' && (
           <>
-            <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald-500" />
+            <Loader2 className="mx-auto h-12 w-12 animate-spin text-[var(--osool-accent)]" />
             <h1 className="mt-6 text-xl font-semibold text-[var(--color-text-primary)]">
               {isRTL ? 'جارٍ تأكيد الدفع…' : 'Confirming your payment…'}
             </h1>
@@ -79,8 +79,8 @@ export default function BillingSuccessPage() {
 
         {phase === 'active' && (
           <>
-            <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
-              <Crown className="h-8 w-8 text-emerald-500" />
+            <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-[var(--osool-accent-mid)]">
+              <Crown className="h-8 w-8 text-[var(--osool-accent)]" />
             </div>
             <h1 className="mt-6 text-2xl font-semibold text-[var(--color-text-primary)]">
               {isRTL ? '🎉 أهلاً بك في أصول برو!' : '🎉 Welcome to Osool Pro!'}
@@ -92,7 +92,7 @@ export default function BillingSuccessPage() {
             </p>
             <button
               onClick={() => router.push('/chat')}
-              className="mt-8 w-full rounded-2xl bg-emerald-500 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+              className="mt-8 w-full rounded-2xl bg-[var(--osool-accent)] py-3 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
             >
               {isRTL ? 'ابدأ الاستخدام' : 'Start exploring'}
             </button>
@@ -101,8 +101,8 @@ export default function BillingSuccessPage() {
 
         {phase === 'pending_report' && (
           <>
-            <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
-              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+            <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-[var(--osool-accent-mid)]">
+              <CheckCircle2 className="h-8 w-8 text-[var(--osool-accent)]" />
             </div>
             <h1 className="mt-6 text-2xl font-semibold text-[var(--color-text-primary)]">
               {isRTL ? 'تم الدفع — تقريرك بيتجهز' : 'Payment received — your report is being prepared'}
@@ -114,7 +114,7 @@ export default function BillingSuccessPage() {
             </p>
             <button
               onClick={() => router.push('/dashboard')}
-              className="mt-8 w-full rounded-2xl bg-emerald-500 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+              className="mt-8 w-full rounded-2xl bg-[var(--osool-accent)] py-3 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
             >
               {isRTL ? 'لوحة التحكم' : 'Go to dashboard'}
             </button>
@@ -137,7 +137,7 @@ export default function BillingSuccessPage() {
             <div className="mt-8 flex gap-3">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex-1 rounded-2xl bg-emerald-500 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                className="flex-1 rounded-2xl bg-[var(--osool-accent)] py-3 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
               >
                 {isRTL ? 'لوحة التحكم' : 'Dashboard'}
               </button>

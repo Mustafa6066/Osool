@@ -102,10 +102,11 @@ function ScoreRing({ score }: { score: number }) {
 function SpecTile({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
     return (
         <div className={`p-3.5 rounded-2xl border ${highlight
-            ? 'bg-emerald-50/60 dark:bg-emerald-500/5 border-emerald-500/20'
-            : 'bg-gray-50/60 dark:bg-gray-800/40 border-[var(--color-border)]/50'}`}>
-            <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${highlight ? 'text-emerald-600/80 dark:text-emerald-400/80' : 'text-[var(--color-text-muted)]'}`}>{label}</div>
-            <div className={`text-[14px] font-bold ${highlight ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-text-primary)]'}`}>{value}</div>
+            ? 'border-[var(--osool-accent-mid)]'
+            : 'bg-gray-50/60 dark:bg-gray-800/40 border-[var(--color-border)]/50'}`}
+            style={highlight ? { background: 'var(--osool-accent-soft)' } : undefined}>
+            <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${highlight ? '' : 'text-[var(--color-text-muted)]'}`} style={highlight ? { color: 'var(--osool-accent)' } : undefined}>{label}</div>
+            <div className={`text-[14px] font-bold ${highlight ? '' : 'text-[var(--color-text-primary)]'}`} style={highlight ? { color: 'var(--osool-accent)' } : undefined}>{value}</div>
         </div>
     );
 }
@@ -171,17 +172,17 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                         <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5 font-medium">{property.developer}</p>
                     )}
                     <p className="text-[13px] text-[var(--color-text-secondary)] flex items-center gap-1.5 mt-1.5 font-medium" dir="auto">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" strokeWidth={2} />
+                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--osool-accent)' }} strokeWidth={2} />
                         {property.location}
                     </p>
                 </div>
 
                 {/* Osool Intelligence Score */}
                 {property.metrics?.wolf_score > 0 && (
-                    <div className="bg-gradient-to-br from-emerald-500/8 to-transparent rounded-[18px] p-4 border border-emerald-500/15 relative overflow-hidden">
-                        <div className="absolute top-0 end-0 w-28 h-28 bg-emerald-500/12 blur-[36px] rounded-full pointer-events-none" />
+                    <div className="rounded-[18px] p-4 border border-[var(--osool-accent-mid)] relative overflow-hidden" style={{ background: 'linear-gradient(to bottom right, var(--osool-accent-soft), transparent)' }}>
+                        <div className="absolute top-0 end-0 w-28 h-28 blur-[36px] rounded-full pointer-events-none" style={{ background: 'var(--osool-accent-mid)' }} />
                         <div className="flex items-center gap-2 mb-3.5 relative z-10">
-                            <Sparkles className="w-4 h-4 text-emerald-500" strokeWidth={2} />
+                            <Sparkles className="w-4 h-4" style={{ color: 'var(--osool-accent)' }} strokeWidth={2} />
                             <span className="text-[12px] font-bold text-[var(--color-text-primary)] uppercase tracking-wider">
                                 {isRTL ? 'مؤشر أصول' : 'Osool Score'}
                             </span>
@@ -206,11 +207,11 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                                 {property.metrics?.roi > 0 && (
                                     <div className="h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mt-0.5">
                                         <motion.div
-                                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                                            className="h-full rounded-full"
+                                            style={{ background: 'linear-gradient(to right, var(--osool-accent), var(--osool-accent-soft))', transformOrigin: 'left' }}
                                             initial={{ scaleX: 0 }}
                                             animate={{ scaleX: Math.min(property.metrics?.roi ? property.metrics.roi * 5 : 0, 100) / 100 }}
                                             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-                                            style={{ transformOrigin: 'left' }}
                                         />
                                     </div>
                                 )}
@@ -269,10 +270,10 @@ export default function ChatInsightsShell({ property, isOpen, onClose, language,
                                 <button
                                     key={i}
                                     onClick={() => askAbout(qa.prompt)}
-                                    className="text-start w-full text-[12px] font-medium text-[var(--color-text-secondary)] px-3.5 py-2.5 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)]/50 hover:border-emerald-500/30 transition-all flex items-center justify-between group"
+                                    className="text-start w-full text-[12px] font-medium text-[var(--color-text-secondary)] px-3.5 py-2.5 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)]/50 hover:border-[var(--osool-accent-mid)] transition-all flex items-center justify-between group"
                                 >
                                     {qa.label}
-                                    <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-500" />
+                                    <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--osool-accent)' }} />
                                 </button>
                             ))}
                         </div>

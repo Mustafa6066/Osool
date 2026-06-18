@@ -54,12 +54,12 @@ export default function MarkdownMessage({ content, forceRTL = false }: MarkdownM
           h3: ({ node, ...props }) => <h3 className="text-base font-medium mb-1.5 md:mb-2 mt-1.5 md:mt-2" {...props} />,
           blockquote: ({ node, ...props }) => (
             <blockquote
-              className="border-s-2 ps-4 border-emerald-500/40 py-1 my-2 text-[var(--color-text-secondary)]"
+              className="border-s-2 ps-4 border-[var(--osool-accent-mid)] py-1 my-2 text-[var(--color-text-secondary)]"
               {...props}
             />
           ),
           a: ({ node, ...props }) => (
-            <a className="text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-2" target="_blank" rel="noopener noreferrer" {...props} />
+            <a className="text-[var(--osool-accent)] hover:underline underline-offset-2" target="_blank" rel="noopener noreferrer" {...props} />
           ),
           code: ({ node, className, children, ...props }) => {
             const isInline = !className;

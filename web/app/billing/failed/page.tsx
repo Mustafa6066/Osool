@@ -30,7 +30,7 @@ export default function BillingFailedPage() {
         <div className="mt-8 flex gap-3">
           <button
             onClick={() => router.push('/pricing')}
-            className="flex-1 rounded-2xl bg-emerald-500 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+            className="flex-1 rounded-2xl bg-[var(--osool-accent)] py-3 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
           >
             {isRTL ? 'حاول مرة أخرى' : 'Try again'}
           </button>

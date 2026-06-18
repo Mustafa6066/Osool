@@ -121,7 +121,7 @@ export default function NotificationBell({ buttonClassName }: NotificationBellPr
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -end-0.5 w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+          <span className="absolute -top-0.5 -end-0.5 w-4 h-4 rounded-full bg-[var(--osool-accent)] text-white text-[9px] font-bold flex items-center justify-center leading-none">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -153,12 +153,12 @@ export default function NotificationBell({ buttonClassName }: NotificationBellPr
                     key={notif.id}
                     onClick={() => !notif.read && markAsRead(notif.id)}
                     className={`w-full text-start px-4 py-3 hover:bg-[var(--color-surface-elevated)] transition-colors ${
-                      !notif.read ? 'bg-emerald-500/5' : ''
+                      !notif.read ? 'bg-[var(--osool-accent-soft)]' : ''
                     }`}
                   >
                     <div className="flex items-start gap-2">
                       {!notif.read && (
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                        <span className="w-2 h-2 rounded-full bg-[var(--osool-accent)] mt-1.5 shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-[var(--color-text-primary)]">

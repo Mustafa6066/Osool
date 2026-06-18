@@ -79,7 +79,7 @@ export default function DataTable({
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(defaultSortOrder);
 
     const schemeColors = {
-        primary: 'from-teal-600/20 to-cyan-600/20 border-teal-500/20',
+        primary: 'from-[var(--osool-accent-soft)] to-[var(--osool-accent-mid)] border-[var(--osool-accent-mid)]',
         success: 'from-green-600/20 to-emerald-600/20 border-green-500/20',
         warning: 'from-amber-600/20 to-orange-600/20 border-amber-500/20',
         danger: 'from-red-600/20 to-rose-600/20 border-red-500/20',
@@ -88,7 +88,7 @@ export default function DataTable({
     };
 
     const schemeAccent = {
-        primary: 'text-teal-400',
+        primary: 'text-[var(--osool-accent)]',
         success: 'text-green-400',
         warning: 'text-amber-400',
         danger: 'text-red-400',

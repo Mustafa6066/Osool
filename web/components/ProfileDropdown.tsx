@@ -59,9 +59,11 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
             {/* Profile Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-green-500 transition-all"
+                className="flex items-center gap-2 px-3 py-2 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all"
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--osool-accent)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; }}
             >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-sm font-bold" style={{ backgroundImage: 'linear-gradient(to bottom right, var(--osool-accent), var(--osool-accent-dark))' }}>
                     {getInitials()}
                 </div>
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300 hidden sm:block max-w-[120px] truncate">
@@ -86,7 +88,9 @@ export default function ProfileDropdown({ onGenerateInvitation }: ProfileDropdow
                                 setIsOpen(false);
                                 onGenerateInvitation?.();
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 transition-colors"
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--osool-accent-soft)'; e.currentTarget.style.color = 'var(--osool-accent)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = ''; }}
                         >
                             <Gift size={18} />
                             <span className="font-medium">Invite a Friend</span>

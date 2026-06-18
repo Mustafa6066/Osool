@@ -142,7 +142,7 @@ export default function PriceGrowthChart(props: PriceGrowthChartProps) {
         >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
-                <TrendingUp className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <TrendingUp className="w-4 h-4 text-[var(--osool-accent)] flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-[var(--color-text-primary)]" dir="rtl">
                         تطور الأسعار في {displayName}

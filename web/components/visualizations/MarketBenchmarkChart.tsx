@@ -74,8 +74,8 @@ export default function MarketBenchmarkChart({
             {/* Header */}
             <div className="px-5 pt-5 pb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                        <BarChart3 className="w-4 h-4 text-emerald-400" />
+                    <div className="w-8 h-8 rounded-lg bg-[var(--osool-accent-mid)] flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4 text-[var(--osool-accent)]" />
                     </div>
                     <div>
                         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -87,7 +87,7 @@ export default function MarketBenchmarkChart({
                     </div>
                 </div>
                 {inventory > 0 && (
-                    <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-medium">
+                    <span className="text-[10px] px-2 py-1 rounded-full bg-[var(--osool-accent-mid)] text-[var(--osool-accent)] font-medium">
                         {inventory} listings
                     </span>
                 )}
@@ -104,14 +104,14 @@ export default function MarketBenchmarkChart({
                 </div>
                 <div className="p-3 rounded-xl bg-[var(--color-surface-elevated)]">
                     <div className="text-[9px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Growth</div>
-                    <div className="text-lg font-bold text-emerald-400">
+                    <div className="text-lg font-bold text-[var(--osool-accent)]">
                         +{growth_pct.toFixed(0)}%
                     </div>
                     <div className="text-[9px] text-[var(--color-text-muted)]">YoY</div>
                 </div>
                 <div className="p-3 rounded-xl bg-[var(--color-surface-elevated)]">
                     <div className="text-[9px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Rental Yield</div>
-                    <div className="text-lg font-bold text-cyan-400">
+                    <div className="text-lg font-bold text-[var(--osool-nile)]">
                         {yield_pct.toFixed(1)}%
                     </div>
                     <div className="text-[9px] text-[var(--color-text-muted)]">Annual</div>
@@ -141,12 +141,12 @@ export default function MarketBenchmarkChart({
                                             transition={{ duration: 0.8, delay: idx * 0.1, ease: "easeOut" }}
                                             style={{ transformOrigin: 'left' }}
                                             className={`h-full rounded-full ${isCurrent
-                                                ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                                                ? "bg-gradient-to-r from-[var(--osool-accent-dark)] to-[var(--osool-accent)]"
                                                 : "bg-gradient-to-r from-gray-600 to-gray-500"
                                                 }`}
                                         />
                                     </div>
-                                    <div className={`w-16 text-[11px] font-medium ${isCurrent ? "text-emerald-400" : "text-[var(--color-text-secondary)]"}`}>
+                                    <div className={`w-16 text-[11px] font-medium ${isCurrent ? "text-[var(--osool-accent)]" : "text-[var(--color-text-secondary)]"}`}>
                                         {(comp.price / 1000).toFixed(1)}k
                                     </div>
                                 </div>

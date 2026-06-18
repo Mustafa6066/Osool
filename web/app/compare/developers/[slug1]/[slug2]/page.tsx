@@ -76,9 +76,9 @@ export default async function DeveloperComparisonPage({ params }: Props) {
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[var(--color-text-muted)] mb-6 flex items-center gap-1">
-          <Link href="/" className="hover:text-emerald-500"><T k="comparePage.home" /></Link>
+          <Link href="/" className="hover:text-[var(--osool-accent)]"><T k="comparePage.home" /></Link>
           <span>/</span>
-          <Link href="/developers" className="hover:text-emerald-500"><T k="comparePage.developers" /></Link>
+          <Link href="/developers" className="hover:text-[var(--osool-accent)]"><T k="comparePage.developers" /></Link>
           <span>/</span>
           <span className="text-[var(--color-text-primary)]"><T k="comparePage.compare" /></span>
         </nav>
@@ -124,12 +124,12 @@ export default async function DeveloperComparisonPage({ params }: Props) {
               <tr>
                 <th className="p-4 text-left font-medium"><T k="comparePage.metric" /></th>
                 <th className="p-4 text-center font-medium">
-                  <Link href={`/developers/${d1.slug}`} className="hover:text-emerald-500">
+                  <Link href={`/developers/${d1.slug}`} className="hover:text-[var(--osool-accent)]">
                     {d1.name}
                   </Link>
                 </th>
                 <th className="p-4 text-center font-medium">
-                  <Link href={`/developers/${d2.slug}`} className="hover:text-emerald-500">
+                  <Link href={`/developers/${d2.slug}`} className="hover:text-[var(--osool-accent)]">
                     {d2.name}
                   </Link>
                 </th>
@@ -178,14 +178,14 @@ export default async function DeveloperComparisonPage({ params }: Props) {
         </div>
 
         {/* CTA */}
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
+        <div className="bg-[var(--osool-accent-soft)] border border-[var(--osool-accent-mid)] rounded-2xl p-6 text-center">
           <h3 className="text-lg font-semibold mb-2"><T k="comparePage.needHelp" /></h3>
           <p className="text-sm text-[var(--color-text-muted)] mb-4">
             <T k="comparePage.aiRecommendation" />
           </p>
           <Link
             href="/chat"
-            className="inline-block px-6 py-2 bg-emerald-500 text-white rounded-full font-medium hover:bg-emerald-600 transition-colors"
+            className="inline-block px-6 py-2 bg-[var(--osool-accent)] text-white rounded-full font-medium hover:bg-[var(--osool-accent-dark)] transition-colors"
           >
             <T k="comparePage.getAIRec" />
           </Link>
@@ -236,7 +236,7 @@ function ProjectList({
         <Link
           key={p.slug}
           href={`/projects/${p.slug}`}
-          className="block p-3 rounded-lg border border-[var(--color-border)] hover:border-emerald-500/50 transition-colors"
+          className="block p-3 rounded-lg border border-[var(--color-border)] hover:border-[var(--osool-accent-mid)] transition-colors"
         >
           <p className="font-medium text-sm">{p.name}</p>
           <p className="text-xs text-[var(--color-text-muted)]">

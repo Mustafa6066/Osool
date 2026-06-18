@@ -83,8 +83,8 @@ const ANALYTICS_CONFIG: Record<string, { icon: LucideIcon; label: string; labelA
         icon: Target,
         label: "Investment",
         labelAr: "الاستثمار",
-        color: "text-emerald-400",
-        bgColor: "bg-emerald-500/10",
+        color: "text-[var(--osool-accent)]",
+        bgColor: "bg-[var(--osool-accent-soft)]",
     },
     comparison_matrix: {
         icon: BarChart3,
@@ -132,8 +132,8 @@ const ANALYTICS_CONFIG: Record<string, { icon: LucideIcon; label: string; labelA
         icon: TrendingUp,
         label: "Trends",
         labelAr: "الاتجاهات",
-        color: "text-emerald-400",
-        bgColor: "bg-emerald-500/10",
+        color: "text-[var(--osool-accent)]",
+        bgColor: "bg-[var(--osool-accent-soft)]",
     },
 };
 
@@ -339,7 +339,7 @@ function ExpandedContent({ viz, isRTL }: { viz: VisualizationItem; isRTL: boolea
                             {Object.entries(data.analysis.factors).slice(0, 4).map(([key, val]) => (
                                 <div key={key} className="bg-white/5 rounded-lg p-2 text-center">
                                     <div className="text-xs text-gray-400 capitalize">{key}</div>
-                                    <div className="text-sm font-semibold text-emerald-400">{val}/100</div>
+                                    <div className="text-sm font-semibold text-[var(--osool-accent)]">{val}/100</div>
                                 </div>
                             ))}
                         </div>
@@ -479,11 +479,11 @@ export default function UnifiedAnalytics({ visualizations, isRTL = true }: Unifi
         >
             {/* Header */}
             <div className="flex items-center gap-2 px-1 mb-3">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <Sparkles className="w-4 h-4 text-[var(--osool-accent)]" />
                 <span className="text-sm font-semibold text-white">
                     {isRTL ? "تحليلات ذكية" : "Smart Insights"}
                 </span>
-                <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-medium rounded">
+                <span className="px-1.5 py-0.5 bg-[var(--osool-accent-mid)] text-[var(--osool-accent)] text-[10px] font-medium rounded">
                     {validVisualizations.length}
                 </span>
             </div>

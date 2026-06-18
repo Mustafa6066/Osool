@@ -61,7 +61,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
           <div
             className="absolute -inset-1 rounded-[28px] opacity-40 pointer-events-none animate-[breath_3s_ease-in-out_infinite]"
             style={{
-              background: 'radial-gradient(ellipse at center, rgba(16,185,129,0.35) 0%, transparent 70%)',
+              background: 'radial-gradient(ellipse at center, rgba(201,100,66,0.35) 0%, transparent 70%)',
             }}
           />
         )}
@@ -86,7 +86,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                   onHoverEnd={() => setHoveredIndex(null)}
                   aria-label={language === 'ar' ? item.labelAr : item.label}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`relative overflow-hidden flex items-center justify-center h-[52px] sm:h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 transition-all duration-300 ease-out ${isActive ? 'w-[100px] sm:w-[120px] px-3' : 'w-[52px] sm:w-11 px-0'}`}
+                  className={`relative overflow-hidden flex items-center justify-center h-[52px] sm:h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] transition-all duration-300 ease-out ${isActive ? 'w-[100px] sm:w-[120px] px-3' : 'w-[52px] sm:w-11 px-0'}`}
                   animate={{
                     scale: prefersReducedMotion ? (isActive ? 1.02 : 1) : hoveredIndex === i ? 1.18 : isActive ? 1.06 : 1,
                   }}
@@ -96,7 +96,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                   {isActive && (
                     <motion.div
                       layoutId="dockActiveBlob"
-                      className="absolute inset-0 rounded-2xl bg-emerald-500/15 -z-10"
+                      className="absolute inset-0 rounded-2xl bg-[var(--osool-accent-soft)] -z-10"
                       transition={{ type: 'spring', bounce: 0.35, duration: 0.35 }}
                     />
                   )}
@@ -105,7 +105,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                     <Icon
                       className={`w-[22px] h-[22px] transition-colors duration-200 ${
                         isActive
-                          ? 'text-emerald-500'
+                          ? 'text-[var(--osool-accent)]'
                           : 'text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)]'
                       }`}
                       strokeWidth={isActive ? 2.4 : 1.6}
@@ -148,7 +148,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
               <motion.button
                 onClick={() => router.push('/admin')}
                 aria-label="Admin"
-                className={`relative overflow-hidden flex items-center justify-center h-[52px] sm:h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 transition-all duration-300 ease-out ${activeKey === 'admin' ? 'w-[100px] sm:w-[120px] px-3' : 'w-[52px] sm:w-11 px-0'}`}
+                className={`relative overflow-hidden flex items-center justify-center h-[52px] sm:h-11 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] transition-all duration-300 ease-out ${activeKey === 'admin' ? 'w-[100px] sm:w-[120px] px-3' : 'w-[52px] sm:w-11 px-0'}`}
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.12 }}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                 transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', bounce: 0.25, duration: 0.28 }}
@@ -156,14 +156,14 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                 {activeKey === 'admin' && (
                   <motion.div
                     layoutId="dockActiveBlob"
-                    className="absolute inset-0 rounded-2xl bg-emerald-500/15 -z-10"
+                    className="absolute inset-0 rounded-2xl bg-[var(--osool-accent-soft)] -z-10"
                     transition={{ type: 'spring', bounce: 0.35, duration: 0.35 }}
                   />
                 )}
                 <div className="flex items-center gap-2">
                   <Shield
                     className={`w-[22px] h-[22px] transition-colors duration-200 ${
-                      activeKey === 'admin' ? 'text-emerald-500' : 'text-[var(--color-text-muted)]'
+                      activeKey === 'admin' ? 'text-[var(--osool-accent)]' : 'text-[var(--color-text-muted)]'
                     }`}
                     strokeWidth={activeKey === 'admin' ? 2.4 : 1.6}
                   />
@@ -201,13 +201,13 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
               }
               whileHover={prefersReducedMotion ? undefined : { scale: 1.06 }}
               whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-[var(--osool-accent-soft)] border border-[var(--osool-accent-mid)] text-[var(--osool-accent)] hover:border-[var(--osool-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)]"
             >
               <Sparkles className="w-4 h-4" />
               <span className="text-xs font-semibold">
                 {language === 'ar' ? 'اسأل أصول' : 'Ask Osool'}
               </span>
-              <kbd className="hidden lg:inline-block px-1 py-0.5 text-[9px] font-mono rounded bg-black/10 dark:bg-white/5 text-emerald-600/60 dark:text-emerald-400/60 border border-emerald-500/10">
+              <kbd className="hidden lg:inline-block px-1 py-0.5 text-[9px] font-mono rounded bg-black/10 dark:bg-white/5 text-[var(--osool-accent)] border border-[var(--osool-accent-mid)]">
                 ⌘K
               </kbd>
             </motion.button>
@@ -227,7 +227,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
               whileHover={prefersReducedMotion ? undefined : { scale: 1.1 }}
               whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
               aria-label="Search"
-              className="sm:hidden flex items-center justify-center w-11 h-11 rounded-2xl text-[var(--color-text-muted)] hover:text-emerald-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+              className="sm:hidden flex items-center justify-center w-11 h-11 rounded-2xl text-[var(--color-text-muted)] hover:text-[var(--osool-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)]"
             >
               <Search className="w-5 h-5" />
             </motion.button>
@@ -244,7 +244,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
             <button
               onClick={toggleTheme}
               aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              className="hidden sm:flex items-center justify-center w-11 h-11 rounded-2xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+              className="hidden sm:flex items-center justify-center w-11 h-11 rounded-2xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)]"
             >
               {theme === 'dark' ? <Sun className="w-[22px] h-[22px]" /> : <Moon className="w-[22px] h-[22px]" />}
             </button>
@@ -253,7 +253,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
             <button
               onClick={toggleLanguage}
               aria-label={language === 'en' ? 'العربية' : 'English'}
-              className="hidden sm:flex items-center justify-center w-11 h-11 rounded-2xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+              className="hidden sm:flex items-center justify-center w-11 h-11 rounded-2xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)]"
             >
               <span
                 className="text-xs font-bold"
@@ -271,9 +271,9 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                   aria-label="User menu"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="true"
-                  className="flex items-center justify-center w-11 h-11 rounded-2xl hover:bg-[var(--color-surface-elevated)]/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+                  className="flex items-center justify-center w-11 h-11 rounded-2xl hover:bg-[var(--color-surface-elevated)]/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)]"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xs font-bold">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--osool-accent)] to-[var(--osool-accent-dark)] flex items-center justify-center text-white text-xs font-bold">
                     {(user?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
                   </div>
                 </button>
@@ -297,7 +297,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                       </div>
                       <button
                         onClick={() => { setUserMenuOpen(false); onInvite(); }}
-                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-[var(--color-surface-elevated)] transition-colors"
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-[var(--osool-accent)] hover:bg-[var(--color-surface-elevated)] transition-colors"
                       >
                         <Gift className="w-4 h-4" />
                         {language === 'ar' ? 'دعوة أصدقاء' : 'Invite Friends'}
@@ -334,7 +334,7 @@ export default function LiquidDock({ onInvite }: LiquidDockProps) {
                 onClick={() => router.push('/login')}
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--osool-accent-soft)] text-[var(--osool-accent)] text-xs font-semibold hover:bg-[var(--osool-accent-mid)] transition-colors"
               >
                 <User className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">

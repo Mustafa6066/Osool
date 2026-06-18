@@ -56,7 +56,7 @@ export default function InputAtom({
             suffix ? 'pr-14' : '',
             error
               ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/25'
-              : 'border-zinc-800/70 focus:border-emerald-500/55 focus:ring-2 focus:ring-emerald-500/15',
+              : 'border-zinc-800/70 focus:border-[var(--osool-accent)] focus:ring-2 focus:ring-[var(--osool-accent-mid)]',
           ].join(' ')}
         />
 

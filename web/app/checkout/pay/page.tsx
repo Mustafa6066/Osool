@@ -38,7 +38,7 @@ export default function CheckoutPayPage() {
           {isRTL ? 'رجوع للباقات' : 'Back to pricing'}
         </button>
         <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-          <ShieldCheck className="h-4 w-4 text-emerald-500" />
+          <ShieldCheck className="h-4 w-4 text-[var(--osool-nile)]" />
           {isRTL ? 'دفع آمن عبر Paymob' : 'Secure payment by Paymob'}
         </div>
       </header>
@@ -52,7 +52,7 @@ export default function CheckoutPayPage() {
           </p>
           <button
             onClick={() => router.push('/pricing')}
-            className="rounded-2xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+            className="rounded-2xl bg-[var(--osool-accent)] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
           >
             {isRTL ? 'الذهاب للباقات' : 'Go to pricing'}
           </button>
@@ -66,7 +66,7 @@ export default function CheckoutPayPage() {
         />
       ) : (
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
         </div>
       )}
     </div>

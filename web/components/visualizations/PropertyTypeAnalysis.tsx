@@ -58,12 +58,12 @@ export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyT
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-emerald-950/30 to-emerald-950/20"
+            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-[var(--osool-accent-soft)]"
         >
             {/* Header */}
-            <div className="bg-gradient-to-r from-emerald-600/20 to-emerald-600/20 px-6 py-4 border-b border-[var(--color-border)]">
+            <div className="px-6 py-4 border-b border-[var(--color-border)]" style={{ background: "var(--osool-accent-soft)" }}>
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-2xl">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl" style={{ background: "var(--osool-accent-mid)" }}>
                         {getTypeIcon(analysis.type)}
                     </div>
                     <div>
@@ -77,9 +77,9 @@ export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyT
                 {/* Key Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
-                        <DollarSign className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
+                        <DollarSign className="w-5 h-5 mx-auto mb-2" style={{ color: "var(--osool-accent)" }} />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">متوسط السعر</p>
-                        <p className="text-sm font-bold text-emerald-400">{formatCurrency(analysis.avg_price)}</p>
+                        <p className="text-sm font-bold" style={{ color: "var(--osool-accent)" }}>{formatCurrency(analysis.avg_price)}</p>
                     </div>
                     <div className="bg-[var(--color-surface)]/50 rounded-xl p-4 text-center">
                         <Maximize className="w-5 h-5 text-blue-400 mx-auto mb-2" />
@@ -127,14 +127,15 @@ export default function PropertyTypeAnalysis({ analysis, comparison }: PropertyT
                                         </div>
                                         <div className="h-2 bg-[var(--color-surface)] rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full"
+                                                className="h-full rounded-full"
                                                 style={{
+                                                    background: "var(--osool-accent)",
                                                     width: `${Math.min((item.avg_price_per_sqm / Math.max(...comparison.map(c => c.avg_price_per_sqm))) * 100, 100)}%`
                                                 }}
                                             />
                                         </div>
                                     </div>
-                                    <span className="text-sm text-emerald-400 font-medium w-24 text-right">
+                                    <span className="text-sm font-medium w-24 text-right" style={{ color: "var(--osool-accent)" }}>
                                         {formatCurrency(item.avg_price_per_sqm)}/م²
                                     </span>
                                 </div>

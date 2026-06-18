@@ -159,8 +159,8 @@ export default function WhatsAppHandoffModal({ isOpen, onClose, context }: Whats
               <div className="px-6 py-5 space-y-4">
                 {/* Property context preview */}
                 {context?.propertyTitle && (
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+                  <div className="rounded-2xl border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[var(--osool-accent)] mb-1">
                       {t('whatsapp.regarding')}
                     </p>
                     <p className="text-sm font-semibold text-[var(--color-text-primary)]">{context.propertyTitle}</p>
@@ -168,7 +168,7 @@ export default function WhatsAppHandoffModal({ isOpen, onClose, context }: Whats
                       <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{context.propertyLocation}</p>
                     )}
                     {context.propertyPrice && (
-                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">{context.propertyPrice}</p>
+                      <p className="text-xs font-semibold text-[var(--osool-accent)] mt-0.5">{context.propertyPrice}</p>
                     )}
                   </div>
                 )}

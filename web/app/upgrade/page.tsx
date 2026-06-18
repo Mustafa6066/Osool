@@ -16,8 +16,8 @@ function UpgradeRedirect() {
   }, [router, searchParams]);
 
   return (
-    <div className="flex h-screen items-center justify-center bg-[var(--color-background)]">
-      <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+    <div className="flex h-screen items-center justify-center bg-[var(--osool-bg)]">
+      <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
     </div>
   );
 }
@@ -26,8 +26,8 @@ export default function UpgradePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center bg-[var(--color-background)]">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        <div className="flex h-screen items-center justify-center bg-[var(--osool-bg)]">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
         </div>
       }
     >

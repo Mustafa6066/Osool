@@ -44,12 +44,12 @@ function Tooltip({ entry, children }: { entry: GlossaryEntry; children: React.Re
       onMouseLeave={() => setOpen(false)}
       onClick={() => setOpen((v) => !v)}
     >
-      <span className="border-b border-dotted border-emerald-500/60 cursor-help">
+      <span className="border-b border-dotted cursor-help" style={{ borderColor: 'var(--osool-accent-mid)' }}>
         {children}
       </span>
       {open && (
         <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl text-sm pointer-events-none">
-          <span className="block font-semibold text-emerald-500">{entry.arabic} ({entry.transliteration})</span>
+          <span className="block font-semibold" style={{ color: 'var(--osool-accent)' }}>{entry.arabic} ({entry.transliteration})</span>
           <span className="block mt-1 text-[var(--color-text-secondary)] text-xs leading-relaxed">
             {entry.definition}
           </span>

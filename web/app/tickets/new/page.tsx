@@ -159,7 +159,7 @@ export default function NewTicketPage() {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
         </div>
       </AppShell>
     );
@@ -176,7 +176,7 @@ export default function NewTicketPage() {
                   <ArrowLeft className="h-4 w-4" />
                   {t('ticketNew.back')}
                 </Link>
-                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t('ticketNew.badge')}
                 </div>
@@ -195,7 +195,7 @@ export default function NewTicketPage() {
                 </div>
                 <div className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-                    <Sparkles className="h-4 w-4 text-emerald-500" />
+                    <Sparkles className="h-4 w-4 text-[var(--osool-accent)]" />
                     {t('ticketNew.routingLabel')}
                   </div>
                   <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
@@ -242,8 +242,8 @@ export default function NewTicketPage() {
                         onClick={() => setCategory(item.value)}
                         className={`rounded-2xl border p-4 text-left transition-colors ${
                           category === item.value
-                            ? 'border-emerald-500/30 bg-emerald-500/10'
-                            : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-emerald-500/20'
+                            ? 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)]'
+                            : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--osool-accent-mid)]'
                         }`}
                       >
                         <div className="text-sm font-semibold text-[var(--color-text-primary)]">{t(item.labelKey)}</div>
@@ -265,7 +265,7 @@ export default function NewTicketPage() {
                         className={`rounded-2xl border p-4 text-left transition-colors ${
                           priority === item.value
                             ? getPriorityTone(item.value)
-                            : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-emerald-500/20'
+                            : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-[var(--osool-accent-mid)]'
                         }`}
                       >
                         <div className="text-sm font-semibold">{t(item.labelKey)}</div>

@@ -67,7 +67,7 @@ export default function AdminShell({
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--osool-accent)' }} />
         </div>
       </AppShell>
     );
@@ -106,7 +106,7 @@ export default function AdminShell({
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
             <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+              <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]" style={{ borderColor: 'var(--osool-accent-mid)', backgroundColor: 'var(--osool-accent-soft)', color: 'var(--osool-accent)' }}>
                 <Shield className="h-3.5 w-3.5" />
                 {eyebrow}
               </div>

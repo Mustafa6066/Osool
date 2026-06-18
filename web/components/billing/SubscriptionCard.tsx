@@ -37,7 +37,7 @@ export default function SubscriptionCard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--osool-accent)]" />
       </div>
     );
   }
@@ -57,7 +57,7 @@ export default function SubscriptionCard() {
         <div className="flex items-center gap-3">
           <div
             className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
-              isPro ? 'bg-emerald-500 text-white' : 'bg-[var(--color-background)] text-emerald-500'
+              isPro ? 'bg-[var(--osool-accent)] text-white' : 'bg-[var(--color-background)] text-[var(--osool-accent)]'
             }`}
           >
             {isPro ? <Crown className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
@@ -82,7 +82,7 @@ export default function SubscriptionCard() {
         {!isPro && (
           <button
             onClick={() => router.push('/pricing?source=dashboard')}
-            className="shrink-0 rounded-2xl bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-600"
+            className="shrink-0 rounded-2xl bg-[var(--osool-accent)] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
           >
             {isRTL ? 'ترقية' : 'Upgrade'}
           </button>
@@ -103,7 +103,7 @@ export default function SubscriptionCard() {
                   className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--color-background)] px-4 py-3"
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <FileText className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <FileText className="h-4 w-4 shrink-0 text-[var(--osool-accent)]" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">
                         {isRTL ? 'تقرير التقييم الذكي' : 'AI Valuation Report'}
@@ -114,7 +114,7 @@ export default function SubscriptionCard() {
                   {report.status === 'delivered' && (
                     <button
                       onClick={() => router.push(`/reports/${report.id}`)}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition hover:bg-emerald-500/10"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--osool-accent-mid)] px-3 py-1.5 text-xs font-semibold text-[var(--osool-accent)] transition hover:bg-[var(--osool-accent-soft)]"
                     >
                       <Download className="h-3.5 w-3.5" />
                       {isRTL ? 'عرض' : 'View'}

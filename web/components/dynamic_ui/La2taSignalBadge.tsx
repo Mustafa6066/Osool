@@ -6,7 +6,7 @@
  * Standalone UI atom that communicates the La2ta (لقطة) anomaly
  * detection status of a property listing.
  *
- * When active (isLa2ta = true) the badge renders a pulsing emerald
+ * When active (isLa2ta = true) the badge renders a pulsing terracotta
  * glow with the discount depth displayed in Arabic/English. When
  * inactive it renders a muted neutral chip.
  *
@@ -72,17 +72,17 @@ function getDepthIntensity(depth: number | undefined): 'low' | 'mid' | 'high' {
   return 'low';
 }
 
-// Depth → ring colour lookup (no template literals)
-const DEPTH_RING_CLASS: Record<'low' | 'mid' | 'high', string> = {
-  low:  'ring-emerald-400/40',
-  mid:  'ring-emerald-400/60',
-  high: 'ring-emerald-400/80',
+// Depth → ring colour lookup (terracotta brand glow; opacity tiers via rgba — Tailwind /opacity on an arbitrary var does not render)
+const DEPTH_RING_STYLE: Record<'low' | 'mid' | 'high', string> = {
+  low:  'rgba(201,100,66,0.40)',
+  mid:  'rgba(201,100,66,0.60)',
+  high: 'rgba(201,100,66,0.80)',
 };
 
 const DEPTH_GLOW_STYLE: Record<'low' | 'mid' | 'high', string> = {
-  low:  '0 0 12px rgba(16,185,129,0.25)',
-  mid:  '0 0 16px rgba(16,185,129,0.40)',
-  high: '0 0 24px rgba(16,185,129,0.55)',
+  low:  '0 0 12px rgba(201,100,66,0.25)',
+  mid:  '0 0 16px rgba(201,100,66,0.40)',
+  high: '0 0 24px rgba(201,100,66,0.55)',
 };
 
 // ── Component ─────────────────────────────────────────────────────
@@ -120,29 +120,31 @@ export function La2taSignalBadge({
           title={compoundId ? `La2ta deal — ${compoundId}` : 'La2ta anomaly detected'}
           className={[
             'inline-flex items-center font-semibold rounded-full',
-            'bg-emerald-500/10 text-emerald-500',
+            'bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]',
             'ring-1',
-            DEPTH_RING_CLASS[intensity],
             SIZE_BADGE_CLASS[resolvedSize],
             'select-none cursor-default',
             className,
           ]
             .filter(Boolean)
             .join(' ')}
-          style={{ boxShadow: DEPTH_GLOW_STYLE[intensity] }}
+          style={{
+            boxShadow: DEPTH_GLOW_STYLE[intensity],
+            '--tw-ring-color': DEPTH_RING_STYLE[intensity],
+          } as React.CSSProperties}
         >
           {/* Pulse dot */}
           <span className="relative flex shrink-0">
             <span
               className={[
                 'absolute inline-flex rounded-full',
-                'bg-emerald-400 opacity-75 animate-ping',
+                'bg-[var(--osool-accent)] opacity-75 animate-ping',
                 SIZE_PULSE_CLASS[resolvedSize],
               ].join(' ')}
             />
             <span
               className={[
-                'relative inline-flex rounded-full bg-emerald-500',
+                'relative inline-flex rounded-full bg-[var(--osool-accent)]',
                 SIZE_PULSE_CLASS[resolvedSize],
               ].join(' ')}
             />

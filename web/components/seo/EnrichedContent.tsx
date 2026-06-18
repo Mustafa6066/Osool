@@ -24,7 +24,7 @@ export function EnrichedBody({ content, locale = 'en' }: Props) {
         className="prose prose-sm md:prose-base dark:prose-invert max-w-none
           prose-headings:text-[var(--color-text-primary)]
           prose-p:text-[var(--color-text-secondary)]
-          prose-a:text-emerald-600 dark:prose-a:text-emerald-400
+          prose-a:text-[var(--osool-accent)] dark:prose-a:text-[var(--osool-accent)]
           prose-strong:text-[var(--color-text-primary)]"
         dangerouslySetInnerHTML={{ __html: body }}
       />
@@ -47,11 +47,11 @@ export function LivePropertyCards({
           <Link
             key={p.id}
             href={`/property/${p.id}`}
-            className="block p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/50 transition-all"
+            className="block p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--osool-accent-mid)] transition-all"
           >
             <h3 className="font-semibold text-sm mb-1 line-clamp-2">{p.title}</h3>
             <div className="flex flex-wrap gap-1.5 text-xs text-[var(--color-text-muted)] mt-2">
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">
+              <span className="px-2 py-0.5 rounded-full bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]">
                 {p.location}
               </span>
               <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600">
@@ -62,7 +62,7 @@ export function LivePropertyCards({
               )}
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-lg font-bold text-emerald-500">
+              <span className="text-lg font-bold text-[var(--osool-accent)]">
                 EGP {p.price.toLocaleString()}
               </span>
               {p.roi_estimate != null && (

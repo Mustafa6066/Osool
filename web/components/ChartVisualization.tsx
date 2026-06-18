@@ -27,13 +27,13 @@ export default function ChartVisualization({
     const TrendIcon = trend?.includes('+') ? TrendingUp : TrendingDown;
 
     return (
-        <div className="w-full max-w-3xl bg-[#1c2b31] border border-[#273d44] rounded-2xl overflow-hidden shadow-xl p-6 mt-4">
+        <div className="w-full max-w-3xl bg-[var(--osool-surface)] border border-[var(--osool-border)] rounded-2xl overflow-hidden shadow-xl p-6 mt-4">
             {/* Chart Header */}
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h3 className="text-white font-bold text-lg">{title}</h3>
+                    <h3 className="text-[var(--osool-text)] font-bold text-lg">{title}</h3>
                     {subtitle && (
-                        <p className="text-[#97b8c3] text-sm mt-1">{subtitle}</p>
+                        <p className="text-[var(--osool-muted)] text-sm mt-1">{subtitle}</p>
                     )}
                 </div>
                 {trend && (
@@ -54,10 +54,10 @@ export default function ChartVisualization({
                                 <div key={idx} className="flex-1 flex flex-col items-center gap-2">
                                     <div className="w-full flex items-end justify-center h-full">
                                         <div
-                                            className="w-full bg-gradient-to-t from-[#267360] to-[#2dd4bf] rounded-t-lg transition-all duration-500 hover:opacity-80 relative group"
+                                            className="w-full bg-gradient-to-t from-[var(--osool-accent-dark)] to-[var(--osool-accent)] rounded-t-lg transition-all duration-500 hover:opacity-80 relative group"
                                             style={{ height: `${heightPercent}%` }}
                                         >
-                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[#2c3533] text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--osool-surface-3)] text-[var(--osool-text)] text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                                                 {value.toLocaleString()}
                                             </div>
                                         </div>
@@ -66,7 +66,7 @@ export default function ChartVisualization({
                             );
                         })}
                     </div>
-                    <div className="flex justify-between text-xs text-[#97b8c3]">
+                    <div className="flex justify-between text-xs text-[var(--osool-muted)]">
                         {cleanLabels.map((label, idx) => (
                             <span key={idx} className="flex-1 text-center">{label}</span>
                         ))}
@@ -80,8 +80,8 @@ export default function ChartVisualization({
                         <svg className="w-full h-full" viewBox="0 0 500 200" preserveAspectRatio="none">
                             <defs>
                                 <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.3" />
-                                    <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0" />
+                                    <stop offset="0%" stopColor="var(--osool-accent)" stopOpacity="0.3" />
+                                    <stop offset="100%" stopColor="var(--osool-accent)" stopOpacity="0" />
                                 </linearGradient>
                             </defs>
                             {/* Grid Lines */}
@@ -92,7 +92,7 @@ export default function ChartVisualization({
                                     y1={i * 50}
                                     x2="500"
                                     y2={i * 50}
-                                    stroke="#273d44"
+                                    stroke="var(--osool-border)"
                                     strokeWidth="1"
                                     strokeDasharray="4 4"
                                 />
@@ -105,7 +105,7 @@ export default function ChartVisualization({
                                     return `${x},${y}`;
                                 }).join(' L ')}`}
                                 fill="none"
-                                stroke="#2dd4bf"
+                                stroke="var(--osool-accent)"
                                 strokeWidth="3"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -129,8 +129,8 @@ export default function ChartVisualization({
                                         cx={x}
                                         cy={y}
                                         r="4"
-                                        fill="#1c2b31"
-                                        stroke="#2dd4bf"
+                                        fill="var(--osool-surface)"
+                                        stroke="var(--osool-accent)"
                                         strokeWidth="2"
                                         className="hover:r-6 transition-all"
                                     />
@@ -138,7 +138,7 @@ export default function ChartVisualization({
                             })}
                         </svg>
                     </div>
-                    <div className="flex justify-between text-xs text-[#97b8c3]">
+                    <div className="flex justify-between text-xs text-[var(--osool-muted)]">
                         {cleanLabels.map((label, idx) => (
                             <span key={idx}>{label}</span>
                         ))}
@@ -154,12 +154,12 @@ export default function ChartVisualization({
                         return (
                             <div key={idx}>
                                 <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-white font-medium">{label}</span>
-                                    <span className="text-[#2dd4bf] font-bold">{value.toLocaleString()}</span>
+                                    <span className="text-[var(--osool-text)] font-medium">{label}</span>
+                                    <span className="text-[var(--osool-accent)] font-bold">{value.toLocaleString()}</span>
                                 </div>
-                                <div className="h-8 bg-[#121615] rounded-lg overflow-hidden">
+                                <div className="h-8 bg-[var(--osool-surface-2)] rounded-lg overflow-hidden">
                                     <div
-                                        className="h-full bg-gradient-to-r from-[#267360] to-[#2dd4bf] transition-all duration-500"
+                                        className="h-full bg-gradient-to-r from-[var(--osool-accent-dark)] to-[var(--osool-accent)] transition-all duration-500"
                                         style={{ width: `${percent}%` }}
                                     />
                                 </div>

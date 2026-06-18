@@ -126,15 +126,15 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                 </div>
 
                 {/* Strengths */}
-                <div className="bg-gradient-to-r from-emerald-950/30 to-emerald-950/30 rounded-xl p-4 border border-emerald-500/20">
+                <div className="rounded-xl p-4 border" style={{ background: 'var(--osool-accent-soft)', borderColor: 'var(--osool-accent-mid)' }}>
                     <div className="flex items-center gap-2 mb-3">
-                        <BadgeCheck className="w-4 h-4 text-emerald-400" />
-                        <p className="text-sm font-medium text-emerald-400">نقاط القوة</p>
+                        <BadgeCheck className="w-4 h-4" style={{ color: 'var(--osool-accent)' }} />
+                        <p className="text-sm font-medium" style={{ color: 'var(--osool-accent)' }}>نقاط القوة</p>
                     </div>
                     <ul className="space-y-2">
                         {(developer.strengths || []).map((strength, i) => (
                             <li key={i} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
-                                <span className="text-emerald-400">✓</span> {strength}
+                                <span style={{ color: 'var(--osool-accent)' }}>✓</span> {strength}
                             </li>
                         ))}
                     </ul>
@@ -156,7 +156,7 @@ export default function DeveloperAnalysis({ developer, rankings }: DeveloperAnal
                             <div>
                                 <p className="text-[var(--color-text-secondary)] mb-2 text-xs">بالقيمة</p>
                                 {(rankings.by_value || []).slice(0, 3).map((dev, i) => (
-                                    <p key={i} className={`${i === 0 ? 'text-emerald-400' : 'text-[var(--color-text-secondary)]'}`}>
+                                    <p key={i} className={`${i === 0 ? '' : 'text-[var(--color-text-secondary)]'}`} style={i === 0 ? { color: 'var(--osool-accent)' } : undefined}>
                                         {i + 1}. {dev}
                                     </p>
                                 ))}

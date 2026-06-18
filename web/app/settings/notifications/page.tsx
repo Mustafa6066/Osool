@@ -94,7 +94,7 @@ export default function NotificationSettingsPage() {
     return (
       <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-3">
-          <Icon className="w-5 h-5 text-emerald-500" />
+          <Icon className="w-5 h-5" style={{ color: 'var(--osool-accent)' }} />
           <div>
             <div className="font-medium text-sm">{label}</div>
             <div className="text-xs text-[var(--color-text-muted)]">{sublabel}</div>
@@ -105,9 +105,8 @@ export default function NotificationSettingsPage() {
           role="switch"
           aria-checked={checked}
           onClick={() => onChange(!checked)}
-          className={`relative h-6 w-11 rounded-full transition-colors ${
-            checked ? 'bg-emerald-500' : 'bg-[var(--color-border)]'
-          }`}
+          className="relative h-6 w-11 rounded-full transition-colors"
+          style={{ backgroundColor: checked ? 'var(--osool-accent)' : 'var(--color-border)' }}
         >
           <span
             className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
@@ -173,7 +172,7 @@ export default function NotificationSettingsPage() {
 
             <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
               <div className="flex items-center gap-3 mb-3">
-                <Clock className="w-5 h-5 text-emerald-500" />
+                <Clock className="w-5 h-5" style={{ color: 'var(--osool-accent)' }} />
                 <span className="font-medium text-sm">Alert Frequency</span>
               </div>
               <div className="flex gap-2">
@@ -183,9 +182,10 @@ export default function NotificationSettingsPage() {
                     onClick={() => setPrefs((p) => ({ ...p, frequency: freq }))}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       prefs.frequency === freq
-                        ? 'bg-emerald-500 text-white'
+                        ? 'text-white'
                         : 'bg-[var(--color-background)] text-[var(--color-text-muted)] border border-[var(--color-border)]'
                     }`}
+                    style={prefs.frequency === freq ? { backgroundColor: 'var(--osool-accent)' } : undefined}
                   >
                     {freq === 'realtime' ? 'Real-time' : freq.charAt(0).toUpperCase() + freq.slice(1)}
                   </button>
@@ -197,7 +197,10 @@ export default function NotificationSettingsPage() {
           <button
             onClick={save}
             disabled={saving}
-            className="mt-6 w-full py-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 transition-colors disabled:opacity-50"
+            className="mt-6 w-full py-3 rounded-xl text-white font-semibold text-sm transition-colors disabled:opacity-50"
+            style={{ backgroundColor: 'var(--osool-accent)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--osool-accent-dark)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--osool-accent)'; }}
           >
             {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Preferences'}
           </button>

@@ -65,13 +65,13 @@ export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) 
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-cyan-950/30 to-emerald-950/20"
+            className="rounded-2xl overflow-hidden border border-[var(--osool-border)] bg-[var(--osool-accent-soft)]"
         >
             {/* Header */}
-            <div className="bg-gradient-to-r from-cyan-600/20 to-emerald-600/20 px-6 py-4 border-b border-[var(--color-border)]">
+            <div className="px-6 py-4 border-b border-[var(--osool-border)]" style={{ background: "var(--osool-accent-soft)" }}>
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                        <Calculator className="w-5 h-5 text-cyan-400" />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--osool-accent-mid)" }}>
+                        <Calculator className="w-5 h-5" style={{ color: "var(--osool-accent)" }} />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-white">حاسبة العائد على الاستثمار 📊</h3>
@@ -83,7 +83,7 @@ export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) 
             <div className="p-6 space-y-6">
                 {/* Main Metrics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-br from-green-950/40 to-emerald-950/30 rounded-xl p-4 text-center border border-green-500/20">
+                    <div className="bg-gradient-to-br from-green-950/40 to-green-900/30 rounded-xl p-4 text-center border border-green-500/20">
                         <Banknote className="w-5 h-5 text-green-400 mx-auto mb-2" />
                         <p className="text-xs text-[var(--color-text-secondary)] mb-1">العائد السنوي الإجمالي</p>
                         <p className="text-xl font-bold text-green-400">{roi.total_annual_return.toFixed(1)}%</p>
@@ -111,18 +111,18 @@ export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) 
                     <div className="grid md:grid-cols-2 gap-4">
                         <div>
                             <p className="text-xs text-[var(--color-text-secondary)] mb-1">شهرياً</p>
-                            <p className="text-lg font-bold text-cyan-400">{formatCurrency(roi.estimated_monthly_rent)}</p>
+                            <p className="text-lg font-bold" style={{ color: "var(--osool-accent)" }}>{formatCurrency(roi.estimated_monthly_rent)}</p>
                         </div>
                         <div>
                             <p className="text-xs text-[var(--color-text-secondary)] mb-1">سنوياً</p>
-                            <p className="text-lg font-bold text-cyan-400">{formatCurrency(roi.estimated_annual_rent)}</p>
+                            <p className="text-lg font-bold" style={{ color: "var(--osool-accent)" }}>{formatCurrency(roi.estimated_annual_rent)}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* 5 Year Projection */}
-                <div className="bg-gradient-to-r from-emerald-950/30 to-emerald-950/30 rounded-xl p-4 border border-emerald-500/20">
-                    <p className="text-sm font-medium text-emerald-400 mb-4">توقعات 5 سنوات 🚀</p>
+                <div className="rounded-xl p-4 border" style={{ background: "var(--osool-accent-soft)", borderColor: "var(--osool-accent-mid)" }}>
+                    <p className="text-sm font-medium mb-4" style={{ color: "var(--osool-accent)" }}>توقعات 5 سنوات 🚀</p>
                     <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
                             <p className="text-xs text-[var(--color-text-secondary)] mb-1">دخل الإيجار</p>
@@ -132,9 +132,9 @@ export default function ROICalculator({ roi, comparisons }: ROICalculatorProps) 
                             <p className="text-xs text-[var(--color-text-secondary)] mb-1">زيادة القيمة</p>
                             <p className="text-sm font-bold text-white">{formatCurrency(roi["5_year_projection"].capital_gain)}</p>
                         </div>
-                        <div className="bg-emerald-500/20 rounded-lg p-2">
-                            <p className="text-xs text-emerald-300 mb-1">إجمالي العائد</p>
-                            <p className="text-sm font-bold text-emerald-400">{formatCurrency(roi["5_year_projection"].total_return)}</p>
+                        <div className="rounded-lg p-2" style={{ background: "var(--osool-accent-mid)" }}>
+                            <p className="text-xs mb-1" style={{ color: "var(--osool-accent)" }}>إجمالي العائد</p>
+                            <p className="text-sm font-bold" style={{ color: "var(--osool-accent)" }}>{formatCurrency(roi["5_year_projection"].total_return)}</p>
                         </div>
                     </div>
                 </div>

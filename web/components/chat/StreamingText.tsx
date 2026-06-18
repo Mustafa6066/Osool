@@ -84,7 +84,8 @@ export default function StreamingText({ content, animate, forceRTL = false }: St
               opacity: { duration: 0.8, repeat: Infinity, ease: 'easeInOut' },
               scaleY: CURSOR_SPRING,
             }}
-            className="inline-block w-[2px] h-[1.1em] bg-emerald-500 align-text-bottom ms-0.5 rounded-full"
+            style={{ backgroundColor: 'var(--osool-accent)' }}
+            className="inline-block w-[2px] h-[1.1em] align-text-bottom ms-0.5 rounded-full"
           />
         </AnimatePresence>
       </div>

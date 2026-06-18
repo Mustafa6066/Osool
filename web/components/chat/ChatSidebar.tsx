@@ -177,7 +177,7 @@ export default function ChatSidebar({
                                         key={item.id}
                                         className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] transition-colors ${
                                             isActive
-                                                ? 'bg-emerald-500/10 text-[var(--color-text-primary)]'
+                                                ? 'bg-[var(--osool-accent-soft)] text-[var(--color-text-primary)]'
                                                 : 'hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]'
                                         }`}
                                         initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
