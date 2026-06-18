@@ -1488,12 +1488,6 @@ function EmptyState({
             q: 'Calculate 5-year ROI for a 2M EGP investment in North Coast',
           },
           {
-            t: 'Review a contract',
-            s: 'Spot risks under Egyptian law',
-            Icon: IconShield,
-            q: 'Find risks in the standard Mivida purchase contract',
-          },
-          {
             t: 'Is this price fair?',
             s: 'AI valuation against comps',
             Icon: IconSpark,

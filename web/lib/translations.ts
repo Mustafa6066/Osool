@@ -110,7 +110,6 @@ export const translations = {
             placeholder: "Ask about properties, prices, legal advice...",
             quickActions: {
                 analyzeProperty: "Analyze Property",
-                checkContract: "Check Contract",
                 marketInsights: "Market Insights",
                 investmentAdvice: "Investment Advice",
             },
@@ -1182,7 +1181,6 @@ export const translations = {
             placeholder: "اسأل عن العقارات، الأسعار، النصائح القانونية...",
             quickActions: {
                 analyzeProperty: "تحليل العقار",
-                checkContract: "فحص العقد",
                 marketInsights: "رؤى السوق",
                 investmentAdvice: "نصائح الاستثمار",
             },

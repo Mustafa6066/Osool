@@ -47,7 +47,7 @@ class DataFirstEnforcer:
         "price_discussion": ["run_valuation_ai"],
         "price_quote": ["run_valuation_ai", "calculate_mortgage"],
         "availability_check": ["check_real_time_status"],
-        "reservation": ["check_real_time_status", "generate_reservation_link"],
+        "reservation": ["check_real_time_status"],
         "comparison": ["compare_units"],
         "investment_analysis": ["calculate_investment_roi"],
         "market_trends": ["check_market_trends"],

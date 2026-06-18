@@ -7,9 +7,8 @@
  * 1. Email/Password auth with JWT storage
  * 2. Google OAuth flow with token exchange
  * 3. Phone OTP verification requirement
- * 4. Web3 wallet signature (EIP-191)
- * 5. JWT token attachment to API calls
- * 6. Token refresh on expiration
+ * 4. JWT token attachment to API calls
+ * 5. Token refresh on expiration
  */
 
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
@@ -187,70 +186,6 @@ describe('Osool Authentication Integration Tests', () => {
 
       expect(response.data.payment_url).toBeDefined();
       expect(response.data.order_id).toBeDefined();
-    });
-  });
-
-  /**
-   * Test 4: Web3 Wallet Signature (EIP-191)
-   */
-  describe('Web3 Wallet Authentication', () => {
-    it('should sign message with MetaMask and verify signature', async () => {
-      type WalletRequest = {
-        method: string;
-        params?: string[];
-      };
-
-      // Mock MetaMask ethereum provider
-      const mockEthereum = {
-        request: jest.fn((params: WalletRequest) => {
-          if (params.method === 'eth_requestAccounts') {
-            return Promise.resolve(['0x742d35Cc6634C0532925a3b844Bc454e4438f44e']);
-          }
-          if (params.method === 'personal_sign') {
-            return Promise.resolve('0x1234567890abcdef...mock_signature');
-          }
-          return Promise.reject(new Error('Unknown method'));
-        }),
-      };
-
-      (global as typeof globalThis & { ethereum?: typeof mockEthereum }).ethereum = mockEthereum;
-
-      // Mock backend signature verification
-      const mockWalletAuthResponse = {
-        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3YWxsZXQiOiIweDc0MmQzNUNjNjYzNEMwNTMyOTI1YTNiODQ0QmM0NTRlNDQzOGY0NGUiLCJleHAiOjE3MDAwMDAwMDB9.fake_wallet_sig',
-        refresh_token: 'mock_wallet_refresh_token',
-        user: {
-          wallet_address: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-          role: 'investor',
-        },
-      };
-
-      jest.spyOn(api, 'post').mockResolvedValueOnce({ data: mockWalletAuthResponse });
-
-      // Simulate wallet connection
-      const accounts = await mockEthereum.request({ method: 'eth_requestAccounts' });
-      const address = accounts[0];
-
-      // Sign message
-      const message = `Sign this message to authenticate with Osool: ${Date.now()}`;
-      const signature = await mockEthereum.request({
-        method: 'personal_sign',
-        params: [message, address],
-      });
-
-      // Send to backend for verification
-      const response = await api.post('/auth/wallet', {
-        address,
-        message,
-        signature,
-      });
-
-      // Store tokens
-      storeAuthTokens(response.data.access_token, response.data.refresh_token);
-
-      // Verify tokens are stored
-      expect(localStorage.getItem('access_token')).toBe(mockWalletAuthResponse.access_token);
-      expect(isAuthenticated()).toBe(true);
     });
   });
 

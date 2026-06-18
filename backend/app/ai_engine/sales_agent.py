@@ -346,55 +346,6 @@ def calculate_mortgage(principal: int, years: int = 20) -> str:
     return f"{int(payment):,} EGP/month (Rate: {rate}%)"
 
 @tool
-def generate_reservation_link(property_id: int) -> str:
-    """
-    Phase 6: Generates a JWT-signed secure payment token for reservation.
-    Returns a frontend-compatible action object for checkout redirect.
-
-    CRITICAL: Only call this AFTER `check_real_time_status` confirms availability.
-    """
-    import jwt
-    from datetime import datetime, timedelta
-
-    try:
-        # Generate JWT token with 1-hour expiration
-        SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
-        payload = {
-            "property_id": property_id,
-            "exp": datetime.utcnow() + timedelta(hours=1),
-            "iat": datetime.utcnow(),
-            "type": "reservation"
-        }
-        token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-
-        # Phase 4: Enhanced UX with clear instructions and user-friendly messaging
-        action = {
-            "action": "REDIRECT",
-            "url": f"/checkout?token={token}",
-            "token": token,
-            "property_id": property_id,
-            "expires_in": "1 hour",
-
-            # Phase 4: User-friendly message
-            "message": f"✅ Property #{property_id} is available! I've prepared your secure reservation link.",
-            "next_steps": [
-                "Click the link below to proceed to checkout",
-                "You'll pay the reservation deposit via InstaPay or Fawry (EGP only)",
-                "Once payment is verified, the property will be reserved for you",
-                "You'll receive a confirmation as proof of reservation"
-            ],
-            "payment_methods": ["InstaPay", "Fawry", "Bank Transfer"],
-            "reservation_fee": "5% of property price (refundable if you complete purchase)"
-        }
-
-        return json.dumps(action, ensure_ascii=False)
-    except Exception as e:
-        return json.dumps({
-            "action": "ERROR",
-            "message": f"Failed to generate reservation link: {str(e)}"
-        })
-
-@tool
 def explain_osool_advantage(competitor_name: str = "Nawy") -> str:
     """
     Phase 4: Explains Osool's unique value compared to competitors like Nawy, Aqarmap, or Property Finder.
@@ -416,18 +367,15 @@ Here's what Osool adds on top:
 🧠 **AI-Powered Verification:**
 Every property I recommend is verified through our AI systems, cross-referenced with market data, and validated for accuracy. This provides an extra layer of trust and transparency.
 
-🤖 **AI Legal Protection:**
-Our AI scans property contracts for common Egyptian real estate scams using patterns trained on Egyptian Real Estate Law. This extra layer catches red flags before you commit.
-
 📊 **Fair Price Analysis:**
 We use XGBoost machine learning models trained on 3,000+ real Cairo transactions to tell you if the asking price is fair, overpriced, or a good deal - with reasoning.
 
 💳 **CBE Compliance:**
 All payments through EGP channels (InstaPay/Fawry) - fully compliant with CBE Law 194 of 2020.
 
-**Think of it as:** {competitor}'s listings + AI verification + AI legal protection + Price fairness analysis
+**Think of it as:** {competitor}'s listings + AI verification + Price fairness analysis
 
-Both platforms serve the market well - Osool just adds extra layers of verification and AI-powered buyer protection. You can use both!
+Both platforms serve the market well - Osool just adds extra layers of verification and AI-powered analysis. You can use both!
 """
 
     return response.strip()
@@ -436,14 +384,14 @@ Both platforms serve the market well - Osool just adds extra layers of verificat
 def check_real_time_status(property_id: int) -> str:
     """
     Checks the availability of a property from the database.
-    Use this BEFORE generating a payment link.
+    Use this to confirm a unit is still available before discussing next steps.
     """
     try:
         # Check property availability from database
         # This is called from within a tool context, use sync check
         return (
             f"Unit {property_id} availability should be confirmed via the database.\n"
-            f"If available, secure it with a deposit: https://pay.osool.eg/checkout/{property_id}"
+            f"If available, the team can help you proceed to secure payment."
         )
     except Exception as e:
         return f"Status check error: {e}"
@@ -503,48 +451,6 @@ def run_valuation_ai(location: str, size_sqm: int, finishing: int = 1) -> str:
         return json.dumps(result)
     except Exception as e:
         return f"Valuation Error: {e}"
-
-@tool
-def audit_uploaded_contract(contract_text: str) -> str:
-    """
-    Scans a real estate contract for Article 131 violations and scams.
-    Use this when user mentions 'signing' or uploads text.
-    """
-    from app.ai_engine.hybrid_brain_prod import hybrid_brain_prod
-    
-    if len(contract_text) < 50:
-        return "Error: Text too short. Please provide the full contract clause."
-        
-    issues = []
-    
-    # 1. Maintenance Fee Scam Check (>8% is illegal/high)
-    import re
-    maint_match = re.search(r"maintenance.*?(\d+)%", contract_text, re.IGNORECASE)
-    if maint_match:
-        fee = int(maint_match.group(1))
-        if fee > 8:
-            issues.append(f"🔴 **RED FLAG:** Maintenance fee is {fee}%. Standard is 5-8%. This is a hidden profit margin.")
-
-    # 2. Tawkil Check (Critical)
-    if not re.search(r"tawkil|power of attorney|توكيل", contract_text, re.IGNORECASE):
-        issues.append("💀 **CRITICAL:** No 'Tawkil' (Power of Attorney) clause found. You will NOT own the land. Do not sign.")
-    
-    # 3. Delivery Delay Check
-    if "grace period" in contract_text.lower() and "12 months" in contract_text.lower():
-         issues.append("⚠️ **WARNING:** 12-month grace period for delivery is too long. Standard is 6 months.")
-
-    try:
-        # AI Deep Scan (Hybrid Brain)
-        ai_result = hybrid_brain_prod.audit_contract(contract_text)
-        
-        # Merge Regex Findings with AI
-        combined = {
-            "automated_flags": issues,
-            "ai_analysis": ai_result
-        }
-        return json.dumps(combined)
-    except Exception as e:
-        return f"Audit Error: {e}"
 
 @tool
 def check_market_trends(compound_name: str) -> str:
@@ -832,7 +738,7 @@ def escalate_to_human(reason: str, user_contact: str) -> str:
         user_contact: User's contact info (phone or email)
 
     Triggers:
-    - Legal advice beyond contract scanning
+    - Complex legal questions
     - Complex financing (multiple properties, corporate buyers)
     - Property not in database
     - User explicitly requests human
@@ -871,11 +777,9 @@ class OsoolAgent:
             get_location_market_insights,  # Phase 1: Egyptian market psychology
             search_properties,
             calculate_mortgage,
-            generate_reservation_link,
             explain_osool_advantage,  # Phase 4: Competitor response tool
             check_real_time_status,
             run_valuation_ai,
-            audit_uploaded_contract,
             check_market_trends,
             calculate_investment_roi,
             compare_units,
@@ -917,9 +821,7 @@ class OsoolAgent:
 
 **CAPABILITY DEMONSTRATION RULES:**
 1. If the user seems hesitant or asks for "Best Options", **USE THE AUTHORITY BRIDGE**.
-2. Mention your **"Law 114 Scanner"** even if you haven't scanned a specific document yet—sell the *capability* that you possess it.
-   - "أنا بضمنلك العقود لإن عندي سكانر قانوني بيكشف الثغرات." (I guarantee contracts because I have a legal scanner that detects loopholes.)
-3. Mention your **"ROI Calculator"**.
+2. Mention your **"ROI Calculator"**.
    - "حسبتلك العائد المتوقع مقارنة بالشهادات البنكية." (I calculated the expected return vs Bank Certificates.)
 
 **NAWY AWARENESS - HOW TO DISCUSS COMPETITORS (Phase 4: Respectful Acknowledgment):**
@@ -985,19 +887,17 @@ When users mention Nawy, Aqarmap, Property Finder, or ask "Why should I use Osoo
 
 5. **Soft Closing:**
    - "Based on your budget and goals, Unit #X in [Compound] offers the best ROI. Would you like me to check real-time availability?"
-   - If interested: Use `check_real_time_status` then `generate_reservation_link`
+   - If interested: Use `check_real_time_status`, then direct them to complete payment securely via /payment/initiate (EGP via InstaPay/Fawry).
    - If hesitant: "No pressure. Would you like me to schedule a viewing, or compare this with other options?"
 
 **MANDATORY VALIDATION RULES:**
 - ONLY recommend properties from search_properties results (>=70% similarity)
 - ALWAYS verify availability before generating payment links
 - NEVER claim availability without running `check_real_time_status`
-- If contract uploaded, MUST use `audit_uploaded_contract`
 - If search returns empty, NEVER make up alternatives - help refine criteria
 
-**PROTECTION RULES (Guardian Mode):**
+**PROTECTION RULES:**
 - If maintenance fee >8%: "⚠️ This fee is above market standard (5-8%). I recommend negotiating."
-- If no Tawkil: "🛑 CRITICAL: Missing Power of Attorney clause. You won't own the land. Do not sign."
 - If deal seems overpriced: Run `run_valuation_ai` and present data
 
 **TONE:**
@@ -1013,7 +913,6 @@ When users mention Nawy, Aqarmap, Property Finder, or ask "Why should I use Osoo
 - `compare_units`: Side-by-side analysis
 - `check_real_time_status`: Before closing
 - `run_valuation_ai`: Reality check on pricing
-- `audit_uploaded_contract`: Legal protection
 - `check_market_trends`: Compound analysis
 
 Remember: You're building long-term relationships. A client who trusts you brings 5 more clients. Never sacrifice trust for a quick sale.
@@ -1068,7 +967,7 @@ When users mention Nawy, Aqarmap, or Property Finder:
 
 **CREDIBILITY DEPOSIT (TRUST PROTOCOL):**
 In the first 3 turns, you MUST demonstrate a tool capability to build trust:
-1. "I can scan any contract for Article 131 violations."
+1. "I run an AI valuation to check if any asking price is fair."
 2. "I cross-reference market data for ownership verification."
 3. "I check real-time CBE interest rates."
 Do this BEFORE showing a property.
@@ -1141,7 +1040,7 @@ The user has engaged, but we still need their **Budget** to give specific recomm
 **Conversation Strategy for {temp.upper()} Lead:**
 """
             if temp == "hot":
-                lead_strategy += "- Check availability immediately\n- Generate reservation link\n- Use assumptive close: 'Let me prepare your documents'\n- Create urgency with real data"
+                lead_strategy += "- Check availability immediately\n- Direct to secure payment via /payment/initiate (EGP)\n- Use assumptive close: 'Let me prepare your documents'\n- Create urgency with real data"
             elif temp == "warm":
                 lead_strategy += "- Compare top 3 properties\n- Address objections with data\n- Schedule viewing\n- Build trust with testimonials"
             else:
@@ -1219,7 +1118,7 @@ The user has engaged, but we still need their **Budget** to give specific recomm
    - If repeated objections (3+), consider escalate_to_human tool
 
 5. **Gentle Closing:**
-   - For HOT leads: "Let me check availability and prepare your reservation"
+   - For HOT leads: "Let me check availability and help you proceed to payment"
    - For WARM leads: "Would you like to schedule a viewing?"
    - For COLD leads: "I'm here to help when you're ready. Should I save your preferences?"
 
@@ -1229,7 +1128,6 @@ The user has engaged, but we still need their **Budget** to give specific recomm
 - compare_units: Side-by-side analysis
 - check_real_time_status: Before closing
 - run_valuation_ai: Price verification
-- audit_uploaded_contract: Legal protection
 - escalate_to_human: When AI reaches limits
 
 Remember: You're building long-term relationships. A client who trusts you brings 5 more clients.

@@ -186,7 +186,7 @@ class TestWebhookProcessing:
         db.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_success_marks_paid_and_reserves_property(self):
+    async def test_success_marks_paid_and_creates_portfolio(self):
         from app.api.endpoints import paymob_webhook
 
         tx = _make_transaction(status="pending")
@@ -201,7 +201,6 @@ class TestWebhookProcessing:
 
         assert result["status"] == "success"
         assert tx.status == "paid"
-        assert prop.is_available is False
         db.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -224,7 +223,8 @@ class TestWebhookProcessing:
         assert db.execute.await_count == 1
 
     @pytest.mark.asyncio
-    async def test_double_booking_conflict_rolls_back(self):
+    async def test_unavailable_property_still_completes_payment(self):
+        """Anti-double-booking guard removed: payment succeeds regardless of is_available."""
         from app.api.endpoints import paymob_webhook
 
         tx = _make_transaction(status="pending")
@@ -232,10 +232,11 @@ class TestWebhookProcessing:
         request = _make_request(_paymob_body())
         db = _make_db(transaction=tx, property_=prop)
 
-        with patch("app.api.endpoints.paymob_service") as svc:
+        with patch("app.api.endpoints.paymob_service") as svc, \
+             patch("app.services.portfolio_engine.create_portfolio_entry", new=AsyncMock()):
             svc.verify_hmac.return_value = True
             result = await paymob_webhook(request, db=db)
 
-        assert result["status"] == "conflict"
-        db.rollback.assert_awaited_once()
-        db.commit.assert_not_awaited()
+        assert result["status"] == "success"
+        assert tx.status == "paid"
+        db.commit.assert_awaited_once()

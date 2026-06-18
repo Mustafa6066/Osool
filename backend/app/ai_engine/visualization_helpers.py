@@ -7,7 +7,6 @@ These helpers transform raw AI analysis into chart-ready formats.
 New in V4:
 - Inflation Killer Chart: Cash vs Gold vs Property comparison
 - La2ta Alert: Bargain property alerts
-- Law 114 Guardian: Contract scanner CTA
 - Reality Check: Impossible request alternatives
 
 New in V5:
@@ -29,7 +28,7 @@ def generate_authority_bridge_stats(
     Generate Authority Bridge "Shock & Awe" filtering stats.
     
     Creates dynamic numbers for the Wolf's capability demonstration:
-    "I scanned X units, rejected Y for contracts, Z for ROI... only N survived."
+    "I scanned X units, rejected Y for ROI, Z for developer issues... only N survived."
     
     Args:
         location: Target location (affects rejection rates)
@@ -49,24 +48,20 @@ def generate_authority_bridge_stats(
         total = int(total * 1.25)  # More units in hot areas
     
     # Fixed rejection rates (industry-realistic midpoints)
-    # Contract issues: ~25% (Law 114 problems, missing Tawkil, etc.)
-    contract_reject_rate = 0.25
-    contract_rejected = int(total * contract_reject_rate)
-    
     # ROI issues: ~20% (below inflation, poor rental yield)
     roi_reject_rate = 0.20
-    roi_rejected = int((total - contract_rejected) * roi_reject_rate)
-    
+    roi_rejected = int(total * roi_reject_rate)
+
     # Developer issues: ~12% (delays, complaints, unverified)
     dev_reject_rate = 0.12
-    dev_rejected = int((total - contract_rejected - roi_rejected) * dev_reject_rate)
-    
+    dev_rejected = int((total - roi_rejected) * dev_reject_rate)
+
     # Survivors: 3-5 elite units (never 0, creates credibility)
-    remaining = total - contract_rejected - roi_rejected - dev_rejected
+    remaining = total - roi_rejected - dev_rejected
     survivors = max(3, min(5, remaining))
-    
+
     # Calculate percentages for display
-    total_rejected = contract_rejected + roi_rejected + dev_rejected
+    total_rejected = roi_rejected + dev_rejected
     rejection_rate = round((total_rejected / total) * 100, 0)
     
     return {
@@ -74,7 +69,6 @@ def generate_authority_bridge_stats(
         "location": location,
         "stats": {
             "total_scanned": total,
-            "contract_rejected": contract_rejected,
             "roi_rejected": roi_rejected,
             "developer_rejected": dev_rejected,
             "total_rejected": total_rejected,
@@ -84,15 +78,13 @@ def generate_authority_bridge_stats(
         "narrative": {
             "message_ar": (
                 f"حاضر يا فندم. بس قبل ما أرشحلك حاجة، أنا شغلت الـ AI Scanner بتاعي على {total} وحدة في {location}.\n"
-                f"❌ استبعدت منهم {contract_rejected} وحدة عشان العقود بتاعتهم فيها بنود مقلقة (زي عدم وجود توكيل).\n"
-                f"❌ واستبعدت {roi_rejected} وحدة كمان عشان العائد بتاعهم تحت مستوى التضخم.\n"
+                f"❌ استبعدت {roi_rejected} وحدة عشان العائد بتاعهم تحت مستوى التضخم.\n"
                 f"❌ وشلت {dev_rejected} وحدة عشان المطورين بتوعهم عليهم شكاوى.\n"
                 f"✅ اللي فضلوا معانا هما {survivors} وحدات بس هما الأضمن والأعلى في العائد. تحب تشوفهم؟"
             ),
             "message_en": (
                 f"Understood. Before I show you the list, I ran a deep scan on {total} available units in {location}.\n"
-                f"❌ I removed {contract_rejected} units because their contracts had 'Red Flags' (Law 114 risks).\n"
-                f"❌ I removed {roi_rejected} more because the ROI was below inflation levels.\n"
+                f"❌ I removed {roi_rejected} units because the ROI was below inflation levels.\n"
                 f"❌ I filtered out {dev_rejected} units due to developer delivery complaints.\n"
                 f"✅ The {survivors} survivors are the only ones I can ethically recommend. Ready to see the winners?"
             )
@@ -820,54 +812,6 @@ def generate_la2ta_alert(
         "message_ar": f"🐺 لقيتلك {len(bargains)} لقطة! أحسن واحدة تحت السوق بـ {bargains[0]['la2ta_score']:.0f}%",
         "message_en": f"Found {len(bargains)} bargain(s)! Best one is {bargains[0]['la2ta_score']:.0f}% below market"
     }
-
-
-def generate_law_114_guardian(
-    status: str = "ready",
-    scan_result: Optional[Dict] = None
-) -> Dict[str, Any]:
-    """
-    Generate Law 114 Guardian (Contract Scanner) CTA or results.
-
-    Args:
-        status: "ready" for CTA, "scanned" for results
-        scan_result: Optional scan results if status is "scanned"
-
-    Returns:
-        Law 114 Guardian component data
-    """
-    if status == "ready":
-        return {
-            "type": "law_114_guardian",
-            "status": "ready",
-            "capabilities": [
-                "كشف البنود المخفية (Red Flag Detection)",
-                "التحقق من بنود العقد الناقصة",
-                "مراجعة شروط المطور",
-                "التوافق مع قانون 114 لسنة 1946"
-            ],
-            "trust_badges": [
-                "AI-Powered Analysis",
-                "Based on Egyptian Civil Code",
-                "Used by 1000+ Buyers"
-            ],
-            "cta": {
-                "text_ar": "ارفع العقد وأنا أفحصه",
-                "text_en": "Upload contract for AI scan"
-            }
-        }
-    else:
-        # Return scan results
-        return {
-            "type": "law_114_guardian",
-            "status": "scanned",
-            "result": scan_result or {
-                "score": 85,
-                "red_flags": 0,
-                "warnings": 2,
-                "verdict": "SAFE"
-            }
-        }
 
 
 def generate_reality_check(

@@ -2,7 +2,7 @@
 Osool Backend — Endpoint Functional Tests
 --------------------------------------------
 Integration tests for F9-F12: async endpoint conversions.
-Tests checkout, webhook, payment/initiate, wallet, profile, fractional invest.
+Tests webhook, payment/initiate, wallet, profile.
 Uses FastAPI's TestClient with mocked dependencies.
 """
 
@@ -10,115 +10,6 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from datetime import datetime, timedelta
-
-
-class TestCheckoutEndpoint:
-    """Test F9: /checkout was converted from sync to async."""
-
-    @pytest.fixture
-    def mock_deps(self):
-        """Mock all dependencies for checkout."""
-        from app.models import Property, User, Transaction
-
-        mock_user = MagicMock(spec=User)
-        mock_user.id = 42
-        mock_user.email = "test@osool.com"
-        mock_user.full_name = "Test User"
-        mock_user.phone_number = "+201234567890"
-        mock_user.phone_verified = True
-
-        mock_property = MagicMock(spec=Property)
-        mock_property.id = 1
-        mock_property.title = "Test Villa"
-        mock_property.price = 1_000_000.0
-        mock_property.location = "New Cairo"
-        mock_property.is_available = True
-
-        return mock_user, mock_property
-
-    @pytest.mark.asyncio
-    async def test_checkout_rejects_expired_token(self, mock_deps):
-        """Expired JWT token → 400 error."""
-        import jwt
-
-        mock_user, mock_property = mock_deps
-        secret = "test_secret_key"
-
-        # Create expired token
-        expired_payload = {
-            "type": "reservation",
-            "property_id": 1,
-            "exp": datetime.utcnow() - timedelta(hours=1)
-        }
-        expired_token = jwt.encode(expired_payload, secret, algorithm="HS256")
-
-        # The endpoint should reject this token
-        # (Testing the logic, not the FastAPI layer)
-        try:
-            decoded = jwt.decode(expired_token, secret, algorithms=["HS256"])
-            assert False, "Should have raised ExpiredSignatureError"
-        except jwt.ExpiredSignatureError:
-            pass  # Expected
-
-    @pytest.mark.asyncio
-    async def test_checkout_rejects_invalid_token(self):
-        """Invalid JWT token → 400 error."""
-        import jwt
-
-        try:
-            jwt.decode("invalid.jwt.token", "secret", algorithms=["HS256"])
-            assert False, "Should have raised InvalidTokenError"
-        except jwt.exceptions.DecodeError:
-            pass  # Expected
-
-    @pytest.mark.asyncio
-    async def test_checkout_rejects_wrong_token_type(self):
-        """Token with wrong type → 400 error."""
-        import jwt
-
-        secret = "test_secret_key"
-        payload = {
-            "type": "password_reset",  # Wrong type
-            "property_id": 1,
-            "exp": datetime.utcnow() + timedelta(hours=1)
-        }
-        token = jwt.encode(payload, secret, algorithm="HS256")
-        decoded = jwt.decode(token, secret, algorithms=["HS256"])
-
-        assert decoded.get("type") != "reservation"
-
-    @pytest.mark.asyncio
-    async def test_checkout_rejects_missing_property_id(self):
-        """Token without property_id → 400 error."""
-        import jwt
-
-        secret = "test_secret_key"
-        payload = {
-            "type": "reservation",
-            # No property_id!
-            "exp": datetime.utcnow() + timedelta(hours=1)
-        }
-        token = jwt.encode(payload, secret, algorithm="HS256")
-        decoded = jwt.decode(token, secret, algorithms=["HS256"])
-
-        assert decoded.get("property_id") is None
-
-    @pytest.mark.asyncio
-    async def test_checkout_valid_token_decoded_correctly(self, mock_deps):
-        """Valid reservation token should decode correctly."""
-        import jwt
-
-        secret = "test_secret_key"
-        payload = {
-            "type": "reservation",
-            "property_id": 1,
-            "exp": datetime.utcnow() + timedelta(hours=1)
-        }
-        token = jwt.encode(payload, secret, algorithm="HS256")
-        decoded = jwt.decode(token, secret, algorithms=["HS256"])
-
-        assert decoded["type"] == "reservation"
-        assert decoded["property_id"] == 1
 
 
 class TestWebhookEndpoint:

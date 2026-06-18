@@ -84,9 +84,8 @@ If price is the main concern, I can show you lower-tier options, but I don't rec
             CustomerSegment.FIRST_TIME_BUYER: """Great that you're comparing! That shows you're thinking carefully.
 
 Here's what makes Osool different:
-1. **AI Legal Scanner**: We check contracts against Egyptian Law 114 - no other platform does this
-2. **AI Verification**: Comprehensive ownership and market verification
-3. **No Hidden Fees**: We show you the real total cost upfront
+1. **AI Verification**: Comprehensive ownership and market verification
+2. **No Hidden Fees**: We show you the real total cost upfront
 
 [Will call explain_osool_advantage tool for detailed comparison]
 
@@ -184,7 +183,7 @@ To make that conversation easier, would you like me to prepare:
 
 I can also schedule a video tour you can watch together. When would be good?"""
         },
-        "recommended_tools": ["compare_units", "calculate_mortgage", "generate_reservation_link"],
+        "recommended_tools": ["compare_units", "calculate_mortgage"],
         "escalation_threshold": 1  # Easy win - provide materials
     },
 
@@ -233,15 +232,12 @@ Many of our clients had similar concerns initially, but the compound's amenities
 - FRA-licensed and registered
 
 **Osool Protection:**
-1. **AI Contract Scanner**: Checks against Egyptian Law 114
-2. **AI Verification**: Every transaction recorded and verified
-3. **Escrow Protection**: Your deposit is secured
-
-[Will call audit_uploaded_contract if contract available]
+1. **AI Verification**: Every transaction recorded and verified
+2. **Escrow Protection**: Your deposit is secured
 
 Would you like me to show you this developer's completed projects?"""
         },
-        "recommended_tools": ["audit_uploaded_contract", "check_real_time_status"],
+        "recommended_tools": ["check_real_time_status"],
         "escalation_threshold": 1  # High priority - trust is critical
     },
 

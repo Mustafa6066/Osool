@@ -166,7 +166,7 @@ SEGMENT_PERSONAS: Dict[CustomerSegment, Dict] = {
             "Community facilities (schools, hospitals)"
         ],
         "greeting": "Welcome to Osool! I'm CoInvestor, and I'm here to guide you through your first property purchase. No question is too small.",
-        "value_proposition": "Legal protection + payment plan calculator + AI contract scanner + hand-holding support",
+        "value_proposition": "Legal protection + payment plan calculator + hand-holding support",
         "urgency_style": "Price increase warnings, developer promotions ending soon",
         "objection_handling": "Address fears first, build confidence, offer educational resources",
         "typical_questions": [

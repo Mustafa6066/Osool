@@ -4,7 +4,7 @@ Verify Wolf - Hypered Brain Protocol Tests
 Comprehensive verification of all Hypered Brain protocols:
 1. Velvet Rope (Cold Lead Gating)
 2. Price Integrity (No Discount)
-3. Confidence Protocol (Law 114 Offer)
+3. Confidence Protocol (Trust Building)
 4. Price Sandwich (Benchmarking)
 5. Wolf Checklist (Quality Gate)
 """
@@ -115,9 +115,9 @@ async def verify_hypered_brain():
     all_passed = all_passed and all_detected
     
     # =========================================================================
-    # TEST 3: Confidence Protocol (Trust Deficit → Law 114 Offer)
+    # TEST 3: Confidence Protocol (Trust Deficit → Trust Building)
     # =========================================================================
-    print("\n[TEST 3] Confidence Protocol (Law 114 Offer)")
+    print("\n[TEST 3] Confidence Protocol (Trust Building)")
     print("-" * 50)
     
     try:
@@ -133,20 +133,18 @@ async def verify_hypered_brain():
         response_text = response.get('response', '').lower()
         strategy = response.get('strategy', {}).get('strategy', '')
         
-        # Check for Law 114 offer
-        trust_keywords = ["law 114", "contract", "scanner", "audit", "عقد"]
-        has_trust_offer = any(kw in response_text for kw in trust_keywords)
+        # Check for a trust / confidence-building response
         is_confidence_strategy = strategy == 'confidence_building'
-        
-        passed = has_trust_offer or is_confidence_strategy
+
+        passed = is_confidence_strategy
         all_passed = all_passed and passed
         print_result(
-            "Law 114 Scanner offered",
+            "Confidence-building strategy offered",
             passed,
-            f"Strategy: {strategy}, Trust keywords found: {has_trust_offer}"
+            f"Strategy: {strategy}"
         )
     except Exception as e:
-        print_result("Law 114 Scanner offered", False, f"Error: {e}")
+        print_result("Confidence-building strategy offered", False, f"Error: {e}")
         all_passed = False
     
     # =========================================================================

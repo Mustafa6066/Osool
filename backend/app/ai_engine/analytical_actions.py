@@ -179,26 +179,6 @@ def generate_analytical_ui_actions(
                         'trigger_reason': 'Psychology: FOMO/GREED detected - show urgency'
                     })
 
-            # THE LAW 114 GUARDIAN (For the "Trust Deficit" users)
-            if psych_value == 'TRUST_DEFICIT':
-                actions.append({
-                    'type': 'law_114_guardian',
-                    'data': {
-                        'status': 'ready',
-                        'cta_text_ar': 'ارفع أي عقد وأنا هلاقي البنود المخفية.',
-                        'cta_text_en': 'Upload any draft contract. I will find the hidden fees.',
-                        'capabilities': [
-                            'كشف البنود المخفية (Hidden Clause Detection)',
-                            'التحقق من مخالفات قانون 114',
-                            'مراجعة شروط الجزاءات',
-                            'تحليل جدول السداد'
-                        ],
-                        'trust_badges': ['AI-Powered', 'Law 114 Compliant', 'Bank-Grade Security'],
-                    },
-                    'priority': 11,  # HIGHEST PRIORITY to build trust first
-                    'trigger_reason': 'Psychology: TRUST_DEFICIT - show legal protection'
-                })
-
         # 5. Memory-driven actions
         if memory:
             investment_purpose = getattr(memory, 'investment_vs_living', None)

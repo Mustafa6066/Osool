@@ -42,7 +42,6 @@ from .coinvestor_master_prompt import get_wolf_system_prompt
 from .sales_agent import (
     search_properties,
     calculate_mortgage,
-    generate_reservation_link,
     check_real_time_status,
     run_valuation_ai,
     check_market_trends,
@@ -194,20 +193,6 @@ CLAUDE_TOOLS = [
         }
     },
     {
-        "name": "generate_reservation_link",
-        "description": "Generate secure JWT-signed reservation link for property checkout. ONLY call after confirming availability via check_real_time_status.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "property_id": {
-                    "type": "integer",
-                    "description": "Property ID to reserve"
-                }
-            },
-            "required": ["property_id"]
-        }
-    },
-    {
         "name": "check_market_trends",
         "description": "Get current market trends and sentiment for a specific compound or location.",
         "input_schema": {
@@ -297,8 +282,6 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
             return await calculate_investment_roi.ainvoke(tool_input)
         elif tool_name == "check_real_time_status":
             return check_real_time_status.invoke(tool_input)
-        elif tool_name == "generate_reservation_link":
-            return generate_reservation_link.invoke(tool_input)
         elif tool_name == "check_market_trends":
             return check_market_trends.invoke(tool_input)
         elif tool_name == "schedule_viewing":

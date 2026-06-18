@@ -203,12 +203,6 @@ function Pillars() {
       number: '±2.4%',
       numberLabel: 'Median accuracy',
     },
-    {
-      title: 'Contract check',
-      body: 'Purchase agreements scanned against Civil Code 131 in seconds. Arbitration venue, escalator clauses, delivery penalties — flagged before you sign.',
-      number: '247',
-      numberLabel: 'Clauses reviewed per contract',
-    },
   ];
 
   return (

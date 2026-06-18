@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     TrendingUp, Sparkles, X, Activity,
-    Shield, ChevronRight, Star,
+    ChevronRight, Star,
     Zap, BarChart3, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 
@@ -29,13 +29,6 @@ interface AIInsight {
     prompt: string;
     promptAr: string;
     tag: string;
-}
-
-interface VerificationEvent {
-    id: string;
-    text: string;
-    textAr: string;
-    timestamp: string;
 }
 
 interface MarketPulseSidebarProps {
@@ -96,12 +89,6 @@ const AI_INSIGHTS: AIInsight[] = [
         promptAr: 'حلل زخم الأسعار في العاصمة الإدارية وهل معدل النمو ده مستدام',
         tag: 'Alert',
     },
-];
-
-const VERIFICATION_EVENTS: VerificationEvent[] = [
-    { id: '1', text: 'Smart Contract Verified: 12 Units at Palm Hills', textAr: 'عقد ذكي موثق: ١٢ وحدة في بالم هيلز', timestamp: '2m ago' },
-    { id: '2', text: 'Ownership Tokenized: 3 Fractional Shares at Sodic', textAr: 'ملكية مُرمّزة: ٣ حصص في سوديك', timestamp: '8m ago' },
-    { id: '3', text: 'Contract Verified: Mountain View iCity', textAr: 'عقد موثق: ماونتن فيو آي سيتي', timestamp: '15m ago' },
 ];
 
 const MARKET_DATA_SOURCE: 'sample' | 'live' = 'sample';
@@ -371,33 +358,6 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
 
                                                 {/* Sparkline */}
                                                 <Sparkline data={trend.trend7d} positive={trend.change >= 0} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-
-                                {/* ── Blockchain Verification ── */}
-                                <section>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Shield className="w-3.5 h-3.5 text-blue-500" />
-                                        <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
-                                            {isSampleData
-                                                ? (isAr ? 'تدفق تحقق تجريبي' : 'Simulated Verification Feed')
-                                                : (isAr ? 'التحقق والتوثيق' : 'Verification Feed')}
-                                        </span>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {VERIFICATION_EVENTS.map(ev => (
-                                            <div key={ev.id} className="flex items-start gap-2.5 rounded-lg border border-[var(--color-border)]/30 bg-[var(--color-background)]/40 p-2.5">
-                                                <div className="w-6 h-6 rounded-md bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                    <Shield className="w-3 h-3 text-blue-500" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] text-[var(--color-text-secondary)] leading-snug">
-                                                        {isAr ? ev.textAr : ev.text}
-                                                    </p>
-                                                    <span className="text-[10px] text-[var(--color-text-muted)] mt-0.5 block">{ev.timestamp}</span>
-                                                </div>
                                             </div>
                                         ))}
                                     </div>

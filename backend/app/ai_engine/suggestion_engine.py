@@ -51,7 +51,6 @@ SUGGESTIONS_AR = {
     "comparison": [
         "مقارنة جنب جنب بين الاختيارات",
         "ورّيني خطة السداد والأقساط",
-        "راجعلي العقد قانونياً (قانون 114)",
         "أنهي أفضل كاستثمار على المدى البعيد؟",
         "حلل الوحدة دي ضد التضخم",
         "إيه المخاطر اللي لازم أعرفها؟",
@@ -105,7 +104,6 @@ SUGGESTIONS_EN = {
     "comparison": [
         "Side-by-side comparison of my options",
         "Show me the payment plan breakdown",
-        "Legal audit this contract (Law 114)",
         "Which is better as a long-term investment?",
         "Analyze this unit against inflation",
         "What risks should I know about?",
@@ -134,7 +132,7 @@ CONTENT_TRIGGERS_AR = [
     (["ساحل", "سوخنة", "coast", "sokhna"], ["أنهي أحسن: ساحل ولا سوخنة؟", "هل العائد الإيجاري كويس؟", "إيه أحسن كمبوند هناك؟"]),
     (["ROI", "عائد", "ربح", "return"], ["قارن العائد مع البنك", "إيه أعلى عائد في الميزانية دي؟", "حلل العائد على 3 و5 و10 سنين"]),
     (["أقساط", "سداد", "installment", "payment"], ["إيه أطول خطة سداد؟", "هل فيه سداد بدون فوايد؟", "قارن خطط السداد المتاحة"]),
-    (["قانون", "عقد", "law", "legal"], ["هل العقد محمي قانونياً؟", "ورّيني تحليل قانون 114", "إيه حقوقي لو المطور اتأخر؟"]),
+    (["قانون", "عقد", "law", "legal"], ["هل العقد محمي قانونياً؟", "إيه اللي لازم أتأكد منه قبل التوقيع؟", "إيه حقوقي لو المطور اتأخر؟"]),
 ]
 
 CONTENT_TRIGGERS_EN = [
@@ -143,7 +141,7 @@ CONTENT_TRIGGERS_EN = [
     (["coast", "sokhna", "sahel", "north coast"], ["North Coast vs Sokhna — which is better?", "Is rental yield good there?", "Best compound in that area?"]),
     (["ROI", "return", "profit", "yield"], ["Compare return vs bank deposits", "Highest ROI in my budget?", "Analyze return over 3, 5, and 10 years"]),
     (["installment", "payment", "plan"], ["What's the longest payment plan?", "Any interest-free payment?", "Compare available payment plans"]),
-    (["law", "legal", "contract"], ["Is this contract legally protected?", "Analyze Law 114 for me", "What are my rights if developer delays?"]),
+    (["law", "legal", "contract"], ["Is this contract legally protected?", "What should I check before signing?", "What are my rights if developer delays?"]),
 ]
 
 
@@ -155,7 +153,7 @@ def _detect_conversation_phase(
     """Determine conversation phase from lead score and interaction depth."""
     if lead_score >= 80 or "reserve" in " ".join(tools_used).lower():
         return "decision"
-    if lead_score >= 55 or any(t in tools_used for t in ["comparison_matrix", "payment_timeline", "law_114_guardian"]):
+    if lead_score >= 55 or any(t in tools_used for t in ["comparison_matrix", "payment_timeline"]):
         return "comparison"
     if lead_score >= 30 or history_length > 6 or any(t in tools_used for t in ["search_properties", "roi_calculator", "area_analysis"]):
         return "exploration"

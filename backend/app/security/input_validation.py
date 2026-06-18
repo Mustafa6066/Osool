@@ -336,17 +336,6 @@ class SecureValuationRequest(BaseModel):
         return sanitize_string(v, 200, allow_html=False)
 
 
-class SecureContractAnalysisRequest(BaseModel):
-    """Secure contract analysis request."""
-    text: str = Field(..., min_length=50, max_length=MAX_DESCRIPTION_LENGTH)
-    language: str = Field(default="auto", regex="^(ar|en|auto)$")
-    
-    @validator('text')
-    def sanitize_contract_text(cls, v):
-        # Contract text can contain some formatting, but still sanitize
-        return sanitize_string(v, MAX_DESCRIPTION_LENGTH, allow_html=False)
-
-
 # ═══════════════════════════════════════════════════════════════
 # VALIDATION HELPERS
 # ═══════════════════════════════════════════════════════════════
@@ -411,7 +400,6 @@ __all__ = [
     'SecureSignupRequest',
     'SecurePropertySearch',
     'SecureValuationRequest',
-    'SecureContractAnalysisRequest',
     'validate_pagination',
     'validate_property_id',
     'validate_user_id',

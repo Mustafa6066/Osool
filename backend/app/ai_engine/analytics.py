@@ -40,8 +40,7 @@ class ConversationAnalytics(Base):
     objections_raised = Column(JSON, default=list)  # List of objection types
 
     # Outcome Metrics
-    conversion_status = Column(String, default="browsing")  # browsing, reserved, abandoned
-    reservation_generated = Column(Boolean, default=False)
+    conversion_status = Column(String, default="browsing")  # browsing, abandoned, viewing_scheduled
     viewing_scheduled = Column(Boolean, default=False)
 
     # Engagement Metrics
@@ -250,11 +249,8 @@ class ConversationAnalyticsService:
         ).first()
 
         if analytics:
-            analytics.conversion_status = "reserved" if conversion_type == "reservation" else "viewing_scheduled"
-
-            if conversion_type == "reservation":
-                analytics.reservation_generated = True
-            elif conversion_type == "viewing":
+            if conversion_type == "viewing":
+                analytics.conversion_status = "viewing_scheduled"
                 analytics.viewing_scheduled = True
 
             self.db.commit()
@@ -318,7 +314,6 @@ class ConversationAnalyticsService:
             "tools_used": analytics.tools_used,
             "objections_raised": analytics.objections_raised,
             "conversion_status": analytics.conversion_status,
-            "reservation_generated": analytics.reservation_generated,
             "viewing_scheduled": analytics.viewing_scheduled,
             "session_duration_seconds": analytics.session_duration_seconds,
             "message_count": analytics.message_count,
@@ -354,7 +349,6 @@ class ConversationAnalyticsService:
         total_sessions = query.count()
 
         # Conversion counts
-        reservations = query.filter(ConversationAnalytics.reservation_generated == True).count()
         viewings = query.filter(ConversationAnalytics.viewing_scheduled == True).count()
 
         # Lead temperature distribution
@@ -377,15 +371,12 @@ class ConversationAnalyticsService:
         ).scalar() or 0
 
         # Conversion rates
-        reservation_rate = (reservations / total_sessions * 100) if total_sessions > 0 else 0
         viewing_rate = (viewings / total_sessions * 100) if total_sessions > 0 else 0
 
         return {
             "total_sessions": total_sessions,
             "conversions": {
-                "reservations": reservations,
                 "viewings": viewings,
-                "reservation_rate": round(reservation_rate, 2),
                 "viewing_rate": round(viewing_rate, 2)
             },
             "lead_distribution": {
@@ -548,7 +539,7 @@ if __name__ == "__main__":
        analytics_service.track_property_view(session_id, property_id)
 
     3. On conversion:
-       analytics_service.mark_conversion(session_id, "reservation")
+       analytics_service.mark_conversion(session_id, "viewing")
 
     4. On session end:
        analytics_service.finalize_session(session_id, "abandoned")

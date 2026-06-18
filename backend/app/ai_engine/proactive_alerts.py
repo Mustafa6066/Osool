@@ -212,22 +212,6 @@ class ProactiveAlertEngine:
                 )
                 alerts.append(alert.to_dict())
 
-            # RISK_AVERSE users get safety alerts
-            elif primary_state == PsychologicalState.RISK_AVERSE:
-                alert = ProactiveAlert(
-                    type=AlertType.MARKET_OPPORTUNITY,
-                    priority=AlertPriority.MEDIUM.value,
-                    message_ar="🛡️ السيستم بتاعي جاهز يراجع أي عقد قبل ما توقع",
-                    message_en="My system is ready to review any contract before you sign",
-                    data={
-                        "service": "contract_review",
-                        "law_reference": "Law 114"
-                    },
-                    action_cta_ar="ارفع العقد للمراجعة",
-                    action_cta_en="Upload contract for review"
-                )
-                alerts.append(alert.to_dict())
-
         except Exception as e:
             logger.error(f"Psychology opportunity scan failed: {e}")
 
