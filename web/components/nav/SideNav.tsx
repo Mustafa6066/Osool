@@ -40,7 +40,7 @@ function Tooltip({ label, isRTL }: { label: string; isRTL: boolean }) {
         isRTL ? 'right-full mr-3' : 'left-full ml-3'
       }`}
     >
-      <span className="rounded-lg bg-[var(--color-text-primary)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--color-background)] shadow-lg">
+      <span className="rounded-lg bg-[var(--osool-text)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--osool-bg)] shadow-lg">
         {label}
       </span>
     </motion.div>
@@ -72,8 +72,8 @@ function SideNavItem({
         isExpanded ? 'px-3 gap-3' : 'justify-center'
       } ${
         isActive
-          ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
-          : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]'
+          ? 'bg-[var(--osool-accent-mid)] text-[var(--osool-accent)]'
+          : 'text-[var(--osool-muted)] hover:bg-[var(--osool-surface-2)] hover:text-[var(--osool-text)]'
       }`}
       onMouseEnter={() => !isExpanded && setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
@@ -82,7 +82,7 @@ function SideNavItem({
       {isActive && (
         <motion.span
           layoutId="nav-active-bar"
-          className={`absolute inset-y-2 w-0.5 rounded-full bg-emerald-500 ${
+          className={`absolute inset-y-2 w-0.5 rounded-full bg-[var(--osool-accent)] ${
             isRTL ? 'right-0' : 'left-0'
           }`}
           transition={SPRING}
@@ -169,7 +169,7 @@ function SideActionButton({
         title={label}
         onMouseEnter={() => !isExpanded && setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        className={`flex h-11 w-full items-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] transition-colors ${
+        className={`flex h-11 w-full items-center rounded-xl text-[var(--osool-muted)] hover:bg-[var(--osool-surface-2)] hover:text-[var(--osool-text)] transition-colors ${
           isExpanded ? 'px-3 gap-3' : 'justify-center'
         }`}
       >
@@ -218,11 +218,11 @@ function AvatarButton({
     <button
       onClick={onOpenMenu}
       aria-label="User menu"
-      className={`flex h-11 w-full items-center rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors ${
+      className={`flex h-11 w-full items-center rounded-xl hover:bg-[var(--osool-surface-2)] transition-colors ${
         isExpanded ? 'px-3 gap-3' : 'justify-center'
       }`}
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--osool-accent-mid)] text-[11px] font-bold text-[var(--osool-accent)] ring-1 ring-[var(--osool-accent)]">
         {initials}
       </span>
       <AnimatePresence>
@@ -234,17 +234,17 @@ function AvatarButton({
             transition={EASE_OUT}
             className="flex min-w-0 flex-1 flex-col overflow-hidden text-start"
           >
-            <span className="truncate text-[12px] font-semibold text-[var(--color-text-primary)] leading-tight">
+            <span className="truncate text-[12px] font-semibold text-[var(--osool-text)] leading-tight">
               {user?.full_name ?? 'Account'}
             </span>
-            <span className="truncate text-[11px] text-[var(--color-text-muted)] leading-tight">
+            <span className="truncate text-[11px] text-[var(--osool-muted)] leading-tight">
               {user?.email ?? ''}
             </span>
           </motion.div>
         )}
       </AnimatePresence>
       {isExpanded && (
-        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] ml-auto" />
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--osool-muted)] ml-auto" />
       )}
     </button>
   );
@@ -287,7 +287,7 @@ function UserDropdown({
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: 8 }}
       transition={EASE_OUT}
-      className={`absolute bottom-14 z-[200] w-[200px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl ${
+      className={`absolute bottom-14 z-[200] w-[200px] rounded-2xl border border-[var(--osool-border)] bg-[var(--osool-surface)] shadow-xl ${
         isRTL ? 'right-2' : 'left-2'
       }`}
     >
@@ -297,8 +297,8 @@ function UserDropdown({
           const inner = (
             <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${
               item.danger
-                ? 'text-red-500 hover:bg-red-500/8'
-                : 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]'
+                ? 'text-[var(--osool-danger)] hover:bg-[var(--osool-danger-soft)]'
+                : 'text-[var(--osool-text)] hover:bg-[var(--osool-surface-2)]'
             }`}>
               <Icon className="h-4 w-4 shrink-0" strokeWidth={1.8} />
               {item.label}
@@ -329,7 +329,7 @@ function UserDropdown({
 
 /* ─── Divider ─────────────────────────────────── */
 function NavDivider() {
-  return <div className="my-1 h-px bg-[var(--color-border)]" />;
+  return <div className="my-1 h-px bg-[var(--osool-border)]" />;
 }
 
 /* ═══════════════════════════════════════════════
@@ -480,17 +480,17 @@ export default function SideNav({ onInvite }: SideNavProps) {
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => { setIsExpanded(false); setShowUserMenu(false); }}
         className={`hidden lg:flex fixed top-0 bottom-0 z-50 flex-col overflow-hidden
-                    border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-2xl
-                    shadow-[1px_0_0_0_var(--color-border)]
+                    border-[var(--osool-border)] bg-[var(--osool-surface)] backdrop-blur-2xl
+                    shadow-[1px_0_0_0_var(--osool-border)]
                     ${isExpanded ? 'w-[220px]' : 'w-14'}
                     ${isRTL ? 'right-0 border-l' : 'left-0 border-r'}`}
       >
         {/* Brand */}
-        <div className={`flex h-[60px] shrink-0 items-center border-b border-[var(--color-border)] ${
+        <div className={`flex h-[60px] shrink-0 items-center border-b border-[var(--osool-border)] ${
           isExpanded ? 'px-4 gap-3' : 'justify-center'
         }`}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/25">
-            <Sparkles className="h-4 w-4 text-emerald-500" strokeWidth={2} />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--osool-accent-mid)] ring-1 ring-[var(--osool-accent)]">
+            <Sparkles className="h-4 w-4 text-[var(--osool-accent)]" strokeWidth={2} />
           </div>
           <AnimatePresence>
             {isExpanded && (
@@ -501,10 +501,10 @@ export default function SideNav({ onInvite }: SideNavProps) {
                 transition={EASE_OUT}
                 className="overflow-hidden"
               >
-                <span className="whitespace-nowrap text-[15px] font-bold tracking-tight text-[var(--color-text-primary)]">
+                <span className="whitespace-nowrap text-[15px] font-bold tracking-tight text-[var(--osool-text)]">
                   Osool
                 </span>
-                <span className="ms-1.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="ms-1.5 rounded-full bg-[var(--osool-accent-mid)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--osool-accent)]">
                   AI
                 </span>
               </motion.div>
@@ -531,7 +531,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
               <NavDivider />
               <button
                 onClick={() => setShowSecondary((v) => !v)}
-                className="flex h-11 w-full items-center justify-between rounded-xl px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
+                className="flex h-11 w-full items-center justify-between rounded-xl px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--osool-muted)] transition-colors hover:bg-[var(--osool-surface-2)] hover:text-[var(--osool-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)]"
                 aria-expanded={showSecondary}
                 aria-label={language === 'ar' ? 'إظهار أقسام إضافية' : 'Toggle additional sections'}
               >
@@ -567,9 +567,9 @@ export default function SideNav({ onInvite }: SideNavProps) {
         </div>
 
         {/* Footer actions */}
-        <div className="flex flex-col gap-0.5 border-t border-[var(--color-border)] px-2 py-3">
+        <div className="flex flex-col gap-0.5 border-t border-[var(--osool-border)] px-2 py-3">
           {/* Notification bell */}
-          <div className={`flex h-11 w-full items-center rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors ${
+          <div className={`flex h-11 w-full items-center rounded-xl hover:bg-[var(--osool-surface-2)] transition-colors ${
             isExpanded ? 'px-3 gap-3' : 'justify-center'
           }`}>
             <NotificationBell
@@ -582,7 +582,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                   animate={{ opacity: 1, width: 'auto' }}
                   exit={{ opacity: 0, width: 0 }}
                   transition={EASE_OUT}
-                  className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[var(--color-text-muted)]"
+                  className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[var(--osool-muted)]"
                 >
                   {language === 'ar' ? 'الإشعارات' : 'Notifications'}
                 </motion.span>
@@ -653,7 +653,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
         }}
         transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         className={`lg:hidden fixed left-1/2 -translate-x-1/2 z-50 flex items-stretch rounded-[26px]
-                    border border-[var(--color-border)] bg-[var(--color-surface)]/95
+                    border border-[var(--osool-border)] bg-[var(--osool-surface)]
                     backdrop-blur-2xl shadow-[0_18px_40px_rgba(0,0,0,0.2)]`}
         style={{
           width: 'min(680px, calc(100vw - max(12px, env(safe-area-inset-left, 0px)) - max(12px, env(safe-area-inset-right, 0px))))',
@@ -679,23 +679,23 @@ export default function SideNav({ onInvite }: SideNavProps) {
               {isActive && (
                 <motion.span
                   layoutId="mobile-active-bg"
-                  className="absolute inset-x-2 inset-y-1.5 rounded-xl bg-emerald-500/12"
+                  className="absolute inset-x-2 inset-y-1.5 rounded-xl bg-[var(--osool-accent-mid)]"
                   transition={SPRING}
                 />
               )}
               <Icon
                 className={`relative z-10 h-5 w-5 max-[420px]:h-4 max-[420px]:w-4 transition-colors ${
                   isActive
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-[var(--color-text-muted)]'
+                    ? 'text-[var(--osool-accent)]'
+                    : 'text-[var(--osool-muted)]'
                 }`}
                 strokeWidth={isActive ? 2.4 : 1.8}
               />
               <span
                 className={`relative z-10 max-w-full truncate text-[11px] max-[420px]:text-[10px] font-medium transition-colors leading-none ${
                   isActive
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-[var(--color-text-muted)]'
+                    ? 'text-[var(--osool-accent)]'
+                    : 'text-[var(--osool-muted)]'
                 }`}
               >
                 {label}
@@ -711,10 +711,10 @@ export default function SideNav({ onInvite }: SideNavProps) {
           aria-label={language === 'ar' ? 'المزيد' : 'More'}
         >
           <Menu
-            className="h-5 w-5 max-[420px]:h-4 max-[420px]:w-4 text-[var(--color-text-muted)]"
+            className="h-5 w-5 max-[420px]:h-4 max-[420px]:w-4 text-[var(--osool-muted)]"
             strokeWidth={1.8}
           />
-          <span className="max-w-full truncate text-[11px] max-[420px]:text-[10px] font-medium text-[var(--color-text-muted)] leading-none">
+          <span className="max-w-full truncate text-[11px] max-[420px]:text-[10px] font-medium text-[var(--osool-muted)] leading-none">
             {language === 'ar' ? 'المزيد' : 'More'}
           </span>
         </button>
@@ -742,22 +742,22 @@ export default function SideNav({ onInvite }: SideNavProps) {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={SPRING}
-              className="lg:hidden fixed bottom-0 inset-x-0 z-[70] rounded-t-3xl border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 pt-3"
+              className="lg:hidden fixed bottom-0 inset-x-0 z-[70] rounded-t-3xl border-t border-[var(--osool-border)] bg-[var(--osool-surface)] px-4 pt-3"
               style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 16px)' }}
             >
               {/* Drag handle */}
-              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--color-border)]" />
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--osool-border)]" />
 
               {/* Close */}
               <button
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label={language === 'ar' ? 'إغلاق القائمة' : 'Close menu'}
-                className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-surface-elevated)]"
+                className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--osool-surface-2)]"
               >
-                <X size={16} className="text-[var(--color-text-muted)]" />
+                <X size={16} className="text-[var(--osool-muted)]" />
               </button>
 
-              <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--osool-muted)]">
                 {language === 'ar' ? 'التنقل' : 'Navigate'}
               </p>
 
@@ -776,8 +776,8 @@ export default function SideNav({ onInvite }: SideNavProps) {
                       aria-current={isActive ? 'page' : undefined}
                       className={`flex flex-col items-center gap-1.5 rounded-2xl p-3 transition-colors ${
                         isActive
-                          ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
-                          : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]'
+                          ? 'bg-[var(--osool-accent-mid)] text-[var(--osool-accent)]'
+                          : 'bg-[var(--osool-surface-2)] text-[var(--osool-muted)]'
                       }`}
                     >
                       <Icon className="h-5 w-5" strokeWidth={isActive ? 2.2 : 1.8} />
@@ -793,8 +793,8 @@ export default function SideNav({ onInvite }: SideNavProps) {
                     aria-current={activeKey === 'admin' ? 'page' : undefined}
                     className={`flex flex-col items-center gap-1.5 rounded-2xl p-3 transition-colors ${
                       activeKey === 'admin'
-                        ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]'
+                        ? 'bg-[var(--osool-accent-mid)] text-[var(--osool-accent)]'
+                        : 'bg-[var(--osool-surface-2)] text-[var(--osool-muted)]'
                     }`}
                   >
                     <Shield className="h-5 w-5" strokeWidth={1.8} />
@@ -805,10 +805,10 @@ export default function SideNav({ onInvite }: SideNavProps) {
 
               {/* Secondary nav items behind progressive disclosure */}
               {secondaryItems.length > 0 && (
-                <div className="mb-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2.5">
+                <div className="mb-4 rounded-2xl border border-[var(--osool-border)] bg-[var(--osool-bg)] p-2.5">
                   <button
                     onClick={() => setShowSecondaryMobile((v) => !v)}
-                    className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)]"
+                    className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--osool-muted)] transition-colors hover:bg-[var(--osool-surface-2)]"
                     aria-expanded={showSecondaryMobile}
                     aria-label={language === 'ar' ? 'إظهار أقسام إضافية' : 'Toggle additional sections'}
                   >
@@ -838,8 +838,8 @@ export default function SideNav({ onInvite }: SideNavProps) {
                               aria-current={isActive ? 'page' : undefined}
                               className={`flex flex-col items-center gap-1.5 rounded-2xl p-3 transition-colors ${
                                 isActive
-                                  ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
-                                  : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]'
+                                  ? 'bg-[var(--osool-accent-mid)] text-[var(--osool-accent)]'
+                                  : 'bg-[var(--osool-surface-2)] text-[var(--osool-muted)]'
                               }`}
                             >
                               <Icon className="h-5 w-5" strokeWidth={isActive ? 2.2 : 1.8} />
@@ -853,20 +853,20 @@ export default function SideNav({ onInvite }: SideNavProps) {
                 </div>
               )}
 
-              <div className="h-px bg-[var(--color-border)] mb-4" />
+              <div className="h-px bg-[var(--osool-border)] mb-4" />
 
               {/* Actions row */}
               <div className="flex items-center gap-2 mb-4">
                 <button
                   onClick={() => { toggleTheme(); }}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--color-surface-elevated)] py-3 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)]"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--osool-surface-2)] py-3 text-[13px] font-medium text-[var(--osool-text-2)] transition-colors hover:bg-[var(--osool-border)]"
                 >
                   {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
                   {theme === 'dark' ? (language === 'ar' ? 'فاتح' : 'Light') : (language === 'ar' ? 'داكن' : 'Dark')}
                 </button>
                 <button
                   onClick={() => { toggleLanguage(); }}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--color-surface-elevated)] py-3 text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)]"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--osool-surface-2)] py-3 text-[13px] font-medium text-[var(--osool-text-2)] transition-colors hover:bg-[var(--osool-border)]"
                 >
                   <Languages size={16} />
                   {language === 'en' ? 'العربية' : 'English'}
@@ -879,7 +879,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                   {isAuthenticated && (
                     <button
                       onClick={() => { onInvite(); setMobileMenuOpen(false); }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 py-3 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400 transition-colors"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--osool-accent-soft)] py-3 text-[13px] font-semibold text-[var(--osool-accent)] transition-colors"
                     >
                       <Gift size={16} />
                       {language === 'ar' ? 'دعوة صديق' : 'Invite friend'}
@@ -887,7 +887,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                   )}
                   <button
                     onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--color-surface-elevated)] py-3 text-[13px] font-medium text-red-500 transition-colors"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--osool-surface-2)] py-3 text-[13px] font-medium text-[var(--osool-danger)] transition-colors"
                   >
                     <LogOut size={16} />
                     {language === 'ar' ? 'خروج' : 'Sign out'}
@@ -897,7 +897,7 @@ export default function SideNav({ onInvite }: SideNavProps) {
                 <Link
                   href="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 text-[14px] font-semibold text-white"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--osool-accent)] py-3.5 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--osool-accent-dark)]"
                 >
                   <LogIn size={16} />
                   {language === 'ar' ? 'تسجيل الدخول' : 'Sign in'}

@@ -90,7 +90,7 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
-            className="fixed inset-x-0 bottom-0 z-[95] mx-auto w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/96 px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4 shadow-2xl shadow-black/20 backdrop-blur-2xl"
+            className="fixed inset-x-0 bottom-0 z-[95] mx-auto w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-[28px] border border-[var(--osool-border)] bg-[var(--osool-surface)] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4 shadow-2xl shadow-black/20 backdrop-blur-2xl"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 30, scale: 0.985 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.995 }}
@@ -105,10 +105,10 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+                <div className="text-sm font-semibold text-[var(--osool-text)]">
                   {language === 'ar' ? 'التنقل' : 'Navigation'}
                 </div>
-                <div className="text-xs text-[var(--color-text-muted)]">
+                <div className="text-xs text-[var(--osool-muted)]">
                   {isAuthenticated
                     ? user?.full_name || user?.email || (language === 'ar' ? 'حسابك' : 'Your account')
                     : language === 'ar'
@@ -120,7 +120,7 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--osool-muted)] transition-colors hover:bg-[var(--osool-surface-2)] hover:text-[var(--osool-text)]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -145,8 +145,8 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
                       className={[
                         'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors',
                         isActive
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          : 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]',
+                          ? 'bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]'
+                          : 'text-[var(--osool-text-2)] hover:bg-[var(--osool-surface-2)]',
                       ].join(' ')}
                     >
                       <Icon className="h-4 w-4" strokeWidth={isActive ? 2.4 : 2} />
@@ -169,8 +169,8 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
                     className={[
                       'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors',
                       activeKey === 'admin'
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]',
+                        ? 'bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]'
+                        : 'text-[var(--osool-text-2)] hover:bg-[var(--osool-surface-2)]',
                     ].join(' ')}
                   >
                     <Shield className="h-4 w-4" strokeWidth={2} />
@@ -180,13 +180,13 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
               )}
             </div>
 
-            <div className="mt-4 border-t border-[var(--color-border)] pt-4">
+            <div className="mt-4 border-t border-[var(--osool-border)] pt-4">
               {isAuthenticated ? (
                 <div className="grid gap-2">
                   <button
                     type="button"
                     onClick={() => closeThen(onInvite)}
-                    className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-500/10 dark:text-emerald-400"
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-[var(--osool-accent)] transition-colors hover:bg-[var(--osool-accent-soft)]"
                   >
                     <Gift className="h-4 w-4" strokeWidth={2} />
                     <span>{language === 'ar' ? 'دعوة أصدقاء' : 'Invite Friends'}</span>
@@ -195,7 +195,7 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
                   <button
                     type="button"
                     onClick={() => closeThen(logout)}
-                    className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-[var(--osool-danger)] transition-colors hover:bg-[var(--osool-danger-soft)]"
                   >
                     <LogOut className="h-4 w-4" strokeWidth={2} />
                     <span>{language === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}</span>
@@ -205,7 +205,7 @@ export default function MoreSheet({ open, onClose, onInvite }: MoreSheetProps) {
                 <Link
                   href="/login"
                   onClick={onClose}
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--osool-accent)] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--osool-accent-dark)]"
                 >
                   <LogIn className="h-4 w-4" strokeWidth={2} />
                   <span>{language === 'ar' ? 'تسجيل الدخول' : 'Login'}</span>
