@@ -78,6 +78,12 @@ api.interceptors.request.use(
  * Automatically refreshes access token on 401 Unauthorized
  * Uses a lock to prevent parallel refresh calls
  */
+// Hard ceiling on the silent-refresh network call. The refresh endpoint
+// normally answers in well under a second; without a timeout a wedged request
+// (stale cookie state, hung proxy, captive network) would never settle,
+// freezing AuthContext.loading and showing an infinite dashboard spinner.
+const REFRESH_TIMEOUT_MS = 8000;
+
 let isRefreshing = false;
 let refreshSubscribers: Array<{
   resolve: (token: string) => void;
@@ -175,6 +181,7 @@ api.interceptors.response.use(
           refresh_token: refreshToken,
         }, {
           withCredentials: true,
+          timeout: REFRESH_TIMEOUT_MS,
         });
 
         // Store new access token
@@ -272,6 +279,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
         refresh_token: refreshToken,
       }, {
         withCredentials: true,
+        timeout: REFRESH_TIMEOUT_MS,
       });
       localStorage.setItem('access_token', data.access_token as string);
       if (data.refresh_token) {
