@@ -188,7 +188,8 @@ def _deterministic_rotate(candidates: List[str], seed: str, count: int = 3) -> L
     Different seed → different selection, but same seed → same selection (stable)."""
     if len(candidates) <= count:
         return candidates
-    h = int(hashlib.md5(seed.encode()).hexdigest(), 16)
+    # Using SHA256 for deterministic rotation (non-security context)
+    h = int(hashlib.sha256(seed.encode()).hexdigest(), 16)
     offset = h % len(candidates)
     rotated = candidates[offset:] + candidates[:offset]
     return rotated[:count]
