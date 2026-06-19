@@ -310,7 +310,7 @@ export default function PropertyDetailsPage() {
                 {decision && (
                     <section className="mb-8 grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
                         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
-                            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--osool-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--osool-accent)]">
                                 {decision.confidenceLabel}
                             </div>
                             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">{property.title}</h1>
@@ -603,10 +603,10 @@ export default function PropertyDetailsPage() {
 
                             {/* AI Estimate - only show if real valuation available */}
                             {aiEstimate && (
-                            <div className="flex items-center gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mb-6">
-                                <Sparkles className="w-5 h-5 text-emerald-500" />
+                            <div className="flex items-center gap-2 p-4 rounded-xl bg-[var(--osool-accent-soft)] border border-[var(--osool-accent-mid)] mb-6">
+                                <Sparkles className="w-5 h-5 text-[var(--osool-accent)]" />
                                 <div>
-                                    <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{t('property.aiEstimate')}</div>
+                                    <div className="text-sm text-[var(--osool-accent)] font-medium">{t('property.aiEstimate')}</div>
                                     <div className="text-lg font-bold text-[var(--color-text-primary)]">{formatPrice(aiEstimate)}</div>
                                 </div>
                                 <div className={`ml-auto text-sm font-semibold ${priceDiff >= 0 ? 'text-green-400' : 'text-red-400'}`}>

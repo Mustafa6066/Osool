@@ -54,7 +54,7 @@ const STAGE_TONES: Record<string, string> = {
   new: 'border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-300',
   engaged: 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300',
   hot: 'border-red-500/20 bg-red-500/10 text-red-500',
-  converted: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+  converted: 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]',
   lost: 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-muted)]',
 };
 
@@ -149,7 +149,7 @@ export default function LeadsPage() {
     >
       {loading ? (
         <div className="flex items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
         </div>
       ) : error ? (
         <div className="rounded-[32px] border border-red-500/20 bg-red-500/10 p-6 text-sm text-red-500">{error}</div>
@@ -186,8 +186,8 @@ export default function LeadsPage() {
                       onClick={() => setSelectedLead(lead)}
                       className={`w-full rounded-[24px] border p-5 text-left transition-colors ${
                         selectedLead?.id === lead.id
-                          ? 'border-emerald-500/30 bg-emerald-500/5'
-                          : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-emerald-500/20'
+                          ? 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)]'
+                          : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--osool-accent-mid)]'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -295,8 +295,8 @@ export default function LeadsPage() {
                 )}
               </div>
 
-              <div className="rounded-[32px] border border-[var(--color-border)] bg-emerald-500/10 p-6">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Pipeline note</div>
+              <div className="rounded-[32px] border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-6">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">Pipeline note</div>
                 <div className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
                   Keep the stage honest. A smaller accurate hot list is more useful than a larger inflated pipeline.
                 </div>
@@ -326,8 +326,8 @@ function PipelineCard({
       onClick={onClick}
       className={`rounded-[24px] border p-5 text-left transition-colors ${
         active
-          ? 'border-emerald-500/30 bg-emerald-500/10'
-          : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-emerald-500/20'
+          ? 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)]'
+          : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--osool-accent-mid)]'
       }`}
     >
       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{label}</div>

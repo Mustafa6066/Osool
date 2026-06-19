@@ -94,7 +94,7 @@ export default function PricingPage() {
       <div className="h-full overflow-y-auto bg-[var(--color-background)]" dir={direction}>
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
               <Crown className="h-3.5 w-3.5" />
               {isRTL ? 'الباقات' : 'Pricing'}
             </div>
@@ -124,7 +124,7 @@ export default function PricingPage() {
 
           {loading ? (
             <div className="flex justify-center py-24">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
             </div>
           ) : (
             <div className="mt-12 grid gap-6 lg:grid-cols-3">
@@ -136,20 +136,20 @@ export default function PricingPage() {
                     key={plan.id}
                     className={`relative flex flex-col rounded-[28px] border p-7 ${
                       highlighted
-                        ? 'border-emerald-500/60 bg-emerald-500/[0.06] shadow-[0_30px_80px_rgba(16,185,129,0.12)]'
+                        ? 'border-[var(--osool-accent)] bg-[var(--osool-accent-soft)] shadow-[0_30px_80px_rgba(201,100,66,0.12)]'
                         : 'border-[var(--color-border)] bg-[var(--color-surface)]'
                     }`}
                   >
                     {highlighted && (
-                      <span className="absolute -top-3 start-7 rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-white">
+                      <span className="absolute -top-3 start-7 rounded-full bg-[var(--osool-accent)] px-3 py-1 text-xs font-bold text-white">
                         {isRTL ? 'الأكثر قيمة' : 'Best value'}
                       </span>
                     )}
                     <div
                       className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${
                         highlighted
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-[var(--color-background)] text-emerald-500'
+                          ? 'bg-[var(--osool-accent)] text-white'
+                          : 'bg-[var(--color-background)] text-[var(--osool-accent)]'
                       }`}
                     >
                       {PLAN_ICONS[plan.id] ?? <Sparkles className="h-6 w-6" />}
@@ -176,7 +176,7 @@ export default function PricingPage() {
                     <ul className="mt-6 flex-1 space-y-3">
                       {plan.features[language].map((feature) => (
                         <li key={feature} className="flex items-start gap-2 text-sm text-[var(--color-text-secondary)]">
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--osool-accent)]" />
                           {feature}
                         </li>
                       ))}
@@ -190,7 +190,7 @@ export default function PricingPage() {
                           {isRTL ? 'ابدأ مجانًا' : 'Start free'}
                         </button>
                       ) : isCurrentPro ? (
-                        <div className="w-full rounded-2xl bg-emerald-500/15 py-3 text-center text-sm font-semibold text-emerald-600">
+                        <div className="w-full rounded-2xl bg-[var(--osool-accent-mid)] py-3 text-center text-sm font-semibold text-[var(--osool-accent)]">
                           {isRTL ? '✓ باقتك الحالية' : '✓ Your current plan'}
                         </div>
                       ) : (
@@ -199,8 +199,8 @@ export default function PricingPage() {
                           disabled={!paymentsEnabled || paying !== null}
                           className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                             highlighted
-                              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                              : 'border border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10'
+                              ? 'bg-[var(--osool-accent)] text-white hover:bg-[var(--osool-accent-dark)]'
+                              : 'border border-[var(--osool-accent-mid)] text-[var(--osool-accent)] hover:bg-[var(--osool-accent-soft)]'
                           }`}
                         >
                           {paying === plan.id && <Loader2 className="h-4 w-4 animate-spin" />}

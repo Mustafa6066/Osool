@@ -57,12 +57,16 @@ export default function NpvPlanComparison({
       dir={isRTL ? "rtl" : "ltr"}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl overflow-hidden border border-[var(--color-border)] bg-gradient-to-br from-emerald-950/20 to-teal-950/10"
+      className="rounded-2xl overflow-hidden border border-[var(--osool-border)]"
+      style={{ background: "linear-gradient(to bottom right, var(--osool-accent-soft), var(--osool-surface))" }}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--color-border)] bg-gradient-to-r from-emerald-600/15 to-teal-600/15">
+      <div
+        className="flex items-center gap-3 px-5 py-4 border-b border-[var(--osool-border)]"
+        style={{ background: "linear-gradient(to right, var(--osool-accent-mid), var(--osool-accent-soft))" }}
+      >
         <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
-          <Scale className="w-5 h-5 text-emerald-300" />
+          <Scale className="w-5 h-5" style={{ color: "var(--osool-accent)" }} />
         </div>
         <div>
           <h3 className="text-sm font-semibold text-white">

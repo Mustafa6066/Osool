@@ -33,7 +33,7 @@ function iconForPhase(phase: NeuralPhase) {
 
 function SignalStepMarker({ step }: { step: NeuralSignalStep }) {
   if (step.status === 'active') {
-    return <div className="w-4 h-4 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin flex-shrink-0" />;
+    return <div className="w-4 h-4 rounded-full border-2 border-[var(--osool-accent-mid)] border-t-[var(--osool-accent)] animate-spin flex-shrink-0" />;
   }
 
   const Icon = step.status === 'complete' ? Check : step.status === 'error' ? AlertTriangle : iconForPhase(step.phase);
@@ -123,7 +123,7 @@ export default function ThinkingSteps({ lastUserMessage, signalSteps = [], phase
                 transition={{ duration: 0.28 }}
                 className={`flex items-center gap-2.5 text-[13px] ${
                   isCurrent
-                    ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                    ? 'text-[var(--osool-accent)] font-medium'
                     : isDone
                       ? 'text-[var(--color-text-muted)]'
                       : 'text-red-500'
@@ -136,7 +136,7 @@ export default function ThinkingSteps({ lastUserMessage, signalSteps = [], phase
           })}
 
           {visibleSignalSteps.length === 0 && (
-            <div className="flex items-center gap-2 text-[13px] text-emerald-600 dark:text-emerald-400 font-medium">
+            <div className="flex items-center gap-2 text-[13px] text-[var(--osool-accent)] font-medium">
               <PhaseMarker phase={phase} />
               <span>{msgIsArabic ? 'بدء التحليل...' : 'Starting analysis...'}</span>
             </div>
@@ -166,16 +166,16 @@ export default function ThinkingSteps({ lastUserMessage, signalSteps = [], phase
               transition={{ duration: 0.3 }}
               className={`flex items-center gap-2.5 text-[13px] ${
                 isCurrent
-                  ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                  ? 'text-[var(--osool-accent)] font-medium'
                   : isVisible
                     ? 'text-[var(--color-text-muted)]'
                     : 'text-[var(--color-text-muted)]/40'
               }`}
             >
               {isCurrent ? (
-                <div className="w-4 h-4 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin flex-shrink-0" />
+                <div className="w-4 h-4 rounded-full border-2 border-[var(--osool-accent-mid)] border-t-[var(--osool-accent)] animate-spin flex-shrink-0" />
               ) : isVisible ? (
-                <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <Check className="w-4 h-4 text-[var(--osool-accent)] flex-shrink-0" />
               ) : (
                 <Icon className="w-4 h-4 flex-shrink-0 opacity-40" />
               )}

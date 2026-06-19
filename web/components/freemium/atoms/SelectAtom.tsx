@@ -35,7 +35,7 @@ export default function SelectAtom({
           id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full appearance-none rounded-2xl border border-zinc-800/70 bg-zinc-950/90 px-4 py-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-emerald-500/55 focus:ring-2 focus:ring-emerald-500/15"
+          className="w-full appearance-none rounded-2xl border border-zinc-800/70 bg-zinc-950/90 px-4 py-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-[var(--osool-accent)] focus:ring-2 focus:ring-[var(--osool-accent-mid)]"
         >
           {options.map((option) => (
             <option key={option.value} value={option.value} className="bg-zinc-900">

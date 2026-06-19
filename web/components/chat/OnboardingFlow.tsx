@@ -79,7 +79,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowPro
             {/* Progress Bar */}
             <div className="absolute top-0 start-0 w-full h-1.5 bg-[var(--color-surface)]">
                 <motion.div 
-                    className="h-full bg-emerald-500"
+                    className="h-full bg-[var(--osool-accent)]"
                     initial={{ scaleX: 0.33 }}
                     animate={{ scaleX: step === 'goal' ? 0.33 : step === 'region' ? 0.66 : step === 'budget' ? 0.9 : 1 }}
                     transition={{ duration: 0.5 }}
@@ -89,7 +89,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowPro
 
             <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                    <div className="w-10 h-10 rounded-full bg-[var(--osool-accent-soft)] flex items-center justify-center text-[var(--osool-accent)]">
                         {step === 'goal' && <TrendingUp className="w-5 h-5" />}
                         {step === 'region' && <MapPin className="w-5 h-5" />}
                         {step === 'budget' && <Wallet className="w-5 h-5" />}
@@ -129,9 +129,9 @@ export default function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowPro
                                     <button
                                         key={g.id}
                                         onClick={() => handleGoalSelect(g.id)}
-                                        className={"p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center gap-4 text-center " + (isSelected ? 'border-emerald-500 bg-emerald-500/5' : 'border-[var(--color-border)] hover:border-emerald-500/50 hover:bg-[var(--color-surface)]')}
+                                        className={"p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center gap-4 text-center " + (isSelected ? 'border-[var(--osool-accent)] bg-[var(--osool-accent-soft)]' : 'border-[var(--color-border)] hover:border-[var(--osool-accent-mid)] hover:bg-[var(--color-surface)]')}
                                     >
-                                        <div className={"p-3 rounded-xl transition-colors " + (isSelected ? 'bg-emerald-500 text-white' : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)]')}>
+                                        <div className={"p-3 rounded-xl transition-colors " + (isSelected ? 'bg-[var(--osool-accent)] text-white' : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)]')}>
                                             <Icon className="w-6 h-6" />
                                         </div>
                                         <span className="font-semibold text-[var(--color-text-primary)]">
@@ -158,7 +158,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowPro
                                         <button
                                             key={r.id}
                                             onClick={() => toggleRegion(r.id)}
-                                            className={"px-5 py-3 rounded-full border-2 text-sm font-medium transition-all " + (isSelected ? 'border-emerald-500 bg-emerald-500 text-white shadow-md' : 'border-[var(--color-border)] bg-transparent text-[var(--color-text-primary)] hover:border-emerald-500/50')}
+                                            className={"px-5 py-3 rounded-full border-2 text-sm font-medium transition-all " + (isSelected ? 'border-[var(--osool-accent)] bg-[var(--osool-accent)] text-white shadow-md' : 'border-[var(--color-border)] bg-transparent text-[var(--color-text-primary)] hover:border-[var(--osool-accent-mid)]')}
                                         >
                                             {isAr ? r.labelAr : r.labelEn}
                                         </button>
@@ -169,7 +169,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowPro
                                 <button
                                     onClick={handleRegionNext}
                                     disabled={data.regions.length === 0}
-                                    className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 transition-colors"
+                                    className="flex items-center gap-2 px-6 py-3 bg-[var(--osool-accent)] text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--osool-accent-dark)] transition-colors"
                                 >
                                     {isAr ? '??????' : 'Next'}
                                     <ArrowRight className="w-4 h-4 rtl:-scale-x-100" />
@@ -192,7 +192,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowPro
                                     <button
                                         key={b.id}
                                         onClick={() => handleBudgetSelect(b.id)}
-                                        className={"p-5 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center text-center " + (isSelected ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600' : 'border-[var(--color-border)] hover:border-emerald-500/50 hover:bg-[var(--color-surface)] text-[var(--color-text-primary)]')}
+                                        className={"p-5 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center text-center " + (isSelected ? 'border-[var(--osool-accent)] bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]' : 'border-[var(--color-border)] hover:border-[var(--osool-accent-mid)] hover:bg-[var(--color-surface)] text-[var(--color-text-primary)]')}
                                     >
                                         <span className="font-semibold">
                                             {isAr ? b.labelAr : b.labelEn}
@@ -210,7 +210,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowPro
                             animate={{ opacity: 1, scale: 1 }}
                             className="flex flex-col items-center justify-center h-[240px] text-center"
                         >
-                            <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white mb-4 shadow-lg shadow-emerald-500/20">
+                            <div className="w-16 h-16 bg-[var(--osool-accent)] rounded-full flex items-center justify-center text-white mb-4 shadow-lg shadow-[var(--osool-accent-mid)]">
                                 <CheckCircle2 className="w-8 h-8" />
                             </div>
                             <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2">

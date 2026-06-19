@@ -133,7 +133,7 @@ export default function OrchestratorSignalPanel({ snapshot, language, visible }:
                         isActive ? 'bg-[var(--neural-active-bg)] text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'
                       }`}
                     >
-                      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${isError ? 'text-red-500' : isActive ? 'text-[var(--neural-primary)]' : 'text-emerald-500/80'}`}>
+                      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${isError ? 'text-red-500' : isActive ? 'text-[var(--neural-primary)]' : 'text-[var(--osool-accent)]'}`}>
                         {isActive && snapshot.phase !== 'complete' ? (
                           <span className="h-3.5 w-3.5 rounded-full border-2 border-[var(--neural-primary-soft)] border-t-[var(--neural-primary)] animate-spin" />
                         ) : (

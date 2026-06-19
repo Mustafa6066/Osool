@@ -49,11 +49,11 @@ export default function UpgradeModal({ open, onClose, source }: UpgradeModalProp
       aria-modal="true"
     >
       <div
-        className="w-full max-w-md rounded-[28px] border border-emerald-500/30 bg-[var(--color-surface)] p-7 shadow-2xl"
+        className="w-full max-w-md rounded-[28px] border border-[var(--osool-accent-mid)] bg-[var(--color-surface)] p-7 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--osool-accent)] text-white">
             <Crown className="h-6 w-6" />
           </div>
           <button
@@ -80,7 +80,7 @@ export default function UpgradeModal({ open, onClose, source }: UpgradeModalProp
               key={benefit}
               className="flex items-start gap-2 text-sm text-[var(--color-text-secondary)]"
             >
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--osool-accent)]" />
               {benefit}
             </li>
           ))}
@@ -88,7 +88,7 @@ export default function UpgradeModal({ open, onClose, source }: UpgradeModalProp
 
         <button
           onClick={goToPricing}
-          className="mt-7 w-full rounded-2xl bg-emerald-500 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-600"
+          className="mt-7 w-full rounded-2xl bg-[var(--osool-accent)] py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
         >
           {isRTL ? 'شوف الباقات والأسعار' : 'See plans & pricing'}
         </button>

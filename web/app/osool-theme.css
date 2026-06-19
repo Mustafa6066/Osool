@@ -44,6 +44,10 @@
   --osool-border: #E8E2D5;
   --osool-border-2: #F0EBE0;
 
+  /* Warm, on-palette error — semantic per DESIGN.md (success is terracotta) */
+  --osool-danger: #A0463D;
+  --osool-danger-soft: rgba(160, 70, 61, 0.10);
+
   /* Arch motion tokens for the section-reveal stroke-draw */
   --osool-ease-arch: cubic-bezier(.22, 1, .36, 1);
   --osool-duration-arch: 800ms;

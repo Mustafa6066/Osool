@@ -19,8 +19,8 @@ export default function OsoolFooter() {
               <b>Osool</b>
             </div>
             <p className="osool-footer-tag">
-              أصول — the verified registry and AI valuation for
-              Egyptian real estate. Made in Cairo.
+              أصول — an honest AI property advisor for Egypt.
+              Private beta, made in Cairo.
             </p>
           </div>
           <div>
@@ -29,7 +29,7 @@ export default function OsoolFooter() {
               <Link href="/chat">Chat</Link>
               <Link href="/market">Market Pulse</Link>
               <Link href="/explore">AI Valuation</Link>
-              <Link href="/properties">Contract Check</Link>
+              <Link href="/properties">Properties</Link>
             </div>
           </div>
           <div>
@@ -56,8 +56,6 @@ export default function OsoolFooter() {
         <div className="osool-footer-bottom">
           <span>© {new Date().getFullYear()} Osool Technologies · Cairo, Egypt</span>
           <div className="legal">
-            <Link href="/privacy">CBE Law 194</Link>
-            <Link href="/privacy">FRA 125</Link>
             <Link href="/privacy">Privacy</Link>
             <Link href="/privacy">Terms</Link>
           </div>

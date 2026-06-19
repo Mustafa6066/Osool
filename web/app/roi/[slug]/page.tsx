@@ -39,7 +39,7 @@ export default async function ROIPage({ params }: Props) {
         )}
         <div className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <nav className="text-sm text-[var(--color-text-muted)]">
-            <Link href="/areas" className="hover:text-emerald-500">Areas</Link>
+            <Link href="/areas" className="hover:text-[var(--osool-accent)]">Areas</Link>
             <span className="mx-2">/</span>
             <span>ROI Analysis</span>
           </nav>
@@ -49,13 +49,13 @@ export default async function ROIPage({ params }: Props) {
           {content.liveData.areaMetrics && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-                <div className="text-2xl font-bold text-emerald-500">
+                <div className="text-2xl font-bold text-[var(--osool-accent)]">
                   {content.liveData.areaMetrics.price_growth_ytd?.toFixed(1)}%
                 </div>
                 <div className="text-xs text-[var(--color-text-muted)]">YoY Growth</div>
               </div>
               <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center">
-                <div className="text-2xl font-bold text-[var(--color-teal-accent)]">
+                <div className="text-2xl font-bold text-[var(--osool-nile)]">
                   {content.liveData.areaMetrics.rental_yield?.toFixed(1)}%
                 </div>
                 <div className="text-xs text-[var(--color-text-muted)]">Rental Yield</div>
@@ -81,7 +81,7 @@ export default async function ROIPage({ params }: Props) {
             <LivePropertyCards properties={content.liveData.topROIProperties} />
           )}
 
-          <div className="rounded-[28px] border border-emerald-500/20 bg-emerald-500/10 p-6 text-center">
+          <div className="rounded-[28px] border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-6 text-center">
             <h3 className="text-lg font-semibold">Want a personalized ROI analysis?</h3>
             <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
               Our AI advisor can calculate your specific investment returns.

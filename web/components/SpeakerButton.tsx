@@ -78,7 +78,7 @@ export default function SpeakerButton({
                   width: 2,
                   height: 10,
                   borderRadius: 1,
-                  backgroundColor: 'var(--osool-deep-teal, #0d9488)',
+                  backgroundColor: 'var(--osool-accent)',
                   transformOrigin: 'center center',
                 }}
               />
@@ -92,7 +92,7 @@ export default function SpeakerButton({
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.12 }}
           >
-            <Pause className="w-3.5 h-3.5 text-emerald-500" />
+            <Pause className="w-3.5 h-3.5 text-[var(--osool-accent)]" />
           </motion.div>
         ) : (
           <motion.div

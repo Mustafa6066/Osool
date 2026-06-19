@@ -46,13 +46,13 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
       <header className="fixed top-0 inset-x-0 z-50 flex justify-center px-3 pt-3 pointer-events-none">
         <nav
           aria-label="Main navigation"
-          className="pointer-events-auto flex items-center gap-0.5 rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-lg shadow-black/[0.04] px-2 py-1.5 w-full max-w-5xl"
+          className="pointer-events-auto flex items-center gap-0.5 rounded-2xl bg-[var(--osool-surface)]/80 backdrop-blur-xl border border-[var(--osool-border)] shadow-lg shadow-black/[0.04] px-2 py-1.5 w-full max-w-5xl"
         >
           {/* Logo */}
           <Link
             href={isAuthenticated ? '/dashboard' : '/'}
             aria-label="Osool home"
-            className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-text-primary)] text-[var(--color-background)] shrink-0 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 md:h-9 md:w-9"
+            className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--osool-text)] text-[var(--osool-bg)] shrink-0 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)] md:h-9 md:w-9"
           >
             <Sparkles className="w-4 h-4" strokeWidth={2.5} />
           </Link>
@@ -66,10 +66,10 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)] ${
                     isActive
-                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]'
+                      ? 'text-[var(--osool-accent)] bg-[var(--osool-accent-soft)]'
+                      : 'text-[var(--osool-muted)] hover:text-[var(--osool-text)] hover:bg-[var(--osool-surface-2)]'
                   }`}
                 >
                   <Icon className="w-4 h-4" strokeWidth={isActive ? 2.5 : 1.8} />
@@ -82,10 +82,10 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             {isAdmin && (
               <Link
                 href="/admin"
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)] ${
                   activeKey === 'admin'
-                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]'
+                    ? 'text-[var(--osool-accent)] bg-[var(--osool-accent-soft)]'
+                    : 'text-[var(--osool-muted)] hover:text-[var(--osool-text)] hover:bg-[var(--osool-surface-2)]'
                 }`}
               >
                 <Shield className="w-4 h-4" />
@@ -108,7 +108,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
                   new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, metaKey: true, bubbles: true })
                 )
               }
-              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:h-9 md:w-9"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--osool-muted)] transition-colors hover:bg-[var(--osool-surface-2)] hover:text-[var(--osool-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)] md:h-9 md:w-9"
               aria-label="Search (Ctrl+K)"
             >
               <Search className="w-4 h-4" />
@@ -118,7 +118,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             <button
               onClick={toggleTheme}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:h-9 md:w-9"
+              className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl text-[var(--osool-muted)] transition-colors hover:bg-[var(--osool-surface-2)] hover:text-[var(--osool-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)] md:h-9 md:w-9"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -127,7 +127,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             <button
               onClick={toggleLanguage}
               aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
-              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:h-9 md:w-9"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--osool-muted)] transition-colors hover:bg-[var(--osool-surface-2)] hover:text-[var(--osool-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)] md:h-9 md:w-9"
             >
               <span
                 className="text-xs font-bold"
@@ -145,9 +145,9 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
                   aria-label="User menu"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="true"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-[var(--color-surface-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:h-9 md:w-9"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-[var(--osool-surface-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)] md:h-9 md:w-9"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-[10px] font-bold">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[var(--osool-accent)] to-[var(--osool-accent-dark)] flex items-center justify-center text-white text-[10px] font-bold">
                     {(user?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
                   </div>
                 </button>
@@ -158,26 +158,26 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -4 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute end-0 top-full mt-2 w-56 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-xl shadow-black/10 py-1.5 z-50"
+                      className="absolute end-0 top-full mt-2 w-56 bg-[var(--osool-surface)] border border-[var(--osool-border)] rounded-2xl shadow-xl shadow-black/10 py-1.5 z-50"
                     >
-                      <div className="px-4 py-3 border-b border-[var(--color-border)]">
-                        <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
+                      <div className="px-4 py-3 border-b border-[var(--osool-border)]">
+                        <div className="text-sm font-semibold text-[var(--osool-text)] truncate">
                           {user?.full_name || 'User'}
                         </div>
-                        <div className="text-[11px] text-[var(--color-text-muted)] truncate mt-0.5">
+                        <div className="text-[11px] text-[var(--osool-muted)] truncate mt-0.5">
                           {user?.email}
                         </div>
                       </div>
                       <button
                         onClick={() => { setUserMenuOpen(false); onInvite(); }}
-                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-[var(--color-surface-elevated)] transition-colors"
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-[var(--osool-accent)] hover:bg-[var(--osool-surface-2)] transition-colors"
                       >
                         <Gift className="w-4 h-4" />
                         {language === 'ar' ? 'دعوة أصدقاء' : 'Invite Friends'}
                       </button>
                       <button
                         onClick={() => { setUserMenuOpen(false); logout(); }}
-                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-[var(--color-surface-elevated)] transition-colors"
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-[var(--osool-danger)] hover:bg-[var(--osool-surface-2)] transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         {language === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
@@ -189,7 +189,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             ) : (
               <Link
                 href="/login"
-                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-semibold hover:bg-emerald-500/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--osool-accent)] text-white text-sm font-semibold hover:bg-[var(--osool-accent-dark)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)]"
               >
                 {language === 'ar' ? 'دخول' : 'Login'}
               </Link>
@@ -199,7 +199,7 @@ export default function FloatingHeader({ onInvite }: FloatingHeaderProps) {
             <button
               onClick={() => setMoreOpen(true)}
               aria-label="Open navigation menu"
-              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 md:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--osool-muted)] transition-colors hover:bg-[var(--osool-surface-2)] hover:text-[var(--osool-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent)] md:hidden"
             >
               <Menu className="w-4 h-4" />
             </button>

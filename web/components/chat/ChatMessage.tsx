@@ -56,10 +56,11 @@ const getMobileVisualizationPriority = (action: UiAction): number => {
 const AgentAvatar = ({ thinking = false }: { thinking?: boolean }) => (
   <div className="relative flex items-center justify-center w-8 h-8 flex-shrink-0 bg-transparent">
     {thinking && (
-      <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-md animate-pulse" />
+      <div className="absolute inset-0 rounded-full blur-md animate-pulse" style={{ backgroundColor: 'var(--osool-accent-soft)' }} />
     )}
     <svg
-      className={`w-6 h-6 text-emerald-600 dark:text-emerald-500 ${thinking ? 'animate-[spin_3s_linear_infinite]' : ''}`}
+      className={`w-6 h-6 ${thinking ? 'animate-[spin_3s_linear_infinite]' : ''}`}
+      style={{ color: 'var(--osool-accent)' }}
       viewBox="0 0 24 24"
       fill="none"
     >
@@ -246,8 +247,9 @@ export default function ChatMessage({
                   <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.13em] ${msg.showUpsell
                     ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
                     : routeInfo.isLocalPath
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                      : 'bg-sky-500/15 text-sky-700 dark:text-sky-300'}`}>
+                      ? 'text-[var(--osool-accent)]'
+                      : 'bg-sky-500/15 text-sky-700 dark:text-sky-300'}`}
+                    style={msg.showUpsell || !routeInfo.isLocalPath ? undefined : { backgroundColor: 'var(--osool-accent-mid)' }}>
                     {msg.showUpsell
                       ? (msgIsArabic ? 'تحويل للاستشاري' : 'Consultant Handoff')
                       : routeInfo.label}
@@ -317,8 +319,8 @@ export default function ChatMessage({
                   dir="ltr"
                 >
                   <div className="flex items-center gap-2 mb-5">
-                    <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg">
-                      <BarChart2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+                    <div className="p-1.5 rounded-lg" style={{ backgroundColor: 'var(--osool-accent-soft)' }}>
+                      <BarChart2 className="w-4 h-4" style={{ color: 'var(--osool-accent)' }} strokeWidth={2.5} />
                     </div>
                     <span className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-widest ps-1">Market Intelligence</span>
                   </div>
@@ -369,10 +371,11 @@ export default function ChatMessage({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, ease: EASE_EXPO }}
-                  className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4"
+                  className="mt-4 rounded-2xl border p-4"
+                  style={{ borderColor: 'var(--osool-accent-mid)', backgroundColor: 'var(--osool-accent-soft)' }}
                   dir={msgIsArabic ? 'rtl' : 'ltr'}
                 >
-                  <div className="mb-3 flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                  <div className="mb-3 flex items-center gap-2" style={{ color: 'var(--osool-accent)' }}>
                     <Sparkles className="h-4 w-4" />
                     <span className="text-sm font-semibold">
                       {msgIsArabic ? 'هذا السؤال يحتاج تحليل تنبؤي متقدم' : 'This question needs predictive deep analysis'}
@@ -418,8 +421,23 @@ export default function ChatMessage({
                           type="button"
                           onClick={() => onSendMessage(prompt)}
                           className={actionType === 'upgrade'
-                            ? 'rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700'
-                            : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:border-emerald-500/40'}
+                            ? 'rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors'
+                            : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-primary)] transition-colors'}
+                          style={actionType === 'upgrade' ? { backgroundColor: 'var(--osool-accent)' } : undefined}
+                          onMouseEnter={(e) => {
+                            if (actionType === 'upgrade') {
+                              e.currentTarget.style.backgroundColor = 'var(--osool-accent-dark)';
+                            } else {
+                              e.currentTarget.style.borderColor = 'var(--osool-accent-mid)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (actionType === 'upgrade') {
+                              e.currentTarget.style.backgroundColor = 'var(--osool-accent)';
+                            } else {
+                              e.currentTarget.style.borderColor = '';
+                            }
+                          }}
                         >
                           {label}
                         </button>
@@ -446,7 +464,7 @@ export default function ChatMessage({
                       title={copiedMsgId === msg.id ? 'Copied!' : 'Copy'}
                       aria-label={copiedMsgId === msg.id ? 'Copied' : 'Copy message'}
                     >
-                      {copiedMsgId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedMsgId === msg.id ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--osool-accent)' }} /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     <button
                       onClick={() => onRetry(index)}

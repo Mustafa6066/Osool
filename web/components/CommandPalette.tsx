@@ -266,7 +266,7 @@ export default function CommandPalette() {
             >
                 {/* Search input */}
                 <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3.5">
-                    <Sparkles className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--osool-accent)' }} />
                     <input
                         ref={inputRef}
                         value={query}
@@ -296,7 +296,7 @@ export default function CommandPalette() {
                                         router.push(`/chat?q=${encodeURIComponent(r)}`);
                                         close();
                                     }}
-                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] text-[var(--color-text-secondary)] bg-[var(--color-surface-elevated)]/60 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] text-[var(--color-text-secondary)] bg-[var(--color-surface-elevated)]/60 transition-colors hover:bg-[var(--osool-accent-soft)] hover:text-[var(--osool-accent)]"
                                 >
                                     <Clock className="w-3 h-3 opacity-50" />
                                     {r.length > 30 ? r.slice(0, 30) + '…' : r}
@@ -323,16 +323,16 @@ export default function CommandPalette() {
                                     className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
                                         i === selectedIndex
                                             ? isAI
-                                                ? 'bg-gradient-to-r from-emerald-500/15 to-teal-500/10 text-emerald-600 dark:text-emerald-400'
-                                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                ? 'bg-gradient-to-r from-[var(--osool-accent-mid)] to-[var(--osool-accent-soft)] text-[var(--osool-accent)]'
+                                                : 'bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]'
                                             : 'text-[var(--color-text-primary)] hover:bg-[var(--color-background)]'
                                     }`}
                                 >
                                     <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                                         i === selectedIndex
                                             ? isAI
-                                                ? 'bg-emerald-500/25'
-                                                : 'bg-emerald-500/20'
+                                                ? 'bg-[var(--osool-accent-mid)]'
+                                                : 'bg-[var(--osool-accent-soft)]'
                                             : 'bg-[var(--color-background)]'
                                     }`}>
                                         <Icon className="h-4 w-4" />
@@ -369,7 +369,7 @@ export default function CommandPalette() {
                             {language === 'ar' ? 'إغلاق' : 'close'}
                         </span>
                     </div>
-                    <span className="text-emerald-500/60 hidden sm:inline">
+                    <span className="hidden sm:inline" style={{ color: 'var(--osool-accent-mid)' }}>
                         {language === 'ar' ? 'مدعوم بالذكاء الاصطناعي' : 'AI-powered'}
                     </span>
                 </div>

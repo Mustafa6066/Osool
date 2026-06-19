@@ -147,7 +147,7 @@ export function NPVMarginWidget({
           className,
         ].filter(Boolean).join(' ')}
       >
-        <TrendingDown size={15} className="text-emerald-500 shrink-0" />
+        <TrendingDown size={15} className="text-[var(--osool-accent)] shrink-0" />
         <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
           {fmt(cashNpvEgp)}
         </span>

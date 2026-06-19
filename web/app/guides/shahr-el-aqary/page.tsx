@@ -79,7 +79,7 @@ export default function ShahrElAqaryGuidePage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
         <article dir="rtl" className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--osool-accent)]">
             دليل مجاني
           </div>
           <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -95,7 +95,7 @@ export default function ShahrElAqaryGuidePage() {
           <ol className="mt-4 space-y-4">
             {STEPS.map((step, i) => (
               <li key={i} className="flex gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-white">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--osool-accent)] text-sm font-bold text-white">
                   {i + 1}
                 </span>
                 <div>
@@ -143,7 +143,7 @@ export default function ShahrElAqaryGuidePage() {
             ))}
           </div>
 
-          <div className="mt-10 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-6">
+          <div className="mt-10 rounded-2xl border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-6">
             <h2 className="text-xl font-semibold">قبل ما تشتري أصلاً…</h2>
             <p className="mt-2 leading-relaxed text-[var(--color-text-secondary)]">
               اتأكد إن سعر الوحدة عادل وإن العرض مش فيه فخاخ تمويل مخفية. مستشار أصول الذكي
@@ -152,7 +152,7 @@ export default function ShahrElAqaryGuidePage() {
             <div className="mt-4 flex flex-wrap gap-3">
               <Link
                 href="/chat"
-                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                className="rounded-2xl bg-[var(--osool-accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
               >
                 افحص عرضك مجانًا
               </Link>

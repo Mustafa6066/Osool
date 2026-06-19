@@ -73,7 +73,7 @@ export default function AppShell({ children }: AppShellProps) {
         appearance={active ? 'primary' : 'subtle'}
         icon={<Icon size={16} />}
         onClick={() => navigateTo(item.href)}
-        className={`!justify-start ${compact ? '!w-full' : '!w-full'} ${active ? '' : '!text-[var(--color-text-secondary)]'}`}
+        className={`!justify-start ${compact ? '!w-full' : '!w-full'} ${active ? '' : '!text-[var(--osool-text-2)]'}`}
       >
         {label}
       </Button>
@@ -84,14 +84,14 @@ export default function AppShell({ children }: AppShellProps) {
     <>
       <InvitationModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
 
-      <div className="min-h-dvh bg-[var(--color-background)] text-[var(--color-text-primary)]">
-        <aside className="hidden lg:flex fixed inset-y-0 start-0 w-72 border-e border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md z-30">
+      <div className="min-h-dvh bg-[var(--osool-bg)] text-[var(--osool-text)]">
+        <aside className="hidden lg:flex fixed inset-y-0 start-0 w-72 border-e border-[var(--osool-border)] bg-[var(--osool-surface)]/95 backdrop-blur-md z-30">
           <div className="flex h-full w-full flex-col p-4 gap-4">
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3">
+            <div className="rounded-2xl border border-[var(--osool-border)] bg-[var(--osool-bg)] px-3 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <Title3 as="h2" className="!text-[var(--color-text-primary)]">Osool</Title3>
-                  <Subtitle2 className="!text-[var(--color-text-secondary)]">
+                  <Title3 as="h2" className="!text-[var(--osool-text)]">Osool</Title3>
+                  <Subtitle2 className="!text-[var(--osool-text-2)]">
                     {language === 'ar' ? 'منصة الاستثمار العقاري' : 'Real Estate Advisor'}
                   </Subtitle2>
                 </div>
@@ -108,12 +108,12 @@ export default function AppShell({ children }: AppShellProps) {
             </div>
 
             {secondaryItems.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[var(--color-border)]">
+              <div className="space-y-2 pt-2 border-t border-[var(--osool-border)]">
                 {secondaryItems.map((item) => renderNavButton(item))}
               </div>
             )}
 
-            <div className="mt-auto space-y-2 border-t border-[var(--color-border)] pt-3">
+            <div className="mt-auto space-y-2 border-t border-[var(--osool-border)] pt-3">
               <Button appearance="subtle" icon={theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} onClick={toggleTheme} className="!w-full !justify-start">
                 {theme === 'dark' ? 'Light mode' : 'Dark mode'}
               </Button>
@@ -135,7 +135,7 @@ export default function AppShell({ children }: AppShellProps) {
                   </Button>
                 </>
               ) : (
-                <Button appearance="primary" icon={<LogIn size={16} />} onClick={() => navigateTo('/login')} className="!w-full !justify-start">
+                <Button appearance="primary" icon={<LogIn size={16} />} onClick={() => navigateTo('/login')} className="!w-full !justify-start !bg-[var(--osool-accent)] hover:!bg-[var(--osool-accent-dark)] !text-white !border-transparent">
                   {language === 'ar' ? 'تسجيل الدخول' : 'Sign in'}
                 </Button>
               )}
@@ -143,14 +143,14 @@ export default function AppShell({ children }: AppShellProps) {
           </div>
         </aside>
 
-        <header className="lg:hidden sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md px-3 py-2 flex items-center justify-between">
+        <header className="lg:hidden sticky top-0 z-40 border-b border-[var(--osool-border)] bg-[var(--osool-surface)]/95 backdrop-blur-md px-3 py-2 flex items-center justify-between">
           <Button
             appearance="subtle"
             icon={<Menu size={18} />}
             aria-label="Open navigation"
             onClick={() => setMobileOpen(true)}
           />
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+          <div className="text-sm font-semibold text-[var(--osool-text)]">
             {language === 'ar' ? 'أصول' : 'Osool'}
           </div>
           <Button
@@ -165,7 +165,7 @@ export default function AppShell({ children }: AppShellProps) {
           {children}
         </main>
 
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-surface)]/97 backdrop-blur-md px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]">
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-[var(--osool-border)] bg-[var(--osool-surface)]/97 backdrop-blur-md px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]">
           <div className="grid grid-cols-4 gap-1">
             {mobileItems.map((item) => {
               const Icon = item.icon;
@@ -176,8 +176,8 @@ export default function AppShell({ children }: AppShellProps) {
                   onClick={() => navigateTo(item.href)}
                   className={`h-14 rounded-xl flex flex-col items-center justify-center gap-1 text-xs transition-colors ${
                     isActive
-                      ? 'bg-emerald-500/14 text-emerald-600 dark:text-emerald-400'
-                      : 'text-[var(--color-text-secondary)]'
+                      ? 'bg-[var(--osool-accent-mid)] text-[var(--osool-accent)]'
+                      : 'text-[var(--osool-text-2)]'
                   }`}
                   aria-current={isActive ? 'page' : undefined}
                 >
@@ -220,7 +220,7 @@ export default function AppShell({ children }: AppShellProps) {
                 </Button>
               )}
             </div>
-            <div className="space-y-2 mt-5 pt-4 border-t border-[var(--color-border)]">
+            <div className="space-y-2 mt-5 pt-4 border-t border-[var(--osool-border)]">
               <Button appearance="subtle" icon={<Languages size={16} />} onClick={toggleLanguage} className="!w-full !justify-start">
                 {language === 'en' ? 'العربية' : 'English'}
               </Button>
@@ -234,7 +234,7 @@ export default function AppShell({ children }: AppShellProps) {
                   </Button>
                 </>
               ) : (
-                <Button appearance="primary" icon={<LogIn size={16} />} onClick={() => navigateTo('/login')} className="!w-full !justify-start">
+                <Button appearance="primary" icon={<LogIn size={16} />} onClick={() => navigateTo('/login')} className="!w-full !justify-start !bg-[var(--osool-accent)] hover:!bg-[var(--osool-accent-dark)] !text-white !border-transparent">
                   {language === 'ar' ? 'تسجيل الدخول' : 'Sign in'}
                 </Button>
               )}

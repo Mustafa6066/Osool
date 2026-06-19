@@ -39,7 +39,7 @@ export default async function BuyingGuidePage({ params }: Props) {
         )}
         <div className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <nav className="text-sm text-[var(--color-text-muted)]">
-            <Link href="/" className="hover:text-emerald-500">Home</Link>
+            <Link href="/" className="hover:text-[var(--osool-accent)]">Home</Link>
             <span className="mx-2">/</span>
             <span>Buying Guide</span>
           </nav>
@@ -48,7 +48,7 @@ export default async function BuyingGuidePage({ params }: Props) {
 
           <EnrichedBody content={content} />
 
-          <div className="rounded-[28px] border border-emerald-500/20 bg-emerald-500/10 p-6 text-center">
+          <div className="rounded-[28px] border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-6 text-center">
             <h3 className="text-lg font-semibold">Have questions about buying in Egypt?</h3>
             <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
               Our AI advisor understands Egyptian property law and can guide you step by step.

@@ -92,7 +92,7 @@ export default function AnalyticsDashboard() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--osool-accent)' }} />
       </div>
     );
   }
@@ -121,7 +121,7 @@ export default function AnalyticsDashboard() {
           </div>
           <button
             onClick={fetchAll}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-emerald-500/50 transition-colors text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--osool-accent-mid)] transition-colors text-sm"
           >
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
@@ -141,7 +141,7 @@ export default function AnalyticsDashboard() {
         {funnel && funnel.length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-500" /> Lead Funnel
+              <TrendingUp className="w-5 h-5" style={{ color: 'var(--osool-accent)' }} /> Lead Funnel
             </h2>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
               <div className="space-y-3">
@@ -156,8 +156,8 @@ export default function AnalyticsDashboard() {
                       </div>
                       <div className="h-3 rounded-full bg-[var(--color-border)]/50 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-emerald-500 transition-all"
-                          style={{ width: `${width}%` }}
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${width}%`, background: 'var(--osool-accent)' }}
                         />
                       </div>
                     </div>
@@ -215,7 +215,7 @@ export default function AnalyticsDashboard() {
                         <span className="text-[var(--color-text-muted)] mr-2">{i + 1}.</span>
                         {a.area}
                       </span>
-                      <span className="font-mono text-emerald-500">{a.count}</span>
+                      <span className="font-mono" style={{ color: 'var(--osool-accent)' }}>{a.count}</span>
                     </div>
                   ))}
                 </div>
@@ -229,7 +229,7 @@ export default function AnalyticsDashboard() {
                 </div>
                 <div>
                   <p className="text-xs text-[var(--color-text-muted)]">Top Intent Type</p>
-                  <p className="text-lg font-bold text-emerald-500">{market.top_intent}</p>
+                  <p className="text-lg font-bold" style={{ color: 'var(--osool-accent)' }}>{market.top_intent}</p>
                 </div>
                 <div>
                   <p className="text-xs text-[var(--color-text-muted)]">Total Interactions</p>
@@ -253,7 +253,7 @@ function KPICard({
   sub,
   color,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   label: string;
   value: string;
   sub?: string;
@@ -262,7 +262,10 @@ function KPICard({
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
       <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 ${color || 'text-emerald-500'}`} />
+        <Icon
+          className={`w-4 h-4 ${color || ''}`}
+          style={color ? undefined : { color: 'var(--osool-accent)' }}
+        />
         <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
       </div>
       <p className={`text-2xl font-bold ${color || ''}`}>{value}</p>

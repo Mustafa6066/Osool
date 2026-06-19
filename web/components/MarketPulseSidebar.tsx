@@ -164,7 +164,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                             className="fixed right-0 top-1/2 -translate-y-1/2 z-40 hidden lg:flex items-center gap-2 pl-3 pr-2 py-2.5 rounded-l-2xl border border-r-0 border-[var(--color-border)]/60 bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)] shadow-lg transition-all group"
                             title={isAr ? 'نبض السوق' : 'Market Pulse'}
                         >
-                            <Activity className="w-4 h-4 text-emerald-500 group-hover:animate-pulse" />
+                            <Activity className="w-4 h-4 text-[var(--osool-accent)] group-hover:animate-pulse" />
                             <span className="text-[11px] font-semibold text-[var(--color-text-muted)] group-hover:text-[var(--color-text-primary)] transition-colors writing-mode-vertical hidden xl:block"
                                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
                             >
@@ -181,7 +181,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                             className="fixed right-4 z-40 lg:hidden inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-[12px] font-semibold text-[var(--color-text-primary)] shadow-lg"
                             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 92px)' }}
                         >
-                            <Activity className="w-4 h-4 text-emerald-500" />
+                            <Activity className="w-4 h-4 text-[var(--osool-accent)]" />
                             {isAr ? 'نبض السوق' : 'Market Pulse'}
                         </motion.button>
                     </>
@@ -212,8 +212,8 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                             {/* ── Header ── */}
                             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]/50">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                                        <Activity className="w-4 h-4 text-emerald-500" />
+                                    <div className="w-7 h-7 rounded-lg bg-[var(--osool-accent-soft)] flex items-center justify-center">
+                                        <Activity className="w-4 h-4 text-[var(--osool-accent)]" />
                                     </div>
                                     <div>
                                         <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">
@@ -296,7 +296,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                                 {/* ── Live Trend Ticker ── */}
                                 <section>
                                     <div className="flex items-center gap-2 mb-3">
-                                        <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                                        <TrendingUp className="w-3.5 h-3.5 text-[var(--osool-accent)]" />
                                         <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
                                             {isLiveData ? (isAr ? 'اتجاهات أسبوعية' : 'Weekly Trends') : (isAr ? 'لقطة الاتجاهات' : 'Trend Snapshot')}
                                         </span>
@@ -368,7 +368,7 @@ export default function MarketPulseSidebar({ language, onPrompt }: MarketPulseSi
                             <div className="p-4 border-t border-[var(--color-border)]/50">
                                 <button
                                     onClick={() => { onPrompt(isAr ? 'أعطيني ملخص كامل عن وضع السوق العقاري النهاردة' : 'Give me a full market summary for today'); setIsOpen(false); }}
-                                    className="w-full min-h-11 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-semibold transition-colors flex items-center justify-center gap-2"
+                                    className="w-full min-h-11 py-2.5 rounded-xl bg-[var(--osool-accent)] hover:bg-[var(--osool-accent-dark)] text-white text-[12px] font-semibold transition-colors flex items-center justify-center gap-2"
                                 >
                                     <BarChart3 className="w-3.5 h-3.5" />
                                     {isAr ? 'ملخص السوق الكامل' : 'Full Market Summary'}

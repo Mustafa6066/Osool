@@ -49,7 +49,7 @@ function getStatusTone(status: string): string {
     case 'in_progress':
       return 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300';
     case 'resolved':
-      return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300';
+      return 'border-[color:var(--osool-accent-mid)] bg-[color:var(--osool-accent-soft)] text-[color:var(--osool-accent)] dark:text-[color:var(--osool-accent)]';
     case 'closed':
       return 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-muted)]';
     default:
@@ -124,7 +124,7 @@ export default function TicketsPage() {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-[color:var(--osool-accent)]" />
         </div>
       </AppShell>
     );
@@ -144,7 +144,7 @@ export default function TicketsPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
           <section className="grid gap-6 lg:grid-cols-[1fr_0.92fr]">
             <div className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.04)] sm:p-10">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--osool-accent-mid)] bg-[color:var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--osool-accent)] dark:text-[color:var(--osool-accent)]">
                 <LifeBuoy className="h-3.5 w-3.5" />
                 {t('tickets.badge')}
               </div>
@@ -218,7 +218,7 @@ export default function TicketsPage() {
                       onClick={() => setStatusFilter(filter.key)}
                       className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                         statusFilter === filter.key
-                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
+                          ? 'border-[color:var(--osool-accent-mid)] bg-[color:var(--osool-accent-soft)] text-[color:var(--osool-accent)] dark:text-[color:var(--osool-accent)]'
                           : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                       }`}
                     >
@@ -231,7 +231,7 @@ export default function TicketsPage() {
               <div className="mt-6 space-y-3">
                 {loading ? (
                   <div className="flex items-center justify-center py-20">
-                    <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+                    <Loader2 className="h-6 w-6 animate-spin text-[color:var(--osool-accent)]" />
                   </div>
                 ) : error ? (
                   <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-5 text-sm text-red-500">
@@ -239,8 +239,8 @@ export default function TicketsPage() {
                   </div>
                 ) : tickets.length === 0 ? (
                   <div className="rounded-[28px] border border-dashed border-[var(--color-border)] bg-[var(--color-background)] px-6 py-14 text-center">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
-                      <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[color:var(--osool-accent-soft)]">
+                      <CheckCircle2 className="h-8 w-8 text-[color:var(--osool-accent)]" />
                     </div>
                     <h3 className="mt-5 text-xl font-semibold text-[var(--color-text-primary)]">
                       {statusFilter ? t('tickets.emptyFiltered') : t('tickets.emptyTitle')}
@@ -269,7 +269,7 @@ export default function TicketsPage() {
                   </div>
                 ) : (
                   tickets.map((ticket) => (
-                    <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="block rounded-[24px] border border-[var(--color-border)] bg-[var(--color-background)] p-5 transition-colors hover:border-emerald-500/30 hover:bg-emerald-500/5">
+                    <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="block rounded-[24px] border border-[var(--color-border)] bg-[var(--color-background)] p-5 transition-colors hover:border-[color:var(--osool-accent-mid)] hover:bg-[color:var(--osool-accent-soft)]">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
@@ -291,7 +291,7 @@ export default function TicketsPage() {
                             {ticket.updated_at && <span>Updated {new Date(ticket.updated_at).toLocaleDateString()}</span>}
                           </div>
                         </div>
-                        <div className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-300">
+                        <div className="inline-flex items-center gap-2 text-sm font-medium text-[color:var(--osool-accent)] dark:text-[color:var(--osool-accent)]">
                           Open thread
                           <ArrowRight className="h-4 w-4" />
                         </div>
@@ -316,8 +316,8 @@ export default function TicketsPage() {
                 </div>
               </div>
 
-              <div className="rounded-[32px] border border-[var(--color-border)] bg-emerald-500/10 p-6">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+              <div className="rounded-[32px] border border-[var(--color-border)] bg-[color:var(--osool-accent-soft)] p-6">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--osool-accent-dark)] dark:text-[color:var(--osool-accent)]">
                   <Clock3 className="h-4 w-4" />
                   {t('tickets.triageLabel')}
                 </div>
@@ -351,7 +351,7 @@ export default function TicketsPage() {
                     <div className="mt-1 text-xs text-[var(--color-text-muted)]">{t('tickets.legendInProgressDesc')}</div>
                   </div>
                   <div className="rounded-2xl bg-[var(--color-background)] p-4">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    <CheckCircle2 className="h-5 w-5 text-[color:var(--osool-accent)]" />
                     <div className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">{t('tickets.legendResolved')}</div>
                     <div className="mt-1 text-xs text-[var(--color-text-muted)]">{t('tickets.legendResolvedDesc')}</div>
                   </div>

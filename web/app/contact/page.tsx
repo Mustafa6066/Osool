@@ -21,7 +21,7 @@ export default function ContactPage() {
       <div className="h-full overflow-y-auto bg-[var(--color-background)]" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.04)] sm:p-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
               <MessageCircle className="h-3.5 w-3.5" />
               {isRTL ? 'تواصل' : 'Contact'}
             </div>
@@ -58,9 +58,9 @@ export default function ContactPage() {
 
               {/* Contact Form */}
               {submitted ? (
-                <div className="flex flex-col items-center justify-center rounded-[28px] border border-emerald-500/20 bg-emerald-500/5 p-8 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
-                    <Send className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="flex flex-col items-center justify-center rounded-[28px] border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--osool-accent-soft)]">
+                    <Send className="h-5 w-5 text-[var(--osool-accent)]" />
                   </div>
                   <p className="mt-4 text-lg font-semibold text-[var(--color-text-primary)]">
                     {isRTL ? 'تم الإرسال!' : 'Message Sent!'}
@@ -80,7 +80,7 @@ export default function ContactPage() {
                       name="name"
                       type="text"
                       required
-                      className="mt-1 block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="mt-1 block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--osool-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--osool-accent-mid)]"
                       placeholder={isRTL ? 'اسمك الكامل' : 'Your full name'}
                     />
                   </div>
@@ -93,7 +93,7 @@ export default function ContactPage() {
                       name="email"
                       type="email"
                       required
-                      className="mt-1 block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="mt-1 block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--osool-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--osool-accent-mid)]"
                       placeholder={isRTL ? 'بريدك الإلكتروني' : 'your@email.com'}
                     />
                   </div>
@@ -106,13 +106,13 @@ export default function ContactPage() {
                       name="message"
                       required
                       rows={4}
-                      className="mt-1 block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                      className="mt-1 block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--osool-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--osool-accent-mid)] resize-none"
                       placeholder={isRTL ? 'كيف يمكننا مساعدتك؟' : 'How can we help you?'}
                     />
                   </div>
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--osool-accent)] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--osool-accent-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--osool-accent-mid)] focus:ring-offset-2"
                   >
                     <Send className="h-4 w-4" />
                     {isRTL ? 'إرسال الرسالة' : 'Send Message'}
@@ -130,7 +130,7 @@ export default function ContactPage() {
 function ContactCard({ icon, label, value, href }: { icon: React.ReactNode; label: string; value: string; href?: string }) {
   const content = (
     <div className="flex items-start gap-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-colors hover:bg-[var(--color-surface-elevated)]">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]">
         {icon}
       </div>
       <div>

@@ -85,8 +85,8 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                            <Gift size={22} className="text-green-600 dark:text-green-400" />
+                        <div className="p-2.5 rounded-xl" style={{ backgroundColor: 'var(--osool-accent-soft)' }}>
+                            <Gift size={22} style={{ color: 'var(--osool-accent)' }} />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('invitation.title')}</h2>
@@ -115,11 +115,11 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                     {/* Show invitation link if generated */}
                     {invitation ? (
                         <div className="space-y-4">
-                            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
-                                <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
+                            <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--osool-accent-soft)', borderColor: 'var(--osool-accent-mid)' }}>
+                                <p className="text-sm font-medium mb-2" style={{ color: 'var(--osool-accent-dark)' }}>
                                     ✅ {t('invitation.copyLink')}!
                                 </p>
-                                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg border" style={{ borderColor: 'var(--osool-accent-mid)' }}>
                                     <LinkIcon size={16} className="text-slate-400 flex-shrink-0" />
                                     <input
                                         type="text"
@@ -130,7 +130,8 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                                     />
                                     <button
                                         onClick={handleCopy}
-                                        className={`p-2 rounded-lg transition-colors ${copied ? 'bg-green-100 text-green-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+                                        className={`p-2 rounded-lg transition-colors ${copied ? '' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+                                        style={copied ? { backgroundColor: 'var(--osool-accent-soft)', color: 'var(--osool-accent)' } : undefined}
                                     >
                                         {copied ? <Check size={16} /> : <Copy size={16} />}
                                     </button>
@@ -165,7 +166,8 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                             <button
                                 onClick={handleGenerate}
                                 disabled={isLoading || !canGenerate}
-                                className="w-full py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-green-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full py-3.5 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:brightness-95"
+                                style={{ backgroundColor: 'var(--osool-accent)', boxShadow: '0 10px 15px -3px var(--osool-accent-soft)' }}
                             >
                                 {isLoading ? (
                                     <>
@@ -200,7 +202,10 @@ export default function InvitationModal({ isOpen, onClose }: InvitationModalProp
                                         <span className="font-mono text-slate-600 dark:text-slate-400 truncate max-w-[150px]">
                                             {inv.code.substring(0, 12)}...
                                         </span>
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${inv.is_used ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' : 'bg-green-100 dark:bg-green-900/30 text-green-600'}`}>
+                                        <span
+                                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${inv.is_used ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' : ''}`}
+                                            style={inv.is_used ? undefined : { backgroundColor: 'var(--osool-accent-soft)', color: 'var(--osool-accent)' }}
+                                        >
                                             {inv.is_used ? t('invitation.used') : t('invitation.available')}
                                         </span>
                                     </div>

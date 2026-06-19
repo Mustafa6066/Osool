@@ -715,7 +715,10 @@ export default function RealityCheckPanel() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl border border-emerald-400/35 bg-emerald-500/15 px-6 py-3.5 text-sm font-semibold text-emerald-100 transition-all duration-200 hover:bg-emerald-500/22 disabled:cursor-not-allowed disabled:opacity-85"
+                      className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-6 py-3.5 text-sm font-semibold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-85"
+                      style={{ backgroundColor: 'var(--osool-accent)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--osool-accent-dark)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--osool-accent)'; }}
                     >
                       {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
                       {isSubmitting ? copy.runningAudit : copy.auditCta}
@@ -849,7 +852,7 @@ export default function RealityCheckPanel() {
                           <td className="px-3 py-2" dir="ltr">
                             {CURRENCY.format(row.discounted)}
                           </td>
-                          <td className="px-3 py-2 font-semibold text-emerald-300" dir="ltr">
+                          <td className="px-3 py-2 font-semibold" style={{ color: 'var(--osool-accent)' }} dir="ltr">
                             {CURRENCY.format(row.cumulativeDiscounted)}
                           </td>
                         </tr>
@@ -870,7 +873,7 @@ export default function RealityCheckPanel() {
 
             <GlassPanel className="p-5 md:p-6">
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                <Building2 className="h-4.5 w-4.5 text-emerald-400" aria-hidden="true" />
+                <Building2 className="h-4.5 w-4.5" style={{ color: 'var(--osool-accent)' }} aria-hidden="true" />
                 <div>
                   <h4 className="text-base font-semibold text-zinc-100">{copy.alternativesTitle}</h4>
                   <p className="text-xs text-zinc-500">{copy.alternativesSubtitle}</p>
@@ -961,7 +964,8 @@ export default function RealityCheckPanel() {
                                       href={contactHref(contact)}
                                       target={/^https?:\/\//i.test(contact) ? '_blank' : undefined}
                                       rel={/^https?:\/\//i.test(contact) ? 'noreferrer' : undefined}
-                                      className="font-semibold text-emerald-300 underline-offset-2 hover:underline"
+                                      className="font-semibold underline-offset-2 hover:underline"
+                                      style={{ color: 'var(--osool-accent)' }}
                                       dir="ltr"
                                     >
                                       {contact}
@@ -1025,7 +1029,8 @@ export default function RealityCheckPanel() {
                                         href={contactHref(alternative.broker_direct_contact)}
                                         target={/^https?:\/\//i.test(alternative.broker_direct_contact) ? '_blank' : undefined}
                                         rel={/^https?:\/\//i.test(alternative.broker_direct_contact) ? 'noreferrer' : undefined}
-                                        className="text-emerald-300 underline-offset-2 hover:underline"
+                                        className="underline-offset-2 hover:underline"
+                                        style={{ color: 'var(--osool-accent)' }}
                                         dir="ltr"
                                       >
                                         {alternative.broker_direct_contact}

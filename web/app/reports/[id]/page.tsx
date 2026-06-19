@@ -56,7 +56,7 @@ export default function ReportViewerPage() {
         {section && (
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
+            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--osool-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)]"
           >
             <Printer className="h-4 w-4" />
             {isRTL ? 'طباعة / PDF' : 'Print / PDF'}
@@ -73,14 +73,14 @@ export default function ReportViewerPage() {
 
         {!error && !section && (
           <div className="flex justify-center py-24">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
           </div>
         )}
 
         {section && (
           <article className="space-y-8 text-[var(--color-text-primary)] print:text-black">
             <div className="border-b border-[var(--color-border)] pb-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--osool-accent)]">
                 {isRTL ? 'تقرير أصول الاستثماري' : 'Osool Investment Report'}
               </p>
               <h1 className="mt-2 text-3xl font-bold">{section.title}</h1>
@@ -118,7 +118,7 @@ export default function ReportViewerPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="font-semibold">{rec.project}</h3>
                       <div className="flex gap-2 text-xs">
-                        <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-600">
+                        <span className="rounded-full bg-[var(--osool-accent-soft)] px-2.5 py-1 font-semibold text-[var(--osool-accent)]">
                           ROI: {rec.roi_estimate}
                         </span>
                         <span className="rounded-full bg-[var(--color-background)] px-2.5 py-1 text-[var(--color-text-secondary)] print:border print:border-gray-300">
@@ -154,7 +154,7 @@ export default function ReportViewerPage() {
               </section>
             )}
 
-            <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5 print:break-inside-avoid">
+            <section className="rounded-2xl border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-5 print:break-inside-avoid">
               <h2 className="text-xl font-semibold">
                 {isRTL ? 'خطة العمل' : 'Action Plan'}
               </h2>

@@ -85,7 +85,7 @@ export default function DockContextPanel() {
                 <button
                   key={chip.label}
                   onClick={() => chip.href && router.push(chip.href)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-medium text-[var(--color-text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/8 transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus:outline-none"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--osool-accent)] hover:bg-[var(--osool-accent-soft)] transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] focus:outline-none"
                 >
                   <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                   {language === 'ar' ? chip.labelAr : chip.label}

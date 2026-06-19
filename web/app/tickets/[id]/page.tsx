@@ -50,7 +50,7 @@ function getStatusTone(status: string): string {
     case 'in_progress':
       return 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300';
     case 'resolved':
-      return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300';
+      return 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]';
     case 'closed':
       return 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-muted)]';
     default:
@@ -144,7 +144,7 @@ export default function TicketDetailPage() {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
         </div>
       </AppShell>
     );
@@ -157,7 +157,7 @@ export default function TicketDetailPage() {
           <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center">
             <div className="text-xl font-semibold text-[var(--color-text-primary)]">{error || t('ticketDetail.notFound')}</div>
             <div className="mt-3">
-              <Link href="/tickets" className="text-sm font-medium text-emerald-600 dark:text-emerald-300">
+              <Link href="/tickets" className="text-sm font-medium text-[var(--osool-accent)]">
                 {t('ticketDetail.returnLink')}
               </Link>
             </div>
@@ -246,16 +246,16 @@ export default function TicketDetailPage() {
                 {ticket.replies.map((reply) => (
                   <div
                     key={reply.id}
-                    className={`rounded-[28px] border p-5 ${reply.is_admin_reply ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-[var(--color-border)] bg-[var(--color-background)]'}`}
+                    className={`rounded-[28px] border p-5 ${reply.is_admin_reply ? 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)]' : 'border-[var(--color-border)] bg-[var(--color-background)]'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-full ${reply.is_admin_reply ? 'bg-emerald-500/10' : 'bg-blue-500/10'}`}>
-                        {reply.is_admin_reply ? <Shield className="h-4 w-4 text-emerald-500" /> : <User className="h-4 w-4 text-blue-500" />}
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-full ${reply.is_admin_reply ? 'bg-[var(--osool-accent-soft)]' : 'bg-blue-500/10'}`}>
+                        {reply.is_admin_reply ? <Shield className="h-4 w-4 text-[var(--osool-accent)]" /> : <User className="h-4 w-4 text-blue-500" />}
                       </div>
                       <div>
                         <div className="text-sm font-semibold text-[var(--color-text-primary)]">
                           {reply.user_name}
-                          {reply.is_admin_reply && <span className="ml-2 text-xs font-medium text-emerald-600 dark:text-emerald-300">{t('ticketDetail.authorSupport')}</span>}
+                          {reply.is_admin_reply && <span className="ml-2 text-xs font-medium text-[var(--osool-accent)]">{t('ticketDetail.authorSupport')}</span>}
                         </div>
                         <div className="text-xs text-[var(--color-text-muted)]">
                           {reply.created_at ? new Date(reply.created_at).toLocaleString() : t('ticketDetail.noTimestamp')}

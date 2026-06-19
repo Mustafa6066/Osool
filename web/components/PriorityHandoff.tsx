@@ -85,7 +85,7 @@ export default function PriorityHandoff() {
             <div className={`rounded-2xl border p-4 shadow-2xl ${
                 isHotLead
                     ? 'border-amber-500/30 bg-gradient-to-br from-amber-950/90 to-zinc-900/95 shadow-amber-500/10'
-                    : 'border-emerald-500/20 bg-zinc-900/95 shadow-emerald-500/5'
+                    : 'border-[var(--osool-accent-mid)] bg-zinc-900/95 shadow-[0_0_0_1px_var(--osool-accent-soft)]'
             }`}>
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2">
@@ -93,7 +93,7 @@ export default function PriorityHandoff() {
                         {isHotLead ? (
                             <span className="text-amber-400 text-lg">🔥</span>
                         ) : (
-                            <span className="text-emerald-400 text-lg">✨</span>
+                            <span className="text-[var(--osool-accent)] text-lg">✨</span>
                         )}
                         <h4 className="text-sm font-semibold text-white">
                             {isHotLead
@@ -148,7 +148,7 @@ export default function PriorityHandoff() {
                             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
                                 isHotLead
                                     ? 'bg-amber-600 hover:bg-amber-500 text-white'
-                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                    : 'bg-[var(--osool-accent)] hover:bg-[var(--osool-accent-dark)] text-white'
                             }`}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -159,7 +159,7 @@ export default function PriorityHandoff() {
                                 : (language === 'ar' ? 'جدول مكالمة' : 'Schedule a Call')}
                         </button>
                     ) : (
-                        <div className="flex items-center justify-center gap-2 rounded-xl bg-zinc-800 px-4 py-2.5 text-sm text-emerald-400">
+                        <div className="flex items-center justify-center gap-2 rounded-xl bg-zinc-800 px-4 py-2.5 text-sm text-[var(--osool-accent)]">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="20 6 9 17 4 12"/>
                             </svg>

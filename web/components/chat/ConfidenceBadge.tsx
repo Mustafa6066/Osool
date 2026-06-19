@@ -18,7 +18,7 @@ interface ConfidenceBadgeProps {
 const TIER_CONFIG = {
   high: {
     label: { ar: "موثوق", en: "High confidence" },
-    /** solid emerald pill with checkmark + slow pulse ring */
+    /** solid terracotta pill with checkmark + slow pulse ring */
     badgeClass:
       "bg-[var(--color-primary)] text-white border-transparent",
     barClass: "",
@@ -27,9 +27,9 @@ const TIER_CONFIG = {
   },
   moderate: {
     label: { ar: "متوسط", en: "Moderate" },
-    /** teal outline pill, no fill */
+    /** Nile outline pill, no fill */
     badgeClass:
-      "bg-transparent border border-[var(--color-secondary)] text-[var(--color-secondary)]",
+      "bg-transparent border border-[var(--osool-nile)] text-[var(--osool-nile)]",
     barClass: "",
     icon: null,
     pulse: false,
@@ -50,8 +50,8 @@ const TIER_CONFIG = {
 /**
  * Three-tier confidence badge for comparison results.
  *
- * - high        → solid emerald pill + ✓ + pulse ring
- * - moderate    → teal outline pill
+ * - high        → solid terracotta pill + ✓ + pulse ring
+ * - moderate    → Nile outline pill
  * - indicative  → amber block with left accent bar + ⚠
  *
  * Free users see a 🔒 N=? in place of raw sample count.

@@ -351,7 +351,7 @@ export default function AdminPage() {
     return [
       { label: 'Total users', value: dashboard.overview.total_users, icon: Users, tone: 'text-[var(--color-primary-dark)]' },
       { label: 'Total messages', value: dashboard.overview.total_messages, icon: MessageSquare, tone: 'text-[var(--color-primary)]' },
-      { label: 'Active listings', value: dashboard.overview.active_properties, icon: TrendingUp, tone: 'text-[var(--color-teal-accent)]' },
+      { label: 'Active listings', value: dashboard.overview.active_properties, icon: TrendingUp, tone: 'text-[var(--osool-accent)]' },
       { label: 'Transactions', value: dashboard.overview.total_transactions, icon: Zap, tone: 'text-[var(--color-text-secondary)]' },
     ];
   }, [dashboard]);
@@ -387,7 +387,7 @@ export default function AdminPage() {
       actions={actions}
     >
       {scraperStatus ? (
-        <div className="rounded-[24px] border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+        <div className="rounded-[24px] border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-4 py-3 text-sm text-[var(--osool-accent-dark)]">
           {scraperStatus}
         </div>
       ) : null}
@@ -418,7 +418,7 @@ export default function AdminPage() {
                   }}
                   className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
+                      ? 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]'
                       : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                   }`}
                 >
@@ -442,19 +442,19 @@ export default function AdminPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Link href="/admin/analytics" className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-emerald-500/20">
+          <Link href="/admin/analytics" className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--osool-accent-mid)]">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">Analytics</div>
             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">Lead intelligence and trend analysis.</div>
           </Link>
-          <Link href="/admin/leads" className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-emerald-500/20">
+          <Link href="/admin/leads" className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--osool-accent-mid)]">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">Lead pipeline</div>
             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">Stage management and buyer context.</div>
           </Link>
-          <Link href="/admin/campaigns" className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-emerald-500/20">
+          <Link href="/admin/campaigns" className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--osool-accent-mid)]">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">Campaigns</div>
             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">Acquisition controls and spend visibility.</div>
           </Link>
-          <Link href="/admin/orchestrator" className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-emerald-500/20">
+          <Link href="/admin/orchestrator" className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--osool-accent-mid)]">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">Orchestrator</div>
             <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">Embedded access to the orchestration admin.</div>
           </Link>
@@ -463,7 +463,7 @@ export default function AdminPage() {
 
       {loadingData && activeTab !== 'overview' && activeTab !== 'marketing' ? (
         <div className="flex items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
         </div>
       ) : null}
 
@@ -471,7 +471,7 @@ export default function AdminPage() {
         <div className="space-y-6">
           {loadingData && !dashboard ? (
             <div className="flex items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-24">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
             </div>
           ) : dashboard ? (
             <>
@@ -526,8 +526,8 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="rounded-[32px] border border-[var(--color-border)] bg-emerald-500/10 p-6">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Admin note</div>
+                <div className="rounded-[32px] border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-6">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent-dark)]">Admin note</div>
                   <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">Keep the operating layer readable.</h2>
                   <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--color-text-secondary)]">
                     <p>Use this page for fast supervision, then move into the dedicated subpages when deeper work is required.</p>
@@ -563,7 +563,7 @@ export default function AdminPage() {
                       key={conversation.session_id}
                       type="button"
                       onClick={() => void openConversation(conversation.session_id)}
-                      className="w-full rounded-[24px] border border-[var(--color-border)] bg-[var(--color-background)] p-5 text-left transition-colors hover:border-emerald-500/20"
+                      className="w-full rounded-[24px] border border-[var(--color-border)] bg-[var(--color-background)] p-5 text-left transition-colors hover:border-[var(--osool-accent-mid)]"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -610,7 +610,7 @@ export default function AdminPage() {
                   <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[82%] rounded-[24px] px-4 py-3 ${message.role === 'user' ? 'bg-[var(--color-text-primary)] text-[var(--color-background)]' : 'border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-primary)]'}`}>
                       <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase opacity-70">
-                        {message.role === 'user' ? <UserIcon className="h-3 w-3" /> : <Bot className="h-3 w-3 text-emerald-500" />}
+                        {message.role === 'user' ? <UserIcon className="h-3 w-3" /> : <Bot className="h-3 w-3 text-[var(--osool-accent)]" />}
                         <span>{message.role === 'user' ? 'Customer' : 'Osool'}</span>
                         <span className="ml-auto">{message.created_at ? new Date(message.created_at).toLocaleTimeString() : ''}</span>
                       </div>
@@ -662,7 +662,7 @@ export default function AdminPage() {
                       </td>
                       <td className="px-3 py-3">
                         {isCoreAdmin ? (
-                          <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-300">admin</span>
+                          <span className="rounded-full bg-[var(--osool-accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--osool-accent)]">admin</span>
                         ) : isSuperAdmin ? (
                           <select
                             title="Change user role"
@@ -683,7 +683,7 @@ export default function AdminPage() {
                       </td>
                       <td className="px-3 py-3 text-[var(--color-text-secondary)]">{entry.message_count}</td>
                       <td className="px-3 py-3">
-                        <span className={`text-xs font-semibold ${entry.kyc_status === 'verified' ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'}`}>{entry.kyc_status}</span>
+                        <span className={`text-xs font-semibold ${entry.kyc_status === 'verified' ? 'text-[var(--osool-nile)]' : 'text-amber-600 dark:text-amber-300'}`}>{entry.kyc_status}</span>
                       </td>
                       <td className="px-3 py-3 text-xs text-[var(--color-text-muted)]">{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '-'}</td>
                       <td className="px-3 py-3 text-xs text-[var(--color-text-muted)]">{entry.last_activity ? new Date(entry.last_activity).toLocaleDateString() : 'Never'}</td>
@@ -694,7 +694,7 @@ export default function AdminPage() {
                               type="button"
                               disabled={blockUpdating === entry.id}
                               onClick={() => void handleBlockToggle(entry.id, isBlocked)}
-                              className={`rounded-full border px-3 py-1 text-xs font-semibold ${isBlocked ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-300' : 'border-red-500/30 text-red-500'}`}
+                              className={`rounded-full border px-3 py-1 text-xs font-semibold ${isBlocked ? 'border-[var(--osool-accent-mid)] text-[var(--osool-accent)]' : 'border-red-500/30 text-red-500'}`}
                             >
                               {blockUpdating === entry.id ? '...' : isBlocked ? 'Unblock' : 'Block'}
                             </button>
@@ -776,9 +776,9 @@ export default function AdminPage() {
 
               <div className="mt-6 space-y-3">
                 {(selectedTicket.replies || []).map((reply) => (
-                  <div key={reply.id} className={`rounded-[24px] border p-4 ${reply.is_admin_reply ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-[var(--color-border)] bg-[var(--color-background)]'}`}>
+                  <div key={reply.id} className={`rounded-[24px] border p-4 ${reply.is_admin_reply ? 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)]' : 'border-[var(--color-border)] bg-[var(--color-background)]'}`}>
                     <div className="flex items-center gap-2 text-xs">
-                      <span className={`font-semibold ${reply.is_admin_reply ? 'text-emerald-600 dark:text-emerald-300' : 'text-[var(--color-text-primary)]'}`}>
+                      <span className={`font-semibold ${reply.is_admin_reply ? 'text-[var(--osool-accent)]' : 'text-[var(--color-text-primary)]'}`}>
                         {reply.user_name} {reply.is_admin_reply ? '(Admin)' : ''}
                       </span>
                       <span className="text-[var(--color-text-muted)]">{reply.created_at ? new Date(reply.created_at).toLocaleString() : ''}</span>
@@ -828,7 +828,7 @@ export default function AdminPage() {
                     key={filter.key || 'all'}
                     type="button"
                     onClick={() => setTicketStatusFilter(filter.key)}
-                    className={`rounded-full border px-4 py-2 text-sm font-medium ${ticketStatusFilter === filter.key ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300' : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)]'}`}
+                    className={`rounded-full border px-4 py-2 text-sm font-medium ${ticketStatusFilter === filter.key ? 'border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]' : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text-secondary)]'}`}
                   >
                     {filter.label}
                   </button>
@@ -1021,7 +1021,7 @@ export default function AdminPage() {
             </div>
             <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-                <Building2 className="h-5 w-5 text-emerald-500" />
+                <Building2 className="h-5 w-5 text-[var(--osool-accent)]" />
                 Post-scrape processing
               </div>
               <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">Marks stale properties as unavailable and flags under/over-priced listings. Runs automatically after each scheduled scrape.</p>
@@ -1184,7 +1184,7 @@ export default function AdminPage() {
           <section className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 md:p-8">
             {loadingData && marketingMaterials.length === 0 ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
               </div>
             ) : marketingMaterials.length > 0 ? (
               <div className="space-y-6">
@@ -1195,7 +1195,7 @@ export default function AdminPage() {
                         {mat.category}
                       </span>
                       {mat.last_run_status === 'SUCCESS' ? (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Generated</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--osool-accent)] bg-[var(--osool-accent-soft)] px-2 py-0.5 rounded-full">Generated</span>
                       ) : mat.last_run_status === 'FAILED' ? (
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">Failed</span>
                       ) : marketingGenerating ? (

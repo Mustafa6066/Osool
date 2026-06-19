@@ -101,7 +101,7 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
                 <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">{property.title}</h3>
                 <p className="text-[var(--color-text-secondary)] text-sm">{property.location}</p>
                 <div className="mt-2 flex items-center gap-2">
-                    <span className="text-2xl font-bold text-blue-400">
+                    <span className="text-2xl font-bold text-[var(--osool-accent)]">
                         {(property.price / 1000000).toFixed(1)}M {labels.currency}
                     </span>
                     <span className="text-xs text-[var(--color-text-muted)] px-2 py-1 bg-[var(--color-surface-elevated)]/50 rounded">
@@ -121,7 +121,7 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
                 >
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-[var(--color-text-secondary)] text-xs">{labels.matchScore}</span>
-                        <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                        <CheckCircle2 className="w-4 h-4 text-[var(--osool-accent)]" />
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-3xl font-bold text-[var(--color-text-primary)]">{match_score}</span>
@@ -133,7 +133,7 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
                             animate={{ scaleX: match_score / 100 }}
                             transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
                             style={{ transformOrigin: 'left' }}
-                            className="bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 h-2.5 rounded-full shadow-[0_0_8px_rgba(56,189,248,0.4)]"
+                            className="bg-gradient-to-r from-[var(--osool-accent)] via-[var(--osool-accent)] to-[var(--osool-accent-dark)] h-2.5 rounded-full shadow-[0_0_8px_rgba(201,100,66,0.4)]"
                         />
                     </div>
                 </motion.div>
@@ -250,7 +250,7 @@ export default function InvestmentScorecard({ property, analysis, isRTL = false 
             {/* AI Badge */}
             <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
                 <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)]">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <div className="w-2 h-2 rounded-full bg-[var(--osool-accent)] animate-pulse" />
                     <span>{labels.aiAnalysis}</span>
                 </div>
             </div>

@@ -16,6 +16,10 @@ const CONTINUITY_KEYS = [
     'login.continuityContext',
 ];
 
+// Shared input styling — warm well, terracotta focus (Osool palette per DESIGN.md).
+const INPUT_CLASS =
+    "w-full rounded-2xl border border-[var(--osool-border)] bg-[var(--osool-surface-2)] py-3 ps-10 pe-4 text-[var(--osool-text)] placeholder-[var(--osool-muted)] outline-none transition-all focus-visible:border-[var(--osool-accent)] focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)]";
+
 function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -87,66 +91,66 @@ function LoginContent() {
     };
 
     return (
-        <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-14">
-            <section className="hidden rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 sm:p-10 lg:block">
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+        <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-14 bg-[var(--osool-bg)]">
+            <section className="hidden rounded-[36px] border border-[var(--osool-border)] bg-[var(--osool-surface)] p-8 sm:p-10 lg:block">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-nile-mid)] bg-[var(--osool-nile-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-nile)]">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     {t('login.badge')}
                 </div>
-                <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{t('login.title')}</h1>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
+                <h1 className="mt-5 text-4xl font-semibold tracking-tight text-[var(--osool-text)] sm:text-5xl" style={{ fontFamily: 'var(--osool-font-serif)' }}>{t('login.title')}</h1>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--osool-text-2)] sm:text-lg">
                     {t('login.subtitle')}
                 </p>
 
                 <div className="mt-8 space-y-3">
                     {CONTINUITY_KEYS.map((key) => (
-                        <div key={key} className="flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                            <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <div key={key} className="flex items-start gap-3 rounded-2xl border border-[var(--osool-border)] bg-[var(--osool-surface-2)] p-4">
+                            <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]">
                                 <Sparkles className="h-4 w-4" />
                             </div>
-                            <div className="text-sm leading-6 text-[var(--color-text-primary)]">{t(key)}</div>
+                            <div className="text-sm leading-6 text-[var(--osool-text)]">{t(key)}</div>
                         </div>
                     ))}
                 </div>
             </section>
 
-            <section className="rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_32px_80px_rgba(0,0,0,0.05)] sm:p-10">
-                <div className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{t('auth.welcomeBack')}</div>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight">{t('login.formSubtitle')}</h2>
+            <section className="rounded-[36px] border border-[var(--osool-border)] bg-[var(--osool-surface)] p-8 shadow-[0_32px_80px_rgba(0,0,0,0.05)] sm:p-10">
+                <div className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--osool-muted)]">{t('auth.welcomeBack')}</div>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--osool-text)]" style={{ fontFamily: 'var(--osool-font-serif)' }}>{t('login.formSubtitle')}</h2>
 
                 {error && (
-                    <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+                    <div className="mt-6 rounded-2xl border border-[var(--osool-danger)] bg-[var(--osool-danger-soft)] px-4 py-3 text-sm text-[var(--osool-danger)]">
                         {error}
                     </div>
                 )}
 
                 <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
                     <label className="block">
-                        <span className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.emailAddress')}</span>
+                        <span className="mb-1.5 block text-sm font-medium text-[var(--osool-text-2)]">{t('auth.emailAddress')}</span>
                         <div className="relative">
-                            <Mail className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                            <Mail className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--osool-muted)]" />
                             <input
                                 type="email"
                                 required
                                 value={email}
                                 onChange={(event) => setEmail(event.target.value)}
                                 placeholder={t('login.emailPlaceholder')}
-                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 ps-10 pe-4 text-[var(--color-text-primary)] outline-none transition-all focus-visible:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
+                                className={INPUT_CLASS}
                             />
                         </div>
                     </label>
 
                     <label className="block">
-                        <span className="mb-1.5 block text-sm font-medium text-[var(--color-text-secondary)]">{t('auth.password')}</span>
+                        <span className="mb-1.5 block text-sm font-medium text-[var(--osool-text-2)]">{t('auth.password')}</span>
                         <div className="relative">
-                            <Lock className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                            <Lock className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--osool-muted)]" />
                             <input
                                 type="password"
                                 required
                                 value={password}
                                 onChange={(event) => setPassword(event.target.value)}
                                 placeholder="········"
-                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3 ps-10 pe-4 text-[var(--color-text-primary)] outline-none transition-all focus-visible:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20"
+                                className={INPUT_CLASS}
                             />
                         </div>
                     </label>
@@ -154,16 +158,16 @@ function LoginContent() {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--color-text-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-background)] disabled:opacity-60"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--osool-accent)] hover:bg-[var(--osool-accent-dark)] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--osool-accent-mid)] transition-all disabled:opacity-60"
                     >
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                         {isLoading ? t('auth.signingIn') : t('login.submit')}
                     </button>
                 </form>
 
-                <div className="mt-6 border-t border-[var(--color-border)] pt-6 text-sm text-[var(--color-text-muted)]">
+                <div className="mt-6 border-t border-[var(--osool-border)] pt-6 text-sm text-[var(--osool-muted)]">
                     {t('auth.newToOsool')}{' '}
-                    <Link href="/signup" className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">
+                    <Link href="/signup" className="font-semibold text-[var(--osool-accent)] hover:underline">
                         {t('login.createAccount')}
                     </Link>
                 </div>
@@ -178,7 +182,7 @@ export default function LoginPage() {
             <Suspense
                 fallback={
                     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-8">
-                        <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+                        <Loader2 className="h-10 w-10 animate-spin text-[var(--osool-accent)]" />
                     </div>
                 }
             >

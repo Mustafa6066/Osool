@@ -71,7 +71,7 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="group max-w-sm overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-500/30 hover:shadow-lg"
+            className="group max-w-sm overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--osool-accent-mid)] hover:shadow-lg"
         >
             {/* Image Section */}
             <div className="relative h-48 overflow-hidden bg-[var(--color-surface-elevated)]">
@@ -124,7 +124,7 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
 
                 {/* Price Tag */}
                 <div className="absolute bottom-3 left-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/95 px-3 py-2 shadow-md backdrop-blur-sm">
-                    <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                    <div className="text-lg font-bold text-[var(--osool-accent)]">
                         {(property.price / 1000000).toFixed(2)}M EGP
                     </div>
                     {property.price_per_sqm && (
@@ -138,31 +138,31 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
             {/* Content Section */}
             <div className="p-4">
                 {/* Title */}
-                <h4 className="mb-2 line-clamp-2 text-lg font-bold text-[var(--color-text-primary)] transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+                <h4 className="mb-2 line-clamp-2 text-lg font-bold text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--osool-accent)]">
                     {property.title}
                 </h4>
 
                 {/* Location */}
                 <div className="mb-3 flex items-center text-sm text-[var(--color-text-secondary)]">
-                    <MapPin size={14} className="mr-1.5 text-emerald-500" />
+                    <MapPin size={14} className="mr-1.5 text-[var(--osool-accent)]" />
                     {property.location}
                 </div>
 
                 {/* Property Details Grid */}
                 <div className="grid grid-cols-3 gap-2 mb-4">
                     <div className="flex flex-col items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-2 text-center">
-                        <Bed size={16} className="mb-1 text-emerald-500" />
+                        <Bed size={16} className="mb-1 text-[var(--osool-accent)]" />
                         <span className="text-sm font-semibold text-[var(--color-text-primary)]">{property.bedrooms}</span>
                         <span className="text-xs text-[var(--color-text-muted)]">Beds</span>
                     </div>
                     <div className="flex flex-col items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-2 text-center">
-                        <Ruler size={16} className="mb-1 text-teal-500" />
+                        <Ruler size={16} className="mb-1 text-[var(--osool-accent)]" />
                         <span className="text-sm font-semibold text-[var(--color-text-primary)]">{property.size_sqm}</span>
                         <span className="text-xs text-[var(--color-text-muted)]">m²</span>
                     </div>
                     {property.property_type && (
                         <div className="flex flex-col items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-2 text-center">
-                            <TrendingUp size={16} className="mb-1 text-emerald-500" />
+                            <TrendingUp size={16} className="mb-1 text-[var(--osool-accent)]" />
                             <span className="line-clamp-1 text-xs font-semibold text-[var(--color-text-primary)]">{property.property_type}</span>
                             <span className="text-xs text-[var(--color-text-muted)]">Type</span>
                         </div>
@@ -184,7 +184,7 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                                     <Calendar size={12} />
                                     Delivery:
                                 </span>
-                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{property.delivery_date}</span>
+                                <span className="font-semibold text-[var(--osool-accent)]">{property.delivery_date}</span>
                             </div>
                         )}
                     </div>
@@ -198,13 +198,13 @@ export default function PropertyCard({ property }: { property: PropertyProps }) 
                             window.open(property.url, '_blank', 'noopener,noreferrer');
                         }}
                         disabled={!property.url}
-                        className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex items-center justify-center gap-2 rounded-lg bg-[var(--osool-accent)] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--osool-accent-dark)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Open listing
                         <ExternalLink size={14} />
                     </button>
                     <button
-                        className="flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-2.5 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:border-emerald-500/35 hover:bg-emerald-500/8 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
+                        className="flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-2.5 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:border-[var(--osool-accent-mid)] hover:bg-[var(--osool-accent-soft)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)]"
                         onClick={handleContact}
                     >
                         Talk to advisor

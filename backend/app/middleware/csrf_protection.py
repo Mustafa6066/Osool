@@ -50,6 +50,7 @@ CSRF_EXEMPT_PATHS = {
     "/docs",  # API docs
     "/openapi.json",  # API schema
     "/api/analytics/web-vitals",  # sendBeacon cannot send custom headers — telemetry only
+    "/api/v1/chat",  # Guest POST is cross-origin (no SameSite=Strict csrf cookie); route enforces its own auth (401 for anonymous), and authed callers bypass CSRF via Bearer. Without this, guests got 403 instead of the intended 401→/signup redirect.
 }
 
 

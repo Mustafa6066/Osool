@@ -10,7 +10,7 @@ interface XPToastProps {
 }
 
 /**
- * XP Toast V5 — B/W Glass + Emerald accent
+ * XP Toast V5 — B/W Glass + Osool terracotta accent
  * Appears briefly when user earns XP, then auto-dismisses.
  */
 export default function XPToast({ amount, action, onDone }: XPToastProps) {
@@ -34,10 +34,10 @@ export default function XPToast({ amount, action, onDone }: XPToastProps) {
                         shadow-xl shadow-black/10 backdrop-blur-xl
                         animate-xp-toast pointer-events-none`}
         >
-            <div className="w-6 h-6 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+            <div className="w-6 h-6 rounded-full bg-[var(--osool-accent-soft)] flex items-center justify-center">
+                <TrendingUp className="w-3.5 h-3.5 text-[var(--osool-accent)]" />
             </div>
-            <span className="font-bold text-sm text-emerald-500">+{amount} XP</span>
+            <span className="font-bold text-sm text-[var(--osool-accent)]">+{amount} XP</span>
             {action && (
                 <span className="text-xs text-[var(--color-text-muted)] hidden sm:inline">
                     {action}

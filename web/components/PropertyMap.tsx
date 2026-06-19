@@ -220,7 +220,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
 
             {/* Property count badge */}
             <div className="absolute top-4 left-4 z-[1000] bg-[var(--color-surface)]/90 backdrop-blur-md border border-[var(--color-border)] rounded-xl px-4 py-2 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-emerald-500" />
+                <MapPin className="w-4 h-4 text-[var(--osool-accent)]" />
                 <span className="text-sm font-semibold text-[var(--color-text-primary)]">
                     {properties.length} {language === 'ar' ? 'عقار' : 'properties'}
                 </span>
@@ -240,7 +240,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                         </button>
 
                         {/* Image */}
-                        <div className="relative h-36 bg-gradient-to-br from-emerald-900/40 to-[var(--color-surface-elevated)]">
+                        <div className="relative h-36 bg-gradient-to-br from-[var(--osool-accent-mid)] to-[var(--color-surface-elevated)]">
                             <img
                                 src={selectedProperty.image}
                                 alt={language === 'ar' ? selectedProperty.titleAr : selectedProperty.title}
@@ -263,7 +263,7 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                                 {language === 'ar' ? selectedProperty.titleAr : selectedProperty.title}
                             </h3>
                             <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)] text-sm mb-3">
-                                <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+                                <MapPin className="w-3.5 h-3.5 text-[var(--osool-accent)]" />
                                 {language === 'ar' ? selectedProperty.locationAr || selectedProperty.location : selectedProperty.location}
                             </div>
 
@@ -278,14 +278,14 @@ export default function PropertyMap({ properties, language, formatPrice }: Prope
                                         <Maximize className="w-3.5 h-3.5" /> {selectedProperty.area} {language === 'ar' ? 'م²' : 'sqm'}
                                     </span>
                                 )}
-                                <span className="capitalize px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 text-xs font-medium">
+                                <span className="capitalize px-2 py-0.5 rounded-md bg-[var(--osool-accent-soft)] text-[var(--osool-accent)] text-xs font-medium">
                                     {selectedProperty.type}
                                 </span>
                             </div>
 
                             <Link
                                 href={`/property/${selectedProperty.id}`}
-                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm transition-colors"
+                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[var(--osool-accent)] hover:bg-[var(--osool-accent-dark)] text-white font-semibold text-sm transition-colors"
                             >
                                 <ExternalLink className="w-4 h-4" />
                                 {language === 'ar' ? 'عرض التفاصيل' : 'View Details'}

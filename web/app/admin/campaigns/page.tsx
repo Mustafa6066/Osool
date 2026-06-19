@@ -140,7 +140,7 @@ export default function CampaignsPage() {
     >
       {loading ? (
         <div className="flex items-center justify-center rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--osool-accent)]" />
         </div>
       ) : (
         <div className="space-y-6">
@@ -154,8 +154,8 @@ export default function CampaignsPage() {
           </section>
 
           {showForm ? (
-            <section className="rounded-[32px] border border-emerald-500/20 bg-emerald-500/5 p-6">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Campaign setup</div>
+            <section className="rounded-[32px] border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-6">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">Campaign setup</div>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">Create a new campaign</h2>
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <input
@@ -163,12 +163,12 @@ export default function CampaignsPage() {
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
                   placeholder="Campaign name"
                   aria-label="Campaign name"
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] transition-all"
                 />
                 <select
                   value={form.platform}
                   onChange={(event) => setForm({ ...form, platform: event.target.value })}
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] transition-all"
                 >
                   <option value="meta">Meta</option>
                   <option value="google">Google</option>
@@ -180,21 +180,21 @@ export default function CampaignsPage() {
                   placeholder="Budget in EGP"
                   aria-label="Budget in EGP"
                   type="number"
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] transition-all"
                 />
                 <input
                   value={form.target_areas}
                   onChange={(event) => setForm({ ...form, target_areas: event.target.value })}
                   placeholder="Target areas, comma separated"
                   aria-label="Target areas"
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] transition-all"
                 />
                 <input
                   value={form.target_intents}
                   onChange={(event) => setForm({ ...form, target_intents: event.target.value })}
                   placeholder="Target intents, comma separated"
                   aria-label="Target intents"
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 transition-all sm:col-span-2"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--osool-accent-mid)] transition-all sm:col-span-2"
                 />
               </div>
               <div className="mt-6 flex justify-end">
@@ -240,7 +240,7 @@ export default function CampaignsPage() {
                           <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-2.5 py-1 text-xs font-medium">{campaign.platform}</span>
                         </td>
                         <td className="p-3 text-center">
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${campaign.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-600 dark:text-amber-300'}`}>
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${campaign.status === 'active' ? 'bg-[var(--osool-accent-soft)] text-[var(--osool-accent)]' : 'bg-amber-500/10 text-amber-600 dark:text-amber-300'}`}>
                             {campaign.status}
                           </span>
                         </td>
@@ -248,10 +248,10 @@ export default function CampaignsPage() {
                         <td className="p-3 text-right font-mono">{formatNumber(campaign.spent)}</td>
                         <td className="p-3 text-right font-mono">{formatNumber(campaign.impressions)}</td>
                         <td className="p-3 text-right font-mono">{formatNumber(campaign.clicks)}</td>
-                        <td className="p-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-300">{formatNumber(campaign.conversions)}</td>
+                        <td className="p-3 text-right font-mono font-semibold text-[var(--osool-accent)]">{formatNumber(campaign.conversions)}</td>
                         <td className="p-3 text-center">
                           <button onClick={() => void toggleStatus(campaign)} className="inline-flex items-center justify-center">
-                            {campaign.status === 'active' ? <ToggleRight className="h-5 w-5 text-emerald-500" /> : <ToggleLeft className="h-5 w-5 text-[var(--color-text-muted)]" />}
+                            {campaign.status === 'active' ? <ToggleRight className="h-5 w-5 text-[var(--osool-accent)]" /> : <ToggleLeft className="h-5 w-5 text-[var(--color-text-muted)]" />}
                           </button>
                         </td>
                       </tr>
@@ -297,7 +297,7 @@ function NoteCard({
 }) {
   return (
     <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-      <Icon className="h-5 w-5 text-emerald-500" />
+      <Icon className="h-5 w-5 text-[var(--osool-accent)]" />
       <div className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">{label}</div>
       <div className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{text}</div>
     </div>

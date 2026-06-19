@@ -46,7 +46,7 @@ export default function InstallmentsVsCashPage() {
     <AppShell>
       <div className="h-full overflow-y-auto bg-[var(--color-background)]" dir={direction}>
         <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--osool-accent)]">
             <Scale className="h-3.5 w-3.5" />
             {isRTL ? 'تقسيط ولا كاش؟' : 'Installments vs Cash'}
           </div>
@@ -69,7 +69,7 @@ export default function InstallmentsVsCashPage() {
                 min={100_000}
                 value={totalPrice}
                 onChange={(e) => setTotalPrice(Number(e.target.value))}
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-emerald-500"
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-[var(--osool-accent)]"
               />
             </label>
             <label className="block">
@@ -81,7 +81,7 @@ export default function InstallmentsVsCashPage() {
                 min={1}
                 value={downPayment}
                 onChange={(e) => setDownPayment(Number(e.target.value))}
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-emerald-500"
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-[var(--osool-accent)]"
               />
             </label>
             <label className="block">
@@ -94,7 +94,7 @@ export default function InstallmentsVsCashPage() {
                 max={15}
                 value={years}
                 onChange={(e) => setYears(Number(e.target.value))}
-                className="mt-3 w-full accent-emerald-500"
+                className="mt-3 w-full accent-[var(--osool-accent)]"
               />
             </label>
             <label className="block">
@@ -104,7 +104,7 @@ export default function InstallmentsVsCashPage() {
               <select
                 value={perYear}
                 onChange={(e) => setPerYear(Number(e.target.value))}
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-emerald-500"
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-[var(--osool-accent)]"
               >
                 <option value={1}>{isRTL ? 'سنوي (١)' : 'Yearly (1)'}</option>
                 <option value={2}>{isRTL ? 'نصف سنوي (٢)' : 'Semi-annual (2)'}</option>
@@ -122,13 +122,13 @@ export default function InstallmentsVsCashPage() {
                 value={cashPrice}
                 placeholder={isRTL ? 'لو المطور عرض سعر كاش مختلف' : "If the developer quoted a separate cash price"}
                 onChange={(e) => setCashPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-emerald-500"
+                className="mt-2 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text-primary)] outline-none focus:border-[var(--osool-accent)]"
               />
             </label>
             <button
               onClick={calculate}
               disabled={loading || totalPrice <= 0 || downPayment <= 0 || downPayment >= totalPrice}
-              className="sm:col-span-2 flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="sm:col-span-2 flex items-center justify-center gap-2 rounded-2xl bg-[var(--osool-accent)] py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--osool-accent-dark)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scale className="h-4 w-4" />}
               {isRTL ? 'قارن' : 'Compare'}
@@ -155,8 +155,8 @@ export default function InstallmentsVsCashPage() {
                     {result.installments_count} {isRTL ? 'قسط' : 'installments'} × {fmt(result.per_installment_egp, isRTL)}
                   </p>
                 </div>
-                <div className="rounded-[24px] border border-emerald-500/50 bg-emerald-500/[0.06] p-5">
-                  <p className="text-xs uppercase tracking-wider text-emerald-600">
+                <div className="rounded-[24px] border border-[var(--osool-accent-mid)] bg-[var(--osool-accent-soft)] p-5">
+                  <p className="text-xs uppercase tracking-wider text-[var(--osool-accent)]">
                     {isRTL ? 'القيمة الحقيقية كاش (NPV)' : 'True cash value (NPV)'}
                   </p>
                   <p className="mt-2 text-2xl font-bold text-[var(--color-text-primary)]">

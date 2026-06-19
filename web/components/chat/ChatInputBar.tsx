@@ -73,17 +73,17 @@ export default function ChatInput({
       transition={{ type: 'spring', damping: 28, stiffness: 360 }}
     >
       <div
-        className={`relative flex flex-col overflow-hidden rounded-[22px] border bg-[var(--color-surface)]/88 shadow-[0_14px_44px_-36px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-[background-color,border-color,box-shadow,opacity,transform] duration-200 focus-within:border-emerald-500/35 focus-within:bg-[var(--color-surface)]/96 ${
+        className={`relative flex flex-col overflow-hidden rounded-[22px] border bg-[var(--color-surface)]/88 shadow-[0_14px_44px_-36px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-[background-color,border-color,box-shadow,opacity,transform] duration-200 focus-within:border-[var(--osool-accent-mid)] focus-within:bg-[var(--color-surface)]/96 ${
           disabled ? 'opacity-70 scale-[0.99]' : ''
         } ${
           isListening
-            ? 'border-emerald-500/40'
+            ? 'border-[var(--osool-accent-mid)]'
             : 'border-[var(--color-border)]/45'
-        }${transcriptHighlight ? ' ring-2 ring-emerald-500/40' : ''}`}
+        }${transcriptHighlight ? ' ring-2 ring-[var(--osool-accent-mid)]' : ''}`}
       >
         <motion.span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-4 bottom-0 h-px origin-center rounded-full bg-gradient-to-r from-transparent via-emerald-500/70 to-transparent"
+          className="pointer-events-none absolute inset-x-4 bottom-0 h-px origin-center rounded-full bg-gradient-to-r from-transparent via-[var(--osool-accent)] to-transparent"
           initial={false}
           animate={reduceMotion ? { opacity: isActive ? 1 : 0.35 } : { opacity: isActive ? 1 : 0.25, scaleX: isActive ? 1 : 0.35 }}
           transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' }}
@@ -99,7 +99,7 @@ export default function ChatInput({
               className="px-5 pt-3 pb-0 flex items-center gap-2.5"
             >
               <VoiceOrb status={voiceStatus} amplitude={amplitude} onClick={onVoiceToggle} isRTL={language === 'ar'} size="sm" />
-              <span className="ms-auto text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold animate-pulse flex-shrink-0">
+              <span className="ms-auto text-[11px] text-[var(--osool-accent)] font-semibold animate-pulse flex-shrink-0">
                 {voiceStatus === 'processing'
                   ? (language === 'ar' ? 'يعالج...' : 'Transcribing...')
                   : (language === 'ar' ? 'يستمع...' : 'Listening...')}
