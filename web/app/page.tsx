@@ -56,6 +56,16 @@ export default function LandingPage() {
 function useReveal() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const nodes = Array.from(document.querySelectorAll('.osool-reveal'));
+    const revealAll = () => nodes.forEach((n) => n.classList.add('in'));
+
+    // No IntersectionObserver (old browsers, some bots) → show everything,
+    // never leave content stuck at opacity:0.
+    if (!('IntersectionObserver' in window)) {
+      revealAll();
+      return;
+    }
+
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -67,8 +77,17 @@ function useReveal() {
       },
       { threshold: 0.12, rootMargin: '0px 0px -60px 0px' },
     );
-    document.querySelectorAll('.osool-reveal').forEach((n) => io.observe(n));
-    return () => io.disconnect();
+    nodes.forEach((n) => io.observe(n));
+
+    // Failsafe: if the observer never fires for an element (e.g. the user
+    // never scrolls, or an edge case misses it), reveal everything after a
+    // grace period so no section is ever permanently invisible.
+    const failsafe = window.setTimeout(revealAll, 3000);
+
+    return () => {
+      io.disconnect();
+      window.clearTimeout(failsafe);
+    };
   }, []);
 }
 

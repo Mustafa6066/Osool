@@ -64,6 +64,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
         />
 
+        {/* No-JS fallback: scroll-reveal sections start at opacity:0 and only
+            become visible when JS adds `.in`. Without JS they would stay
+            invisible, so force them visible when scripting is disabled. */}
+        <noscript>
+          <style>{`.osool-reveal{opacity:1 !important;transform:none !important}`}</style>
+        </noscript>
       </head>
       <body className="relative min-h-dvh overflow-x-hidden antialiased">
         <ErrorBoundaryProvider>
