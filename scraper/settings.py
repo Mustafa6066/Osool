@@ -50,6 +50,15 @@ MAX_PAGES_PER_AREA: int = int(os.getenv("SCRAPER_MAX_PAGES", "30"))
 # Setting only the standard HTTPS_PROXY env var also works.
 SCRAPER_PROXY_URL: str = os.getenv("SCRAPER_PROXY_URL") or os.getenv("HTTPS_PROXY") or ""
 
+# Browser kill-switch. When true, skip Scrapling/Playwright (Chromium) and
+# fetch via httpx only. Chromium can crash on resource-constrained hosts
+# (posix_spawn EAGAIN launching chrome_crashpad_handler -> SIGTRAP), which
+# marks the whole cron run CRASHED. httpx through the residential proxy
+# (SCRAPER_PROXY_URL) returns valid HTML for both sites, so this keeps the
+# cron healthy without the browser. Set SCRAPER_DISABLE_BROWSER=true on the
+# Railway nawy-scraper service to enable.
+SCRAPER_DISABLE_BROWSER: bool = os.getenv("SCRAPER_DISABLE_BROWSER", "false").strip().lower() in ("1", "true", "yes", "on")
+
 # Health alert key — consumed by the orchestrator's notifications path.
 HEALTH_ALERT_KEY: str = "scraper:health:alerts"
 HEALTH_ALERT_KEEP: int = 50

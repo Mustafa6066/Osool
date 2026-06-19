@@ -17,7 +17,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from extractors.nawy_selectors import extract_compound_page
-from settings import MAX_PAGES_PER_AREA, REQUEST_DELAY_SECONDS
+from settings import MAX_PAGES_PER_AREA, REQUEST_DELAY_SECONDS, SCRAPER_DISABLE_BROWSER
 from sites.base import SiteSpider, SpiderResult
 
 logger = logging.getLogger(__name__)
@@ -263,7 +263,7 @@ class NawySpider(SiteSpider):
 
     async def _fetch(self, url: str) -> Optional[str]:
         """StealthyFetcher when available (Cloudflare-aware), plain httpx otherwise."""
-        if _STEALTH_OK:
+        if _STEALTH_OK and not SCRAPER_DISABLE_BROWSER:
             try:
                 page = await asyncio.to_thread(
                     StealthyFetcher.fetch,

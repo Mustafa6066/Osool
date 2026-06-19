@@ -19,7 +19,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from extractors.aqarmap_selectors import extract_detail_page, extract_listing_links
-from settings import MAX_PAGES_PER_AREA, REQUEST_DELAY_SECONDS, SCRAPER_PROXY_URL
+from settings import MAX_PAGES_PER_AREA, REQUEST_DELAY_SECONDS, SCRAPER_PROXY_URL, SCRAPER_DISABLE_BROWSER
 from sites.base import SiteSpider, SpiderResult
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class AqarmapSpider(SiteSpider):
         StealthyFetcher (Playwright + anti-bot). Falls back to httpx only when
         Scrapling isn't importable (dev machine), which will likely fail loudly.
         """
-        if _STEALTH_OK:
+        if _STEALTH_OK and not SCRAPER_DISABLE_BROWSER:
             try:
                 fetch_kwargs = {"headless": True, "network_idle": True}
                 if SCRAPER_PROXY_URL:
