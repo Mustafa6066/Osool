@@ -82,6 +82,11 @@ _AREA_SQL_PATTERNS = {
     "6th of october": ["6th of october", "6 october", "october", "اكتوبر", "أكتوبر"],
     "north coast": ["north coast", "sahel", "الساحل", "الساحل الشمالي"],
     "new capital": ["new capital", "capital", "العاصمة", "العاصمة الادارية", "العاصمة الإدارية"],
+    "mostakbal city": ["mostakbal", "mostaqbal", "future city", "مستقبل", "المستقبل"],
+    "capital gardens": ["capital gardens", "كابيتال جاردنز", "كابيتال"],
+    "october gardens": ["october gardens", "حدائق اكتوبر", "حدائق أكتوبر"],
+    "ain sokhna": ["ain sokhna", "sokhna", "السخنة", "العين السخنة"],
+    "el gouna": ["el gouna", "gouna", "الجونة"],
 }
 _TYPE_LABELS_AR = {
     "apartment": "شقة", "villa": "فيلا", "townhouse": "تاون هاوس",

@@ -145,6 +145,17 @@ async def upsert_properties(
     # The anomaly detector below skips rows without a positive price, so
     # without this gate zero-price / location-less records would be silently
     # upserted and poison valuations and search.
+    # Residential price/m² floor — a residential unit below this is almost
+    # certainly a captured down-payment / installment rather than the unit
+    # price (the El Gouna 416k chalet = 4,521 EGP/m², ~10x below market). Set
+    # below the read-time serving floor (8,000) to avoid over-rejecting at the
+    # source while the read gate still protects what gets served.
+    _MIN_INGEST_PPSQM = 6_000.0
+    _RESIDENTIAL_TYPE_TOKENS = (
+        "apartment", "villa", "chalet", "studio", "duplex", "penthouse",
+        "townhouse", "twin", "loft", "cabin",
+    )
+
     valid_props: list[NormalizedProperty] = []
     for prop in properties:
         reasons = []
@@ -152,6 +163,19 @@ async def upsert_properties(
             reasons.append("non-positive price")
         if not (prop.location or "").strip():
             reasons.append("missing location")
+        # Down-payment-as-price guard (residential only — commercial/land EGP/m²
+        # legitimately varies). Cross-checks price against size.
+        size = getattr(prop, "size_sqm", 0) or 0
+        ptype = str(getattr(prop, "type", "") or "").lower()
+        beds = getattr(prop, "bedrooms", 0) or 0
+        is_residential = beds > 0 or any(tok in ptype for tok in _RESIDENTIAL_TYPE_TOKENS)
+        if not reasons and prop.price and size > 0 and is_residential:
+            ppsqm = prop.price / size
+            if ppsqm < _MIN_INGEST_PPSQM:
+                reasons.append(
+                    f"implausible price/m² ({ppsqm:,.0f} EGP/m²) — likely a "
+                    f"down-payment/installment captured as the unit price"
+                )
         if reasons:
             result.errors += 1
             result.error_details.append(

@@ -117,7 +117,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       }
       if (value >= 1_000) {
         const k = Math.round(value / 1_000);
-        return lang === 'ar' ? `${k} ألف جنيه` : `${k.toLocaleString('en-US')} EGP`;
+        // Keep the thousands ("K"/"ألف") unit — without it 416,000 rendered as
+        // "416 EGP" (off by 1000x). USD branch already does this correctly.
+        return lang === 'ar' ? `${k} ألف جنيه` : `${k.toLocaleString('en-US')}K EGP`;
       }
       return lang === 'ar'
         ? `${Math.round(value).toLocaleString('ar-EG')} جنيه`

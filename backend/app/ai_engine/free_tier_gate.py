@@ -9,12 +9,32 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import and_, case, func, nullslast, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 
 from app.ai_engine.local_intent import local_intent_extractor
 from app.models import Property
+
+
+# ── Read-time data-quality guards ───────────────────────────────────────────
+# The DB holds ~23k rows of mixed provenance (current Nawy listing-API +
+# legacy/aqarmap). Some legacy rows stored a down-payment / installment as the
+# full `price` — e.g. a 92 m² El Gouna chalet at 416,000 EGP = 4,521 EGP/m²,
+# ~10x below the real El Gouna floor (25k-73k/m² confirmed on aqarmap). These
+# MUST be excluded at READ time; re-scraping never retroactively deletes them.
+_MIN_RESIDENTIAL_PPSQM = 8_000.0     # EGP/m² floor — below this a residential resale is almost certainly bad data
+_MAX_RESIDENTIAL_PPSQM = 800_000.0   # EGP/m² ceiling — above this is a parse error / extreme outlier
+_MIN_ABS_PRICE = 300_000.0           # EGP — absolute floor for rows we cannot size-normalize (size missing)
+# A candidate priced far below its own compound+type cohort is bad data, not a deal.
+_COHORT_OUTLIER_FLOOR_RATIO = 0.45   # reject if effective ppsqm < 45% of the cohort median ppsqm
+# Savings are only credible against a real, same-compound+type developer cohort.
+_MIN_COHORT_N = 5
+_MAX_PLAUSIBLE_SAVINGS_PCT = 55.0    # suppress a "savings" claim above this — cohort mismatch or bad data
+# Commercial unit-type tokens excluded from a residential (bedroom/apartment) search.
+_COMMERCIAL_TOKENS = (
+    "office", "retail", "shop", "clinic", "pharmacy", "store", "commercial",
+    "garage", "warehouse", "factory", "medical", "admin", "showroom",
+)
 
 
 _ARABIC_TEXT_RE = re.compile(r"[\u0600-\u06FF]")
@@ -25,6 +45,11 @@ _ARABIC_AREA_LABELS = {
     "6th of october": "6 أكتوبر",
     "north coast": "الساحل الشمالي",
     "new capital": "العاصمة الإدارية",
+    "mostakbal city": "مدينة المستقبل",
+    "capital gardens": "كابيتال جاردنز",
+    "october gardens": "حدائق أكتوبر",
+    "ain sokhna": "العين السخنة",
+    "el gouna": "الجونة",
 }
 _AREA_SQL_PATTERNS = {
     "new cairo": [
@@ -42,6 +67,12 @@ _AREA_SQL_PATTERNS = {
     "6th of october": ["6th of october", "6 october", "october", "اكتوبر", "أكتوبر"],
     "north coast": ["north coast", "sahel", "الساحل", "الساحل الشمالي"],
     "new capital": ["new capital", "capital", "العاصمة", "العاصمة الادارية", "العاصمة الإدارية"],
+    # Match both Latin spellings (k/q) + the compound prefix ("Nyoum Mostaqbal City").
+    "mostakbal city": ["mostakbal", "mostaqbal", "future city", "مستقبل", "المستقبل"],
+    "capital gardens": ["capital gardens", "كابيتال جاردنز", "كابيتال"],
+    "october gardens": ["october gardens", "حدائق اكتوبر", "حدائق أكتوبر"],
+    "ain sokhna": ["ain sokhna", "sokhna", "السخنة", "العين السخنة"],
+    "el gouna": ["el gouna", "gouna", "الجونة"],
 }
 _TYPE_LABELS_AR = {
     "apartment": "شقة",
@@ -119,6 +150,65 @@ def _studio_requested(message: str, extracted_type: Optional[str]) -> bool:
     return any(token in normalized for token in ("studio", "استوديو", "ستوديو"))
 
 
+def _criteria_from_message(message: str) -> dict[str, Any]:
+    """Extract a single-turn criteria dict from one message (zero-token)."""
+    intent = local_intent_extractor.extract_intent(message or "")
+    return {
+        "area": intent.get("area"),
+        "compound": intent.get("compound"),
+        "property_type": intent.get("property_type"),
+        "studio": _studio_requested(message or "", intent.get("property_type")),
+        "bedrooms": _extract_bedroom_options(message or "", intent.get("rooms")),
+    }
+
+
+def _merge_prior_criteria(
+    current: dict[str, Any],
+    previous_user_messages: Optional[list[str]],
+) -> dict[str, Any]:
+    """
+    Carry forward area/compound/property_type/studio/bedrooms from prior turns
+    so the stateless zero-token free path stops dropping context (the
+    "anything in sarai?" → lost 2-bedrooms bug, and "but i said 2 bedrooms" →
+    lost Sarai bug).
+
+    Rules (per Codex review):
+      * The current turn always wins per-field — we only FILL missing fields.
+      * `previous_user_messages` is newest-first; the newest prior value wins.
+      * If the current turn introduced a new area, do NOT carry a stale
+        compound (the user pivoted location) and vice-versa — avoids
+        contradictory area+compound pairs.
+      * Routing (appreciation/compare/best_price) is still classified from the
+        CURRENT message only — we never concatenate or re-parse history, so the
+        old clarification-loop never returns.
+    """
+    merged = dict(current)
+    if not previous_user_messages:
+        return merged
+
+    current_has_area = bool(current.get("area"))
+    current_has_compound = bool(current.get("compound"))
+
+    for prior_msg in previous_user_messages:  # already newest-first
+        prior = _criteria_from_message(prior_msg)
+
+        # Location: don't carry a compound if the user just named an area, and
+        # don't carry an area if the user just named a compound.
+        if not merged.get("area") and not current_has_compound and prior.get("area"):
+            merged["area"] = prior["area"]
+        if not merged.get("compound") and not current_has_area and prior.get("compound"):
+            merged["compound"] = prior["compound"]
+
+        if not merged.get("property_type") and prior.get("property_type"):
+            merged["property_type"] = prior["property_type"]
+        if not merged.get("studio") and prior.get("studio"):
+            merged["studio"] = prior["studio"]
+        if not merged.get("bedrooms") and prior.get("bedrooms"):
+            merged["bedrooms"] = prior["bedrooms"]
+
+    return merged
+
+
 def _build_criteria_text(criteria: dict[str, Any], language: str) -> str:
     parts: list[str] = []
     if language == "ar":
@@ -178,7 +268,14 @@ def _relax_field(criteria: dict[str, Any], field: str) -> dict[str, Any]:
 
 def _build_relaxation_plan(criteria: dict[str, Any]) -> list[tuple[dict[str, Any], list[str]]]:
     # Progressive one-way relaxation: preserve as many user filters as possible.
-    plan_fields = ["bedrooms", "property_type", "area", "compound"]
+    # Bedrooms is STICKY when the user stated a count — never silently swap a
+    # 2-bedroom request for a studio (the original "anything in sarai?" bug).
+    # Compound is relaxed LAST so a named compound (Sarai) survives longest.
+    bedrooms_locked = bool(criteria.get("bedrooms_locked"))
+    plan_fields = ["property_type"]
+    if not bedrooms_locked:
+        plan_fields.append("bedrooms")
+    plan_fields += ["area", "compound"]
     variants: list[tuple[dict[str, Any], list[str]]] = []
     current = dict(criteria)
     removed: list[str] = []
@@ -241,8 +338,22 @@ def _serialize_best_price_property(
     resale_price: float,
     developer_avg: float,
     savings_egp: float,
+    *,
+    cohort_n: int = 0,
+    cohort_credible: bool = False,
 ) -> dict[str, Any]:
-    savings_pct = (savings_egp / developer_avg * 100.0) if developer_avg else None
+    # Only expose a comparison/savings when it is backed by a credible
+    # same-compound+type developer cohort. Otherwise the card shows the price
+    # alone — no fabricated "developer average" or "savings".
+    if cohort_credible and developer_avg > 0:
+        savings_pct: Optional[float] = savings_egp / developer_avg * 100.0
+        developer_avg_out: Optional[float] = float(developer_avg)
+        savings_out: Optional[float] = float(savings_egp)
+    else:
+        savings_pct = None
+        developer_avg_out = None
+        savings_out = None
+
     return {
         "id": prop.id,
         "title": prop.title,
@@ -250,10 +361,10 @@ def _serialize_best_price_property(
         "compound": prop.compound,
         "developer": prop.developer,
         "price": float(resale_price),
-        "market_price": float(developer_avg),
+        "market_price": developer_avg_out,
         "resale_price": float(resale_price),
-        "developer_avg_price": float(developer_avg),
-        "savings_egp": float(savings_egp),
+        "developer_avg_price": developer_avg_out,
+        "savings_egp": savings_out,
         "savings_pct": float(savings_pct) if savings_pct is not None else None,
         "price_per_sqm": float(prop.price_per_sqm) if prop.price_per_sqm is not None else None,
         "size_sqm": prop.size_sqm,
@@ -261,11 +372,15 @@ def _serialize_best_price_property(
         "type": prop.type,
         "image_url": prop.image_url,
         "sale_type": prop.sale_type,
+        "benchmark_n": cohort_n,
+        "benchmark_scope": "same_compound_and_type" if cohort_credible else None,
         "comparison": {
             "resale_price": float(resale_price),
-            "developer_avg_price": float(developer_avg),
-            "savings_egp": float(savings_egp),
+            "developer_avg_price": developer_avg_out,
+            "savings_egp": savings_out,
             "savings_pct": float(savings_pct) if savings_pct is not None else None,
+            "benchmark_n": cohort_n,
+            "benchmark_scope": "same_compound_and_type" if cohort_credible else None,
         },
     }
 
@@ -278,24 +393,77 @@ def _build_best_price_text(
     title = property_card.get("title") or "Selected Property"
     criteria_text = _build_criteria_text(criteria, language)
     resale_text = _format_egp(property_card.get("resale_price"), language)
+    has_savings = (
+        property_card.get("developer_avg_price") is not None
+        and property_card.get("savings_egp") is not None
+        and float(property_card.get("savings_egp") or 0) > 0
+    )
     developer_text = _format_egp(property_card.get("developer_avg_price"), language)
     savings_text = _format_egp(property_card.get("savings_egp"), language)
 
     if language == "ar":
         prefix = f"أحسن سعر مطابق لطلبك ({criteria_text})" if criteria_text else "أحسن سعر مطابق لطلبك"
-        return (
-            f"{prefix}: {title}. "
-            f"سعر إعادة البيع: {resale_text}. "
-            f"متوسط سعر المطور لنفس النوع: {developer_text}. "
-            f"التوفير لصالحك: {savings_text}."
-        )
+        base = f"{prefix}: {title}. السعر: {resale_text}."
+        if has_savings:
+            return (
+                f"{base} "
+                f"متوسط سعر المطور لنفس الكمبوند والنوع: {developer_text}. "
+                f"التوفير لصالحك: {savings_text}."
+            )
+        return f"{base} مفيش وحدات مطور كافية في نفس الكمبوند والنوع لحساب التوفير بدقة."
 
-    prefix = f"Best matched lowest price ({criteria_text})" if criteria_text else "Best matched lowest price"
+    prefix = f"Best match for your request ({criteria_text})" if criteria_text else "Best match for your request"
+    base = f"{prefix}: {title}. Price: {resale_text}."
+    if has_savings:
+        return (
+            f"{base} "
+            f"Typical developer price for the same compound & type: {developer_text}. "
+            f"Your savings: {savings_text}."
+        )
+    return f"{base} Not enough developer listings in the same compound & type to estimate savings reliably."
+
+
+def _developer_cohort_cte():
+    """
+    Per-(compound, type) developer-price cohort: median price, median price/m²
+    and sample count. ONE GROUP BY aggregate joined once — replaces the old
+    per-row correlated subqueries (perf) and scopes the benchmark to the SAME
+    compound, killing the "national chalet average" fabricated-savings bug.
+    Nawy-Now is treated as developer (primary) pricing here.
+    """
+    dev_sale = func.lower(func.coalesce(Property.sale_type, ""))
+    dev_price_expr = func.coalesce(
+        Property.developer_price,
+        case(
+            (
+                or_(
+                    dev_sale.like("%developer%"),
+                    dev_sale.like("%nawy now%"),
+                    dev_sale.like("%nawy_now%"),
+                ),
+                Property.price,
+            ),
+            else_=None,
+        ),
+    )
+    dev_ppsqm = dev_price_expr / func.nullif(Property.size_sqm, 0)
+    ctype = func.lower(func.coalesce(Property.type, ""))
     return (
-        f"{prefix}: {title}. "
-        f"Resale price: {resale_text}. "
-        f"Average developer price for the same type: {developer_text}. "
-        f"Your savings: {savings_text}."
+        select(
+            Property.compound.label("c_compound"),
+            ctype.label("c_type"),
+            func.percentile_cont(0.5).within_group(dev_price_expr.asc()).label("median_dev_price"),
+            func.percentile_cont(0.5).within_group(dev_ppsqm.asc()).label("median_dev_ppsqm"),
+            func.count(dev_price_expr).label("cohort_n"),
+        )
+        .where(
+            Property.is_available.is_(True),
+            Property.compound.is_not(None),
+            dev_price_expr.is_not(None),
+            dev_price_expr > 0,
+        )
+        .group_by(Property.compound, ctype)
+        .cte("dev_cohort")
     )
 
 
@@ -306,94 +474,66 @@ async def _fetch_best_price_candidate(
     require_positive_savings: bool,
 ) -> Optional[dict[str, Any]]:
     sale_type_text = func.lower(func.coalesce(Property.sale_type, ""))
+    is_primary = or_(
+        sale_type_text.like("%developer%"),
+        sale_type_text.like("%nawy now%"),
+        sale_type_text.like("%nawy_now%"),
+    )
+    # Effective resale price: explicit resale_price, else price when the row is
+    # a resale OR has an unknown (non-primary) sale_type. Developer / Nawy-Now
+    # rows are NOT served as resale "deals" (Codex fix).
     resale_price_expr = func.coalesce(
         Property.resale_price,
         case((sale_type_text.like("%resale%"), Property.price), else_=None),
-        Property.price,
+        case((~is_primary, Property.price), else_=None),
     )
+    resale_eligible = or_(Property.resale_price.is_not(None), ~is_primary)
 
-    resale_eligible = or_(
-        Property.resale_price.is_not(None),
-        sale_type_text.like("%resale%"),
-        sale_type_text.like("%nawy now%"),
-        sale_type_text == "",
-    )
+    size_pos = func.nullif(Property.size_sqm, 0)
+    eff_ppsqm = resale_price_expr / size_pos  # NULL when size missing / zero
 
-    benchmark_model = aliased(Property)
-    benchmark_sale_type = func.lower(func.coalesce(benchmark_model.sale_type, ""))
-    developer_price_expr = func.coalesce(
-        benchmark_model.developer_price,
-        case((benchmark_sale_type.like("%developer%"), benchmark_model.price), else_=None),
-    )
-
-    developer_avg_same_compound_type_expr = (
-        select(func.avg(developer_price_expr))
-        .where(
-            benchmark_model.is_available.is_(True),
-            benchmark_model.compound.is_not(None),
-            benchmark_model.compound == Property.compound,
-            func.lower(func.coalesce(benchmark_model.type, ""))
-            == func.lower(func.coalesce(Property.type, "")),
-            developer_price_expr.is_not(None),
-        )
-        .correlate(Property)
-        .scalar_subquery()
-    )
-
-    developer_avg_same_compound_expr = (
-        select(func.avg(developer_price_expr))
-        .where(
-            benchmark_model.is_available.is_(True),
-            benchmark_model.compound.is_not(None),
-            benchmark_model.compound == Property.compound,
-            developer_price_expr.is_not(None),
-        )
-        .correlate(Property)
-        .scalar_subquery()
-    )
-
-    developer_avg_same_developer_type_expr = (
-        select(func.avg(developer_price_expr))
-        .where(
-            benchmark_model.is_available.is_(True),
-            benchmark_model.developer.is_not(None),
-            benchmark_model.developer == Property.developer,
-            func.lower(func.coalesce(benchmark_model.type, ""))
-            == func.lower(func.coalesce(Property.type, "")),
-            developer_price_expr.is_not(None),
-        )
-        .correlate(Property)
-        .scalar_subquery()
-    )
-
-    own_developer_price_expr = func.coalesce(
-        Property.developer_price,
-        case((sale_type_text.like("%developer%"), Property.price), else_=None),
-    )
-
-    developer_avg_expr = func.coalesce(
-        developer_avg_same_compound_type_expr,
-        developer_avg_same_compound_expr,
-        developer_avg_same_developer_type_expr,
-        own_developer_price_expr,
-    )
-
-    savings_expr = developer_avg_expr - resale_price_expr
+    cohort = _developer_cohort_cte()
+    cand_type = func.lower(func.coalesce(Property.type, ""))
+    median_dev_price = cohort.c.median_dev_price
+    median_dev_ppsqm = cohort.c.median_dev_ppsqm
+    cohort_n_expr = func.coalesce(cohort.c.cohort_n, 0)
+    savings_expr = median_dev_price - resale_price_expr
 
     stmt = (
         select(
             Property,
             resale_price_expr.label("resale_price_effective"),
-            developer_avg_expr.label("developer_avg_price"),
+            median_dev_price.label("developer_median_price"),
             savings_expr.label("savings_egp"),
+            cohort_n_expr.label("cohort_n"),
+        )
+        .select_from(Property)
+        .join(
+            cohort,
+            and_(Property.compound == cohort.c.c_compound, cand_type == cohort.c.c_type),
+            isouter=True,
         )
         .where(
             Property.is_available.is_(True),
             resale_eligible,
-            ~sale_type_text.like("%developer%"),
             resale_price_expr.is_not(None),
             resale_price_expr > 0,
-            developer_avg_expr.is_not(None),
+            # ── Read-time data-quality gate ──
+            # Size-normalize when we can; else require an absolute price floor.
+            or_(
+                and_(
+                    size_pos.is_not(None),
+                    eff_ppsqm >= _MIN_RESIDENTIAL_PPSQM,
+                    eff_ppsqm <= _MAX_RESIDENTIAL_PPSQM,
+                ),
+                and_(size_pos.is_(None), resale_price_expr >= _MIN_ABS_PRICE),
+            ),
+            # A candidate far below its own cohort median is bad data, not a deal.
+            or_(
+                median_dev_ppsqm.is_(None),
+                eff_ppsqm.is_(None),
+                eff_ppsqm >= median_dev_ppsqm * _COHORT_OUTLIER_FLOOR_RATIO,
+            ),
         )
     )
 
@@ -440,12 +580,27 @@ async def _fetch_best_price_candidate(
     if bedrooms and not criteria.get("studio"):
         stmt = stmt.where(Property.bedrooms.is_not(None), Property.bedrooms.in_(bedrooms))
 
-    if require_positive_savings:
-        stmt = stmt.where(savings_expr > 0)
+    # Residential search → drop commercial unit types (offices/retail/shops with
+    # a bedroom count or that slip through a bare "2 bedrooms" search).
+    residential_search = bool(bedrooms) or bool(criteria.get("studio")) or bool(normalized_type)
+    if residential_search:
+        for tok in _COMMERCIAL_TOKENS:
+            stmt = stmt.where(~cand_type.like(f"%{tok}%"))
 
+    if require_positive_savings:
+        # First pass: only CREDIBLE same-compound deals — large enough cohort and
+        # a plausible (non-artifact) discount.
+        stmt = stmt.where(
+            savings_expr > 0,
+            cohort_n_expr >= _MIN_COHORT_N,
+            savings_expr <= median_dev_price * (_MAX_PLAUSIBLE_SAVINGS_PCT / 100.0),
+        )
+
+    # Value rank: biggest credible savings first, then cheapest valid unit.
+    # Rows without a cohort (NULL savings) sort last.
     stmt = stmt.order_by(
+        nullslast(savings_expr.desc()),
         resale_price_expr.asc(),
-        savings_expr.desc(),
         Property.id.asc(),
     ).limit(1)
 
@@ -453,12 +608,25 @@ async def _fetch_best_price_candidate(
     if not row:
         return None
 
-    prop, resale_price, developer_avg, savings_egp = row
+    prop, resale_price, developer_median, savings_egp, cohort_n = row
+    resale_price = float(resale_price or 0)
+    developer_median = float(developer_median) if developer_median is not None else 0.0
+    cohort_n = int(cohort_n or 0)
+    savings_val = float(savings_egp) if savings_egp is not None else 0.0
+    savings_pct = (savings_val / developer_median * 100.0) if developer_median > 0 else 0.0
+    cohort_credible = (
+        cohort_n >= _MIN_COHORT_N
+        and developer_median > 0
+        and savings_val > 0
+        and savings_pct <= _MAX_PLAUSIBLE_SAVINGS_PCT
+    )
     return {
         "property": prop,
-        "resale_price": float(resale_price or 0),
-        "developer_avg": float(developer_avg or 0),
-        "savings_egp": float(savings_egp or 0),
+        "resale_price": resale_price,
+        "developer_avg": developer_median if cohort_credible else 0.0,
+        "savings_egp": savings_val if cohort_credible else 0.0,
+        "cohort_n": cohort_n,
+        "cohort_credible": cohort_credible,
     }
 
 
@@ -492,6 +660,7 @@ async def build_best_price_free_payload(
     db: AsyncSession,
     message: str,
     requested_language: str,
+    previous_user_messages: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     """
     Zero-token free-path dispatcher.
@@ -502,6 +671,11 @@ async def build_best_price_free_payload(
       * appreciation / growth-over-time  → price-trend handler (CAGR + total %)
       * 2-3 named developers/compounds   → cross-entity developer-price comparison
       * everything else                  → single best resale-vs-developer match
+
+    `previous_user_messages` (newest-first, current message NOT included) lets
+    the best-price handler carry area/compound/bedrooms across turns. Routing is
+    still classified from the CURRENT message only, so multi-turn context never
+    re-introduces the clarification loop.
 
     Both /api/v1/chat and /api/chat/stream call this function, so both inherit
     the routing. Lazy import of the router avoids any import-time cycle.
@@ -521,28 +695,31 @@ async def build_best_price_free_payload(
             return comparison
         # Fewer than two entities actually resolved — fall through to best price.
 
-    return await _build_best_price_match_payload(db, message, requested_language)
+    return await _build_best_price_match_payload(
+        db, message, requested_language, previous_user_messages
+    )
 
 
 async def _build_best_price_match_payload(
     db: AsyncSession,
     message: str,
     requested_language: str,
+    previous_user_messages: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     """
-    Build a strict free-tier payload that returns one best (lowest) resale offer
-    matching the user's criteria, plus developer-vs-resale comparison.
+    Build a free-tier payload that returns the best-value resale offer matching
+    the user's criteria (carried across turns), plus an honest same-compound
+    developer comparison when a credible cohort exists.
     """
     language = _resolve_chat_language(requested_language, message)
-    intent = local_intent_extractor.extract_intent(message or "")
 
-    criteria = {
-        "area": intent.get("area"),
-        "compound": intent.get("compound"),
-        "property_type": intent.get("property_type"),
-        "studio": _studio_requested(message or "", intent.get("property_type")),
-        "bedrooms": _extract_bedroom_options(message or "", intent.get("rooms")),
-    }
+    # Current-turn intent (kept for primitive_data debugging/analytics).
+    intent = local_intent_extractor.extract_intent(message or "")
+    criteria = _criteria_from_message(message or "")
+    criteria = _merge_prior_criteria(criteria, previous_user_messages)
+    # A stated bedroom count is sticky — never silently swap a 2BR request for a
+    # studio. (Bedrooms only ever enter `criteria` from an explicit mention.)
+    criteria["bedrooms_locked"] = bool(criteria.get("bedrooms"))
 
     candidate = await _fetch_best_price_candidate(
         db,
@@ -568,6 +745,8 @@ async def _build_best_price_match_payload(
                 pivot_candidate["resale_price"],
                 pivot_candidate["developer_avg"],
                 pivot_candidate["savings_egp"],
+                cohort_n=pivot_candidate.get("cohort_n", 0),
+                cohort_credible=pivot_candidate.get("cohort_credible", False),
             )
             response_text = _build_pivot_marketing_text(
                 language,
@@ -612,7 +791,7 @@ async def _build_best_price_match_payload(
                     "removed_filters": removed_filters,
                     "pivot_applied": True,
                     "result_count": 1,
-                    "comparison_basis": "resale_vs_developer_avg_same_compound_type",
+                    "comparison_basis": "resale_vs_developer_median_same_compound_type_credible_only",
                     "used_positive_savings": pivot_candidate["used_positive_savings"],
                 },
                 "response_type": "free_best_price_pivot",
@@ -668,14 +847,13 @@ async def _build_best_price_match_payload(
         candidate["resale_price"],
         candidate["developer_avg"],
         candidate["savings_egp"],
+        cohort_n=candidate.get("cohort_n", 0),
+        cohort_credible=candidate.get("cohort_credible", False),
     )
 
+    # _build_best_price_text already states honestly when there is no credible
+    # same-compound cohort, so no extra "not below developer average" note here.
     response_text = _build_best_price_text(language, property_card, criteria)
-    if not used_positive_savings:
-        if language == "ar":
-            response_text += " ملاحظة: السعر المعروض هو الأقل المتاح حاليًا حتى لو لم يكن أقل من متوسط سعر المطور."
-        else:
-            response_text += " Note: this is the lowest available match even when it is not below the developer average."
 
     return {
         "response": response_text,
