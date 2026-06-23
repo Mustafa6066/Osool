@@ -973,8 +973,15 @@ async def _query_free_tier_matches(
     return [_serialize_free_property(prop) for prop in picked]
 
 
-async def _build_free_tier_payload(db: AsyncSession, message: str, requested_language: str) -> dict[str, Any]:
-    payload = await build_best_price_free_payload(db, message, requested_language)
+async def _build_free_tier_payload(
+    db: AsyncSession,
+    message: str,
+    requested_language: str,
+    previous_user_messages: Optional[list[str]] = None,
+) -> dict[str, Any]:
+    payload = await build_best_price_free_payload(
+        db, message, requested_language, previous_user_messages=previous_user_messages
+    )
     payload["response"] = clean_response_text(payload.get("response", ""))
     return payload
 
@@ -1254,7 +1261,9 @@ async def chat_stream(
                 local_limit = 3 if kind == "anonymous" else 5
                 quota_remaining = max(local_limit - session_count_after, 0)
 
-                free_payload = await _build_free_tier_payload(db, req.message, req.language)
+                free_payload = await _build_free_tier_payload(
+                    db, req.message, req.language, previous_user_messages=previous_user_messages
+                )
                 response_text = free_payload["response"]
                 free_properties = free_payload["properties"]
 
