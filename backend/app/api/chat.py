@@ -240,7 +240,10 @@ async def process_chat(
             try:
                 payload = await asyncio.wait_for(
                     build_best_price_free_payload(
-                        db, chat_request.message, chat_request.language
+                        db,
+                        chat_request.message,
+                        chat_request.language,
+                        previous_user_messages=previous_user_messages,
                     ),
                     timeout=_FREE_PATH_TIMEOUT_S,
                 )

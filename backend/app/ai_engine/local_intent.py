@@ -72,6 +72,30 @@ class LocalIntentExtractor:
         "new capital": "new capital",
         "العاصمة الإدارية": "new capital",
         "العاصمة": "new capital",
+        # Mostakbal City — a DISTINCT city east of New Cairo, not part of it.
+        # Without these aliases "mostakbal city new cairo" collapsed to area=new
+        # cairo and the specific city was lost.
+        "mostakbal city": "mostakbal city",
+        "mostaqbal city": "mostakbal city",
+        "el mostakbal city": "mostakbal city",
+        "future city": "mostakbal city",
+        "مدينة المستقبل": "mostakbal city",
+        "المستقبل سيتي": "mostakbal city",
+        "مستقبل سيتي": "mostakbal city",
+        # Capital Gardens — distinct from New Capital (longest-first matching
+        # below prevents it colliding with "new capital").
+        "capital gardens": "capital gardens",
+        "كابيتال جاردنز": "capital gardens",
+        # October Gardens — distinct from 6th of October.
+        "october gardens": "october gardens",
+        "حدائق اكتوبر": "october gardens",
+        # Coastal / resort cities that appear in the inventory.
+        "ain sokhna": "ain sokhna",
+        "sokhna": "ain sokhna",
+        "العين السخنة": "ain sokhna",
+        "السخنة": "ain sokhna",
+        "el gouna": "el gouna",
+        "الجونة": "el gouna",
         "مدينتي": "madinaty",
         "madinaty": "madinaty",
         "الرحاب": "rehab",
@@ -263,6 +287,12 @@ class LocalIntentExtractor:
     AREA_MAPPING = _normalize_keys(_AREA_MAPPING_RAW)
     PROPERTY_TYPES = _normalize_list_values(_PROPERTY_TYPES_RAW)
     COMPOUND_MAPPING = _normalize_keys(_COMPOUND_MAPPING_RAW)
+    # Longest-alias-first so a specific multi-word location ("mostakbal city",
+    # "capital gardens") wins over a shorter substring of the same query
+    # ("new cairo", "new capital"). Insertion-order matching collapsed
+    # "mostakbal city new cairo" to "new cairo".
+    AREA_KEYS_BY_LEN = sorted(AREA_MAPPING.keys(), key=len, reverse=True)
+    COMPOUND_KEYS_BY_LEN = sorted(COMPOUND_MAPPING.keys(), key=len, reverse=True)
     COMPLEX_KEYWORDS = _normalize_keywords(_COMPLEX_KEYWORDS_RAW)
     ACTION_KEYWORDS = _normalize_keywords(_ACTION_KEYWORDS_RAW)
     # Normalized form of _ENTITY_KIND_RAW: key = normalized alias, value = (canonical, kind).
@@ -340,16 +370,16 @@ class LocalIntentExtractor:
             intent_data["intent"] = "ACTION"
             return intent_data
 
-        # 3. Extract Area
-        for key, value in self.AREA_MAPPING.items():
+        # 3. Extract Area (longest alias first — see AREA_KEYS_BY_LEN)
+        for key in self.AREA_KEYS_BY_LEN:
             if key in query_lower:
-                intent_data["area"] = value
+                intent_data["area"] = self.AREA_MAPPING[key]
                 break
 
-        # 4. Extract Compound / Developer Brand
-        for key, value in self.COMPOUND_MAPPING.items():
+        # 4. Extract Compound / Developer Brand (longest alias first)
+        for key in self.COMPOUND_KEYS_BY_LEN:
             if key in query_lower:
-                intent_data["compound"] = value
+                intent_data["compound"] = self.COMPOUND_MAPPING[key]
                 break
 
         # 5. Extract Property Type
