@@ -753,6 +753,23 @@ def _deterministic_normalize(unit: dict) -> NormalizedProperty:
 # Unit Discovery (unchanged from llm_normalizer — pure Python)
 # ─────────────────────────────────────────────────────────────────────────────
 
+_UNIT_PRICE_KEYS = {"price", "minprice", "max_price", "min_price", "startingfrom",
+                    "starting_price", "min_unit_area", "unitarea"}
+_UNIT_SIZE_KEYS = {"area", "size", "built_up_area", "bua", "size_sqm", "builtuparea",
+                   "min_unit_area", "unitarea"}
+
+
+def _is_property_like(obj: Any) -> bool:
+    """A Nawy unit dict: a price- or size-like key AND both `id` and `slug`."""
+    if not isinstance(obj, dict):
+        return False
+    keys_lower = {k.lower() for k in obj}
+    has_price = bool(keys_lower & _UNIT_PRICE_KEYS)
+    has_size = bool(keys_lower & _UNIT_SIZE_KEYS)
+    has_id = "id" in obj and "slug" in obj
+    return (has_price or has_size) and has_id
+
+
 def _find_units_in_json(data: Any, max_depth: int = 6) -> list[dict]:
     """
     Recursively searches for the array of unit/property dicts inside the
@@ -761,21 +778,6 @@ def _find_units_in_json(data: Any, max_depth: int = 6) -> list[dict]:
     Primary Nawy structure:
       data["props"]["pageProps"]["availablePropertyTypes"][*]["properties"]
     """
-    _PRICE_KEYS = {"price", "minPrice", "max_price", "min_price", "startingFrom",
-                   "starting_price", "min_unit_area", "unitArea"}
-    _SIZE_KEYS = {"area", "size", "built_up_area", "bua", "size_sqm", "builtUpArea",
-                  "min_unit_area", "unitArea"}
-
-    def _is_property_like(obj: Any) -> bool:
-        if not isinstance(obj, dict):
-            return False
-        keys_lower = {k.lower() for k in obj}
-        has_price = bool(keys_lower & {k.lower() for k in _PRICE_KEYS})
-        has_size = bool(keys_lower & {k.lower() for k in _SIZE_KEYS})
-        # Nawy units always have id + slug
-        has_id = "id" in obj and "slug" in obj
-        return (has_price or has_size) and has_id
-
     # Primary: availablePropertyTypes[*].properties (compound detail page)
     page_props = (data.get("props") or {}).get("pageProps") or {}
     apt = page_props.get("availablePropertyTypes")
@@ -791,7 +793,12 @@ def _find_units_in_json(data: Any, max_depth: int = 6) -> list[dict]:
         if depth <= 0:
             return None
         if isinstance(node, list):
-            if node and all(_is_property_like(item) for item in node[:3]):
+            # I18: detect a unit array by a MAJORITY of a larger sample, not by
+            # all-of-first-3 — a few non-unit items at the head must not hide a real
+            # unit array (which then collapses the whole compound into one row).
+            sample = node[:10]
+            prop_count = sum(_is_property_like(it) for it in sample)
+            if sample and prop_count >= max(1, len(sample) * 0.5):
                 return [item for item in node if isinstance(item, dict)]
             if len(node) <= 20:
                 for item in node:
@@ -838,8 +845,21 @@ async def normalize_properties(raw_compound_json: dict) -> NormalizationResult:
     units = _find_units_in_json(raw_compound_json)
 
     if not units:
-        logger.warning("[normalizer] No unit array found for %s — trying compound-level", source_url)
-        units = [_flatten_compound_as_unit(raw_compound_json, source_url)]
+        # I18: do NOT blindly flatten a whole compound into a single min-price
+        # "unit" — that loses every other unit and drags the area median down to the
+        # cheapest unit's price. Only treat it as one unit if the JSON itself is
+        # genuinely unit-level; otherwise skip and signal degraded extraction so the
+        # operator sees the schema drift (and the I20 envelope health gate alerts).
+        if _is_property_like(raw_compound_json):
+            units = [_flatten_compound_as_unit(raw_compound_json, source_url)]
+        else:
+            logger.warning(
+                "[normalizer] No unit array for %s and JSON is not unit-level — "
+                "skipping (degraded extraction; not collapsing compound to 1 row)",
+                source_url,
+            )
+            result.skipped_count += 1
+            return result
 
     # Inject compound-level context (set by scraper before calling this)
     page_props = (raw_compound_json.get("props") or {}).get("pageProps") or {}

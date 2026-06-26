@@ -155,6 +155,13 @@ async def upsert_properties(
     # below the read-time serving floor (8,000) to avoid over-rejecting at the
     # source while the read gate still protects what gets served.
     _MIN_INGEST_PPSQM = 6_000.0
+    # I17: absolute EGP price bounds applied to ALL ingestion paths. The flat-unit
+    # path enforced these via RawScrapedProperty.price_sanity_check, but the Nawy
+    # ENVELOPE path bypassed that validator, so a 50K no-size unit slipped through
+    # every gate (the per-m² floor below is skipped when size==0). Keep in sync with
+    # scraper_schemas.RawScrapedProperty.price_sanity_check.
+    _ABS_PRICE_FLOOR = 50_000.0
+    _ABS_PRICE_CEILING = 500_000_000.0
     _RESIDENTIAL_TYPE_TOKENS = (
         "apartment", "villa", "chalet", "studio", "duplex", "penthouse",
         "townhouse", "twin", "loft", "cabin",
@@ -165,6 +172,10 @@ async def upsert_properties(
         reasons = []
         if not prop.price or prop.price <= 0:
             reasons.append("non-positive price")
+        elif prop.price < _ABS_PRICE_FLOOR:
+            reasons.append(f"price {prop.price:,.0f} below {_ABS_PRICE_FLOOR:,.0f} EGP floor")
+        elif prop.price > _ABS_PRICE_CEILING:
+            reasons.append(f"price {prop.price:,.0f} above {_ABS_PRICE_CEILING:,.0f} EGP ceiling")
         if not (prop.location or "").strip():
             reasons.append("missing location")
         # Down-payment-as-price guard (residential only — commercial/land EGP/m²
