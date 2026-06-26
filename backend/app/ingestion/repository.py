@@ -332,10 +332,11 @@ async def upsert_properties(
                             "scrape_run_id": run_id,
                         })
 
-                # Flush batch every N rows to bound memory
+                # Flush batch every N rows to bound memory. Each flush runs in a
+                # SAVEPOINT so one bad row/batch rolls back just that batch rather
+                # than poisoning the transaction and discarding the entire run.
                 if len(batch_buffer) >= _BATCH_COMMIT_SIZE:
-                    await _flush_batch(db, batch_buffer)
-                    await _flush_snapshots(db, batch_buffer, now, source)
+                    result.errors += await _flush_batch_safe(db, batch_buffer, now, source)
                     batch_buffer = []
 
             except Exception as exc:
@@ -343,10 +344,9 @@ async def upsert_properties(
                 result.errors += 1
                 result.error_details.append(f"{prop.nawy_url}: {exc}")
 
-        # Flush remaining rows
+        # Flush remaining rows (also in a SAVEPOINT — see _flush_batch_safe)
         if batch_buffer:
-            await _flush_batch(db, batch_buffer)
-            await _flush_snapshots(db, batch_buffer, now, source)
+            result.errors += await _flush_batch_safe(db, batch_buffer, now, source)
 
         if price_events:
             try:
@@ -442,6 +442,30 @@ def _build_row(
         "scraped_at": now,
         "is_available": True,
     }
+
+
+async def _flush_batch_safe(db, rows: list[dict], now: datetime, source: str) -> int:
+    """
+    Flush one batch inside a SAVEPOINT (db.begin_nested) so a single bad row or
+    batch cannot abort the surrounding transaction and discard the entire run.
+    On failure the savepoint is rolled back, the offending batch is logged, and
+    the run continues. Returns the count of rows that failed (0 on success).
+    [Phase 0 / I7]
+    """
+    if not rows:
+        return 0
+    try:
+        async with db.begin_nested():
+            await _flush_batch(db, rows)
+            await _flush_snapshots(db, rows, now, source)
+        return 0
+    except Exception as exc:
+        logger.error(
+            "[repo] Batch flush failed (%d rows) — rolled back to savepoint, "
+            "continuing run: %s",
+            len(rows), exc,
+        )
+        return len(rows)
 
 
 async def _flush_batch(db, rows: list[dict]) -> None:
