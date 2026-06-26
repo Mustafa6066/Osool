@@ -76,8 +76,24 @@ async def _handle_job(client, raw_payload: str) -> None:
         await _log_status(client, source, mode, "error", "unknown source", started)
         return
 
-    spider = spider_cls()
+    # S7: take the SAME per-site source lock the cron uses, so an on-demand
+    # refresh can't crawl concurrently with the scheduled crawl (double request
+    # rate → ban). Skip if the lock is held (or Redis is down + fail-closed).
+    from source_lock import acquire_source_lock, release_source_lock
+
+    lock_token = await acquire_source_lock(source)
+    if not lock_token:
+        # Either another run holds the lock, or Redis is down + fail-closed (S6);
+        # source_lock logs the specific reason.
+        logger.warning("[worker] %s source busy or lock unavailable — skipping job", source)
+        await _log_status(client, source, mode, "skipped", "source lock unavailable", started)
+        return
+
+    # Bind spider before the try so a constructor failure still reaches the finally
+    # and RELEASES the lock — otherwise the per-source lock leaks until TTL (~1h).
+    spider = None
     try:
+        spider = spider_cls()
         if mode == "compound" and target_compound:
             res = await spider.crawl_compound(target_compound)
         elif target_area:
@@ -96,7 +112,11 @@ async def _handle_job(client, raw_payload: str) -> None:
         # full-catalog run has published yet, flush mints its own and no sweep runs.
         from app.services.cache import cache
         safe_run_id = cache.get(f"scraper:run_id:current:{source}")
-        flush_res = await flush(res.raw_properties, site=source, run_id=safe_run_id)
+        # S7: narrow per-area/compound scrapes legitimately diverge from the
+        # broad-market anomaly baseline (same reason the cron passes this).
+        flush_res = await flush(
+            res.raw_properties, site=source, run_id=safe_run_id, skip_anomaly_check=True
+        )
         summary = (
             f"ins={flush_res.upserted.inserted} upd={flush_res.upserted.updated} "
             f"skip={flush_res.upserted.skipped} err={flush_res.upserted.errors}"
@@ -107,8 +127,9 @@ async def _handle_job(client, raw_payload: str) -> None:
         logger.exception("job failed: %s", exc)
         await _log_status(client, source, mode, "error", str(exc)[:300], started)
     finally:
-        if hasattr(spider, "aclose"):
+        if spider is not None and hasattr(spider, "aclose"):
             await spider.aclose()
+        await release_source_lock(source, lock_token)
 
 
 async def _log_status(client, source, mode, status, message, started, extra=None) -> None:

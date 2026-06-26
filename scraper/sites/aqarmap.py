@@ -20,6 +20,7 @@ import httpx
 
 from extractors.aqarmap_selectors import extract_detail_page, extract_listing_links
 from proxy_pool import build_proxy_pool, mask_proxy
+from resilience import get_host_breaker, should_block
 from settings import (
     MAX_PAGES_PER_AREA,
     REQUEST_DELAY_SECONDS,
@@ -166,9 +167,20 @@ class AqarmapSpider(SiteSpider):
         back off with jitter; when the whole pool is exhausted we alert + back off
         instead of hammering a banned egress.
         """
+        # S20: per-host circuit breaker. If the host has failed repeatedly the
+        # circuit is OPEN — short-circuit instead of grinding every URL through
+        # the full attempt loop against a banned/down host.
+        breaker = get_host_breaker(url)
+        if should_block(breaker):
+            logger.error(
+                "[aqarmap] circuit OPEN for %s — short-circuiting (host blocked/down)",
+                url,
+            )
+            return None
         configured = self._pool.size
         max_attempts = max(3, min(configured or 1, 5))
         backoff = 2.0
+        host_contacted = False  # did any attempt actually reach the host?
         for attempt in range(1, max_attempts + 1):
             proxy = self._pool.get()
             if configured and proxy is None:
@@ -181,9 +193,11 @@ class AqarmapSpider(SiteSpider):
                 backoff = min(backoff * 2, 30.0)
                 continue
 
+            host_contacted = True
             body, retry_after, blocked = await self._attempt_fetch(url, proxy)
             if body and not blocked:
                 self._pool.report_success(proxy)
+                breaker.on_success()
                 return body
 
             self._pool.report_block(proxy, retry_after)
@@ -196,6 +210,11 @@ class AqarmapSpider(SiteSpider):
             backoff = min(backoff * 2, 30.0)
 
         logger.error("[aqarmap] giving up on %s after %d attempts", url, max_attempts)
+        if host_contacted:
+            # Only penalize the HOST breaker if we actually reached the host. A
+            # give-up caused purely by proxy-pool exhaustion is a proxy problem,
+            # not a host block — don't spuriously open the host circuit.
+            breaker.on_failure()
         return None
 
     async def _attempt_fetch(

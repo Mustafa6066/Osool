@@ -17,6 +17,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from extractors.nawy_selectors import extract_compound_page
+from resilience import get_host_breaker, should_block
 from settings import MAX_PAGES_PER_AREA, REQUEST_DELAY_SECONDS, SCRAPER_DISABLE_BROWSER
 from sites.base import SiteSpider, SpiderResult
 
@@ -283,8 +284,17 @@ class NawySpider(SiteSpider):
         Returns None ONLY after retries are exhausted — the caller (S4) treats
         that as a partial-run signal (pages_failed), never a clean end-of-pages.
         Without this, a single transient 429/reset truncated the whole walk and
-        the truncated run could then be published as authoritative. [Phase 0 / S4]
+        the truncated run could then be published as authoritative. A per-host
+        circuit breaker (S20) short-circuits once the listing-api has failed
+        repeatedly. The walk already breaks on the first failure, so the breaker's
+        main value is CROSS-run/cross-job (it persists in the long-running worker
+        process and stops repeatedly hammering a banned host). [Phase 0 / S4, Phase 1 / S20]
         """
+        breaker = get_host_breaker(url)
+        if should_block(breaker):
+            logger.error("[nawy] listing-api circuit OPEN — short-circuiting %s", url)
+            return None
+
         backoff = 2.0
         for attempt in range(1, max_attempts + 1):
             try:
@@ -304,15 +314,18 @@ class NawySpider(SiteSpider):
                         await asyncio.sleep(wait)
                         backoff = min(backoff * 2, 30.0)
                         continue
+                    breaker.on_failure()
                     return None
                 if 400 <= resp.status_code < 500:
-                    # Permanent client error — retrying wastes the backoff budget.
+                    # Permanent client error — not a host-health signal; do not
+                    # trip the breaker, and don't waste the backoff budget.
                     logger.error(
                         "[nawy] listing-api %d for %s — not retrying",
                         resp.status_code, url,
                     )
                     return None
                 resp.raise_for_status()  # raises on 5xx → retried below
+                breaker.on_success()
                 return resp.json()
             except Exception as exc:
                 logger.warning(
@@ -327,7 +340,10 @@ class NawySpider(SiteSpider):
                     "[nawy] listing-api fetch failed after %d attempts: %s",
                     max_attempts, url,
                 )
+                breaker.on_failure()
                 return None
+        # Unreachable in practice (each attempt returns or continues) — defensive
+        # fallthrough that must NOT double-count a failure.
         return None
 
     async def _fetch(self, url: str) -> Optional[str]:

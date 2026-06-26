@@ -37,6 +37,12 @@ DEFAULT_AREAS: list[str] = [
 # expired-then-reacquired lock can never be stolen by the original holder. [S5]
 SOURCE_LOCK_TTL_SECONDS: int = int(os.getenv("SCRAPER_LOCK_TTL", "3600"))
 
+# Source-lock behavior when Redis is unreachable (Phase 1 / S6). Default
+# FAIL-CLOSED: skip the run rather than crawl unsynchronized — concurrent
+# crawlers from a Redis blip are an IP-ban risk, and a skipped refresh is cheap.
+# Set SCRAPER_LOCK_FAIL_OPEN=true to restore the old proceed-anyway behavior.
+SCRAPER_LOCK_FAIL_OPEN: bool = os.getenv("SCRAPER_LOCK_FAIL_OPEN", "false").strip().lower() in ("1", "true", "yes", "on")
+
 # Persistent dir for Scrapling's auto-learned selector state.
 SELECTORS_DIR: Path = Path(os.getenv("SCRAPER_SELECTORS_DIR", "/app/.selectors"))
 SELECTORS_DIR.mkdir(parents=True, exist_ok=True)

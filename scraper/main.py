@@ -16,10 +16,12 @@ import logging
 import sys
 
 from adapters.ingestion import dry_run_print, flush
-from settings import DEFAULT_AREAS, REQUEST_DELAY_SECONDS, SOURCE_LOCK_TTL_SECONDS
+from settings import DEFAULT_AREAS, REQUEST_DELAY_SECONDS
 from sites.aqarmap import AqarmapSpider
 from sites.base import SiteSpider
 from sites.nawy import NawySpider
+from source_lock import acquire_source_lock as _acquire_source_lock
+from source_lock import release_source_lock as _release_source_lock
 
 logger = logging.getLogger("osool.scraper")
 
@@ -38,58 +40,10 @@ def _configure_logging() -> None:
     )
 
 
-# Lua: delete the lock only if we still own it (stored value == our token).
-# Prevents a run whose lock already expired (TTL too short, mid-crawl) from
-# deleting a DIFFERENT run's freshly-acquired lock — the lock-stealing cascade
-# that lets 3 crawlers run concurrently and trip a ban. [Phase 1 / S5]
-_RELEASE_LOCK_LUA = (
-    "if redis.call('get', KEYS[1]) == ARGV[1] then "
-    "return redis.call('del', KEYS[1]) else return 0 end"
-)
-
-
-async def _acquire_source_lock(site: str) -> str | None:
-    """
-    Acquire the per-site source lock with a UNIQUE owner token. Returns the token
-    on success (pass it back to _release_source_lock), or None if another run
-    already holds it. The token makes release a compare-and-delete, so an
-    expired-then-reacquired lock can never be stolen by the original holder. [S5]
-    """
-    import uuid
-
-    token = uuid.uuid4().hex
-    try:
-        import redis.asyncio as aioredis
-
-        from settings import REDIS_URL
-
-        client = aioredis.from_url(REDIS_URL, decode_responses=True)
-        key = f"scraper:lock:{site}"
-        async with client:
-            got = await client.set(key, token, nx=True, ex=SOURCE_LOCK_TTL_SECONDS)
-        return token if got else None
-    except Exception as exc:
-        # Redis unavailable: proceed unlocked (fail-open, preserved behavior) but
-        # flag it loudly. Fail-closed is the stricter S6 follow-up.
-        logger.warning("source lock check failed for %s (proceeding unlocked): %s", site, exc)
-        return token
-
-
-async def _release_source_lock(site: str, token: str | None) -> None:
-    """Compare-and-delete: only release the lock if this run still owns it. [S5]"""
-    if not token:
-        return
-    try:
-        import redis.asyncio as aioredis
-
-        from settings import REDIS_URL
-
-        client = aioredis.from_url(REDIS_URL, decode_responses=True)
-        key = f"scraper:lock:{site}"
-        async with client:
-            await client.eval(_RELEASE_LOCK_LUA, 1, key, token)
-    except Exception:
-        pass
+# Source-lock helpers (_acquire_source_lock / _release_source_lock) now live in
+# source_lock.py so the cron entrypoint AND the on-demand worker share one lock:
+# S5 owner-token + compare-and-delete release, S6 fail-closed on Redis error.
+# [Phase 1 / S5-S7]
 
 
 async def _register_scrape_run_id(run_id: str, source: str = "nawy") -> None:
@@ -150,12 +104,15 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
 
     lock_token = await _acquire_source_lock("nawy")
     if not lock_token:
-        logger.warning("[nawy] another run holds the source lock — skipping")
+        logger.warning("[nawy] source busy or lock unavailable — skipping")
         return 0
 
-    spider = spider_cls()
+    # Bind spider before the try so a constructor failure still reaches the
+    # finally and RELEASES the lock (else the lock leaks until TTL ~1h).
+    spider = None
     rc = 0
     try:
+        spider = spider_cls()
         crawl_fn = getattr(spider, crawl_method)
         res = await crawl_fn(max_pages=max_pages, dry_run=dry_run)
         logger.info(
@@ -226,7 +183,7 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
         logger.exception("[nawy] %s crawl failed: %s", label, exc)
         rc = 1
     finally:
-        if hasattr(spider, "aclose"):
+        if spider is not None and hasattr(spider, "aclose"):
             await spider.aclose()
         await _release_source_lock("nawy", lock_token)
     return rc
@@ -248,11 +205,14 @@ async def run_cron(
 
         lock_token = await _acquire_source_lock(site)
         if not lock_token:
-            logger.warning("[%s] another run holds the source lock — skipping", site)
+            logger.warning("[%s] source busy or lock unavailable — skipping", site)
             continue
 
-        spider = spider_cls()
+        # Bind spider before the try so a constructor failure still reaches the
+        # finally and RELEASES the lock (else the lock leaks until TTL ~1h).
+        spider = None
         try:
+            spider = spider_cls()
             for area in areas:
                 if compound_slug:
                     res = await spider.crawl_compound(compound_slug, dry_run=dry_run)
@@ -310,7 +270,7 @@ async def run_cron(
             logger.exception("[%s] crawl failed: %s", site, exc)
             rc = 1
         finally:
-            if hasattr(spider, "aclose"):
+            if spider is not None and hasattr(spider, "aclose"):
                 await spider.aclose()
             await _release_source_lock(site, lock_token)
 
