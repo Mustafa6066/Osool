@@ -171,10 +171,19 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
             "[nawy] %s upsert: ins=%d upd=%d skip=%d err=%d",
             label, upsert.inserted, upsert.updated, upsert.skipped, upsert.errors,
         )
-        # Register the run so mark_stale_properties() can use it as the
-        # "safe" run when flagging sold/withdrawn listings.
+        # Stale-window publishing (Phase 0 / I29): ONLY a full-catalog crawl
+        # (nawy-all) may publish the stale-safe run_id. Narrow slices such as
+        # nawy-now cover a fraction of inventory, so registering them would let
+        # mark_stale_properties() delist everything they did not touch.
+        # Coverage/health gating of the full-catalog run is added in I4.
         if upsert.total > 0:
-            await _register_scrape_run_id(run_id)
+            if label == "nawy-all":
+                await _register_scrape_run_id(run_id)
+            else:
+                logger.info(
+                    "[nawy] %s is a narrow slice — not publishing stale-safe run_id",
+                    label,
+                )
     except Exception as exc:
         logger.exception("[nawy] %s crawl failed: %s", label, exc)
         rc = 1
@@ -242,10 +251,13 @@ async def run_cron(
                         flush_res.upserted.errors,
                         flush_res.alert_sent,
                     )
-                    # Register the run so mark_stale_properties() can mark
-                    # withdrawn listings unavailable.
-                    if flush_res.upserted.total > 0:
-                        await _register_scrape_run_id(flush_res.run_id)
+                    # Phase 0 / I29: per-area / per-site / per-compound cron
+                    # scrapes do NOT publish the stale-safe run_id. Each covers
+                    # only a slice of inventory, so letting them into the 2-slot
+                    # window would let mark_stale_properties() delist every row
+                    # they did not touch. Only the full-catalog nawy-all crawl
+                    # publishes (see _run_listing_api_mode). Rows are still
+                    # stamped with this run_id + source via the upsert itself.
 
                 await asyncio.sleep(REQUEST_DELAY_SECONDS)
 

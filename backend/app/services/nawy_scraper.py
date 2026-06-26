@@ -309,9 +309,18 @@ async def mark_stale_properties():
     {current, previous} gets marked is_available=False.
 
     The 2-run window prevents one failed scrape from mass-delisting properties.
+
+    WRITE GATE (Phase 0 / catalog-wipe guard): unless
+    config.SCRAPER_STALE_CLEANUP_ENABLED is true, this runs in DRY-RUN mode — it
+    logs how many rows it WOULD delist but does not write. This prevents a
+    misconfigured run_id window (partial crawl, per-area registration, empty ARQ
+    run, serialization mismatch) from silently wiping the served catalog. Flip
+    SCRAPER_STALE_CLEANUP_ENABLED=true only after reviewing dry-run counts AND
+    landing the rest of the Phase-0 entrypoint gates.
     """
     from app.database import AsyncSessionLocal
-    from sqlalchemy import text
+    from sqlalchemy import text, bindparam
+    from app.config import config
 
     current_run = cache.get("scraper:run_id:current")
     previous_run = cache.get("scraper:run_id:previous")
@@ -324,23 +333,52 @@ async def mark_stale_properties():
     if previous_run:
         safe_runs.append(previous_run)
 
-    logger.info(f"[STALE] Marking properties stale. Keeping runs: {safe_runs}")
+    enabled = config.SCRAPER_STALE_CLEANUP_ENABLED
+    logger.info(
+        "[STALE] %s mode. Keeping runs: %s",
+        "WRITE" if enabled else "DRY-RUN",
+        safe_runs,
+    )
+
+    # A tuple bound to `NOT IN :safe_runs` renders as a single ROW(...) under
+    # asyncpg and errors / mis-targets; use an expanding bindparam + list so the
+    # dry-run count is trustworthy and the gated write targets the right rows.
+    where_clause = (
+        "is_available = true "
+        "AND last_scrape_run_id IS NOT NULL "
+        "AND last_scrape_run_id NOT IN :safe_runs"
+    )
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            text("""
-                UPDATE properties
-                SET is_available = false
-                WHERE is_available = true
-                  AND last_scrape_run_id IS NOT NULL
-                  AND last_scrape_run_id NOT IN :safe_runs
-            """),
-            {"safe_runs": tuple(safe_runs)},
-        )
+        count_stmt = text(
+            f"SELECT count(*) FROM properties WHERE {where_clause}"
+        ).bindparams(bindparam("safe_runs", expanding=True))
+        would_mark = (
+            await db.execute(count_stmt, {"safe_runs": safe_runs})
+        ).scalar() or 0
+
+        if not enabled:
+            logger.warning(
+                "[STALE] DRY-RUN: would mark %d properties unavailable. "
+                "Set SCRAPER_STALE_CLEANUP_ENABLED=true to enable writes once the "
+                "Phase-0 run_id gates are in place. Keeping runs: %s",
+                would_mark,
+                safe_runs,
+            )
+            return {"stale_marked": 0, "would_mark": would_mark, "dry_run": True}
+
+        update_stmt = text(
+            f"UPDATE properties SET is_available = false WHERE {where_clause}"
+        ).bindparams(bindparam("safe_runs", expanding=True))
+        result = await db.execute(update_stmt, {"safe_runs": safe_runs})
         await db.commit()
         count = result.rowcount
-        logger.info(f"[STALE] Marked {count} properties as unavailable")
-        return {"stale_marked": count}
+        logger.info(
+            "[STALE] Marked %d properties as unavailable (would_mark=%d)",
+            count,
+            would_mark,
+        )
+        return {"stale_marked": count, "would_mark": would_mark, "dry_run": False}
 
 
 def register_scrape_run_id(run_id: str):

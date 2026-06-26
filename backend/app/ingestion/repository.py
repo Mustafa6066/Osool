@@ -270,13 +270,18 @@ async def upsert_properties(
 
                 # ── Cheap path: hash unchanged ──────────────────────────────
                 if old_hash is not None and old_hash == new_hash:
+                    # Re-list on the cheap path too: a property that was delisted
+                    # during an outage and returns unchanged would otherwise keep
+                    # is_available=false forever (it escapes stale-marking by being
+                    # touched, but is never flipped back to available). [Phase 0 / I9]
                     await db.execute(
                         text(
                             "UPDATE properties "
-                            "SET last_scrape_run_id = :run_id, scraped_at = :now "
+                            "SET last_scrape_run_id = :run_id, scraped_at = :now, "
+                            "is_available = true, source = :source "
                             "WHERE nawy_url = :url"
                         ),
-                        {"run_id": run_id, "now": now, "url": prop.nawy_url},
+                        {"run_id": run_id, "now": now, "url": prop.nawy_url, "source": source},
                     )
                     result.skipped += 1
                     logger.debug("[repo] SKIP (hash unchanged) %s", prop.nawy_url)
@@ -285,7 +290,7 @@ async def upsert_properties(
                 # ── Expensive path: new or changed ─────────────────────────
                 embedding = None  # zero-token: embeddings skipped at scrape time
 
-                row = _build_row(prop, run_id, now, new_hash, embedding)
+                row = _build_row(prop, run_id, now, new_hash, embedding, source)
                 batch_buffer.append(row)
 
                 if old_hash is None:
@@ -397,6 +402,7 @@ def _build_row(
     now: datetime,
     content_hash: str,
     embedding: Optional[List[float]],
+    source: str = "nawy",
 ) -> dict:
     """Maps NormalizedProperty fields to Property table column names."""
     developer_price, resale_price = _split_developer_resale(prop.sale_type, prop.price)
@@ -432,6 +438,7 @@ def _build_row(
         "embedding": embedding,
         "content_hash": content_hash,
         "last_scrape_run_id": run_id,
+        "source": source,
         "scraped_at": now,
         "is_available": True,
     }
