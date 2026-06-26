@@ -313,15 +313,19 @@ async def run_nawy_scrape() -> dict:
 # STALE PROPERTY CLEANUP
 # ═══════════════════════════════════════════════════════════════
 
-async def mark_stale_properties():
+async def mark_stale_properties(source: str = "nawy"):
     """
-    Mark properties as unavailable if they weren't seen in the last two scrape runs.
+    Mark a SOURCE's properties unavailable if they weren't seen in its last two
+    scrape runs.
 
-    Reads the current/previous scrape_run_id from Redis (set by nawy_scraper_v2.py
-    after each successful run). Any property whose last_scrape_run_id is not in
-    {current, previous} gets marked is_available=False.
+    Reads the current/previous scrape_run_id for `source` from Redis (published
+    only by a healthy full-catalog run — see register_scrape_run_id). Any
+    property of that source whose last_scrape_run_id is not in {current, previous}
+    gets marked is_available=False.
 
     The 2-run window prevents one failed scrape from mass-delisting properties.
+    Source-scoping (I6) prevents a narrow or other-source run from delisting a
+    different source's catalog.
 
     WRITE GATE (Phase 0 / catalog-wipe guard): unless
     config.SCRAPER_STALE_CLEANUP_ENABLED is true, this runs in DRY-RUN mode — it
@@ -335,11 +339,13 @@ async def mark_stale_properties():
     from sqlalchemy import text, bindparam
     from app.config import config
 
-    current_run = cache.get("scraper:run_id:current")
-    previous_run = cache.get("scraper:run_id:previous")
+    current_run = cache.get(f"scraper:run_id:current:{source}")
+    previous_run = cache.get(f"scraper:run_id:previous:{source}")
 
     if not current_run:
-        logger.warning("[STALE] No current scrape_run_id found in Redis — skipping cleanup")
+        logger.warning(
+            "[STALE] No current scrape_run_id for source=%s — skipping cleanup", source
+        )
         return {"stale_marked": 0}
 
     safe_runs = [current_run]
@@ -348,34 +354,40 @@ async def mark_stale_properties():
 
     enabled = config.SCRAPER_STALE_CLEANUP_ENABLED
     logger.info(
-        "[STALE] %s mode. Keeping runs: %s",
+        "[STALE] %s mode (source=%s). Keeping runs: %s",
         "WRITE" if enabled else "DRY-RUN",
+        source,
         safe_runs,
     )
 
+    # Source-scoped (I6): only delist rows of the SAME source that published this
+    # run_id, so a narrow Nawy slice or an Aqarmap run can never delist another
+    # source's catalog. Legacy rows with a NULL source are implicitly exempt
+    # (NULL <> :source), which is the safe default. [I6 / I33]
     # A tuple bound to `NOT IN :safe_runs` renders as a single ROW(...) under
     # asyncpg and errors / mis-targets; use an expanding bindparam + list so the
     # dry-run count is trustworthy and the gated write targets the right rows.
     where_clause = (
         "is_available = true "
+        "AND source = :source "
         "AND last_scrape_run_id IS NOT NULL "
         "AND last_scrape_run_id NOT IN :safe_runs"
     )
+    params = {"safe_runs": safe_runs, "source": source}
 
     async with AsyncSessionLocal() as db:
         count_stmt = text(
             f"SELECT count(*) FROM properties WHERE {where_clause}"
         ).bindparams(bindparam("safe_runs", expanding=True))
-        would_mark = (
-            await db.execute(count_stmt, {"safe_runs": safe_runs})
-        ).scalar() or 0
+        would_mark = (await db.execute(count_stmt, params)).scalar() or 0
 
         if not enabled:
             logger.warning(
-                "[STALE] DRY-RUN: would mark %d properties unavailable. "
+                "[STALE] DRY-RUN: would mark %d %s properties unavailable. "
                 "Set SCRAPER_STALE_CLEANUP_ENABLED=true to enable writes once the "
                 "Phase-0 run_id gates are in place. Keeping runs: %s",
                 would_mark,
+                source,
                 safe_runs,
             )
             return {"stale_marked": 0, "would_mark": would_mark, "dry_run": True}
@@ -383,27 +395,38 @@ async def mark_stale_properties():
         update_stmt = text(
             f"UPDATE properties SET is_available = false WHERE {where_clause}"
         ).bindparams(bindparam("safe_runs", expanding=True))
-        result = await db.execute(update_stmt, {"safe_runs": safe_runs})
+        result = await db.execute(update_stmt, params)
         await db.commit()
         count = result.rowcount
         logger.info(
-            "[STALE] Marked %d properties as unavailable (would_mark=%d)",
+            "[STALE] Marked %d %s properties as unavailable (would_mark=%d)",
             count,
+            source,
             would_mark,
         )
         return {"stale_marked": count, "would_mark": would_mark, "dry_run": False}
 
 
-def register_scrape_run_id(run_id: str):
+def register_scrape_run_id(run_id: str, source: str = "nawy"):
     """
-    Push a new scrape_run_id into the 2-slot Redis window.
-    Called by nawy_scraper_v2.py (via direct Redis write) and
-    by the ARQ worker's master_discovery_job.
+    Push a new scrape_run_id into the PER-SOURCE 2-slot Redis window. [I6]
+
+    mark_stale_properties(source) reads scraper:run_id:{current,previous}:<source>
+    and only delists rows of that same source, so a narrow or other-source run
+    can never wipe another source's catalog.
+
+    Both the Railway scraper container (scraper/main.py) and the backend register
+    through THIS one function, so the Redis serialization (the cache {"_v": ...}
+    envelope) is identical on both sides. Previously the container wrote a raw
+    string that the enveloped reader (cache.get → json.loads) could not parse,
+    silently disabling stale cleanup on the canonical path. [I1]
     """
-    previous = cache.get("scraper:run_id:current")
-    if previous:
-        cache.set("scraper:run_id:previous", previous, ttl=604800)  # 7 days
-    cache.set("scraper:run_id:current", run_id, ttl=604800)
+    cur_key = f"scraper:run_id:current:{source}"
+    prev_key = f"scraper:run_id:previous:{source}"
+    previous = cache.get(cur_key)
+    if previous and previous != run_id:
+        cache.set(prev_key, previous, ttl=604800)  # 7 days
+    cache.set(cur_key, run_id, ttl=604800)
 
 
 # ═══════════════════════════════════════════════════════════════
