@@ -171,19 +171,27 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
             "[nawy] %s upsert: ins=%d upd=%d skip=%d err=%d",
             label, upsert.inserted, upsert.updated, upsert.skipped, upsert.errors,
         )
-        # Stale-window publishing (Phase 0 / I29): ONLY a full-catalog crawl
-        # (nawy-all) may publish the stale-safe run_id. Narrow slices such as
-        # nawy-now cover a fraction of inventory, so registering them would let
-        # mark_stale_properties() delist everything they did not touch.
-        # Coverage/health gating of the full-catalog run is added in I4.
+        # Stale-window publishing (Phase 0 / I29 + I4): ONLY a full-catalog
+        # crawl (nawy-all) that completed CLEANLY may publish the stale-safe
+        # run_id. Narrow slices such as nawy-now cover a fraction of inventory,
+        # and a truncated crawl (res.pages_failed > 0) saw only part of the
+        # catalog — registering either would let mark_stale_properties() delist
+        # everything it did not touch.
         if upsert.total > 0:
-            if label == "nawy-all":
-                await _register_scrape_run_id(run_id)
-            else:
+            if label != "nawy-all":
                 logger.info(
                     "[nawy] %s is a narrow slice — not publishing stale-safe run_id",
                     label,
                 )
+            elif res.pages_failed > 0:
+                logger.warning(
+                    "[nawy] nawy-all had %d failed page(s) — NOT publishing "
+                    "stale-safe run_id (partial crawl would risk delisting "
+                    "untouched inventory)",
+                    res.pages_failed,
+                )
+            else:
+                await _register_scrape_run_id(run_id)
     except Exception as exc:
         logger.exception("[nawy] %s crawl failed: %s", label, exc)
         rc = 1

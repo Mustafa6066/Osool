@@ -176,7 +176,10 @@ async def run_nawy_scrape() -> dict:
     from app.ingestion.repository import upsert_properties
 
     run_id = str(uuid.uuid4())
-    register_scrape_run_id(run_id)
+    # I3: do NOT register here. Registering before the scrape runs means an
+    # empty/blocked run still advances the 2-slot window; two such runs would
+    # leave both slots empty and let mark_stale_properties() delist everything.
+    # We register at the end, only if the scrape actually wrote rows.
 
     stats = {
         "run_id": run_id,
@@ -263,6 +266,16 @@ async def run_nawy_scrape() -> dict:
             except Exception as exc:
                 logger.warning("[scrape] Error on %s: %s", url, exc)
                 stats["errors"] += 1
+
+    # I3: register only after a non-empty scrape, so this run becomes a
+    # stale-safe anchor. An empty/blocked run leaves the prior safe window
+    # intact (over-staleness is recoverable; an over-deletion wipe is not).
+    if stats["upserted"] > 0:
+        register_scrape_run_id(run_id)
+    else:
+        logger.warning(
+            "[scrape] 0 rows upserted — NOT registering run_id (stale window unchanged)"
+        )
 
     # Post-processing
     stale = await mark_stale_properties()

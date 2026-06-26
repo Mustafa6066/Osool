@@ -349,8 +349,21 @@ async def master_discovery_job(ctx: dict) -> dict:
 
     urls_to_scrape = await filter_new_urls(all_urls)
 
-    # Register run_id before queuing (stale cleanup uses this)
-    register_scrape_run_id(run_id)
+    # I30: do NOT register an empty run. If filter_new_urls returns nothing
+    # (all compounds already fresh) we enqueue zero scrape tasks, so no row gets
+    # stamped with this run_id — registering it anyway advances the 2-slot
+    # window with a run that touched nothing, and two such runs would let
+    # mark_stale delist the catalog. Only register when there is real work.
+    # NOTE: this ARQ path is INCREMENTAL (scrapes only new/stale compounds), so
+    # the run_id is stamped on a SUBSET of the catalog, not all of it. Until
+    # stale-marking is scoped by coverage/source (I6), this anchor is unsafe to
+    # act on — which is why mark_stale stays dry-run (SCRAPER_STALE_CLEANUP_ENABLED).
+    if urls_to_scrape:
+        register_scrape_run_id(run_id)
+    else:
+        logger.info(
+            "[master] No new/stale compounds — not registering run_id (no work to stamp)"
+        )
 
     # Enqueue individual scrape tasks via ARQ Redis pool
     redis = ctx["redis"]
