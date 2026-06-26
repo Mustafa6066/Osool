@@ -171,6 +171,7 @@ class Property(Base):
 
     # Payment Plan
     delivery_date: Mapped[str] = mapped_column(String, nullable=True)
+    delivery_year: Mapped[int] = mapped_column(Integer, nullable=True, index=True)  # ready-by year; DB column + idx from migration 033, now written by ingestion [I27]
     down_payment: Mapped[int] = mapped_column(Integer, nullable=True) # Percentage
     installment_years: Mapped[int] = mapped_column(Integer, nullable=True)
     monthly_installment: Mapped[float] = mapped_column(Float, nullable=True)

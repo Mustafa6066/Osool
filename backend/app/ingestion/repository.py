@@ -67,8 +67,12 @@ def compute_content_hash(prop: NormalizedProperty) -> str:
     """
     SHA256 over the 6 core market-signal attributes.
 
-    These 6 fields are the "true signal" of a property changing:
-    a price drop, a size correction, a finishing upgrade, etc.
+    These 6 fields are the "true signal" that warrants re-embedding:
+    a price drop, a size correction, a finishing upgrade, etc. NOTE: sale_type
+    is deliberately NOT here — adding it would mass-NULL every embedding on the
+    first scrape (it changes the hash for the whole catalog at once). A
+    Developer→Resale relabel is handled on the cheap path instead, where the
+    dev/resale split is recomputed without touching the embedding.
 
     Deliberately EXCLUDED from hash (cosmetic / narrative changes):
     - title, description  — copywriting updates shouldn't trigger re-embedding
@@ -198,42 +202,63 @@ async def upsert_properties(
         logger.info(
             "[repo] Anomaly detector bypassed for run=%s (curated feed)", run_id
         )
-    try:
-        if skip_anomaly_check:
-            raise ImportError("skip_anomaly_check=True")  # short-circuit the block below
-        from app.ingestion.anomaly_detector import anomaly_detector, send_alert
-        async with AsyncSessionLocal() as anomaly_db:
-            prop_dicts = [
-                {"location": p.location, "compound": p.compound, "price": p.price}
-                for p in properties
-                if p.price and p.price > 0
-            ]
-            anomaly_result = await anomaly_detector.check_batch(prop_dicts, anomaly_db)
-            if not anomaly_result["safe"]:
-                anomaly_details = "\n".join(
-                    f"  • {a['area']}: {a['direction']} {a['deviation_pct']}% "
-                    f"(incoming median: {a['incoming_median']:,.0f}, "
-                    f"baseline: {a['baseline_median']:,.0f})"
-                    for a in anomaly_result["anomalies"]
+    else:
+        # I13: don't conflate "intentionally skipped" with "import broke". The old
+        # code raised a fake ImportError to skip, then swallowed ALL ImportErrors —
+        # so a genuinely broken anomaly_detector silently disabled the integrity
+        # guard with zero signal. Now a real import failure is loud (log + Sentry).
+        anomaly_detector = None
+        send_alert = None
+        try:
+            from app.ingestion.anomaly_detector import anomaly_detector, send_alert
+        except Exception as imp_err:
+            # Stay fail-soft (don't abort the whole run on a broken guard), but be
+            # LOUD about it — a missing/broken anomaly_detector silently disabling
+            # the integrity guard is exactly the I13 bug we're fixing.
+            logger.error(
+                "[repo] anomaly_detector import FAILED — data-integrity guard is "
+                "DISABLED for run=%s: %s", run_id, imp_err,
+            )
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_message(
+                    f"anomaly_detector import failed (guard disabled): {imp_err}",
+                    level="error",
                 )
-                logger.error(
-                    f"🚨 ANOMALY DETECTOR HALTED UPSERT (run={run_id}):\n{anomaly_details}"
-                )
-                await send_alert(
-                    title=f"Scrape Anomaly — Upsert Halted (run {run_id[:8]})",
-                    message=(
-                        f"Anomaly detected in {len(anomaly_result['anomalies'])} area(s):\n"
-                        f"{anomaly_details}\n\n"
-                        f"Batch of {len(properties)} properties was NOT written to DB."
-                    ),
-                    severity="critical",
-                )
-                result.errors = len(properties)
-                return result
-    except ImportError:
-        pass  # anomaly_detector not available — proceed normally
-    except Exception as anomaly_err:
-        logger.warning(f"Anomaly detection skipped (non-fatal): {anomaly_err}")
+            except Exception:
+                pass
+        if anomaly_detector is not None:
+            try:
+                async with AsyncSessionLocal() as anomaly_db:
+                    prop_dicts = [
+                        {"location": p.location, "compound": p.compound, "price": p.price}
+                        for p in properties
+                        if p.price and p.price > 0
+                    ]
+                    anomaly_result = await anomaly_detector.check_batch(prop_dicts, anomaly_db)
+                    if not anomaly_result["safe"]:
+                        anomaly_details = "\n".join(
+                            f"  • {a['area']}: {a['direction']} {a['deviation_pct']}% "
+                            f"(incoming median: {a['incoming_median']:,.0f}, "
+                            f"baseline: {a['baseline_median']:,.0f})"
+                            for a in anomaly_result["anomalies"]
+                        )
+                        logger.error(
+                            f"🚨 ANOMALY DETECTOR HALTED UPSERT (run={run_id}):\n{anomaly_details}"
+                        )
+                        await send_alert(
+                            title=f"Scrape Anomaly — Upsert Halted (run {run_id[:8]})",
+                            message=(
+                                f"Anomaly detected in {len(anomaly_result['anomalies'])} area(s):\n"
+                                f"{anomaly_details}\n\n"
+                                f"Batch of {len(properties)} properties was NOT written to DB."
+                            ),
+                            severity="critical",
+                        )
+                        result.errors = len(properties)
+                        return result
+            except Exception as anomaly_err:
+                logger.warning(f"Anomaly detection skipped (non-fatal): {anomaly_err}")
 
     async with AsyncSessionLocal() as db:
         # Prefetch existing hash/id/price for all URLs in this batch (one round trip)
@@ -270,18 +295,41 @@ async def upsert_properties(
 
                 # ── Cheap path: hash unchanged ──────────────────────────────
                 if old_hash is not None and old_hash == new_hash:
-                    # Re-list on the cheap path too: a property that was delisted
-                    # during an outage and returns unchanged would otherwise keep
-                    # is_available=false forever (it escapes stale-marking by being
-                    # touched, but is never flipped back to available). [Phase 0 / I9]
+                    # Cheap path: the market hash is unchanged, so skip re-embedding.
+                    # Still do two things a hash match would otherwise freeze:
+                    #  (a) recompute the developer/resale split so a sale_type relabel
+                    #      corrects developer_price/resale_price — this is why sale_type
+                    #      is NOT in the hash (adding it would mass-NULL every embedding
+                    #      on the first scrape). [I8]
+                    #  (b) refresh cosmetic/secondary scalars that move without a market
+                    #      signal (delivery, image) and re-list a row delisted during an
+                    #      outage that returns unchanged. [I9 + I27]
+                    # [Phase 0 / I9 + I31, Phase 2 / I8 + I27]
+                    dev_price, resale_price = _split_developer_resale(prop.sale_type, prop.price)
                     await db.execute(
                         text(
-                            "UPDATE properties "
-                            "SET last_scrape_run_id = :run_id, scraped_at = :now, "
-                            "is_available = true, source = :source "
+                            "UPDATE properties SET "
+                            "last_scrape_run_id = :run_id, scraped_at = :now, "
+                            "is_available = true, source = :source, "
+                            "sale_type = :sale_type, developer_price = :dev_price, "
+                            "resale_price = :resale_price, "
+                            "delivery_date = :delivery_date, delivery_year = :delivery_year, "
+                            "is_delivered = :is_delivered, image_url = :image_url "
                             "WHERE nawy_url = :url"
                         ),
-                        {"run_id": run_id, "now": now, "url": prop.nawy_url, "source": source},
+                        {
+                            "run_id": run_id,
+                            "now": now,
+                            "url": prop.nawy_url,
+                            "source": source,
+                            "sale_type": prop.sale_type,
+                            "dev_price": dev_price,
+                            "resale_price": resale_price,
+                            "delivery_date": prop.delivery_date,
+                            "delivery_year": prop.delivery_year,
+                            "is_delivered": prop.is_delivered,
+                            "image_url": prop.image_url,
+                        },
                     )
                     result.skipped += 1
                     logger.debug("[repo] SKIP (hash unchanged) %s", prop.nawy_url)
@@ -422,6 +470,7 @@ def _build_row(
         "bathrooms": prop.bathrooms,
         "finishing": prop.finishing,
         "delivery_date": prop.delivery_date,
+        "delivery_year": prop.delivery_year,
         "down_payment": prop.down_payment_percentage,
         "installment_years": prop.installment_years,
         "monthly_installment": prop.monthly_installment,

@@ -137,6 +137,7 @@ class NormalizedProperty(BaseModel):
     bedrooms: int = Field(0, ge=0)
     bathrooms: Optional[int] = Field(None, ge=0)
     delivery_date: Optional[str] = None
+    delivery_year: Optional[int] = Field(None, ge=1990, le=2100)  # I27: indexed ready-by year
     down_payment_percentage: Optional[int] = Field(None, ge=0, le=100)
     installment_years: Optional[int] = Field(None, ge=0)
     monthly_installment: Optional[float] = Field(None, ge=0)
@@ -304,7 +305,12 @@ def _normalize_finishing(raw: Any) -> str:
 
 def _normalize_location(raw: Any) -> str:
     if not raw:
-        return "New Cairo"
+        # I14: do NOT default a location-less unit to a real area. Defaulting to
+        # "New Cairo" silently inflated its median, broke area filters, and fed a
+        # wrong anomaly baseline. "Unknown" forms its own bucket (so a broken
+        # extractor shows up as a spike of Unknown rather than poisoning a real
+        # area), and these units are excluded from per-area metrics downstream.
+        return "Unknown"
     s = str(raw).strip()
     return LOCATION_ZONE_MAP.get(s, s)
 
@@ -464,6 +470,37 @@ def _extract_image_url(unit: dict) -> Optional[str]:
                 if url:
                     return str(url).strip()
 
+    return None
+
+
+_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
+
+
+def _extract_delivery_year(unit: dict, delivery_date: Optional[str]) -> Optional[int]:
+    """
+    Derive the integer ready-by year for the indexed delivery_year column (I27).
+    Prefers a raw ISO readyBy date, then a 4-digit year in the normalized
+    delivery_date string. Only accepts a year inside the column's [1990, 2100]
+    bound — a stray out-of-range match returns None rather than raising a
+    ValidationError that would drop the whole otherwise-valid unit. Returns None
+    when nothing usable is found (is_delivered already carries the delivered state
+    for delivered-with-no-date units, so we never guess a year).
+    """
+    for candidate in (
+        _first(
+            unit.get("min_ready_by"), unit.get("readyBy"), unit.get("ready_by"),
+            unit.get("deliveryDate"), unit.get("delivery_date"), unit.get("handoverDate"),
+        ),
+        delivery_date,
+    ):
+        if not candidate:
+            continue
+        # findall (not search): a stray earlier number (e.g. "built 1980") must
+        # not shadow a valid later year in the same string.
+        for y_str in _YEAR_RE.findall(str(candidate)):
+            year = int(y_str)
+            if 1990 <= year <= 2100:
+                return year
     return None
 
 
@@ -657,6 +694,7 @@ def _deterministic_normalize(unit: dict) -> NormalizedProperty:
         or str(unit.get("saleType", "")).lower() == "nawy_now"
     )
     is_delivered = bool(unit.get("isDelivered") or unit.get("is_delivered"))
+    delivery_year = _extract_delivery_year(unit, delivery_date)
     is_cash_only = bool(
         unit.get("isCashOnly") or unit.get("is_cash_only") or unit.get("cashOnly")
         or (unit.get("paymentPlan") or {}).get("isCash")
@@ -696,6 +734,7 @@ def _deterministic_normalize(unit: dict) -> NormalizedProperty:
         bedrooms=bedrooms,
         bathrooms=bathrooms,
         delivery_date=delivery_date,
+        delivery_year=delivery_year,
         down_payment_percentage=down_payment_percentage,
         installment_years=installment_years,
         monthly_installment=monthly_installment,
