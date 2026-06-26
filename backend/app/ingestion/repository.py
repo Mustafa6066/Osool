@@ -197,68 +197,68 @@ async def upsert_properties(
     if not properties:
         return result
 
-    # ── Anomaly Detection: halt upsert if price data looks corrupted ──
-    if skip_anomaly_check:
-        logger.info(
-            "[repo] Anomaly detector bypassed for run=%s (curated feed)", run_id
+    # ── Anomaly Detection (I12/I13): NEVER fully bypass. Curated/segment feeds
+    #    (skip_anomaly_check=True) run a LENIENT, same-source check so their
+    #    legitimate divergence from the broad market is tolerated while a uniformly
+    #    corrupt batch (down-payment-as-price) is still caught. A genuinely broken
+    #    detector is LOUD (log + Sentry), not silently swallowed (I13), but stays
+    #    fail-soft (won't abort the run on a guard failure). ──
+    anomaly_detector = None
+    send_alert = None
+    try:
+        from app.ingestion.anomaly_detector import anomaly_detector, send_alert
+    except Exception as imp_err:
+        logger.error(
+            "[repo] anomaly_detector import FAILED — data-integrity guard is "
+            "DISABLED for run=%s: %s", run_id, imp_err,
         )
-    else:
-        # I13: don't conflate "intentionally skipped" with "import broke". The old
-        # code raised a fake ImportError to skip, then swallowed ALL ImportErrors —
-        # so a genuinely broken anomaly_detector silently disabled the integrity
-        # guard with zero signal. Now a real import failure is loud (log + Sentry).
-        anomaly_detector = None
-        send_alert = None
         try:
-            from app.ingestion.anomaly_detector import anomaly_detector, send_alert
-        except Exception as imp_err:
-            # Stay fail-soft (don't abort the whole run on a broken guard), but be
-            # LOUD about it — a missing/broken anomaly_detector silently disabling
-            # the integrity guard is exactly the I13 bug we're fixing.
-            logger.error(
-                "[repo] anomaly_detector import FAILED — data-integrity guard is "
-                "DISABLED for run=%s: %s", run_id, imp_err,
+            import sentry_sdk
+            sentry_sdk.capture_message(
+                f"anomaly_detector import failed (guard disabled): {imp_err}",
+                level="error",
             )
-            try:
-                import sentry_sdk
-                sentry_sdk.capture_message(
-                    f"anomaly_detector import failed (guard disabled): {imp_err}",
-                    level="error",
+        except Exception:
+            pass
+    if anomaly_detector is not None:
+        _mode = "lenient" if skip_anomaly_check else "strict"
+        logger.info(
+            "[repo] Anomaly detector (%s mode) run=%s source=%s", _mode, run_id, source
+        )
+        try:
+            async with AsyncSessionLocal() as anomaly_db:
+                prop_dicts = [
+                    {"location": p.location, "compound": p.compound, "price": p.price}
+                    for p in properties
+                    if p.price and p.price > 0
+                ]
+                anomaly_result = await anomaly_detector.check_batch(
+                    prop_dicts, anomaly_db, source=source, lenient=skip_anomaly_check
                 )
-            except Exception:
-                pass
-        if anomaly_detector is not None:
-            try:
-                async with AsyncSessionLocal() as anomaly_db:
-                    prop_dicts = [
-                        {"location": p.location, "compound": p.compound, "price": p.price}
-                        for p in properties
-                        if p.price and p.price > 0
-                    ]
-                    anomaly_result = await anomaly_detector.check_batch(prop_dicts, anomaly_db)
-                    if not anomaly_result["safe"]:
-                        anomaly_details = "\n".join(
-                            f"  • {a['area']}: {a['direction']} {a['deviation_pct']}% "
-                            f"(incoming median: {a['incoming_median']:,.0f}, "
-                            f"baseline: {a['baseline_median']:,.0f})"
-                            for a in anomaly_result["anomalies"]
-                        )
-                        logger.error(
-                            f"🚨 ANOMALY DETECTOR HALTED UPSERT (run={run_id}):\n{anomaly_details}"
-                        )
-                        await send_alert(
-                            title=f"Scrape Anomaly — Upsert Halted (run {run_id[:8]})",
-                            message=(
-                                f"Anomaly detected in {len(anomaly_result['anomalies'])} area(s):\n"
-                                f"{anomaly_details}\n\n"
-                                f"Batch of {len(properties)} properties was NOT written to DB."
-                            ),
-                            severity="critical",
-                        )
-                        result.errors = len(properties)
-                        return result
-            except Exception as anomaly_err:
-                logger.warning(f"Anomaly detection skipped (non-fatal): {anomaly_err}")
+                if not anomaly_result["safe"]:
+                    anomaly_details = "\n".join(
+                        f"  • {a['area']}: {a['direction']} {a['deviation_pct']}% "
+                        f"(incoming median: {a['incoming_median']:,.0f}, "
+                        f"baseline: {a['baseline_median']:,.0f})"
+                        for a in anomaly_result["anomalies"]
+                    )
+                    logger.error(
+                        f"🚨 ANOMALY DETECTOR HALTED UPSERT "
+                        f"({anomaly_result.get('mode', '?')}, run={run_id}):\n{anomaly_details}"
+                    )
+                    await send_alert(
+                        title=f"Scrape Anomaly — Upsert Halted (run {run_id[:8]})",
+                        message=(
+                            f"Anomaly detected in {len(anomaly_result['anomalies'])} area(s):\n"
+                            f"{anomaly_details}\n\n"
+                            f"Batch of {len(properties)} properties was NOT written to DB."
+                        ),
+                        severity="critical",
+                    )
+                    result.errors = len(properties)
+                    return result
+        except Exception as anomaly_err:
+            logger.warning(f"Anomaly detection skipped (non-fatal): {anomaly_err}")
 
     async with AsyncSessionLocal() as db:
         # Prefetch existing hash/id/price for all URLs in this batch (one round trip)
