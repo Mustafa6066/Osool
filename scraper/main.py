@@ -38,8 +38,26 @@ def _configure_logging() -> None:
     )
 
 
-async def _acquire_source_lock(site: str) -> bool:
-    """Match the orchestrator's 10-min source lock contract."""
+# Lua: delete the lock only if we still own it (stored value == our token).
+# Prevents a run whose lock already expired (TTL too short, mid-crawl) from
+# deleting a DIFFERENT run's freshly-acquired lock — the lock-stealing cascade
+# that lets 3 crawlers run concurrently and trip a ban. [Phase 1 / S5]
+_RELEASE_LOCK_LUA = (
+    "if redis.call('get', KEYS[1]) == ARGV[1] then "
+    "return redis.call('del', KEYS[1]) else return 0 end"
+)
+
+
+async def _acquire_source_lock(site: str) -> str | None:
+    """
+    Acquire the per-site source lock with a UNIQUE owner token. Returns the token
+    on success (pass it back to _release_source_lock), or None if another run
+    already holds it. The token makes release a compare-and-delete, so an
+    expired-then-reacquired lock can never be stolen by the original holder. [S5]
+    """
+    import uuid
+
+    token = uuid.uuid4().hex
     try:
         import redis.asyncio as aioredis
 
@@ -48,22 +66,28 @@ async def _acquire_source_lock(site: str) -> bool:
         client = aioredis.from_url(REDIS_URL, decode_responses=True)
         key = f"scraper:lock:{site}"
         async with client:
-            got = await client.set(key, "1", nx=True, ex=SOURCE_LOCK_TTL_SECONDS)
-        return bool(got)
+            got = await client.set(key, token, nx=True, ex=SOURCE_LOCK_TTL_SECONDS)
+        return token if got else None
     except Exception as exc:
-        logger.warning("source lock check failed for %s (proceeding): %s", site, exc)
-        return True
+        # Redis unavailable: proceed unlocked (fail-open, preserved behavior) but
+        # flag it loudly. Fail-closed is the stricter S6 follow-up.
+        logger.warning("source lock check failed for %s (proceeding unlocked): %s", site, exc)
+        return token
 
 
-async def _release_source_lock(site: str) -> None:
+async def _release_source_lock(site: str, token: str | None) -> None:
+    """Compare-and-delete: only release the lock if this run still owns it. [S5]"""
+    if not token:
+        return
     try:
         import redis.asyncio as aioredis
 
         from settings import REDIS_URL
 
         client = aioredis.from_url(REDIS_URL, decode_responses=True)
+        key = f"scraper:lock:{site}"
         async with client:
-            await client.delete(f"scraper:lock:{site}")
+            await client.eval(_RELEASE_LOCK_LUA, 1, key, token)
     except Exception:
         pass
 
@@ -124,8 +148,8 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
         logger.error("nawy spider not registered")
         return 1
 
-    got_lock = await _acquire_source_lock("nawy")
-    if not got_lock:
+    lock_token = await _acquire_source_lock("nawy")
+    if not lock_token:
         logger.warning("[nawy] another run holds the source lock — skipping")
         return 0
 
@@ -204,7 +228,7 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
     finally:
         if hasattr(spider, "aclose"):
             await spider.aclose()
-        await _release_source_lock("nawy")
+        await _release_source_lock("nawy", lock_token)
     return rc
 
 
@@ -222,8 +246,8 @@ async def run_cron(
             rc = 1
             continue
 
-        got_lock = await _acquire_source_lock(site)
-        if not got_lock:
+        lock_token = await _acquire_source_lock(site)
+        if not lock_token:
             logger.warning("[%s] another run holds the source lock — skipping", site)
             continue
 
@@ -288,7 +312,7 @@ async def run_cron(
         finally:
             if hasattr(spider, "aclose"):
                 await spider.aclose()
-            await _release_source_lock(site)
+            await _release_source_lock(site, lock_token)
 
     return rc
 

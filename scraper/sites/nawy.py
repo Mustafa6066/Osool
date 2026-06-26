@@ -38,11 +38,25 @@ class NawySpider(SiteSpider):
     name = "nawy"
 
     def __init__(self) -> None:
-        self._http = httpx.AsyncClient(
-            headers={"User-Agent": "Mozilla/5.0 (compatible; OsoolScraper/2.0)"},
-            timeout=30.0,
-            follow_redirects=True,
-        )
+        import random
+
+        from proxy_pool import mask_proxy
+        from settings import SCRAPER_PROXY_URLS, browser_headers
+
+        # S1: present as a real browser and route through a residential proxy when
+        # configured. A single Railway IP hitting the listing-api ~1,588× with the
+        # UA "OsoolScraper/2.0" is trivially fingerprinted and banned — which kills
+        # the primary data source. Pick one proxy per crawl run from the pool.
+        self._proxy = random.choice(SCRAPER_PROXY_URLS) if SCRAPER_PROXY_URLS else ""
+        http_kwargs: dict = {
+            "headers": browser_headers(),
+            "timeout": 30.0,
+            "follow_redirects": True,
+        }
+        if self._proxy:
+            http_kwargs["proxy"] = self._proxy
+            logger.info("[nawy] httpx routed through proxy %s", mask_proxy(self._proxy))
+        self._http = httpx.AsyncClient(**http_kwargs)
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -320,11 +334,13 @@ class NawySpider(SiteSpider):
         """StealthyFetcher when available (Cloudflare-aware), plain httpx otherwise."""
         if _STEALTH_OK and not SCRAPER_DISABLE_BROWSER:
             try:
+                fetch_kwargs = {"headless": True, "network_idle": True}
+                if self._proxy:  # S1: same residential proxy as the httpx path
+                    fetch_kwargs["proxy"] = self._proxy
                 page = await asyncio.to_thread(
                     StealthyFetcher.fetch,
                     url,
-                    headless=True,
-                    network_idle=True,
+                    **fetch_kwargs,
                 )
                 body = page.body if hasattr(page, "body") else str(page)
                 # StealthyFetcher returns bytes — decode for downstream str-pattern regex.
