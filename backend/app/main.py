@@ -77,6 +77,38 @@ from app.services.metrics import metrics_endpoint
 _is_production = os.getenv("ENVIRONMENT") == "production"
 
 
+# X1: gauge for whether vector (ANN) search is fully operational — 1.0 only when
+# pgvector is installed, the embedding column is vector(1536), AND the HNSW index
+# exists. A silent fallback to TEXT or a missing index (seq-scan) was previously
+# invisible; this makes it scrapeable/alertable.
+try:
+    from prometheus_client import Gauge as _Gauge
+
+    _PGVECTOR_GAUGE = _Gauge(
+        "osool_pgvector_available",
+        "1.0 when pgvector + vector(1536) embedding column + HNSW index are all present",
+    )
+except Exception:  # prometheus_client unavailable (minimal envs)
+    _PGVECTOR_GAUGE = None
+
+
+def _set_pgvector_gauge(value: float) -> None:
+    try:
+        if _PGVECTOR_GAUGE is not None:
+            _PGVECTOR_GAUGE.set(value)
+    except Exception:
+        pass
+
+
+def _capture_startup_sentry(message: str) -> None:
+    try:
+        import sentry_sdk
+
+        sentry_sdk.capture_message(message, level="error")
+    except Exception:
+        pass
+
+
 # ═══════════════════════════════════════════════════════════════
 # LIFESPAN (replaces deprecated @app.on_event)
 # Compatible with FastAPI >= 0.93 / Starlette >= 0.20
@@ -142,6 +174,68 @@ async def lifespan(app: FastAPI):
             )
     except Exception as e:
         logger.warning("⚠️ CBE Rate refresh skipped (%s) — using %.4f", e, 0.22)
+
+    # X1/I25: make a silently-degraded vector-search setup LOUD. A missing pgvector
+    # wheel (embedding falls back to TEXT) disables ANN entirely; a missing HNSW
+    # index turns every vector query into a full sequential cosine scan. Previously
+    # both were visible only as latency / empty semantic results, never alerted.
+    try:
+        from sqlalchemy import text as _text
+
+        from app.database import AsyncSessionLocal
+        from app.models import PGVECTOR_AVAILABLE
+
+        pgvector_ok = bool(PGVECTOR_AVAILABLE)
+        col_is_vector = False
+        hnsw_present = False
+        if pgvector_ok:
+            async with AsyncSessionLocal() as session:
+                col_is_vector = bool(
+                    await session.scalar(
+                        _text(
+                            "SELECT 1 FROM information_schema.columns "
+                            "WHERE table_schema='public' AND table_name='properties' "
+                            "AND column_name='embedding' AND udt_name='vector'"
+                        )
+                    )
+                )
+                hnsw_present = bool(
+                    await session.scalar(
+                        _text(
+                            "SELECT 1 FROM pg_indexes "
+                            "WHERE schemaname='public' "
+                            "AND indexname='ix_properties_embedding_hnsw'"
+                        )
+                    )
+                )
+        _set_pgvector_gauge(1.0 if (pgvector_ok and col_is_vector and hnsw_present) else 0.0)
+
+        # Page ops (ERROR + Sentry) only in production. Non-prod boots via create_all
+        # WITHOUT migration 043, so it always lacks the HNSW index — alerting there
+        # would spam Sentry/ERROR on every test/dev startup.
+        def _vec_alert(message: str) -> None:
+            if environment == "production":
+                logger.error("🚨 %s", message)
+                _capture_startup_sentry(message)
+            else:
+                logger.warning("⚠️ %s (non-prod)", message)
+
+        if not pgvector_ok or not col_is_vector:
+            _vec_alert(
+                "Vector search DISABLED — embedding column not found as vector(1536) "
+                f"(pgvector_wheel={pgvector_ok}, vector_col={col_is_vector}); the "
+                "properties table may be missing/unmigrated, or pgvector is unavailable. "
+                "Serving FTS-only; semantic ranking is off."
+            )
+        elif not hnsw_present:
+            _vec_alert(
+                "HNSW index ix_properties_embedding_hnsw MISSING — vector queries are "
+                "full sequential cosine scans (run migration 043)."
+            )
+        else:
+            logger.info("✅ Vector search: pgvector + vector(1536) + HNSW index READY")
+    except Exception as e:
+        logger.warning("⚠️ pgvector/HNSW probe skipped (%s)", e)
 
     try:
         from app.intelligence_loop import create_intelligence_tables, start_intelligence_worker

@@ -5,13 +5,13 @@ Walks rows WHERE embedding IS NULL, batches them through OpenAI's
 text-embedding-3-small endpoint, and writes the resulting vectors
 back via UPDATE properties SET embedding = $vec WHERE id = $id.
 
-Run once after migration 033 lands. Cost on the current inventory
-(~22K rows, ~150 tokens each) is ~$0.07 total. Wall time ~30 sec at
-concurrency 5.
+Run after migration 034 (which converts properties.embedding TEXT -> vector(1536))
+lands. Cost on the current inventory (~22K rows, ~150 tokens each) is ~$0.07 total.
+Wall time ~30 sec at concurrency 5.
 
-After the backfill is complete, run migration 030_hnsw_embedding.py
-to build the HNSW index CONCURRENTLY (the index can't be built on
-mostly-empty data without massive bloat).
+The HNSW index is built by migration 043_build_hnsw_embedding_index (single-worker
+build to fit Railway's /dev/shm budget), and the app startup probe (app/main.py)
+alerts if it is missing. There is no 030_hnsw_embedding.py (030 is Paymob).
 
 Usage:
     railway run --service Osool -- python -m scripts.embed_backfill
