@@ -59,9 +59,16 @@ logger = logging.getLogger(__name__)
 _EMBEDDING_MODEL: Final[str] = "text-embedding-3-small"
 _EMBEDDING_DIM: Final[int] = 1536
 
-#: Hybrid retrieval score weights (must sum to 1.0)
-_SEMANTIC_WEIGHT: Final[float] = 0.70
-_LEXICAL_WEIGHT: Final[float] = 0.30
+# Hybrid retrieval score weights (R2): these are RELATIVE Reciprocal-Rank-Fusion
+# contribution weights — they do NOT need to sum to 1.0 (only their ratio affects
+# ordering). They apply to scale-invariant rank reciprocals, not to a raw
+# cosine+ts_rank sum where the unnormalized lexical term contributed ~7% instead of
+# the advertised 30%. Env-configurable for tuning.
+_SEMANTIC_WEIGHT: Final[float] = float(os.getenv("VALUATION_SEMANTIC_WEIGHT", "0.70"))
+_LEXICAL_WEIGHT: Final[float] = float(os.getenv("VALUATION_LEXICAL_WEIGHT", "0.30"))
+# Clamp >= 1: RANK() starts at 1, so k=0 is fine, but a negative k would divide by
+# zero for the top-ranked row.
+_RRF_K: Final[int] = max(1, int(os.getenv("VALUATION_RRF_K", "60")))
 
 #: La2ta threshold — matches valuation_engine._LA2TA_THRESHOLD
 _LA2TA_THRESHOLD: Final[float] = 0.15
@@ -227,9 +234,8 @@ class HybridQueryRow(BaseModel):
     )
     hybrid_score: float = Field(
         description=(
-            f"Weighted fusion: "
-            f"{int(_SEMANTIC_WEIGHT * 100)}% semantic + "
-            f"{int(_LEXICAL_WEIGHT * 100)}% lexical."
+            f"Weighted Reciprocal Rank Fusion of the semantic and lexical RANKS "
+            f"({int(_SEMANTIC_WEIGHT * 100)}% semantic / {int(_LEXICAL_WEIGHT * 100)}% lexical)."
         )
     )
 
@@ -570,15 +576,19 @@ async def hybrid_query_engine(
     ``plainto_tsquery('simple', :query_text)``.  Uses the ``'simple'``
     configuration for broad language compatibility (Arabic + Latin mixed).
 
-    **Hybrid fusion** — weighted linear combination:
+    **Hybrid fusion** — weighted Reciprocal Rank Fusion (RRF). The raw cosine
+    and ts_rank scores live on different scales (cosine ~0.2-0.5, ts_rank
+    ~0.01-0.1), so a linear sum was ~98% semantic regardless of the weights.
+    RRF fuses the two *ranks* instead, making the weights meaningful:
 
     .. math::
 
         s_{\\text{hybrid}} =
-            0.70 \\cdot s_{\\text{sem}} + 0.30 \\cdot s_{\\text{lex}}
+            \\frac{0.70}{k + r_{\\text{sem}}} + \\frac{0.30}{k + r_{\\text{lex}}}
 
-    Results are ordered by ``s_hybrid DESC`` to surface listings that are
-    both semantically relevant **and** lexically aligned with the query.
+    where ``k`` is the RRF constant (default 60) and ``r`` is each listing's
+    rank within the candidate set. Results are ordered by ``s_hybrid DESC`` to
+    surface listings that are both semantically relevant **and** lexically aligned.
 
     Parameters
     ----------
@@ -632,6 +642,37 @@ async def hybrid_query_engine(
     # English query terms without requiring an Arabic-specific tsconfig.
     sql = text(
         f"""
+        WITH scored AS (
+            SELECT
+                listing_id,
+                compound_id,
+                geographic_zone,
+                total_price,
+                size_sqm,
+                view_orientation,
+                is_secondary_market,
+                cash_npv_egp,
+                normalized_cash_price_sqm,
+                is_la2ta,
+                delivery_year,
+                (1.0 - (embedding <=> CAST(:query_vec AS vector))) AS semantic_score,
+                ts_rank(
+                    to_tsvector('simple', asset_profile_text),
+                    plainto_tsquery('simple', :query_text)
+                ) AS lexical_score
+            FROM valuation_listings
+            WHERE
+                compound_id = :compound_id
+                AND cash_npv_egp <= :max_budget_egp
+                AND embedding IS NOT NULL
+        ),
+        ranked AS (
+            SELECT
+                scored.*,
+                RANK() OVER (ORDER BY semantic_score DESC) AS sem_rank,
+                RANK() OVER (ORDER BY lexical_score DESC) AS lex_rank
+            FROM scored
+        )
         SELECT
             listing_id,
             compound_id,
@@ -644,23 +685,21 @@ async def hybrid_query_engine(
             normalized_cash_price_sqm,
             is_la2ta,
             delivery_year,
-            (1.0 - (embedding <=> CAST(:query_vec AS vector))) AS semantic_score,
-            ts_rank(
-                to_tsvector('simple', asset_profile_text),
-                plainto_tsquery('simple', :query_text)
-            ) AS lexical_score,
+            semantic_score,
+            lexical_score,
+            -- R2: weighted Reciprocal Rank Fusion. The raw cosine and ts_rank
+            -- scores are on different scales (cosine ~0.2-0.5 vs ts_rank ~0.01-0.1),
+            -- so the old linear sum was ~98% semantic regardless of the weights.
+            -- Fusing the RANKS makes the sem/lex weights actually mean something.
+            -- The ::double precision casts are REQUIRED: the denominator is bigint
+            -- (RANK() is int8), and without the cast Postgres infers the untyped
+            -- :sem_weight/:lex_weight binds as int8 too — under asyncpg that either
+            -- errors or integer-truncates the 0.70/0.30 weights to 0 (all-zero scores).
             (
-                :sem_weight * (1.0 - (embedding <=> CAST(:query_vec AS vector)))
-                + :lex_weight * ts_rank(
-                    to_tsvector('simple', asset_profile_text),
-                    plainto_tsquery('simple', :query_text)
-                )
+                :sem_weight / (:rrf_k + sem_rank)::double precision
+                + :lex_weight / (:rrf_k + lex_rank)::double precision
             ) AS hybrid_score
-        FROM valuation_listings
-        WHERE
-            compound_id = :compound_id
-            AND cash_npv_egp <= :max_budget_egp
-            AND embedding IS NOT NULL
+        FROM ranked
         ORDER BY hybrid_score DESC
         LIMIT :lim
         """
@@ -671,6 +710,7 @@ async def hybrid_query_engine(
         "query_text": query_text.strip(),
         "sem_weight": _SEMANTIC_WEIGHT,
         "lex_weight": _LEXICAL_WEIGHT,
+        "rrf_k": _RRF_K,
         "compound_id": compound_id,
         "max_budget_egp": max_budget_egp,
         "lim": limit,
