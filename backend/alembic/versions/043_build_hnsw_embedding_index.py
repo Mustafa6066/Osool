@@ -37,15 +37,21 @@ depends_on = None
 
 def upgrade() -> None:
     # Single-worker build to avoid the /dev/shm exhaustion the prior attempts hit.
-    # SET LOCAL scopes these to this migration's transaction.
-    op.execute("SET LOCAL max_parallel_maintenance_workers = 0")
-    op.execute("SET LOCAL maintenance_work_mem = '256MB'")
+    # Use plain SET (session), NOT SET LOCAL: under the async (asyncpg) migration
+    # runner SET LOCAL did NOT constrain the build in practice — the index silently
+    # failed to build in prod (2026-06-27) and had to be created manually with a
+    # session-level SET. SET LOCAL only takes effect inside an open transaction
+    # block; session SET reliably applies to the CREATE INDEX below on this
+    # connection. 043 is the head migration, so leaking these settings to a later
+    # migration is not a concern.
+    op.execute("SET max_parallel_maintenance_workers = 0")
+    op.execute("SET maintenance_work_mem = '256MB'")
     # A single-worker HNSW build is slow — don't let a role/connection
     # statement_timeout cancel it mid-build (the DO block would swallow that and
     # leave the index absent). Bound the table-lock wait so contention with a
     # scraper write fails fast (warn + X1 alerts) instead of hanging the deploy.
-    op.execute("SET LOCAL statement_timeout = 0")
-    op.execute("SET LOCAL lock_timeout = '10s'")
+    op.execute("SET statement_timeout = 0")
+    op.execute("SET lock_timeout = '10s'")
     op.execute(
         """
         DO $$
