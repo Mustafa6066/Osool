@@ -91,7 +91,12 @@ async def _handle_job(client, raw_payload: str) -> None:
                               f"no properties (pages={res.pages_fetched})", started)
             return
 
-        flush_res = await flush(res.raw_properties, site=source)
+        # I5: stamp refreshed rows with the source's current stale-safe run_id so
+        # the next mark_stale sweep does not delist what we just refreshed. If no
+        # full-catalog run has published yet, flush mints its own and no sweep runs.
+        from app.services.cache import cache
+        safe_run_id = cache.get(f"scraper:run_id:current:{source}")
+        flush_res = await flush(res.raw_properties, site=source, run_id=safe_run_id)
         summary = (
             f"ins={flush_res.upserted.inserted} upd={flush_res.upserted.updated} "
             f"skip={flush_res.upserted.skipped} err={flush_res.upserted.errors}"

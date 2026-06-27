@@ -47,6 +47,7 @@ async def flush(
     raw_properties: list[dict],
     site: str,
     skip_anomaly_check: bool = False,
+    run_id: str | None = None,
 ) -> FlushResult:
     """
     Validate → normalize → upsert one batch of raw spider output.
@@ -62,7 +63,10 @@ async def flush(
         property segments). The anomaly detector compares against the
         whole-market historical median and otherwise halts the upsert.
     """
-    run_id = str(uuid.uuid4())
+    # I5: callers (on-demand worker, per-area cron) pass the source's current
+    # stale-safe run_id so refreshed rows are not delisted by the next sweep. A
+    # fresh id is minted only when no anchor exists yet (then no sweep runs).
+    run_id = run_id or str(uuid.uuid4())
 
     # Split envelopes vs flat units so we can call the correct normalizer for each.
     envelopes = [p for p in raw_properties if p.get("_nawy_compound_envelope")]
@@ -104,8 +108,11 @@ async def flush(
             alert_sent=False,
         )
 
+    # Attribute rows to their real feed (I22 / I31) so source-scoped stale-
+    # marking and per-source price history are correct. `site` is already the
+    # canonical 'nawy' | 'aqarmap'.
     upsert_result = await upsert_properties(
-        normalized, run_id=run_id, skip_anomaly_check=skip_anomaly_check
+        normalized, run_id=run_id, skip_anomaly_check=skip_anomaly_check, source=site
     )
 
     alert_sent = False

@@ -68,6 +68,14 @@ class Config:
     ENABLE_REAL_STREAMING: bool = os.getenv("ENABLE_REAL_STREAMING", "true").lower() == "true"
     ENABLE_VISION_CONTRACTS: bool = os.getenv("ENABLE_VISION_CONTRACTS", "true").lower() == "true"
 
+    # Scraper stale-cleanup write gate (Phase 0 / catalog-wipe guard).
+    # Default OFF = dry-run: mark_stale_properties() logs how many rows it WOULD
+    # delist but does NOT write. A misconfigured run_id window (partial crawl,
+    # per-area registration, empty ARQ run, serialization mismatch) therefore
+    # cannot silently wipe the served catalog. Flip to "true" only after reviewing
+    # the dry-run counts in production AND landing the rest of the Phase-0 gates.
+    SCRAPER_STALE_CLEANUP_ENABLED: bool = os.getenv("SCRAPER_STALE_CLEANUP_ENABLED", "false").lower() == "true"
+
     # ═══════════════════════════════════════════════════════════════
     # PAYMENT VERIFICATION (OPTIONAL - Phase 2+)
     # ═══════════════════════════════════════════════════════════════

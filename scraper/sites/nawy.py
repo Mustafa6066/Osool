@@ -129,7 +129,15 @@ class NawySpider(SiteSpider):
             url = f"{NAWY_LISTING_API}?page={page_no}&pageSize=12{extra_qs}"
             payload = await self._fetch_json(url)
             if not payload:
+                # _fetch_json already exhausted bounded retries, so this is a
+                # genuine failure, not a transient blip. Record it as a partial
+                # run (pages_failed > 0) so the caller refuses to publish this
+                # truncated crawl as the stale-safe anchor. [Phase 0 / S4 → I4]
                 result.pages_failed += 1
+                logger.warning(
+                    "[nawy] %s truncated at page %d after fetch failure — "
+                    "marking run partial", label, page_no,
+                )
                 break
 
             units, total = self._extract_listing_api_page(payload, url)
@@ -251,15 +259,62 @@ class NawySpider(SiteSpider):
             flat.append(u)
         return flat, total
 
-    async def _fetch_json(self, url: str) -> Optional[dict]:
-        """Plain httpx JSON fetch — Nawy's listing-api is a public XHR endpoint."""
-        try:
-            resp = await self._http.get(url)
-            resp.raise_for_status()
-            return resp.json()
-        except Exception as exc:
-            logger.error("[nawy] listing-api fetch failed for %s: %s", url, exc)
-            return None
+    async def _fetch_json(self, url: str, *, max_attempts: int = 4) -> Optional[dict]:
+        """
+        Plain httpx JSON fetch for Nawy's public listing-api XHR endpoint.
+
+        Bounded retry with exponential backoff, honoring Retry-After on 429.
+        Only TRANSIENT failures (429, 5xx, transport/connection errors) are
+        retried; a permanent 4xx (bad filter / 404) returns None immediately.
+        Returns None ONLY after retries are exhausted — the caller (S4) treats
+        that as a partial-run signal (pages_failed), never a clean end-of-pages.
+        Without this, a single transient 429/reset truncated the whole walk and
+        the truncated run could then be published as authoritative. [Phase 0 / S4]
+        """
+        backoff = 2.0
+        for attempt in range(1, max_attempts + 1):
+            try:
+                resp = await self._http.get(url)
+                if resp.status_code == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    wait = (
+                        float(retry_after)
+                        if retry_after and retry_after.isdigit()
+                        else backoff
+                    )
+                    logger.warning(
+                        "[nawy] listing-api 429 for %s (attempt %d/%d) — backing off %.1fs",
+                        url, attempt, max_attempts, wait,
+                    )
+                    if attempt < max_attempts:
+                        await asyncio.sleep(wait)
+                        backoff = min(backoff * 2, 30.0)
+                        continue
+                    return None
+                if 400 <= resp.status_code < 500:
+                    # Permanent client error — retrying wastes the backoff budget.
+                    logger.error(
+                        "[nawy] listing-api %d for %s — not retrying",
+                        resp.status_code, url,
+                    )
+                    return None
+                resp.raise_for_status()  # raises on 5xx → retried below
+                return resp.json()
+            except Exception as exc:
+                logger.warning(
+                    "[nawy] listing-api fetch error for %s (attempt %d/%d): %s",
+                    url, attempt, max_attempts, exc,
+                )
+                if attempt < max_attempts:
+                    await asyncio.sleep(backoff)
+                    backoff = min(backoff * 2, 30.0)
+                    continue
+                logger.error(
+                    "[nawy] listing-api fetch failed after %d attempts: %s",
+                    max_attempts, url,
+                )
+                return None
+        return None
 
     async def _fetch(self, url: str) -> Optional[str]:
         """StealthyFetcher when available (Cloudflare-aware), plain httpx otherwise."""

@@ -68,29 +68,27 @@ async def _release_source_lock(site: str) -> None:
         pass
 
 
-async def _register_scrape_run_id(run_id: str) -> None:
+async def _register_scrape_run_id(run_id: str, source: str = "nawy") -> None:
     """
-    Push a successful scrape's run_id into the 2-slot Redis window read by
-    app.services.nawy_scraper.mark_stale_properties (current + previous).
+    Publish a successful FULL-CATALOG scrape's run_id into the per-source 2-slot
+    window read by app.services.nawy_scraper.mark_stale_properties.
 
-    Keys live for 7 days; previous is moved off before current is overwritten,
-    matching the cache.set() pattern in app/services/nawy_scraper.py:252.
+    Delegates to the backend register helper so BOTH processes use the exact same
+    Redis serialization (the cache {"_v": ...} envelope). Previously this wrote a
+    raw string while the backend read via the enveloped cache, so mark_stale
+    could never parse it and cleanup silently never ran. [Phase 0 / I1]
     Failures are non-fatal — stale cleanup is a best-effort safety net.
     """
     try:
-        import redis.asyncio as aioredis
+        from app.services.nawy_scraper import register_scrape_run_id
 
-        from settings import REDIS_URL
-
-        client = aioredis.from_url(REDIS_URL, decode_responses=True)
-        async with client:
-            existing = await client.get("scraper:run_id:current")
-            if existing and existing != run_id:
-                await client.set("scraper:run_id:previous", existing, ex=604800)
-            await client.set("scraper:run_id:current", run_id, ex=604800)
-        logger.info("[scraper] registered run_id=%s in Redis (current; previous archived)", run_id[:8])
+        await asyncio.to_thread(register_scrape_run_id, run_id, source)
+        logger.info(
+            "[scraper] registered run_id=%s (source=%s) for stale-marking",
+            run_id[:8], source,
+        )
     except Exception as exc:
-        logger.warning("[scraper] failed to register run_id in Redis: %s", exc)
+        logger.warning("[scraper] failed to register run_id: %s", exc)
 
 
 async def run_nawy_now(dry_run: bool, max_pages: int) -> int:
@@ -153,7 +151,15 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
         from app.ingestion.deterministic_normalizer import normalize_unit_list
         from app.ingestion.repository import upsert_properties
 
-        run_id = str(uuid.uuid4())
+        # I5: only the publishing full-catalog crawl (nawy-all) needs a fresh
+        # run_id. A narrow slice (nawy-now) stamps rows with the current
+        # full-catalog run_id so the next sweep treats them as fresh rather than
+        # delisting them; falls back to a fresh id when nothing has published yet.
+        if label == "nawy-all":
+            run_id = str(uuid.uuid4())
+        else:
+            from app.services.cache import cache as _cache
+            run_id = _cache.get("scraper:run_id:current:nawy") or str(uuid.uuid4())
         norm = normalize_unit_list(res.raw_properties, source_url=label)
         logger.info(
             "[nawy] %s normalized=%d skipped=%d (run_id=%s)",
@@ -165,16 +171,33 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
         # Skip anomaly detector — narrow slices legitimately diverge from
         # the broad-market baseline (curated feeds, per-area, etc).
         upsert = await upsert_properties(
-            norm.properties, run_id=run_id, skip_anomaly_check=True
+            norm.properties, run_id=run_id, skip_anomaly_check=True, source="nawy"
         )
         logger.info(
             "[nawy] %s upsert: ins=%d upd=%d skip=%d err=%d",
             label, upsert.inserted, upsert.updated, upsert.skipped, upsert.errors,
         )
-        # Register the run so mark_stale_properties() can use it as the
-        # "safe" run when flagging sold/withdrawn listings.
+        # Stale-window publishing (Phase 0 / I29 + I4): ONLY a full-catalog
+        # crawl (nawy-all) that completed CLEANLY may publish the stale-safe
+        # run_id. Narrow slices such as nawy-now cover a fraction of inventory,
+        # and a truncated crawl (res.pages_failed > 0) saw only part of the
+        # catalog — registering either would let mark_stale_properties() delist
+        # everything it did not touch.
         if upsert.total > 0:
-            await _register_scrape_run_id(run_id)
+            if label != "nawy-all":
+                logger.info(
+                    "[nawy] %s is a narrow slice — not publishing stale-safe run_id",
+                    label,
+                )
+            elif res.pages_failed > 0:
+                logger.warning(
+                    "[nawy] nawy-all had %d failed page(s) — NOT publishing "
+                    "stale-safe run_id (partial crawl would risk delisting "
+                    "untouched inventory)",
+                    res.pages_failed,
+                )
+            else:
+                await _register_scrape_run_id(run_id)
     except Exception as exc:
         logger.exception("[nawy] %s crawl failed: %s", label, exc)
         rc = 1
@@ -230,8 +253,13 @@ async def run_cron(
                     # narrow scrapes (per-area, single-compound, single-
                     # site) the per-area median is structurally different
                     # from history. Bypass so the upsert can proceed.
+                    # I5: stamp with the source's current stale-safe run_id so a
+                    # per-area refresh isn't delisted by the next full sweep.
+                    from app.services.cache import cache as _cache
+                    safe_run_id = _cache.get(f"scraper:run_id:current:{site}")
                     flush_res = await flush(
-                        res.raw_properties, site, skip_anomaly_check=True
+                        res.raw_properties, site, skip_anomaly_check=True,
+                        run_id=safe_run_id,
                     )
                     logger.info(
                         "[%s] upsert: ins=%d upd=%d skip=%d err=%d alert=%s",
@@ -242,10 +270,13 @@ async def run_cron(
                         flush_res.upserted.errors,
                         flush_res.alert_sent,
                     )
-                    # Register the run so mark_stale_properties() can mark
-                    # withdrawn listings unavailable.
-                    if flush_res.upserted.total > 0:
-                        await _register_scrape_run_id(flush_res.run_id)
+                    # Phase 0 / I29: per-area / per-site / per-compound cron
+                    # scrapes do NOT publish the stale-safe run_id. Each covers
+                    # only a slice of inventory, so letting them into the 2-slot
+                    # window would let mark_stale_properties() delist every row
+                    # they did not touch. Only the full-catalog nawy-all crawl
+                    # publishes (see _run_listing_api_mode). Rows are still
+                    # stamped with this run_id + source via the upsert itself.
 
                 await asyncio.sleep(REQUEST_DELAY_SECONDS)
 

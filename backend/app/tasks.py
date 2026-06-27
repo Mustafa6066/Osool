@@ -53,7 +53,15 @@ async def _ingest_properties_async(properties_list, source: str):
         logger.warning("No normalized %s properties after deterministic mapping.", source)
         return {"total": 0, "inserted": 0, "updated": 0, "skipped": 0, "errors": report.rejected + normalized.skipped_count}
 
-    upsert_result = await upsert_properties(normalized.properties, run_id=str(uuid4()))
+    # I32: attribute rows to their real feed so source-scoped stale-marking (I6)
+    # and per-source price history are correct. Map the descriptive scraper name
+    # to the canonical source the rest of the pipeline uses. These legacy Celery
+    # tasks are per-segment (not a full-catalog crawl), so — consistent with I29 —
+    # they deliberately do NOT register a stale-safe run_id.
+    canonical_source = "aqarmap" if "aqarmap" in source.lower() else "nawy"
+    upsert_result = await upsert_properties(
+        normalized.properties, run_id=str(uuid4()), source=canonical_source
+    )
 
     logger.info(
         "%s ingestion complete: valid=%d inserted=%d updated=%d skipped=%d errors=%d",

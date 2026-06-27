@@ -270,13 +270,18 @@ async def upsert_properties(
 
                 # ── Cheap path: hash unchanged ──────────────────────────────
                 if old_hash is not None and old_hash == new_hash:
+                    # Re-list on the cheap path too: a property that was delisted
+                    # during an outage and returns unchanged would otherwise keep
+                    # is_available=false forever (it escapes stale-marking by being
+                    # touched, but is never flipped back to available). [Phase 0 / I9]
                     await db.execute(
                         text(
                             "UPDATE properties "
-                            "SET last_scrape_run_id = :run_id, scraped_at = :now "
+                            "SET last_scrape_run_id = :run_id, scraped_at = :now, "
+                            "is_available = true, source = :source "
                             "WHERE nawy_url = :url"
                         ),
-                        {"run_id": run_id, "now": now, "url": prop.nawy_url},
+                        {"run_id": run_id, "now": now, "url": prop.nawy_url, "source": source},
                     )
                     result.skipped += 1
                     logger.debug("[repo] SKIP (hash unchanged) %s", prop.nawy_url)
@@ -285,7 +290,7 @@ async def upsert_properties(
                 # ── Expensive path: new or changed ─────────────────────────
                 embedding = None  # zero-token: embeddings skipped at scrape time
 
-                row = _build_row(prop, run_id, now, new_hash, embedding)
+                row = _build_row(prop, run_id, now, new_hash, embedding, source)
                 batch_buffer.append(row)
 
                 if old_hash is None:
@@ -327,10 +332,11 @@ async def upsert_properties(
                             "scrape_run_id": run_id,
                         })
 
-                # Flush batch every N rows to bound memory
+                # Flush batch every N rows to bound memory. Each flush runs in a
+                # SAVEPOINT so one bad row/batch rolls back just that batch rather
+                # than poisoning the transaction and discarding the entire run.
                 if len(batch_buffer) >= _BATCH_COMMIT_SIZE:
-                    await _flush_batch(db, batch_buffer)
-                    await _flush_snapshots(db, batch_buffer, now, source)
+                    result.errors += await _flush_batch_safe(db, batch_buffer, now, source)
                     batch_buffer = []
 
             except Exception as exc:
@@ -338,10 +344,9 @@ async def upsert_properties(
                 result.errors += 1
                 result.error_details.append(f"{prop.nawy_url}: {exc}")
 
-        # Flush remaining rows
+        # Flush remaining rows (also in a SAVEPOINT — see _flush_batch_safe)
         if batch_buffer:
-            await _flush_batch(db, batch_buffer)
-            await _flush_snapshots(db, batch_buffer, now, source)
+            result.errors += await _flush_batch_safe(db, batch_buffer, now, source)
 
         if price_events:
             try:
@@ -397,6 +402,7 @@ def _build_row(
     now: datetime,
     content_hash: str,
     embedding: Optional[List[float]],
+    source: str = "nawy",
 ) -> dict:
     """Maps NormalizedProperty fields to Property table column names."""
     developer_price, resale_price = _split_developer_resale(prop.sale_type, prop.price)
@@ -432,9 +438,34 @@ def _build_row(
         "embedding": embedding,
         "content_hash": content_hash,
         "last_scrape_run_id": run_id,
+        "source": source,
         "scraped_at": now,
         "is_available": True,
     }
+
+
+async def _flush_batch_safe(db, rows: list[dict], now: datetime, source: str) -> int:
+    """
+    Flush one batch inside a SAVEPOINT (db.begin_nested) so a single bad row or
+    batch cannot abort the surrounding transaction and discard the entire run.
+    On failure the savepoint is rolled back, the offending batch is logged, and
+    the run continues. Returns the count of rows that failed (0 on success).
+    [Phase 0 / I7]
+    """
+    if not rows:
+        return 0
+    try:
+        async with db.begin_nested():
+            await _flush_batch(db, rows)
+            await _flush_snapshots(db, rows, now, source)
+        return 0
+    except Exception as exc:
+        logger.error(
+            "[repo] Batch flush failed (%d rows) — rolled back to savepoint, "
+            "continuing run: %s",
+            len(rows), exc,
+        )
+        return len(rows)
 
 
 async def _flush_batch(db, rows: list[dict]) -> None:
