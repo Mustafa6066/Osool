@@ -39,9 +39,17 @@ try:
         'Property search latency by retrieval path',
         ['path'],
     )
+    # R1: a distinct, alertable signal that semantic search DEGRADED to keyword-only
+    # because embedding generation failed (OpenAI outage / open circuit) — otherwise
+    # invisible behind the shared text-fallback path.
+    _embedding_failures_total = Counter(
+        'osool_embedding_failures_total',
+        'Embedding generations that failed, forcing keyword-only search',
+    )
 except Exception:  # prometheus_client unavailable (minimal envs)
     _search_results_total = None
     _search_duration = None
+    _embedding_failures_total = None
 
 
 def _record_search_metrics(path: str, result_count: int, duration_s: float, threshold) -> None:
@@ -56,6 +64,15 @@ def _record_search_metrics(path: str, result_count: int, duration_s: float, thre
                 "[search-metrics] path=%s results=0 duration=%.3fs threshold=%s",
                 path, duration_s, threshold,
             )
+    except Exception:
+        pass
+
+
+def _record_embedding_failure() -> None:
+    """Best-effort: count an embedding failure (semantic search degraded). [R1]"""
+    try:
+        if _embedding_failures_total is not None:
+            _embedding_failures_total.inc()
     except Exception:
         pass
 
@@ -241,6 +258,7 @@ async def search_properties(
             ]
 
         # --- Main search logic ---
+        embedding_failed = False  # R1: distinguish an OpenAI outage from a no-match
         if VECTOR_SEARCH_ENABLED and search_mode in ("hybrid", "vector"):
             try:
                 embedding = await get_embedding(query_text)
@@ -292,13 +310,31 @@ async def search_properties(
 
                     # Fall through to text search if no results
                     logger.warning("⚠️ No vector/hybrid matches. Falling through to text search.")
+                else:
+                    # R1: embedding generation FAILED (OpenAI outage / open circuit).
+                    # This is a DEGRADATION to keyword-only search, NOT a legit
+                    # no-match — make it loud + alertable so chat can hedge.
+                    embedding_failed = True
+                    _record_embedding_failure()
+                    logger.error(
+                        "🚨 Embedding returned None — semantic search DEGRADED to "
+                        "keyword-only for query=%r", query_text[:80],
+                    )
 
             except Exception as vector_error:
+                embedding_failed = True
+                _record_embedding_failure()
                 logger.warning(f"Vector search failed, falling back to text search: {vector_error}")
 
         # TEXT SEARCH FALLBACK
         results = await _text_search_fallback(db, query_text, limit, _build_filters)
-        _record_search_metrics("text_fallback", len(results), time.monotonic() - started_at, None)
+        # R1: a fallback caused by an embedding FAILURE is a degraded outage, distinct
+        # from a fallback because vector simply found nothing. Surfaced for ops via the
+        # osool_embedding_failures_total counter + the "text_embedding_failed" path
+        # label. (Propagating a response-level "degraded" flag into ChatResponse so
+        # chat can hedge needs caller coordination — deferred with R14.)
+        path = "text_embedding_failed" if embedding_failed else "text_fallback"
+        _record_search_metrics(path, len(results), time.monotonic() - started_at, None)
         return results
 
     except Exception as e:

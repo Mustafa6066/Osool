@@ -162,13 +162,13 @@ MULTI_WINNER_HEADLINE_AR = (
     "**أحسن سعر في المقارنة**\n"
     "• الفائز من الـ {n}: **{winner}**.\n"
     "• التوفير: حوالي **{gap_egp} ج.م** على {type_ar} مقارنة بسعر المطور.\n"
-    "• السبب: ده أكبر فرق resale واضح لصالحك في القائمة."
+    "• السبب: ده أكبر خصم resale بالنسبة المئوية (حوالي **{gap_pct}%** تحت سعر المطور) في القائمة."
 )
 MULTI_WINNER_HEADLINE_EN = (
     "**Best price in this comparison**\n"
     "• Winner out of {n}: **{winner}**.\n"
     "• Saving: roughly **{gap_egp} EGP** on a {type_en} versus the developer benchmark.\n"
-    "• Why it matters: this is the strongest clear resale gap in your list."
+    "• Why it matters: it's the biggest resale discount (about **{gap_pct}%** below developer price) in your list."
 )
 
 

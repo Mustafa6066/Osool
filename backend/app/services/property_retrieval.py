@@ -137,9 +137,14 @@ def _build_hard_filters(q: StructuredQuery) -> tuple[list[str], dict]:
     if q.finishing_levels:
         add("p.finishing = ANY(:finishing)", finishing=q.finishing_levels)
     if q.ready_by_year_max is not None:
-        # delivery_year is added by migration 033; fallback to is_delivered if NULL
+        # R17: now that ingestion writes delivery_year (I27), this filter is real.
+        # "Ready by year Y" = delivery_year KNOWN and <= Y, OR already delivered. A
+        # NULL delivery_year on a not-delivered unit is genuinely unknown, so EXCLUDE
+        # it — the old "delivery_year IS NULL OR ..." matched ANY year, which (with
+        # delivery_year never written pre-I27) made the whole filter a no-op.
         add(
-            "(p.delivery_year IS NULL OR p.delivery_year <= :ready_year)",
+            "((p.delivery_year IS NOT NULL AND p.delivery_year <= :ready_year) "
+            "OR p.is_delivered = true)",
             ready_year=q.ready_by_year_max,
         )
     if q.is_delivered is not None:
@@ -382,7 +387,11 @@ def _augment_hit(hit: RankedHit, row: dict, q: StructuredQuery) -> DecisionAugme
                 # Real impl would call valuation_engine.compute_npv(...) once it
                 # accepts a row dict — for now, a cheap approximation that still
                 # ranks correctly.
-                cbe_rate = 0.22  # placeholder; valuation_engine.get_cbe_rate() ideally
+                # R18: use the A3-centralized CBE rate (MarketIndicator row / env /
+                # 0.22 fallback) instead of a hardcoded 0.22 that goes stale when the
+                # rate moves. get_cbe_rate() is a cheap attribute read.
+                from app.valuation_engine import get_cbe_rate
+                cbe_rate = get_cbe_rate()
                 monthly_rate = cbe_rate / 12
                 n_months = years * 12
                 down_payment = price * (dp_pct / 100.0)
