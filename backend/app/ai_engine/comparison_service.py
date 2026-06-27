@@ -29,15 +29,50 @@ _MIN_SINGLE_DEV_SAMPLE_SIZE = 3
 _TIER_MODERATE = 3
 _TIER_HIGH = 10
 
+# R7: data freshness CAPS confidence regardless of sample count — a thick sample
+# scraped months ago is not "high confidence" for a price comparison a buyer acts on.
+_FRESH_DAYS_FOR_HIGH = 60        # data older than this can't be "high"
+_STALE_DAYS_TO_INDICATIVE = 180  # data older than this is only "indicative"
 
-def _confidence_tier(dev_n: int, res_n: int) -> str:
-    """3-tier data confidence based on the smaller of the two sample counts."""
+
+# Sentinel: caller supplied NO freshness info (count-only). Distinct from a
+# supplied None (a DB row with NULL scraped_at, whose age is genuinely unknown).
+_FRESHNESS_UNKNOWN = object()
+
+
+def _confidence_tier(dev_n: int, res_n: int, latest_scraped: Any = _FRESHNESS_UNKNOWN) -> str:
+    """
+    Data confidence from the smaller of the two sample counts, then CAPPED by how
+    fresh the data is (R7): the gap was computed but never used, so 15+15 samples
+    scraped 8 months ago were labeled "high".
+    """
     min_n = min(dev_n, res_n)
     if min_n >= _TIER_HIGH:
-        return "high"
-    if min_n >= _TIER_MODERATE:
+        base = "high"
+    elif min_n >= _TIER_MODERATE:
+        base = "moderate"
+    else:
+        base = "indicative"
+
+    # Caller gave no freshness (count-only callers) — keep count-based.
+    if latest_scraped is _FRESHNESS_UNKNOWN:
+        return base
+    # Freshness supplied but NULL (legacy rows with no scraped_at): age is unknown,
+    # so don't certify "high" on count alone. [R7 review]
+    if latest_scraped is None:
+        return "moderate" if base == "high" else base
+
+    from datetime import datetime, timezone
+
+    ts = latest_scraped
+    if getattr(ts, "tzinfo", None) is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    age_days = (datetime.now(timezone.utc) - ts).days
+    if age_days > _STALE_DAYS_TO_INDICATIVE:
+        return "indicative"
+    if age_days > _FRESH_DAYS_FOR_HIGH and base == "high":
         return "moderate"
-    return "indicative"
+    return base
 
 
 def _type_filter_clause(property_types: Tuple[str, ...]):
@@ -161,6 +196,7 @@ async def compare_compounds(
     for name in compound_names:
         entry: dict[str, Any] = {"compound": name}
         max_gap: Optional[float] = None
+        max_gap_pct: Optional[float] = None  # R8: rank by % discount, not absolute EGP
         any_resale_present = False
         latest_scraped_for_compound = None
 
@@ -170,17 +206,24 @@ async def compare_compounds(
 
             if data and data["dev_n"] >= _MIN_SINGLE_DEV_SAMPLE_SIZE and data["res_n"] > 0 and data["dev_avg"] is not None and data["res_avg"] is not None:
                 gap = data["dev_avg"] - data["res_avg"]
-                tier = _confidence_tier(data["dev_n"], data["res_n"])
+                # R8: rank by PERCENTAGE gap, not absolute EGP. Absolute gap scales
+                # with price, so an expensive compound with a SMALLER % discount would
+                # wrongly win; % also makes comparing across types (villa vs apartment)
+                # fair instead of letting a high-priced villa's EGP gap dominate.
+                gap_pct = (gap / data["dev_avg"]) if data["dev_avg"] else 0.0
+                tier = _confidence_tier(data["dev_n"], data["res_n"], data.get("latest_scraped"))
                 segment = {
                     "dev_avg": data["dev_avg"],
                     "res_avg": data["res_avg"],
                     "gap_egp": gap,
+                    "gap_pct": gap_pct,
                     "dev_n": data["dev_n"],
                     "res_n": data["res_n"],
                     "confidence": tier,
                 }
-                if gap > 0 and (max_gap is None or gap > max_gap):
-                    max_gap = gap
+                if gap > 0 and (max_gap_pct is None or gap_pct > max_gap_pct):
+                    max_gap_pct = gap_pct
+                    max_gap = gap  # absolute gap at the best-% segment, for display
 
             if data and data["res_n"] > 0:
                 any_resale_present = True
@@ -191,6 +234,7 @@ async def compare_compounds(
             entry[ptype] = segment
 
         entry["max_gap_egp"] = max_gap
+        entry["max_gap_pct"] = max_gap_pct
         entry["data_as_of"] = (
             latest_scraped_for_compound.date().isoformat()
             if latest_scraped_for_compound is not None
@@ -208,9 +252,9 @@ async def compare_compounds(
             "missing_compound": missing_compound,
         }
 
-    # Pick the winner: largest positive max_gap_egp across qualifying segments.
-    rankable = [c for c in per_compound if c["max_gap_egp"] is not None and c["max_gap_egp"] > 0]
-    rankable.sort(key=lambda c: c["max_gap_egp"], reverse=True)
+    # Pick the winner by largest % discount (R8), not largest absolute EGP gap.
+    rankable = [c for c in per_compound if c.get("max_gap_pct") is not None and c["max_gap_pct"] > 0]
+    rankable.sort(key=lambda c: c["max_gap_pct"], reverse=True)
     winner = rankable[0]["compound"] if rankable else None
 
     return {

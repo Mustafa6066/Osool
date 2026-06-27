@@ -5,7 +5,7 @@ All DB calls are mocked so no live DB is required.
 Test IDs map 1:1 to the test plan (items 1–8 + edge cases).
 """
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -65,7 +65,9 @@ def _make_row(compound, ptype, dev_avg, dev_n, res_avg, res_n, scraped_at=None):
     row.dev_n = dev_n
     row.res_avg = res_avg
     row.res_n = res_n
-    row.latest_scraped = scraped_at or datetime(2026, 5, 1)
+    # Default to "now" so the R7 freshness cap doesn't silently downgrade
+    # confidence as wall-clock time advances past a hardcoded past date.
+    row.latest_scraped = scraped_at or datetime.now(timezone.utc)
     return row
 
 

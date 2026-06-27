@@ -619,8 +619,10 @@ async def _run_multi_compound(
     apt_seg = winning_entry.get("apartment")
     villa_seg = winning_entry.get("villa")
     if apt_seg and villa_seg:
+        # R8: showcase the segment that WON the compound (highest % discount),
+        # consistent with the winner-by-% ranking — not the larger absolute EGP gap.
         winner_type, winner_seg = (
-            ("apartment", apt_seg) if apt_seg["gap_egp"] >= villa_seg["gap_egp"]
+            ("apartment", apt_seg) if apt_seg.get("gap_pct", 0) >= villa_seg.get("gap_pct", 0)
             else ("villa", villa_seg)
         )
     elif apt_seg:
@@ -628,7 +630,7 @@ async def _run_multi_compound(
     elif villa_seg:
         winner_type, winner_seg = "villa", villa_seg
     else:
-        winner_type, winner_seg = "apartment", {"gap_egp": 0.0, "res_avg": 0.0}
+        winner_type, winner_seg = "apartment", {"gap_egp": 0.0, "gap_pct": 0.0, "res_avg": 0.0}
 
     type_label = (
         copy.TYPE_LABEL_AR.get(winner_type, winner_type)
@@ -675,25 +677,19 @@ async def _run_multi_compound(
             "lock_reason": "premium_required",
         })
 
-    apt = winning_entry.get("apartment")
-    villa = winning_entry.get("villa")
-    if apt and villa:
-        if apt["gap_egp"] >= villa["gap_egp"]:
-            type_key, gap = "apartment", apt["gap_egp"]
-        else:
-            type_key, gap = "villa", villa["gap_egp"]
-    elif apt:
-        type_key, gap = "apartment", apt["gap_egp"]
-    elif villa:
-        type_key, gap = "villa", villa["gap_egp"]
-    else:
-        type_key, gap = "apartment", winning_entry.get("max_gap_egp") or 0.0
+    # R8: the headline reflects the SAME segment that won the compound (by % discount,
+    # picked above), so the shown EGP saving and the % superlative are one consistent
+    # segment — instead of re-picking the larger absolute-EGP segment here.
+    type_key = winner_type
+    gap = winner_seg.get("gap_egp") or 0.0
+    gap_pct_display = round((winner_seg.get("gap_pct") or 0.0) * 100, 1)
 
     if is_arabic:
         headline = copy.MULTI_WINNER_HEADLINE_AR.format(
             n=len(compound_names),
             winner=winner,
             gap_egp=_format_egp(gap),
+            gap_pct=gap_pct_display,
             type_ar=copy.TYPE_LABEL_AR.get(type_key, type_key),
         )
     else:
@@ -701,6 +697,7 @@ async def _run_multi_compound(
             n=len(compound_names),
             winner=winner,
             gap_egp=_format_egp(gap),
+            gap_pct=gap_pct_display,
             type_en=type_key.title(),
         )
 
