@@ -31,36 +31,13 @@ _MAX_PER_RUN = int(os.getenv("EMBED_BACKFILL_MAX_PER_RUN", "2000"))
 
 
 def _build_embedding_text(prop: Property) -> str:
-    """Rich text profile — same shape used by the original bulk ingestion."""
-    content = (
-        f"Property: {prop.title or 'N/A'}\n"
-        f"Type: {prop.type or 'N/A'}\n"
-        f"Location: {prop.location or 'N/A'}\n"
-        f"Compound: {prop.compound or 'N/A'}\n"
-        f"Developer: {prop.developer or 'N/A'}\n"
-        f"Area: {prop.size_sqm or 0} sqm\n"
-        f"Bedrooms: {prop.bedrooms or 0}\n"
-        f"Bathrooms: {prop.bathrooms or 0}\n"
-        f"Price: {prop.price or 0:,.0f} EGP\n"
-        f"Price per sqm: {prop.price_per_sqm or 0:,.0f} EGP\n"
-        f"Delivery: {prop.delivery_date or 'N/A'}\n"
-        f"Sale Type: {prop.sale_type or 'N/A'}\n"
-        f"Finishing: {prop.finishing or 'N/A'}\n"
-        f"Description: {prop.description or ''}"
-    )
-    if prop.is_delivered:
-        content += "\nDelivery Status: Delivered - Ready to Move"
-    if getattr(prop, "is_nawy_now", False):
-        content += "\nNawy Now: Nawy Mortgage Available - Ready to Move"
-    if getattr(prop, "is_cash_only", False):
-        content += "\nPayment: Cash Only"
-    if prop.down_payment or prop.installment_years:
-        content += (
-            f"\nDown Payment: {prop.down_payment or 0}%"
-            f"\nInstallment Years: {prop.installment_years or 0}"
-            f"\nMonthly Installment: {prop.monthly_installment or 0:,.0f} EGP"
-        )
-    return content
+    """Canonical embedding text (X2). Unified in app.services.embedding_text so the
+    in-process backfill, the standalone script, and the bulk seed all produce identical
+    vectors. This path previously diverged (newline + Title-case + price); it now
+    matches the live corpus format (pipe, lowercase, no price)."""
+    from app.services.embedding_text import build_property_embedding_text
+
+    return build_property_embedding_text(prop)
 
 
 async def run_embedding_backfill(max_rows: Optional[int] = None) -> dict:

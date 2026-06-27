@@ -98,10 +98,8 @@ async def migrate_data():
                     f"Price: {price:,.0f} EGP."
                 )
 
-                # Generate Embedding
-                embedding = await get_embedding(description)
-                
-                # Create Property Object
+                # Create Property Object (embedding generated below from the
+                # canonical text, after the object exists).
                 prop = Property(
                     title=title,
                     description=description,
@@ -113,10 +111,15 @@ async def migrate_data():
                     size_sqm=size_sqm,
                     bedrooms=bedrooms,
                     finishing=finishing,
-                    embedding=embedding,
                     is_available=True
                 )
-                
+
+                # X2: embed the SAME canonical text every other path uses, instead of
+                # a bespoke price-laden sentence (which was a 4th divergent corpus
+                # format). Keeps this seed path consistent with the live corpus.
+                from app.services.embedding_text import build_property_embedding_text
+                prop.embedding = await get_embedding(build_property_embedding_text(prop))
+
                 session.add(prop)
                 count += 1
                 

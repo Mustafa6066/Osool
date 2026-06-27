@@ -54,43 +54,16 @@ def load_properties_from_json(filepath: str) -> list:
 
 def create_embedding_text(prop: dict) -> str:
     """
-    Creates rich text content for embedding generation.
-    This text is what the AI will use for semantic search.
+    Text content for embedding generation. X2: delegates to the canonical builder in
+    app.services.embedding_text so this bulk seed, the in-process backfill, and the
+    standalone backfill all produce identical vectors. The canonical accessor maps this
+    script's camelCase keys (pricePerSqm/deliveryDate/saleType/isNawyNow/area) onto the
+    shared schema. (Price/payment are intentionally dropped — they're not in the live
+    corpus format and add token noise without helping semantic match.)
     """
-    content = f"""
-Property: {prop.get('title', 'N/A')}
-Type: {prop.get('type', 'N/A')}
-Location: {prop.get('location', 'N/A')}
-Compound: {prop.get('compound', 'N/A')}
-Developer: {prop.get('developer', 'N/A')}
-Area: {prop.get('area', 0)} sqm
-Bedrooms: {prop.get('bedrooms', 0)}
-Bathrooms: {prop.get('bathrooms', 0)}
-Price: {prop.get('price', 0):,.0f} EGP
-Price per sqm: {prop.get('pricePerSqm', 0):,.0f} EGP
-Delivery: {prop.get('deliveryDate', 'N/A')}
-Sale Type: {prop.get('saleType', 'N/A')}
-Finishing: {prop.get('finishing', 'N/A')}
-Description: {prop.get('description', '')}
-"""
+    from app.services.embedding_text import build_property_embedding_text
 
-    # Resale/delivery enrichment
-    if prop.get('isDelivered') or prop.get('is_delivered'):
-        content += "\nDelivery Status: Delivered - Ready to Move"
-    if prop.get('isNawyNow') or prop.get('is_nawy_now'):
-        content += "\nNawy Now: Nawy Mortgage Available - Ready to Move"
-    if prop.get('isCashOnly') or prop.get('is_cash_only'):
-        content += "\nPayment: Cash Only"
-
-    payment = prop.get('paymentPlan', {})
-    if payment:
-        content += f"""
-Down Payment: {payment.get('downPayment', 0)}%
-Installment Years: {payment.get('installmentYears', 0)}
-Monthly Installment: {payment.get('monthlyInstallment', 0):,.0f} EGP
-"""
-
-    return content.strip()
+    return build_property_embedding_text(prop)
 
 
 def generate_embedding(text: str) -> list:

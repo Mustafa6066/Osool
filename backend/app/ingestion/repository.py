@@ -101,7 +101,10 @@ def compute_content_hash(prop: NormalizedProperty) -> str:
 # Embedding generation removed — scraper is zero-token.
 # New/updated properties are stored with embedding=NULL.
 # Full-text search via search_tsv (tsvector) column remains active.
-# To backfill embeddings, run the standalone embed_backfill task.
+# Backfill: the daily APScheduler cron (scheduler.py daily_embedding_backfill) runs the
+# IN-PROCESS backfill (services/embedding_backfill); scripts/embed_backfill is a manual
+# one-shot. Post-X2 both emit identical canonical text (app/services/embedding_text), so
+# whichever runs produces a consistent corpus.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
