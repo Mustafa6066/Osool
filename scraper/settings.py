@@ -30,8 +30,18 @@ DEFAULT_AREAS: list[str] = [
     "ain-sokhna",
 ]
 
-# Lock TTL must match the orchestrator's scraper-refresh.job.ts (10 minutes).
-SOURCE_LOCK_TTL_SECONDS: int = int(os.getenv("SCRAPER_LOCK_TTL", "600"))
+# Source-lock TTL. Must comfortably exceed the worst-case crawl duration, or the
+# lock expires mid-run and a second crawler starts (double request rate → ban).
+# nawy-all can run for tens of minutes; default 1h, override with SCRAPER_LOCK_TTL.
+# The lock is token-owned and released via compare-and-delete (see main.py), so an
+# expired-then-reacquired lock can never be stolen by the original holder. [S5]
+SOURCE_LOCK_TTL_SECONDS: int = int(os.getenv("SCRAPER_LOCK_TTL", "3600"))
+
+# Source-lock behavior when Redis is unreachable (Phase 1 / S6). Default
+# FAIL-CLOSED: skip the run rather than crawl unsynchronized — concurrent
+# crawlers from a Redis blip are an IP-ban risk, and a skipped refresh is cheap.
+# Set SCRAPER_LOCK_FAIL_OPEN=true to restore the old proceed-anyway behavior.
+SCRAPER_LOCK_FAIL_OPEN: bool = os.getenv("SCRAPER_LOCK_FAIL_OPEN", "false").strip().lower() in ("1", "true", "yes", "on")
 
 # Persistent dir for Scrapling's auto-learned selector state.
 SELECTORS_DIR: Path = Path(os.getenv("SCRAPER_SELECTORS_DIR", "/app/.selectors"))
@@ -49,6 +59,47 @@ MAX_PAGES_PER_AREA: int = int(os.getenv("SCRAPER_MAX_PAGES", "30"))
 #   http://USER:PASS@premium.residential.obscura.example:9000
 # Setting only the standard HTTPS_PROXY env var also works.
 SCRAPER_PROXY_URL: str = os.getenv("SCRAPER_PROXY_URL") or os.getenv("HTTPS_PROXY") or ""
+
+
+# Proxy POOL (Phase 1 / S2). Comma- or newline-separated list of residential
+# proxy URLs. The scraper rotates across healthy proxies and quarantines any that
+# return blocks (403/429/empty body). Falls back to the single SCRAPER_PROXY_URL
+# so existing single-proxy deployments keep working unchanged.
+def _parse_proxy_list() -> list[str]:
+    raw = os.getenv("SCRAPER_PROXY_URLS", "")
+    urls = [u.strip() for u in raw.replace("\n", ",").split(",") if u.strip()]
+    if not urls and SCRAPER_PROXY_URL:
+        urls = [SCRAPER_PROXY_URL]
+    return urls
+
+
+SCRAPER_PROXY_URLS: list[str] = _parse_proxy_list()
+
+
+# Realistic rotating browser User-Agents (Phase 1 / S1). A self-identifying UA
+# like "OsoolScraper/2.0" is trivially fingerprinted and blocked; present as a
+# current desktop browser instead.
+BROWSER_USER_AGENTS: list[str] = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+]
+
+
+def browser_headers(user_agent: str | None = None) -> dict[str, str]:
+    """Browser-like default headers with a (rotating) realistic User-Agent. [S1]"""
+    import random
+
+    ua = user_agent or random.choice(BROWSER_USER_AGENTS)
+    return {
+        "User-Agent": ua,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9,ar;q=0.8",
+        "Upgrade-Insecure-Requests": "1",
+    }
 
 # Browser kill-switch. When true, skip Scrapling/Playwright (Chromium) and
 # fetch via httpx only. Chromium can crash on resource-constrained hosts

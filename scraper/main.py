@@ -16,10 +16,12 @@ import logging
 import sys
 
 from adapters.ingestion import dry_run_print, flush
-from settings import DEFAULT_AREAS, REQUEST_DELAY_SECONDS, SOURCE_LOCK_TTL_SECONDS
+from settings import DEFAULT_AREAS, REQUEST_DELAY_SECONDS
 from sites.aqarmap import AqarmapSpider
 from sites.base import SiteSpider
 from sites.nawy import NawySpider
+from source_lock import acquire_source_lock as _acquire_source_lock
+from source_lock import release_source_lock as _release_source_lock
 
 logger = logging.getLogger("osool.scraper")
 
@@ -38,34 +40,10 @@ def _configure_logging() -> None:
     )
 
 
-async def _acquire_source_lock(site: str) -> bool:
-    """Match the orchestrator's 10-min source lock contract."""
-    try:
-        import redis.asyncio as aioredis
-
-        from settings import REDIS_URL
-
-        client = aioredis.from_url(REDIS_URL, decode_responses=True)
-        key = f"scraper:lock:{site}"
-        async with client:
-            got = await client.set(key, "1", nx=True, ex=SOURCE_LOCK_TTL_SECONDS)
-        return bool(got)
-    except Exception as exc:
-        logger.warning("source lock check failed for %s (proceeding): %s", site, exc)
-        return True
-
-
-async def _release_source_lock(site: str) -> None:
-    try:
-        import redis.asyncio as aioredis
-
-        from settings import REDIS_URL
-
-        client = aioredis.from_url(REDIS_URL, decode_responses=True)
-        async with client:
-            await client.delete(f"scraper:lock:{site}")
-    except Exception:
-        pass
+# Source-lock helpers (_acquire_source_lock / _release_source_lock) now live in
+# source_lock.py so the cron entrypoint AND the on-demand worker share one lock:
+# S5 owner-token + compare-and-delete release, S6 fail-closed on Redis error.
+# [Phase 1 / S5-S7]
 
 
 async def _register_scrape_run_id(run_id: str, source: str = "nawy") -> None:
@@ -124,14 +102,17 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
         logger.error("nawy spider not registered")
         return 1
 
-    got_lock = await _acquire_source_lock("nawy")
-    if not got_lock:
-        logger.warning("[nawy] another run holds the source lock — skipping")
+    lock_token = await _acquire_source_lock("nawy")
+    if not lock_token:
+        logger.warning("[nawy] source busy or lock unavailable — skipping")
         return 0
 
-    spider = spider_cls()
+    # Bind spider before the try so a constructor failure still reaches the
+    # finally and RELEASES the lock (else the lock leaks until TTL ~1h).
+    spider = None
     rc = 0
     try:
+        spider = spider_cls()
         crawl_fn = getattr(spider, crawl_method)
         res = await crawl_fn(max_pages=max_pages, dry_run=dry_run)
         logger.info(
@@ -202,9 +183,9 @@ async def _run_listing_api_mode(crawl_method: str, label: str, dry_run: bool, ma
         logger.exception("[nawy] %s crawl failed: %s", label, exc)
         rc = 1
     finally:
-        if hasattr(spider, "aclose"):
+        if spider is not None and hasattr(spider, "aclose"):
             await spider.aclose()
-        await _release_source_lock("nawy")
+        await _release_source_lock("nawy", lock_token)
     return rc
 
 
@@ -222,13 +203,16 @@ async def run_cron(
             rc = 1
             continue
 
-        got_lock = await _acquire_source_lock(site)
-        if not got_lock:
-            logger.warning("[%s] another run holds the source lock — skipping", site)
+        lock_token = await _acquire_source_lock(site)
+        if not lock_token:
+            logger.warning("[%s] source busy or lock unavailable — skipping", site)
             continue
 
-        spider = spider_cls()
+        # Bind spider before the try so a constructor failure still reaches the
+        # finally and RELEASES the lock (else the lock leaks until TTL ~1h).
+        spider = None
         try:
+            spider = spider_cls()
             for area in areas:
                 if compound_slug:
                     res = await spider.crawl_compound(compound_slug, dry_run=dry_run)
@@ -286,9 +270,9 @@ async def run_cron(
             logger.exception("[%s] crawl failed: %s", site, exc)
             rc = 1
         finally:
-            if hasattr(spider, "aclose"):
+            if spider is not None and hasattr(spider, "aclose"):
                 await spider.aclose()
-            await _release_source_lock(site)
+            await _release_source_lock(site, lock_token)
 
     return rc
 
