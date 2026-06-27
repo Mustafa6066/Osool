@@ -153,11 +153,11 @@ async def compare_compounds(
           "missing_compound": str | None,  # only when a compound has zero resale rows
         }
 
-    Segments with at least _MIN_SINGLE_DEV_SAMPLE_SIZE dev samples AND 1 resale
-    sample are included; low-sample dev buckets are dropped (set to None).
-    confidence field ("indicative" | "moderate" | "high") labels the remaining
-    buckets. Only compounds with zero resale rows trigger missing_compound
-    (the dialog asks the user to swap that compound).
+    Segments with at least 1 dev sample AND 1 resale sample are included; the
+    confidence field ("indicative" | "moderate" | "high") labels how thin the
+    sample is (and is further capped by data freshness — see _confidence_tier)
+    rather than dropping low-sample buckets. Only compounds with zero resale rows
+    trigger missing_compound (the dialog asks the user to swap that compound).
     """
     if not compound_names:
         return {"per_compound": [], "winner": None, "missing_compound": None}
@@ -204,7 +204,12 @@ async def compare_compounds(
             data = bucket.get((name, ptype.lower()))
             segment: Optional[dict[str, Any]] = None
 
-            if data and data["dev_n"] >= _MIN_SINGLE_DEV_SAMPLE_SIZE and data["res_n"] > 0 and data["dev_avg"] is not None and data["res_avg"] is not None:
+            # Include any segment with ≥1 dev + ≥1 resale sample; the confidence
+            # tier (indicative/moderate/high) labels how thin it is rather than
+            # silently DROPPING low-sample buckets. (_MIN_SINGLE_DEV_SAMPLE_SIZE is
+            # best_deals_in_compound's benchmark threshold, not an inclusion gate
+            # for the multi-compound comparison.)
+            if data and data["dev_n"] >= 1 and data["res_n"] > 0 and data["dev_avg"] is not None and data["res_avg"] is not None:
                 gap = data["dev_avg"] - data["res_avg"]
                 # R8: rank by PERCENTAGE gap, not absolute EGP. Absolute gap scales
                 # with price, so an expensive compound with a SMALLER % discount would
