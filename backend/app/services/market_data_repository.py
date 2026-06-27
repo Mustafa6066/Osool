@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import OrderedDict
 from typing import Optional
 
 from sqlalchemy import case, func, select
@@ -27,7 +28,12 @@ logger = logging.getLogger(__name__)
 # Lightweight in-process cache. TTL keeps it cheap; admin refresh endpoint
 # clears it to force a re-read.
 _CACHE_TTL_SECONDS = 600
-_cache: dict[str, tuple[float, object]] = {}
+# R5: bound the cache. Keys are normalized free-text location/developer needles, so a
+# varied (or hostile) query stream would grow it without limit — the old plain dict
+# only evicted on TTL-expiry AT access, never by size, so entries that were cached
+# and never queried again lingered forever. LRU eviction + a hard cap fixes that.
+_CACHE_MAX_ENTRIES = 2048
+_cache: "OrderedDict[str, tuple[float, object]]" = OrderedDict()
 
 
 def _cache_get(key: str):
@@ -38,11 +44,16 @@ def _cache_get(key: str):
     if expires_at < time.time():
         _cache.pop(key, None)
         return None
+    _cache.move_to_end(key)  # LRU: mark most-recently used
     return value
 
 
 def _cache_set(key: str, value, ttl: int = _CACHE_TTL_SECONDS):
     _cache[key] = (time.time() + ttl, value)
+    _cache.move_to_end(key)
+    # Evict least-recently-used entries once over the cap.
+    while len(_cache) > _CACHE_MAX_ENTRIES:
+        _cache.popitem(last=False)
 
 
 def clear_cache() -> int:
