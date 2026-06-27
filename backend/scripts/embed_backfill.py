@@ -50,34 +50,12 @@ def _canonical_text(row: dict) -> str:
     property always produces the same embedding (assuming the model is
     unchanged). Order: identifying fields first, then descriptive ones.
     """
-    parts: list[str] = []
+    # X2: the canonical builder now lives in app.services.embedding_text so every
+    # embedding path produces byte-identical text. This format is the original here
+    # (the live corpus was backfilled by this task), so output is unchanged.
+    from app.services.embedding_text import build_property_embedding_text
 
-    def add(label: str, val):
-        if val is None:
-            return
-        s = str(val).strip()
-        if s:
-            parts.append(f"{label}: {s}")
-
-    add("title", row.get("title"))
-    add("type", row.get("type"))
-    add("compound", row.get("compound"))
-    add("developer", row.get("developer"))
-    add("location", row.get("location"))
-    add("size_sqm", row.get("size_sqm"))
-    add("bedrooms", row.get("bedrooms"))
-    add("bathrooms", row.get("bathrooms"))
-    add("finishing", row.get("finishing"))
-    add("delivery_date", row.get("delivery_date"))
-    if row.get("is_nawy_now"):
-        parts.append("tag: nawy_now (instant delivery)")
-    if row.get("is_delivered"):
-        parts.append("tag: delivered")
-    add("sale_type", row.get("sale_type"))
-    desc = (row.get("description") or "").strip()
-    if desc:
-        parts.append(f"description: {desc[:600]}")
-    return " | ".join(parts)
+    return build_property_embedding_text(row)
 
 
 async def _generate_batch(texts: list[str]) -> list[list[float]]:
