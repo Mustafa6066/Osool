@@ -116,9 +116,22 @@ class NawyApiScraper:
             price_int = PropertyNormalizer.clean_price(str(price))
             size_int = PropertyNormalizer.extract_size(str(size))
 
+            # `area` is also used as a numeric built-up-area size fallback above,
+            # so never treat a number as a location — fall back to explicit area
+            # keys. A wrong (numeric) location would fail validation and DROP the row.
+            node_area = node.get("area")
+            if isinstance(node_area, dict):
+                node_area = node_area.get("name")
+            elif not isinstance(node_area, str):
+                node_area = None
+            node_area = node_area or node.get("areaName") or node.get("city")
+            raw_url = node.get("url")
+
             return {
                 "title": node.get("name") or node.get("title", "Property in New Cairo"),
-                "location": "new cairo",
+                # I19: derive the real area; never hardcode "new cairo" (that
+                # poisons the New Cairo median). None → "Unknown" downstream.
+                "location": node_area or None,
                 "compound": node.get("compound", {}).get("name") if isinstance(node.get("compound"), dict) else node.get("compound"),
                 "developer": node.get("developer", {}).get("name") if isinstance(node.get("developer"), dict) else node.get("developer"),
                 "price": price_int,
@@ -131,7 +144,10 @@ class NawyApiScraper:
                 "is_nawy_now": node.get("isNawyNow", False),
                 "installment_years": node.get("paymentPlanYears", 0),
                 "down_payment": node.get("downPayment", 0),
-                "nawy_url": f"https://www.nawy.com{node.get('url', '')}",
+                # I11: only build a URL when the node has one — never synthesize
+                # the bare base URL (all url-less rows would collapse onto it and
+                # overwrite each other on the single nawy_url dedup key).
+                "nawy_url": f"https://www.nawy.com{raw_url}" if raw_url else None,
                 "nawy_reference": node.get("id") or node.get("reference"),
                 "image_url": node.get("image", {}).get("url") if isinstance(node.get("image"), dict) else None
             }

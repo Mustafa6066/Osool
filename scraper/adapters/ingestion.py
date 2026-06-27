@@ -27,10 +27,16 @@ from app.ingestion.deterministic_normalizer import (
     normalize_unit_list,
 )
 from app.ingestion.repository import UpsertResult, upsert_properties
-from app.ingestion.scraper_schemas import validate_raw_batch
+from app.ingestion.scraper_schemas import ScrapeHealthReport, validate_raw_batch
 from settings import HEALTH_ALERT_KEEP, HEALTH_ALERT_KEY, REDIS_URL
 
 logger = logging.getLogger(__name__)
+
+# I20: alert only on a TOTAL envelope failure (no compound in a batch of at least
+# this many produced ANY unit) — a high-confidence schema-drift / block-page signal.
+# A partial-failure rate was deliberately dropped: a batch can legitimately contain
+# sold-out (zero-available-unit) compounds, indistinguishable from drift per-envelope.
+_ENVELOPE_MIN_FOR_ALERT = 3
 
 
 @dataclass
@@ -80,13 +86,22 @@ async def flush(
 
     # Normalize
     normalized = []
+    env_ok = 0
+    env_failed = 0
 
     if envelopes:
         for env in envelopes:
             try:
                 res: NormalizationResult = await normalize_properties(env)
-                normalized.extend(res.properties)
+                if res.properties:
+                    env_ok += 1
+                    normalized.extend(res.properties)
+                else:
+                    # Parsed but yielded no units — schema drift / consent wall, or
+                    # I18 refused to collapse a compound into one bogus row.
+                    env_failed += 1
             except Exception as exc:
+                env_failed += 1
                 logger.exception("[ingestion] envelope normalize failed: %s", exc)
 
     if valid_units:
@@ -94,9 +109,31 @@ async def flush(
         normalized.extend(res.properties)
 
     logger.info(
-        "[ingestion] %s run=%s → %d normalized properties (from %d envelopes + %d flat units)",
-        site, run_id[:8], len(normalized), len(envelopes), len(flat_units),
+        "[ingestion] %s run=%s → %d normalized properties "
+        "(from %d envelopes [%d ok / %d failed] + %d flat units)",
+        site, run_id[:8], len(normalized), len(envelopes), env_ok, env_failed, len(flat_units),
     )
+
+    # ── Health gate (I20) ──────────────────────────────────────────────────────
+    # The flat-unit path alerts via `report`; the Nawy ENVELOPE path had NO health
+    # gate, so an all-failed envelope batch (schema drift / a block page) returned
+    # valid_count=0 and looked like a quiet day. Computed BEFORE the empty-batch
+    # early return so a total envelope failure still alerts.
+    alert_sent = False
+    if report and report.needs_alert:
+        alert_sent = await _push_health_alert(site, run_id, report)
+    if envelopes and env_ok == 0 and len(envelopes) >= _ENVELOPE_MIN_FOR_ALERT:
+        # Every compound in a non-trivial batch produced zero units — almost
+        # certainly schema drift / a block page, not a batch that is 100% sold out.
+        env_report = ScrapeHealthReport(
+            total_raw=len(envelopes), valid=0, rejected=env_failed,
+        )
+        env_report.null_rate_price = 1.0  # feeds the summary string
+        logger.error(
+            "[ingestion] %s ENVELOPE health: 0/%d envelopes produced any units — alerting",
+            site, len(envelopes),
+        )
+        alert_sent = (await _push_health_alert(site, run_id, env_report)) or alert_sent
 
     if not normalized:
         return FlushResult(
@@ -104,8 +141,8 @@ async def flush(
             run_id=run_id,
             upserted=UpsertResult(),
             valid_count=0,
-            rejected_count=(report.rejected if report else 0),
-            alert_sent=False,
+            rejected_count=(report.rejected if report else env_failed),
+            alert_sent=alert_sent,
         )
 
     # Attribute rows to their real feed (I22 / I31) so source-scoped stale-
@@ -115,16 +152,12 @@ async def flush(
         normalized, run_id=run_id, skip_anomaly_check=skip_anomaly_check, source=site
     )
 
-    alert_sent = False
-    if report and report.needs_alert:
-        alert_sent = await _push_health_alert(site, run_id, report)
-
     return FlushResult(
         site=site,
         run_id=run_id,
         upserted=upsert_result,
         valid_count=len(normalized),
-        rejected_count=(report.rejected if report else 0),
+        rejected_count=(report.rejected if report else env_failed),
         alert_sent=alert_sent,
     )
 
